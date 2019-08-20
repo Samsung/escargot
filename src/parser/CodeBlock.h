@@ -587,7 +587,11 @@ public:
                 return info;
             }
 
-            upperIndex++;
+            if (blk == this) {
+                upperIndex += 1;
+            } else {
+                upperIndex += !blk->canAllocateEnvironmentOnStack();
+            }
             blockIndex = blk->lexicalBlockIndexFunctionLocatedIn();
             blk = blk->asInterpretedCodeBlock()->parentCodeBlock();
         }

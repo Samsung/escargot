@@ -22,6 +22,7 @@
 
 namespace Escargot {
 
+class Value;
 class String;
 class Symbol;
 class Object;
@@ -63,6 +64,9 @@ class GeneratorObject;
 // so, we can remove POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA in very small device future
 
 class PointerValue : public gc {
+    friend class ByteCodeInterpreter;
+    friend class Object;
+
 public:
     virtual ~PointerValue() {}
     virtual bool isString() const
@@ -442,6 +446,10 @@ public:
     {
         return *((size_t*)(this) + 1);
     }
+
+private:
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
+    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget);
 };
 }
 

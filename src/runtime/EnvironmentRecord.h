@@ -163,6 +163,11 @@ public:
         return false;
     }
 
+    virtual bool isAllocatedOnHeap()
+    {
+        return true;
+    }
+
     GlobalEnvironmentRecord* asGlobalEnvironmentRecord()
     {
         ASSERT(isGlobalEnvironmentRecord());
@@ -841,6 +846,11 @@ public:
     virtual bool isFunctionEnvironmentRecordOnStack() override
     {
         return true;
+    }
+
+    virtual bool isAllocatedOnHeap() override
+    {
+        return false;
     }
 };
 

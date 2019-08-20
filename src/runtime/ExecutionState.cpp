@@ -41,6 +41,20 @@ ExecutionStateRareData* ExecutionState::ensureRareData()
     return rareData();
 }
 
+LexicalEnvironment* ExecutionState::mostNearestHeapAllocatedLexicalEnvironment()
+{
+    LexicalEnvironment* env = m_lexicalEnvironment;
+
+    while (env) {
+        if (env->record() && env->record()->isAllocatedOnHeap()) {
+            return env;
+        }
+        env = env->outerEnvironment();
+    }
+
+    return nullptr;
+}
+
 Object* ExecutionState::getNewTarget()
 {
     EnvironmentRecord* envRec = getThisEnvironment();

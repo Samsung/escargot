@@ -99,7 +99,6 @@ public:
 
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
-                    ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
                     if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
                         codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
                     } else {
@@ -164,7 +163,6 @@ public:
 
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
-                    ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
                 } else {
                     codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
