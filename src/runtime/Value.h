@@ -252,6 +252,7 @@ public:
 #endif
 
     intptr_t payload() const;
+    static constexpr double maximumLength();
 
 private:
     ValueDescriptor u;

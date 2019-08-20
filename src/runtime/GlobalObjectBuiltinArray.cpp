@@ -72,8 +72,8 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     return array;
 }
 
-#define CHECK_ARRAY_LENGTH(num, limit)                                                                               \
-    if ((num) >= (limit)) {                                                                                          \
+#define CHECK_ARRAY_LENGTH(COND)                                                                                     \
+    if (COND) {                                                                                                      \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_InvalidArrayLength); \
     }
 
@@ -284,7 +284,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, Array, join);
-    int64_t len = thisBinded->length(state);
+    int64_t len = thisBinded->lengthES6(state);
     Value separator = argv[0];
     size_t lenMax = STRING_MAXIMUM_LENGTH;
     String* sep;
@@ -343,11 +343,11 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reverse);
-    unsigned len = O->length(state);
-    unsigned middle = std::floor(len / 2);
-    unsigned lower = 0;
+    int64_t len = O->lengthES6(state);
+    int64_t middle = std::floor(len / 2);
+    int64_t lower = 0;
     while (middle > lower) {
-        unsigned upper = len - lower - 1;
+        int64_t upper = len - lower - 1;
         ObjectPropertyName upperP = ObjectPropertyName(state, Value(upper));
         ObjectPropertyName lowerP = ObjectPropertyName(state, Value(lower));
 
@@ -373,12 +373,12 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
         } else {
             double result;
             Object::nextIndexForward(state, O, lower, middle, false, result);
-            unsigned nextLower = result;
+            int64_t nextLower = result;
             Object::nextIndexBackward(state, O, upper, middle, false, result);
-            unsigned nextUpper = result;
-            unsigned x = middle - nextLower;
-            unsigned y = nextUpper - middle;
-            unsigned lowerCandidate;
+            int64_t nextUpper = result;
+            int64_t x = middle - nextLower;
+            int64_t y = nextUpper - middle;
+            int64_t lowerCandidate;
             if (x > y) {
                 lowerCandidate = nextLower;
             } else {
@@ -435,8 +435,8 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, splice);
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
-    // Let len be ToUint32(lenVal).
-    int64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // Let relativeStart be ToInteger(start).
     double relativeStart = argv[0].toInteger(state);
@@ -469,7 +469,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         actualDeleteCount = std::min(std::max(dc, 0.0), (double)(len - actualStart));
     }
     // If len+insertCount−actualDeleteCount > 2^53-1, throw a TypeError exception.
-    CHECK_ARRAY_LENGTH(len + insertCount - actualDeleteCount, (1LL << 53));
+    CHECK_ARRAY_LENGTH(len + insertCount - actualDeleteCount > Value::maximumLength());
     // Let A be ArraySpeciesCreate(O, actualDeleteCount).
     Value val = arraySpeciesCreate(state, O, actualDeleteCount);
     ASSERT(val.isObject());
@@ -629,7 +629,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 uint64_t len = arr->lengthES6(state);
 
                 // If n + len > 2^53 - 1, throw a TypeError exception.
-                CHECK_ARRAY_LENGTH(n + len, (1ULL << 53));
+                CHECK_ARRAY_LENGTH(n + len > Value::maximumLength());
 
                 // Repeat, while k < len
                 while (k < len) {
@@ -648,8 +648,8 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 n += len;
                 obj->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), obj);
             } else {
-                // If n + len >= 2^53 - 1, throw a TypeError exception.
-                CHECK_ARRAY_LENGTH(n, (1ULL << 53) - 1);
+                // If n >= 2^53 - 1, throw a TypeError exception.
+                CHECK_ARRAY_LENGTH(n >= Value::maximumLength());
 
                 obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(arr, ObjectPropertyDescriptor::AllPresent));
                 n++;
@@ -665,12 +665,12 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, slice);
-    int64_t len = thisObject->length(state);
+    int64_t len = thisObject->lengthES6(state);
     double relativeStart = argv[0].toInteger(state);
     int64_t k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
     int64_t kStart = k;
     double relativeEnd = (argv[1].isUndefined()) ? len : argv[1].toInteger(state);
-    uint32_t finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
+    int64_t finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
 
     int64_t n = 0;
     // Let count be max(final - k, 0).
@@ -704,7 +704,7 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, forEach);
-    uint32_t len = thisObject->length(state);
+    int64_t len = thisObject->lengthES6(state);
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -717,7 +717,7 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
     if (argc > 1)
         T = argv[1];
 
-    uint32_t k = 0;
+    int64_t k = 0;
     while (k < len) {
         Value Pk = Value(k);
         auto res = thisObject->get(state, ObjectPropertyName(state, Pk));
@@ -741,8 +741,8 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, indexOf);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    int64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -809,8 +809,8 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, lastIndexOf);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    int64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -867,8 +867,8 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, every);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    uint32_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -883,7 +883,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
         T = argv[1];
 
     // Let k be 0.
-    uint32_t k = 0;
+    int64_t k = 0;
 
     while (k < len) {
         // Let Pk be ToString(k).
@@ -919,8 +919,8 @@ static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t arg
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, fill);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    double len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->length(state);
 
     // Let relativeStart be ToInteger(start).
     double relativeStart = 0;
@@ -929,7 +929,7 @@ static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t arg
     }
 
     // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
-    unsigned k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+    int64_t k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
 
     // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
     double relativeEnd = len;
@@ -938,7 +938,7 @@ static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t arg
     }
 
     // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
-    unsigned fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+    int64_t fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
 
     Value value = argv[0];
     while (k < fin) {
@@ -955,8 +955,8 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, filter);
 
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    uint32_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -977,9 +977,9 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
     ArrayObject* A = val.asObject()->asArrayObject();
 
     // Let k be 0.
-    uint64_t k = 0;
+    int64_t k = 0;
     // Let to be 0.
-    uint64_t to = 0;
+    int64_t to = 0;
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ToString(k).
@@ -1022,8 +1022,8 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, map);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    uint64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1043,7 +1043,7 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     ArrayObject* A = val.asObject()->asArrayObject();
 
     // Let k be 0.
-    uint64_t k = 0;
+    int64_t k = 0;
 
     // Repeat, while k < len
     while (k < len) {
@@ -1079,8 +1079,8 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, some);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    uint64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1095,7 +1095,7 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
     }
 
     // Let k be 0.
-    uint64_t k = 0;
+    int64_t k = 0;
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ToString(k).
@@ -1263,7 +1263,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduce);
-    uint32_t len = O->length(state); // 2-3
+    int64_t len = O->lengthES6(state); // 2-3
     Value callbackfn = argv[0];
     Value initialValue = Value(Value::EmptyValue);
     if (argc > 1) {
@@ -1276,7 +1276,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
     if (len == 0 && (initialValue.isUndefined() || initialValue.isEmpty())) // 5
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_ReduceError);
 
-    size_t k = 0; // 6
+    int64_t k = 0; // 6
     Value accumulator;
     if (!initialValue.isEmpty()) { // 7
         accumulator = initialValue;
@@ -1316,8 +1316,8 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduceRight);
 
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    // Let len be ToUint32(lenValue).
-    int64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1403,7 +1403,7 @@ static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToUint32(lenVal).
-    uint32_t len = O->length(state);
+    int64_t len = O->lengthES6(state);
 
     // If len is zero,
     if (len == 0) {
@@ -1433,11 +1433,11 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, push);
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
-    // Let n be ToUint32(lenVal).
-    int64_t n = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t n = O->lengthES6(state);
 
     // If len + argCount > 2^53 - 1, throw a TypeError exception.
-    CHECK_ARRAY_LENGTH((size_t)n + argc, (1ULL << 53));
+    CHECK_ARRAY_LENGTH(n + argc > Value::maximumLength());
 
     // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
     // Repeat, while items is not empty
@@ -1461,8 +1461,8 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, shift);
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
-    // Let len be ToUint32(lenVal).
-    int64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
     // If len is zero, then
     if (len == 0) {
         // Call the [[Put]] internal method of O with arguments "length", 0, and true.
@@ -1522,8 +1522,8 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, unshift);
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
-    // Let len be ToUint32(lenVal).
-    int64_t len = O->length(state);
+    // Let len be ToLength(Get(O, "length")).
+    int64_t len = O->lengthES6(state);
 
     // Let argCount be the number of actual arguments.
     size_t argCount = argc;
@@ -1536,7 +1536,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.4.13
     if (argCount) {
         // If len + argCount > 2^53 - 1, throw a TypeError exception.
-        CHECK_ARRAY_LENGTH(size_t(len + argCount), (1ULL << 53));
+        CHECK_ARRAY_LENGTH(len + argCount > Value::maximumLength());
 
         // Repeat, while k > 0,
         while (k > 0) {
@@ -1575,7 +1575,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
         }
 
         // Let j be 0.
-        size_t j = 0;
+        uint64_t j = 0;
         // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
         Value* items = argv;
 
