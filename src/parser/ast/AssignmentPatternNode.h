@@ -17,28 +17,29 @@
  *  USA
  */
 
-#ifndef DefaultArgumentNode_h
-#define DefaultArgumentNode_h
+#ifndef AssignmentPatternNode_h
+#define AssignmentPatternNode_h
 
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
 #include "PatternNode.h"
 #include "MemberExpressionNode.h"
+#include "LiteralNode.h"
 
 namespace Escargot {
 
-class DefaultArgumentNode : public ExpressionNode {
+class AssignmentPatternNode : public ExpressionNode {
 public:
     friend class ScriptParser;
 
-    DefaultArgumentNode(Node* left, Node* right)
+    AssignmentPatternNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
         , m_right(right)
     {
     }
 
-    virtual ~DefaultArgumentNode()
+    virtual ~AssignmentPatternNode()
     {
     }
 
@@ -57,11 +58,12 @@ public:
         return m_right.get();
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::DefaultArgument; }
+    virtual ASTNodeType type() { return ASTNodeType::AssignmentPattern; }
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        size_t undefinedIndex = context->getRegister();
-        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+        LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
+        size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
+        undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
 
         size_t src0 = m_left->getRegister(codeBlock, context);
         m_left->generateExpressionByteCode(codeBlock, context, src0);
@@ -78,7 +80,7 @@ public:
 
         context->giveUpRegister(); // for drop cmpIndex
 
-        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_left.get(), m_right.get()));
+        AssignmentExpressionSimpleNode* assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_left.get(), m_right.get());
         assign->m_loc = m_loc;
         assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
 
@@ -88,14 +90,14 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         // Note: This could only happen by destructuring a pattern
-        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_left.get(), m_right.get()));
+        AssignmentExpressionSimpleNode* assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_left.get(), m_right.get());
         assign->m_loc = m_loc;
         assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
     }
 
 
 private:
-    RefPtr<Node> m_left; // left: Identifier;
+    RefPtr<Node> m_left; // left: Pattern;
     RefPtr<Node> m_right; // right: Expression;
 };
 }
