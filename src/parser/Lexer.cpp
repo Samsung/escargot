@@ -497,7 +497,7 @@ StringView* Scanner::ScannerResult::valueStringLiteral()
     if (this->type == Token::StringLiteralToken && !plain && valueStringLiteralData->length() == 0) {
         constructStringLiteral();
     }
-    ASSERT(valueStringLiteralData->getTagInFirstDataArea() == POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA);
+    ASSERT(valueStringLiteralData->getTagInFirstDataArea() == POINTER_VALUE_STRING_TAG_IN_DATA);
     return valueStringLiteralData;
 }
 

@@ -32,7 +32,7 @@ class ByteCodeBlock;
 class LexicalEnvironment;
 struct GetObjectInlineCache;
 struct SetObjectInlineCache;
-struct EnumerateObjectData;
+class EnumerateObjectData;
 struct GlobalVariableAccessCacheItem;
 class InitializeGlobalVariable;
 class CallFunctionInWithScope;

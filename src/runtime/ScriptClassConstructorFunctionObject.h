@@ -36,7 +36,7 @@ public:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
-    bool isConstructor() const
+    bool isConstructor() const override
     {
         return true;
     }

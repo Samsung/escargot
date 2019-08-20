@@ -447,7 +447,7 @@ public:
         m_heapStorage[idx] = v;
     }
 
-    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
     }
@@ -488,7 +488,7 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
         const auto& v = m_blockInfo->m_identifiers;
 
@@ -746,7 +746,7 @@ public:
         return m_functionObject;
     }
 
-    virtual bool hasSuperBinding()
+    virtual bool hasSuperBinding() override
     {
         if (thisMode() == FunctionObject::ThisMode::Lexical) {
             return false;
@@ -821,12 +821,12 @@ public:
         return m_piece.getThisBinding(state);
     }
 
-    Object* newTarget()
+    Object* newTarget() override
     {
         return m_piece.newTarget();
     }
 
-    void setNewTarget(Object* newTarget)
+    void setNewTarget(Object* newTarget) override
     {
         m_piece.setNewTarget(newTarget);
     }
@@ -913,7 +913,7 @@ public:
         m_heapStorage[idx] = v;
     }
 
-    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         m_heapStorage[idx] = v;
     }

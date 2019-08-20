@@ -3,8 +3,8 @@ def isPr() {
 }
 
 timeout(60) {
-    try {
-        node {
+    node {
+        try {
             stage("Get source") {
                 def url = 'https://github.com/Samsung/escargot.git'
 
@@ -40,6 +40,7 @@ timeout(60) {
             stage('Check tidy') {
                 sh 'python tools/check_tidy.py'
             }
+
             stage('Submodule update') {
                 sh 'git submodule init test/'
                 sh 'git submodule init third_party/GCutil'
@@ -49,7 +50,18 @@ timeout(60) {
                 sh 'git submodule init third_party/yarr'
                 sh 'git submodule update'
             }
-            stage('Prepare build') {
+
+            stage('Prepare build(clang)') {
+                sh 'CC=clang-6.0 CXX=clang++-6.0 LDFLAGS=" -L/usr/icu32/lib/  -Wl,-rpath=/usr/icu32/lib/" cmake  -H./ -Bbuild/out_linux_clang -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja'
+                sh 'CC=clang-6.0 CXX=clang++-6.0 cmake  -H./ -Bbuild/out_linux64_clang -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja'
+            }
+
+            stage('Build(clang)') {
+                sh 'cd build/out_linux_clang/; ninja '
+                sh 'cd build/out_linux64_clang/; ninja'
+            }
+
+            stage('Prepare build(gcc)') {
             parallel (
                 'npm' : {
                     sh 'npm install'
@@ -66,12 +78,14 @@ timeout(60) {
                 }
             )
             }
-            stage('Build') {
+
+            stage('Build(gcc)') {
                 sh 'cd build/out_linux/; ninja '
                 sh 'cd build/out_linux64/; ninja'
                 sh 'cd build/out_linux_release/; ninja'
                 sh 'cd build/out_linux64_release/; ninja'
             }
+
             stage('Running test') {
             parallel (
                 'release-32bit-jetstream-1' : {
@@ -114,11 +128,10 @@ timeout(60) {
                 },
             )
             }
-        }
-    } catch (e) {
-        throw e
-    } finally {
-        node {
+
+        } catch (e) {
+            throw e
+        } finally {
             cleanWs()
         }
     }
