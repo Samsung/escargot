@@ -48,7 +48,7 @@ protected:
         return true;
     }
 
-    bool isConstructor() const
+    bool isConstructor() const override
     {
         return true;
     }

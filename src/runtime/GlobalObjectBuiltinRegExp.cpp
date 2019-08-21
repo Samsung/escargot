@@ -242,7 +242,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     size_t lengthA = 0;
     // If limit is undefined, let lim be 2^53–1; else let lim be ToLength(limit).
     // Note: using toUint32() here since toLength() returns 0 for negative values, which leads to incorrect behavior.
-    size_t lim = argc > 1 && !argv[1].isUndefined() ? argv[1].toUint32(state) : (1ULL << 53) - 1;
+    uint64_t lim = argc > 1 && !argv[1].isUndefined() ? argv[1].toUint32(state) : (1ULL << 53) - 1;
 
     // Let size be the number of elements in S.
     size_t size = S->length();

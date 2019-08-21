@@ -52,14 +52,15 @@ class WeakMapObject;
 class WeakSetObject;
 class GeneratorObject;
 
-#define POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA 0x3
+#define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
+#define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
 // finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
 // Only Object, String are seen in regular runtime-code
 // We figure what type of PointerValue by POINTER_VALUE_STRING_TAG_IN_DATA
 //   - Every data area of Object starts with [<vtable>, m_structure...]
 //   - Every data area of String starts with [<vtable>, POINTER_VALUE_STRING_TAG_IN_DATA ...]
 // finding what is type of PointerValue(Object, String) without accessing vtable provides gives better performance
-// but, it uses more memory for String type
+// but, it uses more memory for String,Symbol type
 // POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
 // so, we can remove POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA in very small device future
 
@@ -69,17 +70,32 @@ class PointerValue : public gc {
 
 public:
     virtual ~PointerValue() {}
-    virtual bool isString() const
+    bool isString() const
+    {
+        return isStringByDataTag();
+    }
+
+    virtual bool isStringByVTable() const
     {
         return false;
     }
 
-    virtual bool isSymbol() const
+    bool isSymbol() const
+    {
+        return isSymbolByDataTag();
+    }
+
+    virtual bool isSymbolByVTable() const
     {
         return false;
     }
 
-    virtual bool isObject() const
+    bool isObject() const
+    {
+        return isObjectByDataTag();
+    }
+
+    virtual bool isObjectByVTable() const
     {
         return false;
     }
@@ -261,13 +277,13 @@ public:
 
     String* asString()
     {
-        ASSERT(isString());
+        ASSERT(isStringByVTable());
         return (String*)this;
     }
 
     Symbol* asSymbol()
     {
-        ASSERT(isSymbol());
+        ASSERT(isSymbolByVTable());
         return (Symbol*)this;
     }
 
@@ -445,6 +461,21 @@ public:
     size_t getTagInFirstDataArea() const
     {
         return *((size_t*)(this) + 1);
+    }
+
+    bool isObjectByDataTag() const
+    {
+        return !(getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA));
+    }
+
+    bool isStringByDataTag() const
+    {
+        return getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA;
+    }
+
+    bool isSymbolByDataTag() const
+    {
+        return getTagInFirstDataArea() & POINTER_VALUE_SYMBOL_TAG_IN_DATA;
     }
 
 private:

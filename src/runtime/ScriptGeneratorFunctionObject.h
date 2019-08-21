@@ -35,7 +35,7 @@ public:
     {
     }
 
-    bool isConstructor() const
+    bool isConstructor() const override
     {
         return false;
     }

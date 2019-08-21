@@ -543,7 +543,7 @@ public:
     explicit Object(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
 
-    virtual bool isObject() const
+    virtual bool isObjectByVTable() const override
     {
         return true;
     }
@@ -637,7 +637,8 @@ public:
     }
 
     // internal [[prototype]]
-    virtual Object* getPrototypeObject(ExecutionState&)
+    // this function can be inlined on ByteCodeInterpreter
+    ALWAYS_INLINE virtual Object* getPrototypeObject(ExecutionState&)
     {
         Object* prototype = m_prototype;
 

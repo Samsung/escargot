@@ -748,7 +748,10 @@ String* String::substring(size_t from, size_t to)
 size_t String::advanceStringIndex(size_t index, bool unicode)
 {
     ASSERT(isString());
-    ASSERT(int64_t(index) >= 0 && index <= (1ULL << 53) - 1);
+#ifndef ESCARGOT_32
+    // in 32bit, this assert is always true
+    ASSERT(index <= (1ULL << 53) - 1);
+#endif
     // If unicode is false, return index + 1.
     if (!unicode) {
         return index + 1;

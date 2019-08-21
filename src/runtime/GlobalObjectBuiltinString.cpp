@@ -502,7 +502,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     Value separator = argv[0];
     bool isSeparatorRegExp = separator.isPointerValue() && separator.asPointerValue()->isRegExpObject(state);
     Value limit = argv[1];
-    size_t lim;
+    uint64_t lim;
     // If separator is neither undefined nor null, then
     if (!separator.isUndefinedOrNull()) {
         // Let splitter be GetMethod(separator, @@split).

@@ -114,7 +114,7 @@ extern size_t g_objectTag;
 inline Value::Value(PointerValue* ptr)
 {
     // other type of PointerValue(Object) has pointer in first data area
-    if (ptr->getTagInFirstDataArea() & POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA) {
+    if (ptr->getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA)) {
         u.asBits.tag = OtherPointerTag;
     } else {
         u.asBits.tag = ObjectPointerTag;

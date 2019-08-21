@@ -29,12 +29,12 @@ extern size_t g_symbolTag;
 class Symbol : public PointerValue {
 public:
     explicit Symbol(String* desc = String::emptyString)
-        : m_tag(POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA)
+        : m_tag(POINTER_VALUE_SYMBOL_TAG_IN_DATA)
         , m_description(desc)
     {
     }
 
-    virtual bool isSymbol() const
+    virtual bool isSymbolByVTable() const override
     {
         return true;
     }

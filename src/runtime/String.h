@@ -154,11 +154,11 @@ class String : public PointerValue {
 public:
     String()
     {
-        m_tag = POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA;
+        m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
         m_bufferAccessData.hasSpecialImpl = false;
     }
 
-    virtual bool isString() const
+    virtual bool isStringByVTable() const override
     {
         return true;
     }

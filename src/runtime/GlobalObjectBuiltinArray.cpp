@@ -1437,7 +1437,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     int64_t n = O->lengthES6(state);
 
     // If len + argCount > 2^53 - 1, throw a TypeError exception.
-    CHECK_ARRAY_LENGTH(n + argc > Value::maximumLength());
+    CHECK_ARRAY_LENGTH((uint64_t)n + argc > Value::maximumLength());
 
     // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
     // Repeat, while items is not empty
