@@ -2003,7 +2003,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
 
     data->m_hiddenClassChain.push_back(newItem);
 
-    std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> keyStringSet;
+    std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>> keyStringSet;
 
     target = target.asObject()->getPrototype(state);
     while (target.isObject()) {
@@ -2025,7 +2025,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
 
     target = obj;
     struct EData {
-        std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_ignore_off_page_allocator<String*>>* keyStringSet;
+        std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>>* keyStringSet;
         EnumerateObjectData* data;
         Object* obj;
         size_t* idx;
@@ -2082,11 +2082,11 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
 NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data)
 {
     EnumerateObjectData* newData = executeEnumerateObject(state, data->m_object);
-    std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> oldKeys;
+    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> oldKeys;
     if (data->m_keys.size()) {
         oldKeys.insert(oldKeys.end(), &data->m_keys[0], &data->m_keys[data->m_keys.size() - 1] + 1);
     }
-    std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> differenceKeys;
+    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> differenceKeys;
     for (size_t i = 0; i < newData->m_keys.size(); i++) {
         const Value& key = newData->m_keys[i];
         // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.

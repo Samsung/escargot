@@ -35,7 +35,7 @@ public:
         void* operator new[](size_t size) = delete;
     };
 
-    typedef TightVector<WeakSetObjectDataItem*, GCUtil::gc_malloc_ignore_off_page_allocator<WeakSetObjectDataItem*>> WeakSetObjectData;
+    typedef TightVector<WeakSetObjectDataItem*, GCUtil::gc_malloc_allocator<WeakSetObjectDataItem*>> WeakSetObjectData;
     explicit WeakSetObject(ExecutionState& state);
 
     virtual bool isWeakSetObject() const

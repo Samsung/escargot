@@ -124,7 +124,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     }
     ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), inWithFromRuntime || codeBlock->inWith());
 
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* nData = &scopeCtx->m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* nData = &scopeCtx->m_numeralLiteralData;
 
     if (nData->size() == 0) {
         nData = nullptr;

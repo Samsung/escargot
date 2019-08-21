@@ -146,8 +146,8 @@ public:
         size_t byteCodePosition;
     };
     struct StackTraceData : public gc {
-        TightVector<StackTraceGCData, GCUtil::gc_malloc_ignore_off_page_allocator<StackTraceGCData>> gcValues;
-        TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<StackTraceNonGCData>> nonGCValues;
+        TightVector<StackTraceGCData, GCUtil::gc_malloc_allocator<StackTraceGCData>> gcValues;
+        TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_allocator<StackTraceNonGCData>> nonGCValues;
         Value exception;
 
         void buildStackTrace(Context* context, StringBuilder& builder);

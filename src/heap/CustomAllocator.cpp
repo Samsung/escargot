@@ -183,16 +183,12 @@ template <>
 Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
 {
     // Un-comment this to use default allocator
-    // return (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * GC_n);
+    // return (Value*)GC_MALLOC(sizeof(Value) * GC_n);
     int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
     size_t size = sizeof(Value) * GC_n;
 
     Value* ret;
-    if (size > 1024) {
-        ret = (Value*)GC_GENERIC_MALLOC_IGNORE_OFF_PAGE(size, kind);
-    } else {
-        ret = (Value*)GC_GENERIC_MALLOC(size, kind);
-    }
+    ret = (Value*)GC_GENERIC_MALLOC(size, kind);
     return ret;
 }
 

@@ -44,6 +44,7 @@ void Heap::initialize(bool applyMallOpt, bool applyGcOpt)
     }
 
     if (applyGcOpt) {
+        RELEASE_ASSERT(GC_get_all_interior_pointers() == 0);
         GC_set_free_space_divisor(24);
     }
     GC_set_force_unmap_on_gcollect(1);

@@ -192,12 +192,12 @@ public:
     void addRoot(void* ptr);
     bool removeRoot(void* ptr);
 
-    Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>>& parsedSourceCodes()
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>>& parsedSourceCodes()
     {
         return m_parsedSourceCodes;
     }
 
-    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& compiledCodeBlocks()
+    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& compiledCodeBlocks()
     {
         return m_compiledCodeBlocks;
     }
@@ -219,7 +219,7 @@ private:
     GlobalSymbolRegistryVector m_globalSymbolRegistry;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
     std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>,
-                       GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<void* const, size_t>>>
+                       GCUtil::gc_malloc_allocator<std::pair<void* const, size_t>>>
         m_rootSet;
 
     std::mt19937 m_randEngine;
@@ -240,8 +240,8 @@ private:
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
-    Vector<String*, GCUtil::gc_malloc_ignore_off_page_allocator<String*>> m_parsedSourceCodes;
-    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>> m_compiledCodeBlocks;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_parsedSourceCodes;
+    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>> m_compiledCodeBlocks;
     size_t m_compiledByteCodeSize;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;

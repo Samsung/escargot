@@ -195,7 +195,7 @@ public:
     Marker startMarker;
     Marker lastMarker;
 
-    Vector<ASTFunctionScopeContext*, gc_allocator_ignore_off_page<ASTFunctionScopeContext*>> scopeContexts;
+    Vector<ASTFunctionScopeContext*, GCUtil::gc_malloc_allocator<ASTFunctionScopeContext*>> scopeContexts;
     ASTFunctionScopeContext* lastPoppedScopeContext;
     bool trackUsingNames;
     AtomicString lastUsingName;
@@ -815,7 +815,7 @@ public:
 
     typedef Node* (Parser::*ParseFunction)();
 
-    typedef Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> ScannerResultVector;
+    typedef Vector<Scanner::ScannerResult, GCUtil::gc_malloc_allocator<Scanner::ScannerResult>> ScannerResultVector;
 
     struct IsolateCoverGrammarContext {
         bool previousIsBindingElement;
@@ -3172,7 +3172,7 @@ public:
 
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-        //std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
+        //std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -3181,15 +3181,15 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> markers;
+            Vector<Scanner::ScannerResult, GCUtil::gc_malloc_allocator<Scanner::ScannerResult>> markers;
             markers.push_back(*startToken);
             markers.push_back(this->lookahead);
             RefPtr<Node> left = expr;
             RefPtr<Node> right = this->isolateCoverGrammar(&Parser::parseExponentiationExpression);
 
-            //std::vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> stack;
+            //std::vector<void*, GCUtil::gc_malloc_allocator<void*>> stack;
             NodeVector stack;
-            Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> tokenStack;
+            Vector<Scanner::ScannerResult, GCUtil::gc_malloc_allocator<Scanner::ScannerResult>> tokenStack;
 
             stack.push_back(left);
             stack.push_back(right);
@@ -3247,7 +3247,7 @@ public:
 
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-        //std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_ignore_off_page_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
+        //std::vector<RefPtr<Scanner::ScannerResult>, GCUtil::gc_malloc_allocator<RefPtr<Scanner::ScannerResult>>> tokenKeeper;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
             this->nextToken();
@@ -3259,7 +3259,7 @@ public:
             ScanExpressionResult left = expr;
             ScanExpressionResult right = this->scanIsolateCoverGrammar(&Parser::scanExponentiationExpression);
 
-            std::vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> stack;
+            std::vector<void*, GCUtil::gc_malloc_allocator<void*>> stack;
             stack.push_back(new ScanExpressionResult(left));
             stack.push_back(token);
             stack.push_back(new ScanExpressionResult(right));
@@ -5260,7 +5260,7 @@ public:
 
         ParserBlockContext catchBlockContext = openBlock();
 
-        Vector<Scanner::ScannerResult, GCUtil::gc_malloc_ignore_off_page_allocator<Scanner::ScannerResult>> params;
+        Vector<Scanner::ScannerResult, GCUtil::gc_malloc_allocator<Scanner::ScannerResult>> params;
         RefPtr<Node> param = this->pattern<Parse>(params, KeywordKind::LetKeyword);
 
         if (this->context->strict && param->type() == Identifier) {

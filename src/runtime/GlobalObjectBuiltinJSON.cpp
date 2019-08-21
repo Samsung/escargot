@@ -247,10 +247,10 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                     }
                 } else {
                     Object* object = val.asObject();
-                    std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> keys;
+                    std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> keys;
                     object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                         if (desc.isEnumerable()) {
-                            std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
+                            std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>*)data;
                             keys->push_back(P);
                         }
                         return true;
@@ -288,7 +288,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value space = argv[2];
     String* indent = new ASCIIString("");
     ValueVector stack;
-    std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> propertyList;
+    std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> propertyList;
     bool propertyListTouched = false;
 
     // 4
@@ -482,7 +482,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         newIndent.appendString(gap);
         indent = newIndent.finalize(&state);
         // 5
-        std::vector<String*, gc_allocator_ignore_off_page<String*>> partial;
+        std::vector<String*, GCUtil::gc_malloc_allocator<String*>> partial;
         // 6, 7
         uint32_t len = arrayObj->length(state);
         uint32_t index = 0;
@@ -553,12 +553,12 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         newIndent.appendString(gap);
         indent = newIndent.finalize(&state);
         // 5, 6
-        std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>> k;
+        std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> k;
         if (propertyListTouched) {
             k = propertyList;
         } else {
             value->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>* k = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectPropertyName>>*)data;
+                std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>* k = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>*)data;
                 if (desc.isEnumerable()) {
                     k->push_back(P);
                 }
@@ -568,7 +568,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         }
 
         // 7
-        std::vector<String*, gc_allocator_ignore_off_page<String*>> partial;
+        std::vector<String*, GCUtil::gc_malloc_allocator<String*>> partial;
         // 8
         int len = k.size();
         for (int i = 0; i < len; ++i) {

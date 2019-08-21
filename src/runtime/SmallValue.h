@@ -335,8 +335,8 @@ private:
     SmallValueData m_data;
 };
 
-typedef Vector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueVector;
-typedef TightVector<SmallValue, GCUtil::gc_malloc_ignore_off_page_allocator<SmallValue>> SmallValueTightVector;
+typedef Vector<SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> SmallValueVector;
+typedef TightVector<SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> SmallValueTightVector;
 }
 
 namespace std {

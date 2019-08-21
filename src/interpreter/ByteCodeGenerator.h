@@ -69,7 +69,7 @@ struct ByteCodeGenerateError {
 };
 
 struct ByteCodeGenerateContext {
-    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* numeralLiteralData)
+    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* numeralLiteralData)
         : m_baseRegisterCount(0)
         , m_codeBlock(codeBlock)
         , m_byteCodeBlock(byteCodeBlock)
@@ -318,7 +318,7 @@ struct ByteCodeGenerateContext {
     size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>>* m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* m_numeralLiteralData;
 };
 
 class ByteCodeGenerator {

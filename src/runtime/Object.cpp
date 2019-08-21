@@ -744,8 +744,8 @@ ValueVector Object::ownPropertyKeys(ExecutionState& state)
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Params {
         std::vector<Value::ValueIndex> indexes;
-        std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> strings;
-        std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> symbols;
+        std::vector<Value, GCUtil::gc_malloc_allocator<Value>> strings;
+        std::vector<Value, GCUtil::gc_malloc_allocator<Value>> symbols;
     } params;
 
     enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
@@ -1179,7 +1179,7 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const double 
 
 void Object::sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
-    std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> selected;
+    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> selected;
 
     uint64_t len = lengthES6(state);
     uint64_t n = 0;
@@ -1200,7 +1200,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
 
 
     if (selected.size()) {
-        TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
+        TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
         tempSpace.resizeWithUninitializedValues(selected.size());
 
         mergeSort(selected.data(), selected.size(), tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {

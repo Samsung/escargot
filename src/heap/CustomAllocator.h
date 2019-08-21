@@ -100,7 +100,7 @@ public:
     GC_Tp* allocate(size_type GC_n, const void* = 0);
 
     // __p is not permitted to be a null pointer.
-    void deallocate(pointer __p, size_type GC_ATTR_UNUSED GC_n)
+    void deallocate(pointer __p, size_type)
     {
         GC_FREE(__p);
     }

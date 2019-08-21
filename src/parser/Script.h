@@ -49,7 +49,7 @@ public:
                 size_t line;
                 size_t column;
             };
-            Vector<StackTrace, GCUtil::gc_malloc_ignore_off_page_allocator<StackTrace>> stackTrace;
+            Vector<StackTrace, GCUtil::gc_malloc_allocator<StackTrace>> stackTrace;
         } error;
     };
     Value execute(ExecutionState& state, bool isExecuteOnEvalFunction = false, bool inStrictMode = false);

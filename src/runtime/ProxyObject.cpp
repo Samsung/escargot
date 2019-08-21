@@ -525,7 +525,7 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     }
 
     // 20. Let uncheckedResultKeys be a new List which is a copy of trapResult.
-    std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> uncheckedResultKeys;
+    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> uncheckedResultKeys;
     for (size_t i = 0; i < trapResult.size(); ++i) {
         uncheckedResultKeys.push_back(trapResult[i]);
     }

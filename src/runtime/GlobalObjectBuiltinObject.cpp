@@ -105,10 +105,10 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     if (!object.isObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     Object* props = properties.toObject(state);
-    std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> descriptors;
+    std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> descriptors;
     props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         auto propDesc = self->getOwnProperty(state, name);
-        std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, gc_allocator_ignore_off_page<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>*)data;
+        std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>*)data;
         if (propDesc.hasValue() && desc.isEnumerable()) {
             Value propVal = propDesc.value(state, self);
             if (!propVal.isObject())
@@ -475,9 +475,9 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     Object* O = argv[0].asObject();
 
     // For each named own property name P of O,
-    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> descriptors;
+    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> descriptors;
     O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>*)data;
+        std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>*)data;
         descriptors->push_back(std::make_pair(P, desc));
         return true;
     },
