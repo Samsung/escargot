@@ -29,11 +29,11 @@ namespace Escargot {
 // A type to hold a single Latin-1 character.
 typedef unsigned char LChar;
 
-typedef BasicString<char, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char>> ASCIIStringData;
-typedef BasicString<LChar, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<LChar>> Latin1StringData;
-typedef BasicString<char, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char>> UTF8StringData;
-typedef BasicString<char16_t, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char16_t>> UTF16StringData;
-typedef BasicString<char32_t, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<char32_t>> UTF32StringData;
+typedef BasicString<char, GCUtil::gc_malloc_atomic_allocator<char>> ASCIIStringData;
+typedef BasicString<LChar, GCUtil::gc_malloc_atomic_allocator<LChar>> Latin1StringData;
+typedef BasicString<char, GCUtil::gc_malloc_atomic_allocator<char>> UTF8StringData;
+typedef BasicString<char16_t, GCUtil::gc_malloc_atomic_allocator<char16_t>> UTF16StringData;
+typedef BasicString<char32_t, GCUtil::gc_malloc_atomic_allocator<char32_t>> UTF32StringData;
 
 typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
 typedef std::basic_string<LChar, std::char_traits<LChar>> Latin1StringDataNonGCStd;

@@ -63,7 +63,7 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* cod
 
 NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& state)
 {
-    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
+    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
 
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
 

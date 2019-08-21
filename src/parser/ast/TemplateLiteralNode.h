@@ -30,7 +30,7 @@ struct TemplateElement : public gc {
     bool tail;
 };
 
-typedef Vector<TemplateElement*, gc_allocator_ignore_off_page<TemplateElement*>> TemplateElementVector;
+typedef Vector<TemplateElement*, GCUtil::gc_malloc_allocator<TemplateElement*>> TemplateElementVector;
 
 class TemplateLiteralNode : public ExpressionNode {
 public:

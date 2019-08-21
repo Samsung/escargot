@@ -33,7 +33,7 @@ public:
         void* operator new(size_t size);
         void* operator new[](size_t size) = delete;
     };
-    typedef TightVector<WeakMapObjectDataItem*, GCUtil::gc_malloc_ignore_off_page_allocator<WeakMapObjectDataItem*>> WeakMapObjectData;
+    typedef TightVector<WeakMapObjectDataItem*, GCUtil::gc_malloc_allocator<WeakMapObjectDataItem*>> WeakMapObjectData;
     explicit WeakMapObject(ExecutionState& state);
 
     virtual bool isWeakMapObject() const

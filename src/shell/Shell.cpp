@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "runtime/VMInstance.h"
 #include "util/Vector.h"
+#include "util/Util.h"
 #include "runtime/Value.h"
 #include "parser/ScriptParser.h"
 #include "runtime/JobQueue.h"
@@ -99,19 +100,22 @@ void printEveryReachableGCObjects()
     ESCARGOT_LOG_INFO("print reachable pointers -->\n");
     GC_gcollect();
     GC_disable();
+    size_t totalRemainSize = 0;
     GC_enumerate_reachable_objects_inner(
         [](void* obj, size_t bytes, void* cd) {
             size_t size;
             int kind = GC_get_kind_and_size(obj, &size);
             void* ptr = GC_USR_PTR_FROM_BASE(obj);
+            size_t* totalSize = (size_t*)cd;
+            *totalSize += size;
             ESCARGOT_LOG_INFO("@@@ kind %d pointer %p size %d\n", (int)kind, ptr, (int)size);
 #if !defined(NDEBUG)
             GC_print_backtrace(ptr);
 #endif
         },
-        nullptr);
+        &totalRemainSize);
     GC_enable();
-    ESCARGOT_LOG_INFO("<-- end of print reachable pointers\n");
+    ESCARGOT_LOG_INFO("<-- end of print reachable pointers %fKB\n", totalRemainSize / 1024.f);
 }
 
 int main(int argc, char* argv[])
@@ -197,7 +201,11 @@ int main(int argc, char* argv[])
     }
 
     delete context;
+    context = nullptr;
     delete instance;
+    instance = nullptr;
+
+    Escargot::clearStack<4096>();
 
     Escargot::Heap::finalize();
 
@@ -205,12 +213,12 @@ int main(int argc, char* argv[])
         Escargot::Heap::printGCHeapUsage();
     }
 
-    /*
     // remove comment you want to find memory leak
+    /*
     doFullGCWithoutSeeingStack();
     doFullGCWithoutSeeingStack();
     doFullGCWithoutSeeingStack();
     printEveryReachableGCObjects();
-     */
+    */
     return 0;
 }

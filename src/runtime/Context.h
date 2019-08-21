@@ -48,7 +48,7 @@ struct IdentifierRecord {
     bool m_isVarDeclaration : 1;
 };
 
-typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierRecord>> IdentifierRecordVector;
+typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_allocator<IdentifierRecord>> IdentifierRecordVector;
 
 typedef Value (*VirtualIdentifierCallback)(ExecutionState& state, Value name);
 typedef Value (*SecurityPolicyCheckCallback)(ExecutionState& state, bool isEval);
@@ -180,7 +180,7 @@ public:
         return m_jobQueue;
     }
 
-    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& compiledCodeBlocks()
+    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& compiledCodeBlocks()
     {
         return m_compiledCodeBlocks;
     }
@@ -232,9 +232,9 @@ private:
     IdentifierRecordVector m_globalDeclarativeRecord;
     SmallValueVector m_globalDeclarativeStorage;
     std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
-                       gc_allocator_ignore_off_page<std::pair<AtomicString, GlobalVariableAccessCacheItem*>>>
+                       GCUtil::gc_malloc_allocator<std::pair<AtomicString, GlobalVariableAccessCacheItem*>>>
         m_globalVariableAccessCache;
-    Vector<CodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<CodeBlock*>>& m_compiledCodeBlocks;
+    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& m_compiledCodeBlocks;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
     ObjectStructure* m_defaultStructureForObject;

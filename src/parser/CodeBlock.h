@@ -34,7 +34,7 @@ class CodeBlock;
 class InterpretedCodeBlock;
 class Script;
 
-typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_ignore_off_page_allocator<InterpretedCodeBlock*>> CodeBlockVector;
+typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<InterpretedCodeBlock*>> CodeBlockVector;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
@@ -357,7 +357,7 @@ public:
         int32_t m_index;
         AtomicString m_name;
     };
-    typedef TightVector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
+    typedef TightVector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
     const FunctionParametersInfoVector& parametersInfomation() const
     {
         return m_parametersInfomation;
@@ -401,7 +401,7 @@ public:
         AtomicString m_name;
     };
 
-    typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
+    typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
 
     struct BlockInfo : public gc {
         bool m_canAllocateEnvironmentOnStack : 1;
@@ -433,7 +433,7 @@ public:
         void* operator new[](size_t size) = delete;
     };
 
-    typedef TightVector<BlockInfo*, GCUtil::gc_malloc_ignore_off_page_allocator<BlockInfo*>> BlockInfoVector;
+    typedef TightVector<BlockInfo*, GCUtil::gc_malloc_allocator<BlockInfo*>> BlockInfoVector;
 
     struct IdentifierInfo {
         bool m_needToAllocateOnStack : 1;
@@ -444,7 +444,7 @@ public:
         AtomicString m_name;
     };
 
-    typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<IdentifierInfo>> IdentifierInfoVector;
+    typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_allocator<IdentifierInfo>> IdentifierInfoVector;
 
     const IdentifierInfoVector& identifierInfos() const
     {

@@ -351,14 +351,14 @@ public:
     {
         size_t arrayLen = arraylength();
         if (arrayLen) {
-            Value* tempBuffer = (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * arrayLen);
+            Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * arrayLen);
 
             for (size_t i = 0; i < arrayLen; i++) {
                 unsigned idxPosition = i * typedArrayElementSize;
                 tempBuffer[i] = getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition);
             }
 
-            TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
+            TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
             tempSpace.resizeWithUninitializedValues(arrayLen);
             mergeSort(tempBuffer, arrayLen, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
                 *lessOrEqualp = comp(a, b);

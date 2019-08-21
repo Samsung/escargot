@@ -28,10 +28,10 @@ class LexicalEnvironment;
 class EnvironmentRecord;
 class Value;
 
-typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
+typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
-    Vector<ControlFlowRecord*, GCUtil::gc_malloc_ignore_off_page_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
+    Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
     ExecutionState* m_parent;
     Value* m_registerFile;
     Object* m_generatorTarget;

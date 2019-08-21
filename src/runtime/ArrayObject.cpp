@@ -201,14 +201,14 @@ void ArrayObject::sort(ExecutionState& state, const std::function<bool(const Val
     if (isFastModeArray()) {
         if (getArrayLength(state)) {
             size_t orgLength = getArrayLength(state);
-            Value* tempBuffer = (Value*)GC_MALLOC_IGNORE_OFF_PAGE(sizeof(Value) * orgLength);
+            Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * orgLength);
 
             for (size_t i = 0; i < orgLength; i++) {
                 tempBuffer[i] = m_fastModeData[i];
             }
 
             if (orgLength) {
-                TightVector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> tempSpace;
+                TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
                 tempSpace.resizeWithUninitializedValues(orgLength);
 
                 mergeSort(tempBuffer, orgLength, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {

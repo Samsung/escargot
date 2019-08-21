@@ -95,7 +95,7 @@ public:
     void fulfillPromise(ExecutionState& state, Value value);
     void rejectPromise(ExecutionState& state, Value reason);
 
-    typedef Vector<PromiseReaction, gc_allocator_ignore_off_page<PromiseReaction> > Reactions;
+    typedef Vector<PromiseReaction, GCUtil::gc_malloc_allocator<PromiseReaction> > Reactions;
     void triggerPromiseReactions(ExecutionState& state, Reactions& reactions);
 
     void appendReaction(Object* onFulfilled, Object* onRejected, PromiseReaction::Capability& capability)

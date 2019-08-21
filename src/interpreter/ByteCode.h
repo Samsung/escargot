@@ -763,8 +763,8 @@ public:
 };
 
 typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
-typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ObjectStructureChainItem>> ObjectStructureChainGC;
-typedef Vector<ObjectStructureChainItem, GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructureChainItem>, 200> ObjectStructureChainWithGC;
+typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_atomic_allocator<ObjectStructureChainItem>> ObjectStructureChainGC;
+typedef Vector<ObjectStructureChainItem, GCUtil::gc_malloc_allocator<ObjectStructureChainItem>, 200> ObjectStructureChainWithGC;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
@@ -2095,10 +2095,10 @@ public:
 
 typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
-typedef Vector<void*, GCUtil::gc_malloc_ignore_off_page_allocator<void*>> ByteCodeLiteralData;
+typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
 typedef std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::equal_to<ObjectStructure*>,
-                           GCUtil::gc_malloc_ignore_off_page_allocator<ObjectStructure*>>
+                           GCUtil::gc_malloc_allocator<ObjectStructure*>>
     ObjectStructuresInUse;
 class ByteCodeBlock : public gc {
     friend struct OpcodeTable;

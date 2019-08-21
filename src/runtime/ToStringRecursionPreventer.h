@@ -51,7 +51,7 @@ public:
     }
 
 private:
-    Vector<Object*, GCUtil::gc_malloc_ignore_off_page_allocator<Object*>> m_registeredItems;
+    Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_registeredItems;
 };
 
 class ToStringRecursionPreventerItemAutoHolder {

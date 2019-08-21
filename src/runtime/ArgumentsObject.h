@@ -66,9 +66,9 @@ public:
 private:
     FunctionEnvironmentRecord* m_targetRecord;
     ScriptFunctionObject* m_sourceFunctionObject;
-    TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_ignore_off_page_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
+    TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
     size_t m_argc;
-    TightVector<bool, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<bool>> m_modifiedArguments;
+    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>> m_modifiedArguments;
 
     Value getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index);
     void setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value);

@@ -506,7 +506,7 @@ private:
     AtomicString m_name;
 };
 
-typedef TightVector<ASTFunctionScopeContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTFunctionScopeContextNameInfo>> ASTFunctionScopeContextNameInfoVector;
+typedef TightVector<ASTFunctionScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTFunctionScopeContextNameInfo>> ASTFunctionScopeContextNameInfoVector;
 
 // store only let, const names
 class ASTBlockScopeContextNameInfo {
@@ -543,7 +543,7 @@ private:
     size_t m_value;
 };
 
-typedef TightVector<ASTBlockScopeContextNameInfo, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<ASTBlockScopeContextNameInfo>> ASTBlockScopeContextNameInfoVector;
+typedef TightVector<ASTBlockScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContextNameInfo>> ASTBlockScopeContextNameInfoVector;
 // context for block in function or program
 struct ASTBlockScopeContext : public gc {
     LexicalBlockIndex m_blockIndex;
@@ -567,7 +567,7 @@ struct ASTBlockScopeContext : public gc {
     }
 };
 
-typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
+typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
 
 // context for function or program
 struct ASTFunctionScopeContext : public gc {
@@ -595,11 +595,11 @@ struct ASTFunctionScopeContext : public gc {
     AtomicString m_functionName;
 
     // TODO save these scopes as linked-list
-    Vector<ASTFunctionScopeContext *, GCUtil::gc_malloc_ignore_off_page_allocator<ASTFunctionScopeContext *>> m_childScopes;
+    Vector<ASTFunctionScopeContext *, GCUtil::gc_malloc_allocator<ASTFunctionScopeContext *>> m_childScopes;
     ASTBlockScopeContextVector m_childBlockScopes;
 
     // we can use atomic allocator here because there is no pointer value on Vector<m_numeralLiteralData>
-    Vector<Value, GCUtil::gc_malloc_atomic_ignore_off_page_allocator<Value>> m_numeralLiteralData;
+    Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>> m_numeralLiteralData;
 
     ExtendedNodeLOC m_paramsStartLOC;
     ExtendedNodeLOC m_bodyStartLOC;
