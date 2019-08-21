@@ -128,24 +128,28 @@ public:
                     size_t jPos = codeBlock->lastCodePosition<Jump>();
                     codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
 
-                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(assignNode->left(), registerRef.get()));
+                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(iteratorValueIdx));
+                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(assignNode->left(), registerRef.get()));
                     assign->m_loc = m_loc;
                     context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                     assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
                     ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                     assign->giveupChildren();
+                    assign.release().leakRef();
+                    registerRef.release().leakRef();
 
                     Jump* j = codeBlock->peekCode<Jump>(jPos);
                     j->m_jumpPosition = codeBlock->currentCodeSize();
                 } else {
-                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(iteratorValueIdx));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
+                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(iteratorValueIdx));
+                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
                     assign->m_loc = m_loc;
                     context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                     assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
                     ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                     assign->giveupChildren();
+                    assign.release().leakRef();
+                    registerRef.release().leakRef();
                 }
             }
         }
@@ -154,11 +158,13 @@ public:
             RefPtr<Node> element = m_elements[m_elements.size() - 1];
             size_t restIndex = context->getRegister();
             codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), iteratorIdx, restIndex), context, this);
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(restIndex));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(((RestElementNode*)element.get())->argument(), registerRef.get()));
+            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(restIndex));
+            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(((RestElementNode*)element.get())->argument(), registerRef.get()));
             assign->m_loc = m_loc;
             assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             assign->giveupChildren();
+            assign.release().leakRef();
+            registerRef.release().leakRef();
         }
 
         context->giveUpRegister(); // for iteratorIdx

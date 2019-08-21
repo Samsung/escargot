@@ -131,7 +131,6 @@ struct Context {
     bool inIteration : 1;
     bool inSwitch : 1;
     bool inArrowFunction : 1;
-    bool inArgumentParsing : 1;
     bool inWith : 1;
     bool inCatchClause : 1;
     bool inLoop : 1;
@@ -281,6 +280,7 @@ public:
 
     struct ParseFormalParametersResult {
         PatternNodeVector params;
+        std::vector<AtomicString, gc_allocator<AtomicString>> paramSet;
         Scanner::ScannerResult stricted;
         Scanner::ScannerResult firstRestricted;
         const char* message;
@@ -289,20 +289,6 @@ public:
         ParseFormalParametersResult()
             : message(nullptr)
             , valid(false)
-        {
-        }
-        ParseFormalParametersResult(PatternNodeVector params, const char* message)
-            : params(std::move(params))
-            , message(nullptr)
-            , valid(true)
-        {
-        }
-        ParseFormalParametersResult(PatternNodeVector params, Scanner::ScannerResult& stricted, Scanner::ScannerResult& firstRestricted, const char* message)
-            : params(std::move(params))
-            , stricted(stricted)
-            , firstRestricted(firstRestricted)
-            , message(nullptr)
-            , valid(true)
         {
         }
     };
@@ -331,23 +317,29 @@ public:
         lastUsingName = name;
     }
 
-    void extractNamesFromFunctionParams(const PatternNodeVector& params)
+    void extractNamesFromFunctionParams(const ParseFormalParametersResult& paramsResult)
     {
         if (this->config.parseSingleFunction) {
             return;
         }
 
+        const PatternNodeVector& params = paramsResult.params;
+        bool shouldCheckDuplicatedParameters = false;
         scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
         for (size_t i = 0; i < params.size(); i++) {
             AtomicString id;
             if (params[i]->isIdentifier()) {
                 id = params[i]->asIdentifier()->name();
-            } else if (params[i]->isDefaultArgument()) {
-                id = params[i]->asDefaultArgument()->left()->asIdentifier()->name();
+            } else if (params[i]->isAssignmentPattern()) {
+                shouldCheckDuplicatedParameters = true;
+                id = params[i]->asAssignmentPattern()->left()->asIdentifier()->name();
             } else if (params[i]->isPattern()) {
+                shouldCheckDuplicatedParameters = true;
+                scopeContexts.back()->m_hasPatternArgument = true;
                 id = this->createPatternName(i);
             } else if (params[i]->type() == RestElement) {
-                // scopeContexts.back()->m_hasRestElement = true;
+                shouldCheckDuplicatedParameters = true;
+                scopeContexts.back()->m_hasRestElement = true;
                 id = ((RestElementNode*)params[i].get())->argument()->name();
             } else {
                 RELEASE_ASSERT_NOT_REACHED();
@@ -356,11 +348,12 @@ public:
             scopeContexts.back()->insertVarName(id, 0, true);
         }
 
-        // FIXME check duplicated parameter names at here
         // Check if any identifier names are duplicated.
-        /*
-        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternArgument) {
-            AtomicStringTightVector& paramNames = scopeContexts.back()->m_parameters;
+        if (shouldCheckDuplicatedParameters) {
+            const std::vector<AtomicString, gc_allocator<AtomicString>>& paramNames = paramsResult.paramSet;
+            if (paramNames.size() < 2) {
+                return;
+            }
             for (size_t i = 0; i < paramNames.size() - 1; i++) {
                 // Note: using this inner for loop because std::find didn't work for some reason.
                 for (size_t j = i + 1; j < paramNames.size(); j++) {
@@ -370,7 +363,6 @@ public:
                 }
             }
         }
-        */
     }
 
     void pushScopeContext(AtomicString functionName)
@@ -452,7 +444,6 @@ public:
         this->context->inIteration = false;
         this->context->inSwitch = false;
         this->context->inArrowFunction = false;
-        this->context->inArgumentParsing = false;
         this->context->inWith = false;
         this->context->inCatchClause = false;
         this->context->inLoop = false;
@@ -1221,19 +1212,7 @@ public:
         return ScanExpressionResult();
     }
 
-    struct ParseParameterOptions {
-        PatternNodeVector params;
-        std::vector<AtomicString, gc_allocator<AtomicString>> paramSet;
-        Scanner::ScannerResult stricted;
-        const char* message;
-        Scanner::ScannerResult firstRestricted;
-        ParseParameterOptions()
-            : message(nullptr)
-        {
-        }
-    };
-
-    void validateParam(ParseParameterOptions& options, const Scanner::ScannerResult* param, AtomicString name)
+    void validateParam(ParseFormalParametersResult& options, const Scanner::ScannerResult* param, AtomicString name)
     {
         ASSERT(param != nullptr);
         if (this->context->strict) {
@@ -1259,19 +1238,6 @@ public:
         }
 
         options.paramSet.push_back(name);
-
-        // FIXME remove this check code
-        if (scopeContexts.back()->m_hasRestElement || scopeContexts.back()->m_hasPatternArgument) {
-            for (size_t i = 0; i < options.paramSet.size() - 1; i++) {
-                // Check if any identifier names are duplicated.
-                // Note: using this inner for loop because std::find didn't work for some reason.
-                for (size_t j = i + 1; j < options.paramSet.size(); j++) {
-                    if (options.paramSet[i] == options.paramSet[j]) {
-                        this->throwError("duplicate argument names are not allowed in this context");
-                    }
-                }
-            }
-        }
     }
 
     AtomicString createPatternName(size_t index)
@@ -1280,7 +1246,7 @@ public:
         return AtomicString(this->escargotContext, Value(index).toString(stateForTest));
     }
 
-    PassRefPtr<RestElementNode> parseRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
+    PassRefPtr<RestElementNode> parseRestElement(ScannerResultVector& params)
     {
         MetaNode node = this->createNode();
 
@@ -1294,14 +1260,14 @@ public:
         if (this->match(Equal)) {
             this->throwError(Messages::DefaultRestParameter);
         }
-        if (!this->match(endKind)) {
+        if (!this->match(RightParenthesis)) {
             this->throwError(Messages::ParameterAfterRestParameter);
         }
 
         return this->finalize(node, new RestElementNode(param.get()));
     }
 
-    ScanExpressionResult scanRestElement(ScannerResultVector& params, PunctuatorKind endKind = RightParenthesis)
+    ScanExpressionResult scanRestElement(ScannerResultVector& params)
     {
         this->nextToken();
         if (this->match(LeftBrace)) {
@@ -1313,11 +1279,20 @@ public:
         if (this->match(Equal)) {
             this->throwError(Messages::DefaultRestParameter);
         }
-        if (!this->match(endKind)) {
+        if (!this->match(RightParenthesis)) {
             this->throwError(Messages::ParameterAfterRestParameter);
         }
 
         return ScanExpressionResult(ASTNodeType::Identifier, param.string());
+    }
+
+    PassRefPtr<RestElementNode> parseBindingRestElement(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    {
+        MetaNode node = this->createNode();
+        this->expect(PeriodPeriodPeriod);
+        params.push_back(this->lookahead);
+        RefPtr<IdentifierNode> arg = this->parseVariableIdentifier(kind);
+        return this->finalize(node, new RestElementNode(arg.get()));
     }
 
     template <typename T, bool isParse>
@@ -1326,9 +1301,7 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(LeftSquareBracket);
-
         bool hasRestElement = false;
-
         ExpressionNodeVector elements;
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
@@ -1336,7 +1309,7 @@ public:
                 elements.push_back(nullptr);
             } else {
                 if (this->match(PeriodPeriodPeriod)) {
-                    elements.push_back(this->parseRestElement(params, RightSquareBracket));
+                    elements.push_back(this->parseBindingRestElement(params, kind, isExplicitVariableDeclaration));
                     hasRestElement = true;
                     break;
                 } else {
@@ -1464,7 +1437,6 @@ public:
     T pattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         if (this->match(LeftSquareBracket)) {
-            scopeContexts.back()->m_hasPatternArgument |= this->context->inArgumentParsing;
             if (isParse) {
                 return T(this->arrayPattern<ParseAs(ArrayPatternNode)>(params, kind));
             } else {
@@ -1472,7 +1444,6 @@ public:
             }
 
         } else if (this->match(LeftBrace)) {
-            scopeContexts.back()->m_hasPatternArgument |= this->context->inArgumentParsing;
             if (isParse) {
                 return T(this->objectPattern<ParseAs(ObjectPatternNode)>(params, kind));
             } else {
@@ -1498,7 +1469,6 @@ public:
 
         PassRefPtr<Node> pattern = this->pattern<Parse>(params, kind, isExplicitVariableDeclaration);
         if (this->match(PunctuatorKind::Substitution)) {
-            scopeContexts.back()->m_hasPatternArgument |= this->context->inArgumentParsing;
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
@@ -1510,13 +1480,13 @@ public:
                 return pattern;
             }
 
-            return this->finalize(this->startNode(startToken), new DefaultArgumentNode(pattern.get(), right.get()));
+            return this->finalize(this->startNode(startToken), new AssignmentPatternNode(pattern.get(), right.get()));
         }
 
         return pattern;
     }
 
-    bool parseFormalParameter(ParseParameterOptions& options)
+    bool parseFormalParameter(ParseFormalParametersResult& options)
     {
         RefPtr<Node> param;
         bool trackUsingNamesBefore = trackUsingNames;
@@ -1525,7 +1495,6 @@ public:
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
-            scopeContexts.back()->m_hasRestElement = true;
             param = this->parseRestElement(params);
             this->validateParam(options, &params.back(), ((RestElementNode*)param.get())->argument()->name());
             options.params.push_back(param);
@@ -1545,14 +1514,11 @@ public:
 
     ParseFormalParametersResult parseFormalParameters(Scanner::ScannerResult* firstRestricted = nullptr)
     {
-        ParseParameterOptions options;
+        ParseFormalParametersResult options;
 
         if (firstRestricted) {
             options.firstRestricted = *firstRestricted;
         }
-
-        bool inArgumentParsingBefore = this->context->inArgumentParsing;
-        this->context->inArgumentParsing = true;
 
         size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
 
@@ -1569,9 +1535,8 @@ public:
 
         this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
-        this->context->inArgumentParsing = inArgumentParsingBefore;
-
-        return ParseFormalParametersResult(options.params, options.stricted, options.firstRestricted, options.message);
+        options.valid = true;
+        return options;
     }
 
     // ECMA-262 12.2.5 Array Initializer
@@ -1672,7 +1637,7 @@ public:
         this->expect(LeftParenthesis);
         pushScopeContext(AtomicString());
         ParseFormalParametersResult params = this->parseFormalParameters();
-        extractNamesFromFunctionParams(params.params);
+        extractNamesFromFunctionParams(params);
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
@@ -3621,6 +3586,7 @@ public:
                     exprNode.release();
                 }
 
+                // FIXME remove validity check?
                 if (list.valid) {
                     if (this->hasLineTerminator) {
                         this->throwUnexpectedToken(&this->lookahead);
@@ -3631,7 +3597,7 @@ public:
                     scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
                     scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
 
-                    extractNamesFromFunctionParams(list.params);
+                    extractNamesFromFunctionParams(list);
 
                     bool previousStrict = this->context->strict;
                     bool previousAllowYield = this->context->allowYield;
@@ -5595,7 +5561,7 @@ public:
         RefPtr<StatementContainer> container = StatementContainer::create();
 
         this->expect(LeftParenthesis);
-        ParseParameterOptions options;
+        ParseFormalParametersResult options;
         size_t i = 0;
         while (!this->match(RightParenthesis)) {
             bool end = !this->parseFormalParameter(options);
@@ -5827,7 +5793,7 @@ public:
             message = formalParameters.message;
         }
 
-        extractNamesFromFunctionParams(formalParameters.params);
+        extractNamesFromFunctionParams(formalParameters);
         bool previousStrict = this->context->strict;
         RefPtr<Node> body = this->parseFunctionSourceElements();
         if (this->context->strict && firstRestricted) {
@@ -5922,11 +5888,11 @@ public:
         this->expect(RightParenthesis);
 
         bool isGenerator = false;
-        ParseFormalParametersResult params(PatternNodeVector(), nullptr);
+        ParseFormalParametersResult params;
         bool previousAllowYield = this->context->allowYield;
         this->context->allowYield = false;
         pushScopeContext(AtomicString());
-        extractNamesFromFunctionParams(params.params);
+        extractNamesFromFunctionParams(params);
         RefPtr<Node> method = this->parsePropertyMethod(params);
         this->context->allowYield = previousAllowYield;
 
@@ -5940,7 +5906,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        ParseParameterOptions options;
+        ParseFormalParametersResult options;
 
         bool isGenerator = false;
         bool previousAllowYield = this->context->allowYield;
@@ -5962,7 +5928,7 @@ public:
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
-        extractNamesFromFunctionParams(options.params);
+        extractNamesFromFunctionParams(options);
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
@@ -5992,7 +5958,7 @@ public:
         this->context->allowYield = true;
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
         this->context->allowYield = false;
-        extractNamesFromFunctionParams(formalParameters.params);
+        extractNamesFromFunctionParams(formalParameters);
         // Note: Change it to parsePropertyMethod, if possible
         RefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
         this->context->allowYield = previousAllowYield;
@@ -6265,8 +6231,8 @@ public:
                         RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(p.get(), id.get()));
                         p = assign;
                     } else if (p->type() == AssignmentExpressionSimple) {
-                        DefaultArgumentNode* defaultNode = (DefaultArgumentNode*)p.get();
-                        p = adoptRef(new DefaultArgumentNode(defaultNode->left(), defaultNode->right()));
+                        AssignmentPatternNode* defaultNode = (AssignmentPatternNode*)p.get();
+                        p = adoptRef(new AssignmentPatternNode(defaultNode->left(), defaultNode->right()));
                     } else {
                         ASSERT(p->type() == RestElement);
                     }

@@ -144,8 +144,8 @@ public:
                     key = value->asAssignmentExpressionSimple()->left();
                     break;
                 }
-                case DefaultArgument: {
-                    key = value->asDefaultArgument()->left();
+                case AssignmentPattern: {
+                    key = value->asAssignmentPattern()->left();
                     break;
                 }
                 case Identifier: {
@@ -164,13 +164,15 @@ public:
                 throw err;
             }
 
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(valueIndex));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(key, registerRef.get()));
+            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(valueIndex));
+            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(key, registerRef.get()));
             assign->m_loc = m_loc;
             context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             assign->giveupChildren();
+            assign.release().leakRef();
+            registerRef.release().leakRef();
 
             Jump* j = codeBlock->peekCode<Jump>(jPos);
             j->m_jumpPosition = codeBlock->currentCodeSize();

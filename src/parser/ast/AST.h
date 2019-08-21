@@ -72,7 +72,7 @@
 #include "ContinueLabelStatementNode.h"
 #include "ContinueStatementNode.h"
 #include "DirectiveNode.h"
-#include "DefaultArgumentNode.h"
+#include "AssignmentPatternNode.h"
 #include "DoWhileStatementNode.h"
 #include "EmptyNode.h"
 #include "EmptyStatementNode.h"

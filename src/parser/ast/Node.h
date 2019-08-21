@@ -143,7 +143,7 @@ enum ASTNodeType {
     ClassElement,
     ClassMethod,
     SuperExpression,
-    DefaultArgument,
+    AssignmentPattern,
     ArrayPattern,
     ObjectPattern,
     RegisterReference,
@@ -208,7 +208,7 @@ struct ExtendedNodeLOC {
 };
 
 class LiteralNode;
-class DefaultArgumentNode;
+class AssignmentPatternNode;
 class IdentifierNode;
 class ArrayExpressionNode;
 class AssignmentExpressionSimpleNode;
@@ -294,15 +294,15 @@ public:
         return (IdentifierNode *)this;
     }
 
-    bool isDefaultArgument()
+    bool isAssignmentPattern()
     {
-        return type() == ASTNodeType::DefaultArgument;
+        return type() == ASTNodeType::AssignmentPattern;
     }
 
-    DefaultArgumentNode *asDefaultArgument()
+    AssignmentPatternNode *asAssignmentPattern()
     {
-        ASSERT(isDefaultArgument());
-        return (DefaultArgumentNode *)this;
+        ASSERT(isAssignmentPattern());
+        return (AssignmentPatternNode *)this;
     }
 
     bool isArrayPattern()

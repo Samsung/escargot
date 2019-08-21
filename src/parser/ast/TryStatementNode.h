@@ -67,13 +67,15 @@ public:
 
             auto catchedValueRegister = context->getRegister();
             codeBlock->peekCode<TryOperation>(pos)->m_catchedValueRegisterIndex = catchedValueRegister;
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new RegisterReferenceNode(catchedValueRegister));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(m_handler->param(), registerRef.get()));
+            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister));
+            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_handler->param(), registerRef.get()));
             assign->m_loc = m_handler->m_loc;
             context->m_isLexicallyDeclaredBindingInitialization = true;
             assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             assign->giveupChildren();
+            assign.release().leakRef();
+            registerRef.release().leakRef();
 
             context->giveUpRegister();
 
