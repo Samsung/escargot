@@ -41,6 +41,12 @@ inline double FastI2D(int x)
     return static_cast<double>(x);
 }
 
+constexpr double Value::maximumLength()
+{
+    // 2^53 - 1
+    return 9007199254740991.0;
+}
+
 // ==============================================================================
 // ===32-bit architecture========================================================
 // ==============================================================================
@@ -853,10 +859,10 @@ inline double Value::toLength(ExecutionState& state) const
     if (len <= 0.0) {
         return 0.0;
     }
-    if (len > 0 && std::isinf(len)) {
-        return std::pow(2, 32) - 1;
+    if (std::isinf(len)) {
+        return maximumLength();
     }
-    return std::min(len, std::pow(2, 32) - 1);
+    return std::min(len, maximumLength());
 }
 } // namespace Escargot
 

@@ -1181,9 +1181,9 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
 {
     std::vector<Value, GCUtil::gc_malloc_ignore_off_page_allocator<Value>> selected;
 
-    uint32_t len = length(state);
-    uint32_t n = 0;
-    uint32_t k = 0;
+    uint64_t len = lengthES6(state);
+    uint64_t n = 0;
+    uint64_t k = 0;
 
     while (k < len) {
         Value idx = Value(k);
@@ -1209,7 +1209,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
         });
     }
 
-    uint32_t i;
+    uint64_t i;
     for (i = 0; i < n; i++) {
         setThrowsException(state, ObjectPropertyName(state, Value(i)), selected[i], this);
     }
