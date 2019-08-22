@@ -1645,7 +1645,7 @@ public:
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<Node> parseObjectPropertyKey()
@@ -1837,7 +1837,7 @@ public:
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
         bool isGet = false;
         bool isSet = false;
-
+        bool needImplictName = false;
         if (token->type == Token::IdentifierToken && lookaheadPropertyKey) {
             StringView* sv = token->valueStringLiteral();
             const auto& d = sv->bufferAccessData();
@@ -1914,11 +1914,17 @@ public:
                     hasProto = true;
                 }
                 this->nextToken();
-
+                ASTNodeType type = ASTNodeType::ASTNodeTypeError;
                 if (isParse) {
                     valueNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    if (valueNode) {
+                        type = valueNode->type();
+                    }
                 } else {
-                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    type = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                }
+                if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && lastPoppedScopeContext->m_functionName == AtomicString()) {
+                    needImplictName = true;
                 }
             } else if (this->match(LeftParenthesis)) {
                 if (isParse) {
@@ -1992,13 +1998,17 @@ public:
             usedNames.push_back(std::make_pair(as, kind));
         }
 
-        if (!this->config.parseSingleFunction && (method || isGet || isSet)) {
+        if (!this->config.parseSingleFunction && (method || isGet || isSet || needImplictName)) {
             AtomicString as;
             if (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier) {
                 as = isParse ? keyNode->asIdentifier()->name() : key.string();
             }
             lastPoppedScopeContext->m_functionName = as;
-            lastPoppedScopeContext->m_isClassMethod = true;
+            if (needImplictName) {
+                lastPoppedScopeContext->m_hasImplictFunctionName = true;
+            } else {
+                lastPoppedScopeContext->m_isClassMethod = true;
+            }
         }
         if (isParse) {
             // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
@@ -3671,7 +3681,7 @@ public:
                         this->throwUnexpectedToken(&list.stricted, list.message);
                     }
 
-                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(std::move(list.params), popScopeContext(node), subCodeBlockIndex)); //TODO
+                    exprNode = this->finalize(node, new ArrowFunctionExpressionNode(popScopeContext(node), subCodeBlockIndex)); //TODO
                     if (!isParse) {
                         expr.setNodeType(ASTNodeType::ArrowFunctionExpression);
                     }
@@ -4417,10 +4427,20 @@ public:
         RefPtr<Node> initNode = nullptr;
         if (this->match(Substitution)) {
             this->nextToken();
+            ASTNodeType type = ASTNodeType::ASTNodeTypeError;
             if (isParse) {
                 initNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                if (initNode) {
+                    type = initNode->type();
+                }
             } else {
-                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                type = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+            }
+            if (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) {
+                if (lastPoppedScopeContext->m_functionName == AtomicString()) {
+                    lastPoppedScopeContext->m_functionName = name;
+                    lastPoppedScopeContext->m_hasImplictFunctionName = true;
+                }
             }
         } else if (!isIdentifier && !options.inFor) {
             this->expect(Substitution);
@@ -5806,7 +5826,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        return this->finalize(node, new FunctionType(fnName, std::move(formalParameters.params), popScopeContext(node), isGenerator, subCodeBlockIndex));
+        return this->finalize(node, new FunctionType(popScopeContext(node), isGenerator, subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
@@ -5899,7 +5919,7 @@ public:
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(params.params), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseSetterMethod()
@@ -5945,7 +5965,7 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowYield = previousAllowYield;
 
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(options.params), popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseGeneratorMethod()
@@ -5966,7 +5986,7 @@ public:
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        return this->finalize(node, new FunctionExpressionNode(AtomicString(), std::move(formalParameters.params), popScopeContext(node), true, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), true, this->subCodeBlockIndex));
     }
 
     // ECMA-262 14.4 Generator Function Definitions

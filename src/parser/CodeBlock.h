@@ -208,6 +208,11 @@ public:
         return m_hasArgumentInitializers;
     }
 
+    bool hasImplictFunctionName()
+    {
+        return m_hasImplictFunctionName;
+    }
+
     AtomicString functionName() const
     {
         return m_functionName;
@@ -321,6 +326,7 @@ protected:
     bool m_isGenerator : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_hasArgumentInitializers : 1;
+    bool m_hasImplictFunctionName : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;

@@ -401,8 +401,6 @@
   <test id="S11.13.2_A7.8_T4"><reason>TODO</reason></test>
   <test id="S11.13.2_A7.9_T4"><reason>TODO</reason></test>
   <test id="has-instance"><reason>TODO</reason></test>
-  <test id="implicit-name"><reason>TODO</reason></test>
-  <test id="name-property-descriptor"><reason>TODO</reason></test>
   <test id="prototype-value"><reason>TODO</reason></test>
   <test id="11.1.5-2gs"><reason>TODO</reason></test>
   <test id="11.1.5-4-4-a-1-s"><reason>TODO</reason></test>

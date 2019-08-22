@@ -56,7 +56,7 @@ private:
 class ArrowFunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ArrowFunctionExpressionNode(PatternNodeVector&& params, ASTFunctionScopeContext* scopeContext, size_t subCodeBlockIndex)
+    ArrowFunctionExpressionNode(ASTFunctionScopeContext* scopeContext, size_t subCodeBlockIndex)
         : m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
         scopeContext->m_isArrowFunctionExpression = true;

@@ -588,6 +588,7 @@ struct ASTFunctionScopeContext : public gc {
     bool m_hasRestElement : 1;
     bool m_hasPatternArgument : 1;
     bool m_needsToComputeLexicalBlockStuffs : 1;
+    bool m_hasImplictFunctionName : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression, FunctionDeclaration only
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTFunctionScopeContextNameInfoVector m_varNames;
@@ -822,6 +823,7 @@ struct ASTFunctionScopeContext : public gc {
         , m_hasManyNumeralLiteral(false)
         , m_hasRestElement(false)
         , m_needsToComputeLexicalBlockStuffs(false)
+        , m_hasImplictFunctionName(false)
         , m_nodeType(ASTNodeType::Program)
         , m_lexicalBlockIndexFunctionLocatedIn(LEXICAL_BLOCK_INDEX_MAX)
         , m_paramsStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
