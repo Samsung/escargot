@@ -179,7 +179,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         FunctionObject* callee = state.resolveCallee();
         if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && callee->isScriptFunctionObject()) {
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-            bool isMapped = !callee->codeBlock()->hasArgumentInitializers() && !inStrict;
+            bool isMapped = !callee->codeBlock()->hasParameterOtherThanIdentifier() && !inStrict;
             callee->asScriptFunctionObject()->generateArgumentsObject(newState, state.argc(), state.argv(), fnRecord, nullptr, isMapped);
         }
     }

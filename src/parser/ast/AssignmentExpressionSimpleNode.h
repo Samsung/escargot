@@ -54,8 +54,13 @@ public:
         return m_left.get();
     }
 
+    Node* right()
+    {
+        return m_right.get();
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionSimple; }
-    static bool hasSlowAssigmentOperation(Node* left, Node* right)
+    static bool hasSlowAssignmentOperation(Node* left, Node* right)
     {
         std::vector<AtomicString> leftNames;
         left->iterateChildrenIdentifier([&leftNames](AtomicString name, bool isAssgnment) {
@@ -82,7 +87,7 @@ public:
             return;
         }
 
-        bool isSlowMode = hasSlowAssigmentOperation(m_left.get(), m_right.get());
+        bool isSlowMode = hasSlowAssignmentOperation(m_left.get(), m_right.get());
 
         bool isBase = context->m_registerStack->size() == 0;
         size_t rightRegister = dstRegister;
@@ -115,7 +120,7 @@ public:
 
         isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization && left->isIdentifier();
 
-        bool isSlowMode = hasSlowAssigmentOperation(left, right);
+        bool isSlowMode = hasSlowAssignmentOperation(left, right);
 
         if (isSlowMode) {
             size_t rightRegister = right->getRegister(codeBlock, context);

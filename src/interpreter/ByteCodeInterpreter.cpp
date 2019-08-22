@@ -771,6 +771,19 @@ Value ByteCodeInterpreter::interpret(ExecutionState& state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(GetParameter)
+            :
+        {
+            GetParameter* code = (GetParameter*)programCounter;
+            if (code->m_paramIndex < state.argc()) {
+                registerFile[code->m_registerIndex] = state.argv()[code->m_paramIndex];
+            } else {
+                registerFile[code->m_registerIndex] = Value();
+            }
+            ADD_PROGRAM_COUNTER(GetParameter);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(ReturnFunctionWithValue)
             :
         {
@@ -2832,7 +2845,7 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
 
     auto r = es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
     auto functionObject = r->functionObject()->asScriptFunctionObject();
-    bool isMapped = !functionObject->codeBlock()->hasArgumentInitializers() && !functionObject->codeBlock()->isStrict();
+    bool isMapped = !functionObject->codeBlock()->hasParameterOtherThanIdentifier() && !functionObject->codeBlock()->isStrict();
     r->functionObject()->asScriptFunctionObject()->generateArgumentsObject(state, state.argc(), state.argv(), r, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
 }
 }

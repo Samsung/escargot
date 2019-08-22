@@ -111,8 +111,9 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isClassStaticMethod(false)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
-    , m_hasArgumentInitializers(false)
     , m_hasImplictFunctionName(false)
+    , m_hasArrowParameterPlaceHolder(false)
+    , m_hasParameterOtherThanIdentifier(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -149,8 +150,9 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isClassStaticMethod(false)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
-    , m_hasArgumentInitializers(false)
     , m_hasImplictFunctionName(false)
+    , m_hasArrowParameterPlaceHolder(false)
+    , m_hasParameterOtherThanIdentifier(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
@@ -227,7 +229,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isEvalCodeInFunction = isEvalCodeInFunction;
 
     m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !scopeCtx->m_hasPatternArgument;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
     m_canAllocateVariablesOnStack = m_canAllocateEnvironmentOnStack;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
@@ -236,7 +238,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_needsVirtualIDOperation = false;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
-    m_hasArgumentInitializers = false;
+    m_hasArrowParameterPlaceHolder = false;
+    m_hasParameterOtherThanIdentifier = false;
 
     const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
@@ -287,8 +290,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasWith = scopeCtx->m_hasWith;
     m_hasYield = scopeCtx->m_hasYield;
     m_inWith = scopeCtx->m_inWith;
-    m_hasArgumentInitializers = scopeCtx->m_hasRestElement || scopeCtx->m_hasPatternArgument;
     m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
+    m_hasArrowParameterPlaceHolder = scopeCtx->m_hasArrowParameterPlaceHolder;
+    m_hasParameterOtherThanIdentifier = scopeCtx->m_hasParameterOtherThanIdentifier;
 
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;
@@ -313,7 +317,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !scopeCtx->m_hasPatternArgument;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage && !m_isGenerator;
     m_canAllocateVariablesOnStack = true;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
@@ -354,7 +358,7 @@ void InterpretedCodeBlock::captureArguments()
         m_identifierInfos.pushBack(info);
     }
     if (m_parameterCount) {
-        bool isMapped = !hasArgumentInitializers() && !isStrict();
+        bool isMapped = !hasParameterOtherThanIdentifier() && !isStrict();
         // Unmapped arguments object doesn't connect arguments object property with arguments variable
         if (isMapped) {
             m_canAllocateEnvironmentOnStack = false;
@@ -564,6 +568,10 @@ void InterpretedCodeBlock::computeVariables()
         for (size_t i = 0; i < siz; i++) {
             AtomicString name = m_parametersInfomation[i].m_name;
             size_t idIndex = findVarName(name);
+            if (idIndex == SIZE_MAX) {
+                // Pattern parameter
+                continue;
+            }
             bool isHeap = !m_identifierInfos[idIndex].m_needToAllocateOnStack;
             size_t indexInIdInfo = m_identifierInfos[idIndex].m_indexForIndexedStorage;
             if (!isHeap) {
