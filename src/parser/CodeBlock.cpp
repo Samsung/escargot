@@ -223,7 +223,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isEvalCodeInFunction = isEvalCodeInFunction;
 
     m_usesArgumentsObject = false;
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasPatternArgument && !m_isGenerator;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !scopeCtx->m_hasPatternArgument;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
     m_canAllocateVariablesOnStack = m_canAllocateEnvironmentOnStack;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
@@ -308,8 +308,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         m_parametersInfomation[i].m_isDuplicated = false;
     }
 
-    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !m_hasYield && !scopeCtx->m_hasPatternArgument && !m_isGenerator;
-    m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage;
+    m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith && !scopeCtx->m_hasPatternArgument;
+    m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage && !m_isGenerator;
     m_canAllocateVariablesOnStack = true;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
 
@@ -480,7 +480,7 @@ void InterpretedCodeBlock::computeVariables()
 {
     // we should check m_inWith
     // because CallFunctionInWithScope needs LoadByName
-    m_canAllocateVariablesOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith;
+    m_canAllocateVariablesOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith && !m_isGenerator;
 
     if (m_canAllocateEnvironmentOnStack) {
         // we should check m_inWith

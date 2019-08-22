@@ -65,6 +65,94 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 
 void SandBox::throwException(ExecutionState& state, Value exception)
 {
+    ExecutionState* pstate = &state;
+    while (pstate) {
+        FunctionObject* callee = pstate->resolveCallee();
+        ExecutionState* es = pstate;
+
+        while (es) {
+            if (!es->lexicalEnvironment() || !es->lexicalEnvironment()->record()) {
+                break;
+            }
+            if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
+                break;
+            } else if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                break;
+            }
+            es = es->parent();
+        }
+
+        bool alreadyExists = false;
+
+        for (size_t i = 0; i < m_stackTraceData.size(); i++) {
+            if (m_stackTraceData[i].first == es) {
+                alreadyExists = true;
+                break;
+            }
+        }
+
+        if (!alreadyExists) {
+            if (!callee && es && es->lexicalEnvironment()) {
+                CodeBlock* cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+                ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
+                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+                ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
+                if (pstate->m_programCounter != nullptr) {
+                    loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
+                    loc.actualCodeBlock = b;
+                }
+                SandBox::StackTraceData data;
+                data.loc = loc;
+                data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+                data.source = cb->asInterpretedCodeBlock()->script()->src();
+                m_stackTraceData.pushBack(std::make_pair(es, data));
+            } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
+                CodeBlock* cb = pstate->codeBlock();
+                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+                SandBox::StackTraceData data;
+                data.loc = loc;
+                data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+                data.source = String::emptyString;
+                m_stackTraceData.pushBack(std::make_pair(es, data));
+            } else if (callee) {
+                CodeBlock* cb = callee->codeBlock();
+                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+                if (cb->isInterpretedCodeBlock()) {
+                    ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
+                    ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
+                    if (pstate->m_programCounter != nullptr) {
+                        loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
+                        loc.actualCodeBlock = b;
+                    }
+                }
+                SandBox::StackTraceData data;
+                data.loc = loc;
+                if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
+                    data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+                } else {
+                    StringBuilder builder;
+                    builder.appendString("function ");
+                    builder.appendString(cb->functionName().string());
+                    builder.appendString("() { ");
+                    builder.appendString("[native function]");
+                    builder.appendString(" } ");
+                    data.fileName = builder.finalize();
+                }
+                data.source = String::emptyString;
+                m_stackTraceData.pushBack(std::make_pair(es, data));
+            }
+        }
+
+
+        if (pstate->m_inTryStatement) {
+            break;
+        }
+
+        pstate = pstate->parent();
+    }
+
+    // We MUST save thrown exception Value.
+    // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
     m_exception = exception;
     throw exception;
 }

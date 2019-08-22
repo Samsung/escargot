@@ -243,7 +243,7 @@ public:
         if (isGenerator) {
             Value* gcArgv = (Value*)GC_MALLOC(sizeof(Value) * argc);
             memcpy(gcArgv, argv, sizeof(Value) * argc);
-            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, self, argc, gcArgv, isStrict, registerFile);
+            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, argc, gcArgv, isStrict, registerFile);
             // prepare receiver(this variable)
 
             // we should use newState because
@@ -261,7 +261,7 @@ public:
             return gen;
         }
 
-        ExecutionState newState(ctx, &state, lexEnv, self, argc, argv, isStrict);
+        ExecutionState newState(ctx, &state, lexEnv, argc, argv, isStrict);
 
         // prepare receiver(this variable)
         // we should use newState because

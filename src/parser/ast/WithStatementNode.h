@@ -38,7 +38,7 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t start = codeBlock->currentCodeSize();
-        context->m_tryStatementScopeCount++;
+        context->m_withStatementScopeCount++;
         auto r = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, r);
         size_t withPos = codeBlock->currentCodeSize();
@@ -50,11 +50,11 @@ public:
         m_body->generateStatementByteCode(codeBlock, context);
         context->registerJumpPositionsToComplexCase(start);
 
-        codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
         codeBlock->peekCode<WithOperation>(withPos)->m_withEndPostion = codeBlock->currentCodeSize();
         context->m_isWithScope = isWithScopeBefore;
 
-        context->m_tryStatementScopeCount--;
+        context->m_withStatementScopeCount--;
     }
 
 private:

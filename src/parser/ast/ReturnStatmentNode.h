@@ -47,7 +47,7 @@ public:
             codeBlock->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), context, this);
         }
 
-        if (context->m_tryStatementScopeCount != 0) {
+        if (context->tryCatchWithBlockStatementCount() != 0) {
             if (m_argument) {
                 ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
                 m_argument->generateExpressionByteCode(codeBlock, context, index);

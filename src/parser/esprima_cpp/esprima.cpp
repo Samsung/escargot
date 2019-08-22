@@ -706,10 +706,6 @@ public:
             if (c->callee() && c->callee()->isIdentifier() && ((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
                 scopeContexts.back()->m_hasEval = true;
             }
-        } else if (type == WithStatement) {
-            scopeContexts.back()->m_hasWith = true;
-        } else if (type == YieldExpression) {
-            scopeContexts.back()->m_hasYield = true;
         }
 
         node->m_loc = NodeLOC(meta.index);
@@ -5024,6 +5020,8 @@ public:
         RefPtr<Node> object = this->expression<Parse>();
         this->expect(RightParenthesis);
 
+        scopeContexts.back()->m_hasWith = true;
+
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
 
@@ -6003,6 +6001,8 @@ public:
             }
             this->context->allowYield = previousAllowYield;
         }
+
+        scopeContexts.back()->m_hasYield = true;
 
         if (isParse) {
             return this->finalize(node, new YieldExpressionNode(exprNode, delegate));

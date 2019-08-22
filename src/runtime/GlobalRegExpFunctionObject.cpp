@@ -27,39 +27,39 @@ namespace Escargot {
 struct GlobalRegExpFunctionObjectBuiltinFunctions {
     static Value builtinGlobalRegExpFunctionObjectInputGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
     {
-        return state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status.input;
+        return state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status.input;
     }
 
     static Value builtinGlobalRegExpFunctionObjectInputSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
     {
-        state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status.input = argv[0].toString(state);
+        state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status.input = argv[0].toString(state);
         return Value();
     }
 
     static Value builtinGlobalRegExpFunctionObjectLastMatchGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
     {
-        return Value(new StringView(state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status.lastMatch));
+        return Value(new StringView(state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status.lastMatch));
     }
 
     static Value builtinGlobalRegExpFunctionObjectLastParenGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
     {
-        return Value(new StringView(state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status.lastParen));
+        return Value(new StringView(state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status.lastParen));
     }
 
     static Value builtinGlobalRegExpFunctionObjectLeftContextGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
     {
-        return Value(new StringView(state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status.leftContext));
+        return Value(new StringView(state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status.leftContext));
     }
 
     static Value builtinGlobalRegExpFunctionObjectRightContextGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
     {
-        return Value(new StringView(state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status.rightContext));
+        return Value(new StringView(state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status.rightContext));
     }
 
 #define DEFINE_GETTER(number)                                                                                                                                    \
     static Value builtinGlobalRegExpFunctionObjectDollar##number##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) \
     {                                                                                                                                                            \
-        auto& status = state.callee()->internalSlot()->asGlobalObject()->regexp()->m_status;                                                                     \
+        auto& status = state.resolveCallee()->internalSlot()->asGlobalObject()->regexp()->m_status;                                                              \
         if (status.pairCount < number) {                                                                                                                         \
             return Value(String::emptyString);                                                                                                                   \
         }                                                                                                                                                        \

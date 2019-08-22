@@ -181,7 +181,7 @@ public:
 
 static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    EvalFunctionObject* fn = (EvalFunctionObject*)state.callee();
+    EvalFunctionObject* fn = (EvalFunctionObject*)state.resolveCallee();
     return fn->m_globalObject->eval(state, argv[0]);
 }
 
@@ -250,7 +250,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         ScriptParser parser(state.context());
         const char s[] = "eval input";
         ExecutionState* current = &state;
-        bool isRunningEvalOnFunction = state.callee();
+        bool isRunningEvalOnFunction = state.resolveCallee();
         bool strictFromOutside = state.inStrictMode();
         while (current != nullptr) {
             if (current->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()) {

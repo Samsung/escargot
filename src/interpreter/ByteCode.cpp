@@ -171,7 +171,7 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 
     if (bi->m_shouldAllocateEnvironment) {
-        context->m_tryStatementScopeCount++;
+        context->m_blockStatementScopeCount++;
         ctx.lexicalBlockSetupStartPosition = currentCodeSize();
         this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
     }
@@ -215,9 +215,9 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
         context->registerJumpPositionsToComplexCase(ctx.lexicalBlockStartPosition);
     }
 
-    this->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
+    this->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
     this->peekCode<BlockOperation>(ctx.lexicalBlockSetupStartPosition)->m_blockEndPosition = this->currentCodeSize();
-    context->m_tryStatementScopeCount--;
+    context->m_blockStatementScopeCount--;
 }
 
 void* SetObjectInlineCache::operator new(size_t size)

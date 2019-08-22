@@ -88,6 +88,9 @@ struct ByteCodeGenerateContext {
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_tryStatementScopeCount(0)
+        , m_catchStatementScopeCount(0)
+        , m_withStatementScopeCount(0)
+        , m_blockStatementScopeCount(0)
         , m_complexJumpBreakIgnoreCount(0)
         , m_complexJumpContinueIgnoreCount(0)
         , m_complexJumpLabeledBreakIgnoreCount(0)
@@ -122,6 +125,9 @@ struct ByteCodeGenerateContext {
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
+        , m_catchStatementScopeCount(contextBefore.m_catchStatementScopeCount)
+        , m_withStatementScopeCount(contextBefore.m_withStatementScopeCount)
+        , m_blockStatementScopeCount(contextBefore.m_blockStatementScopeCount)
         , m_complexJumpBreakIgnoreCount(contextBefore.m_complexJumpBreakIgnoreCount)
         , m_complexJumpContinueIgnoreCount(contextBefore.m_complexJumpContinueIgnoreCount)
         , m_complexJumpLabeledBreakIgnoreCount(contextBefore.m_complexJumpLabeledBreakIgnoreCount)
@@ -180,35 +186,35 @@ struct ByteCodeGenerateContext {
 
     void registerJumpPositionsToComplexCase(size_t frontlimit)
     {
-        ASSERT(m_tryStatementScopeCount);
+        ASSERT(tryCatchWithBlockStatementCount());
         for (unsigned i = 0; i < m_breakStatementPositions.size(); i++) {
             if (m_breakStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                if (m_tryStatementScopeCount - m_complexJumpBreakIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], m_tryStatementScopeCount - m_complexJumpBreakIgnoreCount));
+                if (tryCatchWithBlockStatementCount() - m_complexJumpBreakIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], tryCatchWithBlockStatementCount() - m_complexJumpBreakIgnoreCount));
                 }
             }
         }
 
         for (unsigned i = 0; i < m_continueStatementPositions.size(); i++) {
             if (m_continueStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                if (m_tryStatementScopeCount - m_complexJumpContinueIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], m_tryStatementScopeCount - m_complexJumpContinueIgnoreCount));
+                if (tryCatchWithBlockStatementCount() - m_complexJumpContinueIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], tryCatchWithBlockStatementCount() - m_complexJumpContinueIgnoreCount));
                 }
             }
         }
 
         for (unsigned i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
             if (m_labeledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (m_tryStatementScopeCount - m_complexJumpLabeledBreakIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, m_tryStatementScopeCount - m_complexJumpLabeledBreakIgnoreCount));
+                if (tryCatchWithBlockStatementCount() - m_complexJumpLabeledBreakIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabeledBreakIgnoreCount));
                 }
             }
         }
 
         for (unsigned i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
             if (m_labeledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (m_tryStatementScopeCount - m_complexJumpLabeledContinueIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, m_tryStatementScopeCount - m_complexJumpLabeledContinueIgnoreCount));
+                if (tryCatchWithBlockStatementCount() - m_complexJumpLabeledContinueIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabeledContinueIgnoreCount));
                 }
             }
         }
@@ -279,6 +285,11 @@ struct ByteCodeGenerateContext {
         }
     }
 
+    int tryCatchWithBlockStatementCount()
+    {
+        return m_tryStatementScopeCount + m_catchStatementScopeCount + m_withStatementScopeCount + m_blockStatementScopeCount;
+    }
+
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;
 
@@ -311,6 +322,9 @@ struct ByteCodeGenerateContext {
     size_t m_positionToContinue;
     // code position, tryStatement count
     int m_tryStatementScopeCount;
+    int m_catchStatementScopeCount;
+    int m_withStatementScopeCount;
+    int m_blockStatementScopeCount;
     int m_complexJumpBreakIgnoreCount;
     int m_complexJumpContinueIgnoreCount;
     int m_complexJumpLabeledBreakIgnoreCount;

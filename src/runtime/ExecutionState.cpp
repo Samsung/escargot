@@ -41,6 +41,24 @@ ExecutionStateRareData* ExecutionState::ensureRareData()
     return rareData();
 }
 
+FunctionObject* ExecutionState::resolveCallee()
+{
+    ExecutionState* es = this;
+    while (es) {
+        if (es->lexicalEnvironment()) {
+            if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                return es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+            }
+        } else if (es->m_isNativeFunctionObjectExecutionContext) {
+            return es->m_calledNativeFunctionObject;
+        }
+
+        es = es->parent();
+    }
+
+    return nullptr;
+}
+
 LexicalEnvironment* ExecutionState::mostNearestHeapAllocatedLexicalEnvironment()
 {
     LexicalEnvironment* env = m_lexicalEnvironment;

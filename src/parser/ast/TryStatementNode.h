@@ -46,10 +46,12 @@ public:
         codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
         size_t pos = codeBlock->lastCodePosition<TryOperation>();
         m_block->generateStatementByteCode(codeBlock, context);
-        codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBodyEnd>();
+        codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBlockBodyEnd>();
 
         if (m_handler) {
+            context->m_tryStatementScopeCount--;
+            context->m_catchStatementScopeCount++;
             codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
             codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
 
@@ -86,7 +88,9 @@ public:
                 context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
             }
 
-            codeBlock->pushCode(TryCatchWithBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
+            context->m_catchStatementScopeCount--;
+            context->m_tryStatementScopeCount++;
         }
 
         context->registerJumpPositionsToComplexCase(pos);
@@ -98,7 +102,6 @@ public:
             context->giveUpRegister();
         }
         codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        codeBlock->peekCode<FinallyEnd>(codeBlock->lastCodePosition<FinallyEnd>())->m_tryDupCount = context->m_tryStatementScopeCount;
         context->m_tryStatementScopeCount--;
 
         codeBlock->m_shouldClearStack = true;

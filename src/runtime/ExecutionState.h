@@ -27,17 +27,21 @@ class ControlFlowRecord;
 class LexicalEnvironment;
 class EnvironmentRecord;
 class Value;
+class CodeBlock;
+class NativeFunctionObject;
 
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
     Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
     ExecutionState* m_parent;
+    CodeBlock* m_codeBlock;
     Value* m_registerFile;
     Object* m_generatorTarget;
 
     ExecutionStateRareData()
     {
+        m_codeBlock = nullptr;
         m_registerFile = nullptr;
         m_controlFlowRecord = nullptr;
         m_generatorTarget = nullptr;
@@ -48,18 +52,23 @@ struct ExecutionStateRareData : public gc {
 class ExecutionState : public gc {
     friend class FunctionObject;
     friend class ByteCodeInterpreter;
+    friend class ExecutionStateProgramCounterBinder;
+    friend class FunctionObjectProcessCallGenerator;
     friend class SandBox;
     friend class Script;
+    friend class GeneratorObject;
 
 public:
     ExecutionState(Context* context)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_callee(nullptr)
+        , m_programCounter(nullptr)
         , m_argc(0)
         , m_argv(nullptr)
         , m_parent(1)
         , m_inStrictMode(false)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(false)
     {
         volatile int sp;
         m_stackBase = (size_t)&sp;
@@ -69,35 +78,55 @@ public:
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
-        , m_callee(parent->callee())
+        , m_programCounter(nullptr)
         , m_argc(parent->argc())
         , m_argv(parent->argv())
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(false)
     {
     }
 
-    ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, size_t argc, Value* argv, bool inStrictMode)
+    ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(parent->stackBase())
-        , m_callee(callee)
+        , m_programCounter(nullptr)
         , m_argc(argc)
         , m_argv(argv)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(false)
     {
     }
 
-    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, FunctionObject* callee, size_t argc, Value* argv, bool inStrictMode, Value* registerFile)
+    ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, NativeFunctionObject* callee, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
-        , m_lexicalEnvironment(lexicalEnvironment)
+        , m_lexicalEnvironment(nullptr)
         , m_stackBase(parent->stackBase())
-        , m_callee(callee)
+        , m_calledNativeFunctionObject(callee)
         , m_argc(argc)
         , m_argv(argv)
         , m_parent((size_t)parent + 1)
         , m_inStrictMode(inStrictMode)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(true)
+    {
+    }
+
+    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, Value* registerFile)
+        : m_context(context)
+        , m_lexicalEnvironment(lexicalEnvironment)
+        , m_stackBase(parent->stackBase())
+        , m_programCounter(nullptr)
+        , m_argc(argc)
+        , m_argv(argv)
+        , m_parent((size_t)parent + 1)
+        , m_inStrictMode(inStrictMode)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(false)
     {
         ensureRareData()->m_registerFile = registerFile;
     }
@@ -176,9 +205,14 @@ public:
         return m_inStrictMode;
     }
 
-    FunctionObject* callee()
+    FunctionObject* resolveCallee();
+
+    CodeBlock* codeBlock()
     {
-        return m_callee;
+        if (hasRareData()) {
+            return rareData()->m_codeBlock;
+        }
+        return nullptr;
     }
 
     size_t argc()
@@ -204,7 +238,10 @@ private:
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
     size_t m_stackBase;
-    FunctionObject* m_callee;
+    union {
+        size_t* m_programCounter;
+        NativeFunctionObject* m_calledNativeFunctionObject;
+    };
     size_t m_argc;
     Value* m_argv;
 
@@ -214,6 +251,8 @@ private:
     };
 
     bool m_inStrictMode;
+    bool m_inTryStatement;
+    bool m_isNativeFunctionObjectExecutionContext;
 };
 }
 

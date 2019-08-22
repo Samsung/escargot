@@ -57,8 +57,8 @@ public:
         newContext.giveUpRegister();
 
         size_t doEnd = codeBlock->currentCodeSize();
-        newContext.consumeContinuePositions(codeBlock, testPos, context->m_tryStatementScopeCount);
-        newContext.consumeBreakPositions(codeBlock, doEnd, context->m_tryStatementScopeCount);
+        newContext.consumeContinuePositions(codeBlock, testPos, context->tryCatchWithBlockStatementCount());
+        newContext.consumeBreakPositions(codeBlock, doEnd, context->tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = testPos;
         newContext.propagateInformationTo(*context);
     }
