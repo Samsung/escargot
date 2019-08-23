@@ -181,8 +181,8 @@ public:
             codeBlock->peekCode<JumpByteCode>(testPos)->m_jumpPosition = forEnd;
         }
 
-        newContext.consumeBreakPositions(codeBlock, forEnd, context->m_tryStatementScopeCount);
-        newContext.consumeContinuePositions(codeBlock, updatePosition, context->m_tryStatementScopeCount);
+        newContext.consumeBreakPositions(codeBlock, forEnd, context->tryCatchWithBlockStatementCount());
+        newContext.consumeContinuePositions(codeBlock, updatePosition, context->tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
 

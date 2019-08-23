@@ -108,7 +108,7 @@ struct GlobalVariableAccessCacheItem;
     F(ReturnFunctionWithValue, 0, 0)                  \
     F(ReturnFunctionSlowCase, 0, 0)                   \
     F(TryOperation, 0, 0)                             \
-    F(TryCatchWithBodyEnd, 0, 0)                      \
+    F(TryCatchWithBlockBodyEnd, 0, 0)                 \
     F(FinallyEnd, 0, 0)                               \
     F(ThrowOperation, 0, 0)                           \
     F(ThrowStaticErrorOperation, 0, 0)                \
@@ -1742,17 +1742,17 @@ public:
 #endif
 };
 
-class TryCatchWithBodyEnd : public ByteCode {
+class TryCatchWithBlockBodyEnd : public ByteCode {
 public:
-    explicit TryCatchWithBodyEnd(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::TryCatchWithBodyEndOpcode, loc)
+    explicit TryCatchWithBlockBodyEnd(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::TryCatchWithBlockBodyEndOpcode, loc)
     {
     }
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("try-catch-with end");
+        printf("try-catch-with-block end");
     }
 #endif
 };
@@ -1762,10 +1762,7 @@ public:
     explicit FinallyEnd(const ByteCodeLOC& loc)
         : ByteCode(Opcode::FinallyEndOpcode, loc)
     {
-        m_tryDupCount = 0;
     }
-
-    size_t m_tryDupCount;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)

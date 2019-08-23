@@ -109,7 +109,7 @@ public:
             nd = nd->nextSilbing();
         }
         size_t breakPos = codeBlock->currentCodeSize();
-        newContext.consumeBreakPositions(codeBlock, breakPos, context->m_tryStatementScopeCount);
+        newContext.consumeBreakPositions(codeBlock, breakPos, context->tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = context->m_positionToContinue;
 
         newContext.propagateInformationTo(*context);

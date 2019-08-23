@@ -176,13 +176,15 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
             }
         }
 
-        if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && state.callee()->isScriptFunctionObject()) {
+        FunctionObject* callee = state.resolveCallee();
+        if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && callee->isScriptFunctionObject()) {
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-            bool isMapped = !state.callee()->codeBlock()->hasArgumentInitializers() && !inStrict;
-            state.callee()->asScriptFunctionObject()->generateArgumentsObject(newState, state.argc(), state.argv(), fnRecord, nullptr, isMapped);
+            bool isMapped = !callee->codeBlock()->hasArgumentInitializers() && !inStrict;
+            callee->asScriptFunctionObject()->generateArgumentsObject(newState, state.argc(), state.argv(), fnRecord, nullptr, isMapped);
         }
     }
 
+    newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
     Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
     clearStack<512>();
 

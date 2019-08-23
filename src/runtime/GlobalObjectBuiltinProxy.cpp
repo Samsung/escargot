@@ -47,7 +47,7 @@ static Value builtinProxyRevoke(ExecutionState& state, Value thisValue, size_t a
 {
     auto strings = &state.context()->staticStrings();
 
-    RevokeFunctionObject* revoke = (RevokeFunctionObject*)state.callee();
+    RevokeFunctionObject* revoke = (RevokeFunctionObject*)state.resolveCallee();
     ASSERT(revoke);
 
     // 1. Let p be the value of F’s [[RevocableProxy]] internal slot.

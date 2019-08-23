@@ -135,7 +135,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     }
 
     Value receiver = receiverSrc;
-    ExecutionState newState(ctx, &state, nullptr, this, argc, argv, isStrict);
+    ExecutionState newState(ctx, &state, this, argc, argv, isStrict);
 
     if (!isConstruct) {
         // prepare receiver
@@ -148,35 +148,31 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         }
     }
 
-    try {
+    if (isConstruct) {
         Value result = code->m_fn(newState, receiver, argc, argv, isConstruct);
-        if (isConstruct) {
-            if (UNLIKELY(!result.isObject())) {
-                ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
+        if (UNLIKELY(!result.isObject())) {
+            ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
+        }
+        // if newTarget is differ with this function object, ex) class A extends Array{}; new A();
+        if (newTarget != this) {
+            // set prototype for native object
+            Object* thisArgument = result.asObject();
+            // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+            // OrdinaryCreateFromConstructor -> Let proto be GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
+            // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be Get(constructor, "prototype").
+            Value proto = newTarget->get(newState, ObjectPropertyName(newState.context()->staticStrings().prototype)).value(newState, newTarget);
+            // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> If Type(proto) is not Object, then
+            // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let realm be GetFunctionRealm(constructor).
+            // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> ReturnIfAbrupt(realm).
+            // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be realm’s intrinsic object named intrinsicDefaultProto.
+            if (!proto.isObject()) {
+                proto = ctx->globalObject()->objectPrototype();
             }
-            // if newTarget is differ with this function object, ex) class A extends Array{}; new A();
-            if (newTarget != this) {
-                // set prototype for native object
-                Object* thisArgument = result.asObject();
-                // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-                // OrdinaryCreateFromConstructor -> Let proto be GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
-                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be Get(constructor, "prototype").
-                Value proto = newTarget->get(newState, ObjectPropertyName(newState.context()->staticStrings().prototype)).value(newState, newTarget);
-                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> If Type(proto) is not Object, then
-                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let realm be GetFunctionRealm(constructor).
-                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> ReturnIfAbrupt(realm).
-                // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be realm’s intrinsic object named intrinsicDefaultProto.
-                if (!proto.isObject()) {
-                    proto = ctx->globalObject()->objectPrototype();
-                }
-                thisArgument->setPrototype(state, proto);
-            }
-            return result;
+            thisArgument->setPrototype(state, proto);
         }
         return result;
-    } catch (const Value& v) {
-        ByteCodeInterpreter::processException(newState, v, m_codeBlock, SIZE_MAX);
-        return Value();
+    } else {
+        return code->m_fn(newState, receiver, argc, argv, isConstruct);
     }
 }
 

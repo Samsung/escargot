@@ -105,8 +105,6 @@ public:
     static Value decrementOperation(ExecutionState& state, const Value& value);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
-
-    static void processException(ExecutionState& state, const Value& value, CodeBlock* codeBlock, size_t programCounter);
 };
 }
 

@@ -237,8 +237,8 @@ public:
         size_t exitPos = codeBlock->currentCodeSize();
         ASSERT(codeBlock->peekCode<CheckIfKeyIsLast>(continuePosition)->m_orgOpcode == CheckIfKeyIsLastOpcode || codeBlock->peekCode<IteratorStep>(continuePosition)->m_orgOpcode == IteratorStepOpcode);
 
-        newContext.consumeBreakPositions(codeBlock, exitPos, context->m_tryStatementScopeCount);
-        newContext.consumeContinuePositions(codeBlock, continuePosition, context->m_tryStatementScopeCount);
+        newContext.consumeBreakPositions(codeBlock, exitPos, context->tryCatchWithBlockStatementCount());
+        newContext.consumeContinuePositions(codeBlock, continuePosition, context->tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = continuePosition;
 
         codeBlock->peekCode<JumpIfTrue>(exit1Pos)->m_jumpPosition = exitPos;

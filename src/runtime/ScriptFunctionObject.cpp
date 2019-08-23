@@ -73,7 +73,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 
         ExecutionState* es = &state;
         while (es) {
-            FunctionObject* callee = es->callee();
+            FunctionObject* callee = es->resolveCallee();
             if (callee && callee->codeBlock()->isInterpretedCodeBlock()) {
                 InterpretedCodeBlock* cblk = callee->codeBlock()->asInterpretedCodeBlock();
                 if (cblk->script() && cblk->byteCodeBlock() && std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {

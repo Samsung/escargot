@@ -45,8 +45,8 @@ public:
         context->m_positionToContinue = start;
         m_statementNode->generateStatementByteCode(codeBlock, context);
         size_t end = codeBlock->currentCodeSize();
-        context->consumeLabeledBreakPositions(codeBlock, end, m_label, context->m_tryStatementScopeCount);
-        context->consumeLabeledContinuePositions(codeBlock, context->m_positionToContinue, m_label, context->m_tryStatementScopeCount);
+        context->consumeLabeledBreakPositions(codeBlock, end, m_label, context->tryCatchWithBlockStatementCount());
+        context->consumeLabeledContinuePositions(codeBlock, context->m_positionToContinue, m_label, context->tryCatchWithBlockStatementCount());
     }
 
 private:

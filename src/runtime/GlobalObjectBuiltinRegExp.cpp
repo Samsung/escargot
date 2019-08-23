@@ -42,7 +42,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
             // Let patternConstructor be Get(pattern, "constructor").
             Value patternConstructor = pattern.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, pattern);
             // If SameValue(patternConstructor, newTarget), then return pattern.
-            if (patternConstructor == state.callee())
+            if (patternConstructor == state.resolveCallee())
                 return pattern;
         }
     }
