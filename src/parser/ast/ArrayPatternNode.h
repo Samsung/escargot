@@ -27,6 +27,7 @@
 #include "Node.h"
 #include "PatternNode.h"
 #include "RegisterReferenceNode.h"
+#include "LiteralNode.h"
 
 namespace Escargot {
 
@@ -36,7 +37,6 @@ public:
     ArrayPatternNode(ExpressionNodeVector&& elements, RefPtr<Node> init = nullptr, bool hasRestElement = false)
         : PatternNode(init)
         , m_elements(elements)
-        , m_default(nullptr)
         , m_hasRestElement(hasRestElement)
     {
     }
@@ -44,14 +44,13 @@ public:
     ArrayPatternNode(ExpressionNodeVector&& elements, size_t initIdx)
         : PatternNode(initIdx)
         , m_elements(elements)
-        , m_default(nullptr)
         , m_hasRestElement(false)
     {
     }
 
     virtual PatternNode* asPattern(RefPtr<Node> init)
     {
-        m_default = m_init;
+        //m_default = m_init;
         m_init = init;
         return this;
     }
@@ -59,6 +58,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ArrayPattern; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
+        ASSERT(m_initIdx != SIZE_MAX || !!m_init);
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         context->m_isLexicallyDeclaredBindingInitialization = false;
 
@@ -73,8 +73,9 @@ public:
         size_t iteratorIdx = context->getRegister();
 
         if (m_default != nullptr) {
-            size_t undefinedIndex = context->getRegister();
-            codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
+            LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
+            size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
+            undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
 
             size_t cmpIndex = context->getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), m_initIdx, undefinedIndex, cmpIndex), context, this);
@@ -175,8 +176,7 @@ public:
 
 private:
     ExpressionNodeVector m_elements;
-    RefPtr<Node> m_default;
-    bool m_hasRestElement : 1;
+    bool m_hasRestElement;
 };
 }
 

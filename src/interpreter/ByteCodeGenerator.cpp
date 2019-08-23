@@ -310,6 +310,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case GetParameterOpcode: {
+                GetParameter* cd = (GetParameter*)currentCode;
+                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case ReturnFunctionWithValueOpcode: {
                 ReturnFunctionWithValue* cd = (ReturnFunctionWithValue*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);

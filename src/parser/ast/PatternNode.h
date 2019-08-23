@@ -29,6 +29,7 @@ public:
     PatternNode(RefPtr<Node> init = nullptr)
         : Node()
         , m_init(init)
+        , m_default(nullptr)
         , m_initIdx(SIZE_MAX)
     {
     }
@@ -36,13 +37,14 @@ public:
     PatternNode(size_t initIdx)
         : Node()
         , m_init(nullptr)
+        , m_default(nullptr)
         , m_initIdx(initIdx)
     {
     }
 
-    void setInitializer(RefPtr<Node> init)
+    void setDefault(RefPtr<Node> defaultNode)
     {
-        m_init = init;
+        m_default = defaultNode;
     }
 
     virtual PatternNode* asPattern(RefPtr<Node> init)
@@ -86,6 +88,7 @@ public:
 
 protected:
     RefPtr<Node> m_init;
+    RefPtr<Node> m_default;
     size_t m_initIdx;
 };
 }

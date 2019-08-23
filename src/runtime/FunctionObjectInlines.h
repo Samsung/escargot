@@ -183,60 +183,9 @@ public:
             }
         }
 
-        // prepare parameters
-        if (UNLIKELY(codeBlock->needsComplexParameterCopy())) {
-            for (size_t i = 2; i < identifierOnStackCount; i++) {
-                stackStorage[i] = Value();
-            }
-
-#ifndef NDEBUG
-            for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
-                stackStorage[i] = Value(Value::EmptyValue);
-            }
-#endif
-            if (!codeBlock->canUseIndexedVariableStorage()) {
-                const InterpretedCodeBlock::FunctionParametersInfoVector& info = codeBlock->asInterpretedCodeBlock()->parametersInfomation();
-                for (size_t i = 0; i < parameterCopySize; i++) {
-                    record->initializeBinding(state, info[i].m_name, argv[i]);
-                }
-                for (size_t i = parameterCopySize; i < info.size(); i++) {
-                    record->initializeBinding(state, info[i].m_name, Value());
-                }
-            } else {
-                Value* parameterStorageInStack = stackStorage + 2;
-                const InterpretedCodeBlock::FunctionParametersInfoVector& info = codeBlock->asInterpretedCodeBlock()->parametersInfomation();
-                for (size_t i = 0; i < info.size(); i++) {
-                    Value val(Value::ForceUninitialized);
-                    // NOTE: consider the special case with duplicated parameter names (**test262: S10.2.1_A3)
-                    if (i < argc)
-                        val = argv[i];
-                    else if (info[i].m_index >= (int32_t)argc)
-                        continue;
-                    else
-                        val = Value();
-                    if (info[i].m_isHeapAllocated) {
-                        ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                        ((FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>*)record)->heapStorage()[info[i].m_index] = val;
-                    } else {
-                        parameterStorageInStack[info[i].m_index] = val;
-                    }
-                }
-            }
-        } else {
-            Value* parameterStorageInStack = stackStorage + 2;
-            for (size_t i = 0; i < parameterCopySize; i++) {
-                parameterStorageInStack[i] = argv[i];
-            }
-
-            for (size_t i = parameterCopySize + 2; i < identifierOnStackCount; i++) {
-                stackStorage[i] = Value();
-            }
-
-#ifndef NDEBUG
-            for (size_t i = identifierOnStackCount; i < stackStorageSize; i++) {
-                stackStorage[i] = Value(Value::EmptyValue);
-            }
-#endif
+        // initialize identifiers by undefined value
+        for (size_t i = 2; i < identifierOnStackCount; i++) {
+            stackStorage[i] = Value();
         }
 
         ThisValueBinder thisValueBinder;

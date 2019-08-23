@@ -104,6 +104,7 @@ struct GlobalVariableAccessCacheItem;
     F(CallFunction, -1, 0)                            \
     F(CallFunctionWithReceiver, -1, 0)                \
     F(CallFunctionWithSpreadElement, -1, 0)           \
+    F(GetParameter, 0, 0)                             \
     F(ReturnFunction, 0, 0)                           \
     F(ReturnFunctionWithValue, 0, 0)                  \
     F(ReturnFunctionSlowCase, 0, 0)                   \
@@ -1668,6 +1669,25 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("new(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+    }
+#endif
+};
+
+class GetParameter : public ByteCode {
+public:
+    explicit GetParameter(const ByteCodeLOC& loc, const size_t dstIndex, const size_t paramIndex)
+        : ByteCode(Opcode::GetParameterOpcode, loc)
+        , m_registerIndex(dstIndex)
+        , m_paramIndex(paramIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    uint16_t m_paramIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("get parameter r%d <- argv[%d]", (int)m_registerIndex, (int)m_paramIndex);
     }
 #endif
 };

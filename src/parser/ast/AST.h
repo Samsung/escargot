@@ -84,6 +84,7 @@
 #include "FunctionExpressionNode.h"
 #include "FunctionNode.h"
 #include "IdentifierNode.h"
+#include "InitializeParameterExpressionNode.h"
 #include "IfStatementNode.h"
 #include "LabeledStatementNode.h"
 #include "LiteralNode.h"

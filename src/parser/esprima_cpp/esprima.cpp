@@ -324,33 +324,45 @@ public:
         }
 
         const PatternNodeVector& params = paramsResult.params;
-        bool shouldCheckDuplicatedParameters = false;
+        const std::vector<AtomicString, gc_allocator<AtomicString>>& paramNames = paramsResult.paramSet;
+        bool hasParameterOtherThanIdentifier = false;
+#ifndef NDEBUG
+        bool shouldHaveEqualNumberOfParameterListAndParameterName = true;
+#endif
         scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
         for (size_t i = 0; i < params.size(); i++) {
             AtomicString id;
             if (params[i]->isIdentifier()) {
                 id = params[i]->asIdentifier()->name();
             } else if (params[i]->isAssignmentPattern()) {
-                shouldCheckDuplicatedParameters = true;
+                hasParameterOtherThanIdentifier = true;
                 id = params[i]->asAssignmentPattern()->left()->asIdentifier()->name();
             } else if (params[i]->isPattern()) {
-                shouldCheckDuplicatedParameters = true;
-                scopeContexts.back()->m_hasPatternArgument = true;
-                id = this->createPatternName(i);
+                hasParameterOtherThanIdentifier = true;
+#ifndef NDEBUG
+                shouldHaveEqualNumberOfParameterListAndParameterName = false;
+#endif
             } else if (params[i]->type() == RestElement) {
-                shouldCheckDuplicatedParameters = true;
+                hasParameterOtherThanIdentifier = true;
                 scopeContexts.back()->m_hasRestElement = true;
                 id = ((RestElementNode*)params[i].get())->argument()->name();
             } else {
                 RELEASE_ASSERT_NOT_REACHED();
             }
             scopeContexts.back()->m_parameters[i] = id;
-            scopeContexts.back()->insertVarName(id, 0, true);
+        }
+#ifndef NDEBUG
+        if (shouldHaveEqualNumberOfParameterListAndParameterName) {
+            ASSERT(params.size() == paramNames.size());
+        }
+#endif
+        scopeContexts.back()->m_hasParameterOtherThanIdentifier = hasParameterOtherThanIdentifier;
+        for (size_t i = 0; i < paramNames.size(); i++) {
+            scopeContexts.back()->insertVarName(paramNames[i], 0, true);
         }
 
         // Check if any identifier names are duplicated.
-        if (shouldCheckDuplicatedParameters) {
-            const std::vector<AtomicString, gc_allocator<AtomicString>>& paramNames = paramsResult.paramSet;
+        if (hasParameterOtherThanIdentifier) {
             if (paramNames.size() < 2) {
                 return;
             }
@@ -1472,7 +1484,7 @@ public:
             this->context->allowYield = previousAllowYield;
 
             if (pattern->isPattern()) {
-                pattern->asPattern()->setInitializer(right);
+                pattern->asPattern()->setDefault(right);
                 return pattern;
             }
 
@@ -3577,6 +3589,7 @@ public:
                 // FIXME reinterpretAsCoverFormalsList
                 if (type == Identifier) {
                     list.params.push_back(exprNode);
+                    list.paramSet.push_back(exprNode->asIdentifier()->name());
                     list.valid = true;
                 } else {
                     this->scanner->index = startMarker.index;
@@ -3584,6 +3597,7 @@ public:
                     this->scanner->lineStart = startMarker.lineStart;
                     this->nextToken();
                     this->expect(LeftParenthesis);
+                    scopeContexts.back()->m_hasArrowParameterPlaceHolder = true;
 
                     list = this->parseFormalParameters();
                 }
@@ -5580,39 +5594,52 @@ public:
 
         this->expect(LeftParenthesis);
         ParseFormalParametersResult options;
-        size_t i = 0;
+        size_t paramIndex = 0;
+        MetaNode node = this->createNode();
         while (!this->match(RightParenthesis)) {
             bool end = !this->parseFormalParameter(options);
 
             RefPtr<Node> param = options.params.back();
 
-            if (!param->isIdentifier()) {
-                MetaNode node = this->createNode();
-
-                RefPtr<Node> p;
-
-                if (param->isPattern()) {
-                    RefPtr<IdentifierNode> id = adoptRef(new IdentifierNode(this->createPatternName(i)));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(param.get(), id.get()));
-                    p = assign;
-                } else {
-                    p = param.get();
-                }
-
-                RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(p.get()));
+            switch (param->type()) {
+            case Identifier:
+            case ArrayPattern:
+            case ObjectPattern: {
+                RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param.get(), paramIndex));
+                RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(init.get()));
                 container->appendChild(statement->asStatementNode());
+                break;
+            }
+            case AssignmentPattern: {
+                RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param->asAssignmentPattern()->left(), paramIndex));
+                RefPtr<Node> statement1 = this->finalize(node, new ExpressionStatementNode(init.get()));
+                RefPtr<Node> statement2 = this->finalize(node, new ExpressionStatementNode(param.get()));
+                container->appendChild(statement1->asStatementNode());
+                container->appendChild(statement2->asStatementNode());
+                break;
+            }
+            case RestElement: {
+                RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(param.get()));
+                container->appendChild(statement->asStatementNode());
+                break;
+            }
+            default: {
+                ASSERT_NOT_REACHED();
+                break;
+            }
             }
 
             if (end) {
                 break;
             }
-            i++;
+            paramIndex++;
             this->expect(Comma);
         }
         this->expect(RightParenthesis);
 
         return container;
     }
+
 
     PassRefPtr<BlockStatementNode> parseFunctionBody()
     {
@@ -6229,40 +6256,25 @@ public:
         return this->finalize(node, new FunctionNode(params.get(), body.get()));
     }
 
-    PassRefPtr<FunctionNode> parseScriptArrowFunction()
+    PassRefPtr<FunctionNode> parseScriptArrowFunction(bool hasArrowParameterPlaceHolder)
     {
         ASSERT(this->config.parseSingleFunction);
 
         MetaNode node = this->createNode();
-        RefPtr<StatementContainer> params = StatementContainer::create();
+        RefPtr<StatementContainer> params;
         RefPtr<BlockStatementNode> body;
 
-        RefPtr<Node> parameters = this->conditionalExpression<Parse>();
-        ASSERT(parameters->type() == ArrowParameterPlaceHolder || this->match(Arrow));
-
         // generate parameter statements
-        if (parameters->type() == ArrowParameterPlaceHolder) {
-            ExpressionNodeVector& paramList = ((ArrowParameterPlaceHolderNode*)parameters.get())->params();
-            for (size_t i = 0; i < paramList.size(); i++) {
-                RefPtr<Node> p = paramList[i];
-                if (!p->isIdentifier()) {
-                    if (p->isPattern()) {
-                        RefPtr<IdentifierNode> id = adoptRef(new IdentifierNode(this->createPatternName(i)));
-                        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new AssignmentExpressionSimpleNode(p.get(), id.get()));
-                        p = assign;
-                    } else if (p->type() == AssignmentExpressionSimple) {
-                        AssignmentPatternNode* defaultNode = (AssignmentPatternNode*)p.get();
-                        p = adoptRef(new AssignmentPatternNode(defaultNode->left(), defaultNode->right()));
-                    } else {
-                        ASSERT(p->type() == RestElement);
-                    }
-
-                    RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(p.get()));
-                    params->appendChild(statement->asStatementNode());
-                }
-            }
+        if (hasArrowParameterPlaceHolder) {
+            params = parseFunctionParameters();
+        } else {
+            RefPtr<Node> param = this->conditionalExpression<Parse>();
+            ASSERT(param->type() == Identifier);
+            params = StatementContainer::create();
+            RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param.get(), 0));
+            RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(init.get()));
+            params->appendChild(statement->asStatementNode());
         }
-
         this->expect(Arrow);
         this->context->inArrowFunction = true;
 
@@ -6571,7 +6583,7 @@ RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCo
     parser.context->allowYield = !codeBlock->isGenerator();
 
     if (codeBlock->isArrowFunctionExpression()) {
-        return parser.parseScriptArrowFunction();
+        return parser.parseScriptArrowFunction(codeBlock->hasArrowParameterPlaceHolder());
     }
     return parser.parseScriptFunction();
 }

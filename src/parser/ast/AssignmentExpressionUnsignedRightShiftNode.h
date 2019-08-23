@@ -45,7 +45,7 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssigmentOperation(m_left.get(), m_right.get());
+        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssignmentOperation(m_left.get(), m_right.get());
         bool flagBefore;
         if (slowMode) {
             flagBefore = context->m_canSkipCopyToRegister;

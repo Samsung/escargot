@@ -203,9 +203,14 @@ public:
         return m_usesArgumentsObject;
     }
 
-    bool hasArgumentInitializers() const
+    bool hasArrowParameterPlaceHolder() const
     {
-        return m_hasArgumentInitializers;
+        return m_hasArrowParameterPlaceHolder;
+    }
+
+    bool hasParameterOtherThanIdentifier() const
+    {
+        return m_hasParameterOtherThanIdentifier;
     }
 
     bool hasImplictFunctionName()
@@ -325,8 +330,9 @@ protected:
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
     bool m_needsVirtualIDOperation : 1;
-    bool m_hasArgumentInitializers : 1;
     bool m_hasImplictFunctionName : 1;
+    bool m_hasArrowParameterPlaceHolder : 1;
+    bool m_hasParameterOtherThanIdentifier : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;
