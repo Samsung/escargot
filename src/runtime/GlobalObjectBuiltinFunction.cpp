@@ -59,7 +59,9 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         FunctionObject* fn = thisValue.asFunction();
         StringBuilder builder;
         builder.appendString("function ");
-        builder.appendString(fn->codeBlock()->functionName().string());
+        if (!fn->codeBlock()->hasImplictFunctionName()) {
+            builder.appendString(fn->codeBlock()->functionName().string());
+        }
         builder.appendString("(");
 
         if (fn->codeBlock()->isInterpretedCodeBlock()) {

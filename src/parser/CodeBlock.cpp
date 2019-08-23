@@ -112,6 +112,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_hasArgumentInitializers(false)
+    , m_hasImplictFunctionName(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -149,6 +150,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isGenerator(false)
     , m_needsVirtualIDOperation(false)
     , m_hasArgumentInitializers(false)
+    , m_hasImplictFunctionName(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
@@ -219,6 +221,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasYield = scopeCtx->m_hasYield;
     m_inWith = scopeCtx->m_inWith;
 
+    m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
+
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;
 
@@ -284,6 +288,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasYield = scopeCtx->m_hasYield;
     m_inWith = scopeCtx->m_inWith;
     m_hasArgumentInitializers = scopeCtx->m_hasRestElement || scopeCtx->m_hasPatternArgument;
+    m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
 
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;

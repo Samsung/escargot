@@ -25,7 +25,7 @@ namespace Escargot {
 class FunctionExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    FunctionExpressionNode(const AtomicString& id, PatternNodeVector&& params, ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t subCodeBlockIndex)
+    FunctionExpressionNode(ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t subCodeBlockIndex)
         : m_isGenerator(isGenerator)
         , m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
