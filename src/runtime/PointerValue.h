@@ -145,6 +145,11 @@ public:
         return false;
     }
 
+    virtual bool isDatePrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isRegExpObject(ExecutionState& state)
     {
         return false;

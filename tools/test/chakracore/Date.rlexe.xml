@@ -10,6 +10,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>This test is not suitable for ES6</escargot-skip>
       <files>DateGetSet.js</files>
       <baseline>DateGetSet.baseline</baseline>
       <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->

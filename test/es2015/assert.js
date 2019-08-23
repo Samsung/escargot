@@ -34,3 +34,7 @@ function assertThrows(code, errorType) {
     }
     throw new Error("Did not throw exception");
 }
+
+function assertNotReached(message) {
+    throw new Error("message");
+}

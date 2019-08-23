@@ -1,0 +1,2077 @@
+Running all tests
+[UnitTestFramework] UTFTests.js .......... Pass
+[Array] array_fastinit.js .......... Pass
+[Array] array_init.js .......... Pass
+[Array] array_init2.js .......... Pass
+[Array] SpliceBtreeMemoryCorruption.js .......... Pass
+[Array] sliceArrayForceBtreeBug616623.js .......... Pass
+[Array] bug945376SegLeftPlusSizeGreaterThanMaxArrayLen.js .......... Skip (FIXME: take too much time)
+[Array] bug1062870.js .......... Pass
+[Array] bug1065362.js .......... Skip (FIXME: take too much time)
+[Array] bug4916987.js .......... Pass
+[Array] bug6268659.js .......... Pass
+[Array] ArrayBtreeBadCodeGen.js .......... Pass
+[Array] SliceandConcatAlterOriginalArrayBug.js .......... Pass
+[Array] rawLastUsedSegmentBugInFloatArray.js .......... Pass
+[Array] ArrayElementMissingValueSetToZero.js .......... Pass
+[Array] TryGrowHeadSegmentBug.js .......... Pass
+[Array] array_init2.js .......... Pass
+[Array] array_ctr.js .......... Skip (Error message differ)
+[Array] array_ctr.js .......... Skip (Error message differ)
+[Array] arr_bailout.js .......... Pass
+[Array] concat1.js .......... Pass
+[Array] concat2.js .......... Pass
+[Array] delete.js .......... Pass
+[Array] es5array_push.js .......... Pass
+[Array] ldindex.js .......... Pass
+[Array] bug612012.js .......... Pass
+[Array] SegmentMapFlagResetInJSArrayConstructor.js .......... Pass
+[Array] LastUsedSegmentHasNULLElement.js .......... Skip (FIXME: arrow function)
+[Array] array_length.js .......... Skip (Error message differ)
+[Array] join2.js .......... Pass
+[Array] missing.js .......... Pass
+[Array] pop1.js .......... Pass
+[Array] pop2.js .......... Pass
+[Array] pop3.js .......... Pass
+[Array] push1.js .......... Pass
+[Array] push2.js .......... Skip (Error message differ, es6 array length)
+[Array] push3.js .......... Skip (Error message differ)
+[Array] reverse1.js .......... Pass
+[Array] reverse2.js .......... Pass
+[Array] shift_unshift.js .......... Skip (FIXME: take too much time)
+[Array] toString.js .......... Pass
+[Array] toString.js .......... Pass
+[Array] toLocaleString.js .......... Skip (Error message differ)
+[Array] toLocaleString.js .......... Skip (Error message differ)
+[Array] array_slice.js .......... Skip (FIXME: take too much time)
+[Array] array_slice2.js .......... Pass
+[Array] array_sort.js .......... Skip (Native print function differ)
+[Array] array_includes.js .......... Skip (FIXME: Array.prototype.include not support yet(ES6))
+[Array] array_sort2.js .......... Skip (FIXME: Array.prototype.include not support yet(ES6))
+[Array] array_sort3.js .......... Skip (sort order is implementation dependent)
+[Array] array_sort3.js .......... Skip (sort order is implementation dependent)
+[Array] array_splice.js .......... Pass
+[Array] array_splice_double.js .......... Pass
+[Array] array_splice.js .......... Pass
+[Array] array_splice1.js .......... Pass
+[Array] array_splice2.js .......... Skip (Native print function differ, error message differ)
+[Array] array_splice3.js .......... Pass
+[Array] array_splice4.js .......... Pass
+[Array] sparsearray.js .......... Skip (Result is same, but key order in for-in statement differ)
+[Array] array_lastindexof.js .......... Pass
+[Array] array_indexOf.js .......... Pass
+[Array] array_indexOf.js .......... Pass
+[Array] array_indexOfSparse.js .......... Pass
+[Array] negindex.js .......... Pass
+[Array] array_forin.js .......... Pass
+[Array] array_literal.js .......... Pass
+[Array] array_literal.js .......... Pass
+[Array] nativearray_gen1.js .......... Pass
+[Array] nativearray_gen1.js .......... Pass
+[Array] nativearray_gen2.js .......... Pass
+[Array] nativearray_gen3.js .......... Pass
+[Array] nativearray_gen4.js .......... Pass
+[Array] nativearray_gen5.js .......... Pass
+[Array] nativearray_gen6.js .......... Pass
+[Array] nativearray_gen7.js .......... Pass
+[Array] nativearray_gen8.js .......... Pass
+[Array] arrlit.js .......... Pass
+[Array] protoLookup.js .......... Skip (Result is same, but key order in for-in statement differ)
+[Array] protoLookup_native.js .......... Skip (Result is same, but key order in for-in statement differ)
+[Array] protoLookupWithGetters.js .......... Skip (Test case is wrong)
+[Array] array_apply.js .......... Pass
+[Array] nativeArrayPushInlining.js .......... Pass
+[Array] reverse_native.js .......... Pass
+[Array] nativeFloatArray_shift_unshift.js .......... Pass
+[Array] nativeFloatArray_sort.js .......... Skip (FIXME: array.sort)
+[Array] missingItemFastPathCheck.js .......... Skip (FIXME: const)
+[Array] array_opts.js .......... Pass
+[Array] nativeIntPop.js .......... Pass
+[Array] nativeFloatPop.js .......... Pass
+[Array] popImplicitCall.js .......... Pass
+[Array] array_splice_515632.js .......... Pass
+[Array] InlineArrayPopWithIntConstSrc.js .......... Pass
+[Array] FailToSetLength.js .......... Skip (Error message differ)
+[Array] foreach_nativearray_change.js .......... Pass
+[Array] newfromargs.js .......... Pass
+[Array] bug945376SizeBoundStartSeg.js .......... Skip (FIXME: take too much time)
+[Array] CopyOnAccessArray_bugs.js .......... Skip (FIXME: for of)
+[Array] CopyOnAccessArray_cache_index_overflow.js .......... Skip (Test case for Chakracore)
+[Array] memop_lifetime_bug.js .......... Pass
+[Array] memset.js .......... Skip (FIXME: let)
+[Array] memset_invariant.js .......... Skip (FIXME: const)
+[Array] memset_simd.js .......... Skip (FIXME: const)
+[Array] memset2.js .......... Skip (FIXME: Template literal)
+[Array] memcopy.js .......... Skip (FIXME: let)
+[Array] memcopy.js .......... Skip (FIXME: let)
+[Array] memcopy_length_bug.js .......... Pass
+[Array] memcopy_missing_values.js .......... Skip (FIXME: Array.prototype.fill)
+[Array] memop_alias.js .......... Skip (FIXME: let)
+[Array] memop_field.js .......... Skip (FIXME: const)
+[Array] memop_slot.js .......... Skip (FIXME: const)
+[Array] memop_bounds_check.js .......... Skip (FIXME: const)
+[Array] bug4587739.js .......... Skip (FIXME: Array.prototype.fill)
+[Array] bug8159763.js .......... Pass
+[Array] Array_TypeConfusion_bugs.js .......... Skip (FIXME: class)
+[Basics] Array.js .......... Pass
+[Basics] ie12ScriptFunctionToStrings.js .......... Skip (FIXME: class)
+[Basics] DomProperties.js .......... Pass
+[Basics] ArrayConcat.js .......... Pass
+[Basics] arrayinit.js .......... Pass
+[Basics] IdsWithEscapes.js .......... Skip (Different results between ES5 and ES6)
+[Basics] ArrayResize.js .......... Pass
+[Basics] DirectCall.js .......... Pass
+[Basics] equal.js .......... Pass
+[Basics] equal_object.js .......... Pass
+[Basics] label1.js .......... Skip (Test case is not compatible with standard)
+[Basics] label1.js .......... Skip (Test case is not compatible with standard)
+[Basics] label2.js .......... Skip (Test case is not compatible with standard)
+[Basics] label2.js .......... Skip (Test case is not compatible with standard)
+[Basics] label3.js .......... Skip (Test case is not compatible with standard)
+[Basics] label3.js .......... Skip (Test case is not compatible with standard)
+[Basics] label4.js .......... Skip (Test case is not compatible with standard)
+[Basics] label4.js .......... Skip (Test case is not compatible with standard)
+[Basics] label5.js .......... Skip (Test case is not compatible with standard)
+[Basics] label5.js .......... Skip (Test case is not compatible with standard)
+[Basics] label6.js .......... Skip (Test case is not compatible with standard)
+[Basics] label6.js .......... Skip (Test case is not compatible with standard)
+[Basics] Length.js .......... Pass
+[Basics] Logical.js .......... Pass
+[Basics] ParameterOrder.js .......... Pass
+[Basics] Parameters.js .......... Pass
+[Basics] StringCharCodeAt.js .......... Pass
+[Basics] StringField.js .......... Pass
+[Basics] StringFromCharCode.js .......... Pass
+[Basics] StringSubstring.js .......... Pass
+[Basics] switch.js .......... Pass
+[Basics] Switch2.js .......... Pass
+[Basics] typeof.js .......... Pass
+[Basics] typeofcombi.js .......... Pass
+[Basics] TypePromotion.js .......... Pass
+[Basics] UndefinedVsNull.js .......... Pass
+[Basics] With.js .......... Skip (different error message)
+[Basics] withBug940841.js .......... Pass
+[Basics] withBug940841_2.js .......... Pass
+[Basics] With2.js .......... Pass
+[Basics] witheval.js .......... Pass
+[Basics] TernaryOperator.js .......... Pass
+[Basics] DeleteProperty1.js .......... Skip (Result is same, but key order in for-in statement differ)
+[Basics] Accessors.js .......... Pass
+[Basics] DefProp.js .......... Pass
+[Basics] scopedaccessors.js .......... Pass
+[Basics] flags.js .......... Skip (Value of Math.LOG2E is differ)
+[Basics] Branching.js .......... Pass
+[Basics] inlinecache.js .......... Pass
+[Basics] scan.js .......... Skip (different error message)
+[Basics] enum.js .......... Pass
+[Basics] with3.js .......... Pass
+[Basics] Enumerator-deprecated.js .......... Pass
+[Basics] Enumerator-WebViewHost.js .......... Skip (Chakracore-only)
+[Basics] cross_site_accessor_main.js .......... Skip (Not standards)
+[Basics] bug650104.js .......... Skip (Not standards)
+[es5] reservedWords.js .......... Pass
+[es5] Lex_u3.js .......... Skip (Error message differ)
+[es5] array_every.js .......... Pass
+[es5] array_some.js .......... Pass
+[es5] array_forEach.js .......... Pass
+[es5] array_map.js .......... Pass
+[es5] array_filter.js .......... Pass
+[es5] array_reduce.js .......... Pass
+[es5] array_reduceright.js .......... Pass
+[es5] DateGetSet9.js .......... Skip (different error message)
+[es5] SemicolonAfterBlockEs5.js .......... Skip (Error message differ)
+[es5] exceptions.js .......... Skip (Error message differ)
+[es5] ObjLitGetSet.js .......... Skip (Error message differ)
+[es5] ObjLitGetSetParseOnly.js .......... Skip (Non standards)
+[es5] ObjLitGetSetParseOnly.js .......... Skip (Non standards)
+[es5] ObjLitInitFld.js .......... Pass
+[es5] seal.js .......... Pass
+[es5] freeze.js .......... Pass
+[es5] extensible.js .......... Pass
+[es5] array_length.js .......... Skip (Error message differ)
+[es5] array_length.js .......... Skip (Error message differ)
+[es5] ES5ArrayIndexList.js .......... Skip (FIXME: engine is too slow to pass testcase)
+[es5] createdp.js .......... Pass
+[es5] defineProperty.js .......... Pass
+[es5] defineProperty.js .......... Pass
+[es5] defineIndexProperty.js .......... Skip (Test case wrong)
+[es5] defineIndexProperty.js .......... Skip (Test case wrong)
+[es5] enumerable.js .......... Skip (Error message differ, for-in order)
+[es5] hasItem.js .......... Pass
+[es5] regexSpace.js .......... Skip (FIXME: Yarr unicode problem)
+[es5] EnumeratingWithES5.js .......... Pass
+[es5] InsufficientArguments.js .......... Pass
+[es5] recursivesetter.js .......... Pass
+[es5] valueof.js .......... Skip (Error message differ)
+[es5] tostring_override.js .......... Pass
+[es5] valueof_override.js .......... Pass
+[es5] tostring_override.js .......... Pass
+[es5] valueof_override.js .......... Pass
+[es5] TypeConversions.js .......... Pass
+[es5] RegExpStrictDelete.js .......... Skip (old RegExp features($1, $2...))
+[es5] settersArguments.js .......... Skip (Error message differ)
+[es5] settersArguments.js .......... Skip (Error message differ)
+[es5] augmentPrimitive.js .......... Pass
+[es5] setget.js .......... Pass
+[es5] es5array_objproto.js .......... Pass
+[es5] es5array_objproto_builtin.js .......... Skip (Non standards)
+[es5] es5array_arrayproto.js .......... Pass
+[es5] es5array_arrayproto_opt.js .......... Pass
+[es5] es5array_arrayproto_crosssite.js .......... Pass
+[es5] es5array_protoarr.js .......... Pass
+[es5] es5array_protoobj.js .......... Pass
+[es5] es5array_protoobj_crosssite.js .......... Pass
+[es5] es5array_replaceprotoarr.js .......... Pass
+[es5] es5array_replaceprotoobj.js .......... Pass
+[es5] resetproperty.js .......... Pass
+[es5] es5array_enum_edit.js .......... Pass
+[EH] capture.js .......... Pass
+[EH] capture.js .......... Pass
+[EH] oos2.js .......... Pass
+[EH] try1.js .......... Pass
+[EH] try2.js .......... Skip (Error message differ)
+[EH] try3.js .......... Pass
+[EH] try4.js .......... Pass
+[EH] try5-ES3.js .......... Pass
+[EH] try6.js .......... Skip (Error message differ)
+[EH] try.bug188541.js .......... Pass
+[EH] try.bug188541.v5.js .......... Skip (FIXME: let)
+[EH] so.js .......... Skip (Error message differ)
+[EH] newso.js .......... Skip (Error message differ)
+[EH] trylabel.js .......... Pass
+[EH] alignment.js .......... Skip (Test case is wrong)
+[EH] 101832.js .......... Pass
+[InlineCaches] t0.js .......... Pass
+[InlineCaches] t1.js .......... Pass
+[InlineCaches] t2.js .......... Pass
+[InlineCaches] t3.js .......... Pass
+[InlineCaches] t4.js .......... Pass
+[InlineCaches] t5.js .......... Pass
+[InlineCaches] test6.js .......... Pass
+[InlineCaches] TypePropertyCache_CrossContext.js .......... Pass
+[InlineCaches] getter_sideeffect.js .......... Pass
+[InlineCaches] prototypeChainModifications.js .......... Pass
+[InlineCaches] inlineLocalCacheWithoutProperty.js .......... Pass
+[InlineCaches] writable1.js .......... Pass
+[InlineCaches] writable2.js .......... Pass
+[InlineCaches] writable3.js .......... Pass
+[InlineCaches] BigDictionaryTypeHandler.js .......... Pass
+[InlineCaches] addFldFastPath.js .......... Pass
+[InlineCaches] MissingPropertyCache1.js .......... Pass
+[InlineCaches] MissingPropertyCache2.js .......... Pass
+[InlineCaches] MissingPropertyCache3.js .......... Pass
+[InlineCaches] instanceOfCacheCrossRegistration.js .......... Pass
+[InlineCaches] bug_vso_os_1206083.js .......... Skip (Result string indent of Function.prototype.toString is different)
+[LetConst] Skipping whole directory (Not in scope(es6: let, const))
+[Basics] Array.js .......... Pass
+[Basics] ie12ScriptFunctionToStrings.js .......... Skip (FIXME: class)
+[Basics] DomProperties.js .......... Pass
+[Basics] ArrayConcat.js .......... Pass
+[Basics] arrayinit.js .......... Pass
+[Basics] IdsWithEscapes.js .......... Skip (Different results between ES5 and ES6)
+[Basics] ArrayResize.js .......... Pass
+[Basics] DirectCall.js .......... Pass
+[Basics] equal.js .......... Pass
+[Basics] equal_object.js .......... Pass
+[Basics] label1.js .......... Skip (Test case is not compatible with standard)
+[Basics] label1.js .......... Skip (Test case is not compatible with standard)
+[Basics] label2.js .......... Skip (Test case is not compatible with standard)
+[Basics] label2.js .......... Skip (Test case is not compatible with standard)
+[Basics] label3.js .......... Skip (Test case is not compatible with standard)
+[Basics] label3.js .......... Skip (Test case is not compatible with standard)
+[Basics] label4.js .......... Skip (Test case is not compatible with standard)
+[Basics] label4.js .......... Skip (Test case is not compatible with standard)
+[Basics] label5.js .......... Skip (Test case is not compatible with standard)
+[Basics] label5.js .......... Skip (Test case is not compatible with standard)
+[Basics] label6.js .......... Skip (Test case is not compatible with standard)
+[Basics] label6.js .......... Skip (Test case is not compatible with standard)
+[Basics] Length.js .......... Pass
+[Basics] Logical.js .......... Pass
+[Basics] ParameterOrder.js .......... Pass
+[Basics] Parameters.js .......... Pass
+[Basics] StringCharCodeAt.js .......... Pass
+[Basics] StringField.js .......... Pass
+[Basics] StringFromCharCode.js .......... Pass
+[Basics] StringSubstring.js .......... Pass
+[Basics] switch.js .......... Pass
+[Basics] Switch2.js .......... Pass
+[Basics] typeof.js .......... Pass
+[Basics] typeofcombi.js .......... Pass
+[Basics] TypePromotion.js .......... Pass
+[Basics] UndefinedVsNull.js .......... Pass
+[Basics] With.js .......... Skip (different error message)
+[Basics] withBug940841.js .......... Pass
+[Basics] withBug940841_2.js .......... Pass
+[Basics] With2.js .......... Pass
+[Basics] witheval.js .......... Pass
+[Basics] TernaryOperator.js .......... Pass
+[Basics] DeleteProperty1.js .......... Skip (Result is same, but key order in for-in statement differ)
+[Basics] Accessors.js .......... Pass
+[Basics] DefProp.js .......... Pass
+[Basics] scopedaccessors.js .......... Pass
+[Basics] flags.js .......... Skip (Value of Math.LOG2E is differ)
+[Basics] Branching.js .......... Pass
+[Basics] inlinecache.js .......... Pass
+[Basics] scan.js .......... Skip (different error message)
+[Basics] enum.js .......... Pass
+[Basics] with3.js .......... Pass
+[Basics] Enumerator-deprecated.js .......... Pass
+[Basics] Enumerator-WebViewHost.js .......... Skip (Chakracore-only)
+[Basics] cross_site_accessor_main.js .......... Skip (Not standards)
+[Basics] bug650104.js .......... Skip (Not standards)
+[Generated] mul.js .......... Pass
+[Generated] mul0.js .......... Pass
+[Generated] mul1.js .......... Pass
+[Generated] mul2.js .......... Pass
+[Generated] mul3.js .......... Pass
+[Generated] div.js .......... Pass
+[Generated] div0.js .......... Skip (dtoa result is diffrent)
+[Generated] div1.js .......... Skip (dtoa result is diffrent)
+[Generated] div2.js .......... Pass
+[Generated] div3.js .......... Pass
+[Generated] mod.js .......... Pass
+[Generated] mod0.js .......... Pass
+[Generated] mod1.js .......... Pass
+[Generated] mod2.js .......... Pass
+[Generated] mod3.js .......... Pass
+[Generated] add.js .......... Pass
+[Generated] add0.js .......... Pass
+[Generated] add1.js .......... Pass
+[Generated] add2.js .......... Pass
+[Generated] add3.js .......... Pass
+[Generated] sub.js .......... Pass
+[Generated] sub0.js .......... Pass
+[Generated] sub1.js .......... Pass
+[Generated] sub2.js .......... Pass
+[Generated] sub3.js .......... Pass
+[Generated] lsh.js .......... Pass
+[Generated] lsh0.js .......... Pass
+[Generated] lsh1.js .......... Pass
+[Generated] lsh2.js .......... Pass
+[Generated] lsh3.js .......... Pass
+[Generated] rsh.js .......... Pass
+[Generated] rsh0.js .......... Pass
+[Generated] rsh1.js .......... Pass
+[Generated] rsh2.js .......... Pass
+[Generated] rsh3.js .......... Pass
+[Generated] rshu.js .......... Pass
+[Generated] rshu0.js .......... Pass
+[Generated] rshu1.js .......... Pass
+[Generated] rshu2.js .......... Pass
+[Generated] rshu3.js .......... Pass
+[Generated] lt.js .......... Pass
+[Generated] lt0.js .......... Pass
+[Generated] lt1.js .......... Pass
+[Generated] lt2.js .......... Pass
+[Generated] lt3.js .......... Pass
+[Generated] gt.js .......... Pass
+[Generated] gt0.js .......... Pass
+[Generated] gt1.js .......... Pass
+[Generated] gt2.js .......... Pass
+[Generated] gt3.js .......... Pass
+[Generated] le.js .......... Pass
+[Generated] le0.js .......... Pass
+[Generated] le1.js .......... Pass
+[Generated] le2.js .......... Pass
+[Generated] le3.js .......... Pass
+[Generated] ge.js .......... Pass
+[Generated] ge0.js .......... Pass
+[Generated] ge1.js .......... Pass
+[Generated] ge2.js .......... Pass
+[Generated] ge3.js .......... Pass
+[Generated] eq.js .......... Pass
+[Generated] eq0.js .......... Pass
+[Generated] eq1.js .......... Pass
+[Generated] eq2.js .......... Pass
+[Generated] eq3.js .......... Pass
+[Generated] ne.js .......... Pass
+[Generated] ne0.js .......... Pass
+[Generated] ne1.js .......... Pass
+[Generated] ne2.js .......... Pass
+[Generated] ne3.js .......... Pass
+[Generated] seq.js .......... Pass
+[Generated] seq0.js .......... Pass
+[Generated] seq1.js .......... Pass
+[Generated] seq2.js .......... Pass
+[Generated] seq3.js .......... Pass
+[Generated] sne.js .......... Pass
+[Generated] sne0.js .......... Pass
+[Generated] sne1.js .......... Pass
+[Generated] sne2.js .......... Pass
+[Generated] sne3.js .......... Pass
+[Generated] and.js .......... Pass
+[Generated] and0.js .......... Pass
+[Generated] and1.js .......... Pass
+[Generated] and2.js .......... Pass
+[Generated] and3.js .......... Pass
+[Generated] xor.js .......... Pass
+[Generated] xor0.js .......... Pass
+[Generated] xor1.js .......... Pass
+[Generated] xor2.js .......... Pass
+[Generated] xor3.js .......... Pass
+[Generated] or.js .......... Pass
+[Generated] or0.js .......... Pass
+[Generated] or1.js .......... Pass
+[Generated] or2.js .......... Pass
+[Generated] or3.js .......... Pass
+[Generated] land.js .......... Pass
+[Generated] land0.js .......... Pass
+[Generated] land1.js .......... Pass
+[Generated] land2.js .......... Pass
+[Generated] land3.js .......... Pass
+[Generated] lor.js .......... Pass
+[Generated] lor0.js .......... Pass
+[Generated] lor1.js .......... Pass
+[Generated] lor2.js .......... Pass
+[Generated] lor3.js .......... Pass
+[Generated] imul.js .......... Pass
+[Generated] divbypow2.js .......... Pass
+[Generated] B9AA6BBF.0.js .......... Pass
+[Generated] 6E55FA7A.0.js .......... Pass
+[Generated] attackoftheclones.js .......... Pass
+[Closures] cachedscope_1.js .......... Pass
+[Closures] cachedscope_2.js .......... Pass
+[Closures] closure.js .......... Pass
+[Closures] closure-callback.js .......... Pass
+[Closures] closure_multiple_1.js .......... Pass
+[Closures] closure_multiple_2.js .......... Pass
+[Closures] closure_binding.js .......... Pass
+[Closures] closure_binding_2.js .......... Pass
+[Closures] closure-funcexpr-eval.js .......... Pass
+[Closures] closure-qmark.js .......... Skip (Error message differ)
+[Closures] closure_ole.js .......... Skip (FIXME: ES6 Syntax)
+[Closures] closure_ole.js .......... Skip (FIXME: ES6 Syntax)
+[Closures] delaycapture-loopbody.js .......... Pass
+[Closures] delaycapture-loopbody2.js .......... Pass
+[Closures] initcachedscope.js .......... Skip (FIXME: let)
+[Closures] initcachedscope.js .......... Skip (FIXME: let)
+[Closures] invalcachedscope.js .......... Pass
+[Closures] invalcachedscope.js .......... Pass
+[Closures] invalcachedscope.js .......... Pass
+[Closures] bug_OS_2299723.js .......... Skip (FIXME: let)
+[Closures] bug_OS_2671095.js .......... Pass
+[Closures] bug_OS_2903083.js .......... Pass
+[Closures] bug_OS_9781249.js .......... Skip (FIXME: ES6 Syntax)
+[Closures] bug_OS_9008744.js .......... Pass
+[Strings] charAt.js .......... Skip (Error message differ)
+[Strings] fromCharCode.js .......... Skip (Error message differ)
+[Strings] charCodeAt.js .......... Skip (Error message differ)
+[Strings] concat1.js .......... Pass
+[Strings] concat2.js .......... Pass
+[Strings] concat3.js .......... Skip (FIXME: take too much time)
+[Strings] concat4.js .......... Pass
+[Strings] concat5.js .......... Pass
+[Strings] concat6.js .......... Pass
+[Strings] concat7.js .......... Pass
+[Strings] concat_empty.js .......... Pass
+[Strings] LeftDead.js .......... Pass
+[Strings] split1.js .......... Pass
+[Strings] stringBuiltin.js .......... Pass
+[Strings] toLowerCase.js .......... Pass
+[Strings] string_replace.js .......... Pass
+[Strings] compare.js .......... Pass
+[Strings] replace.js .......... Pass
+[Strings] trim.js .......... Skip (Not standard function(trimLeft, trimRight))
+[Strings] lastindexof.js .......... Skip (FIXME: for-of)
+[Strings] indexof.js .......... Pass
+[Strings] neg_index.js .......... Pass
+[Strings] substring.js .......... Pass
+[Strings] HTMLHelpers.js .......... Skip (Not standard functions)
+[Strings] stringindex.js .......... Pass
+[Strings] length.js .......... Skip (Error message differ)
+[Strings] stringtypespec.js .......... Pass
+[Strings] CompoundString.js .......... Skip (FIXME: take too much time)
+[Strings] concatmulti.js .......... Pass
+[Strings] concatmulti_compoundstring.js .......... Pass
+[Strings] concatmulti_large.js .......... Pass
+[Strings] concatmulti_loop.js .......... Pass
+[Strings] long_concatstr.js .......... Pass
+[Strings] StringTagFunctions.js .......... Skip (Not standard functions)
+[Strings] string_object_indices_589140.js .......... Pass
+[Strings] property_and_index_of_string.js .......... Skip (Error message differ)
+[Strings] bug_OS_3080673.js .......... Skip (Passed. but Test driver can not get information)
+[Strings] unicode_toUpperCase_toLowerCase.js .......... Pass
+[Date] DateCtr.js .......... Pass
+[Date] DateGetSet.js .......... Skip (This test is not suitable for ES6)
+[Date] DateParse.js .......... Skip (Implementation-dependent case)
+[Date] DateParse2.js .......... Skip (Implementation-dependent case)
+[Date] toISO_3.js .......... Pass
+[Date] parseISO.js .......... Skip (Implementation-dependent case)
+[Date] dateutc.js .......... Skip (Test case is not compatible with standard)
+[Date] MillisecondTruncationCheckAfterCopyConstructor.js .......... Pass
+[Date] Conversions.js .......... Skip (Implementation-dependent case)
+[Date] Conversions.js .......... Skip (Implementation-dependent case)
+[Date] date_cache_bug.js .......... Pass
+[Date] formatting.js .......... Skip (Implementation-dependent case)
+[Error] errorProps.js .......... Skip (Non-standard feature)
+[Error] ErrorCtorProps.js .......... Skip (different error message)
+[Error] NativeErrors.js .......... Skip (Non-standard feature)
+[Error] outofmem.js .......... Skip (FIXME: take too much time)
+[Error] stack.js .......... Skip (different error message)
+[Error] stack2.js .......... Skip (different error message)
+[Error] errorCtor.js .......... Skip (Non-standard feature)
+[Error] errorNum.js .......... Skip (Non-standard feature)
+[Error] CallNonFunction.js .......... Skip (different error message)
+[Error] sourceInfo_00.js .......... Skip (different error message)
+[Error] sourceInfo_01.js .......... Skip (different error message)
+[Error] sourceInfo_10.js .......... Skip (different error message)
+[Error] sourceInfo_11.js .......... Skip (different error message)
+[Error] sourceInfo_12.js .......... Skip (different error message)
+[Error] sourceInfo_13.js .......... Skip (different error message)
+[Error] sourceInfo_20.js .......... Skip (different error message)
+[Error] variousErrors.js .......... Pass
+[Error] RuntimeCompileStackOverflow.js .......... Skip (different error message)
+[Error] encodeoverflow.js .......... Skip (FIXME: take too much time)
+[Error] bug560940.js .......... Pass
+[Error] stackoverflow.js .......... Skip (Variable limit excceed)
+[Error] inlineSameFunc.js .......... Skip (Non-standard feature)
+[Error] PartInitStackFrame.js .......... Skip (Non-standard feature)
+[Error] validate_line_column.js .......... Skip (Non-standard feature)
+[Error] validate_line_column.js .......... Skip (Non-standard feature)
+[Boolean] simple1.js .......... Pass
+[Boolean] simple2.js .......... Pass
+[Boolean] wrappedobj.js .......... Pass
+[Boolean] Equals.js .......... Pass
+[Boolean] property_and_index_of_boolean.js .......... Skip (different error message)
+[Boolean] equality.js .......... Pass
+[Boolean] boolprop.js .......... Pass
+[Number] toString.js .......... Skip (Test case is not compatible with standard)
+[Number] floatcmp.js .......... Pass
+[Number] NaN.js .......... Pass
+[Number] integer.js .......... Pass
+[Number] toUint16.js .......... Pass
+[Number] boundaries.js .......... Pass
+[Number] NoSse.js .......... Pass
+[Number] property_and_index_of_number.js .......... Skip (different error message)
+[ControlFlow] DoLoop.js .......... Pass
+[ControlFlow] DoLoop2.js .......... Pass
+[ControlFlow] DoLoop3.js .......... Pass
+[ControlFlow] jump.js .......... Pass
+[ControlFlow] ForLoop.js .......... Pass
+[ControlFlow] ForLoop2.js .......... Pass
+[ControlFlow] WhileLoop.js .......... Pass
+[ControlFlow] WhileLoop2.js .......... Pass
+[ControlFlow] forInMisc.js .......... Skip (Error message differ)
+[ControlFlow] forInObjectDelete.js .......... Pass
+[ControlFlow] forInObjectAdd.js .......... Skip (for-in order differ)
+[ControlFlow] forInObjectAddDelete.js .......... Pass
+[ControlFlow] forInPrimitive.js .......... Skip (Error message differ)
+[ControlFlow] enumeration_adddelete.js .......... Pass
+[ControlFlow] forInArrayAdd.js .......... Pass
+[ControlFlow] forInObjectWithPrototype.js .......... Pass
+[ControlFlow] DoWhile.js .......... Pass
+[Math] abs.js .......... Pass
+[Math] acos.js .......... Pass
+[Math] asin.js .......... Pass
+[Math] atan.js .......... Pass
+[Math] atan2.js .......... Pass
+[Math] cos.js .......... Pass
+[Math] exp.js .......... Pass
+[Math] log.js .......... Pass
+[Math] neg.js .......... Pass
+[Math] pow.js .......... Pass
+[Math] min.js .......... Pass
+[Math] max.js .......... Pass
+[Math] miscellaneous.js .......... Pass
+[Math] round.js .......... Pass
+[Math] ceilfloor.js .......... Pass
+[Math] ceilfloor.js .......... Pass
+[Math] sin.js .......... Pass
+[Math] sqrt.js .......... Pass
+[Math] tan.js .......... Pass
+[Math] constants.js .......... Skip (Implementation-dependent case)
+[Math] clz32.js .......... Skip (ES6 spec (Math.clz32))
+[TaggedIntegers] remBailout.js .......... Pass
+[TaggedIntegers] comparison.js .......... Pass
+[TaggedIntegers] addition.js .......... Pass
+[TaggedIntegers] subtraction.js .......... Pass
+[TaggedIntegers] div_min_int.js .......... Pass
+[TaggedIntegers] multiplication.js .......... Pass
+[TaggedIntegers] divide.js .......... Pass
+[TaggedIntegers] and.js .......... Pass
+[TaggedIntegers] or.js .......... Pass
+[TaggedIntegers] xor.js .......... Pass
+[TaggedIntegers] not.js .......... Pass
+[TaggedIntegers] negate.js .......... Pass
+[TaggedIntegers] signedshiftleft.js .......... Pass
+[TaggedIntegers] signedshiftright.js .......... Pass
+[TaggedIntegers] unsignedshiftright.js .......... Pass
+[TaggedIntegers] modulus.js .......... Pass
+[TaggedIntegers] loopbounds.js .......... Pass
+[TaggedIntegers] not_1.js .......... Pass
+[TaggedIntegers] shift_constants.js .......... Pass
+[TaggedIntegers] loops.js .......... Pass
+[TaggedIntegers] predecrement.js .......... Pass
+[TaggedIntegers] preincrement.js .......... Pass
+[TaggedIntegers] comparison.js .......... Pass
+[TaggedIntegers] addition.js .......... Pass
+[TaggedIntegers] subtraction.js .......... Pass
+[TaggedIntegers] multiplication.js .......... Pass
+[TaggedIntegers] divide.js .......... Pass
+[TaggedIntegers] and.js .......... Pass
+[TaggedIntegers] or.js .......... Pass
+[TaggedIntegers] xor.js .......... Pass
+[TaggedIntegers] not.js .......... Pass
+[TaggedIntegers] negate.js .......... Pass
+[TaggedIntegers] signedshiftleft.js .......... Pass
+[TaggedIntegers] signedshiftright.js .......... Pass
+[TaggedIntegers] unsignedshiftright.js .......... Pass
+[TaggedIntegers] modulus.js .......... Pass
+[TaggedIntegers] loopbounds.js .......... Pass
+[TaggedIntegers] arrays.js .......... Pass
+[TaggedIntegers] arrays.js .......... Pass
+[TaggedIntegers] not_1.js .......... Pass
+[TaggedIntegers] shift_constants.js .......... Pass
+[TaggedIntegers] loops.js .......... Pass
+[TaggedIntegers] predecrement.js .......... Pass
+[TaggedIntegers] preincrement.js .......... Pass
+[TaggedFloats] Skipping whole directory (Implementation-dependent case)
+[Optimizer] bug318.js .......... Pass
+[Optimizer] bug70.js .......... Pass
+[Optimizer] bug713.js .......... Pass
+[Optimizer] bug1788761.js .......... Pass
+[Optimizer] bug1868543.js .......... Skip (FIXME: TypedArray.prototype.filter)
+[Optimizer] bug469.js .......... Skip (FIXME: for-of)
+[Optimizer] bug3831075.js .......... Pass
+[Optimizer] bug5579910.js .......... Skip (FIXME: Proxy)
+[Optimizer] conv_bool.js .......... Pass
+[Optimizer] CmBail.js .......... Pass
+[Optimizer] CmPeeps.js .......... Pass
+[Optimizer] cse1.js .......... Pass
+[Optimizer] cse2.js .......... Pass
+[Optimizer] cse3.js .......... Pass
+[Optimizer] NullTypeSpec.js .......... Pass
+[Optimizer] optpeep.js .......... Pass
+[Optimizer] shru_peep.js .......... Pass
+[Optimizer] shru_intrange.js .......... Pass
+[Optimizer] test0.js .......... Pass
+[Optimizer] test1.js .......... Pass
+[Optimizer] test10.js .......... Pass
+[Optimizer] test11.js .......... Pass
+[Optimizer] test12.js .......... Pass
+[Optimizer] test13.js .......... Pass
+[Optimizer] test14.js .......... Pass
+[Optimizer] test15.js .......... Pass
+[Optimizer] test16.js .......... Pass
+[Optimizer] test17.js .......... Pass
+[Optimizer] test18.js .......... Pass
+[Optimizer] test19.js .......... Pass
+[Optimizer] test2.js .......... Pass
+[Optimizer] test20.js .......... Pass
+[Optimizer] test21.js .......... Pass
+[Optimizer] test22.js .......... Pass
+[Optimizer] test23.js .......... Pass
+[Optimizer] test24.js .......... Pass
+[Optimizer] test25.js .......... Pass
+[Optimizer] test26.js .......... Pass
+[Optimizer] test27.js .......... Pass
+[Optimizer] test28.js .......... Pass
+[Optimizer] test29.js .......... Pass
+[Optimizer] test3.js .......... Pass
+[Optimizer] test30.js .......... Pass
+[Optimizer] test31.js .......... Pass
+[Optimizer] test32.js .......... Pass
+[Optimizer] test33.js .......... Pass
+[Optimizer] test34.js .......... Pass
+[Optimizer] test35.js .......... Pass
+[Optimizer] test36.js .......... Pass
+[Optimizer] test37.js .......... Pass
+[Optimizer] test38.js .......... Pass
+[Optimizer] test39.js .......... Pass
+[Optimizer] test4.js .......... Pass
+[Optimizer] test40.js .......... Pass
+[Optimizer] test41.js .......... Pass
+[Optimizer] test42.js .......... Pass
+[Optimizer] test43.js .......... Pass
+[Optimizer] test44.js .......... Pass
+[Optimizer] test45.js .......... Pass
+[Optimizer] test46.js .......... Pass
+[Optimizer] test47.js .......... Pass
+[Optimizer] test48.js .......... Pass
+[Optimizer] test49.js .......... Pass
+[Optimizer] test5.js .......... Pass
+[Optimizer] test50.js .......... Pass
+[Optimizer] test51.js .......... Pass
+[Optimizer] test52.js .......... Pass
+[Optimizer] test53.js .......... Pass
+[Optimizer] test54.js .......... Pass
+[Optimizer] test55.js .......... Pass
+[Optimizer] test56.js .......... Pass
+[Optimizer] test57.js .......... Pass
+[Optimizer] test58.js .......... Pass
+[Optimizer] test59.js .......... Pass
+[Optimizer] test6.js .......... Pass
+[Optimizer] test60.js .......... Pass
+[Optimizer] test61.js .......... Pass
+[Optimizer] test62.js .......... Pass
+[Optimizer] test63.js .......... Pass
+[Optimizer] test64.js .......... Pass
+[Optimizer] test65.js .......... Pass
+[Optimizer] test66.js .......... Pass
+[Optimizer] test67.js .......... Pass
+[Optimizer] test68.js .......... Pass
+[Optimizer] test69.js .......... Pass
+[Optimizer] test7.js .......... Pass
+[Optimizer] test70.js .......... Pass
+[Optimizer] test71.js .......... Pass
+[Optimizer] test72.js .......... Pass
+[Optimizer] test73.js .......... Pass
+[Optimizer] test74.js .......... Pass
+[Optimizer] test75.js .......... Pass
+[Optimizer] test76.js .......... Pass
+[Optimizer] test77.js .......... Pass
+[Optimizer] test78.js .......... Pass
+[Optimizer] test79.js .......... Pass
+[Optimizer] test8.js .......... Pass
+[Optimizer] test80.js .......... Pass
+[Optimizer] test81.js .......... Pass
+[Optimizer] test82.js .......... Pass
+[Optimizer] test83.js .......... Pass
+[Optimizer] test84.js .......... Pass
+[Optimizer] test85.js .......... Pass
+[Optimizer] test86.js .......... Pass
+[Optimizer] test87.js .......... Pass
+[Optimizer] test88.js .......... Pass
+[Optimizer] test89.js .......... Pass
+[Optimizer] test9.js .......... Pass
+[Optimizer] test90.js .......... Pass
+[Optimizer] test91.js .......... Pass
+[Optimizer] test92.js .......... Pass
+[Optimizer] test93.js .......... Pass
+[Optimizer] test94.js .......... Pass
+[Optimizer] test95.js .......... Pass
+[Optimizer] test96.js .......... Pass
+[Optimizer] test97.js .......... Pass
+[Optimizer] test98.js .......... Pass
+[Optimizer] test99.js .......... Pass
+[Optimizer] test100.js .......... Pass
+[Optimizer] test101.js .......... Pass
+[Optimizer] test102.js .......... Pass
+[Optimizer] test103.js .......... Pass
+[Optimizer] test104.js .......... Pass
+[Optimizer] test105.js .......... Skip (dtoa result differ)
+[Optimizer] test106.js .......... Pass
+[Optimizer] test107.js .......... Pass
+[Optimizer] test108.js .......... Pass
+[Optimizer] test109.js .......... Pass
+[Optimizer] test110.js .......... Pass
+[Optimizer] test111.js .......... Pass
+[Optimizer] test112.js .......... Pass
+[Optimizer] test113.js .......... Pass
+[Optimizer] test115.js .......... Skip (FIXME: let)
+[Optimizer] test116.js .......... Pass
+[Optimizer] test117.js .......... Pass
+[Optimizer] test118.js .......... Pass
+[Optimizer] test119.js .......... Skip (Error message differ)
+[Optimizer] test120.js .......... Skip (FIXME: const)
+[Optimizer] test121.js .......... Pass
+[Optimizer] test122.js .......... Pass
+[Optimizer] test123.js .......... Pass
+[Optimizer] test124.js .......... Pass
+[Optimizer] test125.js .......... Pass
+[Optimizer] test126.js .......... Pass
+[Optimizer] test127.js .......... Pass
+[Optimizer] test128.js .......... Skip (Error message differ)
+[Optimizer] test129.js .......... Pass
+[Optimizer] test130.js .......... Pass
+[Optimizer] test131.js .......... Pass
+[Optimizer] test132.js .......... Pass
+[Optimizer] test133.js .......... Skip (Error message differ)
+[Optimizer] test134.js .......... Pass
+[Optimizer] test135.js .......... Skip (FIXME: let)
+[Optimizer] test136.js .......... Pass
+[Optimizer] test137.js .......... Pass
+[Optimizer] test138.js .......... Pass
+[Optimizer] test138.js .......... Pass
+[Optimizer] test139.js .......... Pass
+[Optimizer] test140.js .......... Pass
+[Optimizer] test141.js .......... Pass
+[Optimizer] test142.js .......... Pass
+[Optimizer] test143.js .......... Skip (Chakracore only)
+[Optimizer] test144.js .......... Pass
+[Optimizer] test145.js .......... Pass
+[Optimizer] deadstore_field.js .......... Pass
+[Optimizer] deadstore_oneblockloop.js .......... Pass
+[Optimizer] marktemp.js .......... Pass
+[Optimizer] marktemp2.js .......... Pass
+[Optimizer] marktempnumberontempobjects.js .......... Skip (dtoa result differ)
+[Optimizer] mul.js .......... Skip (test driver wrong)
+[Optimizer] NegativeZero.js .......... Skip (Function.prototype.toString result differ)
+[Optimizer] Overflow.js .......... Pass
+[Optimizer] Overflow_MaxInterpret.js .......... Pass
+[Optimizer] Invariants.js .......... Pass
+[Optimizer] LossyLosslessInt32.js .......... Pass
+[Optimizer] LossyLosslessInt32.js .......... Pass
+[Optimizer] LossyLosslessInt32.js .......... Pass
+[Optimizer] AggressiveIntTypeSpec.js .......... Pass
+[Optimizer] AggressiveIntTypeSpec_Off_MaxInterpret.js .......... Pass
+[Optimizer] FloatTypeSpec_MaxInterpret.js .......... Pass
+[Optimizer] NativeArray_MaxInterpret_OffArrayMissingValueCheckHoist.js .......... Pass
+[Optimizer] TypeSpec.js .......... Pass
+[Optimizer] inline-actual.js .......... Pass
+[Optimizer] copyprop.js .......... Skip (Function.caller not is supported)
+[Optimizer] copyprop.js .......... Skip (Function.caller not is supported)
+[Optimizer] dead.js .......... Pass
+[Optimizer] UnreachableCode.js .......... Skip (Error message differ)
+[Optimizer] PrePassValues.js .......... Pass
+[Optimizer] missing_len.js .......... Pass
+[Optimizer] ArrayCheckHoist.js .......... Skip (FIXME: ES6 feature)
+[Optimizer] ArrayCheckHoist.js .......... Skip (FIXME: ES6 feature)
+[Optimizer] ArrayCheckHoist.js .......... Skip (FIXME: ES6 feature)
+[Optimizer] ArrayCheckHoist.js .......... Skip (FIXME: ES6 feature)
+[Optimizer] BoundCheckElimination.js .......... Skip (Chakracore only)
+[Optimizer] Miscellaneous_MaxInterpret.js .......... Skip (FIXME: let)
+[Optimizer] Miscellaneous_LoopInterpret.js .......... Pass
+[Optimizer] Miscellaneous_ForceJitLoopBody.js .......... Pass
+[Optimizer] NegativeZeroPow.js .......... Pass
+[Optimizer] StrengthReduction.js .......... Pass
+[Optimizer] directglofield_dictionarytypehandler.js .......... Skip (Error message differ)
+[Optimizer] IntDivTypeSpec.js .......... Pass
+[Optimizer] bailonnoprofile_objtypespecstore.js .......... Skip (test driver is wrong)
+[Optimizer] Non32bitOverflow.js .......... Pass
+[Optimizer] implicit_upwardexposed.js .......... Pass
+[Optimizer] bug1288834.js .......... Pass
+[Optimizer] opttagchecks1.js .......... Pass
+[Optimizer] opttagchecks2.js .......... Skip (FIXME: for of)
+[Optimizer] trycatch_functional.js .......... Skip (Error message differ)
+[Optimizer] trycatch_assert.js .......... Skip (Error message differ)
+[Optimizer] ToVarI32_x64.js .......... Pass
+[Optimizer] forcedTypeSpecOnLoopHeader.js .......... Pass
+[Optimizer] memop-upperbound.js .......... Pass
+[Optimizer] forceRejitBugs.js .......... Skip (FIXME: for of)
+[Optimizer] negativeZero_bugs.js .......... Pass
+[Function] apply.js .......... Pass
+[Function] apply3.js .......... Skip (FIXME: take too much time)
+[Function] applyArgs.js .......... Pass
+[Function] arguments1.js .......... Skip (Function.arguments)
+[Function] arguments2.js .......... Skip (for-in order differ)
+[Function] arguments3.js .......... Skip (test case is wrong)
+[Function] arguments4.js .......... Pass
+[Function] argumentsMisc.js .......... Skip (old Function.arguments)
+[Function] arguments.es5.js .......... Skip (for-in order)
+[Function] argumentsResolution.js .......... Pass
+[Function] argumentsLimits.js .......... Skip (Chakracore only)
+[Function] someMoreArguments.js .......... Pass
+[Function] bind.js .......... Skip (Test case is wrong)
+[Function] call1.js .......... Skip (Error message differ)
+[Function] call2.js .......... Pass
+[Function] CallerArgs.js .......... Skip (Function.caller)
+[Function] callsideeffects.js .......... Skip (FIXME: Array pattern)
+[Function] catchsymbolvar.js .......... Pass
+[Function] newsideeffect.js .......... Pass
+[Function] newsideeffect.js .......... Pass
+[Function] callmissingtgt.js .......... Pass
+[Function] defernested.js .......... Skip (Error message differ)
+[Function] defernested.js .......... Skip (Error message differ)
+[Function] jitLoopBody.js .......... Pass
+[Function] deferredParsing.js .......... Pass
+[Function] deferredParsing.js .......... Pass
+[Function] deferredGetterSetter.js .......... Pass
+[Function] deferredBadContinue.js .......... Skip (Error message differ)
+[Function] deferredBadContinue.js .......... Skip (Error message differ)
+[Function] deferredWith.js .......... Pass
+[Function] deferredWith2.js .......... Pass
+[Function] newFunction.js .......... Pass
+[Function] prototype.js .......... Skip (Error message differ)
+[Function] TApply1.js .......... Pass
+[Function] toString.js .......... Pass
+[Function] funcExpr.js .......... Skip (Error message differ)
+[Function] moreFuncExpr.js .......... Skip (Function.prototype.toString format differ)
+[Function] moreFuncExpr.js .......... Skip (Function.prototype.toString format differ)
+[Function] evenMoreFuncExpr3.js .......... Pass
+[Function] someMoreFuncExpr.js .......... Skip (Error message differ)
+[Function] constructor.js .......... Pass
+[Function] ctrFlags.js .......... Pass
+[Function] typeErrorAccessor.js .......... Skip (Function.caller)
+[Function] FuncBody.js .......... Skip (Error message differ)
+[Function] FuncBody.bug133933.js .......... Skip (Chakracore only)
+[Function] FuncBody.bug227901.js .......... Skip (Error message differ)
+[Function] FuncBody.bug232281.js .......... Skip (Error message differ)
+[Function] FuncBody.bug236810.js .......... Pass
+[Function] FuncBody.bug231397.js .......... Pass
+[Function] bug_258259.js .......... Skip (Chakracore only)
+[Function] sameNamePara.js .......... Skip (Not standards)
+[Function] closure.js .......... Pass
+[Function] undefThis.js .......... Skip (Error message differ)
+[Function] stackargs.js .......... Skip (Function.arguments)
+[Function] StackArgsWithFormals.js .......... Skip (FIXME: ES6 Syntax)
+[Function] StackArgsWithFormals.js .......... Skip (FIXME: ES6 Syntax)
+[Function] StackArgsWithFormals.js .......... Skip (FIXME: ES6 Syntax)
+[Function] StackArgsWithFormals.js .......... Skip (FIXME: ES6 Syntax)
+[Function] StackArgs_MaxInterpret.js .......... Pass
+[Function] childCallsEvalJitLoopBody.js .......... Skip (Chakracore only)
+[Function] 631838.js .......... Pass
+[Function] calli.js .......... Pass
+[Function] caller_replaced_proto.js .......... Pass
+[Function] bug542360.js .......... Pass
+[Function] crosssite_bind_main.js .......... Pass
+[Function] failnativecodeinstall.js .......... Skip (FIXME: take too much time)
+[Function] redefer-recursive-inlinees.js .......... Skip (FIXME: ES6 Syntax)
+[Object] constructor.js .......... Pass
+[Object] constructor1.js .......... Pass
+[Object] expandos.js .......... Pass
+[Object] hasOwnProperty.js .......... Pass
+[Object] isEnumerable.js .......... Pass
+[Object] isPrototypeOf.js .......... Pass
+[Object] Object.js .......... Skip (Not standards(ES5))
+[Object] null.js .......... Skip (Error message differ)
+[Object] propertyIsEnumerable.js .......... Skip (old not standards features)
+[Object] propertyDescriptorNonObject.js .......... Skip (Error message differ)
+[Object] toLocaleString2.js .......... Skip (FIXME: ES6 Syntax)
+[Object] toLocaleStringBasics.js .......... Skip (Not standards)
+[Object] toLocaleString.js .......... Skip (Chakracore only, time zone)
+[Object] toLocaleString.js .......... Skip (Chakracore only, time zone)
+[Object] toLocaleString.js .......... Skip (Chakracore only, time zone)
+[Object] toLocaleString.js .......... Skip (Chakracore only, time zone)
+[Object] toLocaleString1.js .......... Skip (toString indent, time zone)
+[Object] toLocaleString1.js .......... Skip (toString indent, time zone)
+[Object] toLocaleString1.js .......... Skip (toString indent, time zone)
+[Object] toString1.js .......... Pass
+[Object] toString2.js .......... Pass
+[Object] newobj.js .......... Pass
+[Object] regex.js .......... Pass
+[Object] var.js .......... Skip (Error message differ)
+[Object] moreProperties-enumeration.js .......... Pass
+[Object] Slow.js .......... Pass
+[Object] bigES5Array.js .......... Pass
+[Object] NumericPropertyIsEnumerable.js .......... Pass
+[Object] defineProperty.js .......... Skip (Chakracore only)
+[Object] getOwnPropertyDescriptor.js .......... Pass
+[Object] getOwnPropertyDescriptors.js .......... Skip (Error message differ)
+[Object] objectCreationOptimizations.js .......... Pass
+[Object] multivardecl.js .......... Pass
+[Object] propertyStrings.js .......... Pass
+[Object] forinenumcache.js .......... Skip (Not standards)
+[Object] forinnonenumerableshadowing.js .......... Skip (Chakracore only)
+[Object] forinfastpath.js .......... Pass
+[Object] forIn.error.js .......... Skip (Error message differ)
+[Object] HashTable.js .......... Pass
+[Object] TypeSnapshotEnumeration.js .......... Skip (Chakracore only)
+[Object] NewScObject-InlineSlotCapacityLocking.js .......... Pass
+[Object] objlit_type.js .......... Pass
+[Object] PathTypeDeleteLastProperty.js .......... Skip (Not standards)
+[Object] stackobject.js .......... Pass
+[Object] stackobject_escape.js .......... Pass
+[Object] LargeAuxArray.js .......... Pass
+[Object] stackobject_dependency.js .......... Skip (test driver is weird)
+[Object] objectCreateNull.js .......... Pass
+[Object] ObjectHeaderInlining_otherInstrs.js .......... Pass
+[Object] ObjectHeaderInlining.js .......... Pass
+[Object] ObjectHeaderInlining_SimpleDictTypeHandler.js .......... Pass
+[Object] ObjectHeaderInlining_DictTypeHandler.js .......... Pass
+[Object] ObjectHeaderInlining_deleteProps.js .......... Pass
+[Object] ObjectHeaderInlining_prototype.js .......... Pass
+[Object] ObjectHeaderInlining_prototypeTypeChange.js .......... Pass
+[Object] ObjectHeaderInlining_objArrayFastPath.js .......... Pass
+[Object] ObjectHeaderInlining_StFldOpt.js .......... Pass
+[Object] stackobject_dependency.js .......... Skip (test driver is weird)
+[Object] stackobject_dependency.js .......... Skip (test driver is weird)
+[Object] ObjectHeaderInlining_NewPropNoInlineCache.js .......... Skip (test driver is weird)
+[Object] ObjectHeaderInlining_NewPropNoInlineCache_StaticType.js .......... Pass
+[Object] ObjectHeaderInlining_NewPropSharedInlineCache.js .......... Skip (test driver is weird)
+[Object] ForInInline.js .......... Pass
+[Object] forinenumcachebuiltin.js .......... Skip (test driver is weird)
+[Regex] captures.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] fastRegexCaptures.js .......... Pass
+[Regex] regex1.js .......... Skip (Test case is wrong)
+[Regex] regexSplitOptimization.js .......... Pass
+[Regex] match_global.js .......... Pass
+[Regex] configurableTest.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] rx1.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] regex_replacefn.js .......... Pass
+[Regex] regex_replacefn_this.js .......... Pass
+[Regex] class-case.js .......... Pass
+[Regex] prioritizedalternatives.js .......... Pass
+[Regex] multiline.js .......... Pass
+[Regex] regex_assertion.js .......... Pass
+[Regex] regex_deviations.js .......... Pass
+[Regex] undefined_option.js .......... Pass
+[Regex] toString.js .......... Skip (Chakracore only)
+[Regex] trigram.js .......... Pass
+[Regex] nul_character.js .......... Skip (Non standard)
+[Regex] replace.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] BolEol.js .......... Pass
+[Regex] crossContext.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] crossContext.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] properties.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[Regex] NotBOILiteral2.js .......... Pass
+[Regex] BoiHardFail.js .......... Skip (Chakracore only)
+[Regex] leadtrail.js .......... Pass
+[Regex] Bug517864.js .......... Pass
+[Regex] stackregex_box.js .......... Pass
+[Regex] blue_102584_1.js .......... Skip (Error message differ)
+[Regex] blue_102584_2.js .......... Pass
+[Regex] Bug737451.js .......... Pass
+[Regex] Bug1153694.js .......... Skip (Error message differ)
+[Prototypes] Prototype.js .......... Pass
+[Prototypes] Prototype2.js .......... Pass
+[Prototypes] deep.js .......... Pass
+[Prototypes] initProto.js .......... Skip (This test is not suitable for ES6)
+[Prototypes] ChangePrototype.js .......... Skip (Chakracore-only)
+[Prototypes] ReadOnly.js .......... Pass
+[Prototypes] shadow.js .......... Pass
+[Prototypes] shadow2.js .......... Pass
+[GlobalFunctions] GlobalFunctions.js .......... Pass
+[GlobalFunctions] eval1.js .......... Skip (Function.prototype.toString indent differ, baseline result is wrong)
+[GlobalFunctions] evalNullsNewlines.js .......... Skip (Error message differ)
+[GlobalFunctions] evalreturns.js .......... Skip (baseline result wrong)
+[GlobalFunctions] evalDeferred.js .......... Skip (Non standard)
+[GlobalFunctions] eval-strict-delete.js .......... Pass
+[GlobalFunctions] parseFloat.js .......... Pass
+[GlobalFunctions] parseInt.js .......... Pass
+[GlobalFunctions] parseShortCut.js .......... Pass
+[GlobalFunctions] InternalToString.js .......... Pass
+[GlobalFunctions] ParseInt1.js .......... Pass
+[GlobalFunctions] deferunicode.js .......... Pass
+[GlobalFunctions] toString.js .......... Pass
+[Operators] access.js .......... Pass
+[Operators] add.js .......... Pass
+[Operators] addcross.js .......... Pass
+[Operators] biops.js .......... Skip (Non standard)
+[Operators] binop-kills.js .......... Pass
+[Operators] delete1.js .......... Pass
+[Operators] delete2.js .......... Pass
+[Operators] delete3.js .......... Skip (baseline result wrong)
+[Operators] div.js .......... Skip (dtoa result differ)
+[Operators] equals.js .......... Pass
+[Operators] instanceof.js .......... Skip (Error message differ)
+[Operators] inst_bug.js .......... Pass
+[Operators] isin.js .......... Pass
+[Operators] logAnd.js .......... Pass
+[Operators] logOr.js .......... Pass
+[Operators] mod.js .......... Pass
+[Operators] modopt.js .......... Skip (Chakracore only)
+[Operators] mul.js .......... Pass
+[Operators] OpEq.js .......... Pass
+[Operators] or.js .......... Pass
+[Operators] property.js .......... Pass
+[Operators] relops.js .......... Pass
+[Operators] strictequal.js .......... Pass
+[Operators] unaryOps.js .......... Pass
+[Operators] xor.js .......... Pass
+[Operators] new.js .......... Skip (Error message differ)
+[Operators] newReturn.js .......... Pass
+[Operators] newBuiltin.js .......... Skip (Error message differ)
+[Operators] newProto.js .......... Pass
+[Operators] prototypeInheritance.js .......... Pass
+[Operators] prototypeInheritance2.js .......... Skip (Baseline not ES6 compatible)
+[Operators] zero.js .......... Pass
+[Conversions] toint32.js .......... Pass
+[Conversions] toint32_2.js .......... Skip (Implementation-dependent case)
+[Conversions] touint32.js .......... Pass
+[Conversions] ImplicitConversions.js .......... Skip (different error message)
+[Conversions] bug1.js .......... Pass
+[RWC] OneNote.ribbon.js .......... Pass
+[VT_DATE] Skipping whole directory (Chakracore-only)
+[Lib] construct.js .......... Skip (Non standard)
+[Lib] getclass.js .......... Pass
+[Lib] length2.js .......... Skip (Non standard)
+[Lib] LibLength.js .......... Pass
+[Lib] noargs.js .......... Skip (Function.prototype.toString indent differ)
+[Lib] tostring.js .......... Skip (Non standard)
+[Lib] forin_lib.js .......... Skip (Non standard)
+[Lib] uri.js .......... Skip (Error message differ)
+[Lib] error.js .......... Pass
+[Lib] workingset.js .......... Skip (Chakracore only)
+[Lib] profiledataobject.js .......... Skip (Chakracore only)
+[Lib] profiledataobject.js .......... Skip (Chakracore only)
+[Lib] profiledataobject.js .......... Skip (Chakracore only)
+[Lib] profiledataobject.js .......... Skip (Chakracore only)
+[Lib] profiledataobject.js .......... Skip (Chakracore only)
+[Lib] profiledataobject.js .......... Skip (Chakracore only)
+[JSON] jx1.js .......... Pass
+[JSON] jx2.js .......... Skip (Error message differ)
+[JSON] stringify-replacer.js .......... Pass
+[JSON] stringify-replacerfunc.js .......... Pass
+[JSON] space.js .......... Pass
+[JSON] simple.js .......... Pass
+[JSON] simple.withLog.js .......... Skip (Chakracore only)
+[JSON] simple.stringify.js .......... Pass
+[JSON] parseWithGc.js .......... Pass
+[JSON] jsonCache.js .......... Skip (order of properties is implementation dependent)
+[JSON] jsonCache.js .......... Skip (order of properties is implementation dependent)
+[JSON] json_parse_Blue_548957.js .......... Pass
+[JSON] jsonParseWalkTest.js .......... Pass
+[JSON] syntaxError.js .......... Skip (Error message differ)
+[Bugs] bug602.js .......... Pass
+[Bugs] bug764.js .......... Skip (different error message)
+[Bugs] withnonativeApplyOptimizationBug3433559.js .......... Skip (ES6 spec (let, const))
+[Bugs] Win8_486977_BranchStrictEqual.js .......... Pass
+[Bugs] Win8_459638.js .......... Pass
+[Bugs] bug_OS_1197716.js .......... Skip (deprecated function.arguments)
+[Bugs] addexception.js .......... Pass
+[Bugs] regalloc.js .......... Pass
+[Bugs] randombug.js .......... Skip (Non standard)
+[Bugs] blue_532460.js .......... Skip (ES6 spec (let))
+[Bugs] bug56026.js .......... Skip (different error message)
+[Bugs] bug56026_minimal.js .......... Skip (different error message)
+[Bugs] bug56026_minimalWithProperties.js .......... Skip (different error message)
+[Bugs] bug56026_nested.js .......... Skip (different error message)
+[Bugs] bug56026_trycatch.js .......... Skip (different error message)
+[Bugs] blue_245702.js .......... Skip (different error message)
+[Bugs] bug547302.js .......... Pass
+[Bugs] bug215238.mul-53-ovf.js .......... Pass
+[Bugs] bug215238-shrua.js .......... Pass
+[Bugs] bug215238.shrua-2.js .......... Pass
+[Bugs] bug435809.js .......... Pass
+[Bugs] bug594298.js .......... Pass
+[Bugs] bug661952.js .......... Pass
+[Bugs] bug724121.js .......... Pass
+[Bugs] deserializationbug339404.js .......... Pass
+[Bugs] bug843670.js .......... Pass
+[Bugs] bug934443.js .......... Pass
+[Bugs] vso_os_1091425.js .......... Skip (Error message differ)
+[Bugs] bug1092916.js .......... Pass
+[Bugs] blue_1096569.js .......... Skip (Chakracore-only)
+[Bugs] blue_1086262.js .......... Skip (different error message)
+[Bugs] bug1288931.js .......... Pass
+[Bugs] OS_1362136.js .......... Pass
+[Bugs] SIMDExtendArgCSE.js .......... Skip (Chakracore-only)
+[Bugs] bug_OS_4683246.js .......... Skip (ES6 spec (const))
+[Bugs] fabs1.js .......... Skip (Chakracore-only)
+[Bugs] OS_5248645.js .......... Pass
+[Bugs] OS_5553123.js .......... Skip (ES6 spec (Symbol))
+[Bugs] symbol_tostring.js .......... Skip (ES6 spec (Symbol))
+[Bugs] default_undodefer.js .......... Skip (ES6 syntax)
+[Bugs] Bug_resetisdead.js .......... Pass
+[Bugs] bug_es5array.js .......... Pass
+[Bugs] simpletypehandler-property-deletion.js .......... Pass
+[Bugs] HasOnlyWritableDataProperties-cross-context.js .......... Skip (ES6 spec ([g|s]etPrototypeOf()))
+[Bugs] b208.js .......... Skip (Chakracore-only)
+[Bugs] bug9080773.js .......... Pass
+[Bugs] bug9080773_2.js .......... Pass
+[Bugs] bug8554038.js .......... Skip (ES6 syntax)
+[Bugs] b208_asmjs.js .......... Skip (Chakracore-only)
+[Bugs] b208_asmjs.js .......... Skip (Chakracore-only)
+[Bugs] testSimdManyVars.js .......... Skip (Chakracore-only)
+[Bugs] b95.js .......... Skip (Chakracore-only)
+[Bugs] b108.js .......... Skip (Chakracore-only)
+[Bugs] invertloop_bug.js .......... Skip (different error message)
+[Bugs] typespec_bug.js .......... Pass
+[Bugs] deletenonconfig.js .......... Skip (ES6 syntax)
+[Bugs] InlineFunctionParameterWithInfiniteLoop.js .......... Pass
+[strict] GlobalEval.js .......... Pass
+[strict] basics_function_in_SM.js .......... Skip (FIXME: let)
+[strict] basics_function_in_SM.js .......... Skip (FIXME: let)
+[strict] callerOrArgsNoAccess.js .......... Pass
+[strict] stricteval-deferred.js .......... Skip (Error message differ)
+[strict] stricteval2-deferred.js .......... Skip (Error message differ)
+[strict] stricteval3-deferred.js .......... Skip (Error message differ)
+[strict] strictargs-deferred.js .......... Skip (Error message differ)
+[strict] strictargs2-deferred.js .......... Skip (Error message differ)
+[strict] strictargs3-deferred.js .......... Skip (Error message differ)
+[strict] evalargs.js .......... Pass
+[strict] evalargs.js .......... Pass
+[strict] evalThis.js .......... Pass
+[strict] evalThis2.js .......... Pass
+[strict] evalThisNested.js .......... Pass
+[strict] formal_samename1.js .......... Skip (Error message differ)
+[strict] formal_samename1.js .......... Skip (Error message differ)
+[strict] formal_samename2.js .......... Skip (Error message differ)
+[strict] formal_samename2.js .......... Skip (Error message differ)
+[strict] multiunit.js .......... Skip (Error message differ)
+[strict] delete.js .......... Skip (Error message differ)
+[strict] delete.js .......... Skip (Error message differ)
+[strict] 01.octal.js .......... Pass
+[strict] 01.octal.js .......... Skip (-ForceStrictMode)
+[strict] 01.octal_sm.js .......... Pass
+[strict] 03.assign.js .......... Pass
+[strict] 03.assign.js .......... Skip (-ForceStrictMode)
+[strict] 03.assign.js .......... Skip (-Force:Deferparse -ForceStrictMode)
+[strict] 03.assign_sm.js .......... Pass
+[strict] 03.assign_sm.js .......... Pass
+[strict] 04.eval.js .......... Pass
+[strict] 04.eval.js .......... Pass
+[strict] 05.arguments.js .......... Skip (Non standard)
+[strict] 05.arguments.js .......... Skip (-ForceStrictMode)
+[strict] 05.arguments.js .......... Skip (-Serialized -ForceStrictMode)
+[strict] 05.arguments.js .......... Skip (-Force:Deferparse -ForceStrictMode)
+[strict] 05.arguments_sm.js .......... Skip (Non standard)
+[strict] 05.arguments_sm.js .......... Skip (Non standard)
+[strict] 05.arguments_sm.js .......... Skip (Non standard)
+[strict] 06.arguments.js .......... Pass
+[strict] 06.arguments.js .......... Skip (-ForceStrictMode)
+[strict] 06.arguments.js .......... Skip (-Force:Deferparse -ForceStrictMode)
+[strict] 06.arguments.js .......... Skip (-force:cachedscope -ForceStrictMode)
+[strict] 06.arguments_sm.js .......... Pass
+[strict] 06.arguments_sm.js .......... Pass
+[strict] 06.arguments_sm.js .......... Pass
+[strict] 07.arguments.js .......... Pass
+[strict] 07.arguments_sm.js .......... Pass
+[strict] 08.ObjectLiteral.js .......... Skip (Error message differ)
+[strict] 08.ObjectLiteral.js .......... Skip (-ForceStrictMode)
+[strict] 08.ObjectLiteral_sm.js .......... Skip (Error message differ)
+[strict] 09.ObjectLiteral.js .......... Pass
+[strict] 09.ObjectLiteral.js .......... Skip (-ForceStrictMode)
+[strict] 09.ObjectLiteral_sm.js .......... Pass
+[strict] 10.eval.js .......... Pass
+[strict] 10.eval_sm.js .......... Skip (Error message differ)
+[strict] 11.this.js .......... Pass
+[strict] 11.this.js .......... Skip (-ForceStrictMode)
+[strict] 11.this_sm.js .......... Pass
+[strict] 11.this_sm.js .......... Pass
+[strict] 12.delete.js .......... Pass
+[strict] 12.delete.js .......... Skip (-ForceStrictMode)
+[strict] 12.delete_sm.js .......... Pass
+[strict] 13.delete.js .......... Skip (Baseline not ES6 compatible)
+[strict] 14.var.js .......... Pass
+[strict] 14.var.js .......... Skip (-ForceStrictMode)
+[strict] 14.var_sm.js .......... Pass
+[strict] 15.with.js .......... Pass
+[strict] 15.with.js .......... Skip (-ForceStrictMode)
+[strict] 15.with_sm.js .......... Pass
+[strict] 16.catch.js .......... Pass
+[strict] 16.catch.js .......... Skip (-ForceStrictMode)
+[strict] 16.catch_sm.js .......... Pass
+[strict] 17.formal.js .......... Pass
+[strict] 17.formal_sm.js .......... Skip (-ForceStrictMode)
+[strict] 17.formal_sm.js .......... Pass
+[strict] 18.formal.js .......... Pass
+[strict] 18.formal.js .......... Skip (-ForceStrictMode)
+[strict] 18.formal_sm.js .......... Pass
+[strict] 19.function.js .......... Skip (old Function.caller, Function.arguments)
+[strict] 19.function_sm.js .......... Skip (old Function.caller, Function.arguments)
+[strict] 20.function.js .......... Pass
+[strict] 20.function.js .......... Skip (-ForceStrictMode)
+[strict] 20.function_sm.js .......... Pass
+[strict] 21.functionDeclaration.js .......... Skip (Not standards)
+[strict] 21.functionDeclaration.js .......... Skip (-ForceStrictMode)
+[strict] 21.functionDeclaration_sm.js .......... Skip (Not standards)
+[strict] 22.callerCalleeArguments.js .......... Skip (old Function.caller, Function.arguments)
+[strict] 22.callerCalleeArguments_sm.js .......... Skip (old Function.caller, Function.arguments)
+[strict] 23.reservedWords.js .......... Skip (Error message differ)
+[strict] 23.reservedWords_sm.js .......... Skip (Error message differ)
+[strict] 24.properties.js .......... Pass
+[strict] 24.properties.js .......... Skip (-ForceStrictMode)
+[strict] 24.properties_sm.js .......... Pass
+[strict] strictkwd.js .......... Skip (Error message differ)
+[strict] strictkwd.js .......... Skip (Error message differ)
+[strict] strictkwd-deferred.js .......... Skip (Error message differ)
+[strict] comma_bug219390.js .......... Skip (Error message differ)
+[strict] comma_bug219390.js .......... Skip (Error message differ)
+[strict] nestedfnnameargs.js .......... Skip (Error message differ)
+[strict] nestedfnnameargs.js .......... Skip (Error message differ)
+[strict] bug212755.js .......... Skip (Error message differ)
+[strict] bug212755.js .......... Skip (Error message differ)
+[strict] OS_1362136.js .......... Pass
+[strict] nonSimpleParameterList.js .......... Skip (FIXME: rest element)
+[utf8] invalidutf8.js .......... Pass
+[utf8] unicode_digit_as_identifier_should_work.js .......... Pass
+[utf8] surrogatepair.js .......... Pass
+[UnifiedRegex] acid.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] assertion.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] bugFixRegression.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] bugFixRegression.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] captures.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] class-case.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] crazy.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] es5SpecExamples.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] escapes.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] fastRegexCaptures.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] lastIndex.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] lazyVsEagerLastIndex.js .......... Pass
+[UnifiedRegex] match_global.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] multiline.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] NoBacktrackingChomp.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] nul_character.js .......... Pass
+[UnifiedRegex] prioritizedalternatives.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] quantifiableAssertions.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] sets.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] split.js .......... Skip (Old non-standard feature(Regex.$0, Regex.leftContext...))
+[UnifiedRegex] WOOB1138949.js .......... Pass
+[UnifiedRegex] propertyString.js .......... Pass
+[UnifiedRegex] propertyString.js .......... Pass
+[UnifiedRegex] bugFixVersioned.js .......... Pass
+[UnifiedRegex] mru.js .......... Pass
+[UnifiedRegex] SourceToString.js .......... Skip (Chakracore only)
+[UnifiedRegex] scanner.js .......... Pass
+[typedarray] arraybuffer.js .......... Skip (Test case is not compatible with standard)
+[typedarray] arraybufferType.js .......... Skip (Implementation-dependent case)
+[typedarray] TypedArrayBuiltins.js .......... Skip (ES6 spec)
+[typedarray] BadNaN.js .......... Skip (FIXME: nan problem)
+[typedarray] int8array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] uint8array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] int16array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] uint16array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] int32array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] uint32array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] float32array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] float64array.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] dataview.js .......... Skip (different error message)
+[typedarray] objectproperty.js .......... Skip (different error message)
+[typedarray] nan.js .......... Skip (FIXME: nan problem)
+[typedarray] negIndexes.js .......... Skip (FIXME: negative index)
+[typedarray] set.js .......... Skip (different error message)
+[typedarray] samethread.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] crossthread.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] Int8Array2.js .......... Pass
+[typedarray] UInt8Array2.js .......... Pass
+[typedarray] Int16Array2.js .......... Pass
+[typedarray] UInt16Array2.js .......... Pass
+[typedarray] Int32Array2.js .......... Pass
+[typedarray] UInt32Array2.js .......... Pass
+[typedarray] Float32Array2.js .......... Pass
+[typedarray] Float64Array2.js .......... Pass
+[typedarray] subarray.js .......... Pass
+[typedarray] dataview1.js .......... Skip (different error message)
+[typedarray] allocation.js .......... Pass
+[typedarray] allocation2.js .......... Pass
+[typedarray] typedArrayProfile.js .......... Pass
+[typedarray] pixelArrayRounding.js .......... Pass
+[typedarray] pixelArrayRounding.js .......... Pass
+[typedarray] cseTypedArray.js .......... Pass
+[typedarray] Uint8ClampedArray.js .......... Skip (FIXME: TypedArray.prototype.toString)
+[typedarray] setDifferentTypes.js .......... Skip (FIXME: nan problem)
+[typedarray] bug2230916.js .......... Skip (ES6 spec (Symbol))
+[typedarray] bug2268573.js .......... Skip (ES6 spec (Symbol))
+[typedarray] bug_4653428.js .......... Skip (FIXME: ES6 function)
+[typedarray] transfer.js .......... Skip (Test case is not compatible with standard)
+[typedarray] memset.js .......... Skip (ES6 spec (let))
+[typedarray] memset_neg.js .......... Pass
+[typedarray] memcopy.js .......... Skip (ES6 spec (let, const, template literal))
+[typedarray] memcopy_negative.js .......... Skip (ES6 spec)
+[typedarray] typedarray_bugfixes.js .......... Skip (ES6 spec)
+[typedarray] bug_OS_6911900.js .......... Skip (FIXME: ES6 function)
+[bailout] arrayctor.js .......... Pass
+[bailout] bailout.js .......... Pass
+[bailout] bailout.js .......... Pass
+[bailout] bailout.js .......... Pass
+[bailout] bailout2.js .......... Pass
+[bailout] bailout3.js .......... Pass
+[bailout] bailout4.js .......... Pass
+[bailout] bailout5.js .......... Pass
+[bailout] bailout6.js .......... Pass
+[bailout] bailout7.js .......... Pass
+[bailout] bailout_loopbodystart.js .......... Pass
+[bailout] bailout_loopbodystart.js .......... Pass
+[bailout] bailout_loopbodystart.js .......... Pass
+[bailout] bailout-eh.js .......... Pass
+[bailout] bailout-args.js .......... Pass
+[bailout] bailout-argobj.js .......... Skip (Function.arguments)
+[bailout] bailout-throw.js .......... Pass
+[bailout] bailout-floatpref.js .......... Pass
+[bailout] bailout-floatpref.js .......... Pass
+[bailout] bailout-floatpref.js .......... Pass
+[bailout] bailout-copyProp1.js .......... Pass
+[bailout] bailout-strict-exception.js .......... Skip (Error message differ)
+[bailout] AggressiveIntTypeSpecWithFloatPref.js .......... Pass
+[bailout] bailout-inlined.js .......... Pass
+[bailout] bug10.js .......... Skip (Error message differ)
+[bailout] flags.js .......... Skip (Error message differ)
+[bailout] initlocals.js .......... Pass
+[bailout] implicit_nosideeffect.js .......... Skip (Error message differ)
+[bailout] inlineBuiltIns.js .......... Pass
+[bailout] inlineBuiltIns.js .......... Pass
+[bailout] bailout-branch.js .......... Pass
+[bailout] bailout-checkthis.js .......... Pass
+[bailout] inline_call_bailout.js .......... Pass
+[bailout] spill.js .......... Pass
+[loop] loop.js .......... Skip (deprecated function.arguments)
+[loop] loop.js .......... Skip (deprecated function.arguments)
+[loop] loopinversion.js .......... Pass
+[loop] loopinversion.js .......... Pass
+[loop] loopinversion.js .......... Pass
+[loop] infinite.js .......... Pass
+[StackTrace] Skipping whole directory (Chakracore-only)
+[Miscellaneous] HasOnlyWritableDataPropertiesCache.js .......... Skip (different error message)
+[Miscellaneous] longstring.js .......... Pass
+[Miscellaneous] evalAlias.js .......... Pass
+[Miscellaneous] oom.js .......... Skip (FIXME: take too much time)
+[Miscellaneous] SetTimeout.js .......... Skip (Test case is not compatible with standard)
+[fieldopts] equiv-finaltypeandpoly.js .......... Pass
+[fieldopts] equiv-missing.js .......... Skip (FIXME: for of)
+[fieldopts] equiv-mismatch.js .......... Pass
+[fieldopts] equiv-locktypeid.js .......... Pass
+[fieldopts] equiv-needmonocheck.js .......... Pass
+[fieldopts] equiv-needsmonocheck2.js .......... Pass
+[fieldopts] fieldconstprop_ldmethodfld.js .......... Pass
+[fieldopts] fieldcopyprop_assign.js .......... Pass
+[fieldopts] fieldcopyprop_delete.js .......... Pass
+[fieldopts] fieldcopyprop_deletestrict.js .......... Pass
+[fieldopts] fieldhoist2.js .......... Pass
+[fieldopts] fieldhoist4.js .......... Pass
+[fieldopts] fieldhoist5.js .......... Pass
+[fieldopts] fieldhoist6.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist6b.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist7.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist8.js .......... Pass
+[fieldopts] fieldhoist_nullfieldhoist.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist9.js .......... Pass
+[fieldopts] fieldhoist_unreachable.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist_typespec.js .......... Pass
+[fieldopts] fieldhoist_typespec.js .......... Pass
+[fieldopts] fieldhoist_typespec.js .......... Pass
+[fieldopts] fieldhoist_typespec2.js .......... Pass
+[fieldopts] fieldhoist_typespec3.js .......... Pass
+[fieldopts] fieldhoist_undefined_global.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist_negzero.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist_negzero.js .......... Skip (Error message differ)
+[fieldopts] fieldhoist_typeof.js .......... Pass
+[fieldopts] fieldhoist_sideeffect.js .......... Pass
+[fieldopts] fieldcopyprop_nonwritable.js .......... Pass
+[fieldopts] fieldcopyprop_primitive.js .......... Pass
+[fieldopts] fieldcopyprop_preventextensions.js .......... Pass
+[fieldopts] fieldcopyprop_freeze.js .......... Pass
+[fieldopts] redundanttype1.js .......... Skip (dtoa result differ)
+[fieldopts] fieldhoist_join.js .......... Pass
+[fieldopts] fieldhoist_slots.js .......... Pass
+[fieldopts] fieldhoist_slots2.js .......... Pass
+[fieldopts] fieldhoist_objptrcopyprop.js .......... Pass
+[fieldopts] fieldhoist_objptrcopyprop2.js .......... Pass
+[fieldopts] fieldhoist_kills.js .......... Pass
+[fieldopts] fieldhoist_stripbailouts.js .......... Skip (Error message differ)
+[fieldopts] redundanttype2.js .......... Pass
+[fieldopts] CheckThis.js .......... Skip (Error message differ)
+[fieldopts] objptrcopyprop_bug.js .......... Pass
+[fieldopts] objptrcopyprop_typescript.js .......... Pass
+[fieldopts] fieldcopyprop_typespec.js .......... Pass
+[fieldopts] fieldhoist_deletefld.js .......... Pass
+[fieldopts] forcefixdataprops.js .......... Pass
+[fieldopts] PropObjectPointerCopyProp.js .......... Pass
+[fieldopts] redundanttype_kills.js .......... Pass
+[fieldopts] fieldhoist_copypropdep.js .......... Pass
+[fieldopts] fieldhoist_number.js .......... Pass
+[fieldopts] objtypespec1.js .......... Pass
+[fieldopts] objtypespec2.js .......... Pass
+[fieldopts] objtypespec3.js .......... Pass
+[fieldopts] objtypespec-fieldhoist.js .......... Pass
+[fieldopts] objtypespec-fieldhoist.2.js .......... Pass
+[fieldopts] objtypespec_proto.js .......... Pass
+[fieldopts] objtypespec-add.js .......... Skip (FIXME: ES6 Syntax)
+[fieldopts] objtypespec-add-2.js .......... Pass
+[fieldopts] objtypespec-add-4.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.1.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.1.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] objtypespec-newobj-invalidation.2.js .......... Pass
+[fieldopts] FieldHoist_MaxInterpret.js .......... Pass
+[fieldopts] markTemp.js .......... Pass
+[fieldopts] rootObj-1.js .......... Pass
+[fieldopts] finaltypebug.js .......... Pass
+[fieldopts] finaltype2.js .......... Skip (FIXME: for-of)
+[fieldopts] finaltype2.js .......... Skip (FIXME: for-of)
+[fieldopts] finaltype-objheaderinlining1.js .......... Pass
+[fieldopts] finaltype-objheaderinlining2.js .......... Pass
+[fieldopts] finaltype-objheaderinlining3.js .......... Pass
+[fieldopts] fieldhoist_accessorinlining1.js .......... Pass
+[fieldopts] fieldhoist_accessorinlining2.js .......... Pass
+[fieldopts] fixedfieldmonocheck.js .......... Pass
+[fieldopts] fixedfieldmonocheck2.js .......... Pass
+[fieldopts] fixedfieldmonocheck3.js .......... Pass
+[fieldopts] fixedfieldmonocheck4.js .......... Pass
+[fieldopts] fixedfieldmonocheck5.js .......... Pass
+[fieldopts] fixedfieldmonocheck6.js .......... Skip (FIXME: for-of)
+[fieldopts] add-prop-to-dictionary.js .......... Pass
+[fieldopts] argobjlengthhoist.js .......... Pass
+[FixedFields] FixedFieldsOnSingletons.js .......... Pass
+[FixedFields] FixedFieldsOnPrototypes.js .......... Pass
+[FixedFields] FixedFieldsTypeSystem.js .......... Pass
+[FixedFields] FixedFieldsInvalidation.js .......... Pass
+[FixedFields] FixedFieldsWithPropertyStringCache.js .......... Pass
+[FixedFields] fixedDataWithDifferentTypeHandlers.js .......... Pass
+[FixedFields] fixedDataWithDifferentTypeHandlersPrototypes.js .......... Pass
+[FixedFields] FixedDataPolymorphism.js .......... Pass
+[FixedFields] FixedDataTypeTransition.js .......... Pass
+[FixedFields] FixedDataDictionaryType.js .......... Pass
+[FixedFields] fixedDataWithSubsequentUses.js .......... Pass
+[FixedFields] fixedDataWithCacheSharing.js .......... Pass
+[FixedFields] bug677247.js .......... Pass
+[FixedFields] bug712503_fixedAccessors.js .......... Pass
+[FixedFields] fixedmethods_polyInlining.js .......... Pass
+[FixedFields] bugVSO_OS_1015467.js .......... Skip (ES6 spec (WeakMap))
+[inlining] arg.js .......... Pass
+[inlining] linenumber1.js .......... Skip (Chakracore only)
+[inlining] linenumber2.js .......... Skip (Chakracore only)
+[inlining] linenumber3.js .......... Skip (Chakracore only)
+[inlining] InlineConstructors.js .......... Pass
+[inlining] InlinedConstructorBailout.js .......... Pass
+[inlining] inliningWithArguments.js .......... Pass
+[inlining] inliningApplyTarget.js .......... Pass
+[inlining] applyBugs.js .......... Pass
+[inlining] applyBailout.js .......... Pass
+[inlining] bugs.js .......... Pass
+[inlining] linenumber4.js .......... Skip (Chakracore only)
+[inlining] Miscellaneous_MaxInterpret.js .......... Pass
+[inlining] NoProf.js .......... Pass
+[inlining] bug515849.js .......... Skip (Error message differ)
+[inlining] inlineBuiltIns.js .......... Pass
+[inlining] spread.js .......... Skip (FIXME: ES6 syntax)
+[inlining] polyInliningFixedMethods.js .......... Skip (Chakracore only)
+[inlining] bug650495.js .......... Pass
+[inlining] polyInliningBugs.js .......... Pass
+[inlining] polyInliningUninitializedRetVal.js .......... Pass
+[inlining] callTarget.js .......... Pass
+[inlining] bug594138.js .......... Pass
+[inlining] inlineeArgoutCount.js .......... Pass
+[inlining] markTempArgOut.js .......... Pass
+[inlining] bug1469518.js .......... Skip (Error message differ)
+[inlining] bug1355201.js .......... Pass
+[inlining] recursive_inline.js .......... Pass
+[inlining] recursive_inline2.js .......... Pass
+[inlining] bug2328551.js .......... Pass
+[inlining] bug2269097.js .......... Pass
+[inlining] OS_2733280.js .......... Skip (FIXME: ES6 syntax)
+[inlining] OS_2733280.js .......... Skip (FIXME: ES6 syntax)
+[inlining] builtInApplyTarget.js .......... Pass
+[inlining] stackTrace.js .......... Skip (Chakracore only)
+[inlining] missingInlineeEnd.js .......... Pass
+[inlining] inliningInLoopBody.js .......... Pass
+[DynamicCode] eval-nativecodedata.js .......... Pass
+[DynamicCode] eval-nativenumber.js .......... Pass
+[DynamicCode] eval-nativenumber.js .......... Pass
+[es6] lambda1.js .......... Skip (ES6 unimplemented Spec)
+[es6] lambda1.js .......... Skip (ES6 unimplemented Spec)
+[es6] lambda-params-shadow.js .......... Skip (ES6 unimplemented Spec)
+[es6] lambda-params-shadow.js .......... Skip (ES6 unimplemented Spec)
+[es6] NumericLiteralTest.js .......... Skip (ES6 unimplemented Spec)
+[es6] boundBug3837520.js .......... Skip (ES6 unimplemented Spec)
+[es6] es6toLength.js .......... Skip (FIXME: take too much time)
+[es6] toPrimitiveCrossScriptTestCase.js .......... Skip (ES6 unimplemented Spec)
+[es6] computedPropertyToString.js .......... Skip (ES6 unimplemented Spec)
+[es6] computedPropertySideEffect.js .......... Skip (ES6 unimplemented Spec)
+[es6] BugFix2214646.js .......... Skip (ES6 unimplemented Spec)
+[es6] toPrimitiveJitBug654983.js .......... Skip (ES6 unimplemented Spec)
+[es6] es6IsConcatSpreadable.js .......... Skip (ES6 unimplemented Spec)
+[es6] toPrimitive.js .......... Skip (ES6 unimplemented Spec)
+[es6] unscopablesWithScopeTest.js .......... Skip (ES6 unimplemented Spec)
+[es6] function.name.js .......... Skip (ES6 unimplemented Spec)
+[es6] function.name.js .......... Skip (ES6 unimplemented Spec)
+[es6] superDotOSBug3930962.js .......... Skip (ES6 unimplemented Spec)
+[es6] toStringTag.js .......... Skip (ES6 unimplemented Spec)
+[es6] proto_basic.js .......... Skip (FIXME: take too much time)
+[es6] proto_disable.js .......... Skip (Chakracore only)
+[es6] proto_initializer.js .......... Skip (Not standards)
+[es6] proto_initializer.js .......... Skip (Not standards)
+[es6] proto_addprop.js .......... Skip (ES6 unimplemented Spec)
+[es6] proto_addprop.js .......... Skip (ES6 unimplemented Spec)
+[es6] map_basic.js .......... Skip (ES6 unimplemented Spec)
+[es6] map_functionality.js .......... Skip (ES6 unimplemented Spec)
+[es6] set_basic.js .......... Skip (ES6 unimplemented Spec)
+[es6] set_functionality.js .......... Skip (ES6 unimplemented Spec)
+[es6] weakmap_basic.js .......... Skip (ES6 unimplemented Spec)
+[es6] weakmap_functionality.js .......... Skip (ES6 unimplemented Spec)
+[es6] weakset_basic.js .......... Skip (ES6 unimplemented Spec)
+[es6] weakset_functionality.js .......... Skip (ES6 unimplemented Spec)
+[es6] blockscope-activationobject.js .......... Skip (ES6 unimplemented Spec)
+[es6] blockscope-deferred.js .......... Skip (Not standards)
+[es6] blockscope-deferred.js .......... Skip (Not standards)
+[es6] blockscope-functionbinding.js .......... Skip (FIXME: let)
+[es6] blockscope-functionbinding.js .......... Skip (FIXME: let)
+[es6] blockscope-functionbinding.js .......... Skip (FIXME: let)
+[es6] letconst_global.js .......... Skip (FIXME: let, const)
+[es6] letconst_global_shadowing.js .......... Skip (FIXME: let, const)
+[es6] letconst_global_shadow_builtins.js .......... Skip (FIXME: let, const)
+[es6] letconst_global_shadow_builtins_nonconfigurable.js .......... Skip (FIXME: let, const)
+[es6] letconst_global_shadow_deleted.js .......... Skip (FIXME: let, const)
+[es6] letconst_global_shadow_accessor.js .......... Skip (FIXME: let, const)
+[es6] letconst_global_bug.js .......... Skip (FIXME: let, const)
+[es6] letconst_eval_redecl.js .......... Skip (FIXME: let, const)
+[es6] letconst_eval_redecl.js .......... Skip (FIXME: let, const)
+[es6] definegettersetter.js .......... Skip (Not standards(ES5))
+[es6] classes.js .......... Skip (ES6 unimplemented Spec)
+[es6] classes.js .......... Skip (ES6 unimplemented Spec)
+[es6] classes_bugfixes.js .......... Skip (ES6 unimplemented Spec)
+[es6] classes_bugfixes.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Super.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Super.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Super.js .......... Skip (ES6 unimplemented Spec)
+[es6] classes_bug_OS_6471427.js .......... Skip (ES6 unimplemented Spec)
+[es6] classes_bug_OS_6471427.js .......... Skip (ES6 unimplemented Spec)
+[es6] classes_bug_OS_7100885.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6SubclassableBuiltins.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6SubclassableBuiltins.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6SubclassableAsync.js .......... Skip (FIXME: class)
+[es6] ES6SubclassableAsync.js .......... Skip (FIXME: class)
+[es6] ES6MathAPIs.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6MathAPIs.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6NumberAPIs.js .......... Pass
+[es6] ES6StringAPIs.js .......... Skip (ES6 unimplemented Spec)
+[es6] codePointAt.js .......... Skip (FIXME: ES6 function)
+[es6] stringtemplate_basic.js .......... Skip (FIXME: ES6 syntax)
+[es6] ES6StringTemplate.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6StringTemplateSlow.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6TypedArrayExtensions.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6ArrayAPI.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6ArrayUseConstructor.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6ArrayUseConstructor_v5.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Symbol.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Symbol_540238.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Promise.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6PromiseAsync.js .......... Skip (FIXME: ES6 Syntax)
+[es6] es6_stable.js .......... Skip (FIXME: ES6 Syntax)
+[es6] es6_stable.js .......... Skip (FIXME: ES6 Syntax)
+[es6] es6_all.js .......... Skip (FIXME: ES6 Syntax)
+[es6] normalize.js .......... Skip (FIXME: ES6 function)
+[es6] normalizeProp.js .......... Skip (FIXME: ES6 function)
+[es6] unicode_escape_sequences.js .......... Skip (FIXME: Yarr unicode problem)
+[es6] unicode_6_identifiers_utf8.js .......... Skip (Chakracore only)
+[es6] unicode_regex_surrogate_atoms.js .......... Skip (Chakracore only)
+[es6] spreadIterator.js .......... Skip (ES6 unimplemented Spec)
+[es6] reflectConstructConsumeNewTarget.js .......... Skip (ES6 unimplemented Spec)
+[es6] ReflectApiTests.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxyTrapConsumeNewTarget.js .......... Skip (ES6 unimplemented Spec)
+[es6] CrossContextSpreadfunctionCall.js .......... Skip (ES6 unimplemented Spec)
+[es6] spread.js .......... Skip (ES6 unimplemented Spec)
+[es6] unicode_convertUTF8.js .......... Skip (ES6 unimplemented Spec)
+[es6] Bug517864.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug620694.js .......... Skip (ES6 unimplemented Spec)
+[es6] unicode_6_identifier_Blue511452.js .......... Skip (Error message differ)
+[es6] unicode_idDeferParseFunctions_utf8.js .......... Skip (ES6 unimplemented Spec)
+[es6] unicode_6_identifier_Blue524737.js .......... Skip (Error message differ)
+[es6] supersyntax02.js .......... Skip (FIXME: class)
+[es6] supersyntax05.js .......... Skip (FIXME: class)
+[es6] supersyntax06.js .......... Skip (FIXME: class)
+[es6] objlit.js .......... Skip (ES6 unimplemented Spec)
+[es6] unicode_regex_surrogate_utf8.js .......... Skip (Chakracore only)
+[es6] unicode_blue_533163_utf8.js .......... Skip (Chakracore only)
+[es6] ES6Iterators-forof.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Iterators-apis.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Species-apis.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Species-bugs.js .......... Skip (ES6 unimplemented Spec)
+[es6] blue595539.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxytest6.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxybugs.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxybug3.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxyprotobug.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxy_cctx_bugs.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxyenumremoval.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxy-issue884.js .......... Skip (ES6 unimplemented Spec)
+[es6] nullPropertyDescriptor.js .......... Skip (ES6 unimplemented Spec)
+[es6] object-is.js .......... Skip (ES6 unimplemented Spec)
+[es6] object-assign.js .......... Skip (ES6 unimplemented Spec)
+[es6] default.js .......... Skip (ES6 unimplemented Spec)
+[es6] default.js .......... Skip (ES6 unimplemented Spec)
+[es6] default.js .......... Skip (ES6 unimplemented Spec)
+[es6] default-splitscope.js .......... Skip (ES6 unimplemented Spec)
+[es6] default-splitscope.js .......... Skip (ES6 unimplemented Spec)
+[es6] default-splitscope-undodeferparse.js .......... Skip (ES6 unimplemented Spec)
+[es6] rest.js .......... Skip (ES6 unimplemented Spec)
+[es6] rest.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-syntax.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-deferparse.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-apis.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-functionality.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-deferred.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-deferred.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-undodefer.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-cachedscope.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-applyargs.js .......... Skip (ES6 unimplemented Spec)
+[es6] generators-applyargs.js .......... Skip (ES6 unimplemented Spec)
+[es6] destructuring.js .......... Skip (ES6 unimplemented Spec)
+[es6] destructuring_obj.js .......... Skip (ES6 unimplemented Spec)
+[es6] destructuring_params.js .......... Skip (ES6 unimplemented Spec)
+[es6] destructuring_catch.js .......... Skip (ES6 unimplemented Spec)
+[es6] destructuring_bugs.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_279376.js .......... Skip (ES6 unimplemented Spec)
+[es6] OS_917200.js .......... Skip (ES6 unimplemented Spec)
+[es6] blue_641922.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_981217.js .......... Skip (ES6 unimplemented Spec)
+[es6] objlit-shorthand-error.js .......... Skip (ES6 unimplemented Spec)
+[es6] generator-strict-error.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-annex-b.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-case-folding.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-octoquad.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-quantifiers.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-code-point.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-unicode.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-unicode-CaseInsensitive.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-unicode-CaseInsensitive-all-i.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-unicode-CaseInsensitive-all-iu.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-set.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-prototype-properties.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-symbols.js .......... Skip (ES6 unimplemented Spec)
+[es6] regex-w-sharp-s-kelvin-sign.js .......... Skip (ES6 unimplemented Spec)
+[es6] regexflags.js .......... Skip (ES6 unimplemented Spec)
+[es6] regexflags-disabled-features.js .......... Skip (ES6 unimplemented Spec)
+[es6] RegExpApisTestWithStickyFlag.js .......... Skip (ES6 unimplemented Spec)
+[es6] stickyflag.js .......... Skip (ES6 unimplemented Spec)
+[es6] utfbug.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxybugWithLdFld.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxybugWithproto.js .......... Skip (ES6 unimplemented Spec)
+[es6] ProxyInProxy.js .......... Skip (ES6 unimplemented Spec)
+[es6] ProxySetPrototypeOf.js .......... Skip (ES6 unimplemented Spec)
+[es6] arraywithproxy.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxytest8.js .......... Skip (ES6 unimplemented Spec)
+[es6] proxytest9.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Function_bugs.js .......... Skip (ES6 unimplemented Spec)
+[es6] OS_2700778.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_OS_2184795.js .......... Skip (ES6 unimplemented Spec)
+[es6] unicode_whitespace.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_OS_2553885.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_OS_2915477.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_os3198161.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_OS_4498031.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6NewTarget.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6NewTarget_bugfixes.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6NewTarget_bugfixes.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6NewTarget_bugfixes.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Class_SuperChain.js .......... Skip (ES6 unimplemented Spec)
+[es6] globalLambdaNewTargetSyntaxError.js .......... Skip (ES6 unimplemented Spec)
+[es6] globalNewTargetSyntaxError.js .......... Skip (ES6 unimplemented Spec)
+[es6] globalCatchNewTargetSyntaxError.js .......... Skip (ES6 unimplemented Spec)
+[es6] globalParamCatchNewTargetSyntaxError.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Class_BaseClassConstruction.js .......... Skip (ES6 unimplemented Spec)
+[es6] expo.js .......... Skip (ES6 unimplemented Spec)
+[es6] trailingcomma.js .......... Skip (ES6 unimplemented Spec)
+[es6] es6HasInstance.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6RestrictedProperties.js .......... Skip (ES6 unimplemented Spec)
+[es6] ES6Proto.js .......... Skip (ES6 unimplemented Spec)
+[es6] object_literal_bug.js .......... Skip (ES6 unimplemented Spec)
+[es6] OS_5403724.js .......... Skip (ES6 unimplemented Spec)
+[es6] forloops-per-iteration-bindings.js .......... Skip (ES6 unimplemented Spec)
+[es6] HTMLComments.js .......... Skip (ES6 unimplemented Spec)
+[es6] await-futreserved-only-in-modules.js .......... Skip (ES6 unimplemented Spec)
+[es6] moduletest1.js .......... Skip (ES6 unimplemented Spec)
+[es6] module-syntax.js .......... Skip (ES6 unimplemented Spec)
+[es6] module-syntax1.js .......... Skip (ES6 unimplemented Spec)
+[es6] module-functionality.js .......... Skip (ES6 unimplemented Spec)
+[es6] module-syntax.js .......... Skip (ES6 unimplemented Spec)
+[es6] module-syntax1.js .......... Skip (ES6 unimplemented Spec)
+[es6] module-namespace.js .......... Skip (ES6 unimplemented Spec)
+[es6] OS_5500719.js .......... Skip (ES6 unimplemented Spec)
+[es6] OS_8600339.js .......... Skip (ES6 unimplemented Spec)
+[es6] iteratorclose.js .......... Skip (ES6 unimplemented Spec)
+[es6] iteratorclose.js .......... Skip (ES6 unimplemented Spec)
+[es6] bug_issue_1496.js .......... Skip (ES6 unimplemented Spec)
+[es6] typedarray_bugs.js .......... Skip (ES6 unimplemented Spec)
+[es7] Skipping whole directory (Not in scope)
+[switchStatement] allIIntCases.js .......... Pass
+[switchStatement] emptyCases.js .......... Pass
+[switchStatement] moreSwitches1.js .......... Pass
+[switchStatement] moreSwitches2.js .......... Pass
+[switchStatement] switchMathExp.js .......... Pass
+[switchStatement] allStringCases.js .......... Pass
+[switchStatement] stringAndNonStrings.js .......... Pass
+[switchStatement] repeatIntCases.js .......... Pass
+[switchStatement] emptyStringCases.js .......... Pass
+[switchStatement] repeatStringCases.js .......... Pass
+[switchStatement] loopAndRetarget.js .......... Pass
+[switchStatement] implicitCallSwitchExpr.js .......... Pass
+[switchStatement] simpleSwitch.js .......... Pass
+[switchStatement] moreSwitches1_1.js .......... Skip (Chakracore-only)
+[switchStatement] nonIntCases.js .......... Skip (Chakracore-only)
+[switchStatement] stringBailOut.js .......... Skip (Chakracore-only)
+[switchStatement] intBailOut.js .......... Skip (Chakracore-only)
+[switchStatement] BugFixRegression_MaxInterpret.js .......... Pass
+[switchStatement] amd64JScriptNumberRegression.js .......... Pass
+[switchStatement] substring.js .......... Pass
+[switchStatement] stringDictionaryBailOnNoProfileBug.js .......... Pass
+[switchStatement] jmpTableTest1.js .......... Pass
+[switchStatement] minMaxCaseValues.js .......... Pass
+[switchStatement] jmpTableTest2.js .......... Pass
+[switchStatement] duplicateStringCaseArmBug.js .......... Pass
+[switchStatement] CallBetweenSwitchExprUses.js .......... Pass
+[switchStatement] switchDefNotStringBug.js .......... Pass
+[switchStatement] singleCharStringCase.js .......... Pass
+[stackfunc] Skipping whole directory (Chakracore-only)
+[PerfHint] Skipping whole directory (Chakracore-only)
+[AsmJs] Skipping whole directory (Not in scope(AsmJs))
+[AsmJSFloat] Skipping whole directory (Not in scope(AsmJs))
+[ASMJSParser] Skipping whole directory (Not in scope(AsmJs))
+[SIMD.float32x4] Skipping whole directory (Not in scope(SIMD))
+[SIMD.int32x4] Skipping whole directory (Not in scope(SIMD))
+[SIMD.int8x16] Skipping whole directory (Not in scope(SIMD))
+[SIMD.float32x4.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.int32x4.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.int16x8.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.int8x16.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.uint32x4.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.uint16x8.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.uint8x16.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.bool32x4.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.bool16x8.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.bool8x16.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.workloads.asmjs] Skipping whole directory (Not in scope(SIMD))
+[SIMD.wrappers] Skipping whole directory (Not in scope(SIMD))
+[SIMD.TypeSpec] Skipping whole directory (Not in scope(SIMD))
+[WasmSpec] Skipping whole directory (Not in scope(WebAssembly))
+[wasm] Skipping whole directory (Not in scope(WebAssembly))
+[Debugger] Skipping whole directory (Chakracore-only)
+[DebuggerCommon] arguments_mapES6_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockscope_fastdebug_ES5.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockscope_fastdebug_ES6.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockscope_func_insidescopes.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ES6_intl_stepinto.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ES6_letconst_const_reassignment_fnscope.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ES6_letconst_eval_strict_fn.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ES6_letconst_redeclaration_indebugger.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ES6_letconst_shadow_evaluation.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ES6_letconst_shadow_eval_with.js .......... Skip (Chakracore-only)
+[DebuggerCommon] es6_forof_decl.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] es6_forof_decl-2.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] es6_forof_decl-3.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] es6_forof_decl-4.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] es6_forof_decl-5.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] es6_forof_decl-6.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] frames_values_mapES6.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_in_ES6_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_in_from_interpreted_function_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_in_from_JITted_function_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_in_only_debugJIT_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_direct_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_ES5.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_ES6.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_from_catch_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_from_interpreted_function_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_from_JITted_function_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_out_only_debugJIT_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_over_ES6_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] step_over_JITd_fn_from_Intrprt_fn_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] TempStrExpr.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_intl_simple_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] frames_inspection_arrayES5.js .......... Pass
+[DebuggerCommon] shadow_with.js .......... Pass
+[DebuggerCommon] blockscope_func_declaration_ES6.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockscope_func_expression_ES6.js .......... Pass
+[DebuggerCommon] ES6_letconst_eval_nonstrict.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_letconst_for.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_letconst_trycatch_simple_fast.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_proto_chained.js .......... Pass
+[DebuggerCommon] ES6_proto_simple.js .......... Pass
+[DebuggerCommon] ES6_proto_userDefinedObject.js .......... Pass
+[DebuggerCommon] ES6_intl_stepinto_libexpandos.js .......... Skip (FIXME: ES6 function)
+[DebuggerCommon] ES6_letconst_forin.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_letconst_const_usebeforedeclaration.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_proto_invalidation.js .......... Pass
+[DebuggerCommon] frames_letconst_reassignobjects_ES6.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_letconst_const_reassignment_globalscope.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_letconst_redcl.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] native_array.js .......... Pass
+[DebuggerCommon] argument_disp.js .......... Skip (old Function.caller)
+[DebuggerCommon] multiple_argumentsdisp_safeguard.js .......... Skip (old Function.caller)
+[DebuggerCommon] level_1.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_spread.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] specialproperties_fn.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ES6_RegExp_specialproperties.js .......... Pass
+[DebuggerCommon] ES6_RegExp_specialproperties.js .......... Pass
+[DebuggerCommon] ES6_RegExp_specialproperties.js .......... Pass
+[DebuggerCommon] ES6_RegExp_specialproperties.js .......... Pass
+[DebuggerCommon] specialproperties_level2.js .......... Pass
+[DebuggerCommon] testdynamicattach1.js .......... Skip (Chakracore-only)
+[DebuggerCommon] testdynamicattach1.js .......... Skip (Chakracore-only)
+[DebuggerCommon] targeted.js .......... Pass
+[DebuggerCommon] protoTest2.js .......... Skip (Chakracore only)
+[DebuggerCommon] testdynamicattach2.js .......... Skip (Chakracore only)
+[DebuggerCommon] deferParseDetach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] deferParseDetach2.js .......... Skip (Chakracore-only)
+[DebuggerCommon] attachWithDeferParse.js .......... Skip (Chakracore-only)
+[DebuggerCommon] array_prototest.js .......... Pass
+[DebuggerCommon] breakpoints.js .......... Pass
+[DebuggerCommon] indexprop.js .......... Skip (FIXME: ES6 function)
+[DebuggerCommon] funcSource.js .......... Pass
+[DebuggerCommon] evaluate.js .......... Pass
+[DebuggerCommon] attachAfterException.js .......... Skip (Chakracore-only)
+[DebuggerCommon] catchInspection.js .......... Pass
+[DebuggerCommon] funcExprName.js .......... Pass
+[DebuggerCommon] attachdetach-delaycapture.js .......... Skip (Chakracore-only)
+[DebuggerCommon] globalFuncVars.js .......... Pass
+[DebuggerCommon] blockScopeSlotArrayCaptureAttach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockScopeSlotArrayCapture.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeActivationObjectCapture.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeBasicLetConstTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeActivationObjectAsSlotArray.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeBasicScopingTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeForTest.bug183991.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeNestedFunctionTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeEvalTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeGlobalTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeForTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeWithTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeSwitchTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeActivationObjectDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeRegSlotDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeSlotArrayDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeGlobalDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeGlobalBlockTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeSlotArrayTest.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockScopeSlotArrayTest.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockScopeSlotArraySiblingTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeGlobalSlotArrayTest.bug222631.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeSibling.bug263635.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeSiblingScopeTrackedInNonDebugMode.bug321751.js .......... Skip (Chakracore-only)
+[DebuggerCommon] blockScopeFunctionDeclarationRegSlotTest.js .......... Pass
+[DebuggerCommon] blockScopeFunctionDeclarationSlotArrayTest.js .......... Pass
+[DebuggerCommon] blockScopeFunctionDeclarationActivationObjectTest.js .......... Pass
+[DebuggerCommon] blockScopeFunctionDeclarationGlobalTest.js .......... Pass
+[DebuggerCommon] blockScopeFunctionDeclarationGlobalShadowingTest.bug305562.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeFunctionDeclarationGlobalShadowingTest.bug308191.js .......... Pass
+[DebuggerCommon] blockScopeFunctionRedeclarationTest.js .......... Pass
+[DebuggerCommon] blockScopeFunctionRedeclaration_blue523098.js .......... Pass
+[DebuggerCommon] disablebp.js .......... Pass
+[DebuggerCommon] disablebp2.js .......... Pass
+[DebuggerCommon] setframe.js .......... Pass
+[DebuggerCommon] funcExprCrash_150491.js .......... Skip (Chakracore-only)
+[DebuggerCommon] JIT_localsAtNativeFrame1.js .......... Pass
+[DebuggerCommon] JIT_localsAtNativeFrame2.js .......... Pass
+[DebuggerCommon] bug594394.js .......... Pass
+[DebuggerCommon] FastF12_BOBranch.js .......... Pass
+[DebuggerCommon] negzerotest.js .......... Pass
+[DebuggerCommon] detachBasicTest.js .......... Skip (Chakracore-only)
+[DebuggerCommon] detachBasicTest.js .......... Skip (Chakracore-only)
+[DebuggerCommon] testdynamicdetach1.js .......... Skip (Chakracore-only)
+[DebuggerCommon] jitStepping2.js .......... Pass
+[DebuggerCommon] jitStepping2.js .......... Pass
+[DebuggerCommon] jit_exprEval1.js .......... Pass
+[DebuggerCommon] jit_editvalue1.js .......... Pass
+[DebuggerCommon] jitAttach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] stringkeyedtypehandler.js .......... Pass
+[DebuggerCommon] functionNameShowsInScopeGroupTest.bug157127.js .......... Pass
+[DebuggerCommon] functionNameShowsInNestedScopeGroupTest.js .......... Pass
+[DebuggerCommon] blockScopeExpressionNoWriteOfConst.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeRegSlotShadowingExpressionEvaluationTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeExpressionSimpleDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeExpressionEquationDeadZoneTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] blockScopeTryCatchTest.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] localsInspectionOnNonTopFrameInBlockTest.bug163347.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] jitAttach.js .......... Skip (Chakracore only)
+[DebuggerCommon] getterInspection.js .......... Pass
+[DebuggerCommon] promise_deferNestedAttach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_222633.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] bug_149118.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_149118.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_204064.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_177146.js .......... Skip (old Function.caller, Function.arguments)
+[DebuggerCommon] bug_177146.js .......... Skip (old Function.caller, Function.arguments)
+[DebuggerCommon] bug_256729.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] bug_266843.js .......... Pass
+[DebuggerCommon] bug_350674.js .......... Pass
+[DebuggerCommon] with_shadow.js .......... Pass
+[DebuggerCommon] var_shadow.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] arraytoes5array.js .......... Pass
+[DebuggerCommon] propertyEnumeration.bug241480.js .......... Pass
+[DebuggerCommon] bug_271356.js .......... Pass
+[DebuggerCommon] bug_291582.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] bug_355097.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_301517.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_325839.js .......... Pass
+[DebuggerCommon] deferParse_210165.js .......... Skip (Chakracore-only)
+[DebuggerCommon] qualified_names1.js .......... Pass
+[DebuggerCommon] qualified_names2.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] evalDetection.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_507528.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_543550.js .......... Skip (FIXME: ES6 function)
+[DebuggerCommon] bug_523101.js .......... Pass
+[DebuggerCommon] symbols.js .......... Skip (FIXME: ES6 function)
+[DebuggerCommon] qualified_names5.js .......... Pass
+[DebuggerCommon] bug_538163.js .......... Pass
+[DebuggerCommon] bug_575634.js .......... Pass
+[DebuggerCommon] nested_eval.js .......... Pass
+[DebuggerCommon] bug_592506.js .......... Pass
+[DebuggerCommon] permanentArguments.js .......... Pass
+[DebuggerCommon] sourceInfoMismatch.js .......... Skip (Chakracore-only)
+[DebuggerCommon] spread_debugging.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] bug_622304.js .......... Pass
+[DebuggerCommon] returnedvaluetests.js .......... Pass
+[DebuggerCommon] returnedvaluetests1.js .......... Skip (Chakracore-only)
+[DebuggerCommon] returnedvaluetests2.js .......... Skip (Chakracore-only)
+[DebuggerCommon] delaycapture.js .......... Skip (Chakracore-only)
+[DebuggerCommon] returnedvaluetests3.js .......... Skip (Chakracore-only)
+[DebuggerCommon] returnedvaluetests4.js .......... Skip (Chakracore-only)
+[DebuggerCommon] returnedvaluetests4.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_261867.js .......... Pass
+[DebuggerCommon] rest.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ObjLit_step_into_more.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ObjLit_step_into_out.js .......... Pass
+[DebuggerCommon] ObjLit_step_over.js .......... Pass
+[DebuggerCommon] generators.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] async.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] async_step_out.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] async_step_over.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] TypedArray.js .......... Skip (FIXME: ES6 function)
+[DebuggerCommon] ComputedPropertyNames.js .......... Pass
+[DebuggerCommon] parentedDynamicCode2.js .......... Skip (Chakracore-only)
+[DebuggerCommon] parentedDynamicCode3.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_os_2946365.js .......... Skip (Chakracore-only)
+[DebuggerCommon] ConsoleScope.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] ConsoleScopePMSpec.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] infiniteloop.js .......... Pass
+[DebuggerCommon] destructuring-debug.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] regex-symbols.js .......... Skip (FIXME: ES6 function)
+[DebuggerCommon] default.js .......... Skip (FIXME: ES6 syntax)
+[DebuggerCommon] default_attach.js .......... Skip (Chakracore-only)
+[DebuggerCommon] bug_vso5792108.js .......... Pass
+[DebuggerCommon] promiseDisplay.js .......... Pass
+[TTExecuteBasic] Skipping whole directory (Not in scope(ES6 Syntax))
+[TTBasic] Skipping whole directory (Not in scope(ES6 Syntax))
+==========================================================
+TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
+   UnitTestFramework		1		1		0		0		(100%)
+               Array		113		72		0		41		(63%)
+              Basics		56		35		0		21		(62%)
+                 es5		56		37		0		19		(66%)
+                  EH		16		10		0		6		(62%)
+        InlineCaches		21		20		0		1		(95%)
+              Basics		56		35		0		21		(62%)
+           Generated		110		108		0		2		(98%)
+            Closures		24		17		0		7		(70%)
+             Strings		38		26		0		12		(68%)
+                Date		12		4		0		8		(33%)
+               Error		25		2		0		23		(8%)
+             Boolean		7		6		0		1		(85%)
+              Number		8		6		0		2		(75%)
+         ControlFlow		17		14		0		3		(82%)
+                Math		21		19		0		2		(90%)
+      TaggedIntegers		44		44		0		0		(100%)
+           Optimizer		214		185		0		29		(86%)
+            Function		67		31		0		36		(46%)
+              Object		64		37		0		27		(57%)
+               Regex		32		19		0		13		(59%)
+          Prototypes		8		6		0		2		(75%)
+     GlobalFunctions		13		9		0		4		(69%)
+           Operators		32		24		0		8		(75%)
+         Conversions		5		3		0		2		(60%)
+                 RWC		1		1		0		0		(100%)
+                 Lib		16		3		0		13		(18%)
+                JSON		14		9		0		5		(64%)
+                Bugs		57		27		0		30		(47%)
+              strict		105		43		0		62		(40%)
+                utf8		3		3		0		0		(100%)
+        UnifiedRegex		27		8		0		19		(29%)
+          typedarray		47		16		0		31		(34%)
+             bailout		34		29		0		5		(85%)
+                loop		6		4		0		2		(66%)
+       Miscellaneous		5		2		0		3		(40%)
+           fieldopts		119		103		0		16		(86%)
+         FixedFields		16		15		0		1		(93%)
+            inlining		37		26		0		11		(70%)
+         DynamicCode		3		3		0		0		(100%)
+                 es6		215		1		0		214		(0%)
+     switchStatement		28		24		0		4		(85%)
+      DebuggerCommon		205		68		0		137		(33%)
+==========================================================
+               Total		1998		1155		0		843		(57%)
