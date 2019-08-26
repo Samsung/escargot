@@ -87,15 +87,12 @@ struct ByteCodeGenerateContext {
         , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
         , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
-        , m_tryStatementScopeCount(0)
-        , m_catchStatementScopeCount(0)
-        , m_withStatementScopeCount(0)
-        , m_blockStatementScopeCount(0)
         , m_complexJumpBreakIgnoreCount(0)
         , m_complexJumpContinueIgnoreCount(0)
         , m_complexJumpLabeledBreakIgnoreCount(0)
         , m_complexJumpLabeledContinueIgnoreCount(0)
         , m_lexicalBlockIndex(0)
+        , m_maxYieldStatementExtraDataLength(0)
         , m_numeralLiteralData(numeralLiteralData)
     {
         m_inCallingExpressionScope = false;
@@ -124,16 +121,14 @@ struct ByteCodeGenerateContext {
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
-        , m_tryStatementScopeCount(contextBefore.m_tryStatementScopeCount)
-        , m_catchStatementScopeCount(contextBefore.m_catchStatementScopeCount)
-        , m_withStatementScopeCount(contextBefore.m_withStatementScopeCount)
-        , m_blockStatementScopeCount(contextBefore.m_blockStatementScopeCount)
+        , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
         , m_complexJumpBreakIgnoreCount(contextBefore.m_complexJumpBreakIgnoreCount)
         , m_complexJumpContinueIgnoreCount(contextBefore.m_complexJumpContinueIgnoreCount)
         , m_complexJumpLabeledBreakIgnoreCount(contextBefore.m_complexJumpLabeledBreakIgnoreCount)
         , m_complexJumpLabeledContinueIgnoreCount(contextBefore.m_complexJumpLabeledContinueIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
+        , m_maxYieldStatementExtraDataLength(contextBefore.m_maxYieldStatementExtraDataLength)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
     {
         m_isHeadOfMemberExpression = false;
@@ -156,12 +151,15 @@ struct ByteCodeGenerateContext {
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
+        ctx.m_maxYieldStatementExtraDataLength = m_maxYieldStatementExtraDataLength;
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();
         m_labeledBreakStatmentPositions.clear();
         m_labeledContinueStatmentPositions.clear();
         m_complexCaseStatementPositions.clear();
+
+        ctx.m_recursiveStatementStack = std::move(m_recursiveStatementStack);
     }
 
     void pushBreakPositions(size_t pos)
@@ -287,7 +285,7 @@ struct ByteCodeGenerateContext {
 
     int tryCatchWithBlockStatementCount()
     {
-        return m_tryStatementScopeCount + m_catchStatementScopeCount + m_withStatementScopeCount + m_blockStatementScopeCount;
+        return m_recursiveStatementStack.size();
     }
 
     // NOTE this is counter! not index!!!!!!
@@ -320,11 +318,14 @@ struct ByteCodeGenerateContext {
     size_t m_offsetToBasePointer;
     // For Label Statement
     size_t m_positionToContinue;
-    // code position, tryStatement count
-    int m_tryStatementScopeCount;
-    int m_catchStatementScopeCount;
-    int m_withStatementScopeCount;
-    int m_blockStatementScopeCount;
+    // code position, special Statement count
+    enum RecursiveStatementKind : size_t {
+        Try,
+        Catch,
+        With,
+        Block
+    };
+    std::vector<std::pair<RecursiveStatementKind, size_t>> m_recursiveStatementStack;
     int m_complexJumpBreakIgnoreCount;
     int m_complexJumpContinueIgnoreCount;
     int m_complexJumpLabeledBreakIgnoreCount;
@@ -332,6 +333,7 @@ struct ByteCodeGenerateContext {
     size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
+    size_t m_maxYieldStatementExtraDataLength;
     Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* m_numeralLiteralData;
 };
 

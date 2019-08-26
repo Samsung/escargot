@@ -40,6 +40,11 @@ enum GeneratorAbruptType {
 };
 
 class GeneratorObject : public Object {
+    friend class ByteCodeInterpreter;
+    friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue);
+    friend Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
+    friend Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type);
+
 public:
     GeneratorObject(ExecutionState& state);
     GeneratorObject(ExecutionState& state, ExecutionState* executionState, ByteCodeBlock* blk);
@@ -54,54 +59,32 @@ public:
         return true;
     }
 
-    ExecutionState* executionState()
-    {
-        return m_executionState;
-    }
-
-    ByteCodeBlock* block()
-    {
-        return m_blk;
-    }
-
-    size_t byteCodePosition()
-    {
-        return m_byteCodePosition;
-    }
-
-    GeneratorState state()
-    {
-        return m_state;
-    }
-
-    uint16_t resumeValueIdx()
-    {
-        return m_resumeValueIdx;
-    }
-
-    void setState(GeneratorState state)
-    {
-        m_state = state;
-    }
-
-    void setByteCodePosition(size_t pos)
-    {
-        m_byteCodePosition = pos;
-    }
-
-    void setResumeValueIdx(uint16_t idx)
-    {
-        m_resumeValueIdx = idx;
-    }
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    GeneratorState generatorState() const
+    {
+        return m_generatorState;
+    }
+
 private:
+    // yield is implemented throw this type of by this class
+    // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
+    struct GeneratorExitValue : public gc {
+        Value m_value;
+
+        void* operator new(size_t size)
+        {
+            // we MUST use uncollectable malloc. bdwgc cannot track thrown value
+            return GC_MALLOC_UNCOLLECTABLE(size);
+        }
+    };
+
     ExecutionState* m_executionState;
-    ByteCodeBlock* m_blk;
-    size_t m_byteCodePosition;
-    GeneratorState m_state;
+    ByteCodeBlock* m_byteCodeBlock;
+    size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
+    size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
+    GeneratorState m_generatorState;
     SmallValue m_resumeValue;
     uint16_t m_resumeValueIdx;
 };

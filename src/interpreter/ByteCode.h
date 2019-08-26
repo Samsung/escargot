@@ -126,6 +126,7 @@ struct GlobalVariableAccessCacheItem;
     F(CallFunctionInWithScope, 0, 0)                  \
     F(BindingRestElement, 1, 0)                       \
     F(GeneratorComplete, 0, 0)                        \
+    F(GeneratorResume, 0, 0)                          \
     F(Yield, 0, 0)                                    \
     F(YieldDelegate, 1, 0)                            \
     F(BlockOperation, 0, 0)                           \
@@ -1565,6 +1566,24 @@ public:
 #endif
 };
 
+class GeneratorResume : public ByteCode {
+public:
+    GeneratorResume(const ByteCodeLOC& loc, GeneratorObject* generatorObject)
+        : ByteCode(Opcode::GeneratorResumeOpcode, loc)
+        , m_generatorObject(generatorObject)
+    {
+    }
+
+    GeneratorObject* m_generatorObject;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("generator resume");
+    }
+#endif
+};
+
 class GeneratorComplete : public ByteCode {
 public:
     GeneratorComplete(const ByteCodeLOC& loc, bool isThrow = false)
@@ -1585,32 +1604,36 @@ public:
 
 class Yield : public ByteCode {
 public:
-    Yield(const ByteCodeLOC& loc, const size_t yieldIdx, const size_t dstIdx)
+    Yield(const ByteCodeLOC& loc, const size_t yieldIdx, const size_t dstIdx, const size_t tailDataLength)
         : ByteCode(Opcode::YieldOpcode, loc)
         , m_yieldIdx(yieldIdx)
         , m_dstIdx(dstIdx)
+        , m_tailDataLength(tailDataLength)
     {
     }
 
     ByteCodeRegisterIndex m_yieldIdx;
     ByteCodeRegisterIndex m_dstIdx;
+    size_t m_tailDataLength;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("r%d <- yield r%d", m_dstIdx, m_yieldIdx);
+        printf("r%d <- yield r%d(tail data %d)", m_dstIdx, m_yieldIdx,
+               (int)m_tailDataLength);
     }
 #endif
 };
 
 class YieldDelegate : public ByteCode {
 public:
-    YieldDelegate(const ByteCodeLOC& loc, const size_t iterIdx, const size_t valueIdx, const size_t dstIdx)
+    YieldDelegate(const ByteCodeLOC& loc, const size_t iterIdx, const size_t valueIdx, const size_t dstIdx, const size_t tailDataLength)
         : ByteCode(Opcode::YieldDelegateOpcode, loc)
         , m_iterIdx(iterIdx)
         , m_valueIdx(valueIdx)
         , m_dstIdx(dstIdx)
         , m_endPosition(SIZE_MAX)
+        , m_tailDataLength(tailDataLength)
     {
     }
 
@@ -1618,11 +1641,13 @@ public:
     ByteCodeRegisterIndex m_valueIdx;
     ByteCodeRegisterIndex m_dstIdx;
     size_t m_endPosition;
+    size_t m_tailDataLength;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("r%d r%d <- yield* r%d", m_valueIdx, m_dstIdx, m_iterIdx);
+        printf("r%d r%d <- yield* r%d(tail data %d)", m_valueIdx, m_dstIdx, m_iterIdx,
+               (int)m_tailDataLength);
     }
 #endif
 };

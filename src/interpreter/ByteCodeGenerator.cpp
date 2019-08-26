@@ -180,7 +180,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
 
-    block->m_code.shrinkToFit();
+    if (ctx.m_maxYieldStatementExtraDataLength) {
+        block->m_code.reserve(block->m_code.size() + ctx.m_maxYieldStatementExtraDataLength);
+    } else {
+        block->m_code.shrinkToFit();
+    }
 
     block->m_getObjectCodePositions = std::move(ctx.m_getObjectCodePositions);
 
@@ -569,6 +573,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 Yield* cd = (Yield*)currentCode;
                 assignStackIndexIfNeeded(cd->m_yieldIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                code += cd->m_tailDataLength;
                 break;
             }
             case YieldDelegateOpcode: {
@@ -638,6 +643,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             ByteCode* currentCode = (ByteCode*)(code + idx);
 
             currentCode->dumpCode(idx, (const char*)code);
+
+            if (currentCode->m_orgOpcode == YieldOpcode) {
+                idx += ((Yield*)currentCode)->m_tailDataLength;
+            }
+
             idx += byteCodeLengths[currentCode->m_orgOpcode];
         }
 

@@ -33,9 +33,8 @@ OpcodeTable g_opcodeTable;
 OpcodeTable::OpcodeTable()
 {
 #if defined(COMPILER_GCC)
-    ExecutionState state((Context*)nullptr);
     // Dummy bytecode execution to initialize the OpcodeTable.
-    ByteCodeInterpreter::interpret(state, nullptr, 0, nullptr);
+    ByteCodeInterpreter::interpret(nullptr, nullptr, 0, nullptr);
 #endif
 }
 
@@ -171,8 +170,8 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 
     if (bi->m_shouldAllocateEnvironment) {
-        context->m_blockStatementScopeCount++;
         ctx.lexicalBlockSetupStartPosition = currentCodeSize();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
         this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
     }
 
@@ -217,7 +216,7 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
 
     this->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
     this->peekCode<BlockOperation>(ctx.lexicalBlockSetupStartPosition)->m_blockEndPosition = this->currentCodeSize();
-    context->m_blockStatementScopeCount--;
+    context->m_recursiveStatementStack.pop_back();
 }
 
 void* SetObjectInlineCache::operator new(size_t size)
