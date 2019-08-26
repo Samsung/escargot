@@ -54,7 +54,6 @@ protected:
     }
 
     void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped);
-    void generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv);
     void generateByteCodeBlock(ExecutionState& state);
 
     LexicalEnvironment* m_outerEnvironment;

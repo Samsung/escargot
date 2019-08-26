@@ -110,7 +110,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     }
 
     try {
-        srcToTest.appendString("\r\n){ }");
+        srcToTest.appendString(") { }");
         String* cur = srcToTest.finalize(&state);
         state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
         esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, SIZE_MAX);
@@ -135,7 +135,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
         }
     }
-    src.appendString("\n){\n");
+    src.appendString(") {\n");
     src.appendString(source);
     src.appendString("\n}");
 

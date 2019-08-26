@@ -344,8 +344,11 @@ public:
 #endif
             } else if (params[i]->type() == RestElement) {
                 hasParameterOtherThanIdentifier = true;
-                scopeContexts.back()->m_hasRestElement = true;
-                id = ((RestElementNode*)params[i].get())->argument()->name();
+                scopeContexts.back()->m_parameters.erase(i);
+#ifndef NDEBUG
+                shouldHaveEqualNumberOfParameterListAndParameterName = false;
+#endif
+                break;
             } else {
                 RELEASE_ASSERT_NOT_REACHED();
             }

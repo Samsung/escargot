@@ -213,29 +213,4 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
         }
     }
 }
-
-void ScriptFunctionObject::generateRestParameter(ExecutionState& state, FunctionEnvironmentRecord* record, Value* parameterStorageInStack, const size_t argc, Value* argv)
-{
-    ArrayObject* newArray;
-    size_t parameterLen = (size_t)m_codeBlock->parameterCount();
-
-    if (argc > parameterLen) {
-        size_t arrLen = argc - parameterLen;
-        newArray = new ArrayObject(state, (double)arrLen);
-        for (size_t i = 0; i < arrLen; i++) {
-            newArray->setIndexedProperty(state, Value(i), argv[parameterLen + i]);
-        }
-    } else {
-        newArray = new ArrayObject(state);
-    }
-
-    InterpretedCodeBlock::FunctionParametersInfo lastInfo = const_cast<InterpretedCodeBlock::FunctionParametersInfoVector&>(m_codeBlock->asInterpretedCodeBlock()->parametersInfomation()).back();
-    if (!m_codeBlock->canUseIndexedVariableStorage()) {
-        record->initializeBinding(state, lastInfo.m_name, Value(newArray));
-    } else if (lastInfo.m_isHeapAllocated) {
-        record->heapStorage()[lastInfo.m_index] = newArray;
-    } else {
-        parameterStorageInStack[lastInfo.m_index] = newArray;
-    }
-}
 }

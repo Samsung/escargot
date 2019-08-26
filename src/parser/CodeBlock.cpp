@@ -57,7 +57,7 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parametersInfomation));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_childBlocks));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
@@ -94,7 +94,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_canAllocateVariablesOnStack(true)
     , m_canAllocateEnvironmentOnStack(true)
     , m_hasDescendantUsesNonIndexedVariableStorage(false)
-    , m_needsComplexParameterCopy(false)
     , m_hasEval(false)
     , m_hasWith(false)
     , m_hasYield(false)
@@ -133,7 +132,6 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_canAllocateVariablesOnStack(true)
     , m_canAllocateEnvironmentOnStack(true)
     , m_hasDescendantUsesNonIndexedVariableStorage(false)
-    , m_needsComplexParameterCopy(false)
     , m_hasEval(false)
     , m_hasWith(false)
     , m_hasYield(false)
@@ -234,7 +232,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_canAllocateVariablesOnStack = m_canAllocateEnvironmentOnStack;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
 
-    m_needsComplexParameterCopy = false;
     m_needsVirtualIDOperation = false;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
@@ -283,7 +280,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_context = ctx;
     m_byteCodeBlock = nullptr;
     m_functionName = scopeCtx->m_functionName;
-    m_parameterCount = scopeCtx->m_hasRestElement ? parameterNames.size() - 1 : parameterNames.size();
+    m_parameterCount = parameterNames.size();
     m_hasCallNativeFunctionCode = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
@@ -308,13 +305,11 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isGenerator = scopeCtx->m_isGenerator;
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
-    m_needsComplexParameterCopy = false;
     m_needsVirtualIDOperation = false;
 
-    m_parametersInfomation.resizeWithUninitializedValues(parameterNames.size());
+    m_parameterNames.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {
-        m_parametersInfomation[i].m_name = parameterNames[i];
-        m_parametersInfomation[i].m_isDuplicated = false;
+        m_parameterNames[i] = parameterNames[i];
     }
 
     m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
@@ -362,9 +357,9 @@ void InterpretedCodeBlock::captureArguments()
         // Unmapped arguments object doesn't connect arguments object property with arguments variable
         if (isMapped) {
             m_canAllocateEnvironmentOnStack = false;
-            for (size_t j = 0; j < m_parametersInfomation.size(); j++) {
+            for (size_t j = 0; j < m_parameterNames.size(); j++) {
                 for (size_t k = 0; k < m_identifierInfos.size(); k++) {
-                    if (m_identifierInfos[k].m_name == m_parametersInfomation[j].m_name) {
+                    if (m_identifierInfos[k].m_name == m_parameterNames[j]) {
                         m_identifierInfos[k].m_needToAllocateOnStack = false;
                         break;
                     }
@@ -499,21 +494,12 @@ void InterpretedCodeBlock::computeVariables()
 
     if (m_functionName.string()->length()) {
         if (m_isFunctionExpression) {
-            // name of function expression is immuable
+            // name of function expression is immutable
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {
                 if (m_identifierInfos[i].m_name == m_functionName && !m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
                     m_identifierInfos[i].m_isMutable = false;
-                    m_needsComplexParameterCopy = true;
                     break;
                 }
-            }
-        }
-
-        for (size_t i = 0; i < m_parametersInfomation.size(); i++) {
-            AtomicString name = m_parametersInfomation[i].m_name;
-            if (name == m_functionName) {
-                m_needsComplexParameterCopy = true;
-                break;
             }
         }
     }
@@ -527,7 +513,6 @@ void InterpretedCodeBlock::computeVariables()
                 m_identifierInfos[i].m_needToAllocateOnStack = false;
             }
             if (m_identifierInfos[i].m_name == m_functionName) {
-                m_needsComplexParameterCopy = true;
                 if (m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
                     m_isFunctionNameExplicitlyDeclared = true;
                 }
@@ -560,75 +545,7 @@ void InterpretedCodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
-
-        size_t siz = m_parametersInfomation.size();
-
-        std::vector<std::pair<AtomicString, size_t>> computedNameIndex;
-
-        for (size_t i = 0; i < siz; i++) {
-            AtomicString name = m_parametersInfomation[i].m_name;
-            size_t idIndex = findVarName(name);
-            if (idIndex == SIZE_MAX) {
-                // Pattern parameter
-                continue;
-            }
-            bool isHeap = !m_identifierInfos[idIndex].m_needToAllocateOnStack;
-            size_t indexInIdInfo = m_identifierInfos[idIndex].m_indexForIndexedStorage;
-            if (!isHeap) {
-                indexInIdInfo -= 2;
-            }
-            m_parametersInfomation[i].m_isHeapAllocated = isHeap;
-            m_parametersInfomation[i].m_name = name;
-
-            if (name == m_functionName) {
-                if (m_identifierInfos[idIndex].m_needToAllocateOnStack) {
-                    m_parametersInfomation[i].m_index = -1;
-                    m_parametersInfomation[i].m_isHeapAllocated = false;
-                } else {
-                    m_parametersInfomation[i].m_index = indexInIdInfo;
-                    m_parametersInfomation[i].m_isHeapAllocated = true;
-                }
-                continue;
-            }
-
-            bool computed = false;
-            size_t computedIndex = SIZE_MAX;
-            for (size_t j = 0; j < computedNameIndex.size(); j++) {
-                if (computedNameIndex[j].first == name) {
-                    // found dup parameter name!
-                    m_needsComplexParameterCopy = true;
-                    computed = true;
-                    computedIndex = computedNameIndex[j].second;
-
-                    for (size_t k = i - 1;; k--) {
-                        if (m_parametersInfomation[k].m_name == name) {
-                            m_parametersInfomation[k].m_isDuplicated = true;
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-            }
-
-            if (!computed) {
-                if (isHeap) {
-                    m_parametersInfomation[i].m_index = indexInIdInfo;
-                    m_needsComplexParameterCopy = true;
-                    computedNameIndex.push_back(std::make_pair(name, indexInIdInfo));
-                } else {
-                    m_parametersInfomation[i].m_index = indexInIdInfo;
-                    computedNameIndex.push_back(std::make_pair(name, indexInIdInfo));
-                }
-            } else {
-                m_parametersInfomation[i].m_index = computedNameIndex[computedIndex].second;
-            }
-        }
-
-
     } else {
-        m_needsComplexParameterCopy = true;
-
         if (m_isEvalCodeInFunction) {
             AtomicString arguments = m_context->staticStrings().arguments;
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {
@@ -655,12 +572,6 @@ void InterpretedCodeBlock::computeVariables()
             }
             m_identifierInfos[i].m_indexForIndexedStorage = h;
             h++;
-        }
-
-        size_t siz = m_parametersInfomation.size();
-        for (size_t i = 0; i < siz; i++) {
-            m_parametersInfomation[i].m_isHeapAllocated = true;
-            m_parametersInfomation[i].m_index = std::numeric_limits<int32_t>::max();
         }
 
         m_identifierOnStackCount = s;

@@ -921,6 +921,7 @@
   'regress/regress-1530': [SKIP],
   'regress/regress-447561': [SKIP],
   'regress/regress-crbug-618788': [SKIP],
+  'regress/regress-2470': [SKIP],
 
   # Symbol
   'regress/regress-5780': [SKIP],
