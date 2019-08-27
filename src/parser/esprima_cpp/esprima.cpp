@@ -6019,6 +6019,52 @@ public:
 
     // ECMA-262 14.4 Generator Function Definitions
 
+    bool isStartOfExpression()
+    {
+        bool start = true;
+
+        if (this->lookahead.type == Token::PunctuatorToken) {
+            switch (this->lookahead.valuePunctuatorKind) {
+            case PunctuatorKind::LeftSquareBracket:
+            case PunctuatorKind::LeftParenthesis:
+            case PunctuatorKind::LeftBrace:
+            case PunctuatorKind::Plus:
+            case PunctuatorKind::Minus:
+            case PunctuatorKind::ExclamationMark:
+            case PunctuatorKind::Wave:
+            case PunctuatorKind::PlusPlus:
+            case PunctuatorKind::MinusMinus:
+            case PunctuatorKind::Divide:
+            case PunctuatorKind::DivideEqual:
+                start = true;
+                break;
+            default:
+                start = false;
+                break;
+            }
+        } else if (this->lookahead.type == Token::KeywordToken) {
+            switch (this->lookahead.valueKeywordKind) {
+            case KeywordKind::ClassKeyword:
+            case KeywordKind::DeleteKeyword:
+            case KeywordKind::FunctionKeyword:
+            case KeywordKind::LetKeyword:
+            case KeywordKind::NewKeyword:
+            case KeywordKind::SuperKeyword:
+            case KeywordKind::ThisKeyword:
+            case KeywordKind::TypeofKeyword:
+            case KeywordKind::VoidKeyword:
+            case KeywordKind::YieldKeyword:
+                start = true;
+                break;
+            default:
+                start = false;
+            }
+        }
+
+        return start;
+    }
+
+
     template <typename T, bool isParse>
     T yieldExpression()
     {
@@ -6040,13 +6086,11 @@ public:
                 } else {
                     this->assignmentExpression<Scan>();
                 }
-            } else {
-                if (!this->match(SemiColon) && !this->match(RightBrace) && !this->match(RightParenthesis) && this->lookahead.type != Token::EOFToken) {
-                    if (isParse) {
-                        exprNode = this->assignmentExpression<Parse>();
-                    } else {
-                        this->assignmentExpression<Scan>();
-                    }
+            } else if (isStartOfExpression()) {
+                if (isParse) {
+                    exprNode = this->assignmentExpression<Parse>();
+                } else {
+                    this->assignmentExpression<Scan>();
                 }
             }
             this->context->allowYield = previousAllowYield;

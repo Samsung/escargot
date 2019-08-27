@@ -32,6 +32,7 @@ class ProgramNode;
 class FunctionNode;
 class CodeBlock;
 
+// NOTE I converted esprima (3.1.1, cd59092) to cpp
 namespace esprima {
 
 typedef std::function<void(::Escargot::Node*, NodeLOC start, NodeLOC end)> ParserASTNodeHandler;

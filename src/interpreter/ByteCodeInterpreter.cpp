@@ -1107,8 +1107,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(TryOperation)
             :
         {
-            TryOperation* code = (TryOperation*)programCounter;
-            programCounter = tryOperation(*state, code, state->lexicalEnvironment(), programCounter, byteCodeBlock, registerFile);
+            programCounter = tryOperation(state, programCounter, byteCodeBlock, registerFile);
             NEXT_INSTRUCTION();
         }
 
@@ -1425,17 +1424,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(GeneratorResume)
             :
         {
-            GeneratorResume* code = (GeneratorResume*)programCounter;
-            ByteCodeInterpreter::generatorResumeOperation(state, programCounter, byteCodeBlock);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(GeneratorComplete)
-            :
-        {
-            GeneratorComplete* code = (GeneratorComplete*)programCounter;
-            state->generatorTarget()->asGeneratorObject()->m_generatorState = ((GeneratorState)(GeneratorState::CompletedReturn + !!code->m_isThrow));
-            ADD_PROGRAM_COUNTER(GeneratorComplete);
+            Value v = ByteCodeInterpreter::generatorResumeOperation(state, programCounter, byteCodeBlock);
+            if (!v.isEmpty()) {
+                return v;
+            }
             NEXT_INSTRUCTION();
         }
 
@@ -2310,48 +2302,89 @@ NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(Execut
     return newArray;
 }
 
-NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState*& state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
-    bool oldInTryStatement = state.m_inTryStatement;
-    try {
-        state.m_inTryStatement = true;
-        if (!state.ensureRareData()->m_controlFlowRecord) {
-            state.ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
+    TryOperation* code = (TryOperation*)programCounter;
+    bool oldInTryStatement = state->m_inTryStatement;
+
+    bool inGeneratorScope = state->inGeneratorScope();
+    bool inGeneratorResumeProcess = code->m_isTryResumeProcess || code->m_isCatchResumeProcess;
+    bool shouldUseHeapAllocatedState = inGeneratorScope && !inGeneratorResumeProcess;
+    ExecutionState* newState;
+
+    if (UNLIKELY(shouldUseHeapAllocatedState)) {
+        newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
+    } else {
+        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
+    }
+
+    if (!LIKELY(inGeneratorResumeProcess)) {
+        if (!state->ensureRareData()->m_controlFlowRecord) {
+            state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
         }
-        state.ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
-        size_t newPc = programCounter + sizeof(TryOperation);
-        clearStack<386>();
-        interpret(&state, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
-        programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-        state.m_inTryStatement = oldInTryStatement;
-    } catch (const Value& val) {
-        state.m_inTryStatement = oldInTryStatement;
-        state.context()->m_sandBoxStack.back()->fillStackDataIntoErrorObject(val);
+        state->ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
+        newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
+    }
+
+    if (LIKELY(!code->m_isCatchResumeProcess)) {
+        try {
+            newState->m_inTryStatement = true;
+            size_t newPc = programCounter + sizeof(TryOperation);
+            clearStack<386>();
+            interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+            if (UNLIKELY(inGeneratorResumeProcess)) {
+                state = newState->parent();
+                code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+            }
+            programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+            newState->m_inTryStatement = oldInTryStatement;
+        } catch (const Value& val) {
+            if (UNLIKELY(inGeneratorResumeProcess)) {
+                state = newState->parent();
+                code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+                newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
+                newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
+            }
+            newState->m_inTryStatement = oldInTryStatement;
+            newState->context()->m_sandBoxStack.back()->fillStackDataIntoErrorObject(val);
 
 #ifndef NDEBUG
-        if (getenv("DUMP_ERROR_IN_TRY_CATCH") && strlen(getenv("DUMP_ERROR_IN_TRY_CATCH"))) {
-            ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(state.context()->m_sandBoxStack.back());
-            StringBuilder builder;
-            builder.appendString("Caught error in try-catch block\n");
-            data->buildStackTrace(state.context(), builder);
-            ESCARGOT_LOG_ERROR("%s\n", builder.finalize()->toUTF8StringData().data());
-        }
+            if (getenv("DUMP_ERROR_IN_TRY_CATCH") && strlen(getenv("DUMP_ERROR_IN_TRY_CATCH"))) {
+                ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(newState->context()->m_sandBoxStack.back());
+                StringBuilder builder;
+                builder.appendString("Caught error in try-catch block\n");
+                data->buildStackTrace(newState->context(), builder);
+                ESCARGOT_LOG_ERROR("%s\n", builder.finalize()->toUTF8StringData().data());
+            }
 #endif
 
-        state.context()->m_sandBoxStack.back()->m_stackTraceData.clear();
-        if (!code->m_hasCatch) {
-            state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
-            programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-        } else {
-            registerFile[code->m_catchedValueRegisterIndex] = val;
-            try {
-                interpret(&state, byteCodeBlock, code->m_catchPosition, registerFile);
+            newState->context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+            if (!code->m_hasCatch) {
+                newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
-            } catch (const Value& val) {
-                state.rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
-                programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+            } else {
+                registerFile[code->m_catchedValueRegisterIndex] = val;
+                try {
+                    interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                } catch (const Value& val) {
+                    newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+                    programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+                }
             }
+        }
+    } else {
+        try {
+            interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
+            state = newState->parent();
+            code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+            programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
+        } catch (const Value& val) {
+            state = newState->parent();
+            code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+            state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+            programCounter = jumpTo(codeBuffer, code->m_tryCatchEndPosition);
         }
     }
     return programCounter;
@@ -2767,23 +2800,37 @@ NEVER_INLINE void ByteCodeInterpreter::yieldOperationImplementation(ExecutionSta
         codeStartPositions.push_back(startPos);
         if (e == ByteCodeGenerateContext::Block) {
             gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(BlockOperation));
-            BlockOperation* bo = new (gen->m_byteCodeBlock->m_code.data() + codePos) BlockOperation(ByteCodeLOC(SIZE_MAX), nullptr);
-            bo->assignOpcodeInAddress();
+            BlockOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) BlockOperation(ByteCodeLOC(SIZE_MAX), nullptr);
+            code->assignOpcodeInAddress();
 
             codePos += sizeof(BlockOperation);
         } else if (e == ByteCodeGenerateContext::With) {
             gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(WithOperation));
-            WithOperation* bo = new (gen->m_byteCodeBlock->m_code.data() + codePos) WithOperation(ByteCodeLOC(SIZE_MAX), REGISTER_LIMIT);
-            bo->assignOpcodeInAddress();
+            WithOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) WithOperation(ByteCodeLOC(SIZE_MAX), REGISTER_LIMIT);
+            code->assignOpcodeInAddress();
 
             codePos += sizeof(WithOperation);
+        } else if (e == ByteCodeGenerateContext::Try) {
+            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
+            TryOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
+            code->assignOpcodeInAddress();
+            code->m_isTryResumeProcess = true;
+
+            codePos += sizeof(TryOperation);
         } else {
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT(e == ByteCodeGenerateContext::Catch);
+            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
+            TryOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
+            code->assignOpcodeInAddress();
+            code->m_isCatchResumeProcess = true;
+
+            codePos += sizeof(TryOperation);
         }
         start += sizeof(size_t); // start pos
     }
 
     size_t resumeCodePos = gen->m_byteCodeBlock->m_code.size();
+    gen->m_generatorResumeByteCodePosition = resumeCodePos;
     gen->m_byteCodeBlock->m_code.resizeWithUninitializedValues(resumeCodePos + sizeof(GeneratorResume));
     auto resumeCode = new (gen->m_byteCodeBlock->m_code.data() + resumeCodePos) GeneratorResume(ByteCodeLOC(SIZE_MAX), gen);
     resumeCode->assignOpcodeInAddress();
@@ -2896,12 +2943,16 @@ NEVER_INLINE Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& s
     ASSERT_NOT_REACHED();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE Value ByteCodeInterpreter::generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
 {
     GeneratorResume* code = (GeneratorResume*)programCounter;
 
+    bool needsReturn = code->m_needsReturn;
+    bool needsThrow = code->m_needsThrow;
+
+    GeneratorObject* gen = code->m_generatorObject;
     // update old parent
-    ExecutionState* orgTreePointer = code->m_generatorObject->m_executionState;
+    ExecutionState* orgTreePointer = gen->m_executionState;
     ExecutionState* tmpTreePointer = state;
 
     size_t pos = programCounter + sizeof(GeneratorResume);
@@ -2934,6 +2985,17 @@ NEVER_INLINE void ByteCodeInterpreter::generatorResumeOperation(ExecutionState*&
 
     // update program counter
     programCounter = code->m_generatorObject->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
+
+    if (needsReturn) {
+        if (state->rareData() && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size()) {
+            state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, gen->m_resumeValue, state->rareData()->m_controlFlowRecord->size());
+        }
+        return gen->m_resumeValue;
+    } else if (needsThrow) {
+        state->throwException(gen->m_resumeValue);
+    }
+
+    return Value(Value::EmptyValue);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)

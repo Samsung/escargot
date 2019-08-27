@@ -41,7 +41,7 @@ enum GeneratorAbruptType {
 
 class GeneratorObject : public Object {
     friend class ByteCodeInterpreter;
-    friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue);
+    friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow);
     friend Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
     friend Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type);
 
@@ -68,6 +68,15 @@ public:
     }
 
 private:
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        Object::fillGCDescriptor(desc);
+
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionState));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_byteCodeBlock));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_resumeValue));
+    }
+
     // yield is implemented throw this type of by this class
     // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
     struct GeneratorExitValue : public gc {
@@ -80,10 +89,17 @@ private:
         }
     };
 
+    void releaseExecutionVariables()
+    {
+        m_executionState = nullptr;
+        m_byteCodeBlock = nullptr;
+    }
+
     ExecutionState* m_executionState;
     ByteCodeBlock* m_byteCodeBlock;
     size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
     size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
+    size_t m_generatorResumeByteCodePosition; // this indicates where GeneratorResumeLocatedIn
     GeneratorState m_generatorState;
     SmallValue m_resumeValue;
     uint16_t m_resumeValueIdx;

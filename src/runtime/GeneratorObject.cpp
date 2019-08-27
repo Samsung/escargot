@@ -28,15 +28,8 @@
 namespace Escargot {
 
 GeneratorObject::GeneratorObject(ExecutionState& state)
-    : Object(state)
-    , m_executionState(nullptr)
-    , m_byteCodeBlock(nullptr)
-    , m_byteCodePosition(SIZE_MAX)
-    , m_extraDataByteCodePosition(0)
-    , m_generatorState(GeneratorState::Undefined)
-    , m_resumeValueIdx(REGISTER_LIMIT)
+    : GeneratorObject(state, nullptr, nullptr)
 {
-    Object::setPrototype(state, state.context()->globalObject()->generatorPrototype());
 }
 
 GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, ByteCodeBlock* blk)
@@ -45,24 +38,24 @@ GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executio
     , m_byteCodeBlock(blk)
     , m_byteCodePosition(SIZE_MAX)
     , m_extraDataByteCodePosition(0)
+    , m_generatorResumeByteCodePosition(SIZE_MAX)
     , m_generatorState(GeneratorState::SuspendedStart)
     , m_resumeValueIdx(REGISTER_LIMIT)
 {
-    Object::setPrototype(state, state.context()->globalObject()->generatorPrototype());
+    Object* prototype = new Object(state);
+    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
+    setPrototype(state, prototype);
 }
 
 void* GeneratorObject::operator new(size_t size)
 {
+    ASSERT(size == sizeof(GeneratorObject));
+
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(GeneratorObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_values));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_executionState));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_byteCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GeneratorObject, m_resumeValue));
+        fillGCDescriptor(obj_bitmap);
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GeneratorObject));
         typeInited = true;
     }
@@ -105,7 +98,7 @@ public:
     ExecutionState* m_generatorOriginalState;
 };
 
-Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue)
+Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow)
 {
     ExecutionState* generatorOriginalState = gen->m_executionState;
     while (generatorOriginalState->parent()) {
@@ -118,6 +111,14 @@ Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resume
     if (gen->m_resumeValueIdx != REGISTER_LIMIT) {
         generatorOriginalState->registerFile()[gen->m_resumeValueIdx] = resumeValue;
     }
+
+    gen->m_resumeValue = resumeValue;
+    if (gen->m_generatorResumeByteCodePosition != SIZE_MAX) {
+        GeneratorResume* gr = (GeneratorResume*)(gen->m_byteCodeBlock->m_code.data() + gen->m_generatorResumeByteCodePosition);
+        gr->m_needsReturn = isAbruptReturn;
+        gr->m_needsThrow = isAbruptThrow;
+    }
+
 
     Value result;
     try {
@@ -139,9 +140,16 @@ Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resume
             es = new ExecutionState(&state, env, false);
         }
         result = ByteCodeInterpreter::interpret(es, gen->m_byteCodeBlock, startPos, generatorOriginalState->registerFile());
+        // normal return means generator end
+        gen->m_generatorState = GeneratorState::CompletedReturn;
+        gen->releaseExecutionVariables();
     } catch (GeneratorObject::GeneratorExitValue* exitValue) {
         result = exitValue->m_value;
         delete exitValue;
+    } catch (const Value& thrownValue) {
+        gen->m_generatorState = GeneratorState::CompletedThrow;
+        gen->releaseExecutionVariables();
+        throw thrownValue;
     }
 
     generatorOriginalState->setParent(nullptr);
@@ -160,7 +168,7 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
 
     ASSERT(gen->m_generatorState == GeneratorState::SuspendedStart || gen->m_generatorState == SuspendedYield);
 
-    Value result = generatorExecute(state, gen, value);
+    Value result = generatorExecute(state, gen, value, false, false);
 
     if (gen->m_generatorState >= GeneratorState::CompletedReturn) {
         return createIterResultObject(state, result, true);
@@ -169,7 +177,7 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
     return createIterResultObject(state, result, false);
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresume
+// https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresumeabrupt
 Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type)
 {
     GeneratorObject* gen = generatorValidate(state, generator);
@@ -187,15 +195,8 @@ Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const
 
     ASSERT(gen->generatorState() == GeneratorState::SuspendedYield);
 
-    gen->m_generatorState = GeneratorState::Executing;
+    Value result = generatorExecute(state, gen, value, type == GeneratorAbruptType::Return, type == GeneratorAbruptType::Throw);
 
-    Value result = generatorExecute(state, gen, value);
-
-    gen->m_generatorState = (type == GeneratorAbruptType::Return ? GeneratorState::CompletedReturn : GeneratorState::CompletedThrow);
-
-    if (type == GeneratorAbruptType::Throw) {
-        state.throwException(value);
-    }
-    return createIterResultObject(state, value, true);
+    return createIterResultObject(state, result, gen->generatorState() == GeneratorState::CompletedReturn || gen->generatorState() == GeneratorState::CompletedThrow);
 }
 }

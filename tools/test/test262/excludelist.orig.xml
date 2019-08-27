@@ -11,6 +11,15 @@
   <test id="built-ins/Proxy/enumerate/return-trap-result-no-value"><reason>Deplecated in ECMAScript8.0</reason></test>
   <test id="built-ins/Proxy/enumerate/return-trap-result"><reason>Deplecated in ECMAScript8.0</reason></test>
   <test id="built-ins/Proxy/enumerate/trap-is-not-callable"><reason>Deplecated in ECMAScript8.0</reason></test>
+  <test id="S15.6.3.1_A1"><reason>This test is wrong and test/es2015/S15.6.3.1_A1 takes over</reason></test>
+  <test id="S15.6.4_A1"><reason>This test is wrong and test/es2015/S15.6.3.1_A1 takes over</reason></test>
+  <test id="S15.6.4.2_A1_T1"><reason>This test is wrong and test/es2015/S15.6.4.2_A1_T1.js takes over</reason></test>
+  <test id="S15.6.4.2_A1_T2"><reason>This test is wrong and test/es2015/S15.6.4.2_A1_T2.js takes over</reason></test>
+  <test id="S15.6.4.3_A1_T1"><reason>This test is wrong and test/es2015/S15.6.4.3_A1_T1 takes over</reason></test>
+  <test id="S15.6.4.3_A1_T2"><reason>This test is wrong and test/es2015/S15.6.4.3_A1_T2 takes over</reason></test>
+  <test id="15.9.1.15-1"><reason>This test is wrong and test/es2015/15.9.1.15-1.js takes over</reason></test>
+  <test id="built-ins/GeneratorPrototype/next/context-constructor-invocation"><reason>Test is wrong. generator function is not constructor</reason></test>
+
   <test id="targetdesc-not-compatible-descriptor-not-configurable-target"><reason>TODO: Need to implement ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current)</reason></test>
   <test id="targetdesc-not-compatible-descriptor"><reason>TODO: Need to implement ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current)</reason></test>
   <test id="resultdesc-is-invalid-descriptor"><reason>TODO: Need to implement ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current)</reason></test>
@@ -23,6 +32,7 @@
   <test id="trap-is-not-callable-using-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
   <test id="10.6-13-a-2"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
   <test id="10.6-13-a-3"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
+
   <test id="B.2.3.10"><reason>TODO</reason></test>
   <test id="B.2.3.11"><reason>TODO</reason></test>
   <test id="B.2.3.12"><reason>TODO</reason></test>
@@ -36,31 +46,8 @@
   <test id="B.2.3.7"><reason>TODO</reason></test>
   <test id="B.2.3.8"><reason>TODO</reason></test>
   <test id="B.2.3.9"><reason>TODO</reason></test>
-  <test id="S15.6.3.1_A1"><reason>This test is wrong and test/es2015/S15.6.3.1_A1 takes over</reason></test>
-  <test id="S15.6.4_A1"><reason>This test is wrong and test/es2015/S15.6.3.1_A1 takes over</reason></test>
-  <test id="S15.6.4.2_A1_T1"><reason>This test is wrong and test/es2015/S15.6.4.2_A1_T1.js takes over</reason></test>
-  <test id="S15.6.4.2_A1_T2"><reason>This test is wrong and test/es2015/S15.6.4.2_A1_T2.js takes over</reason></test>
-  <test id="S15.6.4.3_A1_T1"><reason>This test is wrong and test/es2015/S15.6.4.3_A1_T1 takes over</reason></test>
-  <test id="S15.6.4.3_A1_T2"><reason>This test is wrong and test/es2015/S15.6.4.3_A1_T2 takes over</reason></test>
-  <test id="15.9.1.15-1"><reason>This test is wrong and test/es2015/15.9.1.15-1.js takes over</reason></test>
   <test id="S9.4_A3_T1"><reason>TODO</reason></test>
   <test id="S15.11.4_A2"><reason>TODO</reason></test>
-  <test id="Symbol.toStringTag"><reason>TODO</reason></test>
-  <test id="context-constructor-invocation"><reason>TODO</reason></test>
-  <test id="return-yield-expr"><reason>TODO</reason></test>
-  <test id="try-catch-before-try"><reason>TODO</reason></test>
-  <test id="try-catch-following-catch"><reason>TODO</reason></test>
-  <test id="try-catch-within-catch"><reason>TODO</reason></test>
-  <test id="try-catch-within-try"><reason>TODO</reason></test>
-  <test id="try-finally-before-try"><reason>TODO</reason></test>
-  <test id="try-finally-nested-try-catch-within-catch"><reason>TODO</reason></test>
-  <test id="try-finally-nested-try-catch-within-finally"><reason>TODO</reason></test>
-  <test id="try-finally-nested-try-catch-within-inner-try"><reason>TODO</reason></test>
-  <test id="try-finally-nested-try-catch-within-outer-try-after-nested"><reason>TODO</reason></test>
-  <test id="try-finally-nested-try-catch-within-outer-try-before-nested"><reason>TODO</reason></test>
-  <test id="try-finally-within-finally"><reason>TODO</reason></test>
-  <test id="try-finally-within-try"><reason>TODO</reason></test>
-  <test id="try-finally-following-finally"><reason>TODO</reason></test>
   <test id="iterator-close-after-set-failure"><reason>TODO</reason></test>
   <test id="iterator-item-first-entry-returns-abrupt"><reason>TODO</reason></test>
   <test id="iterator-item-second-entry-returns-abrupt"><reason>TODO</reason></test>
@@ -246,7 +233,6 @@
   <test id="9.2.8_1_c"><reason>TODO</reason></test>
   <test id="9.2.8_4"><reason>TODO</reason></test>
   <test id="S7.9_A5.7_T1"><reason>TODO</reason></test>
-  <test id="yield-as-expression-without-rhs"><reason>TODO</reason></test>
   <test id="generator-prototype"><reason>TODO</reason></test>
   <test id="getter-prototype"><reason>TODO</reason></test>
   <test id="method-number"><reason>TODO</reason></test>
@@ -256,7 +242,6 @@
   <test id="setter-prototype"><reason>TODO</reason></test>
   <test id="lexical-new.target-closure-returned"><reason>TODO</reason></test>
   <test id="lexical-new.target"><reason>TODO</reason></test>
-  <test id="arrowparameters-cover-initialize-2"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T1"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T2"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T3"><reason>TODO</reason></test>
@@ -269,9 +254,6 @@
   <test id="S11.13.1_A7_T2"><reason>TODO</reason></test>
   <test id="S11.13.1_A7_T3"><reason>TODO</reason></test>
   <test id="array-elem-elision"><reason>TODO</reason></test>
-  <test id="array-elem-init-yield-expr"><reason>TODO</reason></test>
-  <test id="array-elem-nested-array-yield-expr"><reason>TODO</reason></test>
-  <test id="array-elem-target-yield-expr"><reason>TODO</reason></test>
   <test id="array-iteration"><reason>TODO</reason></test>
   <test id="array-rest-after-element"><reason>TODO</reason></test>
   <test id="array-rest-after-elision"><reason>TODO</reason></test>
@@ -417,10 +399,8 @@
   <test id="prop-def-id-eval-error"><reason>TODO</reason></test>
   <test id="generator-invoke-ctor"><reason>TODO</reason></test>
   <test id="generator-name-prop-symbol"><reason>TODO</reason></test>
-  <test id="generator-prop-name-yield-expr"><reason>TODO</reason></test>
   <test id="name-name-prop-symbol"><reason>TODO</reason></test>
   <test id="name-param-id-yield"><reason>TODO</reason></test>
-  <test id="name-prop-name-yield-expr"><reason>TODO</reason></test>
   <test id="S11.3.2_A5_T1"><reason>TODO</reason></test>
   <test id="S11.3.2_A5_T2"><reason>TODO</reason></test>
   <test id="S11.3.2_A5_T3"><reason>TODO</reason></test>
@@ -458,9 +438,6 @@
   <test id="tv-line-continuation"><reason>TODO</reason></test>
   <test id="tv-line-terminator-sequence"><reason>TODO</reason></test>
   <test id="tv-null-character-escape-sequence"><reason>TODO</reason></test>
-  <test id="from-catch"><reason>TODO</reason></test>
-  <test id="from-try"><reason>TODO</reason></test>
-  <test id="from-with"><reason>TODO</reason></test>
   <test id="star-iterable"><reason>TODO</reason></test>
   <test id="yield-as-label-in-sloppy"><reason>TODO</reason></test>
   <test id="let-non-strict-access"><reason>TODO</reason></test>
@@ -488,8 +465,6 @@
   <test id="iterator-close-via-break"><reason>TODO</reason></test>
   <test id="iterator-close-via-return"><reason>TODO</reason></test>
   <test id="iterator-close-via-throw"><reason>TODO</reason></test>
-  <test id="yield-from-catch"><reason>TODO</reason></test>
-  <test id="yield-from-try"><reason>TODO</reason></test>
   <test id="yield-star-from-catch"><reason>TODO</reason></test>
   <test id="yield-star-from-try"><reason>TODO</reason></test>
   <test id="yield-as-generator-declaration-binding-identifier"><reason>TODO</reason></test>

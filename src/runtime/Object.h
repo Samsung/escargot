@@ -817,6 +817,13 @@ public:
     Value speciesConstructor(ExecutionState& state, const Value& defaultConstructor);
 
 protected:
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        GC_set_bit(desc, GC_WORD_OFFSET(Object, m_structure));
+        GC_set_bit(desc, GC_WORD_OFFSET(Object, m_prototype));
+        GC_set_bit(desc, GC_WORD_OFFSET(Object, m_values));
+    }
+
     Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
     void initPlainObject(ExecutionState& state);
     ObjectRareData* rareData() const

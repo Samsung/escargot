@@ -150,9 +150,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 nd = nd->nextSilbing();
             }
             if (!(last && last->type() == ASTNodeType::ReturnStatement)) {
-                if (codeBlock->isGenerator()) {
-                    block->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
-                }
                 block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
             }
         }
