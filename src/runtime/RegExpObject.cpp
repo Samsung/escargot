@@ -204,11 +204,6 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     return returnValue;
 }
 
-bool RegExpObject::isRegExpObject(ExecutionState& state)
-{
-    return this->getPrototypeObject(state)->isRegExpPrototypeObject() || isRegExpPrototypeObject();
-}
-
 void RegExpObject::parseOption(ExecutionState& state, const String* optionString)
 {
     this->m_option = RegExpObject::Option::None;

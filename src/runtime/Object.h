@@ -159,6 +159,7 @@ public:
         }
     }
 
+
 private:
     bool m_isUIntType : 1;
     union ObjectPropertyNameData {
@@ -614,6 +615,8 @@ public:
     }
 
     bool isConcatSpreadable(ExecutionState& state);
+    bool isRegExpObject(ExecutionState& state) override;
+
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
     virtual bool isExtensible(ExecutionState&)

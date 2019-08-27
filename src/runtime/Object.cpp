@@ -106,6 +106,7 @@ void* ObjectRareData::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
 #ifdef ESCARGOT_32
@@ -401,6 +402,23 @@ bool Object::isConcatSpreadable(ExecutionState& state)
     }
     // Return IsArray(O).
     return isArrayObject();
+}
+bool Object::isRegExpObject(ExecutionState& state)
+{
+    bool isParentIsRegExp = false;
+    Object* temp = this;
+    while (true) {
+        Object* parent = temp->getPrototypeObject(state);
+        if (!parent) {
+            break;
+        }
+        if (parent->isRegExpPrototypeObject()) {
+            isParentIsRegExp = true;
+            break;
+        }
+        temp = parent;
+    }
+    return this->getPrototypeObject(state)->isRegExpPrototypeObject() || isParentIsRegExp;
 }
 
 void Object::initPlainObject(ExecutionState& state)
