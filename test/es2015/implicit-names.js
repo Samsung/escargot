@@ -41,10 +41,10 @@ var test = function t() {
     assert(o.b.name === "b")
     assert(o.c.name === "c")
     assert(g.name === "g")
-    assert(a.name ==="a")
+    assert(a.name === "a")
     assert(f.name === "f")
     assert(d.name === 'a')
-    assert(d.toString() === "function () { }");
+    assert(d.toString() === "() => { }");
 
 }
 test();

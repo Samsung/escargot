@@ -590,7 +590,6 @@ struct ASTFunctionScopeContext : public gc {
     bool m_hasManyNumeralLiteral : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
-    bool m_hasRestElement : 1;
     bool m_needsToComputeLexicalBlockStuffs : 1;
     bool m_hasImplictFunctionName : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression, FunctionDeclaration only
@@ -827,7 +826,6 @@ struct ASTFunctionScopeContext : public gc {
         , m_hasManyNumeralLiteral(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
-        , m_hasRestElement(false)
         , m_needsToComputeLexicalBlockStuffs(false)
         , m_hasImplictFunctionName(false)
         , m_nodeType(ASTNodeType::Program)

@@ -363,16 +363,9 @@ public:
     /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */
     std::pair<bool, size_t> tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
-    struct FunctionParametersInfo {
-        bool m_isHeapAllocated : 1;
-        bool m_isDuplicated : 1;
-        int32_t m_index;
-        AtomicString m_name;
-    };
-    typedef TightVector<FunctionParametersInfo, GCUtil::gc_malloc_atomic_allocator<FunctionParametersInfo>> FunctionParametersInfoVector;
-    const FunctionParametersInfoVector& parametersInfomation() const
+    const AtomicStringTightVector& parameterNames() const
     {
-        return m_parametersInfomation;
+        return m_parameterNames;
     }
 
     struct IndexedIdentifierInfo {
@@ -663,8 +656,8 @@ public:
 
     bool hasParameter(const AtomicString& name)
     {
-        for (size_t i = 0; i < m_parametersInfomation.size(); i++) {
-            if (m_parametersInfomation[i].m_name == name) {
+        for (size_t i = 0; i < m_parameterNames.size(); i++) {
+            if (m_parameterNames[i] == name) {
                 return true;
             }
         }
@@ -760,7 +753,7 @@ protected:
     StringView m_bodySrc; // function body source
     ExtendedNodeLOC m_sourceElementStart;
 
-    FunctionParametersInfoVector m_parametersInfomation;
+    AtomicStringTightVector m_parameterNames;
     uint16_t m_identifierOnStackCount; // this member variable only count `var`
     uint16_t m_identifierOnHeapCount; // this member variable only count `var`
     uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`

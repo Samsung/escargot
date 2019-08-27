@@ -58,30 +58,21 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     if (LIKELY(thisValue.isFunction())) {
         FunctionObject* fn = thisValue.asFunction();
         StringBuilder builder;
-        builder.appendString("function ");
-        if (!fn->codeBlock()->hasImplictFunctionName()) {
-            builder.appendString(fn->codeBlock()->functionName().string());
-        }
-        builder.appendString("(");
-
-        if (fn->codeBlock()->isInterpretedCodeBlock()) {
-            for (size_t i = 0; i < fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size(); i++) {
-                builder.appendString(fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[i].m_name.string());
-                if (i < (fn->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size() - 1)) {
-                    builder.appendString(", ");
-                }
+        if (!fn->codeBlock()->isArrowFunctionExpression()) {
+            builder.appendString("function ");
+            if (!fn->codeBlock()->hasImplictFunctionName()) {
+                builder.appendString(fn->codeBlock()->functionName().string());
             }
         }
 
-        builder.appendString(") ");
         if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
-            StringView src = fn->codeBlock()->asInterpretedCodeBlock()->bodySrc();
+            StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
             while (src[src.length() - 1] != '}') {
                 src = StringView(src, 0, src.length() - 1);
             }
             builder.appendString(new StringView(src));
         } else {
-            builder.appendString("{ [native code] }");
+            builder.appendString("() { [native code] }");
         }
 
         return builder.finalize(&state);

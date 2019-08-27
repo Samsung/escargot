@@ -73,7 +73,6 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
     , m_sourceFunctionObject(sourceFunctionObject)
     , m_argc(argc)
 {
-    // FIXME Assert: formal parameters does not contain a rest parameter, any binding patterns, or any initializers. It may contain duplicate identifiers.
     // Let len be the number of elements in argumentsList.
     int len = argc;
     m_parameterMap.resizeWithUninitializedValues(len);
@@ -83,7 +82,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
 
         // https://www.ecma-international.org/ecma-262/6.0/#sec-createmappedargumentsobject
         // Let numberOfParameters be the number of elements in parameterNames
-        int numberOfParameters = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parametersInfomation().size();
+        int numberOfParameters = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parameterNames().size();
         // Let index be 0.
         int index = 0;
         // Repeat while index < len ,
@@ -108,7 +107,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
         // Repeat while index ≥ 0 ,
         while (index >= 0) {
             // Let name be parameterNames[index].
-            AtomicString name = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parametersInfomation()[index].m_name;
+            AtomicString name = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parameterNames()[index];
             // If name is not an element of mappedNames, then
             if (std::find(mappedNames.begin(), mappedNames.end(), name) == mappedNames.end()) {
                 // Add name as an element of the list mappedNames.
