@@ -20,163 +20,63 @@
 #ifndef ArrayPatternNode_h
 #define ArrayPatternNode_h
 
-#include "AssignmentExpressionSimpleNode.h"
-#include "IdentifierNode.h"
-#include "ExpressionNode.h"
-#include "RestElementNode.h"
 #include "Node.h"
-#include "PatternNode.h"
-#include "RegisterReferenceNode.h"
 #include "LiteralNode.h"
 
 namespace Escargot {
 
-class ArrayPatternNode : public PatternNode {
+class ArrayPatternNode : public Node {
 public:
     friend class ScriptParser;
-    ArrayPatternNode(ExpressionNodeVector&& elements, RefPtr<Node> init = nullptr, bool hasRestElement = false)
-        : PatternNode(init)
-        , m_elements(elements)
-        , m_hasRestElement(hasRestElement)
+    ArrayPatternNode(ExpressionNodeVector&& elements)
+        : m_elements(elements)
     {
-    }
-
-    ArrayPatternNode(ExpressionNodeVector&& elements, size_t initIdx)
-        : PatternNode(initIdx)
-        , m_elements(elements)
-        , m_hasRestElement(false)
-    {
-    }
-
-    virtual PatternNode* asPattern(RefPtr<Node> init)
-    {
-        //m_default = m_init;
-        m_init = init;
-        return this;
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrayPattern; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
-        ASSERT(m_initIdx != SIZE_MAX || !!m_init);
-        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
-        context->m_isLexicallyDeclaredBindingInitialization = false;
-
-        bool generateRightSide = m_initIdx == SIZE_MAX;
-        bool noResult = dstRegister == REGISTER_LIMIT;
-
-        if (generateRightSide) {
-            m_initIdx = noResult ? context->getRegister() : dstRegister;
-            m_init->generateExpressionByteCode(codeBlock, context, m_initIdx);
+        // store each element by iterator
+        bool hasRestElement = false;
+        size_t elementsSize = m_elements.size();
+        if (m_elements[elementsSize - 1] && m_elements[elementsSize - 1]->type() == RestElement) {
+            hasRestElement = true;
         }
+        size_t iteratorIndex = context->getRegister();
+        size_t iteratorValueIndex = context->getRegister();
 
-        size_t iteratorIdx = context->getRegister();
+        codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), srcRegister, iteratorIndex), context, this);
 
-        if (m_default != nullptr) {
-            LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
-            size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
-            undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
-
-            size_t cmpIndex = context->getRegister();
-            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), m_initIdx, undefinedIndex, cmpIndex), context, this);
-
-            context->giveUpRegister(); // for drop undefinedIndex
-
-            codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
-
-            context->giveUpRegister(); // for drop cmpIndex
-
-            m_default->generateExpressionByteCode(codeBlock, context, m_initIdx);
-
-            codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
-        }
-
-        codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), m_initIdx, iteratorIdx), context, this);
-
-        size_t bindingCount = m_hasRestElement ? m_elements.size() - 1 : m_elements.size();
-
-        for (size_t i = 0; i < bindingCount; i++) {
-            RefPtr<Node> element = m_elements[i];
-
-            size_t iteratorValueIdx = context->getRegister();
-            codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIdx, iteratorIdx), context, this);
-
-            if (element != nullptr) {
-                if (element->isPattern()) {
-                    Node* pattern = element.get()->asPattern(iteratorValueIdx);
-                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-                    pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                    ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-                    context->giveUpRegister();
-                } else if (element->isAssignmentExpressionSimple()) {
-                    AssignmentExpressionSimpleNode* assignNode = element->asAssignmentExpressionSimple();
-                    size_t undefinedIndex = context->getRegister();
-                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), undefinedIndex, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(codeBlock->m_codeBlock->context()->staticStrings().undefined)), context, this);
-
-                    size_t cmpIndex = context->getRegister();
-                    codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), iteratorValueIdx, undefinedIndex, cmpIndex), context, this);
-
-                    context->giveUpRegister(); // for drop undefinedIndex
-
-                    codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-                    size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
-
-                    context->giveUpRegister(); // for drop cmpIndex
-
-                    assignNode->generateExpressionByteCode(codeBlock, context, iteratorValueIdx);
-                    codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
-                    size_t jPos = codeBlock->lastCodePosition<Jump>();
-                    codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
-
-                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(iteratorValueIdx));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(assignNode->left(), registerRef.get()));
-                    assign->m_loc = m_loc;
-                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-                    assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                    ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-                    assign->giveupChildren();
-                    assign.release().leakRef();
-                    registerRef.release().leakRef();
-
-                    Jump* j = codeBlock->peekCode<Jump>(jPos);
-                    j->m_jumpPosition = codeBlock->currentCodeSize();
-                } else {
-                    RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(iteratorValueIdx));
-                    RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(element.get(), registerRef.get()));
-                    assign->m_loc = m_loc;
-                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-                    assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                    ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-                    assign->giveupChildren();
-                    assign.release().leakRef();
-                    registerRef.release().leakRef();
-                }
+        for (size_t i = 0; i < m_elements.size() - 1; i++) {
+            codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
+            if (m_elements[i]) {
+                m_elements[i]->generateResolveAddressByteCode(codeBlock, context);
+                m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
             }
         }
 
-        if (m_hasRestElement) {
-            RefPtr<Node> element = m_elements[m_elements.size() - 1];
-            size_t restIndex = context->getRegister();
-            codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), iteratorIdx, restIndex), context, this);
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(restIndex));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(((RestElementNode*)element.get())->argument(), registerRef.get()));
-            assign->m_loc = m_loc;
-            assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            assign->giveupChildren();
-            assign.release().leakRef();
-            registerRef.release().leakRef();
+        if (hasRestElement) {
+            m_elements[elementsSize - 1]->generateStoreByteCode(codeBlock, context, iteratorIndex, true);
+        } else if (m_elements[elementsSize - 1]) {
+            codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
+            m_elements[elementsSize - 1]->generateResolveAddressByteCode(codeBlock, context);
+            m_elements[elementsSize - 1]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
         }
+        context->giveUpRegister(); // drop the iteratorValueIndex register
+        context->giveUpRegister(); // drop the iteratorIndex register
+    }
 
-        context->giveUpRegister(); // for iteratorIdx
-        if (generateRightSide && noResult) {
-            context->giveUpRegister(); // for drop m_initIdx
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    {
+        for (size_t i = 0; i < m_elements.size(); i++) {
+            if (m_elements[i]) {
+                m_elements[i]->iterateChildrenIdentifier(fn);
+            }
         }
     }
 
 private:
     ExpressionNodeVector m_elements;
-    bool m_hasRestElement;
 };
 }
 

@@ -34,10 +34,11 @@ public:
         Set
     };
 
-    PropertyNode(Node* key, Node* value, Kind kind, bool computed)
+    PropertyNode(Node* key, Node* value, Kind kind, bool computed, bool shorthand)
         : Node()
         , m_kind(kind)
         , m_computed(computed)
+        , m_shorthand(shorthand)
         , m_key(key)
         , m_value(value)
     {
@@ -73,9 +74,27 @@ public:
         return m_key->isIdentifier() || m_key->isLiteral();
     }
 
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        ASSERT(m_kind == Init);
+        size_t valueIndex = context->getRegister();
+        if (m_key->isIdentifier() && !m_computed) {
+            AtomicString propertyAtomicName = m_key->asIdentifier()->name();
+            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), srcRegister, valueIndex, propertyAtomicName), context, this);
+            m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+        } else {
+            size_t propertyIndex = m_key->getRegister(codeBlock, context);
+            m_key->generateExpressionByteCode(codeBlock, context, propertyIndex);
+            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this);
+            m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+        }
+        context->giveUpRegister(); // for drop valueIndex
+    }
+
 private:
     Kind m_kind; // kind: "init" | "get" | "set";
     bool m_computed : 1;
+    bool m_shorthand : 1;
     RefPtr<Node> m_key; // key: Literal | Identifier;
     RefPtr<Node> m_value; // value: Expression;
 };

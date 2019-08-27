@@ -22,7 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "Node.h"
-#include "PatternNode.h"
+
 #include "runtime/Context.h"
 
 namespace Escargot {
@@ -187,10 +187,6 @@ public:
             ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
         }
-    }
-
-    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
-    {
     }
 
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)

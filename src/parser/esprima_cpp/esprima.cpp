@@ -331,28 +331,46 @@ public:
 #endif
         scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
         for (size_t i = 0; i < params.size(); i++) {
-            AtomicString id;
-            if (params[i]->isIdentifier()) {
-                id = params[i]->asIdentifier()->name();
-            } else if (params[i]->isAssignmentPattern()) {
-                hasParameterOtherThanIdentifier = true;
-                id = params[i]->asAssignmentPattern()->left()->asIdentifier()->name();
-            } else if (params[i]->isPattern()) {
-                hasParameterOtherThanIdentifier = true;
-#ifndef NDEBUG
-                shouldHaveEqualNumberOfParameterListAndParameterName = false;
-#endif
-            } else if (params[i]->type() == RestElement) {
-                hasParameterOtherThanIdentifier = true;
-                scopeContexts.back()->m_parameters.erase(i);
-#ifndef NDEBUG
-                shouldHaveEqualNumberOfParameterListAndParameterName = false;
-#endif
+            switch (params[i]->type()) {
+            case Identifier: {
+                scopeContexts.back()->m_parameters[i] = params[i]->asIdentifier()->name();
                 break;
-            } else {
+            }
+            case AssignmentPattern: {
+                hasParameterOtherThanIdentifier = true;
+                AtomicString id;
+                if (params[i]->asAssignmentPattern()->left()->isIdentifier()) {
+                    id = params[i]->asAssignmentPattern()->left()->asIdentifier()->name();
+                }
+#ifndef NDEBUG
+                else {
+                    shouldHaveEqualNumberOfParameterListAndParameterName = false;
+                }
+#endif
+                scopeContexts.back()->m_parameters[i] = id;
+                break;
+            }
+            case ArrayPattern:
+            case ObjectPattern: {
+                hasParameterOtherThanIdentifier = true;
+#ifndef NDEBUG
+                shouldHaveEqualNumberOfParameterListAndParameterName = false;
+#endif
+                scopeContexts.back()->m_parameters[i] = AtomicString();
+                break;
+            }
+            case RestElement: {
+                hasParameterOtherThanIdentifier = true;
+#ifndef NDEBUG
+                shouldHaveEqualNumberOfParameterListAndParameterName = false;
+#endif
+                scopeContexts.back()->m_parameters.erase(i);
+                break;
+            }
+            default: {
                 RELEASE_ASSERT_NOT_REACHED();
             }
-            scopeContexts.back()->m_parameters[i] = id;
+            }
         }
 #ifndef NDEBUG
         if (shouldHaveEqualNumberOfParameterListAndParameterName) {
@@ -1312,7 +1330,7 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(LeftSquareBracket);
-        bool hasRestElement = false;
+        //bool hasRestElement = false;
         ExpressionNodeVector elements;
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
@@ -1321,7 +1339,7 @@ public:
             } else {
                 if (this->match(PeriodPeriodPeriod)) {
                     elements.push_back(this->parseBindingRestElement(params, kind, isExplicitVariableDeclaration));
-                    hasRestElement = true;
+                    //hasRestElement = true;
                     break;
                 } else {
                     elements.push_back(this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration));
@@ -1334,7 +1352,7 @@ public:
         this->expect(RightSquareBracket);
 
         if (isParse) {
-            return T(this->finalize(node, new ArrayPatternNode(std::move(elements), nullptr, hasRestElement)));
+            return T(this->finalize(node, new ArrayPatternNode(std::move(elements))));
         }
         return ScanExpressionResult(ASTNodeType::ArrayPattern);
     }
@@ -1342,22 +1360,20 @@ public:
     template <typename T, bool isParse>
     T propertyPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
     {
-        ALLOC_TOKEN(token);
-        *token = this->lookahead;
         MetaNode node = this->createNode();
+
+        bool computed = false;
+        bool shorthand = false;
+        bool method = false;
 
         RefPtr<Node> keyNode; //'': Node.PropertyKey;
         RefPtr<Node> valueNode; //: Node.PropertyValue;
         ScanExpressionResult key;
         String* keyString = String::emptyString;
 
-        bool computed = false;
-        bool method = false;
-        bool shorthand = false;
-
-        if (token->type == Token::IdentifierToken) {
+        if (this->lookahead.type == Token::IdentifierToken) {
             ALLOC_TOKEN(keyToken);
-            *keyToken = *token;
+            *keyToken = this->lookahead;
 
             if (isParse) {
                 keyNode = this->parseVariableIdentifier(kind);
@@ -1374,7 +1390,7 @@ public:
 
                 if (isParse) {
                     RefPtr<Node> expr = this->assignmentExpression<Parse>();
-                    valueNode = this->finalize(this->startNode(keyToken), new AssignmentExpressionSimpleNode(keyNode.get(), expr.get()));
+                    valueNode = this->finalize(this->startNode(keyToken), new AssignmentPatternNode(keyNode.get(), expr.get()));
                 } else {
                     this->assignmentExpression<Scan>();
                 }
@@ -1410,8 +1426,7 @@ public:
         }
 
         if (isParse) {
-            // TODO add shorthand
-            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), PropertyNode::Kind::Init, computed)));
+            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), PropertyNode::Kind::Init, computed, shorthand)));
         }
         return ScanExpressionResult(ASTNodeType::ObjectPattern);
     }
@@ -1439,7 +1454,7 @@ public:
         this->expect(RightBrace);
 
         if (isParse) {
-            return T(this->finalize(node, new ObjectPatternNode(std::move(properties), nullptr)));
+            return T(this->finalize(node, new ObjectPatternNode(std::move(properties))));
         }
         return ScanExpressionResult(ASTNodeType::ObjectPattern);
     }
@@ -1485,11 +1500,6 @@ public:
             this->context->allowYield = true;
             PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
             this->context->allowYield = previousAllowYield;
-
-            if (pattern->isPattern()) {
-                pattern->asPattern()->setDefault(right);
-                return pattern;
-            }
 
             return this->finalize(this->startNode(startToken), new AssignmentPatternNode(pattern.get(), right.get()));
         }
@@ -1568,7 +1578,7 @@ public:
     template <typename T, bool isParse>
     T arrayInitializer()
     {
-        // const elements: Node.ArrayExpressionElement[] = [];
+        MetaNode node = this->createNode();
         ExpressionNodeVector elements;
 
         this->expect(LeftSquareBracket);
@@ -1609,7 +1619,6 @@ public:
         this->expect(RightSquareBracket);
 
         if (isParse) {
-            MetaNode node = this->createNode();
             return T(this->finalize(node, new ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement)));
         }
         return ScanExpressionResult(ASTNodeType::ArrayExpression);
@@ -2022,8 +2031,7 @@ public:
             }
         }
         if (isParse) {
-            // return this->finalize(node, new PropertyNode(kind, key, computed, value, method, shorthand));
-            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed)));
+            return T(this->finalize(node, new PropertyNode(keyNode.get(), valueNode.get(), kind, computed, shorthand)));
         }
         return ScanExpressionResult(ASTNodeType::Property);
     }
@@ -2103,183 +2111,34 @@ public:
 
         return this->finalize(node, new TemplateLiteralNode(quasis, std::move(expressions)));
     }
-    /*
-     // ECMA-262 12.2.10 The Grouping Operator
 
-    reinterpretExpressionAsPattern(expr) {
-        switch (expr.type) {
-            case Syntax.Identifier:
-            case Syntax.MemberExpression:
-            case Syntax.RestElement:
-            case Syntax.AssignmentPattern:
-                break;
-            case Syntax.SpreadElement:
-                expr.type = Syntax.RestElement;
-                this->reinterpretExpressionAsPattern(expr.argument);
-                break;
-            case Syntax.ArrayExpression:
-                expr.type = Syntax.ArrayPattern;
-                for (let i = 0; i < expr.elements.length; i++) {
-                    if (expr.elements[i] !== null) {
-                        this->reinterpretExpressionAsPattern(expr.elements[i]);
-                    }
-                }
-                break;
-            case Syntax.ObjectExpression:
-                expr.type = Syntax.ObjectPattern;
-                for (let i = 0; i < expr.properties.length; i++) {
-                    this->reinterpretExpressionAsPattern(expr.properties[i].value);
-                }
-                break;
-            case Syntax.AssignmentExpression:
-                expr.type = Syntax.AssignmentPattern;
-                delete expr.operator;
-                this->reinterpretExpressionAsPattern(expr.left);
-                break;
-            default:
-                // Allow other node type for tolerant parsing.
-                break;
-        }
-    }
-
-    parseGroupExpression(): ArrowParameterPlaceHolderNode | Node.Expression {
-        let expr;
-
-        this->expect('(');
-        if (this->match(')')) {
-            this->nextToken();
-            if (!this->match('=>')) {
-                this->expect('=>');
-            }
-            expr = {
-                type: ArrowParameterPlaceHolder,
-                params: []
-            };
-        } else {
-            const startToken = this->lookahead;
-            let params = [];
-            if (this->match('...')) {
-                expr = this->parseRestElement(params);
-                this->expect(')');
-                if (!this->match('=>')) {
-                    this->expect('=>');
-                }
-                expr = {
-                    type: ArrowParameterPlaceHolder,
-                    params: [expr]
-                };
-            } else {
-                let arrow = false;
-                this->context.isBindingElement = true;
-                expr = this->inheritCoverGrammar(this->assignmentExpression<Parse>);
-
-                if (this->match(',')) {
-                    const expressions = [];
-
-                    this->context.isAssignmentTarget = false;
-                    expressions.push(expr);
-                    while (this->startMarker.index < this->scanner.length) {
-                        if (!this->match(',')) {
-                            break;
-                        }
-                        this->nextToken();
-
-                        if (this->match('...')) {
-                            if (!this->context.isBindingElement) {
-                                this->throwUnexpectedToken(this->lookahead);
-                            }
-                            expressions.push(this->parseRestElement(params));
-                            this->expect(')');
-                            if (!this->match('=>')) {
-                                this->expect('=>');
-                            }
-                            this->context.isBindingElement = false;
-                            for (let i = 0; i < expressions.length; i++) {
-                                this->reinterpretExpressionAsPattern(expressions[i]);
-                            }
-                            arrow = true;
-                            expr = {
-                                type: ArrowParameterPlaceHolder,
-                                params: expressions
-                            };
-                        } else {
-                            expressions.push(this->inheritCoverGrammar(this->assignmentExpression<Parse>));
-                        }
-                        if (arrow) {
-                            break;
-                        }
-                    }
-                    if (!arrow) {
-                        expr = this->finalize(this->startNode(startToken), new Node.SequenceExpression(expressions));
-                    }
-                }
-
-                if (!arrow) {
-                    this->expect(')');
-                    if (this->match('=>')) {
-                        if (expr.type === Syntax.Identifier && expr.name === 'yield') {
-                            arrow = true;
-                            expr = {
-                                type: ArrowParameterPlaceHolder,
-                                params: [expr]
-                            };
-                        }
-                        if (!arrow) {
-                            if (!this->context.isBindingElement) {
-                                this->throwUnexpectedToken(this->lookahead);
-                            }
-
-                            if (expr.type === Syntax.SequenceExpression) {
-                                for (let i = 0; i < expr.expressions.length; i++) {
-                                    this->reinterpretExpressionAsPattern(expr.expressions[i]);
-                                }
-                            } else {
-                                this->reinterpretExpressionAsPattern(expr);
-                            }
-
-                            const params = (expr.type === Syntax.SequenceExpression ? expr.expressions : [expr]);
-                            expr = {
-                                type: ArrowParameterPlaceHolder,
-                                params: params
-                            };
-                        }
-                    }
-                    this->context.isBindingElement = false;
-                }
-            }
-        }
-
-        return expr;
-    }
-    */
+    // FIXME
     void reinterpretExpressionAsPattern(Node* expr, ASTNodeType parent = ASTNodeTypeError)
     {
         switch (expr->type()) {
         case ArrayExpression: {
             ArrayExpressionNode* array = expr->asArrayExpression();
-            array->setAsPattern();
-
             ExpressionNodeVector& elements = array->elements();
-
             for (size_t i = 0; i < elements.size(); i++) {
                 if (elements[i] != nullptr) {
                     this->reinterpretExpressionAsPattern(elements[i].get(), ArrayPattern);
                 }
             }
-
             break;
         }
         case ObjectExpression: {
             ObjectExpressionNode* object = expr->asObjectExpression();
-            object->setAsPattern();
-
             PropertiesNodeVector& properties = object->properties();
-
             for (size_t i = 0; i < properties.size(); i++) {
                 if (properties[i] != nullptr) {
                     this->reinterpretExpressionAsPattern(properties[i].get(), ObjectPattern);
                 }
             }
+            break;
+        }
+        case AssignmentExpressionSimple: {
+            AssignmentExpressionSimpleNode* assign = expr->asAssignmentExpressionSimple();
+            this->reinterpretExpressionAsPattern(assign->left());
             break;
         }
         default:
@@ -5610,19 +5469,12 @@ public:
 
             switch (param->type()) {
             case Identifier:
+            case AssignmentPattern:
             case ArrayPattern:
             case ObjectPattern: {
                 RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param.get(), paramIndex));
                 RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(init.get()));
                 container->appendChild(statement->asStatementNode());
-                break;
-            }
-            case AssignmentPattern: {
-                RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param->asAssignmentPattern()->left(), paramIndex));
-                RefPtr<Node> statement1 = this->finalize(node, new ExpressionStatementNode(init.get()));
-                RefPtr<Node> statement2 = this->finalize(node, new ExpressionStatementNode(param.get()));
-                container->appendChild(statement1->asStatementNode());
-                container->appendChild(statement2->asStatementNode());
                 break;
             }
             case RestElement: {

@@ -43,6 +43,14 @@ public:
         return m_argument.get();
     }
 
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        // srcRegister indicates iteratorRegister
+        size_t restElementRegister = m_argument->getRegister(codeBlock, context);
+        codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
+        m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, needToReferenceSelf);
+    }
+
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);

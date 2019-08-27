@@ -23,7 +23,7 @@
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
 #include "Node.h"
-#include "PatternNode.h"
+
 #include "parser/Lexer.h"
 
 namespace Escargot {
@@ -48,22 +48,6 @@ public:
     Node* init() { return m_init.get(); }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (m_id->isPattern()) {
-            if (context->m_forInOfVarBinding) {
-                return;
-            }
-            PatternNode* pattern = m_id->asPattern(m_init);
-            context->getRegister();
-            context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
-            pattern->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-            context->giveUpRegister();
-            return;
-        }
-
-        ASSERT(m_id->isIdentifier());
-        AtomicString name = m_id->asIdentifier()->name();
-
         bool addFakeUndefinedLiteralNode = false;
         if (m_kind != EscargotLexer::KeywordKind::VarKeyword && !m_init && !context->m_forInOfVarBinding) {
             addFakeUndefinedLiteralNode = true;
@@ -73,7 +57,7 @@ public:
 
         if (m_init) {
             context->getRegister();
-            if (!name.string()->equals("arguments")) {
+            if (m_id->isIdentifier() && !m_id->asIdentifier()->name().string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
                 RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
                 assign->m_loc = m_loc;

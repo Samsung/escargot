@@ -34,7 +34,6 @@ public:
         , m_additionalPropertyName(additionalPropertyName)
         , m_additionalPropertyExpression(additionalPropertyExpression)
         , m_hasSpreadElement(hasSpreadElement)
-        , m_isPattern(false)
     {
     }
 
@@ -45,26 +44,6 @@ public:
     ExpressionNodeVector& elements()
     {
         return m_elements;
-    }
-
-    void setAsPattern()
-    {
-        m_isPattern = true;
-    }
-
-    virtual bool isPattern()
-    {
-        return m_isPattern;
-    }
-
-    virtual PatternNode* asPattern(RefPtr<Node> init)
-    {
-        return new ArrayPatternNode(std::move(m_elements), init);
-    }
-
-    virtual PatternNode* asPattern(size_t initIdx)
-    {
-        return new ArrayPatternNode(std::move(m_elements), initIdx);
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }
@@ -110,6 +89,25 @@ public:
         }
     }
 
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        size_t iteratorIndex = context->getRegister();
+        size_t iteratorValueIndex = context->getRegister();
+
+        codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), srcRegister, iteratorIndex), context, this);
+
+        for (size_t i = 0; i < m_elements.size(); i++) {
+            codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
+            if (m_elements[i]) {
+                m_elements[i]->generateResolveAddressByteCode(codeBlock, context);
+                m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
+            }
+        }
+
+        context->giveUpRegister(); // drop the iteratorValueIndex register
+        context->giveUpRegister(); // drop the iteratorIndex register
+    }
+
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_elements.size(); i++) {
@@ -125,8 +123,7 @@ private:
     ExpressionNodeVector m_elements;
     AtomicString m_additionalPropertyName;
     RefPtr<Node> m_additionalPropertyExpression;
-    bool m_hasSpreadElement : 1;
-    bool m_isPattern : 1;
+    bool m_hasSpreadElement;
 };
 }
 

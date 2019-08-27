@@ -21,7 +21,7 @@
 #define ExpressionNode_h
 
 #include "Node.h"
-#include "PatternNode.h"
+
 
 namespace Escargot {
 

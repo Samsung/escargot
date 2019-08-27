@@ -22,7 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
-#include "PatternNode.h"
+
 #include "MemberExpressionNode.h"
 #include "LiteralNode.h"
 
@@ -95,6 +95,40 @@ public:
         assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
     }
 
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
+        size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
+        undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
+
+        size_t cmpIndex = context->getRegister();
+        codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this);
+
+        context->giveUpRegister(); // for drop undefinedIndex
+
+        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
+        size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
+        context->giveUpRegister(); // for drop cmpIndex
+
+        // not undefined case, set srcRegister
+        m_left->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+        codeBlock->pushCode<Jump>(Jump(ByteCodeLOC(m_loc.index)), context, this);
+        size_t pos2 = codeBlock->lastCodePosition<Jump>();
+
+        // undefined case, set default node
+        codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
+        size_t rightIndex = m_right->getRegister(codeBlock, context);
+        m_right->generateExpressionByteCode(codeBlock, context, rightIndex);
+        m_left->generateStoreByteCode(codeBlock, context, rightIndex, needToReferenceSelf);
+        context->giveUpRegister(); // for drop rightIndex
+
+        codeBlock->peekCode<Jump>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
+    }
+
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    {
+        m_left->iterateChildrenIdentifier(fn);
+    }
 
 private:
     RefPtr<Node> m_left; // left: Pattern;
