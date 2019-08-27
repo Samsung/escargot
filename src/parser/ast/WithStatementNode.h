@@ -38,10 +38,10 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t start = codeBlock->currentCodeSize();
-        context->m_withStatementScopeCount++;
         auto r = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, r);
         size_t withPos = codeBlock->currentCodeSize();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::With, withPos));
         codeBlock->pushCode(WithOperation(ByteCodeLOC(m_loc.index), r), context, this);
         context->giveUpRegister();
 
@@ -54,7 +54,7 @@ public:
         codeBlock->peekCode<WithOperation>(withPos)->m_withEndPostion = codeBlock->currentCodeSize();
         context->m_isWithScope = isWithScopeBefore;
 
-        context->m_withStatementScopeCount--;
+        context->m_recursiveStatementStack.pop_back();
     }
 
 private:

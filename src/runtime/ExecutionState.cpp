@@ -146,4 +146,29 @@ Value ExecutionState::getSuperConstructor()
     // Return superConstructor.
     return superConstructor;
 }
+
+// callee is generator && isNotInEvalCode
+bool ExecutionState::inGeneratorScope()
+{
+    ExecutionState* state = this;
+
+    while (state) {
+        if (state->isLocalEvalCode()) {
+            return false;
+        }
+        if (state->lexicalEnvironment()) {
+            auto env = state->lexicalEnvironment();
+            auto record = env->record();
+            if (record->isGlobalEnvironmentRecord()) {
+                return false;
+            }
+            if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isGenerator();
+            }
+        }
+        state = state->parent();
+    }
+
+    return false;
+}
 }

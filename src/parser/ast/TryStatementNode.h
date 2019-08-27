@@ -42,18 +42,18 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
     {
-        context->m_tryStatementScopeCount++;
         codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
-        size_t pos = codeBlock->lastCodePosition<TryOperation>();
+        size_t tryStartPosition = codeBlock->lastCodePosition<TryOperation>();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, tryStartPosition));
         m_block->generateStatementByteCode(codeBlock, context);
         codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
         size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBlockBodyEnd>();
 
         if (m_handler) {
-            context->m_tryStatementScopeCount--;
-            context->m_catchStatementScopeCount++;
-            codeBlock->peekCode<TryOperation>(pos)->m_hasCatch = true;
-            codeBlock->peekCode<TryOperation>(pos)->m_catchPosition = codeBlock->currentCodeSize();
+            context->m_recursiveStatementStack.pop_back();
+            context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Catch, tryStartPosition));
+            codeBlock->peekCode<TryOperation>(tryStartPosition)->m_hasCatch = true;
+            codeBlock->peekCode<TryOperation>(tryStartPosition)->m_catchPosition = codeBlock->currentCodeSize();
 
             // catch paramter block
             size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
@@ -68,7 +68,7 @@ public:
             context->getRegister();
 
             auto catchedValueRegister = context->getRegister();
-            codeBlock->peekCode<TryOperation>(pos)->m_catchedValueRegisterIndex = catchedValueRegister;
+            codeBlock->peekCode<TryOperation>(tryStartPosition)->m_catchedValueRegisterIndex = catchedValueRegister;
             RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister));
             RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_handler->param(), registerRef.get()));
             assign->m_loc = m_handler->m_loc;
@@ -89,20 +89,20 @@ public:
             }
 
             codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-            context->m_catchStatementScopeCount--;
-            context->m_tryStatementScopeCount++;
+            context->m_recursiveStatementStack.pop_back();
+            context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, tryStartPosition));
         }
 
-        context->registerJumpPositionsToComplexCase(pos);
+        context->registerJumpPositionsToComplexCase(tryStartPosition);
+        codeBlock->peekCode<TryOperation>(tryStartPosition)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
+        context->m_recursiveStatementStack.pop_back();
 
-        codeBlock->peekCode<TryOperation>(pos)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
         if (m_finalizer) {
             context->getRegister();
             m_finalizer->generateStatementByteCode(codeBlock, context);
             context->giveUpRegister();
         }
         codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        context->m_tryStatementScopeCount--;
 
         codeBlock->m_shouldClearStack = true;
     }

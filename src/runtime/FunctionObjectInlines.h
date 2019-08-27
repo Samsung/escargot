@@ -192,7 +192,7 @@ public:
         if (isGenerator) {
             Value* gcArgv = (Value*)GC_MALLOC(sizeof(Value) * argc);
             memcpy(gcArgv, argv, sizeof(Value) * argc);
-            ExecutionState* newState = new ExecutionState(ctx, &state, lexEnv, argc, gcArgv, isStrict, registerFile);
+            ExecutionState* newState = new ExecutionState(ctx, nullptr, lexEnv, argc, gcArgv, isStrict, registerFile);
             // prepare receiver(this variable)
 
             // we should use newState because
@@ -225,7 +225,7 @@ public:
 
         // run function
         ReturnValueBinder returnValueBinder;
-        const Value returnValue = returnValueBinder(newState, self, ByteCodeInterpreter::interpret(newState, blk, 0, registerFile), thisArgument, record);
+        const Value returnValue = returnValueBinder(newState, self, ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile), thisArgument, record);
 
         if (UNLIKELY(blk->m_shouldClearStack))
             clearStack<512>();

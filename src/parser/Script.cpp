@@ -83,7 +83,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         literalStorage[i] = src[i];
     }
 
-    Value resultValue = ByteCodeInterpreter::interpret(*codeExecutionState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(codeExecutionState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
     clearStack<512>();
 
     return resultValue;
@@ -185,7 +185,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     }
 
     newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
-    Value resultValue = ByteCodeInterpreter::interpret(newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(&newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
     clearStack<512>();
 
     return resultValue;

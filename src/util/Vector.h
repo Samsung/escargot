@@ -277,6 +277,21 @@ public:
         }
     }
 
+    void reserve(size_t newCapacity)
+    {
+        if (m_capacity < newCapacity) {
+            T* newBuffer = Allocator().allocate(newCapacity);
+            VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
+
+            if (m_buffer) {
+                Allocator().deallocate(m_buffer, m_capacity);
+            }
+
+            m_buffer = newBuffer;
+            m_capacity = newCapacity;
+        }
+    }
+
     void resizeWithUninitializedValues(size_t newSize)
     {
         if (newSize) {

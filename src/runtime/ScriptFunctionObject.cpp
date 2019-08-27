@@ -70,6 +70,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     if (currentCodeSizeTotal > FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
         currentCodeSizeTotal = 0;
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
+        std::vector<CodeBlock*, gc_allocator<CodeBlock*>> generatorCodeBlocks;
 
         ExecutionState* es = &state;
         while (es) {
@@ -84,16 +85,24 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
         }
 
         for (size_t i = 0; i < v.size(); i++) {
-            if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
+            if (v[i]->isGenerator()) {
+                generatorCodeBlocks.push_back(v[i]);
+            } else if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
                 v[i]->m_byteCodeBlock = nullptr;
             }
         }
 
         v.clear();
-        v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size());
+        v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size() + generatorCodeBlocks.size());
 
-        for (size_t i = 0; i < codeBlocksInCurrentStack.size(); i++) {
+        size_t stackCodeBlocksSize = codeBlocksInCurrentStack.size();
+        for (size_t i = 0; i < stackCodeBlocksSize; i++) {
             v[i] = codeBlocksInCurrentStack[i];
+            currentCodeSizeTotal += v[i]->m_byteCodeBlock->memoryAllocatedSize();
+        }
+
+        for (size_t i = stackCodeBlocksSize; i < stackCodeBlocksSize + generatorCodeBlocks.size(); i++) {
+            v[i] = generatorCodeBlocks[i - stackCodeBlocksSize];
             currentCodeSizeTotal += v[i]->m_byteCodeBlock->memoryAllocatedSize();
         }
     }

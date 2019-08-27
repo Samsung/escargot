@@ -29,6 +29,7 @@ class EnvironmentRecord;
 class Value;
 class CodeBlock;
 class NativeFunctionObject;
+class GeneratorObject;
 
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
@@ -37,7 +38,8 @@ struct ExecutionStateRareData : public gc {
     ExecutionState* m_parent;
     CodeBlock* m_codeBlock;
     Value* m_registerFile;
-    Object* m_generatorTarget;
+    GeneratorObject* m_generatorTarget;
+    size_t m_programCounterWhenItStoppedByYield;
 
     ExecutionStateRareData()
     {
@@ -46,6 +48,7 @@ struct ExecutionStateRareData : public gc {
         m_controlFlowRecord = nullptr;
         m_generatorTarget = nullptr;
         m_parent = nullptr;
+        m_programCounterWhenItStoppedByYield = SIZE_MAX;
     }
 };
 
@@ -119,7 +122,7 @@ public:
     ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, Value* registerFile)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackBase(parent->stackBase())
+        , m_stackBase(0)
         , m_programCounter(nullptr)
         , m_argc(argc)
         , m_argv(argv)
@@ -183,21 +186,27 @@ public:
         return rareData()->m_parent;
     }
 
-    Object* generatorTarget()
+    GeneratorObject* generatorTarget()
     {
         return rareData()->m_generatorTarget;
     }
 
-    void setGeneratorTarget(Object* target)
+    void setGeneratorTarget(GeneratorObject* target)
     {
-        ASSERT(target != nullptr);
         ensureRareData()->m_generatorTarget = target;
     }
 
     void setParent(ExecutionState* parent)
     {
-        ASSERT(m_parent == 1);
-        m_parent = (size_t)parent + 1;
+        if (parent) {
+            m_stackBase = parent->stackBase();
+        }
+        if (hasRareData()) {
+            rareData()->m_parent = parent;
+        } else {
+            ASSERT(m_parent & 1);
+            m_parent = (size_t)parent + 1;
+        }
     }
 
     bool inStrictMode()
@@ -205,7 +214,16 @@ public:
         return m_inStrictMode;
     }
 
+    // callee is generator && isNotInEvalCode
+    bool inGeneratorScope();
+
     FunctionObject* resolveCallee();
+
+    bool isLocalEvalCode()
+    {
+        // evalcode has codeBlock now.
+        return codeBlock() != nullptr;
+    }
 
     CodeBlock* codeBlock()
     {

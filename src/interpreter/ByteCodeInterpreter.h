@@ -53,7 +53,7 @@ class GlobalObject;
 
 class ByteCodeInterpreter {
 public:
-    static Value interpret(ExecutionState& state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile);
+    static Value interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile);
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
@@ -92,12 +92,16 @@ public:
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
     static void callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile);
-    static Value withOperation(ExecutionState& state, WithOperation* code, Object* obj, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
-    static Value blockOperation(ExecutionState& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile, Value* stackStorage);
+    static Value withOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
+
+    static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
+    static void yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex);
+    static void generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
     static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
     static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);
