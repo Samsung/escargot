@@ -20,6 +20,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>This test is not suitable for ES6</escargot-skip>
       <files>initProto.js</files>
       <baseline>initProto.baseline</baseline>
     </default>

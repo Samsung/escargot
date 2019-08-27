@@ -420,7 +420,7 @@ def run_chakracore(engine, arch):
     with open(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch), 'w') as gen_txt:
         gen_txt.write(stdout)
     run(['diff',
-         join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.orig.txt' % arch),
+         join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.orig.txt' % arch),
          join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch)])
 
 

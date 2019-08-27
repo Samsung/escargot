@@ -49,6 +49,13 @@ static const int64_t const_Date_msPerDay = const_Date_msPerHour * const_Date_hou
 
 class DateObject : public Object {
 public:
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        GC_set_bit(desc, GC_WORD_OFFSET(DateObject, m_structure));
+        GC_set_bit(desc, GC_WORD_OFFSET(DateObject, m_prototype));
+        GC_set_bit(desc, GC_WORD_OFFSET(DateObject, m_values));
+    }
+
     explicit DateObject(ExecutionState& state);
 
     static void initCachedUTC(ExecutionState& state, DateObject* d);
@@ -178,6 +185,25 @@ private:
     static void getYMDFromTime(time64_t t, struct timeinfo& cachedLocal);
     static bool inLeapYear(int year);
 };
-}
 
+class DatePrototypeObject : public DateObject {
+public:
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        DateObject::fillGCDescriptor(desc);
+    }
+
+    DatePrototypeObject(ExecutionState& state)
+        : DateObject(state)
+    {
+    }
+
+    virtual bool isDatePrototypeObject() const override
+    {
+        return true;
+    }
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+};
+} // namespace Escargot
 #endif
