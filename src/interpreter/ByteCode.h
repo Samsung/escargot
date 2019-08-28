@@ -125,7 +125,6 @@ struct GlobalVariableAccessCacheItem;
     F(CallEvalFunction, 0, 0)                         \
     F(CallFunctionInWithScope, 0, 0)                  \
     F(BindingRestElement, 1, 0)                       \
-    F(GeneratorComplete, 0, 0)                        \
     F(GeneratorResume, 0, 0)                          \
     F(Yield, 0, 0)                                    \
     F(YieldDelegate, 1, 0)                            \
@@ -1570,34 +1569,20 @@ class GeneratorResume : public ByteCode {
 public:
     GeneratorResume(const ByteCodeLOC& loc, GeneratorObject* generatorObject)
         : ByteCode(Opcode::GeneratorResumeOpcode, loc)
+        , m_needsReturn(false)
+        , m_needsThrow(false)
         , m_generatorObject(generatorObject)
     {
     }
 
+    bool m_needsReturn;
+    bool m_needsThrow;
     GeneratorObject* m_generatorObject;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         printf("generator resume");
-    }
-#endif
-};
-
-class GeneratorComplete : public ByteCode {
-public:
-    GeneratorComplete(const ByteCodeLOC& loc, bool isThrow = false)
-        : ByteCode(Opcode::GeneratorCompleteOpcode, loc)
-        , m_isThrow(isThrow)
-    {
-    }
-
-    bool m_isThrow;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("generator complete");
     }
 #endif
 };
@@ -1770,12 +1755,14 @@ public:
     explicit TryOperation(const ByteCodeLOC& loc)
         : ByteCode(Opcode::TryOperationOpcode, loc)
     {
-        m_hasCatch = false;
+        m_isTryResumeProcess = m_isCatchResumeProcess = m_hasCatch = false;
         m_tryCatchEndPosition = m_catchPosition = SIZE_MAX;
         m_catchedValueRegisterIndex = REGISTER_LIMIT;
     }
 
-    bool m_hasCatch : 1;
+    bool m_hasCatch;
+    bool m_isTryResumeProcess;
+    bool m_isCatchResumeProcess;
     ByteCodeRegisterIndex m_catchedValueRegisterIndex;
     size_t m_catchPosition;
     size_t m_tryCatchEndPosition;

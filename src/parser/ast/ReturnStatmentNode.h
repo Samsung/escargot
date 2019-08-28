@@ -40,13 +40,6 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ReturnStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        ASSERT(codeBlock != nullptr);
-        ASSERT(context != nullptr);
-
-        if (codeBlock->m_codeBlock->isGenerator()) {
-            codeBlock->pushCode(GeneratorComplete(ByteCodeLOC(SIZE_MAX)), context, this);
-        }
-
         if (context->tryCatchWithBlockStatementCount() != 0) {
             if (m_argument) {
                 ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);

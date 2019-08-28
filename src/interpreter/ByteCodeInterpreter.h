@@ -84,7 +84,7 @@ public:
     static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block);
     static void initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value);
 
-    static size_t tryOperation(ExecutionState& state, TryOperation* code, LexicalEnvironment* env, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static size_t tryOperation(ExecutionState*& state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
@@ -101,7 +101,7 @@ public:
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
     static void yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex);
-    static void generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
+    static Value generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
     static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
     static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);

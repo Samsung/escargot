@@ -1393,6 +1393,7 @@ DECLARE_DATE_UTC_GETTER(Seconds);
 
 void* DateObject::operator new(size_t size)
 {
+    ASSERT(size == sizeof(DateObject));
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {

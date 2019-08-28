@@ -288,6 +288,16 @@ struct ByteCodeGenerateContext {
         return m_recursiveStatementStack.size();
     }
 
+    bool inTryStatement()
+    {
+        for (size_t i = 0; i < m_recursiveStatementStack.size(); i++) {
+            if (m_recursiveStatementStack[i].first == Try) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;
 
