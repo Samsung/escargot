@@ -818,6 +818,73 @@ void* UTF16String::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+String* String::getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, String* replacement)
+{
+    ASSERT(matched != nullptr);
+    ASSERT(str != nullptr);
+    ASSERT(replacement != nullptr);
+    ASSERT(matched->isString() == true);
+    ASSERT(position >= 0);
+    size_t matchLenght = matched->length();
+    size_t stringLength = str->length();
+    ASSERT(position <= stringLength);
+    size_t tailPos = position + matchLenght;
+    size_t m = captures.size();
+    StringBuilder builder;
+    size_t n = 0;
+    bool twodigit = false;
+
+    // dollar replace
+    for (size_t i = 0; i < replacement->length(); i++) {
+        if (replacement->charAt(i) == '$' && (i + 1) < replacement->length()) {
+            char16_t temp = replacement->charAt(i + 1);
+            if (temp == '$') {
+                builder.appendChar('$');
+            } else if (temp == '&') {
+                builder.appendSubString(matched, 0, matchLenght);
+            } else if (temp == '`') {
+                builder.appendSubString(str, 0, position);
+            } else if (temp == '\'') {
+                if (tailPos >= stringLength) {
+                    tailPos = stringLength;
+                }
+                builder.appendSubString(str, tailPos, stringLength);
+            } else if (temp >= '0' && temp <= '9') {
+                size_t n = temp - '0' - 1;
+                if (i + 2 < replacement->length() && replacement->charAt(i + 2) >= '0' && replacement->charAt(i + 2) <= '9') {
+                    char16_t temp1 = replacement->charAt(i + 2);
+                    n = n + 1;
+                    n *= 10;
+                    n += temp1 - '0' - 1;
+                    twodigit = true;
+                    if (n >= m) {
+                        twodigit = false;
+                        n = temp - '0' - 1;
+                    }
+                }
+                if (n < m) {
+                    String* capturesN = captures[n];
+                    builder.appendString(capturesN);
+                    if (twodigit) {
+                        i++;
+                        twodigit = false;
+                    }
+                } else {
+                    builder.appendChar('$');
+                    builder.appendChar(temp);
+                }
+            } else {
+                builder.appendChar('$');
+                builder.appendChar(temp);
+            }
+            i++;
+        } else {
+            builder.appendChar(replacement->charAt(i));
+        }
+    }
+    return builder.finalize(&state);
+}
+
 bool isupper(char16_t ch)
 {
     return (ch >= 'A' && ch <= 'Z');

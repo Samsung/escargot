@@ -91,10 +91,11 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(getSource, "get source");
     INIT_STATIC_STRING(getSticky, "get sticky");
     INIT_STATIC_STRING(getUnicode, "get unicode");
-    INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
-    INIT_STATIC_STRING(getSymbolSearch, "get [Symbol.search]");
-    INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
+    INIT_STATIC_STRING(symbolSearch, "[Symbol.search]");
     INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
+    INIT_STATIC_STRING(symbolReplace, "[Symbol.replace]");
+    INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
+    INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
 
     INIT_STATIC_STRING($Ampersand, "$&");
     INIT_STATIC_STRING($PlusSign, "$+");
