@@ -166,7 +166,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 19. If targetDesc is undefined, then
     // a. If extensibleTarget is false, throw a TypeError exception.
     // b. If settingConfigFalse is true, throw a TypeError exception.
-    if (targetDesc.value(state, target).isUndefined()) {
+    if (!targetDesc.hasValue()) {
         if (!extensibleTarget || settingConfigFalse) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             return false;
@@ -426,7 +426,7 @@ bool ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& p
         // a. Let targetDesc be target.[[GetOwnProperty]](P).
         ObjectGetResult targetDesc = target.asObject()->getOwnProperty(state, propertyName);
         // c. If targetDesc is not undefined, then
-        if (!targetDesc.value(state, target).isUndefined()) {
+        if (targetDesc.hasValue()) {
             // i. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
             if (!targetDesc.isConfigurable()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
@@ -879,9 +879,9 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     ObjectGetResult targetDesc = target.asObject()->getOwnProperty(state, propertyName);
 
     // 14. If targetDesc is not undefined, then
-    if (!targetDesc.value(state, target).isUndefined()) {
-        // a. TODO If IsDataDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Writable]] is false, then
-        if (!targetDesc.isConfigurable() && !targetDesc.isWritable()) {
+    if (targetDesc.hasValue()) {
+        // a. If IsDataDescriptor(targetDesc) and targetDesc.[[Configurable]] is false and targetDesc.[[Writable]] is false, then
+        if (targetDesc.isDataProperty() && !targetDesc.isConfigurable() && !targetDesc.isWritable()) {
             // i. If SameValue(V, targetDesc.[[Value]]) is false, throw a TypeError exception.
             if (v != targetDesc.value(state, target)) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
@@ -889,9 +889,9 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
             }
         }
         // b. TODO If IsAccessorDescriptor(targetDesc) and targetDesc.[[Configurable]] is false, then
-        if (!targetDesc.isConfigurable()) {
+        if (!targetDesc.isDataProperty() && !targetDesc.isConfigurable()) {
             // i. If targetDesc.[[Set]] is undefined, throw a TypeError exception.
-            if ((!targetDesc.jsGetterSetter()->hasGetter() || targetDesc.jsGetterSetter()->getter().isUndefined())) {
+            if ((!targetDesc.jsGetterSetter()->hasSetter() || targetDesc.jsGetterSetter()->setter().isUndefined())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
                 return false;
             }
