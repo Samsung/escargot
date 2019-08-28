@@ -295,7 +295,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength
                 ObjectPropertyName key(state, Value(oldLen));
 
                 if (!getOwnProperty(state, key).hasValue()) {
-                    double result;
+                    int64_t result;
                     Object::nextIndexBackward(state, this, oldLen, -1, false, result);
                     oldLen = result;
 
@@ -373,6 +373,20 @@ bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyNa
     return false;
 }
 
+ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
+{
+    if (LIKELY(isFastModeArray())) {
+        uint32_t idx = propertyName.tryToUseAsArrayIndex(state);
+        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
+            Value v = m_fastModeData[idx];
+            if (LIKELY(!v.isEmpty())) {
+                return ObjectHasPropertyResult(ObjectGetResult(v, true, true, true));
+            }
+        }
+    }
+    return hasProperty(state, ObjectPropertyName(state, propertyName));
+}
+
 ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property)
 {
     if (LIKELY(isFastModeArray())) {
@@ -382,7 +396,6 @@ ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Val
             if (LIKELY(!v.isEmpty())) {
                 return ObjectGetResult(v, true, true, true);
             }
-            return get(state, ObjectPropertyName(state, property));
         }
     }
     return get(state, ObjectPropertyName(state, property));

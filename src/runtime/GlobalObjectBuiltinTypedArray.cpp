@@ -677,7 +677,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
                 return Value(k);
             }
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexBackward(state, O, k, -1, false, result);
             k = result;
             continue;

@@ -70,6 +70,52 @@ public:
         }
     }
 
+    ObjectPropertyName(ExecutionState& state, const int64_t& v)
+    {
+        if (v >= 0 && v <= std::numeric_limits<uint32_t>::max()) {
+            m_isUIntType = true;
+            m_value.m_uint = (uint32_t)v;
+        } else {
+            m_isUIntType = false;
+            m_value.m_name = PropertyName(state, Value(v));
+        }
+    }
+
+#ifdef ESCARGOT_32
+    ObjectPropertyName(ExecutionState& state, const uint64_t& v)
+    {
+        if (v <= std::numeric_limits<uint32_t>::max()) {
+            m_isUIntType = true;
+            m_value.m_uint = (uint32_t)v;
+        } else {
+            m_isUIntType = false;
+            m_value.m_name = PropertyName(state, Value(v));
+        }
+    }
+#else
+    ObjectPropertyName(ExecutionState& state, const uint32_t& v)
+    {
+        m_isUIntType = true;
+        m_value.m_uint = v;
+    }
+#endif
+
+    ObjectPropertyName(ExecutionState& state, const size_t& v)
+    {
+#ifdef ESCARGOT_32
+        m_isUIntType = true;
+        m_value.m_uint = (uint32_t)v;
+#else
+        if (v <= std::numeric_limits<uint32_t>::max()) {
+            m_isUIntType = true;
+            m_value.m_uint = (uint32_t)v;
+        } else {
+            m_isUIntType = false;
+            m_value.m_name = PropertyName(state, Value(v));
+        }
+#endif
+    }
+
     ObjectPropertyName(const AtomicString& v)
     {
         m_isUIntType = false;
@@ -433,7 +479,7 @@ public:
         , m_isEnumerable(false)
         , m_isConfigurable(false)
         , m_isDataProperty(true)
-        , m_value(Value())
+        , m_value()
     {
     }
 
@@ -516,6 +562,62 @@ private:
 
 protected:
     Value valueSlowCase(ExecutionState& state, const Value& receiver) const;
+};
+
+class ObjectHasPropertyResult {
+public:
+    ObjectHasPropertyResult()
+        : m_hasOrdinaryObjectGetResult(true)
+        , m_result(ObjectGetResult())
+    {
+    }
+
+    ObjectHasPropertyResult(const ObjectGetResult& result)
+        : m_hasOrdinaryObjectGetResult(true)
+        , m_result(result)
+    {
+    }
+
+    // in this case, hasProperty always returns true
+    ObjectHasPropertyResult(Value (*valueHandler)(ExecutionState& state, const ObjectPropertyName& P, void* handlerData), void* handlerData)
+        : m_hasOrdinaryObjectGetResult(false)
+    {
+        m_handler.m_handlerData = handlerData;
+        m_handler.m_valueHandler = valueHandler;
+    }
+
+    operator bool() const
+    {
+        return hasProperty();
+    }
+
+    bool hasProperty() const
+    {
+        if (LIKELY(m_hasOrdinaryObjectGetResult)) {
+            return m_result.hasValue();
+        } else {
+            return true;
+        }
+    }
+
+    Value value(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver)
+    {
+        if (LIKELY(m_hasOrdinaryObjectGetResult)) {
+            return m_result.value(state, receiver);
+        } else {
+            return m_handler.m_valueHandler(state, P, m_handler.m_handlerData);
+        }
+    }
+
+private:
+    bool m_hasOrdinaryObjectGetResult;
+    union {
+        ObjectGetResult m_result;
+        struct {
+            void* m_handlerData;
+            Value (*m_valueHandler)(ExecutionState& state, const ObjectPropertyName& P, void* handlerData);
+        } m_handler;
+    };
 };
 
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 0
@@ -666,14 +768,20 @@ public:
     // callback function should skip un-Enumerable property if needs
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual uint64_t length(ExecutionState& state);
-    double lengthES6(ExecutionState& state);
+    uint64_t lengthES6(ExecutionState& state);
 
     bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {
         return getOwnProperty(state, propertyName).hasValue();
     }
 
-    virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName);
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-hasproperty
+    // basically there is no difference [[hasProperty]] and [[get]]
+    // but on ProxyObject, we need to call "has" handler. that's all
+    // if you need testing key existence. convert ObjectHasPropertyResult into bool ex) if (O->hasProperty(...)) {}
+    // I define return type as ObjectHasPropertyResult for removeing search same object twice by same key, same time.
+    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName);
+    virtual ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName);
 
     virtual ValueVector ownPropertyKeys(ExecutionState& state);
 
@@ -719,8 +827,8 @@ public:
     }
 
     // returns existence of index
-    static bool nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double len, const bool skipUndefined, double& nextIndex);
-    static bool nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex);
+    static bool nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t len, const bool skipUndefined, int64_t& nextIndex);
+    static bool nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, const bool skipUndefined, int64_t& nextIndex);
 
     virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp);
 
@@ -791,7 +899,6 @@ public:
         ensureObjectRareData()->m_internalSlot = object;
     }
 
-    static bool ordinaryHasProperty(ExecutionState& state, Object* object, const ObjectPropertyName& propertyName);
     static Value get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName);
     static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);

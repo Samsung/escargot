@@ -385,14 +385,14 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
     return booleanTrapResult;
 }
 
-bool ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
     auto strings = &state.context()->staticStrings();
 
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
+        return ObjectHasPropertyResult();
     }
 
     // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -430,20 +430,27 @@ bool ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& p
             // i. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
             if (!targetDesc.isConfigurable()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-                return false;
+                return ObjectGetResult();
             }
             // ii. Let extensibleTarget be IsExtensible(target).
             bool extensibleTarget = target.asObject()->isExtensible(state);
             // iv. If extensibleTarget is false, throw a TypeError exception.
             if (!extensibleTarget) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-                return false;
+                return ObjectGetResult();
             }
         }
     }
 
     // 12. Return booleanTrapResult.
-    return booleanTrapResult;
+    if (booleanTrapResult) {
+        return ObjectHasPropertyResult([](ExecutionState& state, const ObjectPropertyName& P, void* handlerData) -> Value {
+            ProxyObject* p = (ProxyObject*)handlerData;
+            return p->getOwnProperty(state, P).value(state, p);
+        },
+                                       this);
+    }
+    return ObjectHasPropertyResult();
 }
 
 ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
