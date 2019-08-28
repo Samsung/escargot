@@ -12,7 +12,7 @@ matrix:
         - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x64/debug
         - cp ./out/linux/x64/debug/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 sunspider-js internal regression-tests es2015 intl
+        - tools/run-tests.py --arch=x86_64 sunspider-js modifiedVendorTest regression-tests es2015 intl
         - gcc -shared -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
         - export GC_FREE_SPACE_DIVISOR=1
         - export ESCARGOT_LD_PRELOAD=${TRAVIS_BUILD_DIR}/backtrace-hooking.so
@@ -23,7 +23,7 @@ matrix:
         - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
         - ninja -Cout/linux/x86/debug
         - cp ./out/linux/x86/debug/escargot ./escargot
-        - tools/run-tests.py --arch=x86 sunspider-js internal regression-tests es2015 intl
+        - tools/run-tests.py --arch=x86 sunspider-js modifiedVendorTest regression-tests es2015 intl
         - gcc -shared -m32 -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
         - export GC_FREE_SPACE_DIVISOR=1
         - export ESCARGOT_LD_PRELOAD=${TRAVIS_BUILD_DIR}/backtrace-hooking.so
@@ -40,7 +40,7 @@ matrix:
         - ninja -Cout/linux/x64/release
         - cp ./out/linux/x64/release/escargot ./escargot
         - travis_wait 30 tools/run-tests.py --arch=x86_64 octane
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
         - export GC_FREE_SPACE_DIVISOR=1
         - travis_wait 40 tools/run-tests.py --arch=x86_64 test262
 
@@ -69,7 +69,7 @@ matrix:
         - ninja -Cout/linux/x86/release
         - cp ./out/linux/x86/release/escargot ./escargot
         - travis_wait 30 tools/run-tests.py --arch=x86 octane
-        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js internal jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
+        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
         - export GC_FREE_SPACE_DIVISOR=1
         - travis_wait 40 tools/run-tests.py --arch=x86 test262
 
@@ -108,7 +108,7 @@ matrix:
         - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
         - ninja -Cout/darwin/x64/release
         - cp ./out/darwin/x64/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js internal jsc-stress regression-tests v8 es2015 intl
+        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js modifiedVendorTest jsc-stress regression-tests v8 es2015 intl
         - tools/run-tests.py test262
         # FIXME: jetstream-only-simple and octane takes too long running time on darwin
         # jetstream-only-simple and octane are skipped now.
