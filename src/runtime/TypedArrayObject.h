@@ -35,30 +35,30 @@ public:
     {
         m_rawBuffer = nullptr;
         m_buffer = nullptr;
-        m_arraylength = m_byteoffset = m_bytelength = 0;
+        m_arrayLength = m_byteOffset = m_byteLength = 0;
     }
 
     virtual TypedArrayType typedArrayType() = 0;
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
     ALWAYS_INLINE uint8_t* rawBuffer() { return m_rawBuffer; }
-    ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
-    ALWAYS_INLINE unsigned byteoffset() { return m_byteoffset; }
-    ALWAYS_INLINE unsigned arraylength() { return m_arraylength; }
+    ALWAYS_INLINE unsigned byteLength() { return m_byteLength; }
+    ALWAYS_INLINE unsigned byteOffset() { return m_byteOffset; }
+    ALWAYS_INLINE unsigned arrayLength() { return m_arrayLength; }
     ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength)
     {
         m_buffer = bo;
-        m_byteoffset = byteOffset;
-        m_bytelength = byteLength;
-        m_arraylength = arrayLength;
-        m_rawBuffer = (uint8_t*)(bo->data() + m_byteoffset);
+        m_byteOffset = byteOffset;
+        m_byteLength = byteLength;
+        m_arrayLength = arrayLength;
+        m_rawBuffer = (uint8_t*)(bo->data() + m_byteOffset);
     }
 
     ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength)
     {
         m_buffer = bo;
-        m_byteoffset = byteOffset;
-        m_bytelength = byteLength;
-        m_rawBuffer = (uint8_t*)(bo->data() + m_byteoffset);
+        m_byteOffset = byteOffset;
+        m_byteLength = byteLength;
+        m_rawBuffer = (uint8_t*)(bo->data() + m_byteOffset);
     }
 
     virtual bool isArrayBufferView() const
@@ -90,9 +90,9 @@ public:
     Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(bytelength());
+        ASSERT(byteLength());
         size_t elementSize = sizeof(Type);
-        ASSERT(byteindex + elementSize <= bytelength());
+        ASSERT(byteindex + elementSize <= byteLength());
         uint8_t* rawStart = rawBuffer() + byteindex;
         Type res;
         if (isLittleEndian != 1) { // bigEndian
@@ -109,9 +109,9 @@ public:
     void setValueInBuffer(ExecutionState& state, unsigned byteindex, const Value& val, bool isLittleEndian = 1)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(bytelength());
+        ASSERT(byteLength());
         size_t elementSize = sizeof(typename Type::Type);
-        ASSERT(byteindex + elementSize <= bytelength());
+        ASSERT(byteindex + elementSize <= byteLength());
         uint8_t* rawStart = rawBuffer() + byteindex;
         typename Type::Type littleEndianVal = Type::toNative(state, val);
         if (isLittleEndian != 1) {
@@ -143,9 +143,9 @@ public:
 private:
     ArrayBufferObject* m_buffer;
     uint8_t* m_rawBuffer;
-    unsigned m_bytelength;
-    unsigned m_byteoffset;
-    unsigned m_arraylength;
+    unsigned m_byteLength;
+    unsigned m_byteOffset;
+    unsigned m_arrayLength;
 };
 
 template <typename Adapter>
@@ -286,7 +286,7 @@ public:
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
-            if ((unsigned)index < arraylength()) {
+            if ((unsigned)index < arrayLength()) {
                 unsigned idxPosition = index * typedArrayElementSize;
                 return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
             }
@@ -299,7 +299,7 @@ public:
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
-            if ((unsigned)index >= arraylength())
+            if ((unsigned)index >= arrayLength())
                 return false;
             unsigned idxPosition = index * typedArrayElementSize;
 
@@ -319,9 +319,9 @@ public:
 
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
-        size_t len = arraylength();
+        size_t len = arrayLength();
         for (size_t i = 0; i < len; i++) {
-            unsigned idxPosition = i * typedArrayElementSize + byteoffset();
+            unsigned idxPosition = i * typedArrayElementSize + byteOffset();
             ArrayBufferObject* b = buffer();
             if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data)) {
                 return;
@@ -349,7 +349,7 @@ public:
 
     virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp) override
     {
-        size_t arrayLen = arraylength();
+        size_t arrayLen = arrayLength();
         if (arrayLen) {
             Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * arrayLen);
 
@@ -378,7 +378,7 @@ public:
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
     {
         Value::ValueIndex idx = property.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arraylength())) {
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arrayLength())) {
             unsigned idxPosition = idx * typedArrayElementSize;
             return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
         }
@@ -388,7 +388,7 @@ public:
     ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override
     {
         Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arraylength())) {
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arrayLength())) {
             unsigned idxPosition = idx * typedArrayElementSize;
             return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
         }
@@ -398,7 +398,7 @@ public:
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
     {
         Value::ValueIndex index = property.tryToUseAsIndex(state);
-        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((unsigned)index < arraylength())) {
+        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((unsigned)index < arrayLength())) {
             unsigned idxPosition = index * typedArrayElementSize;
             setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
             return true;

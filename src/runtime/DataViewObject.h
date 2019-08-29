@@ -65,8 +65,8 @@ public:
         if (buffer->isDetachedBuffer())
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
 
-        unsigned viewOffset = byteoffset();
-        unsigned viewSize = bytelength();
+        unsigned viewOffset = byteOffset();
+        unsigned viewSize = byteLength();
 
         unsigned elementSize = ArrayBufferView::getElementSize(type);
 
@@ -112,8 +112,8 @@ public:
         if (buffer->isDetachedBuffer())
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
 
-        unsigned viewOffset = byteoffset();
-        unsigned viewSize = bytelength();
+        unsigned viewOffset = byteOffset();
+        unsigned viewSize = byteLength();
 
         unsigned elementSize = this->getElementSize(type);
 

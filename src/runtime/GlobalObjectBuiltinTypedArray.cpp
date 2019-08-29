@@ -314,7 +314,7 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->bytelength());
+        return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteLength called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -323,7 +323,7 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
 static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->byteoffset());
+        return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteOffset called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -332,7 +332,7 @@ static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value this
 static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->arraylength());
+        return Value(thisValue.asObject()->asArrayBufferView()->arrayLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.length called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -416,13 +416,13 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             // Let constructorName be the String value of O’s [[TypedArrayName]] internal slot.
             // Let elementType be the String value of the Element Type value in Table 49 for constructorName.
             // Let elementLength be the value of srcArray’s [[ArrayLength]] internal slot.
-            double elementLength = srcArray->arraylength();
+            double elementLength = srcArray->arrayLength();
             // Let srcName be the String value of srcArray’s [[TypedArrayName]] internal slot.
             // Let srcType be the String value of the Element Type value in Table 49 for srcName.
             // Let srcElementSize be the Element Size value in Table 49 for srcName.
             int srcElementSize = ArrayBufferView::getElementSize(srcArray->typedArrayType());
             // Let srcByteOffset be the value of srcArray’s [[ByteOffset]] internal slot.
-            unsigned srcByteOffset = srcArray->byteoffset();
+            unsigned srcByteOffset = srcArray->byteOffset();
             // Let elementSize be the Element Size value in Table 49 for constructorName.
             int elementSize = ArrayBufferView::getElementSize(obj->typedArrayType());
             // Let byteLength be elementSize × elementLength.
@@ -489,10 +489,10 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             RELEASE_ASSERT_NOT_REACHED();
         }
         // TODO
-        if (obj->arraylength() >= ArrayBufferObject::maxArrayBufferSize) {
+        if (obj->arrayLength() >= ArrayBufferObject::maxArrayBufferSize) {
             state.throwException(new ASCIIString(errorMessage_NotImplemented));
         }
-        RELEASE_ASSERT(obj->arraylength() < ArrayBufferObject::maxArrayBufferSize);
+        RELEASE_ASSERT(obj->arrayLength() < ArrayBufferObject::maxArrayBufferSize);
     }
     return obj;
 }
@@ -507,7 +507,7 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
     // Array.prototype.copyWithin as defined in 22.1.3.3 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // Let relativeTarget be ToInteger(target).
     double relativeTarget = argv[0].toInteger(state);
@@ -572,7 +572,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    int64_t len = O->asArrayBufferView()->arraylength();
+    int64_t len = O->asArrayBufferView()->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -637,7 +637,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    int64_t len = O->asArrayBufferView()->arraylength();
+    int64_t len = O->asArrayBufferView()->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -712,8 +712,8 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     }
     auto arg0 = argv[0].toObject(state);
     ArrayBufferObject* targetBuffer = wrapper->buffer();
-    unsigned targetLength = wrapper->arraylength();
-    int targetByteOffset = wrapper->byteoffset();
+    unsigned targetLength = wrapper->arrayLength();
+    int targetByteOffset = wrapper->byteOffset();
     int targetElementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
     if (!arg0->isTypedArrayObject()) {
         Object* src = arg0;
@@ -735,17 +735,17 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     } else {
         auto arg0Wrapper = arg0->asArrayBufferView();
         ArrayBufferObject* srcBuffer = arg0Wrapper->buffer();
-        unsigned srcLength = arg0Wrapper->arraylength();
-        int srcByteOffset = arg0Wrapper->byteoffset();
+        unsigned srcLength = arg0Wrapper->arrayLength();
+        int srcByteOffset = arg0Wrapper->byteOffset();
         if (((double)srcLength + (double)offset) > (double)targetLength) {
             const StaticStrings* strings = &state.context()->staticStrings();
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), errorMessage_GlobalObject_InvalidArrayLength);
         }
         int srcByteIndex = 0;
         ArrayBufferObject* oldSrcBuffer = srcBuffer;
-        unsigned oldSrcByteoffset = arg0Wrapper->byteoffset();
-        unsigned oldSrcBytelength = arg0Wrapper->bytelength();
-        unsigned oldSrcArraylength = arg0Wrapper->arraylength();
+        unsigned oldSrcByteoffset = arg0Wrapper->byteOffset();
+        unsigned oldSrcBytelength = arg0Wrapper->byteLength();
+        unsigned oldSrcArraylength = arg0Wrapper->arrayLength();
         if (srcBuffer == targetBuffer) {
             // NOTE: Step 24
             srcBuffer = new ArrayBufferObject(state);
@@ -783,7 +783,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     // Array.prototype.some as defined in 22.1.3.23 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -831,7 +831,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     ArrayBufferObject* buffer = validateTypedArray(state, O, state.context()->staticStrings().sort.string());
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
@@ -868,7 +868,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     auto wrapper = O->asArrayBufferView();
     ArrayBufferObject* buffer = wrapper->buffer();
     // Let srcLength be the value of O’s [[ArrayLength]] internal slot.
-    double srcLength = wrapper->arraylength();
+    double srcLength = wrapper->arrayLength();
     // Let relativeBegin be ToInteger(begin).
     double relativeBegin = argv[0].toInteger(state);
     // If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin), 0); else let beginIndex be min(relativeBegin, srcLength).
@@ -887,7 +887,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     // Let elementSize be the Number value of the Element Size value specified in Table 49 for constructorName.
     unsigned elementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
     // Let srcByteOffset be the value of O’s [[ByteOffset]] internal slot.
-    unsigned srcByteOffset = wrapper->byteoffset();
+    unsigned srcByteOffset = wrapper->byteOffset();
     // Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
     unsigned beginByteOffset = srcByteOffset + beginIndex * elementSize;
 
@@ -911,7 +911,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     // Array.prototype.every as defined in 22.1.3.5 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    unsigned len = O->asArrayBufferView()->arraylength();
+    unsigned len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -957,7 +957,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
     // Array.prototype.fill as defined in 22.1.3.5 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // Let relativeStart be ToInteger(start).
     double relativeStart = 0;
@@ -994,7 +994,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     validateTypedArray(state, O, state.context()->staticStrings().filter.string());
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1058,7 +1058,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     // Array.prototype.find as defined in 22.1.3.8 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     Value predicate = argv[0];
@@ -1103,7 +1103,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     // Array.prototype.findIndex as defined in 22.1.3.9 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     Value predicate = argv[0];
@@ -1148,7 +1148,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     // Array.prototype.forEach as defined in 22.1.3.10 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -1186,7 +1186,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     // Array.prototype.join as defined in 22.1.3.12 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     Value separator = argv[0];
     size_t lenMax = STRING_MAXIMUM_LENGTH;
@@ -1233,7 +1233,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     validateTypedArray(state, O, state.context()->staticStrings().map.string());
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    size_t len = O->asArrayBufferView()->arraylength();
+    size_t len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1280,7 +1280,7 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     // Array.prototype.reduce as defined in 22.1.3.18 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -1322,7 +1322,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     // Array.prototype.reduceRight as defined in 22.1.3.19 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1375,7 +1375,7 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     // Array.prototype.reverse as defined in 22.1.3.20 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    unsigned len = O->asArrayBufferView()->arraylength();
+    unsigned len = O->asArrayBufferView()->arrayLength();
     unsigned middle = std::floor(len / 2);
     unsigned lower = 0;
     while (middle > lower) {
@@ -1408,7 +1408,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     validateTypedArray(state, O, state.context()->staticStrings().slice.string());
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    int64_t len = O->asArrayBufferView()->arraylength();
+    int64_t len = O->asArrayBufferView()->arrayLength();
     // Let relativeStart be ToInteger(start).
     double relativeStart = argv[0].toInteger(state);
     // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
@@ -1448,7 +1448,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
         }
         ArrayBufferObject* targetBuffer = targetWrapper->buffer();
         unsigned elementSize = ArrayBufferView::getElementSize(srcWrapper->typedArrayType());
-        unsigned srcByteOffset = srcWrapper->byteoffset();
+        unsigned srcByteOffset = srcWrapper->byteOffset();
         unsigned targetByteIndex = 0;
         unsigned srcByteIndex = k * elementSize + srcByteOffset;
 
@@ -1473,7 +1473,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arraylength();
+    double len = O->asArrayBufferView()->arrayLength();
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(O)) {
         return String::emptyString;

@@ -229,6 +229,7 @@ public:
     bool equalsToSlowCase(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
+    bool instanceOf(ExecutionState& ec, const Value& other) const;
 
 
 #ifdef ESCARGOT_32

@@ -155,6 +155,14 @@ public:
     }
 };
 
+class ScriptFunctionObjectNewTargetBinderWithConstruct {
+public:
+    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
+    {
+        record->setNewTarget(newTarget);
+    }
+};
+
 Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     if (UNLIKELY(!newTarget->isConstructor())) {
@@ -186,9 +194,7 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
     thisArgument->setPrototype(state, proto);
     // ReturnIfAbrupt(thisArgument).
 
-    // We don't need to setNewTarget here
-    // only `super` keyword uses getNewTarget on executing
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, true, false, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, FunctionObjectNewTargetBinder, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)

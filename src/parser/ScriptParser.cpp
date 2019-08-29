@@ -71,11 +71,11 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             }
         }
 
-        if (scopeCtx->m_hasSuper) {
+        if (scopeCtx->m_hasSuperOrNewTarget) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
-                c->m_canAllocateEnvironmentOnStack = false;
-                if (c->isClassConstructor() || c->isClassMethod() || c->isClassStaticMethod()) {
+                if (c->isKindOfFunction() && !c->isArrowFunctionExpression()) { // ThisEnvironment
+                    c->m_canAllocateEnvironmentOnStack = false;
                     break;
                 }
                 c = c->parentCodeBlock();

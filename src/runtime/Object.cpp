@@ -951,7 +951,7 @@ bool Object::hasInstance(ExecutionState& state, const Value& C, Value O)
         // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
         Value BC = C.asObject()->asBoundFunctionObject()->targetFunction();
         // Return InstanceofOperator(O,BC) (see 12.9.4).
-        return ByteCodeInterpreter::instanceOfOperation(state, O, BC).toBoolean(state);
+        return O.instanceOf(state, BC);
     }
     // If Type(O) is not Object, return false.
     if (!O.isObject()) {

@@ -128,6 +128,7 @@ struct GlobalVariableAccessCacheItem;
     F(GeneratorResume, 0, 0)                          \
     F(Yield, 0, 0)                                    \
     F(YieldDelegate, 1, 0)                            \
+    F(NewTargetOperation, 1, 0)                       \
     F(BlockOperation, 0, 0)                           \
     F(EnsureArgumentsObject, 0, 0)                    \
     F(End, 0, 0)
@@ -261,6 +262,23 @@ public:
         } else {
             printf("other value.. sorry");
         }
+    }
+#endif
+};
+
+class NewTargetOperation : public ByteCode {
+public:
+    NewTargetOperation(const ByteCodeLOC& loc, const size_t registerIndex)
+        : ByteCode(Opcode::NewTargetOperationOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+    ByteCodeRegisterIndex m_registerIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("r%d <- new.target", (int)m_registerIndex);
     }
 #endif
 };

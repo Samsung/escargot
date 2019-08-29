@@ -453,6 +453,30 @@ bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value&
     return false;
 }
 
+// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator
+bool Value::instanceOf(ExecutionState& state, const Value& other) const
+{
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!other.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+    }
+    // Let instOfHandler be GetMethod(C,@@hasInstance).
+    Value instOfHandler = Object::getMethod(state, other, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().hasInstance));
+    // If instOfHandler is not undefined, then
+    if (!instOfHandler.isUndefined()) {
+        // Return ToBoolean(Call(instOfHandler, C, «O»)).
+        Value arg[1] = { *this };
+        return Object::call(state, instOfHandler, other, 1, arg).toBoolean(state);
+    }
+
+    // If IsCallable(C) is false, throw a TypeError exception.
+    if (!other.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+    }
+    // Return OrdinaryHasInstance(C, O).
+    return Object::hasInstance(state, other, *this);
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 double Value::toNumberSlowCase(ExecutionState& state) const
 {

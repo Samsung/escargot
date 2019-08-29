@@ -114,7 +114,6 @@
   <test id="15.2.3.2-2-17"><reason>TODO</reason></test>
   <test id="S25.4.4.1_A5.1_T1"><reason>TODO</reason></test>
   <test id="S25.4.4.3_A4.1_T1"><reason>TODO</reason></test>
-  <test id="target-property-is-accessor-not-configurable-set-is-undefined"><reason>TODO</reason></test>
   <test id="unicode_restricted_brackets"><reason>TODO</reason></test>
   <test id="unicode_restricted_character_class_escape"><reason>TODO</reason></test>
   <test id="unicode_restricted_identity_escape"><reason>TODO</reason></test>
@@ -240,8 +239,6 @@
   <test id="method-string"><reason>TODO</reason></test>
   <test id="method-symbol"><reason>TODO</reason></test>
   <test id="setter-prototype"><reason>TODO</reason></test>
-  <test id="lexical-new.target-closure-returned"><reason>TODO</reason></test>
-  <test id="lexical-new.target"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T1"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T2"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T3"><reason>TODO</reason></test>
