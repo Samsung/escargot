@@ -96,7 +96,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         ArrayObject* values = new ArrayObject(state);
         Object* remainingElementsCount = new Object(state);
         remainingElementsCount->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(1), ObjectPropertyDescriptor::AllPresent));
-        uint32_t index = 0;
+        int64_t index = 0;
 
         if (!iterable->isArrayObject()) {
             Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
@@ -107,14 +107,15 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         ArrayObject* iterableArray = iterable->asArrayObject();
 
         // 6. Repeat
-        uint32_t len = iterableArray->length(state);
-        uint32_t k = 0;
+        int64_t len = iterableArray->length(state);
+        int64_t k = 0;
         Value error(Value::EmptyValue);
         while (k < len) {
-            bool kPresent = iterableArray->hasProperty(state, ObjectPropertyName(state, Value(k)));
+            auto pk = ObjectPropertyName(state, k);
+            auto kPresent = iterableArray->hasProperty(state, pk);
             if (kPresent) {
                 // 6.e. Let nextValue be IteratorValue(next).
-                Value nextValue = iterableArray->getOwnProperty(state, ObjectPropertyName(state, Value(k))).value(state, iterableArray);
+                Value nextValue = kPresent.value(state, pk, iterableArray);
 
                 // 6.h. Append undefined to values
                 values->defineOwnProperty(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
@@ -162,7 +163,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 index++;
                 k++;
             } else {
-                double result;
+                int64_t result;
                 Object::nextIndexForward(state, iterableArray, k, len, true, result);
                 k = result;
             }
@@ -236,9 +237,10 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         uint32_t k = 0;
         Value error(Value::EmptyValue);
         while (k < len) {
-            bool kPresent = iterableArray->hasProperty(state, ObjectPropertyName(state, Value(k)));
+            auto pk = ObjectPropertyName(state, k);
+            auto kPresent = iterableArray->hasProperty(state, pk);
             if (kPresent) {
-                Value nextValue = iterableArray->getOwnProperty(state, ObjectPropertyName(state, Value(k))).value(state, iterableArray);
+                Value nextValue = kPresent.value(state, pk, iterableArray);
 
                 Value argumentsH[] = { nextValue };
                 auto res = tryCallMethodAndCatchError(state, strings->resolve, thisObject, argumentsH, 1, false);
@@ -258,7 +260,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
 
                 k++;
             } else {
-                double result;
+                int64_t result;
                 Object::nextIndexForward(state, iterableArray, k, len, true, result);
                 k = result;
             }

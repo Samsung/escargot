@@ -35,7 +35,7 @@ typedef BasicString<LChar, GCUtil::gc_malloc_atomic_allocator<LChar>> Latin1Stri
 typedef BasicString<char, GCUtil::gc_malloc_atomic_allocator<char>> UTF8StringData;
 typedef BasicString<char16_t, GCUtil::gc_malloc_atomic_allocator<char16_t>> UTF16StringData;
 typedef BasicString<char32_t, GCUtil::gc_malloc_atomic_allocator<char32_t>> UTF32StringData;
-typedef Vector<String*, GCUtil::gc_malloc_atomic_allocator<String*>> StringVector;
+typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>> StringVector;
 
 typedef std::basic_string<char, std::char_traits<char>> ASCIIStringDataNonGCStd;
 typedef std::basic_string<LChar, std::char_traits<LChar>> Latin1StringDataNonGCStd;

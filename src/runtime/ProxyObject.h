@@ -91,7 +91,7 @@ public:
 
     virtual bool preventExtensions(ExecutionState& state) override;
 
-    virtual bool hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override;
+    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override;
 
     virtual ValueVector ownPropertyKeys(ExecutionState& state) override;
 

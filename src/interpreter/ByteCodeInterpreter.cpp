@@ -908,11 +908,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                                 }
 
                                 Value nextValue = iteratorValue(*state, next);
-                                arr->defineOwnProperty(*state, ObjectPropertyName(*state, Value(i + spreadCount + code->m_baseIndex)), ObjectPropertyDescriptor(nextValue, ObjectPropertyDescriptor::AllPresent));
+                                arr->defineOwnProperty(*state, ObjectPropertyName(*state, i + spreadCount + code->m_baseIndex), ObjectPropertyDescriptor(nextValue, ObjectPropertyDescriptor::AllPresent));
                                 spreadCount++;
                             }
                         } else {
-                            arr->defineOwnProperty(*state, ObjectPropertyName(*state, Value(i + spreadCount + code->m_baseIndex)), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+                            arr->defineOwnProperty(*state, ObjectPropertyName(*state, i + spreadCount + code->m_baseIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
                         }
                     }
                 }

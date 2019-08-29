@@ -100,6 +100,18 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
     return get(state, ObjectPropertyName(state, property));
 }
 
+ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
+{
+    Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
+    if (idx != Value::InvalidIndexValue) {
+        size_t strLen = m_primitiveValue->length();
+        if (LIKELY(idx < strLen)) {
+            return ObjectHasPropertyResult(ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false));
+        }
+    }
+    return hasProperty(state, ObjectPropertyName(state, propertyName));
+}
+
 StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
     : IteratorObject(state)
     , m_string(s)

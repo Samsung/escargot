@@ -385,6 +385,16 @@ public:
         return get(state, ObjectPropertyName(state, property));
     }
 
+    ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override
+    {
+        Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arraylength())) {
+            unsigned idxPosition = idx * typedArrayElementSize;
+            return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
+        }
+        return hasProperty(state, ObjectPropertyName(state, propertyName));
+    }
+
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
     {
         Value::ValueIndex index = property.tryToUseAsIndex(state);

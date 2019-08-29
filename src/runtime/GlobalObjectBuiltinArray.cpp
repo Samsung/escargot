@@ -63,7 +63,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
                 }
             } else {
                 for (size_t idx = 0; idx < argc; idx++) {
-                    array->ArrayObject::defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
+                    array->ArrayObject::defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
                     val = argv[idx + 1];
                 }
             }
@@ -170,7 +170,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         // Let iterator be ? GetIterator(items, usingIterator).
         Value iterator = getIterator(state, items, usingIterator);
         // Let k be 0.
-        double k = 0;
+        int64_t k = 0;
         // Repeat
         while (true) {
             // If k ≥ 2^53-1, then
@@ -180,7 +180,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
             }
             // Let Pk be ! ToString(k).
-            ObjectPropertyName pk(state, Value(k));
+            ObjectPropertyName pk(state, k);
             // Let next be ? IteratorStep(iterator).
             Value next = iteratorStep(state, iterator);
             // If next is false, then
@@ -213,7 +213,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     // Let arrayLike be ! ToObject(items).
     Object* arrayLike = items.toObject(state);
     // Let len be ? ToLength(? Get(arrayLike, "length")).
-    auto len = arrayLike->lengthES6(state);
+    int64_t len = arrayLike->lengthES6(state);
     // If IsConstructor(C) is true, then
     Object* A;
     if (C.isConstructor()) {
@@ -223,15 +223,15 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     } else {
         // Else,
         // Let A be ? ArrayCreate(len).
-        A = new ArrayObject(state, len);
+        A = new ArrayObject(state, (double)len);
     }
 
     // Let k be 0.
-    double k = 0;
+    int64_t k = 0;
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ! ToString(k).
-        ObjectPropertyName Pk(state, Value(k));
+        ObjectPropertyName Pk(state, k);
         // Let kValue be ? Get(arrayLike, Pk).
         Value kValue = arrayLike->get(state, Pk).value(state, arrayLike);
         // If mapping is true, then
@@ -272,7 +272,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
     size_t k = 0;
     while (k < len) {
         Value kValue = argv[k];
-        ObjectPropertyName Pk(state, Value(k));
+        ObjectPropertyName Pk(state, k);
         A->defineOwnPropertyThrowsException(state, Pk, ObjectPropertyDescriptor(kValue, ObjectPropertyDescriptor::AllPresent));
         k++;
     }
@@ -286,7 +286,6 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, Array, join);
     int64_t len = thisBinded->lengthES6(state);
     Value separator = argv[0];
-    size_t lenMax = STRING_MAXIMUM_LENGTH;
     String* sep;
 
     if (separator.isUndefined()) {
@@ -301,11 +300,11 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     ToStringRecursionPreventerItemAutoHolder holder(state, thisBinded);
 
     StringBuilder builder;
-    double prevIndex = 0;
-    double curIndex = 0;
+    int64_t prevIndex = 0;
+    int64_t curIndex = 0;
     while (curIndex < len) {
         if (curIndex != 0 && sep->length() > 0) {
-            if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * sep->length())) {
+            if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * (int64_t)sep->length())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
             }
             while (curIndex - prevIndex > 1) {
@@ -321,7 +320,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
         }
         prevIndex = curIndex;
         if (elem.isUndefined()) {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, thisBinded, prevIndex, len, true, result);
             curIndex = result;
         } else {
@@ -329,7 +328,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
         }
     }
     if (sep->length() > 0) {
-        if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * sep->length())) {
+        if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * (int64_t)sep->length())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
         }
         while (curIndex - prevIndex > 1) {
@@ -348,18 +347,18 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
     int64_t lower = 0;
     while (middle > lower) {
         int64_t upper = len - lower - 1;
-        ObjectPropertyName upperP = ObjectPropertyName(state, Value(upper));
-        ObjectPropertyName lowerP = ObjectPropertyName(state, Value(lower));
+        ObjectPropertyName upperP = ObjectPropertyName(state, upper);
+        ObjectPropertyName lowerP = ObjectPropertyName(state, lower);
 
-        bool lowerExists = O->hasProperty(state, lowerP);
+        auto lowerExists = O->hasIndexedProperty(state, Value(lower));
         Value lowerValue;
         if (lowerExists) {
-            lowerValue = O->get(state, lowerP).value(state, O);
+            lowerValue = lowerExists.value(state, lowerP, O);
         }
-        bool upperExists = O->hasProperty(state, upperP);
+        auto upperExists = O->hasIndexedProperty(state, Value(upper));
         Value upperValue;
         if (upperExists) {
-            upperValue = O->get(state, upperP).value(state, O);
+            upperValue = upperExists.value(state, upperP, O);
         }
         if (lowerExists && upperExists) {
             O->setThrowsException(state, lowerP, upperValue, O);
@@ -371,7 +370,7 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
             O->deleteOwnPropertyThrowsException(state, lowerP);
             O->setThrowsException(state, upperP, lowerValue, O);
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, lower, middle, false, result);
             int64_t nextLower = result;
             Object::nextIndexBackward(state, O, upper, middle, false, result);
@@ -482,19 +481,19 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     // Repeat, while k < actualDeleteCount
     while (k < actualDeleteCount) {
         // Let from be ToString(actualStart+k).
-        ObjectPropertyName from(state, Value(actualStart + k));
         // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
         // If fromPresent is true, then
         // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
-        ObjectGetResult fromValue = O->getIndexedProperty(state, Value(actualStart + k));
-        if (fromValue.hasValue()) {
+        ObjectHasPropertyResult fromValue = O->hasIndexedProperty(state, Value(actualStart + k));
+        if (fromValue) {
             // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(k), Property Descriptor {[[Value]]: fromValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-            A->ArrayObject::defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(k)),
-                                                             ObjectPropertyDescriptor(fromValue.value(state, O), ObjectPropertyDescriptor::AllPresent));
+            ObjectPropertyName from(state, Value(actualStart + k));
+            A->ArrayObject::defineOwnPropertyThrowsException(state, ObjectPropertyName(state, k),
+                                                             ObjectPropertyDescriptor(fromValue.value(state, from, O), ObjectPropertyDescriptor::AllPresent));
             // Increment k by 1.
             k++;
         } else {
-            double result;
+            int64_t result;
             bool exist = Object::nextIndexForward(state, O, actualStart + k, len, false, result);
             if (!exist) {
                 A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(actualDeleteCount), A);
@@ -526,12 +525,12 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             // Let to be ToString(k+itemCount).
             uint32_t to = k + itemCount;
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-            ObjectGetResult fromValue = O->getIndexedProperty(state, Value(from));
+            ObjectHasPropertyResult fromValue = O->hasIndexedProperty(state, Value(from));
             // If fromPresent is true, then
-            if (fromValue.hasValue()) {
+            if (fromValue) {
                 // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
                 // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
-                O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, O));
+                O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, ObjectPropertyName(state, from), O));
             } else {
                 // Else, fromPresent is false
 
@@ -559,20 +558,20 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         // Repeat, while k > actualStart
         while (k > actualStart) {
             // Let from be ToString(k + actualDeleteCount – 1).
-            ObjectPropertyName from(state, Value(k + actualDeleteCount - 1));
             // Let to be ToString(k + itemCount – 1)
-            ObjectPropertyName to(state, Value(k + itemCount - 1));
 
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-            ObjectGetResult fromValue = O->getIndexedProperty(state, Value(k + actualDeleteCount - 1));
+            ObjectHasPropertyResult fromValue = O->hasIndexedProperty(state, Value(k + actualDeleteCount - 1));
             // If fromPresent is true, then
-            if (fromValue.hasValue()) {
+            if (fromValue) {
                 // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
                 // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
-                O->setIndexedPropertyThrowsException(state, Value(k + itemCount - 1), fromValue.value(state, O));
+                ObjectPropertyName from(state, k + actualDeleteCount - 1);
+                O->setIndexedPropertyThrowsException(state, Value(k + itemCount - 1), fromValue.value(state, from, O));
             } else {
                 // Else, fromPresent is false
                 // Call the [[Delete]] internal method of O with argument to and true.
+                ObjectPropertyName to(state, k + itemCount - 1);
                 O->deleteOwnPropertyThrowsException(state, to);
             }
             // Decrease k by 1.
@@ -613,7 +612,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
     Object* obj = arraySpeciesCreate(state, thisObject, 0).asObject();
-    uint64_t n = 0;
+    int64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
         Value argi = (i == 0) ? thisObject : argv[i - 1];
         if (argi.isObject()) {
@@ -624,9 +623,9 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 
             if (spreadable) {
                 // Let k be 0.
-                uint64_t k = 0;
+                int64_t k = 0;
                 // Let len be the result of calling the [[Get]] internal method of E with argument "length".
-                uint64_t len = arr->lengthES6(state);
+                int64_t len = arr->lengthES6(state);
 
                 // If n + len > 2^53 - 1, throw a TypeError exception.
                 CHECK_ARRAY_LENGTH(n + len > Value::maximumLength());
@@ -634,12 +633,12 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 // Repeat, while k < len
                 while (k < len) {
                     // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
-                    ObjectGetResult exists = arr->getIndexedProperty(state, Value(k));
-                    if (exists.hasValue()) {
-                        obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, arr), ObjectPropertyDescriptor::AllPresent));
+                    ObjectHasPropertyResult exists = arr->hasIndexedProperty(state, Value(k));
+                    if (exists) {
+                        obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n + k)), ObjectPropertyDescriptor(exists.value(state, ObjectPropertyName(state, k), arr), ObjectPropertyDescriptor::AllPresent));
                         k++;
                     } else {
-                        double result;
+                        int64_t result;
                         Object::nextIndexForward(state, arr, k, len, false, result);
                         k = result;
                     }
@@ -675,19 +674,17 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     int64_t n = 0;
     // Let count be max(final - k, 0).
     // Let A be ArraySpeciesCreate(O, count).
-    Value val = arraySpeciesCreate(state, thisObject, std::max(finalEnd - k, (int64_t)0));
-    ASSERT(val.isObject());
-    ASSERT(val.asObject()->isArrayObject());
+    Value val = arraySpeciesCreate(state, thisObject, std::max(((int64_t)finalEnd - (int64_t)k), (int64_t)0));
     ArrayObject* array = val.asObject()->asArrayObject();
     while (k < finalEnd) {
-        ObjectGetResult exists = thisObject->get(state, ObjectPropertyName(state, Value(k)));
-        if (exists.hasValue()) {
+        ObjectHasPropertyResult exists = thisObject->hasIndexedProperty(state, Value(k));
+        if (exists) {
             array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)),
-                                                    ObjectPropertyDescriptor(exists.value(state, thisObject), ObjectPropertyDescriptor::AllPresent));
+                                                    ObjectPropertyDescriptor(exists.value(state, ObjectPropertyName(state, k), thisObject), ObjectPropertyDescriptor::AllPresent));
             k++;
             n++;
         } else {
-            double tmp;
+            int64_t tmp;
             bool exist = Object::nextIndexForward(state, thisObject, k, len, false, tmp);
             if (!exist) {
                 n = finalEnd - kStart;
@@ -720,14 +717,14 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
     int64_t k = 0;
     while (k < len) {
         Value Pk = Value(k);
-        auto res = thisObject->get(state, ObjectPropertyName(state, Pk));
-        if (res.hasValue()) {
-            Value kValue = res.value(state, thisObject);
+        auto res = thisObject->hasProperty(state, ObjectPropertyName(state, Pk));
+        if (res) {
+            Value kValue = res.value(state, ObjectPropertyName(state, k), thisObject);
             Value args[3] = { kValue, Pk, thisObject };
             Object::call(state, callbackfn, T, 3, args);
             k++;
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, thisObject, k, len, false, result);
             k = result;
             continue;
@@ -760,30 +757,33 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
         return Value(-1);
     }
 
-    double k;
+    double doubleK;
     // If n ≥ 0, then
     if (n >= 0) {
         // Let k be n.
-        k = (n == -0) ? 0 : n;
+        doubleK = (n == -0) ? 0 : n;
     } else {
         // Else, n<0
         // Let k be len - abs(n).
-        k = len - std::abs(n);
+        doubleK = len - std::abs(n);
 
         // If k is less than 0, then let k be 0.
-        if (k < 0) {
-            k = 0;
+        if (doubleK < 0) {
+            doubleK = 0;
         }
     }
+
+    ASSERT(doubleK >= 0);
+    int64_t k = doubleK;
 
     // Repeat, while k<len
     while (k < len) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
-        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
+        auto kPresent = O->hasIndexedProperty(state, Value(k));
         // If kPresent is true, then
-        if (kPresent.hasValue()) {
+        if (kPresent) {
             // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
-            Value elementK = kPresent.value(state, O);
+            Value elementK = kPresent.value(state, ObjectPropertyName(state, k), O);
 
             // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
             if (elementK.equalsTo(state, argv[0])) {
@@ -791,7 +791,7 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
                 return Value(k);
             }
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
             k = result;
             continue;
@@ -826,7 +826,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     }
 
     // If n ≥ 0, then let k be min(n, len – 1).
-    double k;
+    int64_t k;
     if (n >= 0) {
         k = (n == -0) ? 0 : std::min(n, len - 1.0);
     } else {
@@ -838,11 +838,11 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     // Repeat, while k≥ 0
     while (k >= 0) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
-        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
+        auto kPresent = O->hasIndexedProperty(state, Value(k));
         // If kPresent is true, then
-        if (kPresent.hasValue()) {
+        if (kPresent) {
             // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
-            Value elementK = kPresent.value(state, O);
+            Value elementK = kPresent.value(state, ObjectPropertyName(state, k), O);
 
             // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
             if (elementK.equalsTo(state, argv[0])) {
@@ -850,7 +850,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
                 return Value(k);
             }
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexBackward(state, O, k, -1, false, result);
             k = result;
             continue;
@@ -887,15 +887,13 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
 
     while (k < len) {
         // Let Pk be ToString(k).
-        Value pk(k);
-
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-        bool kPresent = O->hasProperty(state, ObjectPropertyName(state, pk));
+        auto kPresent = O->hasIndexedProperty(state, Value(k));
 
         // If kPresent is true, then
         if (kPresent) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = O->get(state, ObjectPropertyName(state, pk)).value(state, O);
+            Value kValue = kPresent.value(state, ObjectPropertyName(state, k), O);
             // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value args[] = { kValue, Value(k), O };
             Value testResult = Object::call(state, callbackfn, T, 3, args);
@@ -907,7 +905,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
             // Increae k by 1.
             k++;
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
             k = result;
         }
@@ -983,13 +981,12 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ToString(k).
-        ObjectPropertyName Pk(state, Value(k));
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-        ObjectGetResult kPresent = O->get(state, Pk);
+        ObjectHasPropertyResult kPresent = O->hasIndexedProperty(state, Value(k));
         // If kPresent is true, then
-        if (kPresent.hasValue()) {
+        if (kPresent) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = kPresent.value(state, O);
+            Value kValue = kPresent.value(state, ObjectPropertyName(state, k), O);
 
             // Let selected be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value v[] = { kValue, Value(k), O };
@@ -1006,7 +1003,7 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
 
             k++;
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
             k = result;
         }
@@ -1048,13 +1045,13 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ToString(k).
-        ObjectPropertyName Pk(state, Value(k));
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-        ObjectGetResult kPresent = O->get(state, Pk);
+        auto kPresent = O->hasIndexedProperty(state, Value(k));
         // If kPresent is true, then
-        if (kPresent.hasValue()) {
+        if (kPresent) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = kPresent.value(state, O);
+            auto Pk = ObjectPropertyName(state, k);
+            Value kValue = kPresent.value(state, Pk, O);
             // Let mappedValue be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value v[] = { kValue, Value(k), O };
             Value mappedValue = Object::call(state, callbackfn, T, 3, v);
@@ -1062,7 +1059,7 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
             A->defineOwnPropertyThrowsException(state, Pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
             k++;
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
             k = result;
         }
@@ -1099,14 +1096,13 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ToString(k).
-        ObjectPropertyName Pk(state, Value(k));
-
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-        ObjectGetResult kPresent = O->get(state, Pk);
+        ObjectHasPropertyResult kPresent = O->hasIndexedProperty(state, Value(k));
         // If kPresent is true, then
-        if (kPresent.hasValue()) {
+        if (kPresent) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = kPresent.value(state, O);
+            ObjectPropertyName Pk(state, k);
+            Value kValue = kPresent.value(state, Pk, O);
             // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
             Value argv[] = { kValue, Value(k), O };
             Value testResult = Object::call(state, callbackfn, T, 3, argv);
@@ -1115,7 +1111,7 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
                 return Value(true);
             }
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
             k = result;
             continue;
@@ -1133,7 +1129,7 @@ static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, includes);
     // Let len be ? ToLength(? Get(O, "length")).
-    auto len = O->lengthES6(state);
+    int64_t len = O->lengthES6(state);
 
     // If len is 0, return false.
     if (len == 0) {
@@ -1143,21 +1139,24 @@ static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t
     Value searchElement = argv[0];
     // Let n be ? ToInteger(fromIndex). (If fromIndex is undefined, this step produces the value 0.)
     double n = argc >= 2 ? argv[1].toInteger(state) : 0;
-    double k;
+    double doubleK;
     // If n ≥ 0, then
     if (n >= 0) {
         // Let k be n.
-        k = n;
+        doubleK = n;
     } else {
         // Else n < 0,
         // Let k be len + n.
-        k = len + n;
+        doubleK = len + n;
     }
 
     // If k < 0, let k be 0.
-    if (k < 0) {
-        k = 0;
+    if (doubleK < 0) {
+        doubleK = 0;
     }
+
+    ASSERT(doubleK >= 0);
+    int64_t k = doubleK;
 
     // Repeat, while k < len
     while (k < len) {
@@ -1281,28 +1280,27 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
     if (!initialValue.isEmpty()) { // 7
         accumulator = initialValue;
     } else { // 8
-        bool kPresent = false; // 8.a
+        ObjectHasPropertyResult kPresent; // 8.a
         while (!kPresent && k < len) { // 8.b
-            Value Pk = Value(k); // 8.b.i
-            kPresent = O->hasProperty(state, ObjectPropertyName(state, Pk)); // 8.b.ii
-            if (kPresent)
-                accumulator = O->get(state, ObjectPropertyName(state, Pk)).value(state, O); // 8.b.iii.1
+            kPresent = O->hasIndexedProperty(state, Value(k)); // 8.b.ii
+            if (kPresent) {
+                accumulator = kPresent.value(state, ObjectPropertyName(state, k), O);
+            }
             k++; // 8.b.iv
         }
         if (!kPresent)
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), errorMessage_GlobalObject_ReduceError);
     }
     while (k < len) { // 9
-        Value Pk = Value(k); // 9.a
-        bool kPresent = O->hasProperty(state, ObjectPropertyName(state, Pk)); // 9.b
+        ObjectHasPropertyResult kPresent = O->hasIndexedProperty(state, Value(k)); // 9.b
         if (kPresent) { // 9.c
-            Value kValue = O->get(state, ObjectPropertyName(state, Pk)).value(state, O); // 9.c.i
+            Value kValue = kPresent.value(state, ObjectPropertyName(state, k), O); // 9.c.i
             const int fnargc = 4;
             Value fnargs[] = { accumulator, kValue, Value(k), O };
             accumulator = Object::call(state, callbackfn, Value(), fnargc, fnargs);
             k++;
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
             k = result;
         }
@@ -1342,24 +1340,22 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
     } else {
         // Else, initialValue is not present
         // Let kPresent be false.
-        bool kPresent = false;
+        ObjectHasPropertyResult kPresent;
 
         // Repeat, while kPresent is false and k ≥ 0
         while (!kPresent && k >= 0) {
             // Let Pk be ToString(k).
-            ObjectPropertyName Pk(state, Value(k));
             // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-            ObjectGetResult test = O->get(state, Pk);
-            kPresent = test.hasValue();
+            kPresent = O->hasIndexedProperty(state, Value(k));
 
             // If kPresent is true, then
             if (kPresent) {
                 // Let accumulator be the result of calling the [[Get]] internal method of O with argument Pk.
-                accumulator = test.value(state, O);
+                accumulator = kPresent.value(state, ObjectPropertyName(state, k), O);
             }
 
             // Decrease k by 1.
-            double result;
+            int64_t result;
             Object::nextIndexBackward(state, O, k, -1, false, result);
             k = result;
         }
@@ -1372,14 +1368,13 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
     // Repeat, while k ≥ 0
     while (k >= 0) {
         // Let Pk be ToString(k).
-        ObjectPropertyName Pk(state, Value(k));
+        ObjectPropertyName Pk(state, k);
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
-        ObjectGetResult test = O->get(state, Pk);
-        bool kPresent = test.hasValue();
+        ObjectHasPropertyResult kPresent = O->hasIndexedProperty(state, Value(k));
         // If kPresent is true, then
         if (kPresent) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = test.value(state, O);
+            Value kValue = kPresent.value(state, ObjectPropertyName(state, k), O);
 
             // Let accumulator be the result of calling the [[Call]] internal method of callbackfn with undefined as the this value and argument list containing accumulator, kValue, k, and O.
             Value v[] = { accumulator, kValue, Value(k), O };
@@ -1387,7 +1382,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
         }
 
         // Decrease k by 1.
-        double result;
+        int64_t result;
         Object::nextIndexBackward(state, O, k, -1, false, result);
         k = result;
     }
@@ -1414,7 +1409,7 @@ static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc
     } else {
         // Else, len > 0
         // Let indx be ToString(len–1).
-        ObjectPropertyName indx(state, Value(len - 1));
+        ObjectPropertyName indx(state, len - 1);
         // Let element be the result of calling the [[Get]] internal method of O with argument indx.
         Value element = O->get(state, indx).value(state, O);
         // Call the [[Delete]] internal method of O with arguments indx and true.
@@ -1477,16 +1472,16 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
     // Repeat, while k < len
     while (k < len) {
         // Let from be ToString(k).
-        ObjectPropertyName from(state, Value(k));
+        ObjectPropertyName from(state, k);
         // Let to be ToString(k–1).
-        ObjectPropertyName to(state, Value(k - 1));
+        ObjectPropertyName to(state, k - 1);
         // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-        ObjectGetResult fromPresent = O->get(state, from);
+        auto fromPresent = O->hasIndexedProperty(state, Value(k));
 
         // If fromPresent is true, then
-        if (fromPresent.hasValue()) {
+        if (fromPresent) {
             // Let fromVal be the result of calling the [[Get]] internal method of O with argument from.
-            Value fromVal = fromPresent.value(state, O);
+            Value fromVal = fromPresent.value(state, from, O);
             // Call the [[Put]] internal method of O with arguments to, fromVal, and true.
             O->setThrowsException(state, to, fromVal, O);
         } else {
@@ -1496,12 +1491,12 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
         }
 
         // Increase k by 1.
-        if (fromPresent.hasValue()) {
+        if (fromPresent) {
             k++;
         } else {
-            double result;
+            int64_t result;
             Object::nextIndexForward(state, O, k, len, false, result);
-            double r = result;
+            int64_t r = result;
             if (r > k) {
                 k = r;
             } else {
@@ -1526,7 +1521,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
     int64_t len = O->lengthES6(state);
 
     // Let argCount be the number of actual arguments.
-    size_t argCount = argc;
+    int64_t argCount = argc;
     // Let k be len.
     int64_t k = len;
 
@@ -1541,16 +1536,16 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
         // Repeat, while k > 0,
         while (k > 0) {
             // Let from be ToString(k–1).
-            ObjectPropertyName from(state, Value(k - 1));
             // Let to be ToString(k+argCount –1).
-            ObjectPropertyName to(state, Value(k + argCount - 1));
+            ObjectPropertyName to(state, k + argCount - 1);
 
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
-            ObjectGetResult fromPresent = O->get(state, from);
+            ObjectHasPropertyResult fromPresent = O->hasIndexedProperty(state, Value(k - 1));
             // If fromPresent is true, then
-            if (fromPresent.hasValue()) {
+            if (fromPresent) {
                 // Let fromValue be the result of calling the [[Get]] internal method of O with argument from.
-                Value fromValue = fromPresent.value(state, O);
+                ObjectPropertyName from(state, k - 1);
+                Value fromValue = fromPresent.value(state, from, O);
                 // Call the [[Put]] internal method of O with arguments to, fromValue, and true.
                 O->setThrowsException(state, to, fromValue, O);
             } else {
@@ -1559,13 +1554,13 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
                 O->deleteOwnPropertyThrowsException(state, to);
             }
 
-            if (fromPresent.hasValue()) {
+            if (fromPresent) {
                 // Decrease k by 1.
                 k--;
             } else {
-                double result;
+                int64_t result;
                 Object::nextIndexBackward(state, O, k, -1, false, result);
-                double r = std::max(result + 1, result - argCount + 1);
+                int64_t r = std::max(result + 1, result - argCount + 1);
                 if (r < k && std::abs(r - k) > argCount) {
                     k = r;
                 } else {
@@ -1575,7 +1570,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
         }
 
         // Let j be 0.
-        uint64_t j = 0;
+        int64_t j = 0;
         // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
         Value* items = argv;
 
@@ -1706,24 +1701,28 @@ static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size
         direction = 1;
     }
 
+    int64_t intCount = count;
+    int64_t intFrom = from;
+    int64_t intTo = to;
+
     // Repeat, while count > 0
-    while (count > 0) {
+    while (intCount > 0) {
         // Let fromPresent be HasProperty(O, fromKey).
-        ObjectGetResult fromValue = O->getIndexedProperty(state, Value(from));
+        ObjectHasPropertyResult fromValue = O->hasIndexedProperty(state, Value(intFrom));
         // If fromPresent is true, then
-        if (fromValue.hasValue()) {
+        if (fromValue) {
             // Let setStatus be Set(O, toKey, fromVal, true).
-            O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, O));
+            O->setIndexedPropertyThrowsException(state, Value(intTo), fromValue.value(state, ObjectPropertyName(state, intFrom), O));
         } else {
             // Let deleteStatus be DeletePropertyOrThrow(O, toKey).
-            O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)));
+            O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(intTo)));
         }
         // Let from be from + direction.
-        from += direction;
+        intFrom += direction;
         // Let to be to + direction.
-        to += direction;
+        intTo += direction;
         // Let count be count − 1.
-        count--;
+        intCount--;
     }
     // Return O.
     return O;

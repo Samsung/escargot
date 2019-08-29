@@ -733,10 +733,31 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     }
 }
 
-bool Object::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+ObjectHasPropertyResult Object::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-hasproperty-p
-    return ordinaryHasProperty(state, this, propertyName);
+    // 1. Assert: IsPropertyKey(P) is true.
+    // 2. Let hasOwn be OrdinaryGetOwnProperty(O, P).
+    auto hasOwn = getOwnProperty(state, propertyName);
+    // 3. If hasOwn is not undefined, return true.
+    if (hasOwn.hasValue()) {
+        return ObjectHasPropertyResult(hasOwn);
+    }
+    // 4. Let parent be O.[[GetPrototypeOf]]().
+    // 5. ReturnIfAbrupt(parent).
+    auto parent = getPrototypeObject(state);
+    // 6. If parent is not null, then
+    if (parent) {
+        // a. Return parent.[[HasProperty]](P).
+        return parent->hasProperty(state, propertyName);
+    }
+    // 7. Return false.
+    return ObjectHasPropertyResult();
+}
+
+ObjectHasPropertyResult Object::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
+{
+    return hasProperty(state, ObjectPropertyName(state, propertyName));
 }
 
 ValueVector Object::ownPropertyKeys(ExecutionState& state)
@@ -859,30 +880,6 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     Value argv[] = { v };
     Object::call(state, setter, receiver, 1, argv);
     return true;
-}
-
-bool Object::ordinaryHasProperty(ExecutionState& state, Object* object, const ObjectPropertyName& propertyName)
-{
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinaryhasproperty
-
-    // 1. Assert: IsPropertyKey(P) is true.
-    // 2. Let hasOwn be OrdinaryGetOwnProperty(O, P).
-    // TODO : Implement ordinaryGetOwnProperty use it instead of get
-    auto hasOwn = object->get(state, propertyName);
-    // 3. If hasOwn is not undefined, return true.
-    if (hasOwn.hasValue()) {
-        return true;
-    }
-    // 4. Let parent be O.[[GetPrototypeOf]]().
-    // 5. ReturnIfAbrupt(parent).
-    auto parent = object->getPrototypeObject(state);
-    // 6. If parent is not null, then
-    if (parent) {
-        // a. Return parent.[[HasProperty]](P).
-        return parent->hasProperty(state, propertyName);
-    }
-    // 7. Return false.
-    return false;
 }
 
 Value Object::get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName)
@@ -1085,28 +1082,25 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
 uint64_t Object::length(ExecutionState& state)
 {
-    // ES6
-    // return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
-    // ES5
     return get(state, state.context()->staticStrings().length).value(state, this).toUint32(state);
 }
 
-double Object::lengthES6(ExecutionState& state)
+uint64_t Object::lengthES6(ExecutionState& state)
 {
     return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
 }
 
 
-bool Object::nextIndexForward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex)
+bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, const bool skipUndefined, int64_t& nextIndex)
 {
     Value ptr = obj;
-    double ret = end;
+    int64_t ret = end;
     bool exists = false;
     struct Data {
         bool* exists;
         const bool* skipUndefined;
-        const double* cur;
-        double* ret;
+        const int64_t* cur;
+        int64_t* ret;
     } data;
     data.exists = &exists;
     data.skipUndefined = &skipUndefined;
@@ -1115,16 +1109,16 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const double c
 
     while (ptr.isObject()) {
         ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
-            uint64_t index;
+            int64_t index;
             Data* e = (Data*)data;
-            double* ret = e->ret;
+            int64_t* ret = e->ret;
             Value key = name.toPlainValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
                 if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
                 }
                 if (index > *e->cur && *ret > index) {
-                    *ret = std::min(static_cast<double>(index), *ret);
+                    *ret = std::min(index, *ret);
                     *e->exists = true;
                 }
             }
@@ -1137,16 +1131,16 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const double c
     return exists;
 }
 
-bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const double cur, const double end, const bool skipUndefined, double& nextIndex)
+bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, const bool skipUndefined, int64_t& nextIndex)
 {
     Value ptr = obj;
-    double ret = end;
+    int64_t ret = end;
     bool exists = false;
     struct Data {
         bool* exists;
         const bool* skipUndefined;
-        const double* cur;
-        double* ret;
+        const int64_t* cur;
+        int64_t* ret;
     } data;
     data.exists = &exists;
     data.skipUndefined = &skipUndefined;
@@ -1155,16 +1149,16 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const double 
 
     while (ptr.isObject()) {
         ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
-            uint64_t index;
+            int64_t index;
             Data* e = (Data*)data;
-            double* ret = e->ret;
+            int64_t* ret = e->ret;
             Value key = name.toPlainValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
                 if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
                     return true;
                 }
                 if (index < *e->cur) {
-                    *ret = std::max(static_cast<double>(index), *ret);
+                    *ret = std::max(index, *ret);
                     *e->exists = true;
                 }
             }
@@ -1181,9 +1175,9 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
 {
     std::vector<Value, GCUtil::gc_malloc_allocator<Value>> selected;
 
-    uint64_t len = lengthES6(state);
-    uint64_t n = 0;
-    uint64_t k = 0;
+    int64_t len = lengthES6(state);
+    int64_t n = 0;
+    int64_t k = 0;
 
     while (k < len) {
         Value idx = Value(k);
@@ -1192,7 +1186,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
             n++;
             k++;
         } else {
-            double result;
+            int64_t result;
             nextIndexForward(state, this, k, len, false, result);
             k = result;
         }
@@ -1209,7 +1203,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
         });
     }
 
-    uint64_t i;
+    int64_t i;
     for (i = 0; i < n; i++) {
         setThrowsException(state, ObjectPropertyName(state, Value(i)), selected[i], this);
     }
@@ -1220,7 +1214,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
             deleteOwnProperty(state, ObjectPropertyName(state, Value(i)));
             i++;
         } else {
-            double result;
+            int64_t result;
             nextIndexForward(state, this, i, len, false, result);
             i = result;
         }

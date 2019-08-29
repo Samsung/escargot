@@ -261,6 +261,21 @@ ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const
     return result;
 }
 
+ObjectHasPropertyResult ArgumentsObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
+{
+    Value::ValueIndex index = propertyName.tryToUseAsIndex(state);
+    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
+        return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true));
+    }
+
+    if (isMatchedArgument(index)) {
+        ObjectGetResult result = Object::getOwnProperty(state, ObjectPropertyName(state, propertyName));
+        ASSERT(result.hasValue());
+        return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), result.isWritable(), result.isEnumerable(), result.isConfigurable()));
+    }
+    return hasProperty(state, ObjectPropertyName(state, propertyName));
+}
+
 bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!receiver.isObject() || receiver.asObject() != this)) {
