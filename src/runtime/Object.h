@@ -677,9 +677,9 @@ public:
         return (ArrayObject*)this;
     }
 
-    RegExpObject* asRegExpObject(ExecutionState& state)
+    RegExpObject* asRegExpObject()
     {
-        ASSERT(isRegExpObject(state));
+        ASSERT(isRegExpObject());
         return (RegExpObject*)this;
     }
 

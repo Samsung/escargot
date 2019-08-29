@@ -150,7 +150,7 @@ public:
         return false;
     }
 
-    virtual bool isRegExpObject(ExecutionState& state)
+    virtual bool isRegExpObject()
     {
         return false;
     }
@@ -340,9 +340,9 @@ public:
         return (BooleanObject*)this;
     }
 
-    RegExpObject* asRegExpObject(ExecutionState& state)
+    RegExpObject* asRegExpObject()
     {
-        ASSERT(isRegExpObject(state));
+        ASSERT(isRegExpObject());
         return (RegExpObject*)this;
     }
 

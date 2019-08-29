@@ -105,16 +105,16 @@ static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
 
 Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
-    if (!self->isRegExpObject(state)) {
+    if (!self->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
     }
-    return self->asRegExpObject(state)->lastIndex();
+    return self->asRegExpObject()->lastIndex();
 }
 
 bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
-    ASSERT(self->isRegExpObject(state));
-    self->asRegExpObject(state)->setLastIndex(state, setterInputData);
+    ASSERT(self->isRegExpObject());
+    self->asRegExpObject()->setLastIndex(state, setterInputData);
     return true;
 }
 
