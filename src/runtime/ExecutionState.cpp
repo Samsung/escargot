@@ -87,7 +87,6 @@ Object* ExecutionState::getNewTarget()
 EnvironmentRecord* ExecutionState::getThisEnvironment()
 {
     LexicalEnvironment* lex = m_lexicalEnvironment;
-    LexicalEnvironment* prevLex = nullptr;
 
     while (true) {
         EnvironmentRecord* envRec = lex->record();

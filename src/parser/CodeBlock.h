@@ -150,7 +150,7 @@ public:
 
     bool isKindOfFunction() const
     {
-        return m_isFunctionDeclaration || m_isFunctionExpression || m_isArrowFunctionExpression || m_isClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_isGenerator || m_hasCallNativeFunctionCode;
+        return m_isFunctionDeclaration || m_isFunctionExpression || m_isArrowFunctionExpression || m_isClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_hasCallNativeFunctionCode;
     }
 
     bool isFunctionDeclaration() const

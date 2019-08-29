@@ -44,9 +44,11 @@ class CallSuper;
 class WithOperation;
 class BlockOperation;
 class TryOperation;
+class BinaryInstanceOfOperation;
 class UnaryDelete;
 class TemplateOperation;
 class DeclareFunctionDeclarations;
+class NewTargetOperation;
 class ObjectDefineGetter;
 class ObjectDefineSetter;
 class GlobalObject;
@@ -60,7 +62,7 @@ public:
     static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value);
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
-    static Value instanceOfOperation(ExecutionState& state, const Value& left, const Value& right);
+    static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
 
@@ -102,6 +104,8 @@ public:
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
     static void yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex);
     static Value generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
+
+    static void newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile);
 
     static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
     static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);

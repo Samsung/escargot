@@ -235,7 +235,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                 } else if (val.asObject()->isTypedArrayObject()) {
                     ArrayBufferView* arrObject = val.asObject()->asArrayBufferView();
                     uint32_t i = 0;
-                    uint32_t len = arrObject->arraylength();
+                    uint32_t len = arrObject->arrayLength();
                     while (i < len) {
                         Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
                         if (newElement.isUndefined()) {

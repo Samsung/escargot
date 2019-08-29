@@ -123,6 +123,7 @@ enum ASTNodeType {
     SequenceExpression,
     NewExpression,
     MemberExpression,
+    MetaProperty,
     YieldExpression,
     ConditionalExpression,
     CallExpression,
@@ -586,7 +587,7 @@ struct ASTFunctionScopeContext : public gc {
     bool m_isClassMethod : 1;
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
-    bool m_hasSuper : 1;
+    bool m_hasSuperOrNewTarget : 1;
     bool m_hasManyNumeralLiteral : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
@@ -822,7 +823,7 @@ struct ASTFunctionScopeContext : public gc {
         , m_isClassMethod(false)
         , m_isClassStaticMethod(false)
         , m_isGenerator(false)
-        , m_hasSuper(false)
+        , m_hasSuperOrNewTarget(false)
         , m_hasManyNumeralLiteral(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)

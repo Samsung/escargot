@@ -372,10 +372,13 @@ EnvironmentRecord::GetBindingValueResult FunctionEnvironmentRecordNotIndexedWith
 
 template class FunctionEnvironmentRecordOnStack<false, false>;
 template class FunctionEnvironmentRecordOnStack<true, true>;
+template class FunctionEnvironmentRecordOnStack<false, true>;
 
 template class FunctionEnvironmentRecordOnHeap<false, false>;
 template class FunctionEnvironmentRecordOnHeap<true, true>;
+template class FunctionEnvironmentRecordOnHeap<false, true>;
 
 template class FunctionEnvironmentRecordNotIndexed<false, false>;
 template class FunctionEnvironmentRecordNotIndexed<true, true>;
+template class FunctionEnvironmentRecordNotIndexed<false, true>;
 }

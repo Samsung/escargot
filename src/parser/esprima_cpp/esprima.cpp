@@ -2561,11 +2561,15 @@ public:
         if (this->match(Period)) {
             this->nextToken();
             if (this->lookahead.type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead.relatedSource() == "target") {
-                // TODO
-                RefPtr<IdentifierNode> property = this->parseIdentifierName();
-                this->throwError("Meta property is not supported yet");
-                RELEASE_ASSERT_NOT_REACHED();
-                // expr = new Node.MetaProperty(id, property);
+                this->nextToken();
+                scopeContexts.back()->m_hasSuperOrNewTarget = true;
+                if (isParse) {
+                    MetaNode node = this->createNode();
+                    Node* expr = new MetaPropertyNode();
+                    return T(this->finalize(node, expr));
+                } else {
+                    return ScanExpressionResult(ASTNodeType::MetaProperty);
+                }
             } else {
                 this->throwUnexpectedToken(&this->lookahead);
             }
@@ -2612,7 +2616,7 @@ public:
                 this->throwUnexpectedToken(&this->lookahead);
             }
 
-            scopeContexts.back()->m_hasSuper = true;
+            scopeContexts.back()->m_hasSuperOrNewTarget = true;
 
             if (isParse) {
                 exprNode = this->finalize(this->createNode(), new SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
@@ -2711,7 +2715,7 @@ public:
             this->throwUnexpectedToken(&this->lookahead);
         }
 
-        scopeContexts.back()->m_hasSuper = true;
+        scopeContexts.back()->m_hasSuperOrNewTarget = true;
 
         if (isParse) {
             return T(this->finalize(node, new SuperExpressionNode(false)));

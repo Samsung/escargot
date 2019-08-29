@@ -135,7 +135,7 @@ static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue,
 static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->bytelength());
+        return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteLength called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -144,7 +144,7 @@ static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisVa
 static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->byteoffset());
+        return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteOffset called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();

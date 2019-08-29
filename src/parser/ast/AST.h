@@ -89,6 +89,7 @@
 #include "LabeledStatementNode.h"
 #include "LiteralNode.h"
 #include "MemberExpressionNode.h"
+#include "MetaPropertyNode.h"
 #include "NewExpressionNode.h"
 #include "Node.h"
 #include "ObjectExpressionNode.h"

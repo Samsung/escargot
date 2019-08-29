@@ -1724,6 +1724,11 @@ bool ValueRef::equalsTo(ExecutionStateRef* state, const ValueRef* other) const
     return toImpl(this).equalsTo(*toImpl(state), toImpl(other));
 }
 
+bool ValueRef::instanceOf(ExecutionStateRef* state, const ValueRef* other) const
+{
+    return toImpl(this).instanceOf(*toImpl(state), toImpl(other));
+}
+
 IteratorObjectRef* IteratorObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new IteratorObject(*toImpl(state)));
@@ -1965,9 +1970,19 @@ uint8_t* ArrayBufferViewRef::rawBuffer()
     return toImpl(this)->rawBuffer();
 }
 
-unsigned ArrayBufferViewRef::bytelength()
+unsigned ArrayBufferViewRef::byteLength()
 {
-    return toImpl(this)->bytelength();
+    return toImpl(this)->byteLength();
+}
+
+unsigned ArrayBufferViewRef::byteOffset()
+{
+    return toImpl(this)->byteOffset();
+}
+
+unsigned ArrayBufferViewRef::arrayLength()
+{
+    return toImpl(this)->arrayLength();
 }
 
 Int8ArrayObjectRef* Int8ArrayObjectRef::create(ExecutionStateRef* state)

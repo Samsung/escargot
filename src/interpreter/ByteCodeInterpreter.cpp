@@ -1319,8 +1319,17 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
-            registerFile[code->m_dstIndex] = instanceOfOperation(*state, registerFile[code->m_srcIndex0], registerFile[code->m_srcIndex1]);
+            instanceOfOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(NewTargetOperation)
+            :
+        {
+            NewTargetOperation* code = (NewTargetOperation*)programCounter;
+            newTargetOperation(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(NewTargetOperation);
             NEXT_INSTRUCTION();
         }
 
@@ -1629,28 +1638,9 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
     return ret;
 }
 
-// http://www.ecma-international.org/ecma-262/6.0/index.html#sec-instanceofoperator
-NEVER_INLINE Value ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE void ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile)
 {
-    // If Type(C) is not Object, throw a TypeError exception.
-    if (!right.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
-    }
-    // Let instOfHandler be GetMethod(C,@@hasInstance).
-    Value instOfHandler = Object::getMethod(state, right, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().hasInstance));
-    // If instOfHandler is not undefined, then
-    if (!instOfHandler.isUndefined()) {
-        // Return ToBoolean(Call(instOfHandler, C, «O»)).
-        Value arg[1] = { left };
-        return Value(Object::call(state, instOfHandler, right, 1, arg).toBoolean(state));
-    }
-
-    // If IsCallable(C) is false, throw a TypeError exception.
-    if (!right.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
-    }
-    // Return OrdinaryHasInstance(C, O).
-    return Value(Object::hasInstance(state, right, left));
+    registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex0].instanceOf(state, registerFile[code->m_srcIndex1]));
 }
 
 NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
@@ -2996,6 +2986,16 @@ NEVER_INLINE Value ByteCodeInterpreter::generatorResumeOperation(ExecutionState*
     }
 
     return Value(Value::EmptyValue);
+}
+
+NEVER_INLINE void ByteCodeInterpreter::newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile)
+{
+    auto newTarget = state.getNewTarget();
+    if (newTarget) {
+        registerFile[code->m_registerIndex] = state.getNewTarget();
+    } else {
+        registerFile[code->m_registerIndex] = Value();
+    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)

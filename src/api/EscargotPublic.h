@@ -383,6 +383,7 @@ public:
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const;
     bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // BinaryStrictEqual
+    bool instanceOf(ExecutionStateRef* state, const ValueRef* other) const;
 };
 
 class EXPORT ValueVectorRef {
@@ -796,7 +797,9 @@ public:
     void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength);
     void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength);
     uint8_t* rawBuffer();
-    unsigned bytelength();
+    unsigned byteLength();
+    unsigned byteOffset();
+    unsigned arrayLength();
 };
 
 class EXPORT Int8ArrayObjectRef : public ArrayBufferViewRef {
