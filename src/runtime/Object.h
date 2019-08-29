@@ -436,6 +436,7 @@ public:
     ObjectStructurePropertyDescriptor toObjectStructurePropertyDescriptor() const;
     static ObjectPropertyDescriptor fromObjectStructurePropertyDescriptor(const ObjectStructurePropertyDescriptor& desc, const Value& value);
     static Object* fromObjectPropertyDescriptor(ExecutionState& state, const ObjectPropertyDescriptor& desc);
+    static void completePropertyDescriptor(ObjectPropertyDescriptor& desc);
 
 private:
     bool isDataProperty() const
@@ -904,6 +905,7 @@ public:
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
     static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
     static bool hasInstance(ExecutionState& state, const Value& C, const Value O);
+    static bool isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult current);
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
