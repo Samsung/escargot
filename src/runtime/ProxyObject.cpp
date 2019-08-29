@@ -171,11 +171,11 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             return false;
         }
-        // 20. Else targetDesc is not undefined,
-        // TODO a. If IsCompatiblePropertyDescriptor(extensibleTarget, Desc , targetDesc) is false, throw a TypeError exception.
-        // b. If settingConfigFalse is true and targetDesc.[[Configurable]] is true, throw a TypeError exception.
     } else {
-        if (settingConfigFalse && targetDesc.isConfigurable()) {
+        // 20. Else targetDesc is not undefined,
+        // a. If IsCompatiblePropertyDescriptor(extensibleTarget, Desc , targetDesc) is false, throw a TypeError exception.
+        // b. If settingConfigFalse is true and targetDesc.[[Configurable]] is true, throw a TypeError exception.
+        if (!Object::isCompatiblePropertyDescriptor(state, extensibleTarget, desc, targetDesc) || (settingConfigFalse && targetDesc.isConfigurable())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             return false;
         }
@@ -310,29 +310,30 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     }
 
     // 15. Let extensibleTarget be IsExtensible(target).
-    bool extensibleTarget = target.asObject()->isExtensible(state);
-
-    // 17. TODO Let resultDesc be ToPropertyDescriptor(trapResultObj).
-    // 19. TODO Call CompletePropertyDescriptor(resultDesc).
-    // 20. TODO Let valid be IsCompatiblePropertyDescriptor (extensibleTarget, resultDesc, targetDesc).
+    // 17. Let resultDesc be ToPropertyDescriptor(trapResultObj).
+    // 18. ReturnIfAbrupt(resultDesc).
+    ObjectPropertyDescriptor resultDesc(state, trapResultObj.asObject());
+    // 19. Call CompletePropertyDescriptor(resultDesc).
+    ObjectPropertyDescriptor::completePropertyDescriptor(resultDesc);
+    // 20. Let valid be IsCompatiblePropertyDescriptor (extensibleTarget, resultDesc, targetDesc).
     // 21. If valid is false, throw a TypeError exception.
-
-    ASSERT(trapResultObj.isObject());
-    Value writable = trapResultObj.asObject()->get(state, ObjectPropertyName(state, strings->writable)).value(state, trapResultObj);
-    Value enumerable = trapResultObj.asObject()->get(state, ObjectPropertyName(state, strings->enumerable)).value(state, trapResultObj);
-    Value configurable = trapResultObj.asObject()->get(state, ObjectPropertyName(state, strings->configurable)).value(state, trapResultObj);
-    Value value = trapResultObj.asObject()->get(state, ObjectPropertyName(state, strings->value)).value(state, trapResultObj);
-    ObjectGetResult resultDesc(value, writable.toBoolean(state), enumerable.toBoolean(state), configurable.toBoolean(state));
-
-    // 22. If resultDesc.[[Configurable]] is false, then
-    // a. If targetDesc is undefined or targetDesc.[[Configurable]] is true, then
-    // i. Throw a TypeError exception.
-    if (!resultDesc.isConfigurable() && (targetDesc.value(state, target).isUndefined() || targetDesc.isConfigurable())) {
+    if (!Object::isCompatiblePropertyDescriptor(state, target.asObject()->isExtensible(state), resultDesc, targetDesc)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Proxy::getOwnPropertyDescriptor error");
+    }
+    // 22. If resultDesc.[[Configurable]] is false, then
+    if (!resultDesc.isConfigurable()) {
+        // a. If targetDesc is undefined or targetDesc.[[Configurable]] is true, then
+        if (!targetDesc.hasValue() || targetDesc.isConfigurable()) {
+            // i. Throw a TypeError exception.
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Proxy::getOwnPropertyDescriptor error");
+        }
     }
 
     // 23. Return resultDesc.
-    return resultDesc;
+    if (resultDesc.isDataDescriptor()) {
+        return ObjectGetResult(resultDesc.value(), resultDesc.isWritable(), resultDesc.isEnumerable(), resultDesc.isConfigurable());
+    }
+    return ObjectGetResult(new JSGetterSetter(resultDesc.getterSetter()), resultDesc.isEnumerable(), resultDesc.isConfigurable());
 }
 
 bool ProxyObject::preventExtensions(ExecutionState& state)

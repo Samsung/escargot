@@ -366,6 +366,44 @@ Object* ObjectPropertyDescriptor::fromObjectPropertyDescriptor(ExecutionState& s
     return obj;
 }
 
+void ObjectPropertyDescriptor::completePropertyDescriptor(ObjectPropertyDescriptor& desc)
+{
+    // 1. ReturnIfAbrupt(Desc).
+    // 2. Assert: Desc is a Property Descriptor
+    // 3. Let like be Record{[[Value]]: undefined, [[Writable]]: false, [[Get]]: undefined, [[Set]]: undefined, [[Enumerable]]: false, [[Configurable]]: false}.
+
+    // 4. If either IsGenericDescriptor(Desc) or IsDataDescriptor(Desc) is true, then
+    if (desc.isGenericDescriptor() || desc.isDataDescriptor()) {
+        // a. If Desc does not have a [[Value]] field, set Desc.[[Value]] to like.[[Value]].
+        if (!desc.isValuePresent()) {
+            desc.setValue(Value());
+        }
+        // If Desc does not have a [[Writable]] field, set Desc.[[Writable]] to like.[[Writable]].
+        if (!desc.isWritablePresent()) {
+            desc.setWritable(false);
+        }
+    } else {
+        // a. If Desc does not have a [[Get]] field, set Desc.[[Get]] to like.[[Get]].
+        if (!desc.hasJSGetter()) {
+            desc.m_getterSetter.m_getter = Value();
+        }
+        // b. If Desc does not have a [[Set]] field, set Desc.[[Set]] to like.[[Set]].
+        if (!desc.hasJSSetter()) {
+            desc.m_getterSetter.m_setter = Value();
+        }
+    }
+    // 6. If Desc does not have an [[Enumerable]] field, set Desc.[[Enumerable]] to like.[[Enumerable]].
+    if (!desc.isEnumerablePresent()) {
+        desc.setEnumerable(false);
+    }
+    // 7. If Desc does not have a [[Configurable]] field, set Desc.[[Configurable]] to like.[[Configurable]].
+    if (!desc.isConfigurablePresent()) {
+        desc.setConfigurable(false);
+    }
+    // 8. Return Desc.
+}
+
+
 size_t g_objectTag;
 
 Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
@@ -976,6 +1014,83 @@ bool Object::hasInstance(ExecutionState& state, const Value& C, Value O)
         O = O.asObject()->getPrototype(state);
     }
     return false;
+}
+
+bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult current)
+{
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-iscompatiblepropertydescriptor
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-validateandapplypropertydescriptor
+    // Ref : https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarydefineownproperty
+
+    // Note : This implementation is a simplified for the following reasons.
+    //  1. isCompatiblePropertyDescriptor calls ValidateAndApplyPropertyDescriptor with the arguments O and P as undefined always
+    //  2. Only proxy internal methods call isCompatiblePropertyDescriptor.
+    // Therefore, excluded unnecessary parts of validateAndApplyPropertyDescriptor and implemented only the other parts at here
+    // Furthermore, We decided to leave Object's [[DefineProperty]] (P, Desc) as it is.
+
+    // 2. If current is undefined, then
+    if (!current.hasValue()) {
+        // a. If extensible is false, return false.
+        if (!extensible) {
+            return false;
+        }
+        // b. Assert: extensible is true.
+        ASSERT(extensible);
+        // e. Return true.
+        return true;
+    }
+    // TDOO : 3. Return true, if every field in Desc is absent.
+    // TDOO : 4. Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value
+
+    // 5. If the [[Configurable]] field of current is false, then
+    if (!current.isConfigurable()) {
+        // a. Return false, if the [[Configurable]] field of Desc is true.
+        if (desc.isConfigurable()) {
+            return false;
+        }
+        // Return false, if the [[Enumerable]] field of Desc is present and the [[Enumerable]] fields of current and Desc are the Boolean negation of each other.
+        if (desc.isEnumerablePresent() && desc.isEnumerable() != current.isEnumerable()) {
+            return false;
+        }
+    }
+    // 6. If IsGenericDescriptor(Desc) is true, no further validation is required.
+    if (desc.isGenericDescriptor()) {
+        return true;
+    } else if (current.isDataProperty() != desc.isDataDescriptor()) { // 7. Else if IsDataDescriptor(current) and IsDataDescriptor(Desc) have different results, then
+        // a. Return false, if the [[Configurable]] field of current is false.
+        if (!current.isConfigurable()) {
+            return false;
+        }
+    } else if (current.isDataProperty() && desc.isDataDescriptor()) { // 8. Else if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
+        // a. If the [[Configurable]] field of current is false, then
+        if (!current.isConfigurable()) {
+            // i. Return false, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
+            if (!current.isWritable() && desc.isWritable()) {
+                return false;
+            }
+            // ii. If the [[Writable]] field of current is false, then
+            if (!current.isWritable()) {
+                // 1. Return false, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
+                if (desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, current.value(state, Value()))) {
+                    return false;
+                }
+            }
+        }
+    } else if (!current.isDataProperty() && desc.isAccessorDescriptor()) { // 9. Else IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc) are both true,
+        // a. If the [[Configurable]] field of current is false, then
+        if (!current.isConfigurable()) {
+            JSGetterSetter* currgs = current.value(state, Value()).asPointerValue()->asJSGetterSetter();
+            // i. Return false, if the [[Set]] field of Desc is present and SameValue(Desc.[[Set]], current.[[Set]]) is false.
+            if (desc.getterSetter().hasSetter() && (desc.getterSetter().setter() != (currgs->hasSetter() ? currgs->setter() : Value()))) {
+                return false;
+            }
+            // ii. Return false, if the [[Get]] field of Desc is present and SameValue(Desc.[[Get]], current.[[Get]]) is false.
+            if (desc.getterSetter().hasGetter() && (desc.getterSetter().getter() != (currgs->hasGetter() ? currgs->getter() : Value()))) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)

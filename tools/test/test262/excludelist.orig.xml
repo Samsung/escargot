@@ -20,9 +20,6 @@
   <test id="15.9.1.15-1"><reason>This test is wrong and test/es2015/15.9.1.15-1.js takes over</reason></test>
   <test id="built-ins/GeneratorPrototype/next/context-constructor-invocation"><reason>Test is wrong. generator function is not constructor</reason></test>
 
-  <test id="targetdesc-not-compatible-descriptor-not-configurable-target"><reason>TODO: Need to implement ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current)</reason></test>
-  <test id="targetdesc-not-compatible-descriptor"><reason>TODO: Need to implement ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current)</reason></test>
-  <test id="resultdesc-is-invalid-descriptor"><reason>TODO: Need to implement ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current)</reason></test>
   <test id="return-true-target-property-is-not-configurable"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
   <test id="call-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
   <test id="return-false-target-not-extensible-using-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
