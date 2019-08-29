@@ -146,10 +146,10 @@ def run_octane(engine, arch):
     raise last_error
 
 
-@runner('internal', default=True)
+@runner('modifiedVendorTest', default=True)
 def run_internal_test(engine, arch):
-    INTERNAL_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'internal')
-    INTERNAL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'internal')
+    INTERNAL_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'ModifiedVendorTest')
+    INTERNAL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'ModifiedVendorTest')
 
     copy(join(INTERNAL_OVERRIDE_DIR, 'internal-test-cases.txt'), join(INTERNAL_DIR, 'internal-test-cases.txt'))
     copy(join(INTERNAL_OVERRIDE_DIR, 'internal-test-driver.py'), join(INTERNAL_DIR, 'driver.py'))
@@ -320,7 +320,7 @@ def _run_regression_tests(engine, assert_js, files, is_fail):
 
 @runner('regression-tests', default=True)
 def run_regression_tests(engine, arch):
-    REGRESSION_DIR = join(PROJECT_SOURCE_DIR, 'test', 'regression-tests')
+    REGRESSION_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'regression-tests')
     REGRESSION_XFAIL_DIR = join(REGRESSION_DIR, 'xfail')
     REGRESSION_ASSERT_JS = join(REGRESSION_DIR, 'assert.js')
 
@@ -470,7 +470,7 @@ def run_v8(engine, arch):
 
 @runner('es2015', default=True)
 def run_es2015(engine, arch):
-    ES2015_DIR = join(PROJECT_SOURCE_DIR, 'test', 'es2015')
+    ES2015_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'es2015')
     ES2015_ASSERT_JS = join(ES2015_DIR, 'assert.js')
 
     print('Running es2015 test:')
@@ -498,7 +498,7 @@ def run_es2015(engine, arch):
 
 @runner('intl', default=True)
 def run_intl(engine, arch):
-    INTL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'intl')
+    INTL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'intl')
     INTL_ASSERT_JS = join(INTL_DIR, 'assert.js')
 
     print('Running Intl test:')
