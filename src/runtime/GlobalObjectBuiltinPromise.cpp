@@ -18,25 +18,17 @@
  */
 
 #include "Escargot.h"
-#include "GlobalObject.h"
-#include "Context.h"
-#include "VMInstance.h"
-#include "PromiseObject.h"
-#include "ArrayObject.h"
-#include "JobQueue.h"
-#include "SandBox.h"
-#include "NativeFunctionObject.h"
+#include "runtime/GlobalObject.h"
+#include "runtime/Context.h"
+#include "runtime/VMInstance.h"
+#include "runtime/PromiseObject.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/JobQueue.h"
+#include "runtime/SandBox.h"
+#include "runtime/NativeFunctionObject.h"
+#include "runtime/IteratorOperations.h"
 
 namespace Escargot {
-
-static SandBox::SandBoxResult tryCallMethodAndCatchError(ExecutionState& state, ObjectPropertyName name, Value receiver, Value arguments[], const size_t argumentCount, bool isNewExpression)
-{
-    SandBox sb(state.context());
-    return sb.run([&]() -> Value {
-        Value callee = receiver.toObject(state)->get(state, name).value(state, receiver);
-        return Object::call(state, callee, receiver, argumentCount, arguments);
-    });
-}
 
 // $25.4.3 Promise(executor)
 static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -69,214 +61,265 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
 
 static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-promise.all
     auto strings = &state.context()->staticStrings();
 
-    Object* thisObject = thisValue.toObject(state);
+    // Let C be the this value.
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), errorMessage_GlobalObject_ThisNotObject);
+    }
+
+    Object* C = thisValue.asObject();
     Value iterableValue = argv[0];
 
-    // Let S be Get(C, @@species).
-    Value species = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, thisValue);
+    // Let S be Get(C, @@S).
+    Value S = C->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
 
     // If S is neither undefined nor null, let C be S.
-    if (!species.isUndefinedOrNull()) {
-        thisObject = species.toObject(state);
+    if (!S.isUndefinedOrNull()) {
+        C = S.toObject(state);
     }
 
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
+    // Let promiseCapability be NewPromiseCapability(C).
+    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
 
-    if (!iterableValue.isIterable()) {
-        Value arguments[] = { new TypeErrorObject(state, String::emptyString) };
-        Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
-    } else {
-        Object* iterable = iterableValue.toObject(state);
-        bool done = false;
+    const Value& iterable = argv[0];
 
-        // 25.4.4.1.1 Runtime Semantics: PerformPromiseAll (iteratorRecord, constructor, resultCapability)
+    // Let iterator be GetIterator(iterable).
+    // IfAbruptRejectPromise(iterator, promiseCapability).
+    Value iterator;
+    try {
+        iterator = getIterator(state, iterable);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Let rejectResult be Call(capability.[[Reject]], undefined, «value.[[value]]»).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // ReturnIfAbrupt(rejectResult).
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
 
+    // Let iteratorRecord be Record {[[iterator]]: iterator, [[done]]: false}.
+    const Value& iteratorRecordIterator = iterator;
+    bool iteratorRecordDone = false;
+
+    // Let result be PerformPromiseAll(iteratorRecord, C, promiseCapability).
+    Value result;
+    try {
+        // Let values be a new empty List.
         ArrayObject* values = new ArrayObject(state);
+        // Let remainingElementsCount be a new Record { [[value]]: 1 }.
         Object* remainingElementsCount = new Object(state);
         remainingElementsCount->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(1), ObjectPropertyDescriptor::AllPresent));
+        // Let index be 0.
         int64_t index = 0;
 
-        if (!iterable->isArrayObject()) {
-            Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
-            Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
-            return capability.m_promise;
-        }
-
-        ArrayObject* iterableArray = iterable->asArrayObject();
-
-        // 6. Repeat
-        int64_t len = iterableArray->length(state);
-        int64_t k = 0;
-        Value error(Value::EmptyValue);
-        while (k < len) {
-            auto pk = ObjectPropertyName(state, k);
-            auto kPresent = iterableArray->hasProperty(state, pk);
-            if (kPresent) {
-                // 6.e. Let nextValue be IteratorValue(next).
-                Value nextValue = kPresent.value(state, pk, iterableArray);
-
-                // 6.h. Append undefined to values
-                values->defineOwnProperty(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
-
-                // 6.i Let nextPromise be Invoke(constructor, "resolve", «nextValue»).
-                Value argumentsI[] = { nextValue };
-                auto res = tryCallMethodAndCatchError(state, strings->resolve, thisObject, argumentsI, 1, false);
-                if (!res.error.isEmpty()) {
-                    error = res.error;
-                    break;
-                }
-                Value nextPromise = res.result;
-
-                // 6.k
-                FunctionObject* resolveElement = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
-                resolveElement->deleteOwnProperty(state, strings->name);
-                Object* internalSlot = new Object(state);
-                resolveElement->setInternalSlot(internalSlot);
-
-                // 6.l ~ 6.p
-                Object* alreadyCalled = new Object(state);
-                alreadyCalled->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::AllPresent));
-
-                internalSlot->defineOwnProperty(state, strings->alreadyCalled, ObjectPropertyDescriptor(alreadyCalled, ObjectPropertyDescriptor::AllPresent));
-                internalSlot->defineOwnProperty(state, strings->index, ObjectPropertyDescriptor(Value(index), ObjectPropertyDescriptor::AllPresent));
-                internalSlot->defineOwnProperty(state, strings->values, ObjectPropertyDescriptor(values, ObjectPropertyDescriptor::AllPresent));
-                internalSlot->defineOwnProperty(state, strings->resolve, ObjectPropertyDescriptor(capability.m_resolveFunction, ObjectPropertyDescriptor::AllPresent));
-                internalSlot->defineOwnProperty(state, strings->reject, ObjectPropertyDescriptor(capability.m_rejectFunction, ObjectPropertyDescriptor::AllPresent));
-                internalSlot->defineOwnProperty(state, strings->remainingElements, ObjectPropertyDescriptor(Value(remainingElementsCount), ObjectPropertyDescriptor::AllPresent));
-
-                // 6.q
-                uint32_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asUInt32();
-                remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements + 1), remainingElementsCount);
-
-                // 6.r
-                Value argumentsR[] = { resolveElement, capability.m_rejectFunction };
-
-                res = tryCallMethodAndCatchError(state, strings->then, nextPromise, argumentsR, 2, false);
-                if (!res.error.isEmpty()) {
-                    error = res.error;
-                    break;
-                }
-
-                // 6.t
-                index++;
-                k++;
-            } else {
-                int64_t result;
-                Object::nextIndexForward(state, iterableArray, k, len, true, result);
-                k = result;
+        // Repeat
+        while (true) {
+            // Let next be IteratorStep(iteratorRecord.[[iterator]]).
+            Value next;
+            try {
+                next = iteratorStep(state, iteratorRecordIterator);
+            } catch (const Value& e) {
+                // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
+                iteratorRecordDone = true;
+                // ReturnIfAbrupt(next).
+                state.throwException(e);
             }
-        }
-
-        // 6.d. If next is false
-        if (error.isEmpty()) {
-            done = true;
-            uint32_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asUInt32();
-            remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
-            if (remainingElements == 1) {
-                SandBox sb(state.context());
-                auto res = sb.run([&]() -> Value {
-                    Value arguments[] = { values };
-                    Object::call(state, capability.m_resolveFunction, Value(), 1, arguments);
-                    return Value();
-                });
-                if (!res.error.isEmpty()) {
-                    error = res.error;
+            // If next is false,
+            if (next.isFalse()) {
+                // set iteratorRecord.[[done]] to true.
+                iteratorRecordDone = true;
+                // Set remainingElementsCount.[[value]] to remainingElementsCount.[[value]] − 1.
+                int64_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asNumber();
+                remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
+                // If remainingElementsCount.[[value]] is 0,
+                if (remainingElements == 1) {
+                    // Let valuesArray be CreateArrayFromList(values).
+                    // Let resolveResult be Call(resultCapability.[[Resolve]], undefined, «valuesArray»).
+                    Value argv = values;
+                    Value resolveResult = Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &argv);
+                    // ReturnIfAbrupt(resolveResult)
                 }
+                // Return resultCapability.[[Promise]].
+                result = promiseCapability.m_promise;
+                break;
             }
-        }
+            // Let nextValue be IteratorValue(next).
+            Value nextValue;
+            try {
+                nextValue = iteratorValue(state, next);
+            } catch (const Value& e) {
+                // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
+                iteratorRecordDone = true;
+                // ReturnIfAbrupt(next).
+                state.throwException(e);
+            }
+            // Append undefined to values.
+            values->defineOwnProperty(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+            // Let nextPromise be Invoke(constructor, "resolve", «‍nextValue»).
+            Value nextPromise = Object::call(state, C->get(state, ObjectPropertyName(state, strings->resolve)).value(state, C), C, 1, &nextValue);
+            // ReturnIfAbrupt(nextPromise)
 
-        // If result is an abrupt completion && If iteratorRecord.[[done]] is false
-        if (!error.isEmpty() && !done) {
-            Value arguments[] = { error };
-            Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
+            // Let resolveElement be a new built-in function object as defined in Promise.all Resolve Element Functions.
+            FunctionObject* resolveElement = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
+            resolveElement->deleteOwnProperty(state, strings->name);
+            Object* internalSlot = new Object(state);
+            resolveElement->setInternalSlot(internalSlot);
+            // Set the [[AlreadyCalled]] internal slot of resolveElement to a new Record {[[value]]: false }.
+            // Set the [[Index]] internal slot of resolveElement to index.
+            // Set the [[Values]] internal slot of resolveElement to values.
+            // Set the [[Capabilities]] internal slot of resolveElement to resultCapability.
+            // Set the [[RemainingElements]] internal slot of resolveElement to remainingElementsCount.
+            Object* alreadyCalled = new Object(state);
+            alreadyCalled->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::AllPresent));
+
+            internalSlot->defineOwnProperty(state, strings->alreadyCalled, ObjectPropertyDescriptor(alreadyCalled, ObjectPropertyDescriptor::AllPresent));
+            internalSlot->defineOwnProperty(state, strings->index, ObjectPropertyDescriptor(Value(index), ObjectPropertyDescriptor::AllPresent));
+            internalSlot->defineOwnProperty(state, strings->values, ObjectPropertyDescriptor(values, ObjectPropertyDescriptor::AllPresent));
+            internalSlot->defineOwnProperty(state, strings->resolve, ObjectPropertyDescriptor(promiseCapability.m_resolveFunction, ObjectPropertyDescriptor::AllPresent));
+            internalSlot->defineOwnProperty(state, strings->reject, ObjectPropertyDescriptor(promiseCapability.m_rejectFunction, ObjectPropertyDescriptor::AllPresent));
+            internalSlot->defineOwnProperty(state, strings->remainingElements, ObjectPropertyDescriptor(Value(remainingElementsCount), ObjectPropertyDescriptor::AllPresent));
+
+            // Set remainingElementsCount.[[value]] to remainingElementsCount.[[value]] + 1.
+            int64_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asNumber();
+            remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements + 1), remainingElementsCount);
+            // Let result be Invoke(nextPromise, "then", «‍resolveElement, resultCapability.[[Reject]]»).
+            Object* nextPromiseObject = nextPromise.toObject(state);
+            Value argv[] = { Value(resolveElement), Value(promiseCapability.m_rejectFunction) };
+            result = Object::call(state, nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject), nextPromiseObject, 2, argv);
+            // ReturnIfAbrupt(result).
+            // Set index to index + 1
+            index++;
         }
+    } catch (const Value& v) {
+        Value exceptionValue = v;
+        // If result is an abrupt completion,
+        // If iteratorRecord.[[done]] is false, let result be IteratorClose(iterator, result).
+        try {
+            if (!iteratorRecordDone) {
+                iteratorClose(state, iterator, exceptionValue, true);
+            }
+        } catch (const Value& v) {
+            exceptionValue = v;
+        }
+        // IfAbruptRejectPromise(result, promiseCapability).
+        // If value is an abrupt completion,
+        // Let rejectResult be Call(capability.[[Reject]], undefined, «value.[[value]]»).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exceptionValue);
+        // ReturnIfAbrupt(rejectResult).
     }
-    return capability.m_promise;
+
+    // Return capability.[[Promise]].
+    return promiseCapability.m_promise;
 }
 
 static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-promise.race
     auto strings = &state.context()->staticStrings();
-    Object* thisObject = thisValue.toObject(state);
-    Value iterableValue = argv[0];
+    // Let C be the this value.
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->race.string(), errorMessage_GlobalObject_ThisNotObject);
+    }
+    Object* C = thisValue.asObject();
 
     // Let S be Get(C, @@species).
-    Value species = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, thisValue);
-
+    Value S = C->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+    // ReturnIfAbrupt(S).
     // If S is neither undefined nor null, let C be S.
-    if (!species.isUndefinedOrNull()) {
-        thisObject = species.toObject(state);
+    if (!S.isUndefinedOrNull()) {
+        C = S.toObject(state);
     }
 
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
+    // Let promiseCapability be NewPromiseCapability(C).
+    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
+    // ReturnIfAbrupt(promiseCapability).
 
-    if (!iterableValue.isIterable()) {
-        Value arguments[] = { new TypeErrorObject(state, String::emptyString) };
-        Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
-    } else {
-        Object* iterable = iterableValue.toObject(state);
-        bool done = false;
+    // Let iterator be GetIterator(iterable).
+    // IfAbruptRejectPromise(iterator, promiseCapability).
+    const Value& iterable = argv[0];
+    Value iterator;
+    try {
+        iterator = getIterator(state, iterable);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Let rejectResult be Call(capability.[[Reject]], undefined, «value.[[value]]»).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // ReturnIfAbrupt(rejectResult).
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
 
-        // 25.4.4.1.1 Runtime Semantics: PerformPromiseRace (iteratorRecord, promiseCapability, C)
+    // Let iteratorRecord be Record {[[iterator]]: iterator, [[done]]: false}.
+    // Let result be PerformPromiseRace(iteratorRecord, promiseCapability, C).
+    const Value& iteratorRecordIterator = iterator;
+    bool iteratorRecordDone = false;
 
-        ArrayObject* values = new ArrayObject(state);
-        uint32_t index = 0;
-
-        if (!iterable->isArrayObject()) {
-            Value arguments[] = { new TypeErrorObject(state, new ASCIIString("Second argument is not an array")) };
-            Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
-            return capability.m_promise;
-        }
-
-        ArrayObject* iterableArray = iterable->asArrayObject();
-
-        // 6. Repeat
-        uint32_t len = iterableArray->length(state);
-        uint32_t k = 0;
-        Value error(Value::EmptyValue);
-        while (k < len) {
-            auto pk = ObjectPropertyName(state, k);
-            auto kPresent = iterableArray->hasProperty(state, pk);
-            if (kPresent) {
-                Value nextValue = kPresent.value(state, pk, iterableArray);
-
-                Value argumentsH[] = { nextValue };
-                auto res = tryCallMethodAndCatchError(state, strings->resolve, thisObject, argumentsH, 1, false);
-                if (!res.error.isEmpty()) {
-                    error = res.error;
-                    break;
-                }
-                Value nextPromise = res.result;
-
-                Value argumentsJ[] = { capability.m_resolveFunction, capability.m_rejectFunction };
-                res = tryCallMethodAndCatchError(state, strings->then, nextPromise, argumentsJ, 2, false);
-                if (!res.error.isEmpty()) {
-                    error = res.error;
-                    break;
-                }
-                Value result = res.result;
-
-                k++;
-            } else {
-                int64_t result;
-                Object::nextIndexForward(state, iterableArray, k, len, true, result);
-                k = result;
+    try {
+        // Repeat
+        while (true) {
+            // Let next be IteratorStep(iteratorRecord.[[iterator]]).
+            Value next;
+            try {
+                next = iteratorStep(state, iteratorRecordIterator);
+            } catch (const Value& e) {
+                // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
+                // ReturnIfAbrupt(next).
+                iteratorRecordDone = true;
+                state.throwException(e);
             }
-        }
+            // If next is false, then
+            if (next.isFalse()) {
+                // Set iteratorRecord.[[done]] to true.
+                iteratorRecordDone = true;
+                // Return promiseCapability.[[Promise]].
+                break;
+            }
 
-        // 1.d. If next is false
-        if (error.isEmpty())
-            done = true;
+            // Let nextValue be IteratorValue(next).
+            Value nextValue;
+            try {
+                nextValue = iteratorValue(state, next);
+            } catch (const Value& e) {
+                // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
+                iteratorRecordDone = true;
+                // ReturnIfAbrupt(next).
+                state.throwException(e);
+            }
 
-        // If result is an abrupt completion && If iteratorRecord.[[done]] is false
-        if (!error.isEmpty() && !done) {
-            Value arguments[] = { error };
-            Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
+            // Let nextPromise be Invoke(C, "resolve", «‍nextValue»).
+            Value nextPromise = Object::call(state, C->get(state, strings->resolve).value(state, C), C, 1, &nextValue);
+            // ReturnIfAbrupt(nextPromise).
+            // Let result be Invoke(nextPromise, "then", «‍promiseCapability.[[Resolve]], promiseCapability.[[Reject]]»).
+            Object* nextPromiseObject = nextPromise.toObject(state);
+            Value argv[] = { Value(promiseCapability.m_resolveFunction), Value(promiseCapability.m_rejectFunction) };
+            Object::call(state, nextPromiseObject->get(state, strings->then).value(state, C), nextPromise, 2, argv);
+            // ReturnIfAbrupt(result).
         }
+    } catch (const Value& e) {
+        // If result is an abrupt completion, then
+        Value exceptionValue = e;
+        try {
+            // If iteratorRecord.[[done]] is false, let result be IteratorClose(iterator, result).
+            if (!iteratorRecordDone) {
+                iteratorClose(state, iterator, exceptionValue, true);
+            }
+        } catch (const Value& v) {
+            exceptionValue = v;
+        }
+        // IfAbruptRejectPromise(result, promiseCapability).
+        // If value is an abrupt completion,
+        // Let rejectResult be Call(capability.[[Reject]], undefined, «value.[[value]]»).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exceptionValue);
+        // ReturnIfAbrupt(rejectResult).
     }
-    return capability.m_promise;
+    // Return capability.[[Promise]].
+    return promiseCapability.m_promise;
 }
 
 static Value builtinPromiseReject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

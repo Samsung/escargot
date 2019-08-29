@@ -91,19 +91,44 @@ Value iteratorStep(ExecutionState& state, const Value& iterator)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-iteratorclose
-void iteratorClose(ExecutionState& state, const Value& iterator)
+Value iteratorClose(ExecutionState& state, const Value& iterator, const Value& completionValue, bool hasThrowOnCompletionType)
 {
     ASSERT(iterator.isObject());
 
+    // Let return be GetMethod(iterator, "return").
+    // ReturnIfAbrupt(return).
     Value returnFunction = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator.asObject());
+    // If return is undefined, return Completion(completion).
     if (returnFunction.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "return function is undefined");
+        if (hasThrowOnCompletionType) {
+            state.throwException(completionValue);
+        }
+        return completionValue;
     }
 
-    Value innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
+    // Let innerResult be Call(return, iterator, «‍ »).
+    Value innerResult;
+    bool innerResultHasException = false;
+    try {
+        innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
+    } catch (const Value& e) {
+        innerResult = e;
+        innerResultHasException = true;
+    }
+    // If completion.[[type]] is throw, return Completion(completion).
+    if (hasThrowOnCompletionType) {
+        state.throwException(completionValue);
+    }
+    // If innerResult.[[type]] is throw, return Completion(innerResult).
+    if (innerResultHasException) {
+        state.throwException(innerResult);
+    }
+    // If Type(innerResult.[[value]]) is not Object, throw a TypeError exception.
     if (!innerResult.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
     }
+    // Return Completion(completion).
+    return completionValue;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-createiterresultobject

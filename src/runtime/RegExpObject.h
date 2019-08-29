@@ -180,9 +180,14 @@ public:
     {
     }
 
-    virtual bool isRegExpPrototypeObject() const
+    virtual bool isRegExpPrototypeObject() const override
     {
         return true;
+    }
+
+    virtual const char* internalClassProperty() override
+    {
+        return "Object";
     }
 };
 

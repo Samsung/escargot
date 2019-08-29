@@ -2912,7 +2912,7 @@ NEVER_INLINE Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& s
             nextValue = iteratorValue(state, innerResult);
             done = iteratorComplete(state, innerResult);
         } else {
-            iteratorClose(state, iterator);
+            iteratorClose(state, iterator, Value(), false);
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "yield* violation");
         }
     }

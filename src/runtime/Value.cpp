@@ -610,10 +610,49 @@ double Value::toNumberSlowCase(ExecutionState& state) const
             if (state != State::Invalid) {
                 buf[ptr] = 0;
                 val = converter.StringToDouble(buf, ptr, &end);
-                if (static_cast<size_t>(end) != ptr)
-                    val = std::numeric_limits<double>::quiet_NaN();
-            } else
+                if (static_cast<size_t>(end) != ptr) {
+                    bool ok = true;
+                    uint64_t number = 0;
+                    if (ptr >= 3 && buf[0] == '0' && (buf[1] == 'b' || buf[1] == 'B')) {
+                        // scan binary literal
+                        unsigned scan = 2;
+
+                        while (scan != ptr) {
+                            char ch = buf[scan];
+                            if (ch != '0' && ch != '1') {
+                                ok = false;
+                                break;
+                            }
+                            number = (number << 1) + ch - '0';
+                            scan++;
+                        }
+                    } else if (ptr >= 3 && buf[0] == '0' && (buf[1] == 'o' || buf[1] == 'O')) {
+                        // scan octal literal
+                        unsigned scan = 2;
+
+                        while (scan != ptr) {
+                            char ch = buf[scan];
+                            if (!(ch >= '0' && ch <= '7')) {
+                                ok = false;
+                                break;
+                            } else {
+                                number = (number << 3) + ch - '0';
+                                scan++;
+                            }
+                        }
+                    } else {
+                        ok = false;
+                    }
+
+                    if (ok) {
+                        val = number;
+                    } else {
+                        val = std::numeric_limits<double>::quiet_NaN();
+                    }
+                }
+            } else {
                 val = std::numeric_limits<double>::quiet_NaN();
+            }
         }
         return val;
     } else if (isSymbol()) {

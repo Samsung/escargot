@@ -195,6 +195,12 @@ public:
     {
         return true;
     }
+
+    virtual const char* internalClassProperty() override
+    {
+        return "Object";
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

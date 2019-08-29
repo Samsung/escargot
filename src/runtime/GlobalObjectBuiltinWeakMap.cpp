@@ -73,24 +73,30 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
         // Let nextItem be ? IteratorValue(next).
         Value nextItem = iteratorValue(state, next);
 
-        // If Type(nextItem) is not Object, then
-        if (!nextItem.isObject()) {
-            // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
-            // Return ? IteratorClose(iter, error).
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator value a is not an entry object");
+        try {
+            // If Type(nextItem) is not Object, then
+            if (!nextItem.isObject()) {
+                // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
+                // Return ? IteratorClose(iter, error).
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator value a is not an entry object");
+            }
+
+            // Let k be Get(nextItem, "0").
+            // If k is an abrupt completion, return ? IteratorClose(iter, k).
+            Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
+            // Let v be Get(nextItem, "1").
+            // If v is an abrupt completion, return ? IteratorClose(iter, v).
+            Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
+
+            // Let status be Call(adder, map, « k.[[Value]], v.[[Value]] »).
+            Value argv[2] = { k, v };
+            Object::call(state, adder, map, 2, argv);
+        } catch (const Value& v) {
+            // we should save thrown value bdwgc cannot track thrown value
+            Value exceptionValue = v;
+            // If status is an abrupt completion, return ? IteratorClose(iter, status).
+            iteratorClose(state, iter, exceptionValue, true);
         }
-
-        // Let k be Get(nextItem, "0").
-        // If k is an abrupt completion, return ? IteratorClose(iter, k).
-        Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
-        // Let v be Get(nextItem, "1").
-        // If v is an abrupt completion, return ? IteratorClose(iter, v).
-        Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
-
-        // Let status be Call(adder, map, « k.[[Value]], v.[[Value]] »).
-        Value argv[2] = { k, v };
-        // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).
-        Object::call(state, adder, map, 2, argv);
     }
     return map;
 }

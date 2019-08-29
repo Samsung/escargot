@@ -31,7 +31,7 @@ Value iteratorNext(ExecutionState& state, const Value& iterator, const Value& va
 bool iteratorComplete(ExecutionState& state, const Value& iterResult);
 Value iteratorValue(ExecutionState& state, const Value& iterResult);
 Value iteratorStep(ExecutionState& state, const Value& iterator);
-void iteratorClose(ExecutionState& state, const Value& iterator);
+Value iteratorClose(ExecutionState& state, const Value& iterator, const Value& completionValue, bool hasThrowOnCompletionType);
 Value createIterResultObject(ExecutionState& state, const Value& value, bool done);
 }
 #endif
