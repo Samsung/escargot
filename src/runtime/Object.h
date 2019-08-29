@@ -797,6 +797,7 @@ public:
 
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
+    bool isRegExp(ExecutionState& state);
 
     void setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     void setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);

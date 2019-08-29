@@ -607,6 +607,7 @@ public:
     AtomicString symbolSplit;
     AtomicString symbolReplace;
     AtomicString symbolSearch;
+    AtomicString symbolMatch;
     AtomicString $Ampersand;
     AtomicString $PlusSign;
     AtomicString $GraveAccent;

@@ -442,6 +442,56 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     return Value(builder.finalize(&state));
 }
 
+static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value rx = thisValue;
+
+    if (!rx.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true,
+                                       state.context()->staticStrings().toPrimitive.string(), errorMessage_GlobalObject_ThisNotObject);
+    }
+
+    String* str = argv[0].toString(state);
+    Value arg[1] = { str };
+    ASSERT(str != nullptr);
+
+    //21.2.5.6.8
+    bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean(state);
+
+    if (!global) {
+        return builtinRegExpExec(state, rx, 1, arg, false);
+    }
+
+    bool fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean(state);
+    rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(0), rx);
+    ArrayObject* A = new ArrayObject(state);
+    size_t n = 0;
+
+    //21.2.5.6.8.g.i
+    while (true) {
+        //21.2.5.6.8.g.i
+        Value result = builtinRegExpExec(state, rx, 1, arg, false);
+        //21.2.5.6.8.g.iii
+        if (result.isNull()) {
+            if (n == 0) {
+                return Value(Value::Null);
+            }
+            return A;
+        } else {
+            //21.2.5.6.8.g.iv
+            Value matchStr = result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
+            A->defineOwnProperty(state, ObjectPropertyName(state, Value(n).toString(state)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
+            if (matchStr.asString()->length() == 0) {
+                //21.2.5.6.8.g.iv.5
+                size_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
+                size_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
+                rx.asObject()->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), rx);
+            }
+            n++;
+        }
+    }
+}
+
 GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
     : NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().RegExp, builtinRegExpConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__)
 {
@@ -603,13 +653,13 @@ void GlobalObject::installRegExp(ExecutionState& state)
     // $21.2.5.13 RegExp.prototype.test
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->test),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
     // $21.2.5.14 RegExp.prototype.toString
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinRegExpToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $B.2.5.1 RegExp.prototype.compile
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->compile),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compile, builtinRegExpCompile, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // $21.2.5.9 RegExp.prototype[@@search]
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSearch, builtinRegExpSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -623,6 +673,10 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpReplaceMethod = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolReplace, builtinRegExpReplace, 2, NativeFunctionInfo::Strict));
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().replace),
                                                         ObjectPropertyDescriptor(m_regexpReplaceMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // $21.2.5.6 RegExp.prototype[@@match]
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolMatch, builtinRegExpMatch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

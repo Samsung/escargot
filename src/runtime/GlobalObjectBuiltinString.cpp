@@ -176,35 +176,27 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
 
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, match);
+    if (thisValue.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), "%s: called on undefined or null");
+    }
+
     Value argument = argv[0];
-    RegExpObject* regexp;
-    if (argument.isPointerValue() && argument.asPointerValue()->isRegExpObject()) {
-        regexp = argument.asPointerValue()->asRegExpObject();
-    } else {
-        regexp = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
+    RegExpObject* rx;
+    Value matcher;
+
+    if (!argument.isUndefinedOrNull()) {
+        Value matcher = argument.toObject(state)->getMethod(state, argument, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match));
+        if (!matcher.isUndefined()) {
+            return Object::call(state, matcher, argument, 1, &thisValue);
+        }
     }
 
-    bool isGlobal = regexp->option() & RegExpObject::Option::Global;
-    if (isGlobal) {
-        regexp->setLastIndex(state, Value(0));
-    }
+    String* S = thisValue.toString(state);
 
-    RegexMatchResult result;
-    bool testResult = regexp->matchNonGlobally(state, str, result, false, 0);
-    if (!testResult) {
-        if (isGlobal)
-            regexp->setLastIndex(state, Value(0));
-        return Value(Value::Null);
-    }
-
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
-    // if global flag is on, match method returns an Array containing all matched substrings
-    if (isGlobal) {
-        return regexp->createMatchedArray(state, str, result);
-    } else {
-        return regexp->createRegExpMatchedArray(state, result, str);
-    }
+    rx = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
+    Value match = rx->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
+    Value parameter[1] = { Value(S) };
+    return Object::call(state, match, rx, 1, parameter);
 }
 
 #if defined(ENABLE_ICU)
@@ -884,7 +876,8 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
-    if (searchString.isObject() && searchString.asObject()->isRegExpObject()) {
+
+    if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with startsWith");
     }
     // Let searchStr be ? ToString(searchString).
@@ -927,7 +920,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
-    if (searchString.isObject() && searchString.asObject()->isRegExpObject()) {
+    if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with endsWith");
     }
     // Let len be the number of elements in S.

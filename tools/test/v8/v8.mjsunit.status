@@ -650,7 +650,6 @@
   'es6/reflect' : [SKIP],
   'es6/reflect-prevent-extensions' : [SKIP],
   'es6/regexp-constructor' : [SKIP],
-  'es6/regexp-sticky' : [SKIP],
   'es6/regexp-tolength' : [SKIP],
   'es6/regexp-tostring' : [SKIP],
   'es6/rest-params' : [SKIP],
@@ -659,7 +658,6 @@
   'es6/string-endswith' : [SKIP],
   'es6/string-fromcodepoint' : [SKIP],
   'es6/string-includes' : [SKIP],
-  'es6/string-match' : [SKIP],
   'es6/string-startswith' : [SKIP],
   'es6/super' : [SKIP],
   'es6/symbols' : [SKIP],
@@ -841,6 +839,9 @@
   'regress/regress-crbug-352586': [SKIP],
   'regress/regress-crbug-422858': [SKIP],
   'regress/regress-v8-5009': [SKIP],
+  # v8 specific test parameters failing on escargot
+  'regress/regress-670671' : [SKIP],
+  'regress/regress-672041' : [SKIP],
 
   # splice optimize
   'regress/regress-599414-array-concat-fast-path': [SKIP],

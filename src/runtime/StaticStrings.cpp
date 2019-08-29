@@ -95,6 +95,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(symbolSearch, "[Symbol.search]");
     INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
     INIT_STATIC_STRING(symbolReplace, "[Symbol.replace]");
+    INIT_STATIC_STRING(symbolMatch, "[Symbol.match]");
     INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
     INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
 

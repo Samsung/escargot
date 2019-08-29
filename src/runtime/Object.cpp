@@ -1558,4 +1558,13 @@ String* Object::optionString(ExecutionState& state)
 
     return new ASCIIString(flags);
 }
+
+bool Object::isRegExp(ExecutionState& state)
+{
+    Value symbol = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match)).value(state, this);
+    if (!symbol.isUndefined()) {
+        return symbol.toBoolean(state);
+    }
+    return isRegExpObject();
+}
 }
