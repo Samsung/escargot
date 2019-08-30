@@ -44,11 +44,8 @@
 #include "parser/CodeBlock.h"
 #include "parser/Lexer.h"
 
-#include "wtfbridge.h"
-
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
 
-using namespace JSC::Yarr;
 using namespace Escargot::EscargotLexer;
 
 namespace Escargot {

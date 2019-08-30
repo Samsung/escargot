@@ -86,6 +86,14 @@ public:
         }
     }
 
+    Vector(std::initializer_list<T> list)
+    {
+        reserve(list.size());
+        for (auto& i : list) {
+            push_back(i);
+        }
+    }
+
     const Vector<T, Allocator, glowFactor>& operator=(const Vector<T, Allocator, glowFactor>& other)
     {
         if (&other == this)
@@ -253,6 +261,9 @@ public:
         return m_buffer[m_size - 1];
     }
 
+    using iterator = T*;
+    constexpr iterator begin() const { return m_buffer; }
+    constexpr iterator end() const { return m_buffer + m_size; }
     void clear()
     {
         if (m_buffer) {

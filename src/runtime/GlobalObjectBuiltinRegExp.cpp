@@ -129,6 +129,10 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
         }
     }
 
+    if (lastIndex < 0) {
+        lastIndex = 0;
+    }
+
     RegexMatchResult result;
     bool testResult = regexp->match(state, str, result, true, lastIndex);
     return Value(testResult);
@@ -501,6 +505,25 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }
 
+class RegExpObjectPrototype : public RegExpObject {
+public:
+    RegExpObjectPrototype(ExecutionState& state)
+        : RegExpObject(state, false)
+    {
+    }
+
+    virtual bool isRegExpPrototypeObject() const override
+    {
+        return true;
+    }
+
+    virtual const char* internalClassProperty() override
+    {
+        return "Object";
+    }
+};
+
+
 void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new GlobalRegExpFunctionObject(state);
@@ -518,6 +541,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpPrototype = new RegExpObjectPrototype(state);
     m_regexpPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_regexpPrototype->setPrototype(state, m_objectPrototype);
+    m_regexpPrototype->deleteOwnProperty(state, state.context()->staticStrings().lastIndex);
 
     {
         Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getFlags, builtinRegExpFlagsGetter, 0, NativeFunctionInfo::Strict));

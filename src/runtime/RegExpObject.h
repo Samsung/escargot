@@ -42,17 +42,16 @@ struct RegexMatchResult {
 };
 
 class RegExpObject : public Object {
-    void initRegExpObject(ExecutionState& state);
+    void initRegExpObject(ExecutionState& state, bool hasLastIndex = true);
 
 public:
     enum Option {
-        None = 1,
-        Global = 1 << 1,
-        IgnoreCase = 1 << 2,
-        MultiLine = 1 << 3,
-        // NOTE(ES6): Sticky and Unicode option is added in ES6
-        Sticky = 1 << 4,
-        Unicode = 1 << 5,
+        None = 0,
+        Global = 1,
+        IgnoreCase = 2,
+        MultiLine = 4,
+        Sticky = 8,
+        Unicode = 16,
     };
 
     struct RegExpCacheKey {
@@ -85,7 +84,7 @@ public:
         JSC::Yarr::BytecodePattern* m_bytecodePattern;
     };
 
-    explicit RegExpObject(ExecutionState& state);
+    explicit RegExpObject(ExecutionState& state, bool hasLastIndex = true);
     RegExpObject(ExecutionState& state, String* source, String* option);
     RegExpObject(ExecutionState& state, String* source, unsigned int option);
 
@@ -171,24 +170,6 @@ private:
 
     SmallValue m_lastIndex;
     const String* m_lastExecutedString;
-};
-
-class RegExpObjectPrototype : public RegExpObject {
-public:
-    RegExpObjectPrototype(ExecutionState& state)
-        : RegExpObject(state)
-    {
-    }
-
-    virtual bool isRegExpPrototypeObject() const override
-    {
-        return true;
-    }
-
-    virtual const char* internalClassProperty() override
-    {
-        return "Object";
-    }
 };
 
 typedef std::unordered_map<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,

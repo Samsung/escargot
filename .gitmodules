@@ -14,10 +14,6 @@
     path = third_party/rapidjson
     url = https://github.com/Samsung/rapidjson.git
     ignore = untracked
-[submodule "third_party/yarr"]
-    path = third_party/yarr
-    url = https://github.com/Samsung/yarr.git
-    ignore = untracked
 [submodule "third_party/windows/icu"]
     path = third_party/windows/icu
     url = https://github.com/Samsung/icu.git

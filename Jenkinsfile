@@ -47,7 +47,6 @@ timeout(60) {
                 sh 'git submodule init third_party/checked_arithmetic'
                 sh 'git submodule init third_party/double_conversion'
                 sh 'git submodule init third_party/rapidjson'
-                sh 'git submodule init third_party/yarr'
                 sh 'git submodule update'
             }
 

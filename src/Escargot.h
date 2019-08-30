@@ -203,6 +203,10 @@ typedef int32_t UChar32;
             }                                                       \
         }                                                           \
     }
+#define U16_LENGTH(c) ((uint32_t)(c) <= 0xffff ? 1 : 2)
+#define U_IS_BMP(c) ((uint32_t)(c) <= 0xffff)
+#define UCHAR_MAX_VALUE 0x10ffff
+
 #define u_tolower tolower
 #define u_toupper toupper
 #ifndef TRUE
@@ -349,8 +353,8 @@ typedef uint16_t LexicalBlockIndex;
 #include "heap/Heap.h"
 #include "CheckedArithmetic.h"
 #include "runtime/String.h"
-
-#include "wtfbridge.h"
-using namespace JSC::Yarr;
+#include "util/Util.h"
+#include "util/SmartPtr.h"
+#include "util/Optional.h"
 
 #endif

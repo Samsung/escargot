@@ -23,6 +23,8 @@
 #include "ArrayObject.h"
 
 #include "Yarr.h"
+#include "YarrPattern.h"
+#include "YarrInterpreter.h"
 
 namespace Escargot {
 
@@ -36,7 +38,7 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
-    initRegExpObject(state);
+    initRegExpObject(state, true);
     init(state, source, option);
 }
 
@@ -50,12 +52,12 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, unsigned int o
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
-    initRegExpObject(state);
+    initRegExpObject(state, true);
     initWithOption(state, source, (Option)option);
 }
 
-RegExpObject::RegExpObject(ExecutionState& state)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
+RegExpObject::RegExpObject(ExecutionState& state, bool hasLastIndex)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4), true)
     , m_source(NULL)
     , m_optionString(NULL)
     , m_option(None)
@@ -64,16 +66,23 @@ RegExpObject::RegExpObject(ExecutionState& state)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
 {
-    initRegExpObject(state);
+    initRegExpObject(state, hasLastIndex);
     init(state, String::emptyString, String::emptyString);
 }
 
-void RegExpObject::initRegExpObject(ExecutionState& state)
+void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
 {
-    for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
-        m_values[i] = Value();
-    m_structure = state.context()->defaultStructureForRegExpObject();
-    setPrototype(state, state.context()->globalObject()->regexpPrototype());
+    if (hasLastIndex) {
+        for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
+            m_values[i] = Value();
+        m_structure = state.context()->defaultStructureForRegExpObject();
+        setPrototype(state, state.context()->globalObject()->regexpPrototype());
+    } else {
+        for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4; i++)
+            m_values[i] = Value();
+        m_structure = state.context()->defaultStructureForObject();
+        setPrototype(state, state.context()->globalObject()->regexpPrototype());
+    }
 }
 
 void* RegExpObject::operator new(size_t size)
@@ -164,7 +173,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source)
             m_source = previousSource;
         }
 
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid source");
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_yarrError);
     }
 
     m_yarrPattern = entry.m_yarrPattern;
@@ -270,7 +279,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         const char* yarrError = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
         try {
-            yarrPattern = new (PointerFreeGC) JSC::Yarr::YarrPattern(*source, option & Option::IgnoreCase, option & Option::MultiLine, &yarrError);
+            yarrPattern = new (PointerFreeGC) JSC::Yarr::YarrPattern(*source, (JSC::Yarr::RegExpFlags)option, &yarrError);
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "got too complicated RegExp pattern to process");
         }
@@ -306,8 +315,8 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             m_bytecodePattern = entry.m_bytecodePattern;
         } else {
             WTF::BumpPointerAllocator* bumpAlloc = state.context()->bumpPointerAllocator();
-            JSC::Yarr::OwnPtr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc);
-            m_bytecodePattern = ownedBytecode.leakPtr();
+            std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc);
+            m_bytecodePattern = ownedBytecode.release();
             entry.m_bytecodePattern = m_bytecodePattern;
         }
     }
