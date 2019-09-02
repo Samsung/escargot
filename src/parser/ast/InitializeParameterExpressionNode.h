@@ -21,7 +21,7 @@
 #define InitializeParameterExpressionNode_h
 
 #include "IdentifierNode.h"
-#include "PatternNode.h"
+
 
 namespace Escargot {
 
@@ -46,28 +46,27 @@ public:
         // ignore LexicalBlockIndex during parameter initialization
         auto oldLexicalBlockIndex = context->m_lexicalBlockIndex;
         context->m_lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
-        if (m_left->isPattern()) {
-            size_t rightRegister = context->getRegister();
-            Node* pattern = m_left->asPattern(rightRegister);
-            codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this);
-            (pattern)->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            context->giveUpRegister();
-            context->m_lexicalBlockIndex = oldLexicalBlockIndex;
-            return;
-        }
 
-        ASSERT(m_left->isIdentifier());
-
-        auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
-        if (std::get<0>(r)) {
-            codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), std::get<1>(r), m_paramIndex), context, this);
+        if (m_left->isIdentifier()) {
+            auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
+            if (std::get<0>(r)) {
+                codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), std::get<1>(r), m_paramIndex), context, this);
+            } else {
+                size_t rightRegister = context->getRegister();
+                m_left->generateResolveAddressByteCode(codeBlock, context);
+                codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this);
+                m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
+                context->giveUpRegister();
+            }
         } else {
+            // pattern or default paremter cases
             size_t rightRegister = context->getRegister();
             m_left->generateResolveAddressByteCode(codeBlock, context);
             codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this);
             m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
             context->giveUpRegister();
         }
+
         context->m_lexicalBlockIndex = oldLexicalBlockIndex;
     }
 

@@ -94,7 +94,6 @@
 #include "Node.h"
 #include "ObjectExpressionNode.h"
 #include "ObjectPatternNode.h"
-#include "PatternNode.h"
 #include "ProgramNode.h"
 #include "RegExpLiteralNode.h"
 #include "RegisterReferenceNode.h"

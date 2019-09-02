@@ -22,7 +22,6 @@
 
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
-#include "PatternNode.h"
 #include "ArrayPatternNode.h"
 #include "MemberExpressionNode.h"
 
@@ -63,12 +62,12 @@ public:
     static bool hasSlowAssignmentOperation(Node* left, Node* right)
     {
         std::vector<AtomicString> leftNames;
-        left->iterateChildrenIdentifier([&leftNames](AtomicString name, bool isAssgnment) {
+        left->iterateChildrenIdentifier([&leftNames](AtomicString name, bool isAssignment) {
             leftNames.push_back(name);
         });
 
         bool isSlowMode = false;
-        right->iterateChildrenIdentifier([&leftNames, &isSlowMode](AtomicString name, bool isAssgnment) {
+        right->iterateChildrenIdentifier([&leftNames, &isSlowMode](AtomicString name, bool isAssignment) {
             for (size_t i = 0; i < leftNames.size(); i++) {
                 if (leftNames[i] == name) {
                     isSlowMode = true;
@@ -81,12 +80,6 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        if (m_left->isPattern()) {
-            Node* pattern = m_left.get()->asPattern(m_right);
-            pattern->generateExpressionByteCode(codeBlock, context, dstRegister);
-            return;
-        }
-
         bool isSlowMode = hasSlowAssignmentOperation(m_left.get(), m_right.get());
 
         bool isBase = context->m_registerStack->size() == 0;
@@ -109,12 +102,6 @@ public:
 
     static void generateResultNotRequiredAssignmentByteCode(Node* self, Node* left, Node* right, ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (left->isPattern()) {
-            Node* pattern = left->asPattern(right);
-            (pattern)->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            return;
-        }
-
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         context->m_isLexicallyDeclaredBindingInitialization = false;
 
@@ -179,6 +166,36 @@ public:
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         generateResultNotRequiredAssignmentByteCode(this, m_left.get(), m_right.get(), codeBlock, context);
+    }
+
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
+        size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
+        undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
+
+        size_t cmpIndex = context->getRegister();
+        codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this);
+
+        context->giveUpRegister(); // for drop undefinedIndex
+
+        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
+        size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
+        context->giveUpRegister(); // for drop cmpIndex
+
+        // not undefined case, set srcRegister
+        m_left->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+        codeBlock->pushCode<Jump>(Jump(ByteCodeLOC(m_loc.index)), context, this);
+        size_t pos2 = codeBlock->lastCodePosition<Jump>();
+
+        // undefined case, set default node
+        codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
+        size_t rightIndex = m_right->getRegister(codeBlock, context);
+        m_right->generateExpressionByteCode(codeBlock, context, rightIndex);
+        m_left->generateStoreByteCode(codeBlock, context, rightIndex, needToReferenceSelf);
+        context->giveUpRegister(); // for drop rightIndex
+
+        codeBlock->peekCode<Jump>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)

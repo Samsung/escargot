@@ -22,7 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "MemberExpressionNode.h"
-#include "PatternNode.h"
+
 #include "SuperExpressionNode.h"
 
 namespace Escargot {

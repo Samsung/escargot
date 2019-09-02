@@ -61,7 +61,6 @@ enum ASTNodeType {
     WithStatement,
     Declaration,
     VariableDeclaration,
-    Pattern,
     Expression,
     ThisExpression,
     ExpressionStatement,
@@ -216,8 +215,6 @@ class AssignmentPatternNode;
 class IdentifierNode;
 class ArrayExpressionNode;
 class AssignmentExpressionSimpleNode;
-class ArrayPatternNode;
-class PatternNode;
 class PropertyNode;
 class MemberExpressionNode;
 class ObjectExpressionNode;
@@ -236,26 +233,6 @@ public:
     }
 
     virtual ASTNodeType type() = 0;
-
-    virtual bool isPattern()
-    {
-        return false;
-    }
-
-    virtual PatternNode *asPattern(RefPtr<Node> init)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    virtual PatternNode *asPattern(size_t initIdx)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    virtual PatternNode *asPattern()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
 
     inline void *operator new(size_t size)
     {
@@ -307,17 +284,6 @@ public:
     {
         ASSERT(isAssignmentPattern());
         return (AssignmentPatternNode *)this;
-    }
-
-    bool isArrayPattern()
-    {
-        return type() == ASTNodeType::ArrayPattern;
-    }
-
-    ArrayPatternNode *asArrayPattern()
-    {
-        ASSERT(isArrayPattern());
-        return (ArrayPatternNode *)this;
     }
 
     bool isArrayExpression()
@@ -447,10 +413,6 @@ public:
     }
 
     NodeLOC m_loc;
-};
-
-class Pattern {
-public:
 };
 
 class ASTFunctionScopeContextNameInfo {
