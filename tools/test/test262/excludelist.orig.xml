@@ -66,13 +66,6 @@
   <test id="S15.7.4.4_A1_T01"><reason>Test is wrong. accessing primitive value on Number.prototype doesn't throw any error</reason></test>
   <test id="S15.7.4.4_A1_T02"><reason>Test is wrong. accessing primitive value on Number.prototype doesn't throw any error</reason></test>
 
-  <test id="return-true-target-property-is-not-configurable"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
-  <test id="call-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
-  <test id="return-false-target-not-extensible-using-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
-  <test id="return-false-target-prop-exists-using-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
-  <test id="return-false-targetdesc-not-configurable-using-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
-  <test id="return-is-abrupt-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
-  <test id="trap-is-not-callable-using-with"><reason>TODO: Need to implement GetValue(V) and GetBindingValue(N,S)</reason></test>
   <test id="10.6-13-a-2"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
   <test id="10.6-13-a-3"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
 
