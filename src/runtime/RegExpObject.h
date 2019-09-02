@@ -133,7 +133,7 @@ public:
     void setLastIndex(ExecutionState& state, const Value& v);
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
-    virtual bool isRegExpObject(ExecutionState& state);
+    virtual bool isRegExpObject();
 
     void createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result);
     ArrayObject* createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result);
