@@ -226,9 +226,10 @@ public:
 
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
-        auto result = m_bindingObject->get(state, ObjectPropertyName(name));
-        if (result.hasValue()) {
-            return GetBindingValueResult(result.value(state, m_bindingObject));
+        ObjectPropertyName propertyName(name);
+        auto result = m_bindingObject->hasProperty(state, propertyName);
+        if (result) {
+            return GetBindingValueResult(result.value(state, propertyName, m_bindingObject));
         } else {
             return GetBindingValueResult();
         }
@@ -236,8 +237,8 @@ public:
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
     {
-        auto result = m_bindingObject->get(state, ObjectPropertyName(atomicName));
-        if (result.hasValue()) {
+        auto result = m_bindingObject->hasProperty(state, ObjectPropertyName(atomicName));
+        if (result) {
             return BindingSlot(this, SIZE_MAX - 1, false);
         } else {
             return BindingSlot(this, SIZE_MAX, false);
