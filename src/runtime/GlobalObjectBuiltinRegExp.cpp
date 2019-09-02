@@ -401,7 +401,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         }
         size_t n = 1;
         StringVector captures;
-        Value* replacerArgs;
+        Value* replacerArgs = nullptr;
         if (functionalReplace) {
             replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value, state);
             replacerArgs[0] = matched;
