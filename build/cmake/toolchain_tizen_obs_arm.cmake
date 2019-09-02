@@ -29,5 +29,5 @@ SET (ESCARGOT_LDFLAGS -lpthread -lrt -Wl,--gc-sections)
 SET (ESCARGOT_LIBRARIES)
 SET (ESCARGOT_INCDIRS)
 
-SET (GC_CFLAGS_ARCH "-march=armv7-a -mthumb -finline-limit=64")
+SET (GC_CFLAGS_ARCH -march=armv7-a -mthumb -finline-limit=64)
 SET (GC_LDFLAGS_ARCH)
