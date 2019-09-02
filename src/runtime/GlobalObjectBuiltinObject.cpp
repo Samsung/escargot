@@ -324,11 +324,9 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
 static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Object.getOwnPropertyDescriptor ( O, P )
-    // If Type(O) is not Object throw a TypeError exception.
-    if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyDescriptor.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
-    }
-    Object* O = argv[0].asObject();
+
+    // Let obj be ToObject(O).
+    Object* O = argv[0].toObject(state);
 
     // Let name be ToString(P).
     Value name = argv[1];
@@ -381,10 +379,7 @@ static ArrayObject* getOwnPropertyKeys(ExecutionState& state, Value o, GetOwnPro
 static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertynames
-    if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().getOwnPropertyNames.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
-    }
-    Object* O = argv[0].asObject();
+    Object* O = argv[0].toObject(state);
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::String);
 }
 

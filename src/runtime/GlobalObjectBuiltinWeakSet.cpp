@@ -76,9 +76,15 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
         Value nextValue = iteratorValue(state, next);
 
         // Let status be Call(adder, set, « nextValue.[[Value]] »).
-        // TODO If status is an abrupt completion, return ? IteratorClose(iter, status).
-        Value argv[1] = { nextValue };
-        Object::call(state, adder, set, 1, argv);
+        try {
+            Value argv[1] = { nextValue };
+            Object::call(state, adder, set, 1, argv);
+        } catch (const Value& v) {
+            // we should save thrown value bdwgc cannot track thrown value
+            Value exceptionValue = v;
+            // If status is an abrupt completion, return ? IteratorClose(iter, status).
+            iteratorClose(state, iter, exceptionValue, true);
+        }
     }
     return set;
 }

@@ -1190,6 +1190,8 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     std::string number;
     number.reserve(32);
 
+    bool seenDotOrE = false;
+
     if (ch != '.') {
         number = this->peekChar();
         ++this->index;
@@ -1226,6 +1228,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     }
 
     if (ch == '.') {
+        seenDotOrE = true;
         number += this->peekChar();
         ++this->index;
         while (isDecimalDigit(this->peekChar())) {
@@ -1236,6 +1239,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     }
 
     if (ch == 'e' || ch == 'E') {
+        seenDotOrE = true;
         number += this->peekChar();
         ++this->index;
 
@@ -1271,7 +1275,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     double ll = converter.StringToDouble(number.data(), length, &length_dummy);
 
     token->setResult(this, Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index);
-    if (startChar == '0' && length >= 2 && ll >= 1) {
+    if (startChar == '0' && !seenDotOrE && number.length() > 1) {
         token->startWithZero = true;
     }
 }
@@ -1480,6 +1484,10 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
     result->tail = tail;
     result->raw = new StringView(this->source, start, this->index - rawOffset);
     result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
+
+    if (head) {
+        start--;
+    }
 
     token->setResult(this, Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index);
 }

@@ -479,7 +479,7 @@ void GlobalObject::installMath(ExecutionState& state)
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().hypot, builtinMathHypot, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // initialize math object: $20.2.2.19 Math.imul()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().imul),
-                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().imul, builtinMathIMul, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().imul, builtinMathIMul, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // initialize math object: $20.2.2.20 Math.log()
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().log),
