@@ -838,21 +838,25 @@ ValueVector Object::ownPropertyKeys(ExecutionState& state)
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
 ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
-    Object* temp = this;
-    auto desc = this->getOwnProperty(state, propertyName);
+    Object* iter = this;
+
     while (true) {
-        if (!desc.hasValue()) {
-            Object* parent = temp->getPrototypeObject(state);
-            if (!parent) {
-                return ObjectGetResult();
-            }
-            desc = parent->getOwnProperty(state, propertyName);
-            temp = parent;
-        } else {
+        ObjectGetResult desc = iter->getOwnProperty(state, propertyName);
+        if (desc.hasValue()) {
+            return desc;
+        }
+
+        iter = iter->getPrototypeObject(state);
+
+        if (iter == nullptr) {
             break;
         }
+
+        if (UNLIKELY(iter->isProxyObject())) {
+            return iter->get(state, propertyName);
+        }
     }
-    return desc;
+    return ObjectGetResult();
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver

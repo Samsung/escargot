@@ -282,6 +282,19 @@ public:
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty() override;
 
+    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
+    {
+        uint64_t index = P.tryToUseAsIndex();
+        if (LIKELY(Value::InvalidIndexValue != index)) {
+            if ((unsigned)index < arrayLength()) {
+                unsigned idxPosition = index * typedArrayElementSize;
+                return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
+            }
+            return ObjectHasPropertyResult();
+        }
+        return ArrayBufferView::hasProperty(state, P);
+    }
+
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
         uint64_t index = P.tryToUseAsIndex();
