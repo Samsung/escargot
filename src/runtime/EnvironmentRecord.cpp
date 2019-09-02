@@ -104,8 +104,14 @@ void GlobalEnvironmentRecord::setMutableBindingByBindingSlot(ExecutionState& sta
 {
     ASSERT(slot.m_index != SIZE_MAX);
     if (slot.m_index != SIZE_MAX - 1) {
+        // TDZ check
         if (UNLIKELY(m_globalDeclarativeStorage->at(slot.m_index).isEmpty())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+        }
+
+        // Storing to const variable check
+        if (UNLIKELY(!m_globalDeclarativeRecord->at(slot.m_index).m_isMutable)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, name);
         }
         m_globalDeclarativeStorage->at(slot.m_index) = V;
         return;
@@ -227,9 +233,12 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
 
 void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
 {
+    // TDZ check
     if (UNLIKELY(m_heapStorage[slot.m_index].isEmpty())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
     }
+
+    // Storing to const variable check
     if (UNLIKELY(!m_recordVector[slot.m_index].m_isMutable)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, name);
     }
@@ -257,6 +266,7 @@ FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnviron
 template <bool canBindThisValue, bool hasNewTarget>
 void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
 {
+    // Storing to const variable check only (TDZ check is already done by bytecode generation)
     const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
     if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
         if (state.inStrictMode()) {
@@ -339,6 +349,7 @@ void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::setMut
 template <bool canBindThisValue, bool hasNewTarget>
 void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
 {
+    // Storing to const variable check only (TDZ check is already done by bytecode generation)
     if (UNLIKELY(!m_recordVector[slot.m_index].m_isMutable)) {
         if (state.inStrictMode())
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, name);
