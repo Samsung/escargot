@@ -151,10 +151,11 @@ static String* icuLocaleToBCP47Tag(String* string)
     return sb.finalize();
 }
 
-static const char* const intlCollatorRelevantExtensionKeys[2] = { "co", "kn" };
-static const int intlCollatorRelevantExtensionKeysLength = 2;
+static const char* const intlCollatorRelevantExtensionKeys[3] = { "co", "kn", "kf" };
+static const int intlCollatorRelevantExtensionKeysLength = 3;
 static const size_t indexOfExtensionKeyCo = 0;
 static const size_t indexOfExtensionKeyKn = 1;
+static const size_t indexOfExtensionKeyKf = 2;
 
 typedef std::vector<std::string> (*LocaleDataImplFunction)(String* locale, size_t keyIndex);
 
@@ -198,6 +199,11 @@ static std::vector<std::string> sortLocaleData(String* locale, size_t keyIndex)
         keyLocaleData.push_back(std::string("false"));
         keyLocaleData.push_back(std::string("true"));
         break;
+    case indexOfExtensionKeyKf:
+        keyLocaleData.push_back(std::string("false"));
+        keyLocaleData.push_back(std::string("lower"));
+        keyLocaleData.push_back(std::string("upper"));
+        break;
     default:
         ASSERT_NOT_REACHED();
     }
@@ -216,6 +222,11 @@ static std::vector<std::string> searchLocaleData(String* locale, size_t keyIndex
     case indexOfExtensionKeyKn:
         keyLocaleData.push_back(std::string("false"));
         keyLocaleData.push_back(std::string("true"));
+        break;
+    case indexOfExtensionKeyKf:
+        keyLocaleData.push_back(std::string("false"));
+        keyLocaleData.push_back(std::string("lower"));
+        keyLocaleData.push_back(std::string("upper"));
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -830,7 +841,6 @@ static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, gc_
 
     // Let foundLocale be the value of r.[[locale]].
     String* foundLocale = r.locale;
-
     std::vector<std::string> extensionSubtags;
     if (r.extension->length()) {
         // Let extension be the value of r.[[extension]].
@@ -890,8 +900,9 @@ static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, gc_
 
                     bool contains = false;
                     for (size_t k = 0; k < keyLocaleData.size(); k++) {
-                        if (keyLocaleData[i] == requestedValue) {
+                        if (keyLocaleData[k] == requestedValue) {
                             contains = true;
+                            break;
                         }
                     }
                     if (contains) {
@@ -937,9 +948,9 @@ static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, gc_
     // If the length of supportedExtension is greater than 2, then
     if (supportedExtension->length() > 2) {
         // Let preExtension be the substring of foundLocale from position 0, inclusive, to position extensionIndex, exclusive.
-        String* preExtension = foundLocale->substring(0, r.extensionIndex);
+        String* preExtension = supportedExtension->substring(0, r.extensionIndex);
         // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
-        String* postExtension = foundLocale->substring(r.extensionIndex, foundLocale->length());
+        String* postExtension = supportedExtension->substring(r.extensionIndex, supportedExtension->length());
         // Let foundLocale be the concatenation of preExtension, supportedExtension, and postExtension.
         StringBuilder sb;
         sb.appendString(preExtension);
@@ -960,7 +971,7 @@ struct CollatorResolvedOptions {
     String* collation;
     bool numeric;
     bool ignorePunctuation;
-    bool caseFirst;
+    String* caseFirst;
 };
 
 static CollatorResolvedOptions collatorResolvedOptions(ExecutionState& state, Object* internalSlot)
@@ -972,7 +983,7 @@ static CollatorResolvedOptions collatorResolvedOptions(ExecutionState& state, Ob
     opt.collation = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("collation"))).value(state, internalSlot).toString(state);
     opt.numeric = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("numeric"))).value(state, internalSlot).toBoolean(state);
     opt.ignorePunctuation = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation"))).value(state, internalSlot).toBoolean(state);
-    opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("caseFirst"))).value(state, internalSlot).toBoolean(state);
+    opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("caseFirst"))).value(state, internalSlot).toString(state);
     return opt;
 }
 
@@ -1089,7 +1100,7 @@ static void initializeCollator(ExecutionState& state, Object* collator, Value lo
             // Let value be the value of r.[[co]].
             auto iter = r->find(String::fromASCII("co"));
             // If value is null, then let value be "default".
-            if (r->end() == iter) {
+            if (r->end() == iter || iter->second->equals("")) {
                 value = String::fromASCII("default");
             } else {
                 value = iter->second;
@@ -1119,7 +1130,7 @@ static void initializeCollator(ExecutionState& state, Object* collator, Value lo
             // Let property be the name given in the Property column of the row.
             property = "caseFirst";
             // Let value be the value of r.[[<key>]].
-            value = r->at(String::fromASCII("string"));
+            value = r->at(String::fromASCII("kf"));
             // If the name given in the Type column of the row is "boolean",
             // then let value be the result of comparing value with "true".
         } else {
@@ -1223,6 +1234,7 @@ static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisVal
     if (isNewExpression) {
         // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.3.1
         obj = new Object(state);
+        obj->setPrototype(state, state.context()->globalObject()->intlCollator()->getFunctionPrototype(state));
         Value locales, options;
         // If locales is not provided, then let locales be undefined.
         // If options is not provided, then let options be undefined.
