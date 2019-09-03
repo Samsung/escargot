@@ -44,6 +44,7 @@ extern const char* errorMessage_UndefinedToObject;
 extern const char* errorMessage_NOT_Callable;
 extern const char* errorMessage_Not_Constructor;
 extern const char* errorMessage_Not_Constructor_Function;
+extern const char* errorMessage_Can_Not_Be_Destructed;
 extern const char* errorMessage_Constructor_Return_Undefined;
 extern const char* errorMessage_Get_FromUndefined;
 extern const char* errorMessage_Get_FromNull;

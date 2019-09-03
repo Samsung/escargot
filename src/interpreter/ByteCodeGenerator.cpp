@@ -488,6 +488,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case BindingRestElementOpcode: {
                 BindingRestElement* cd = (BindingRestElement*)currentCode;
                 assignStackIndexIfNeeded(cd->m_iterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case WithOperationOpcode: {

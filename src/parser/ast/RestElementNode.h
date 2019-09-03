@@ -49,13 +49,16 @@ public:
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
         m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, needToReferenceSelf);
+        context->giveUpRegister();
     }
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(CreateRestElement(ByteCodeLOC(m_loc.index), restElementRegister), context, this);
+        m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, false);
+        context->giveUpRegister();
     }
 
 protected:

@@ -884,7 +884,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             ArrayDefineOwnPropertyOperation* code = (ArrayDefineOwnPropertyOperation*)programCounter;
             ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
             if (LIKELY(arr->isFastModeArray())) {
-                size_t end = code->m_count + code->m_baseIndex;
                 for (size_t i = 0; i < code->m_count; i++) {
                     if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
                         arr->m_fastModeData[i + code->m_baseIndex] = registerFile[code->m_loadRegisterIndexs[i]];

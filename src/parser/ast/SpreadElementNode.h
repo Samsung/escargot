@@ -28,7 +28,7 @@ class SpreadElementNode : public ExpressionNode {
 public:
     explicit SpreadElementNode(Node* arg)
         : ExpressionNode()
-        , m_arg(arg)
+        , m_argument(arg)
     {
     }
 
@@ -43,14 +43,24 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t spreadIndex = m_arg->getRegister(codeBlock, context);
-        m_arg->generateExpressionByteCode(codeBlock, context, spreadIndex);
+        size_t spreadIndex = m_argument->getRegister(codeBlock, context);
+        m_argument->generateExpressionByteCode(codeBlock, context, spreadIndex);
         codeBlock->pushCode(CreateSpreadObject(ByteCodeLOC(m_loc.index), dstRegister, spreadIndex), context, this);
         context->giveUpRegister();
     }
 
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    {
+        // srcRegister indicates iteratorRegister
+        size_t restElementRegister = m_argument->getRegister(codeBlock, context);
+        codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
+        m_argument->generateResolveAddressByteCode(codeBlock, context);
+        m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, needToReferenceSelf);
+        context->giveUpRegister();
+    }
+
 private:
-    RefPtr<Node> m_arg;
+    RefPtr<Node> m_argument;
 };
 }
 

@@ -39,6 +39,7 @@ const char* errorMessage_UndefinedToObject = "cannot convert undefined into obje
 const char* errorMessage_NOT_Callable = "Callee is not a function object";
 const char* errorMessage_Not_Constructor = "Callee is not a constructor";
 const char* errorMessage_Not_Constructor_Function = "%s is not a constructor";
+const char* errorMessage_Can_Not_Be_Destructed = "Right side of assignment cannot be destructured";
 const char* errorMessage_Constructor_Return_Undefined = "constructor returns undefined";
 const char* errorMessage_Get_FromUndefined = "Cannot get property '%s' of undefined";
 const char* errorMessage_Get_FromNull = "Cannot get property '%s' of null";
