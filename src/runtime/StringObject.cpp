@@ -48,6 +48,18 @@ void* StringObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+{
+    Value::ValueIndex idx = P.tryToUseAsIndex();
+    if (idx != Value::InvalidIndexValue) {
+        size_t strLen = m_primitiveValue->length();
+        if (LIKELY(idx < strLen)) {
+            return ObjectHasPropertyResult(ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false));
+        }
+    }
+    return Object::hasProperty(state, P);
+}
+
 
 ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {

@@ -155,6 +155,16 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
     }
 }
 
+ObjectHasPropertyResult ArgumentsObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
+{
+    uint64_t index = P.tryToUseAsIndex();
+    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
+        return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true));
+    }
+
+    return Object::hasProperty(state, P);
+}
+
 ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     uint64_t index = P.tryToUseAsIndex();

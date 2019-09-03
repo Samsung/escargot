@@ -55,6 +55,17 @@ ArrayObject::ArrayObject(ExecutionState& state, double length)
                                                                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
 }
 
+ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+{
+    ObjectGetResult v = getFastModeValue(state, P);
+    if (LIKELY(v.hasValue())) {
+        return ObjectHasPropertyResult(v);
+    }
+
+    return Object::hasProperty(state, P);
+}
+
+
 ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     ObjectGetResult v = getFastModeValue(state, P);
