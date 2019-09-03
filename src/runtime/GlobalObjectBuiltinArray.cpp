@@ -77,7 +77,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_InvalidArrayLength); \
     }
 
-static Value arraySpeciesCreate(ExecutionState& state, Object* originalArray, const size_t length)
+static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, const size_t length)
 {
     ASSERT(originalArray != nullptr);
     // Assert: length is an integer Number >= 0.
@@ -470,10 +470,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     // If len+insertCount−actualDeleteCount > 2^53-1, throw a TypeError exception.
     CHECK_ARRAY_LENGTH(len + insertCount - actualDeleteCount > Value::maximumLength());
     // Let A be ArraySpeciesCreate(O, actualDeleteCount).
-    Value val = arraySpeciesCreate(state, O, actualDeleteCount);
-    ASSERT(val.isObject());
-    ASSERT(val.asObject()->isArrayObject());
-    ArrayObject* A = val.asObject()->asArrayObject();
+    Object* A = arraySpeciesCreate(state, O, actualDeleteCount);
 
     // Let k be 0.
     int64_t k = 0;
@@ -488,8 +485,8 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         if (fromValue) {
             // Call the [[DefineOwnProperty]] internal method of A with arguments ToString(k), Property Descriptor {[[Value]]: fromValue, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
             ObjectPropertyName from(state, Value(actualStart + k));
-            A->ArrayObject::defineOwnPropertyThrowsException(state, ObjectPropertyName(state, k),
-                                                             ObjectPropertyDescriptor(fromValue.value(state, from, O), ObjectPropertyDescriptor::AllPresent));
+            A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, k),
+                                                ObjectPropertyDescriptor(fromValue.value(state, from, O), ObjectPropertyDescriptor::AllPresent));
             // Increment k by 1.
             k++;
         } else {
@@ -611,7 +608,7 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
-    Object* obj = arraySpeciesCreate(state, thisObject, 0).asObject();
+    Object* obj = arraySpeciesCreate(state, thisObject, 0);
     int64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
         Value argi = (i == 0) ? thisObject : argv[i - 1];
@@ -674,13 +671,12 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     int64_t n = 0;
     // Let count be max(final - k, 0).
     // Let A be ArraySpeciesCreate(O, count).
-    Value val = arraySpeciesCreate(state, thisObject, std::max(((int64_t)finalEnd - (int64_t)k), (int64_t)0));
-    ArrayObject* array = val.asObject()->asArrayObject();
+    Object* ArrayObject = arraySpeciesCreate(state, thisObject, std::max(((int64_t)finalEnd - (int64_t)k), (int64_t)0));
     while (k < finalEnd) {
         ObjectHasPropertyResult exists = thisObject->hasIndexedProperty(state, Value(k));
         if (exists) {
-            array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)),
-                                                    ObjectPropertyDescriptor(exists.value(state, ObjectPropertyName(state, k), thisObject), ObjectPropertyDescriptor::AllPresent));
+            ArrayObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(n)),
+                                                          ObjectPropertyDescriptor(exists.value(state, ObjectPropertyName(state, k), thisObject), ObjectPropertyDescriptor::AllPresent));
             k++;
             n++;
         } else {
@@ -694,8 +690,8 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
             k = tmp;
         }
     }
-    array->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), array);
-    return array;
+    ArrayObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), Value(ArrayObject));
+    return ArrayObject;
 }
 
 static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -969,10 +965,7 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
         T = argv[1];
 
     // Let A be ArraySpeciesCreate(O, 0).
-    Value val = arraySpeciesCreate(state, O, 0);
-    ASSERT(val.isObject());
-    ASSERT(val.asObject()->isArrayObject());
-    ArrayObject* A = val.asObject()->asArrayObject();
+    Object* A = arraySpeciesCreate(state, O, 0);
 
     // Let k be 0.
     int64_t k = 0;
@@ -1034,10 +1027,7 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
         T = argv[1];
 
     // Let A be ArraySpeciesCreate(O, len).
-    Value val = arraySpeciesCreate(state, O, len);
-    ASSERT(val.isObject());
-    ASSERT(val.asObject()->isArrayObject());
-    ArrayObject* A = val.asObject()->asArrayObject();
+    Object* A = arraySpeciesCreate(state, O, len);
 
     // Let k be 0.
     int64_t k = 0;
