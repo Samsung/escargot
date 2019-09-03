@@ -1330,7 +1330,6 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(LeftSquareBracket);
-        //bool hasRestElement = false;
         ExpressionNodeVector elements;
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
@@ -1339,7 +1338,6 @@ public:
             } else {
                 if (this->match(PeriodPeriodPeriod)) {
                     elements.push_back(this->parseBindingRestElement(params, kind, isExplicitVariableDeclaration));
-                    //hasRestElement = true;
                     break;
                 } else {
                     elements.push_back(this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration));
@@ -1358,7 +1356,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T propertyPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
+    T propertyPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
 
@@ -1376,9 +1374,9 @@ public:
             *keyToken = this->lookahead;
 
             if (isParse) {
-                keyNode = this->parseVariableIdentifier(kind);
+                keyNode = this->parseVariableIdentifier();
             } else {
-                key = this->scanVariableIdentifier(kind);
+                key = this->scanVariableIdentifier();
             }
 
             if (this->match(Substitution)) {
@@ -1400,13 +1398,16 @@ public:
                 }
                 shorthand = true;
                 valueNode = keyNode;
+                if (isExplicitVariableDeclaration) {
+                    ASSERT(kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword);
+                    addDeclaredNameIntoContext(valueNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
+                }
             } else {
                 this->expect(Colon);
-                // don't passing kind here to stop name tracking
                 if (isParse) {
-                    valueNode = this->parsePatternWithDefault(params /*, kind*/);
+                    valueNode = this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration);
                 } else {
-                    this->parsePatternWithDefault(params /*, kind*/);
+                    this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration);
                 }
             }
         } else {
@@ -1417,11 +1418,10 @@ public:
                 this->scanObjectPropertyKey();
             }
             this->expect(Colon);
-            // don't passing kind here to stop name tracking
             if (isParse) {
-                valueNode = this->parsePatternWithDefault(params /*, kind*/);
+                valueNode = this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration);
             } else {
-                this->parsePatternWithDefault(params /*, kind*/);
+                this->parsePatternWithDefault(params, kind, isExplicitVariableDeclaration);
             }
         }
 
@@ -1432,7 +1432,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T objectPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd)
+    T objectPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
         PropertiesNodeVector properties;
@@ -1441,9 +1441,9 @@ public:
 
         while (!this->match(RightBrace)) {
             if (isParse) {
-                properties.push_back(this->propertyPattern<ParseAs(PropertyNode)>(params, kind));
+                properties.push_back(this->propertyPattern<ParseAs(PropertyNode)>(params, kind, isExplicitVariableDeclaration));
             } else {
-                this->propertyPattern<Scan>(params, kind);
+                this->propertyPattern<Scan>(params, kind, isExplicitVariableDeclaration);
             }
 
             if (!this->match(RightBrace)) {
@@ -1464,16 +1464,16 @@ public:
     {
         if (this->match(LeftSquareBracket)) {
             if (isParse) {
-                return T(this->arrayPattern<ParseAs(ArrayPatternNode)>(params, kind));
+                return T(this->arrayPattern<ParseAs(ArrayPatternNode)>(params, kind, isExplicitVariableDeclaration));
             } else {
-                return this->arrayPattern<Scan>(params, kind);
+                return this->arrayPattern<Scan>(params, kind, isExplicitVariableDeclaration);
             }
 
         } else if (this->match(LeftBrace)) {
             if (isParse) {
-                return T(this->objectPattern<ParseAs(ObjectPatternNode)>(params, kind));
+                return T(this->objectPattern<ParseAs(ObjectPatternNode)>(params, kind, isExplicitVariableDeclaration));
             } else {
-                return this->objectPattern<Scan>(params, kind);
+                return this->objectPattern<Scan>(params, kind, isExplicitVariableDeclaration);
             }
         } else {
             if (this->matchKeyword(LetKeyword) && (kind == ConstKeyword || kind == LetKeyword)) {

@@ -36,9 +36,12 @@ public:
     virtual ASTNodeType type() { return ASTNodeType::ObjectPattern; }
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
+        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         for (size_t i = 0; i < m_properties.size(); i++) {
+            context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             m_properties[i]->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
         }
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
     }
 
     // FIXME implement iterateChildrenIdentifier in PropertyNode itself

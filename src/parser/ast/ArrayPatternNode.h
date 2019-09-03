@@ -37,6 +37,7 @@ public:
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
         // store each element by iterator
+        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         bool hasRestElement = false;
         size_t elementsSize = m_elements.size();
         if (m_elements[elementsSize - 1] && m_elements[elementsSize - 1]->type() == RestElement) {
@@ -50,18 +51,23 @@ public:
         for (size_t i = 0; i < m_elements.size() - 1; i++) {
             codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
             if (m_elements[i]) {
+                context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                 m_elements[i]->generateResolveAddressByteCode(codeBlock, context);
                 m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
             }
         }
 
         if (hasRestElement) {
+            context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             m_elements[elementsSize - 1]->generateStoreByteCode(codeBlock, context, iteratorIndex, true);
         } else if (m_elements[elementsSize - 1]) {
             codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
+            context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             m_elements[elementsSize - 1]->generateResolveAddressByteCode(codeBlock, context);
             m_elements[elementsSize - 1]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
         }
+
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
         context->giveUpRegister(); // drop the iteratorValueIndex register
         context->giveUpRegister(); // drop the iteratorIndex register
     }

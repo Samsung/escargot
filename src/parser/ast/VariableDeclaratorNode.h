@@ -57,13 +57,12 @@ public:
 
         if (m_init) {
             context->getRegister();
+            context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
             if (m_id->isIdentifier() && !m_id->asIdentifier()->name().string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
                 RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
                 assign->m_loc = m_loc;
-                context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
                 assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
                 assign->giveupChildren();
                 assign.release().leakRef(); // leak reference for prevent calling operator delete by ~RefPtr
             } else {
@@ -72,6 +71,7 @@ public:
                 m_id->generateStoreByteCode(codeBlock, context, r, false);
                 context->giveUpRegister();
             }
+            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             context->giveUpRegister();
         }
 

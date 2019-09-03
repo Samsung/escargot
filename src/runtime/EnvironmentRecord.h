@@ -434,6 +434,7 @@ public:
 
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
     {
+        // TDZ check only (every indexed const variables are checked on bytecode generation time)
         if (UNLIKELY(m_heapStorage[slot.m_index].isEmpty())) {
             throwReferenceError(state, slot.m_index);
         }
