@@ -1974,7 +1974,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
             return;
         }
 
-        auto result = orgObject->get(state, ObjectPropertyName(state, name));
+        auto result = orgObject->Object::getOwnProperty(state, ObjectPropertyName(state, name));
         if (!result.hasValue() || !result.isDataProperty()) {
             inlineCache.invalidateCache();
             return;

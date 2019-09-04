@@ -604,7 +604,6 @@
   ## 1. ES6 spec
   #'es6/*': [SKIP],
   'es6/regress/regress-2156': [SKIP],
-  'es6/regress/regress-2225': [SKIP],
   'es6/regress/regress-2322': [SKIP],
   'es6/regress/regress-2681': [SKIP],
   'es6/regress/regress-347906': [SKIP],
