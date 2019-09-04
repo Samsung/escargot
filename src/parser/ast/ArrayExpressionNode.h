@@ -89,35 +89,6 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
-    {
-        // store each element by iterator
-        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-
-        size_t iteratorIndex = context->getRegister();
-        size_t iteratorValueIndex = context->getRegister();
-
-        codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), srcRegister, iteratorIndex), context, this);
-
-        for (size_t i = 0; i < m_elements.size(); i++) {
-            if (m_elements[i]) {
-                if (LIKELY(m_elements[i]->type() != SpreadElement)) {
-                    codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
-                    m_elements[i]->generateResolveAddressByteCode(codeBlock, context);
-                    m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
-                } else {
-                    ASSERT(i == m_elements.size() - 1);
-                    m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorIndex, false);
-                }
-            } else {
-                codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
-            }
-        }
-
-        context->giveUpRegister(); // for drop iteratorValueIndex
-        context->giveUpRegister(); // for drop iteratorIndex
-    }
-
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_elements.size(); i++) {

@@ -59,7 +59,7 @@ public:
                 context->giveUpRegister();
             }
         } else {
-            // pattern or default paremter cases
+            // pattern or default parameter cases
             size_t rightRegister = context->getRegister();
             m_left->generateResolveAddressByteCode(codeBlock, context);
             codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this);

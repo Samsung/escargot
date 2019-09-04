@@ -1275,48 +1275,35 @@ public:
     {
         MetaNode node = this->createNode();
 
-        this->nextToken();
-        if (this->match(LeftBrace)) {
-            this->throwError(Messages::ObjectPatternAsRestParameter);
-        }
-        params.push_back(this->lookahead);
-
-        RefPtr<IdentifierNode> param = this->parseVariableIdentifier();
-        if (this->match(Equal)) {
+        this->expect(PeriodPeriodPeriod);
+        RefPtr<Node> arg = this->pattern<Parse>(params);
+        if (this->match(Substitution)) {
             this->throwError(Messages::DefaultRestParameter);
         }
         if (!this->match(RightParenthesis)) {
             this->throwError(Messages::ParameterAfterRestParameter);
         }
-
-        return this->finalize(node, new RestElementNode(param.get()));
+        return this->finalize(node, new RestElementNode(arg.get()));
     }
 
     ScanExpressionResult scanRestElement(ScannerResultVector& params)
     {
-        this->nextToken();
-        if (this->match(LeftBrace)) {
-            this->throwError(Messages::ObjectPatternAsRestParameter);
-        }
-        params.push_back(this->lookahead);
-
-        ScanExpressionResult param = this->scanVariableIdentifier();
-        if (this->match(Equal)) {
+        this->expect(PeriodPeriodPeriod);
+        ScanExpressionResult arg = this->pattern<Scan>(params);
+        if (this->match(Substitution)) {
             this->throwError(Messages::DefaultRestParameter);
         }
         if (!this->match(RightParenthesis)) {
             this->throwError(Messages::ParameterAfterRestParameter);
         }
-
-        return ScanExpressionResult(ASTNodeType::Identifier, param.string());
+        return ScanExpressionResult(ASTNodeType::RestElement);
     }
 
     PassRefPtr<RestElementNode> parseBindingRestElement(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
         this->expect(PeriodPeriodPeriod);
-        params.push_back(this->lookahead);
-        RefPtr<IdentifierNode> arg = this->parseVariableIdentifier(kind);
+        RefPtr<Node> arg = this->pattern<Parse>(params, kind, isExplicitVariableDeclaration);
         return this->finalize(node, new RestElementNode(arg.get()));
     }
 
@@ -1514,13 +1501,9 @@ public:
         *token = this->lookahead;
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
             param = this->parseRestElement(params);
-            this->validateParam(options, &params.back(), ((RestElementNode*)param.get())->argument()->name());
-            options.params.push_back(param);
-            trackUsingNames = true;
-            return false;
+        } else {
+            param = this->parsePatternWithDefault(params);
         }
-
-        param = this->parsePatternWithDefault(params);
         for (size_t i = 0; i < params.size(); i++) {
             AtomicString as(this->escargotContext, params[i].relatedSource());
             this->validateParam(options, &params[i], as);
@@ -2146,54 +2129,74 @@ public:
         }
     }
 
-
-    // FIXME
-    void reinterpretExpressionAsPattern(Node* expr, ASTNodeType parent = ASTNodeTypeError)
+    RefPtr<Node> reinterpretExpressionAsPattern(Node* expr)
     {
+        RefPtr<Node> result = expr;
         switch (expr->type()) {
+        case Identifier:
+        case MemberExpression:
+        case RestElement:
+        case AssignmentPattern:
+            break;
+        case SpreadElement: {
+            SpreadElementNode* spread = (SpreadElementNode*)expr;
+            RefPtr<Node> arg = this->reinterpretExpressionAsPattern(spread->argument());
+            result = adoptRef(new RestElementNode(arg.get(), spread->m_loc));
+            break;
+        }
         case ArrayExpression: {
             ArrayExpressionNode* array = expr->asArrayExpression();
             ExpressionNodeVector& elements = array->elements();
             for (size_t i = 0; i < elements.size(); i++) {
                 if (elements[i] != nullptr) {
-                    this->reinterpretExpressionAsPattern(elements[i].get(), ArrayPattern);
+                    elements[i] = this->reinterpretExpressionAsPattern(elements[i].get());
                 }
             }
+            result = adoptRef(new ArrayPatternNode(std::move(elements), array->m_loc));
             break;
         }
         case ObjectExpression: {
             ObjectExpressionNode* object = expr->asObjectExpression();
             PropertiesNodeVector& properties = object->properties();
             for (size_t i = 0; i < properties.size(); i++) {
-                if (properties[i] != nullptr) {
-                    this->reinterpretExpressionAsPattern(properties[i].get(), ObjectPattern);
-                }
+                ASSERT(properties[i]->type() == Property);
+                RefPtr<Node> value = this->reinterpretExpressionAsPattern(properties[i]->asProperty()->value());
+                properties[i]->asProperty()->setValue(value.get());
             }
+            result = adoptRef(new ObjectPatternNode(std::move(properties), object->m_loc));
             break;
         }
         case AssignmentExpressionSimple: {
             AssignmentExpressionSimpleNode* assign = expr->asAssignmentExpressionSimple();
-            this->reinterpretExpressionAsPattern(assign->left());
+            RefPtr<Node> left = this->reinterpretExpressionAsPattern(assign->left());
+            result = adoptRef(new AssignmentPatternNode(left.get(), assign->right(), assign->m_loc));
             break;
         }
         default:
-            if (!expr->isValidAssignmentTarget()) {
-                if (parent == ObjectPattern && expr->type() != Property) {
-                    this->throwError("Invalid destructuring assignment target");
-                }
-            }
             break;
         }
+        return result;
     }
 
-    void scanReinterpretExpressionAsPattern(ScanExpressionResult expr)
+    void scanReinterpretExpressionAsPattern(ScanExpressionResult& expr)
     {
         switch (expr) {
+        case Identifier:
+        case MemberExpression:
+        case RestElement:
+        case AssignmentPattern:
+            break;
+        case SpreadElement:
+            expr.setNodeType(ASTNodeType::RestElement);
+            break;
         case ArrayExpression:
             expr.setNodeType(ASTNodeType::ArrayPattern);
             break;
         case ObjectExpression:
             expr.setNodeType(ASTNodeType::ObjectPattern);
+            break;
+        case AssignmentExpressionSimple:
+            expr.setNodeType(ASTNodeType::AssignmentPattern);
             break;
         default:
             break;
@@ -2259,7 +2262,18 @@ public:
                         }
                         this->nextToken();
 
-                        if (this->match(PeriodPeriodPeriod)) {
+                        if (this->match(RightParenthesis)) {
+                            this->nextToken();
+                            for (size_t i = 0; i < expressions.size(); i++) {
+                                expressions[i] = this->reinterpretExpressionAsPattern(expressions[i].get());
+                            }
+                            arrow = true;
+                            if (isParse) {
+                                exprNode = adoptRef(new ArrowParameterPlaceHolderNode(std::move(expressions)));
+                            } else {
+                                expr.setNodeType(ASTNodeType::ArrowParameterPlaceHolder);
+                            }
+                        } else if (this->match(PeriodPeriodPeriod)) {
                             if (!this->context->isBindingElement) {
                                 this->throwUnexpectedToken(&this->lookahead);
                             }
@@ -2274,7 +2288,7 @@ public:
                             }
                             this->context->isBindingElement = false;
                             for (size_t i = 0; i < expressions.size(); i++) {
-                                this->reinterpretExpressionAsPattern(expressions[i].get());
+                                expressions[i] = this->reinterpretExpressionAsPattern(expressions[i].get());
                             }
                             arrow = true;
                             if (isParse) {
@@ -2323,12 +2337,12 @@ public:
 
                             if (isParse) {
                                 if (exprNode->type() == SequenceExpression) {
-                                    const ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
+                                    ExpressionNodeVector& expressions = ((SequenceExpressionNode*)exprNode.get())->expressions();
                                     for (size_t i = 0; i < expressions.size(); i++) {
-                                        this->reinterpretExpressionAsPattern(expressions[i].get());
+                                        expressions[i] = this->reinterpretExpressionAsPattern(expressions[i].get());
                                     }
                                 } else {
-                                    this->reinterpretExpressionAsPattern(exprNode.get());
+                                    exprNode = this->reinterpretExpressionAsPattern(exprNode.get());
                                 }
                             } else {
                                 if (expr != ASTNodeType::SequenceExpression) {
@@ -3626,17 +3640,19 @@ public:
                     if (!this->match(Substitution)) {
                         this->context->isAssignmentTarget = false;
                         this->context->isBindingElement = false;
-                    } else if (isParse) {
-                        this->reinterpretExpressionAsPattern(exprNode.get());
-
-                        if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                        }
                     } else {
-                        this->scanReinterpretExpressionAsPattern(expr);
+                        if (isParse) {
+                            exprNode = this->reinterpretExpressionAsPattern(exprNode.get());
 
-                        if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
-                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                            if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
+                                this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                            }
+                        } else {
+                            this->scanReinterpretExpressionAsPattern(expr);
+
+                            if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
+                                this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                            }
                         }
                     }
 
@@ -4544,8 +4560,7 @@ public:
 
                 if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
                     RefPtr<VariableDeclaratorNode> decl = declarations[0];
-                    // if (decl->init() && (decl.id.type === Syntax.ArrayPattern || decl.id.type === Syntax.ObjectPattern || this->context->strict)) {
-                    if (decl->init() && (decl->id()->type() == ArrayExpression || decl->id()->type() == ObjectExpression || this->context->strict)) {
+                    if (decl->init() && (decl->id()->type() == ArrayPattern || decl->id()->type() == ObjectPattern || this->context->strict)) {
                         this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
                     if (isParse) {
@@ -4627,7 +4642,7 @@ public:
                     }
 
                     this->nextToken();
-                    this->reinterpretExpressionAsPattern(init.get());
+                    init = this->reinterpretExpressionAsPattern(init.get());
                     left = init;
                     init = nullptr;
                     type = statementTypeForIn;
@@ -4637,7 +4652,7 @@ public:
                     }
 
                     this->nextToken();
-                    this->reinterpretExpressionAsPattern(init.get());
+                    init = this->reinterpretExpressionAsPattern(init.get());
                     left = init;
                     init = nullptr;
                     type = statementTypeForOf;
