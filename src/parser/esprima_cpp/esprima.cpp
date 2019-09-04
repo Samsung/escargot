@@ -613,7 +613,7 @@ public:
             } else if (token->type == Token::EOFToken) {
                 msg = Messages::UnexpectedEOS;
             }
-            value = (token->type == Token::TemplateToken) ? token->valueTemplate->raw : new StringView(token->relatedSource());
+            value = (token->type == Token::TemplateToken) ? (String*)new UTF16String(std::move(token->valueTemplate->valueRaw)) : (String*)new StringView(token->relatedSource());
         } else {
             value = new ASCIIString("ILLEGAL");
         }
@@ -1127,10 +1127,9 @@ public:
         }
         case Token::TemplateToken:
             if (isParse) {
-                return T(this->parseTemplateLiteral());
+                return T(this->templateLiteral<Parse>());
             }
-            this->parseTemplateLiteral();
-            return ScanExpressionResult(ASTNodeType::TemplateLiteral);
+            return this->templateLiteral<Scan>();
 
         case Token::PunctuatorToken: {
             PunctuatorKind value = this->lookahead.valuePunctuatorKind;
@@ -2069,9 +2068,19 @@ public:
         MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
-        tm->raw = token->valueTemplate->raw;
+        tm->valueRaw = token->valueTemplate->valueRaw;
         tm->tail = token->valueTemplate->tail;
         return tm;
+    }
+
+    bool scanTemplateHead()
+    {
+        ASSERT(this->lookahead.type == Token::TemplateToken);
+
+        ALLOC_TOKEN(token);
+        this->nextToken(token);
+
+        return token->valueTemplate->tail;
     }
 
     TemplateElement* parseTemplateElement()
@@ -2088,26 +2097,51 @@ public:
         MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
-        tm->raw = token->valueTemplate->raw;
+        tm->valueRaw = token->valueTemplate->valueRaw;
         tm->tail = token->valueTemplate->tail;
         return tm;
     }
 
-    PassRefPtr<Node> parseTemplateLiteral()
+    bool scanTemplateElement()
+    {
+        if (!this->match(PunctuatorKind::RightBrace)) {
+            this->throwUnexpectedToken(&this->lookahead);
+        }
+
+        // Re-scan the current token (right brace) as a template string.
+        this->scanner->scanTemplate(&this->lookahead);
+
+        ALLOC_TOKEN(token);
+        this->nextToken(token);
+        return token->valueTemplate->tail;
+    }
+
+    template <typename T, bool isParse>
+    T templateLiteral()
     {
         MetaNode node = this->createNode();
 
-        ExpressionNodeVector expressions;
-        TemplateElementVector* quasis = new (GC) TemplateElementVector;
-        quasis->push_back(this->parseTemplateHead());
-        while (!quasis->back()->tail) {
-            expressions.push_back(this->expression<Parse>());
-            TemplateElement* quasi = this->parseTemplateElement();
-            quasis->push_back(quasi);
-        }
+        if (isParse) {
+            ExpressionNodeVector expressions;
+            TemplateElementVector* quasis = new (GC) TemplateElementVector;
+            quasis->push_back(this->parseTemplateHead());
+            while (!quasis->back()->tail) {
+                expressions.push_back(this->expression<Parse>());
+                TemplateElement* quasi = this->parseTemplateElement();
+                quasis->push_back(quasi);
+            }
+            return T(this->finalize(node, new TemplateLiteralNode(quasis, std::move(expressions))));
+        } else {
+            bool isTail = this->scanTemplateHead();
+            while (!isTail) {
+                this->expression<Scan>();
+                isTail = this->scanTemplateElement();
+            }
 
-        return this->finalize(node, new TemplateLiteralNode(quasis, std::move(expressions)));
+            return ScanExpressionResult(ASTNodeType::TemplateLiteral);
+        }
     }
+
 
     // FIXME
     void reinterpretExpressionAsPattern(Node* expr, ASTNodeType parent = ASTNodeTypeError)
@@ -2536,11 +2570,11 @@ public:
                     break;
                 }
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
-                RefPtr<Node> quasi = this->parseTemplateLiteral();
-                // Note: exprNode is nullptr for Scan
-                exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
-                if (!isParse) {
-                    expr.setNodeType(exprNode->type());
+                if (isParse) {
+                    RefPtr<Node> quasi = this->templateLiteral<Parse>();
+                    exprNode = this->convertTaggedTempleateExpressionToCallExpression(this->startNode(startToken), this->finalize(this->startNode(startToken), new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
+                } else {
+                    expr = this->templateLiteral<Scan>();
                 }
             } else {
                 break;
@@ -2638,11 +2672,11 @@ public:
                 }
                 this->trackUsingNames = trackUsingNamesBefore;
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
-                RefPtr<Node> quasi = this->parseTemplateLiteral();
-                // Note: exprNode is nullptr for Scan
-                exprNode = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())).get());
-                if (!isParse) {
-                    expr.setNodeType(exprNode->type());
+                if (isParse) {
+                    RefPtr<Node> quasi = this->templateLiteral<Parse>();
+                    exprNode = this->convertTaggedTempleateExpressionToCallExpression(node, this->finalize(node, new TaggedTemplateExpressionNode(exprNode.get(), quasi.get())));
+                } else {
+                    expr = this->templateLiteral<Scan>();
                 }
             } else {
                 break;
@@ -2670,7 +2704,8 @@ public:
         {
             ExpressionNodeVector elements;
             for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
-                String* str = (*templateLiteral->quasis())[i]->raw;
+                UTF16StringData& sd = (*templateLiteral->quasis())[i]->valueRaw;
+                String* str = new UTF16String(std::move(sd));
                 elements.push_back(this->finalize(node, new LiteralNode(Value(str))));
             }
             arrayExpressionForRaw = this->finalize(node, new ArrayExpressionNode(std::move(elements)));
@@ -2683,6 +2718,7 @@ public:
         }
         return this->finalize(node, new CallExpressionNode(taggedTemplateExpression->expr(), std::move(args)));
     }
+
 
     // ECMA-262 12.4 Update Expressions
 

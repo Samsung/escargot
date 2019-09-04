@@ -195,7 +195,7 @@ struct ScanTemplateResult {
     void* operator new[](size_t size) = delete;
 
     UTF16StringData valueCooked;
-    StringView* raw;
+    UTF16StringData valueRaw;
     bool head;
     bool tail;
 };
