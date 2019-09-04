@@ -990,6 +990,7 @@ static CollatorResolvedOptions collatorResolvedOptions(ExecutionState& state, Ob
 // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.1.1
 static void initializeCollator(ExecutionState& state, Object* collator, Value locales, Value options)
 {
+    collator->setPrototype(state, state.context()->globalObject()->intlCollator()->getFunctionPrototype(state));
     // If collator has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, PropertyName(state, initializedIntlObject)))) {
@@ -1234,7 +1235,6 @@ static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisVal
     if (isNewExpression) {
         // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.3.1
         obj = new Object(state);
-        obj->setPrototype(state, state.context()->globalObject()->intlCollator()->getFunctionPrototype(state));
         Value locales, options;
         // If locales is not provided, then let locales be undefined.
         // If options is not provided, then let options be undefined.
@@ -1575,6 +1575,7 @@ static String* canonicalizeTimeZoneName(String* timeZoneName)
 
 static void initializeDateTimeFormat(ExecutionState& state, Object* dateTimeFormat, Value locales, Value options)
 {
+    dateTimeFormat->setPrototype(state, state.context()->globalObject()->intlDateTimeFormat()->getFunctionPrototype(state));
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, PropertyName(state, initializedIntlObject)))) {
@@ -2177,7 +2178,7 @@ static double getNumberOption(ExecutionState& state, Object* options, String* pr
         // Let value be ToNumber(value).
         double doubleValue = value.toNumber(state);
         // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
-        if (std::isnan(doubleValue) || doubleValue < minimum || maximum > doubleValue) {
+        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Got invalid number option value");
         }
         // Return floor(value).
@@ -2190,6 +2191,7 @@ static double getNumberOption(ExecutionState& state, Object* options, String* pr
 
 static void initializeNumberFormat(ExecutionState& state, Object* numberFormat, Value locales, Value options)
 {
+    numberFormat->setPrototype(state, state.context()->globalObject()->intlNumberFormat()->getFunctionPrototype(state));
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (numberFormat->hasInternalSlot() && numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, PropertyName(state, initializedIntlObject)))) {
@@ -2500,7 +2502,7 @@ static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thi
         // where Intl.Collator is the standard built-in constructor defined in 10.1.3.
         if (thisValue.isUndefined() || (thisValue.isObject() && thisValue.asObject() == state.context()->globalObject()->intl())) {
             Value callArgv[] = { locales, options };
-            return builtinIntlCollatorConstructor(state, new Object(state), 2, callArgv, true);
+            return builtinIntlNumberFormatConstructor(state, new Object(state), 2, callArgv, true);
         } else {
             // Let obj be the result of calling ToObject passing the this value as the argument.
             obj = thisValue.toObject(state);
