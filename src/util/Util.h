@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2016-present Samsung Electronics Co., Ltd
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ *  USA
+ */
+
 #ifndef __EscargotUtil__
 #define __EscargotUtil__
 
@@ -34,7 +53,7 @@ uint64_t timestamp(); // increase 1000 by 1 second
 
 class ProfilerTimer {
 public:
-    explicit ProfilerTimer(const char *msg)
+    explicit ProfilerTimer(const char* msg)
         : m_start(longTickCount())
         , m_msg(msg)
     {
@@ -43,12 +62,12 @@ public:
 
 private:
     uint64_t m_start;
-    const char *m_msg;
+    const char* m_msg;
 };
 
 class LongTaskFinder {
 public:
-    LongTaskFinder(const char *msg, size_t loggingTimeInMS)
+    LongTaskFinder(const char* msg, size_t loggingTimeInMS)
         : m_loggingTime(loggingTimeInMS)
         , m_start(longTickCount())
         , m_msg(msg)
@@ -59,7 +78,7 @@ public:
 private:
     size_t m_loggingTime;
     uint64_t m_start;
-    const char *m_msg;
+    const char* m_msg;
 };
 }
 
@@ -113,10 +132,10 @@ namespace detail {
 
 template <typename T>
 JS_ALWAYS_INLINE void
-CopyNonEmptyArray(T *dst, const T *src, size_t nelems)
+CopyNonEmptyArray(T* dst, const T* src, size_t nelems)
 {
     JS_ASSERT(nelems != 0);
-    const T *end = src + nelems;
+    const T* end = src + nelems;
     do {
         *dst++ = *src++;
     } while (src != end);
@@ -125,20 +144,20 @@ CopyNonEmptyArray(T *dst, const T *src, size_t nelems)
 /* Helper function for MergeSort. */
 template <typename T, typename Comparator>
 JS_ALWAYS_INLINE bool
-MergeArrayRuns(T *dst, const T *src, size_t run1, size_t run2, Comparator c)
+MergeArrayRuns(T* dst, const T* src, size_t run1, size_t run2, Comparator c)
 {
     JS_ASSERT(run1 >= 1);
     JS_ASSERT(run2 >= 1);
 
     /* Copy runs already in sorted order. */
-    const T *b = src + run1;
+    const T* b = src + run1;
     bool lessOrEqual;
     if (!c(b[-1], b[0], &lessOrEqual))
         return false;
 
     if (!lessOrEqual) {
         /* Runs are not already sorted, merge them. */
-        for (const T *a = src;;) {
+        for (const T* a = src;;) {
             if (!c(*a, *b, &lessOrEqual))
                 return false;
             if (lessOrEqual) {
@@ -176,7 +195,7 @@ MergeArrayRuns(T *dst, const T *src, size_t run1, size_t run2, Comparator c)
  * arbitrary.
  */
 template <typename T, typename Comparator>
-bool mergeSort(T *array, size_t nelems, T *scratch, Comparator c)
+bool mergeSort(T* array, size_t nelems, T* scratch, Comparator c)
 {
     const size_t INS_SORT_LIMIT = 3;
 
@@ -206,8 +225,8 @@ bool mergeSort(T *array, size_t nelems, T *scratch, Comparator c)
             }
         }
     }
-    T *vec1 = array;
-    T *vec2 = scratch;
+    T* vec1 = array;
+    T* vec2 = scratch;
     for (size_t run = INS_SORT_LIMIT; run < nelems; run *= 2) {
         for (size_t lo = 0; lo < nelems; lo += 2 * run) {
             size_t hi = lo + run;
@@ -219,7 +238,7 @@ bool mergeSort(T *array, size_t nelems, T *scratch, Comparator c)
             if (!detail::MergeArrayRuns(vec2 + lo, vec1 + lo, run, run2, c))
                 return false;
         }
-        T *swap = vec1;
+        T* swap = vec1;
         vec1 = vec2;
         vec2 = swap;
     }

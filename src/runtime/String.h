@@ -54,12 +54,12 @@ ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t len);
 ASCIIStringData dtoa(double number);
 size_t utf32ToUtf8(char32_t uc, char* UTF8);
 // these functions only care ascii range(0~127)
-bool islower(char16_t ch);
-bool isupper(char16_t ch);
-char16_t tolower(char16_t ch);
-char16_t toupper(char16_t ch);
-bool isspace(char16_t ch);
-bool isdigit(char16_t ch);
+bool islower(char32_t ch);
+bool isupper(char32_t ch);
+char32_t tolower(char32_t ch);
+char32_t toupper(char32_t ch);
+bool isspace(char32_t ch);
+bool isdigit(char32_t ch);
 
 class ASCIIString;
 class Latin1String;
@@ -288,6 +288,16 @@ public:
     bool is8Bit() const
     {
         return has8BitContent();
+    }
+
+    template <typename Any>
+    const Any* characters() const
+    {
+        if (is8Bit()) {
+            return (Any*)characters8();
+        } else {
+            return (Any*)characters16();
+        }
     }
 
     virtual const LChar* characters8() const
