@@ -2468,7 +2468,7 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     ScriptClassConstructorFunctionObject* constructor;
 
     if (code->m_codeBlock) {
-        constructor = new ScriptClassConstructorFunctionObject(state, code->m_codeBlock, state.lexicalEnvironment(), proto);
+        constructor = new ScriptClassConstructorFunctionObject(state, code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto);
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
