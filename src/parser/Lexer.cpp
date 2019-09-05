@@ -1380,17 +1380,16 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
     ASSERT(token != nullptr);
     // TODO apply rope-string
     UTF16StringDataNonGCStd cooked;
+    UTF16StringDataNonGCStd raw;
     bool terminated = false;
     size_t start = this->index;
 
     bool tail = false;
-    size_t rawOffset = 2;
 
     while (!this->eof()) {
         char16_t ch = this->peekChar();
         ++this->index;
         if (ch == '`') {
-            rawOffset = 1;
             tail = true;
             terminated = true;
             break;
@@ -1401,10 +1400,13 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                 break;
             }
             cooked += ch;
+            raw += ch;
         } else if (ch == '\\') {
+            raw += ch;
             ch = this->peekChar();
-            ++this->index;
             if (!isLineTerminator(ch)) {
+                auto currentIndex = this->index;
+                ++this->index;
                 switch (ch) {
                 case 'n':
                     cooked += '\n';
@@ -1456,22 +1458,31 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                     }
                     break;
                 }
+                auto endIndex = this->index;
+                for (size_t i = currentIndex; i < endIndex; i++) {
+                    raw += this->source.bufferedCharAt(i);
+                }
             } else {
+                ++this->index;
                 ++this->lineNumber;
                 if (ch == '\r' && this->peekChar() == '\n') {
                     ++this->index;
                 }
+                raw += '\n';
                 this->lineStart = this->index;
             }
         } else if (isLineTerminator(ch)) {
             ++this->lineNumber;
+            raw += ch;
             if (ch == '\r' && this->peekChar() == '\n') {
+                raw += this->peekChar();
                 ++this->index;
             }
             this->lineStart = this->index;
             cooked += '\n';
         } else {
             cooked += ch;
+            raw += ch;
         }
     }
 
@@ -1482,7 +1493,7 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
     ScanTemplateResult* result = new ScanTemplateResult();
     result->head = head;
     result->tail = tail;
-    result->raw = new StringView(this->source, start, this->index - rawOffset);
+    result->valueRaw = UTF16StringData(raw.data(), raw.length());
     result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
 
     if (head) {
