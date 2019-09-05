@@ -50,6 +50,7 @@
 #include "ArrayObject.h"
 #include "VMInstance.h"
 #include "NativeFunctionObject.h"
+#include "DateObject.h"
 
 namespace Escargot {
 
@@ -714,6 +715,8 @@ static Value supportedLocales(ExecutionState& state, const Vector<String*, gc_al
 
     // For each named own property name P of subset,
     ArrayObject* result = new ArrayObject(state);
+
+    result->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(Value(subset.size()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     for (size_t i = 0; i < subset.size(); i++) {
         String* P = subset[i].toString(state);
         // Let desc be the result of calling the [[GetOwnProperty]] internal method of subset with P.
@@ -1188,6 +1191,8 @@ static void initializeCollator(ExecutionState& state, Object* collator, Value lo
 
         UColAttributeValue strength = UCOL_PRIMARY;
         UColAttributeValue caseLevel = UCOL_OFF;
+        UColAttributeValue caseFirst = UCOL_OFF;
+
         String* sensitivity = opt.sensitivity;
         if (sensitivity->equals("accent")) {
             strength = UCOL_SECONDARY;
@@ -1199,8 +1204,16 @@ static void initializeCollator(ExecutionState& state, Object* collator, Value lo
             ASSERT_NOT_REACHED();
         }
 
+        String* caseFirstString = opt.caseFirst;
+        if (caseFirstString->equals("upper")) {
+            caseFirst = UCOL_UPPER_FIRST;
+        } else if (caseFirstString->equals("lower")) {
+            caseFirst = UCOL_LOWER_FIRST;
+        }
+
         ucol_setAttribute(collator, UCOL_STRENGTH, strength, &status);
         ucol_setAttribute(collator, UCOL_CASE_LEVEL, caseLevel, &status);
+        ucol_setAttribute(collator, UCOL_CASE_FIRST, caseFirst, &status);
 
         bool numeric = opt.numeric;
         ucol_setAttribute(collator, UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF, &status);
@@ -1486,14 +1499,16 @@ static std::vector<std::string> localeDataDateTimeFormat(String* locale, size_t 
             ASSERT(U_SUCCESS(status));
             status = U_ZERO_ERROR;
             std::string calendar = std::string(availableName, nameLength);
-            keyLocaleData.push_back(calendar);
             // Ensure aliases used in language tag are allowed.
-            if (calendar == std::string("gregorian"))
+            if (calendar == std::string("gregorian")) {
                 keyLocaleData.push_back(std::string("gregory"));
-            else if (calendar == std::string("islamic-civil"))
+            } else if (calendar == std::string("islamic-civil")) {
                 keyLocaleData.push_back(std::string("islamicc"));
-            else if (calendar == std::string("ethiopic-amete-alem"))
+            } else if (calendar == std::string("ethiopic-amete-alem")) {
                 keyLocaleData.push_back(std::string("ethioaa"));
+            } else {
+                keyLocaleData.push_back(calendar);
+            }
         }
         uenum_close(calendars);
         break;
@@ -2017,7 +2032,13 @@ static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisVa
     Object* internalSlot = callee->internalSlot();
     UDateFormat* udat = (UDateFormat*)internalSlot->extraData();
 
-    double value = argv[0].toNumber(state);
+    double value;
+    if (argc == 0 || argv[0].isUndefined()) {
+        value = DateObject::currentTime();
+    } else {
+        value = argv[0].toNumber(state);
+    }
+
     // 1. If x is not a finite Number, then throw a RangeError exception.
     if (!std::isfinite(value)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is not finite in DateTimeFormat format()");
@@ -2054,7 +2075,7 @@ static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value 
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormat, 0, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -2445,7 +2466,7 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
     }
 
-    return new UTF16String(buffer.data(), buffer.length());
+    return new UTF16String(buffer.data(), length);
 }
 
 static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
