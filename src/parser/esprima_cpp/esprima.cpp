@@ -787,9 +787,9 @@ public:
     // Return true if the next token matches the specified contextual keyword
     // (where an identifier is sometimes a keyword depending on the context)
 
-    bool matchContextualKeyword(KeywordKind keyword)
+    bool matchContextualKeyword(const char* keyword)
     {
-        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueKeywordKind == keyword;
+        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteralData->equals(keyword);
     }
 
     // Return true if the next token is an assignment operator
@@ -1214,8 +1214,8 @@ public:
                     if (isParse) {
                         return T(this->parseClassExpression());
                     }
-                    this->parseClassExpression();
-                    return ScanExpressionResult(ASTNodeType::ASTNodeTypeError);
+                    this->scanClassExpression();
+                    return ScanExpressionResult(ASTNodeType::ClassExpression);
                 } else {
                     ALLOC_TOKEN(token);
                     this->nextToken(token);
@@ -1320,6 +1320,8 @@ public:
         return this->finalize(node, new RestElementNode(arg.get()));
     }
 
+    // ECMA-262 13.3.3 Destructuring Binding Patterns
+
     template <typename T, bool isParse>
     T arrayPattern(ScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
@@ -1363,7 +1365,6 @@ public:
         RefPtr<Node> keyNode; //'': Node.PropertyKey;
         RefPtr<Node> valueNode; //: Node.PropertyValue;
         ScanExpressionResult key;
-        String* keyString = String::emptyString;
 
         if (this->lookahead.type == Token::IdentifierToken) {
             ALLOC_TOKEN(keyToken);
@@ -1720,12 +1721,12 @@ public:
         return key;
     }
 
-    std::pair<ScanExpressionResult, bool> scanObjectPropertyKey()
+    std::pair<ScanExpressionResult, String*> scanObjectPropertyKey()
     {
         ALLOC_TOKEN(token);
         this->nextToken(token);
         ScanExpressionResult key;
-        bool isProto = false;
+        String* keyString = String::emptyString;
 
         switch (token->type) {
         case Token::NumericLiteralToken:
@@ -1742,7 +1743,7 @@ public:
                     if (this->context->inLoop || token->valueNumber == 0)
                         this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
                 } else {
-                    isProto = (*token->valueStringLiteral() == "__proto__");
+                    keyString = token->valueStringLiteral();
                 }
                 key = ScanExpressionResult(ASTNodeType::Literal);
             }
@@ -1755,6 +1756,7 @@ public:
             bool trackUsingNamesBefore = this->trackUsingNames;
             this->trackUsingNames = false;
             key = finishScanIdentifier(token, false);
+            keyString = key.string().string();
             this->trackUsingNames = trackUsingNamesBefore;
             break;
         }
@@ -1771,7 +1773,7 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        return std::make_pair(key, isProto);
+        return std::make_pair(key, keyString);
     }
 
     bool qualifiedPropertyName(Scanner::ScannerResult* token)
@@ -1791,15 +1793,6 @@ public:
         }
     }
 
-    AtomicString getPropertyComputedName(Node* key)
-    {
-        if (key->type() == Identifier) {
-            return ((IdentifierNode*)key)->name();
-        }
-
-        return AtomicString();
-    }
-
     bool isPropertyKey(Node* key, const char* value)
     {
         if (key->type() == Identifier) {
@@ -1808,6 +1801,17 @@ public:
             if (((LiteralNode*)key)->value().isString()) {
                 return ((LiteralNode*)key)->value().asString()->equals(value);
             }
+        }
+
+        return false;
+    }
+
+    bool isPropertyKey(ScanExpressionResult result, String* name, const char* value)
+    {
+        if (result == Identifier) {
+            return name->equals(value);
+        } else if (result == Literal) {
+            return name->equals(value);
         }
 
         return false;
@@ -1846,7 +1850,7 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                isProto = keyValue.second;
+                isProto = keyValue.second->equals("__proto__");
             }
         }
 
@@ -1876,7 +1880,7 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                isProto = keyValue.second;
+                isProto = keyValue.second->equals("__proto__");
                 this->context->allowYield = false;
                 this->parseGetterMethod();
             }
@@ -1889,7 +1893,7 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                isProto = keyValue.second;
+                isProto = keyValue.second->equals("__proto__");
                 this->parseSetterMethod();
             }
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
@@ -1901,7 +1905,7 @@ public:
             } else {
                 auto keyValue = this->scanObjectPropertyKey();
                 key = keyValue.first;
-                isProto = keyValue.second;
+                isProto = keyValue.second->equals("__proto__");
                 this->parseGeneratorMethod();
             }
             method = true;
@@ -3812,6 +3816,45 @@ public:
                     this->parseFunctionDeclaration();
                 }
                 break;
+            case ExportKeyword:
+                /*
+                if (this->sourceType !== 'module') {
+                    this->throwUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
+                }
+                statement = this->parseExportDeclaration();
+                */
+                this->throwError("export keyword is not supported yet");
+                break;
+            case ImportKeyword:
+                /*
+                if (this->sourceType !== 'module') {
+                    this->throwUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
+                }
+                statement = this->parseImportDeclaration();
+                */
+                this->throwError("import keyword is not supported yet");
+                break;
+            case ConstKeyword:
+                if (isParse) {
+                    statement = this->parseVariableStatement(KeywordKind::ConstKeyword);
+                } else {
+                    this->scanVariableStatement(KeywordKind::ConstKeyword);
+                }
+                break;
+            case LetKeyword:
+                if (isParse) {
+                    statement = this->isLexicalDeclaration() ? this->lexicalDeclaration<ParseAs(StatementNode)>(false) : this->parseStatement();
+                } else {
+                    this->isLexicalDeclaration() ? this->lexicalDeclaration<ScanAsVoid>(false) : this->scanStatement();
+                }
+                break;
+            case ClassKeyword:
+                if (isParse) {
+                    statement = this->parseClassDeclaration();
+                } else {
+                    this->scanClassDeclaration();
+                }
+                break;
             default:
                 if (isParse) {
                     statement = this->parseStatement();
@@ -3825,41 +3868,6 @@ public:
         } else {
             this->scanStatement();
         }
-
-        /*
-         if (this->lookahead.type === Token.Keyword) {
-             switch (this->lookahead.value) {
-                 case 'export':
-                     if (this->sourceType !== 'module') {
-                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
-                     }
-                     statement = this->parseExportDeclaration();
-                     break;
-                 case 'import':
-                     if (this->sourceType !== 'module') {
-                         this->throwUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
-                     }
-                     statement = this->parseImportDeclaration();
-                     break;
-                 case 'const':
-                     statement = this->parseLexicalDeclaration({ inFor: false });
-                     break;
-                 case 'function':
-                     statement = this->parseFunctionDeclaration();
-                     break;
-                 case 'class':
-                     statement = this->parseClassDeclaration();
-                     break;
-                 case 'let':
-                     statement = this->isLexicalDeclaration() ? this->parseLexicalDeclaration({ inFor: false }) : this->parseStatement();
-                     break;
-                 default:
-                     statement = this->parseStatement();
-                     break;
-             }
-         } else {
-             statement = this->parseStatement();
-         }*/
 
         if (isParse) {
             return T(statement.release());
@@ -4004,200 +4012,122 @@ public:
         return T(nullptr);
     }
 
-    /*
-         // ECMA-262 13.3.1 Let and Const Declarations
+    // ECMA-262 13.3.1 Let and Const Declarations
 
-    parseLexicalBinding(kind: string, options): Node.VariableDeclarator {
-        const node = this->createNode();
-        let params = [];
-        const id = this->parsePattern(params, kind);
+    template <typename T, bool isParse>
+    T lexicalBinding(KeywordKind kind, bool inFor)
+    {
+        auto node = this->createNode();
+        ScannerResultVector params;
+        RefPtr<Node> idNode;
+        bool isIdentifier;
+        ScanExpressionResult id;
+        AtomicString name;
+
+        if (isParse) {
+            idNode = this->pattern<Parse>(params, kind, true);
+            isIdentifier = (idNode->type() == Identifier);
+            if (isIdentifier) {
+                name = ((IdentifierNode*)idNode.get())->name();
+            }
+        } else {
+            id = this->pattern<Scan>(params, kind, true);
+            isIdentifier = (id == Identifier);
+            if (isIdentifier) {
+                name = id.string();
+            }
+        }
 
         // ECMA-262 12.2.1
-        if (this->context.strict && id.type === Syntax.Identifier) {
-            if (this->scanner.isRestrictedWord((<Node.Identifier>(id)).name)) {
-                this->throwError(Messages.StrictVarName);
+        if (this->context->strict && isIdentifier && this->scanner->isRestrictedWord(name)) {
+            this->throwError(Messages::StrictVarName);
+        }
+
+        if (isParse) {
+            RefPtr<Node> init;
+            if (kind == KeywordKind::ConstKeyword) {
+                if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
+                    this->expect(Substitution);
+                    init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                }
+            } else if ((!inFor && !isIdentifier) || this->match(Substitution)) {
+                this->expect(Substitution);
+                init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
             }
-        }
 
-        let init = null;
-        if (kind === 'const') {
-            if (!this->matchKeyword('in') && !this->matchContextualKeyword('of')) {
-                this->expect('=');
-                init = this->isolateCoverGrammar(this->assignmentExpression<Parse>);
+            return T(this->finalize(node, new VariableDeclaratorNode(kind, idNode.get(), init.get())));
+        } else {
+            if (kind == KeywordKind::ConstKeyword) {
+                if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
+                    this->expect(Substitution);
+                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                }
+            } else if ((!inFor && !isIdentifier) || this->match(Substitution)) {
+                this->expect(Substitution);
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
             }
-        } else if ((!options.inFor && id.type !== Syntax.Identifier) || this->match('=')) {
-            this->expect('=');
-            init = this->isolateCoverGrammar(this->assignmentExpression<Parse>);
+            return T(nullptr);
+        }
+    }
+
+    template <typename T, bool isParse>
+    T bindingList(KeywordKind kind, bool inFor)
+    {
+        if (isParse) {
+            VariableDeclaratorVector list;
+            list.push_back(this->lexicalBinding<ParseAs(VariableDeclaratorNode)>(kind, inFor));
+            while (this->match(Comma)) {
+                this->nextToken();
+                list.push_back(this->lexicalBinding<ParseAs(VariableDeclaratorNode)>(kind, inFor));
+            }
+            return T(list);
+        } else {
+            this->lexicalBinding<ScanAsVoid>(kind, inFor);
+            while (this->match(Comma)) {
+                this->nextToken();
+                this->lexicalBinding<ScanAsVoid>(kind, inFor);
+            }
+            return T();
+        }
+    }
+
+    template <typename T, bool isParse>
+    T lexicalDeclaration(bool inFor)
+    {
+        auto node = this->createNode();
+        ALLOC_TOKEN(token);
+        this->nextToken(token);
+        auto kind = token->valueKeywordKind;
+
+        VariableDeclaratorVector declarations;
+        if (isParse) {
+            declarations = this->bindingList<VariableDeclaratorVector, true>(kind, inFor);
+        } else {
+            this->bindingList<ScanAsVoid>(kind, inFor);
         }
 
-        return this->finalize(node, new Node.VariableDeclarator(id, init));
-    }
-
-    parseBindingList(kind: string, options): Node.VariableDeclarator[] {
-        let list = [this->parseLexicalBinding(kind, options)];
-
-        while (this->match(',')) {
-            this->nextToken();
-            list.push(this->parseLexicalBinding(kind, options));
-        }
-
-        return list;
-    }
-
-    isLexicalDeclaration(): boolean {
-        const previousIndex = this->scanner.index;
-        const previousLineNumber = this->scanner.lineNumber;
-        const previousLineStart = this->scanner.lineStart;
-        this->collectComments();
-        const next = <any>this->scanner.lex();
-        this->scanner.index = previousIndex;
-        this->scanner.lineNumber = previousLineNumber;
-        this->scanner.lineStart = previousLineStart;
-
-        return (next.type === Token.Identifier) ||
-            (next.type === Token.Punctuator && next.value === '[') ||
-            (next.type === Token.Punctuator && next.value === '{') ||
-            (next.type === Token.Keyword && next.value === 'let') ||
-            (next.type === Token.Keyword && next.value === 'yield');
-    }
-
-    parseLexicalDeclaration(options): Node.VariableDeclaration {
-        const node = this->createNode();
-        const kind = this->nextToken().value;
-        assert(kind === 'let' || kind === 'const', 'Lexical declaration must be either let or const');
-
-        const declarations = this->parseBindingList(kind, options);
         this->consumeSemicolon();
 
-        return this->finalize(node, new Node.VariableDeclaration(declarations, kind));
-    }
-
-    // ECMA-262 13.3.3 Destructuring Binding Patterns
-
-    parseBindingRestElement(params, kind: string): Node.RestElement {
-        const node = this->createNode();
-        this->expect('...');
-        params.push(this->lookahead);
-        const arg = this->parseVariableIdentifier(kind);
-        return this->finalize(node, new Node.RestElement(arg));
-    }
-
-
-    parseArrayPattern(params, kind: string): Node.ArrayPattern {
-        const node = this->createNode();
-
-        this->expect('[');
-        const elements: Node.ArrayPatternElement[] = [];
-        while (!this->match(']')) {
-            if (this->match(',')) {
-                this->nextToken();
-                elements.push(null);
-            } else {
-                if (this->match('...')) {
-                    elements.push(this->parseBindingRestElement(params, kind));
-                    break;
-                } else {
-                    elements.push(this->parsePatternWithDefault(params, kind));
-                }
-                if (!this->match(']')) {
-                    this->expect(',');
-                }
-            }
-
+        if (isParse) {
+            return T(this->finalize(node, new VariableDeclarationNode(std::move(declarations), kind)));
         }
-        this->expect(']');
-
-        return this->finalize(node, new Node.ArrayPattern(elements));
+        return T(nullptr);
     }
 
-    parsePropertyPattern(params, kind: string): Node.Property {
-        const node = this->createNode();
+    bool isLexicalDeclaration()
+    {
+        auto previousIndex = this->scanner->index;
+        auto previousLineNumber = this->scanner->lineNumber;
+        auto previousLineStart = this->scanner->lineStart;
+        this->collectComments();
+        ALLOC_TOKEN(next);
+        this->scanner->lex(next);
+        this->scanner->index = previousIndex;
+        this->scanner->lineNumber = previousLineNumber;
+        this->scanner->lineStart = previousLineStart;
 
-        let computed = false;
-        let shorthand = false;
-        const method = false;
-
-        let key: Node.PropertyKey;
-        let value: Node.PropertyValue;
-
-        if (this->lookahead.type === Token.Identifier) {
-            const keyToken = this->lookahead;
-            key = this->parseVariableIdentifier();
-            const init = this->finalize(node, new Node.Identifier(keyToken.value));
-            if (this->match('=')) {
-                params.push(keyToken);
-                shorthand = true;
-                this->nextToken();
-                const expr = this->assignmentExpression<Parse>();
-                value = this->finalize(this->startNode(keyToken), new Node.AssignmentPattern(init, expr));
-            } else if (!this->match(':')) {
-                params.push(keyToken);
-                shorthand = true;
-                value = init;
-            } else {
-                this->expect(':');
-                value = this->parsePatternWithDefault(params, kind);
-            }
-        } else {
-            computed = this->match('[');
-            key = this->parseObjectPropertyKey();
-            this->expect(':');
-            value = this->parsePatternWithDefault(params, kind);
-        }
-
-        return this->finalize(node, new Node.Property('init', key, computed, value, method, shorthand));
+        return (next->type == Token::IdentifierToken) || (next->type == Token::PunctuatorToken && next->valuePunctuatorKind == PunctuatorKind::LeftSquareBracket) || (next->type == Token::PunctuatorToken && next->valuePunctuatorKind == PunctuatorKind::LeftBrace) || (next->type == Token::KeywordToken && next->valueKeywordKind == KeywordKind::LetKeyword) || (next->type == Token::KeywordToken && next->valueKeywordKind == KeywordKind::YieldKeyword);
     }
-
-    parseObjectPattern(params, kind: string): Node.ObjectPattern {
-        const node = this->createNode();
-        const properties: Node.Property[] = [];
-
-        this->expect('{');
-        while (!this->match('}')) {
-            properties.push(this->parsePropertyPattern(params, kind));
-            if (!this->match('}')) {
-                this->expect(',');
-            }
-        }
-        this->expect('}');
-
-        return this->finalize(node, new Node.ObjectPattern(properties));
-    }
-
-    parsePattern(params, kind?: string): Node.BindingIdentifier | Node.BindingPattern {
-        let pattern;
-
-        if (this->match('[')) {
-            pattern = this->parseArrayPattern(params, kind);
-        } else if (this->match('{')) {
-            pattern = this->parseObjectPattern(params, kind);
-        } else {
-            if (this->matchKeyword('let') && (kind === 'const' || kind === 'let')) {
-                this->throwUnexpectedToken(this->lookahead, Messages.UnexpectedToken);
-            }
-            params.push(this->lookahead);
-            pattern = this->parseVariableIdentifier(kind);
-        }
-
-        return pattern;
-    }
-
-    parsePatternWithDefault(params, kind?: string): Node.AssignmentPattern | Node.BindingIdentifier | Node.BindingPattern {
-        const startToken = this->lookahead;
-
-        let pattern = this->parsePattern(params, kind);
-        if (this->match('=')) {
-            this->nextToken();
-            const previousAllowYield = this->context.allowYield;
-            this->context.allowYield = true;
-            const right = this->isolateCoverGrammar(this->assignmentExpression<Parse>);
-            this->context.allowYield = previousAllowYield;
-            pattern = this->finalize(this->startNode(startToken), new Node.AssignmentPattern(pattern, right));
-        }
-
-        return pattern;
-    }
-    */
 
     // ECMA-262 13.3.2 Variable Statement
     PassRefPtr<IdentifierNode> parseVariableIdentifier(KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
@@ -5472,6 +5402,9 @@ public:
             case WithKeyword:
                 this->parseWithStatement();
                 break;
+            case ClassKeyword:
+                this->scanClassDeclaration();
+                break;
             default:
                 this->scanExpressionStatement();
                 break;
@@ -5992,14 +5925,18 @@ public:
 
     // ECMA-262 14.5 Class Definitions
 
-    PassRefPtr<ClassElementNode> parseClassElement(RefPtr<FunctionExpressionNode>* constructor, bool hasSuperClass)
+    template <typename T, bool isParse>
+    T classElement(RefPtr<FunctionExpressionNode>* constructor, bool hasSuperClass)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         MetaNode node = this->createNode();
 
         ClassElementNode::Kind kind = ClassElementNode::Kind::None;
-        RefPtr<Node> key;
+
+        std::pair<ScanExpressionResult, String*> keyScanResult;
+        RefPtr<Node> keyNode;
+
         RefPtr<FunctionExpressionNode> value;
         bool computed = false;
         bool isStatic = false;
@@ -6008,7 +5945,11 @@ public:
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
-            key = this->parseObjectPropertyKey();
+            if (isParse) {
+                keyNode = this->parseObjectPropertyKey();
+            } else {
+                keyScanResult = this->scanObjectPropertyKey();
+            }
 
             if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && *token->valueStringLiteral() == "static") {
                 *token = this->lookahead;
@@ -6017,33 +5958,60 @@ public:
                 if (this->match(Multiply)) {
                     this->nextToken();
                 } else {
-                    key = this->parseObjectPropertyKey();
+                    if (isParse) {
+                        keyNode = this->parseObjectPropertyKey();
+                    } else {
+                        keyScanResult = this->scanObjectPropertyKey();
+                    }
                 }
             }
         }
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
-        if (token->type == Token::IdentifierToken) {
-            if (*token->valueStringLiteral() == "get" && lookaheadPropertyKey) {
-                kind = ClassElementNode::Kind::Get;
+        if (isParse) {
+            if (token->type == Token::IdentifierToken) {
+                if (*token->valueStringLiteral() == "get" && lookaheadPropertyKey) {
+                    kind = ClassElementNode::Kind::Get;
+                    computed = this->match(LeftSquareBracket);
+                    keyNode = this->parseObjectPropertyKey();
+                    this->context->allowYield = false;
+                    value = this->parseGetterMethod();
+                } else if (*token->valueStringLiteral() == "set" && lookaheadPropertyKey) {
+                    kind = ClassElementNode::Kind::Set;
+                    computed = this->match(LeftSquareBracket);
+                    keyNode = this->parseObjectPropertyKey();
+                    value = this->parseSetterMethod();
+                }
+            } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
+                kind = ClassElementNode::Kind::Method;
                 computed = this->match(LeftSquareBracket);
-                key = this->parseObjectPropertyKey();
-                this->context->allowYield = false;
-                value = this->parseGetterMethod();
-            } else if (*token->valueStringLiteral() == "set" && lookaheadPropertyKey) {
-                kind = ClassElementNode::Kind::Set;
-                computed = this->match(LeftSquareBracket);
-                key = this->parseObjectPropertyKey();
-                value = this->parseSetterMethod();
+                keyNode = this->parseObjectPropertyKey();
+                value = this->parseGeneratorMethod();
             }
-        } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
-            kind = ClassElementNode::Kind::Method;
-            computed = this->match(LeftSquareBracket);
-            key = this->parseObjectPropertyKey();
-            value = this->parseGeneratorMethod();
+        } else {
+            if (token->type == Token::IdentifierToken) {
+                if (*token->valueStringLiteral() == "get" && lookaheadPropertyKey) {
+                    kind = ClassElementNode::Kind::Get;
+                    computed = this->match(LeftSquareBracket);
+                    keyScanResult = this->scanObjectPropertyKey();
+                    this->context->allowYield = false;
+                    value = this->parseGetterMethod();
+                } else if (*token->valueStringLiteral() == "set" && lookaheadPropertyKey) {
+                    kind = ClassElementNode::Kind::Set;
+                    computed = this->match(LeftSquareBracket);
+                    keyScanResult = this->scanObjectPropertyKey();
+                    value = this->parseSetterMethod();
+                }
+            } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
+                kind = ClassElementNode::Kind::Method;
+                computed = this->match(LeftSquareBracket);
+                keyScanResult = this->scanObjectPropertyKey();
+                value = this->parseGeneratorMethod();
+            }
         }
 
-        if (kind == ClassElementNode::Kind::None && key && this->match(LeftParenthesis)) {
+
+        if (kind == ClassElementNode::Kind::None && (keyNode || keyScanResult.first != ASTNodeTypeError) && this->match(LeftParenthesis)) {
             kind = ClassElementNode::Kind::Method;
             value = this->parsePropertyMethodFunction();
         }
@@ -6052,30 +6020,62 @@ public:
             this->throwUnexpectedToken(&this->lookahead);
         }
 
-        if (!computed) {
-            if (isStatic && this->isPropertyKey(key.get(), "prototype")) {
-                this->throwUnexpectedToken(token, Messages::StaticPrototype);
-            }
-            if (!isStatic && this->isPropertyKey(key.get(), "constructor")) {
-                if (kind != ClassElementNode::Kind::Method || value->isGenerator()) {
-                    this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
+        if (isParse) {
+            if (!computed) {
+                if (isStatic && this->isPropertyKey(keyNode.get(), "prototype")) {
+                    this->throwUnexpectedToken(token, Messages::StaticPrototype);
                 }
-                if (*constructor != nullptr) {
-                    this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
-                } else {
-                    if (!this->config.parseSingleFunction) {
-                        lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
-                        lastPoppedScopeContext->m_isClassConstructor = true;
-                        lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                if (!isStatic && this->isPropertyKey(keyNode.get(), "constructor")) {
+                    if (kind != ClassElementNode::Kind::Method || value->isGenerator()) {
+                        this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
                     }
-                    *constructor = value;
-                    return nullptr;
+                    if (*constructor != nullptr) {
+                        this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
+                    } else {
+                        if (!this->config.parseSingleFunction) {
+                            lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                            lastPoppedScopeContext->m_isClassConstructor = true;
+                            lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                        }
+                        *constructor = value;
+                        return T(nullptr);
+                    }
+                }
+            }
+        } else {
+            if (!computed) {
+                if (isStatic && this->isPropertyKey(keyScanResult.first, keyScanResult.second, "prototype")) {
+                    this->throwUnexpectedToken(token, Messages::StaticPrototype);
+                }
+                if (!isStatic && this->isPropertyKey(keyScanResult.first, keyScanResult.second, "constructor")) {
+                    if (kind != ClassElementNode::Kind::Method || value->isGenerator()) {
+                        this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
+                    }
+                    if (*constructor != nullptr) {
+                        this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
+                    } else {
+                        if (!this->config.parseSingleFunction) {
+                            lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                            lastPoppedScopeContext->m_isClassConstructor = true;
+                            lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                        }
+                        *constructor = value;
+                        return T(nullptr);
+                    }
                 }
             }
         }
 
         if (!this->config.parseSingleFunction) {
-            lastPoppedScopeContext->m_functionName = getPropertyComputedName(key.get());
+            if (isParse) {
+                if (keyNode->type() == Identifier) {
+                    lastPoppedScopeContext->m_functionName = keyNode->asIdentifier()->name();
+                }
+            } else {
+                if (keyScanResult.first == Identifier) {
+                    lastPoppedScopeContext->m_functionName = keyScanResult.first.string();
+                }
+            }
             if (isStatic) {
                 lastPoppedScopeContext->m_isClassStaticMethod = true;
             } else {
@@ -6083,10 +6083,14 @@ public:
             }
         }
 
-        return this->finalize(node, new ClassElementNode(key.get(), value.get(), kind, computed, isStatic));
+        if (isParse) {
+            return T(this->finalize(node, new ClassElementNode(keyNode.get(), value.get(), kind, computed, isStatic)));
+        }
+        return T(nullptr);
     }
 
-    PassRefPtr<ClassBodyNode> parseClassBody(bool hasSuperClass)
+    template <typename T, bool isParse>
+    T classBody(bool hasSuperClass)
     {
         MetaNode node = this->createNode();
 
@@ -6098,56 +6102,97 @@ public:
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                PassRefPtr<ClassElementNode> classElement = this->parseClassElement(&constructor, hasSuperClass);
-                if (classElement != nullptr) {
-                    body.push_back(classElement);
+                if (isParse) {
+                    PassRefPtr<ClassElementNode> classElement = this->classElement<ParseAs(ClassElementNode)>(&constructor, hasSuperClass);
+                    if (classElement != nullptr) {
+                        body.push_back(classElement);
+                    }
+                } else {
+                    this->classElement<ScanAsVoid>(&constructor, hasSuperClass);
                 }
             }
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, new ClassBodyNode(std::move(body), constructor));
+        if (isParse) {
+            return T(this->finalize(node, new ClassBodyNode(std::move(body), constructor)));
+        }
+        return T(nullptr);
     }
 
-    template <class ClassType>
-    PassRefPtr<ClassType> parseClass(bool identifierIsOptional)
+    template <typename T, bool isParse, class ClassType>
+    T classDeclaration(bool identifierIsOptional)
     {
         bool previousStrict = this->context->strict;
         this->context->strict = true;
         this->expectKeyword(ClassKeyword);
         MetaNode node = this->createNode();
 
-        RefPtr<IdentifierNode> id = (identifierIsOptional && this->lookahead.type != Token::IdentifierToken) ? nullptr : this->parseVariableIdentifier();
+        RefPtr<IdentifierNode> idNode;
+        AtomicString id;
 
-        if (!identifierIsOptional && id) {
-            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+        if (!identifierIsOptional || this->lookahead.type == Token::IdentifierToken) {
+            if (isParse) {
+                idNode = this->parseVariableIdentifier();
+                id = idNode->name();
+            } else {
+                id = this->scanVariableIdentifier().string();
+            }
         }
 
-        RefPtr<Node> superClass = nullptr;
+        if (!identifierIsOptional && id.string()->length()) {
+            addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::LetKeyword);
+        }
+
+        RefPtr<Node> superClass;
         if (this->matchKeyword(ExtendsKeyword)) {
             this->nextToken();
-            superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
+            if (isParse) {
+                superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
+            } else {
+                this->scanIsolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Scan>);
+            }
         }
 
         ParserBlockContext classBlockContext = openBlock();
-        if (id) {
-            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, KeywordKind::ConstKeyword);
+        if (id.string()->length()) {
+            addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
         }
-        RefPtr<ClassBodyNode> classBody = this->parseClassBody(superClass);
+
+        RefPtr<ClassBodyNode> classBody;
+        if (isParse) {
+            classBody = this->classBody<ParseAs(ClassBodyNode)>(superClass);
+        } else {
+            this->classBody<ScanAsVoid>(superClass);
+        }
+
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
 
-        return this->finalize(node, new ClassType(id, superClass, classBody.get(), classBlockContext.childLexicalBlockIndex));
+        if (isParse) {
+            return T(this->finalize(node, new ClassType(idNode, superClass, classBody.get(), classBlockContext.childLexicalBlockIndex)));
+        }
+        return T(nullptr);
     }
 
     PassRefPtr<ClassDeclarationNode> parseClassDeclaration()
     {
-        return parseClass<ClassDeclarationNode>(false);
+        return classDeclaration<ParseAs(ClassDeclarationNode), ClassDeclarationNode>(false);
+    }
+
+    void scanClassDeclaration()
+    {
+        classDeclaration<ScanAsVoid, ClassDeclarationNode>(false);
     }
 
     PassRefPtr<ClassExpressionNode> parseClassExpression()
     {
-        return parseClass<ClassExpressionNode>(true);
+        return classDeclaration<ParseAs(ClassExpressionNode), ClassExpressionNode>(true);
+    }
+
+    void scanClassExpression()
+    {
+        classDeclaration<ScanAsVoid, ClassExpressionNode>(true);
     }
 
     // ECMA-262 15.1 Scripts
