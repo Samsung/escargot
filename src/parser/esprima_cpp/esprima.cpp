@@ -1562,8 +1562,8 @@ public:
     template <typename T, bool isParse>
     T spreadElement()
     {
-        this->expect(PunctuatorKind::PeriodPeriodPeriod);
         MetaNode node = this->createNode();
+        this->expect(PunctuatorKind::PeriodPeriodPeriod);
 
         RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
         if (isParse) {
@@ -2142,10 +2142,6 @@ public:
             if (!expr->isValidAssignmentTarget()) {
                 if (parent == ObjectPattern && expr->type() != Property) {
                     this->throwError("Invalid destructuring assignment target");
-                }
-
-                if (parent == ObjectPattern) {
-                    scopeContexts.back()->insertUsingName(expr->asProperty()->key()->asIdentifier()->name(), this->lexicalBlockIndex);
                 }
             }
             break;

@@ -762,7 +762,14 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("array define own property r%d[%d - %d] <- r<--->", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)m_count);
+        printf("array define own property r%d[%d - %d] <- ", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)(m_baseIndex + m_count));
+        for (int i = 0; i < m_count; i++) {
+            if (m_loadRegisterIndexs[i] == REGISTER_LIMIT) {
+                printf(", ");
+            } else {
+                printf("r%d, ", m_loadRegisterIndexs[i]);
+            }
+        }
     }
 #endif
 };
@@ -2075,13 +2082,13 @@ class BindingRestElement : public ByteCode {
 public:
     BindingRestElement(const ByteCodeLOC& loc, size_t iterIndex, size_t dstIndex)
         : ByteCode(Opcode::BindingRestElementOpcode, loc)
-        , m_dstIndex(dstIndex)
         , m_iterIndex(iterIndex)
+        , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_dstIndex;
     ByteCodeRegisterIndex m_iterIndex;
+    ByteCodeRegisterIndex m_dstIndex;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {

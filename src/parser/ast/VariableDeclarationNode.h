@@ -60,10 +60,6 @@ public:
         m_declarations[0]->id()->generateStoreByteCode(codeBlock, context, src, false);
     }
 
-    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
-    {
-    }
-
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         generateExpressionByteCode(codeBlock, context, context->getRegister());

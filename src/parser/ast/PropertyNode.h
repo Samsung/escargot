@@ -81,12 +81,15 @@ public:
         if (m_key->isIdentifier() && !m_computed) {
             AtomicString propertyAtomicName = m_key->asIdentifier()->name();
             codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), srcRegister, valueIndex, propertyAtomicName), context, this);
+            m_value->generateResolveAddressByteCode(codeBlock, context);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
         } else {
             size_t propertyIndex = m_key->getRegister(codeBlock, context);
             m_key->generateExpressionByteCode(codeBlock, context, propertyIndex);
             codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this);
+            m_value->generateResolveAddressByteCode(codeBlock, context);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+            context->giveUpRegister(); // for drop propertyIndex
         }
         context->giveUpRegister(); // for drop valueIndex
     }
