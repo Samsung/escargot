@@ -155,32 +155,6 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
     }
 }
 
-static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
-    if (argc < 1) {
-        return str;
-    }
-    double intStart = argv[0].toInteger(state);
-    double end;
-    if (argc > 1) {
-        if (argv[1].isUndefined()) {
-            end = std::numeric_limits<double>::infinity();
-        } else
-            end = argv[1].toInteger(state);
-    } else {
-        end = std::numeric_limits<double>::infinity();
-    }
-    double size = str->length();
-    if (intStart < 0)
-        intStart = std::max(size + intStart, 0.0);
-    double resultLength = std::min(std::max(end, 0.0), size - intStart);
-    if (resultLength <= 0)
-        return String::emptyString;
-
-    return str->substring(intStart, intStart + resultLength);
-}
-
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, match);
@@ -881,7 +855,7 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    String* S = Value(thisValue.toObject(state)).toString(state);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, startsWith);
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
@@ -924,7 +898,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    String* S = Value(thisValue.toObject(state)).toString(state);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, endsWith);
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
@@ -1024,11 +998,152 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     }
 }
 
+// http://www.ecma-international.org/ecma-262/6.0/#sec-createhtml
+// Runtime Semantics: CreateHTML ( string, tag, attribute, value )
+static String* createHTML(ExecutionState& state, Value string, String* tag, String* attribute, Value value, AtomicString methodName)
+{
+    // Let str be RequireObjectCoercible(string).
+    // Let S be ToString(str).
+    // ReturnIfAbrupt(S).
+    if (string.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+    }
+    String* S = string.toString(state);
+
+    // Let p1 be the String value that is the concatenation of "<" and tag.
+    StringBuilder sb;
+    sb.appendChar('<');
+    sb.appendString(tag);
+    String* p1 = sb.finalize(&state);
+    // If attribute is not the empty String, then
+    if (attribute->length()) {
+        // Let V be ToString(value).
+        String* V = value.toString(state);
+        // ReturnIfAbrupt(V).
+        // Let escapedV be the String value that is the same as V except that each occurrence of the code unit 0x0022 (QUOTATION MARK) in V has been replaced with the six code unit sequence "&quot;".
+        StringBuilder sb;
+        for (size_t i = 0; i < V->length(); i++) {
+            char16_t ch = V->charAt(i);
+            if (ch == 0x22) {
+                sb.appendString("&quot;");
+            } else {
+                sb.appendChar(ch);
+            }
+        }
+        String* escapedV = sb.finalize(&state);
+
+        // Let p1 be the String value that is the concatenation of the following String values:
+        // The String value of p1
+        // Code unit 0x0020 (SPACE)
+        // The String value of attribute
+        // Code unit 0x003D (EQUALS SIGN)
+        // Code unit 0x0022 (QUOTATION MARK)
+        // The String value of escapedV
+        // Code unit 0x0022 (QUOTATION MARK)
+        sb.appendString(p1);
+        sb.appendChar((char)0x20);
+        sb.appendString(attribute);
+        sb.appendChar((char)0x3d);
+        sb.appendChar((char)0x22);
+        sb.appendString(escapedV);
+        sb.appendChar((char)0x22);
+        p1 = sb.finalize(&state);
+    }
+    // Let p2 be the String value that is the concatenation of p1 and ">".
+    // Let p3 be the String value that is the concatenation of p2 and S.
+    // Let p4 be the String value that is the concatenation of p3, "</", tag, and ">".
+    // Return p4.
+    sb.appendString(p1);
+    sb.appendChar('>');
+    sb.appendString(S);
+    sb.appendString("</");
+    sb.appendString(tag);
+    sb.appendChar('>');
+    return sb.finalize(&state);
+}
+
+// http://www.ecma-international.org/ecma-262/6.0/#sec-additional-properties-of-the-string.prototype-object
+
+static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
+    if (argc < 1) {
+        return str;
+    }
+    double intStart = argv[0].toInteger(state);
+    double end;
+    if (argc > 1) {
+        if (argv[1].isUndefined()) {
+            end = std::numeric_limits<double>::infinity();
+        } else
+            end = argv[1].toInteger(state);
+    } else {
+        end = std::numeric_limits<double>::infinity();
+    }
+    double size = str->length();
+    if (intStart < 0)
+        intStart = std::max(size + intStart, 0.0);
+    double resultLength = std::min(std::max(end, 0.0), size - intStart);
+    if (resultLength <= 0)
+        return String::emptyString;
+
+    return str->substring(intStart, intStart + resultLength);
+}
+
+
+#define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                             \
+    static Value builtinString##fnName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) \
+    {                                                                                                                          \
+        return createHTML(state, thisValue, P0, P1, P2, state.context()->staticStrings().fnName);                              \
+    }
+
+// String.prototype.anchor (name)
+// Return CreateHTML(S, "a", "name", name).
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(anchor, state.context()->staticStrings().asciiTable[(size_t)'a'].string(), state.context()->staticStrings().name.string(), argv[0])
+// String.prototype.big ()
+// Return CreateHTML(S, "big", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(big, state.context()->staticStrings().big.string(), String::emptyString, String::emptyString)
+// String.prototype.blink ()
+// Return CreateHTML(S, "blink", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(blink, state.context()->staticStrings().blink.string(), String::emptyString, String::emptyString)
+// String.prototype.bold ()
+// Return CreateHTML(S, "b", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(bold, state.context()->staticStrings().asciiTable[(size_t)'b'].string(), String::emptyString, String::emptyString)
+// String.prototype.fixed ()
+// Return CreateHTML(S, "tt", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fixed, String::fromASCII("tt"), String::emptyString, String::emptyString)
+// String.prototype.fontcolor (color)
+// Return CreateHTML(S, "font", "color", color).
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontcolor, String::fromASCII("font"), String::fromASCII("color"), argv[0])
+// String.prototype.fontsize (size)
+// Return CreateHTML(S, "font", "size", size).
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontsize, String::fromASCII("font"), state.context()->staticStrings().size.string(), argv[0])
+// String.prototype.italics ()
+// Return CreateHTML(S, "i", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(italics, state.context()->staticStrings().asciiTable[(size_t)'i'].string(), String::emptyString, String::emptyString)
+// String.prototype.link (url)
+// Return CreateHTML(S, "a", "href", url).
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(link, state.context()->staticStrings().asciiTable[(size_t)'a'].string(), String::fromASCII("href"), argv[0])
+// String.prototype.small ()
+// Return CreateHTML(S, "small", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(small, state.context()->staticStrings().small.string(), String::emptyString, String::emptyString)
+// String.prototype.strike ()
+// Return CreateHTML(S, "strike", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(strike, state.context()->staticStrings().strike.string(), String::emptyString, String::emptyString)
+// String.prototype.sub ()
+// Return CreateHTML(S, "sub", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sub, state.context()->staticStrings().sub.string(), String::emptyString, String::emptyString)
+// String.prototype.sup ()
+// Return CreateHTML(S, "sup", "", "").
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sup, state.context()->staticStrings().sup.string(), String::emptyString, String::emptyString)
+
+#undef DEFINE_STRING_ADDITIONAL_HTML_FUNCTION
+
 static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    String* S = Value(thisValue.toObject(state)).toString(state);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, includes);
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
     Value searchString = argv[0];
@@ -1072,9 +1187,8 @@ static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, s
 static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be ? RequireObjectCoercible(this value).
-    Value O = thisValue.toObject(state);
     // Let S be ? ToString(O).
-    String* S = O.toString(state);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, iterator);
     // Return CreateStringIterator(S).
     return new StringIteratorObject(state, S);
 }
@@ -1183,6 +1297,40 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinStringIterator, 0, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+#define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, argLength)                                                                                                                                                      \
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fnName),                                                                                                                    \
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinString##fnName, argLength, NativeFunctionInfo::Strict)), \
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // String.prototype.anchor (name)
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(anchor, 1)
+    // String.prototype.big ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(big, 0)
+    // String.prototype.blink ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(blink, 0)
+    // String.prototype.bold ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(bold, 0)
+    // String.prototype.fixed ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fixed, 0)
+    // String.prototype.fontcolor (color)
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontcolor, 1)
+    // String.prototype.fontsize (size)
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontsize, 1)
+    // String.prototype.italics ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(italics, 0)
+    // String.prototype.link (url)
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(link, 1)
+    // String.prototype.small ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(small, 0)
+    // String.prototype.strike ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(strike, 0)
+    // String.prototype.sub ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sub, 0)
+    // String.prototype.sup ()
+    DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sup, 0)
+
+#undef DEFINE_STRING_ADDITIONAL_HTML_FUNCTION
 
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCharCode),
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

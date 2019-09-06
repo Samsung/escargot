@@ -387,7 +387,21 @@ namespace Escargot {
     F(keyFor)                     \
     F(raw)                        \
     F(load)                       \
-    F(getCanonicalLocales)
+    F(getCanonicalLocales)        \
+    F(anchor)                     \
+    F(big)                        \
+    F(blink)                      \
+    F(bold)                       \
+    F(fixed)                      \
+    F(fontcolor)                  \
+    F(fontsize)                   \
+    F(italics)                    \
+    F(link)                       \
+    F(small)                      \
+    F(strike)                     \
+    F(sub)                        \
+    F(sup)
+
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \

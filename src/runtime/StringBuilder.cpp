@@ -99,6 +99,7 @@ void StringBuilder::appendPiece(char16_t ch)
 String* StringBuilder::finalize(ExecutionState* state)
 {
     if (!m_contentLength) {
+        clear();
         return String::emptyString;
     }
 
@@ -166,6 +167,7 @@ String* StringBuilder::finalize(ExecutionState* state)
             }
         }
 
+        clear();
         return new Latin1String(std::move(ret));
     } else {
         UTF16StringData ret;
@@ -234,6 +236,7 @@ String* StringBuilder::finalize(ExecutionState* state)
             }
         }
 
+        clear();
         return new UTF16String(std::move(ret));
     }
 }
