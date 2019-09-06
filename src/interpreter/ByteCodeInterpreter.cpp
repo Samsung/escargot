@@ -2999,13 +2999,22 @@ NEVER_INLINE void ByteCodeInterpreter::newTargetOperation(ExecutionState& state,
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)
 {
-    // FIXME: FunctionObject
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
-    String* pName = registerFile[code->m_objectPropertyNameRegisterIndex].toString(state);
-    StringBuilder builder;
-    builder.appendString("get ");
-    builder.appendString(pName);
-    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(builder.finalize()));
+    Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
+    Value fnName = pName;
+    if (fnName.isSymbol()) {
+        StringBuilder builder;
+        builder.appendString("get [");
+        builder.appendString(fnName.asSymbol()->description());
+        builder.appendString("]");
+        fnName = builder.finalize(&state);
+    } else {
+        StringBuilder builder;
+        builder.appendString("get ");
+        builder.appendString(fnName.toString(state));
+        fnName = builder.finalize(&state);
+    }
+    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     JSGetterSetter gs(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
     ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
@@ -3014,13 +3023,22 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state,
 
 NEVER_INLINE void ByteCodeInterpreter::defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile)
 {
-    // FIXME: FunctionObject
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
-    String* pName = registerFile[code->m_objectPropertyNameRegisterIndex].toString(state);
-    StringBuilder builder;
-    builder.appendString("set ");
-    builder.appendString(pName);
-    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(builder.finalize()));
+    Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
+    Value fnName = pName;
+    if (fnName.isSymbol()) {
+        StringBuilder builder;
+        builder.appendString("set [");
+        builder.appendString(fnName.asSymbol()->description());
+        builder.appendString("]");
+        fnName = builder.finalize(&state);
+    } else {
+        StringBuilder builder;
+        builder.appendString("set ");
+        builder.appendString(fnName.toString(state));
+        fnName = builder.finalize(&state);
+    }
+    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     JSGetterSetter gs(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
     ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);

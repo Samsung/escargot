@@ -23,6 +23,7 @@
 #include "Node.h"
 #include "ClassElementNode.h"
 #include "FunctionExpressionNode.h"
+#include "runtime/ErrorObject.h"
 
 namespace Escargot {
 
@@ -71,6 +72,25 @@ public:
             } else {
                 propertyIndex = p->key()->getRegister(codeBlock, context);
                 p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
+            }
+
+            // if computed && key == "prototype" && static throw typeerror
+            if (p->isStatic() && p->isComputed()) {
+                // we don't need to root `prototype` string because it is AtomicString
+                auto stringReg = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stringReg, Value(context->m_codeBlock->context()->staticStrings().prototype.string())), context, this);
+                auto testReg = context->getRegister();
+                codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), propertyIndex, stringReg, testReg), context, this);
+
+                size_t jmpPos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
+
+                codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_Class_Prototype_Is_Not_Static_Generator), context, this);
+
+                codeBlock->peekCode<JumpIfFalse>(jmpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+
+                context->giveUpRegister();
+                context->giveUpRegister();
             }
 
             size_t valueIndex = p->value()->getRegister(codeBlock, context);

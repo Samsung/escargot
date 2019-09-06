@@ -97,15 +97,8 @@
   <test id="13.2.1_5"><reason>TODO : Need to fix 'Number.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
   <test id="13.3.0_6_1"><reason>TODO : Need to fix 'Date.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
   <test id="13.3.0_7"><reason>TODO : Need to fix 'Date.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
-  
+
   <test id="6.2.3"><reason>TODO</reason></test>
-  <test id="generator-prototype"><reason>TODO</reason></test>
-  <test id="getter-prototype"><reason>TODO</reason></test>
-  <test id="method-number"><reason>TODO</reason></test>
-  <test id="method-prototype"><reason>TODO</reason></test>
-  <test id="method-string"><reason>TODO</reason></test>
-  <test id="method-symbol"><reason>TODO</reason></test>
-  <test id="setter-prototype"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T1"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T2"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T3"><reason>TODO</reason></test>
@@ -262,9 +255,7 @@
   <test id="basics"><reason>TODO</reason></test>
   <test id="getters"><reason>TODO</reason></test>
   <test id="numeric-property-names"><reason>TODO</reason></test>
-  <test id="prototype-property"><reason>TODO</reason></test>
   <test id="setters"><reason>TODO</reason></test>
-  <test id="this-access-restriction"><reason>TODO</reason></test>
   <test id="body-dstr-assign-error"><reason>TODO</reason></test>
   <test id="body-put-error"><reason>TODO</reason></test>
   <test id="generator-close-via-break"><reason>TODO</reason></test>

@@ -90,6 +90,7 @@ const char* DefaultRestParameter = "Unexpected token =";
 const char* ObjectPatternAsRestParameter = "Unexpected token {";
 const char* DuplicateProtoProperty = "Duplicate __proto__ fields are not allowed in object literals";
 const char* ConstructorSpecialMethod = "Class constructor may not be an accessor";
+const char* ConstructorGenerator = "Class constructor may not be a generator";
 const char* DuplicateConstructor = "A class may only have one constructor";
 const char* StaticPrototype = "Classes may not have static property named prototype";
 const char* MissingFromClause = "Unexpected token";
@@ -1393,12 +1394,12 @@ public:
                 if (isParse) {
                     params.push_back(*keyToken);
                 }
-                shorthand = true;
-                valueNode = keyNode;
                 if (isExplicitVariableDeclaration) {
                     ASSERT(kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword);
-                    addDeclaredNameIntoContext(valueNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
+                    addDeclaredNameIntoContext(isParse ? keyNode->asIdentifier()->name() : key.string(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
+                shorthand = true;
+                valueNode = keyNode;
             } else {
                 this->expect(Colon);
                 if (isParse) {
@@ -6020,48 +6021,51 @@ public:
             this->throwUnexpectedToken(&this->lookahead);
         }
 
+        bool isGenerator = value->isGenerator();
         if (isParse) {
-            if (!computed) {
-                if (isStatic && this->isPropertyKey(keyNode.get(), "prototype")) {
-                    this->throwUnexpectedToken(token, Messages::StaticPrototype);
+            if (isStatic && !computed && this->isPropertyKey(keyNode.get(), "prototype")) {
+                this->throwUnexpectedToken(token, Messages::StaticPrototype);
+            }
+            if (!isStatic && !computed && this->isPropertyKey(keyNode.get(), "constructor")) {
+                if (kind != ClassElementNode::Kind::Method) {
+                    this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
                 }
-                if (!isStatic && this->isPropertyKey(keyNode.get(), "constructor")) {
-                    if (kind != ClassElementNode::Kind::Method || value->isGenerator()) {
-                        this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
+                if (isGenerator) {
+                    this->throwUnexpectedToken(token, Messages::ConstructorGenerator);
+                }
+                if (*constructor != nullptr) {
+                    this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
+                } else {
+                    if (!this->config.parseSingleFunction) {
+                        lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                        lastPoppedScopeContext->m_isClassConstructor = true;
+                        lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
                     }
-                    if (*constructor != nullptr) {
-                        this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
-                    } else {
-                        if (!this->config.parseSingleFunction) {
-                            lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
-                            lastPoppedScopeContext->m_isClassConstructor = true;
-                            lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
-                        }
-                        *constructor = value;
-                        return T(nullptr);
-                    }
+                    *constructor = value;
+                    return T(nullptr);
                 }
             }
         } else {
-            if (!computed) {
-                if (isStatic && this->isPropertyKey(keyScanResult.first, keyScanResult.second, "prototype")) {
-                    this->throwUnexpectedToken(token, Messages::StaticPrototype);
+            if (isStatic && !computed && this->isPropertyKey(keyScanResult.first, keyScanResult.second, "prototype")) {
+                this->throwUnexpectedToken(token, Messages::StaticPrototype);
+            }
+            if (!isStatic && !computed && this->isPropertyKey(keyScanResult.first, keyScanResult.second, "constructor")) {
+                if (kind != ClassElementNode::Kind::Method) {
+                    this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
                 }
-                if (!isStatic && this->isPropertyKey(keyScanResult.first, keyScanResult.second, "constructor")) {
-                    if (kind != ClassElementNode::Kind::Method || value->isGenerator()) {
-                        this->throwUnexpectedToken(token, Messages::ConstructorSpecialMethod);
+                if (isGenerator) {
+                    this->throwUnexpectedToken(token, Messages::ConstructorGenerator);
+                }
+                if (*constructor != nullptr) {
+                    this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
+                } else {
+                    if (!this->config.parseSingleFunction) {
+                        lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                        lastPoppedScopeContext->m_isClassConstructor = true;
+                        lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
                     }
-                    if (*constructor != nullptr) {
-                        this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
-                    } else {
-                        if (!this->config.parseSingleFunction) {
-                            lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
-                            lastPoppedScopeContext->m_isClassConstructor = true;
-                            lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
-                        }
-                        *constructor = value;
-                        return T(nullptr);
-                    }
+                    *constructor = value;
+                    return T(nullptr);
                 }
             }
         }
@@ -6144,8 +6148,10 @@ public:
             addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::LetKeyword);
         }
 
+        bool hasSuperClass = false;
         RefPtr<Node> superClass;
         if (this->matchKeyword(ExtendsKeyword)) {
+            hasSuperClass = true;
             this->nextToken();
             if (isParse) {
                 superClass = this->isolateCoverGrammar(&Parser::leftHandSideExpressionAllowCall<Parse>);
@@ -6161,9 +6167,9 @@ public:
 
         RefPtr<ClassBodyNode> classBody;
         if (isParse) {
-            classBody = this->classBody<ParseAs(ClassBodyNode)>(superClass);
+            classBody = this->classBody<ParseAs(ClassBodyNode)>(hasSuperClass);
         } else {
-            this->classBody<ScanAsVoid>(superClass);
+            this->classBody<ScanAsVoid>(hasSuperClass);
         }
 
         this->context->strict = previousStrict;

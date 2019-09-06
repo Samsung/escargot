@@ -39,19 +39,9 @@
 namespace Escargot {
 
 ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator)
-    : FunctionObject(state,
-                     ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
+    : ScriptFunctionObject(state, codeBlock, outerEnv,
+                           ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
 {
-    m_codeBlock = codeBlock;
-    m_outerEnvironment = outerEnv;
-
-    if (m_outerEnvironment) {
-        ASSERT(m_outerEnvironment->isAllocatedOnHeap());
-        if (m_outerEnvironment->record()->isDeclarativeEnvironmentRecord() && m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            ASSERT(!m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isFunctionEnvironmentRecordOnStack());
-        }
-    }
-
     initStructureAndValues(state, isConstructor, isGenerator);
 
     if (isGenerator) {
@@ -59,6 +49,22 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* cod
     } else {
         Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
     }
+}
+
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount)
+    : FunctionObject(state, defaultPropertyCount)
+{
+    m_codeBlock = codeBlock;
+    m_outerEnvironment = outerEnvironment;
+
+#ifdef NDEBUG
+    if (m_outerEnvironment) {
+        ASSERT(m_outerEnvironment->isAllocatedOnHeap());
+        if (m_outerEnvironment->record()->isDeclarativeEnvironmentRecord() && m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            ASSERT(!m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isFunctionEnvironmentRecordOnStack());
+        }
+    }
+#endif
 }
 
 NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& state)

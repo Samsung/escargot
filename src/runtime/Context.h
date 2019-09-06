@@ -133,6 +133,11 @@ public:
         return m_defaultStructureForFunctionPrototypeObject;
     }
 
+    ObjectStructure* defaultStructureForClassConstructorFunctionObject()
+    {
+        return m_defaultStructureForClassConstructorFunctionObject;
+    }
+
     ObjectStructure* defaultStructureForArrayObject()
     {
         return m_defaultStructureForArrayObject;
@@ -243,6 +248,7 @@ private:
     ObjectStructure* m_defaultStructureForBuiltinFunctionObject;
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
+    ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForSymbolObject;

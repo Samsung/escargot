@@ -25,6 +25,22 @@
 
 namespace Escargot {
 
+ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject)
+    : ScriptFunctionObject(state, codeBlock, outerEnvironment, 2)
+    , m_homeObject(homeObject)
+{
+    ASSERT(!codeBlock->isGenerator()); // Class constructor may not be a generator
+
+    m_structure = state.context()->defaultStructureForClassConstructorFunctionObject();
+
+    ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
+    ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
+    auto prototype = new Object(state);
+    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->parameterCount()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(Object::createFunctionPrototypeObject(state, this)));
+}
+
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");

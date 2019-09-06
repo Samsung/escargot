@@ -177,8 +177,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
-    // TODO(ES6)
-
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.prototype,
                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
 
@@ -202,6 +200,13 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
 
     m_defaultStructureForFunctionPrototypeObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.constructor,
                                                                                             ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+
+    m_defaultStructureForClassConstructorFunctionObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
+                                                                                                   ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForClassConstructorFunctionObject = m_defaultStructureForClassConstructorFunctionObject->addProperty(stateForInit, m_staticStrings.prototype,
+                                                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
+
 
     m_defaultStructureForArrayObject = m_defaultStructureForObject->addProperty(stateForInit, m_staticStrings.length,
                                                                                 ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
@@ -280,17 +285,16 @@ bool VMInstance::removeRoot(void* ptr)
     return true;
 }
 
-Value VMInstance::drainJobQueue()
+std::pair<bool, Optional<Value>> VMInstance::drainJobQueue()
 {
-    ASSERT(!m_jobQueueListener);
-
     DefaultJobQueue* jobQueue = DefaultJobQueue::get(this->jobQueue());
     while (jobQueue->hasNextJob()) {
         auto jobResult = jobQueue->nextJob()->run();
         if (!jobResult.error.isEmpty())
-            return jobResult.error;
+            return std::make_pair(jobQueue->hasNextJob(), jobResult.error);
     }
-    return Value(Value::EmptyValue);
+
+    return std::make_pair(false, Optional<Value>());
 }
 
 void VMInstance::setNewPromiseJobListener(NewPromiseJobListener l)

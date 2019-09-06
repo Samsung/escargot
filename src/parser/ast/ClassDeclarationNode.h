@@ -68,6 +68,15 @@ public:
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);
 
+        size_t nameRegister = context->getRegister();
+        // we don't need to root class name string because it is AtomicString
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(context->m_classInfo.m_name.string())), context, this);
+        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), classIndex,
+                                                                     codeBlock->m_codeBlock->context()->staticStrings().name,
+                                                                     nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
+                            context, this);
+        context->giveUpRegister();
+
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
             // Initialize class name
             context->m_isLexicallyDeclaredBindingInitialization = true;
