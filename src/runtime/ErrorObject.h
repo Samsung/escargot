@@ -52,6 +52,7 @@ extern const char* errorMessage_Set_ToUndefined;
 extern const char* errorMessage_Set_ToNull;
 extern const char* errorMessage_New_Target_Is_Undefined;
 extern const char* errorMessage_Class_Prototype_Is_Not_Object_Nor_Null;
+extern const char* errorMessage_Class_Prototype_Is_Not_Static_Generator;
 extern const char* errorMessage_Class_Extends_Value_Is_Not_Object_Nor_Null;
 extern const char* errorMessage_Initialized_This_Binding;
 extern const char* errorMessage_UnInitialized_This_Binding;

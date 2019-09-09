@@ -510,10 +510,22 @@ SymbolRef* VMInstanceRef::unscopablesSymbol()
     return toRef(toImpl(this)->globalSymbols().unscopables);
 }
 
-ValueRef* VMInstanceRef::drainJobQueue()
+VMInstanceRef::DrainJobQueueResult::DrainJobQueueResult()
+{
+    isThereRemainedJob = false;
+}
+
+VMInstanceRef::DrainJobQueueResult VMInstanceRef::drainJobQueue()
 {
     VMInstance* imp = toImpl(this);
-    return toRef(imp->drainJobQueue());
+    auto drainResult = imp->drainJobQueue();
+
+    VMInstanceRef::DrainJobQueueResult result;
+    result.isThereRemainedJob = drainResult.first;
+    if (drainResult.second) {
+        result.error = NullablePtr<ValueRef>(toRef(drainResult.second.value()));
+    }
+    return result;
 }
 
 void VMInstanceRef::setNewPromiseJobListener(NewPromiseJobListener l)
@@ -1563,6 +1575,11 @@ bool ValueRef::isNull() const
 bool ValueRef::isUndefined() const
 {
     return toImpl(this).isUndefined();
+}
+
+bool ValueRef::isEmpty() const
+{
+    return toImpl(this).isEmpty();
 }
 
 bool ValueRef::isString() const

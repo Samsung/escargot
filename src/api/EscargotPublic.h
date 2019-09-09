@@ -256,9 +256,18 @@ public:
     SymbolRef* iteratorSymbol();
     SymbolRef* unscopablesSymbol();
 
-    // if there is an error, executing will be stopped and returns ErrorValue
-    // if thres is no job or no error, returns EmptyValue
-    ValueRef* drainJobQueue();
+    struct DrainJobQueueResult {
+        // test job queue ended without error
+        bool isSuccessful()
+        {
+            return !error.hasValue();
+        }
+        // is there any job after drain
+        bool isThereRemainedJob;
+        NullablePtr<ValueRef> error;
+        DrainJobQueueResult();
+    };
+    DrainJobQueueResult drainJobQueue();
 
     typedef void (*NewPromiseJobListener)(ExecutionStateRef* state, JobRef* job);
     void setNewPromiseJobListener(NewPromiseJobListener l);
@@ -341,6 +350,7 @@ public:
     bool isNumber() const;
     bool isNull() const;
     bool isUndefined() const;
+    bool isEmpty() const;
     bool isInt32() const;
     bool isUInt32() const;
     bool isDouble() const;

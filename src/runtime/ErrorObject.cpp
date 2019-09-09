@@ -47,6 +47,7 @@ const char* errorMessage_Set_ToUndefined = "Cannot set property '%s' of undefine
 const char* errorMessage_Set_ToNull = "Cannot set property '%s' of null";
 const char* errorMessage_New_Target_Is_Undefined = "NewTarget is undefined";
 const char* errorMessage_Class_Prototype_Is_Not_Object_Nor_Null = "Class extends object prototype property is not object nor null";
+const char* errorMessage_Class_Prototype_Is_Not_Static_Generator = "Classes may not have a static property named 'prototype'";
 const char* errorMessage_Class_Extends_Value_Is_Not_Object_Nor_Null = "Class extends value is not object nor null";
 const char* errorMessage_Initialized_This_Binding = "Super constructor may only be called once";
 const char* errorMessage_UnInitialized_This_Binding = "Must call super constructor in derived class before accessing 'this' or returning from derived constructor";

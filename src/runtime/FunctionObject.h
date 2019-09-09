@@ -53,17 +53,18 @@ public:
     // getter of internal [[Prototype]]
     Value getFunctionPrototype(ExecutionState& state)
     {
-        if (LIKELY(isConstructor()))
-            return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
-        else
+        if (LIKELY(isConstructor())) {
+            return m_values[functionPrototypeIndex()];
+        } else {
             return Value();
+        }
     }
 
     // setter of internal [[Prototype]]
     bool setFunctionPrototype(ExecutionState& state, const Value& v)
     {
         if (LIKELY(isConstructor())) {
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
+            m_values[functionPrototypeIndex()] = v;
             return true;
         } else {
             return false;
@@ -135,7 +136,7 @@ public:
 
     ConstructorKind constructorKind()
     {
-        return codeBlock()->isDerivedClassConstructor() == ConstructorKind::Derived ? ConstructorKind::Derived : ConstructorKind::Base;
+        return codeBlock()->isDerivedClassConstructor() ? ConstructorKind::Derived : ConstructorKind::Base;
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
@@ -162,17 +163,21 @@ protected:
     FunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
 
     void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator);
+    virtual size_t functionPrototypeIndex()
+    {
+        return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER;
+    }
 
     Value getFunctionPrototypeKnownAsConstructor(ExecutionState& state)
     {
         ASSERT(isConstructor());
-        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER];
+        return m_values[functionPrototypeIndex()];
     }
 
     bool setFunctionPrototypeKnownAsConstructor(ExecutionState& state, const Value& v)
     {
         ASSERT(isConstructor());
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = v;
+        m_values[functionPrototypeIndex()] = v;
         return true;
     }
     CodeBlock* m_codeBlock;
