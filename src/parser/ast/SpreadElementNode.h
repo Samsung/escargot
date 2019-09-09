@@ -44,9 +44,9 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
-        size_t spreadIndex = m_argument->getRegister(codeBlock, context);
-        m_argument->generateExpressionByteCode(codeBlock, context, spreadIndex);
-        codeBlock->pushCode(CreateSpreadObject(ByteCodeLOC(m_loc.index), dstRegister, spreadIndex), context, this);
+        ByteCodeRegisterIndex argumentIndex = m_argument->getRegister(codeBlock, context);
+        m_argument->generateExpressionByteCode(codeBlock, context, argumentIndex);
+        codeBlock->pushCode(CreateSpreadArrayObject(ByteCodeLOC(m_loc.index), dstRegister, argumentIndex), context, this);
         context->giveUpRegister();
     }
 

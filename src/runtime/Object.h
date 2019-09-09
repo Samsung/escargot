@@ -45,6 +45,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
     bool m_isFastModeArrayObject : 1;
+    bool m_isSpreadArrayObject : 1;
     bool m_shouldUpdateEnumerateObjectData : 1;
     bool m_isInArrayObjectDefineOwnProperty : 1;
     bool m_hasNonWritableLastIndexRegexpObject : 1;
@@ -853,6 +854,14 @@ public:
         } else {
             return rareData()->m_isEverSetAsPrototypeObject;
         }
+    }
+
+    bool isSpreadArray() const
+    {
+        if (LIKELY(rareData() == nullptr)) {
+            return false;
+        }
+        return isArrayObject() && rareData()->m_isSpreadArrayObject;
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2

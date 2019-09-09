@@ -33,7 +33,6 @@
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorOperations.h"
 #include "runtime/GeneratorObject.h"
-#include "runtime/SpreadObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptArrowFunctionObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
@@ -839,7 +838,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateArray* code = (CreateArray*)programCounter;
-            ArrayObject* arr = new ArrayObject(*state, code->m_hasSpreadElement);
+            ArrayObject* arr = new ArrayObject(*state);
             arr->setArrayLength(*state, code->m_length);
             registerFile[code->m_registerIndex] = arr;
             ADD_PROGRAM_COUNTER(CreateArray);
@@ -890,29 +889,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     }
                 }
             } else {
-                size_t spreadCount = 0;
                 for (size_t i = 0; i < code->m_count; i++) {
                     if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
                         const Value& element = registerFile[code->m_loadRegisterIndexs[i]];
 
-                        if (element.isObject() && element.asObject()->isSpreadObject()) {
-                            SpreadObject* spreadObj = element.asObject()->asSpreadObject();
-                            Value iterator = getIterator(*state, spreadObj->spreadValue());
-
-                            while (true) {
-                                Value next = iteratorStep(*state, iterator);
-                                if (next.isFalse()) {
-                                    spreadCount--;
-                                    break;
-                                }
-
-                                Value nextValue = iteratorValue(*state, next);
-                                arr->defineOwnProperty(*state, ObjectPropertyName(*state, i + spreadCount + code->m_baseIndex), ObjectPropertyDescriptor(nextValue, ObjectPropertyDescriptor::AllPresent));
-                                spreadCount++;
-                            }
-                        } else {
-                            arr->defineOwnProperty(*state, ObjectPropertyName(*state, i + spreadCount + code->m_baseIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
-                        }
+                        arr->defineOwnProperty(*state, ObjectPropertyName(*state, i + code->m_baseIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
                     }
                 }
             }
@@ -920,12 +901,78 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(CreateSpreadObject)
+        DEFINE_OPCODE(ArrayDefineOwnPropertyBySpreadElementOperation)
             :
         {
-            CreateSpreadObject* code = (CreateSpreadObject*)programCounter;
-            registerFile[code->m_registerIndex] = new SpreadObject(*state, registerFile[code->m_spreadIndex]);
-            ADD_PROGRAM_COUNTER(CreateSpreadObject);
+            ArrayDefineOwnPropertyBySpreadElementOperation* code = (ArrayDefineOwnPropertyBySpreadElementOperation*)programCounter;
+            ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
+
+            if (LIKELY(arr->isFastModeArray())) {
+                size_t baseIndex = arr->getArrayLength(*state);
+                size_t elementLength = code->m_count;
+                for (size_t i = 0; i < code->m_count; i++) {
+                    if (code->m_loadRegisterIndexs[i] != REGISTER_LIMIT) {
+                        Value element = registerFile[code->m_loadRegisterIndexs[i]];
+                        if (element.isObject() && element.asObject()->isSpreadArray()) {
+                            elementLength = elementLength + element.asObject()->asArrayObject()->getArrayLength(*state) - 1;
+                        }
+                    }
+                }
+
+                size_t newLength = baseIndex + elementLength;
+                arr->setArrayLength(*state, newLength);
+                ASSERT(arr->isFastModeArray());
+
+                size_t elementIndex = 0;
+                for (size_t i = 0; i < code->m_count; i++) {
+                    if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+                        Value element = registerFile[code->m_loadRegisterIndexs[i]];
+                        if (element.isObject() && element.asObject()->isSpreadArray()) {
+                            ArrayObject* spreadArray = element.asObject()->asArrayObject();
+                            ASSERT(spreadArray->isFastModeArray());
+                            for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(*state); spreadIndex++) {
+                                arr->m_fastModeData[baseIndex + elementIndex] = spreadArray->m_fastModeData[spreadIndex];
+                                elementIndex++;
+                            }
+                        } else {
+                            arr->m_fastModeData[baseIndex + elementIndex] = element;
+                            elementIndex++;
+                        }
+                    } else {
+                        elementIndex++;
+                    }
+                }
+
+                ASSERT(elementIndex == elementLength);
+
+            } else {
+                arrayDefineOwnPropertyBySpreadElementSlowCase(*state, registerFile, code->m_objectRegisterIndex, code->m_count, code->m_loadRegisterIndexs);
+            }
+
+            ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyBySpreadElementOperation);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CreateSpreadArrayObject)
+            :
+        {
+            CreateSpreadArrayObject* code = (CreateSpreadArrayObject*)programCounter;
+            ArrayObject* spreadArray = ArrayObject::createSpreadArray(*state);
+            ASSERT(spreadArray->isFastModeArray());
+
+            Value iterator = getIterator(*state, registerFile[code->m_argumentIndex]);
+            size_t i = 0;
+            while (true) {
+                Value next = iteratorStep(*state, iterator);
+                if (next.isFalse()) {
+                    break;
+                }
+                Value value = iteratorValue(*state, next);
+                spreadArray->setIndexedProperty(*state, Value(i++), iteratorValue(*state, next));
+            }
+            registerFile[code->m_registerIndex] = spreadArray;
+
+            ADD_PROGRAM_COUNTER(CreateSpreadArrayObject);
             NEXT_INSTRUCTION();
         }
 
@@ -1386,9 +1433,18 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             CallFunctionWithSpreadElement* code = (CallFunctionWithSpreadElement*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
+
+            // if PointerValue is not callable, PointerValue::call function throws builtin error
+            // https://www.ecma-international.org/ecma-262/6.0/#sec-call
+            // If IsCallable(F) is false, throw a TypeError exception.
+            if (UNLIKELY(!callee.isPointerValue())) {
+                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+            }
             ValueVector spreadArgs;
             spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-            registerFile[code->m_resultIndex] = Object::call(*state, callee, receiver, spreadArgs.size(), spreadArgs.data());
+            // Return F.[[Call]](V, argumentsList).
+            registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, spreadArgs.size(), spreadArgs.data());
+
             ADD_PROGRAM_COUNTER(CallFunctionWithSpreadElement);
             NEXT_INSTRUCTION();
         }
@@ -1410,7 +1466,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             BindingRestElement* code = (BindingRestElement*)programCounter;
 
-            ArrayObject* array = new ArrayObject(*state, false);
+            ArrayObject* array = new ArrayObject(*state);
             const Value& iterator = registerFile[code->m_iterIndex];
 
             size_t i = 0;
@@ -2737,20 +2793,44 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
 {
     for (size_t i = 0; i < argc; i++) {
         Value arg = argv[i];
-        if (arg.isObject() && arg.asObject()->isSpreadObject()) {
-            SpreadObject* spreadObj = arg.asObject()->asSpreadObject();
-            Value iterator = getIterator(state, spreadObj->spreadValue());
-
-            while (true) {
-                Value next = iteratorStep(state, iterator);
-                if (next.isFalse()) {
-                    break;
-                }
-
-                argVector.push_back(iteratorValue(state, next));
+        if (arg.isObject() && arg.asObject()->isSpreadArray()) {
+            ArrayObject* spreadArray = arg.asObject()->asArrayObject();
+            ASSERT(spreadArray->isFastModeArray());
+            for (size_t i = 0; i < spreadArray->getArrayLength(state); i++) {
+                argVector.push_back(spreadArray->m_fastModeData[i]);
             }
         } else {
             argVector.push_back(arg);
+        }
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementSlowCase(ExecutionState& state, Value* registerFile, ByteCodeRegisterIndex objectRegisterIndex, size_t count, ByteCodeRegisterIndex* loadRegisterIndexs)
+{
+    ArrayObject* arr = registerFile[objectRegisterIndex].asObject()->asArrayObject();
+    ASSERT(!arr->isFastModeArray());
+
+    size_t baseIndex = arr->getArrayLength(state);
+    size_t elementIndex = 0;
+
+    for (size_t i = 0; i < count; i++) {
+        if (LIKELY(loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+            Value element = registerFile[loadRegisterIndexs[i]];
+            if (element.isObject() && element.asObject()->isSpreadArray()) {
+                ArrayObject* spreadArray = element.asObject()->asArrayObject();
+                ASSERT(spreadArray->isFastModeArray());
+                Value spreadElement;
+                for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(state); spreadIndex++) {
+                    spreadElement = spreadArray->m_fastModeData[spreadIndex];
+                    arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(spreadElement, ObjectPropertyDescriptor::AllPresent));
+                    elementIndex++;
+                }
+            } else {
+                arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+                elementIndex++;
+            }
+        } else {
+            elementIndex++;
         }
     }
 }

@@ -51,7 +51,7 @@ public:
     {
         size_t arrayIndex = codeBlock->currentCodeSize();
         size_t arrLen = 0;
-        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister, m_hasSpreadElement), context, this);
+        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
         for (size_t i = 0; i < m_elements.size(); i += ARRAY_DEFINE_OPERATION_MERGE_COUNT) {
             size_t fillCount = 0;
@@ -69,15 +69,26 @@ public:
                 fillCount++;
                 regs[j] = valueIndex;
             }
-            codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, i, fillCount), context, this);
-            memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyOperation>())->m_loadRegisterIndexs,
-                   regs, sizeof(regs));
+
+            if (m_hasSpreadElement) {
+                codeBlock->pushCode(ArrayDefineOwnPropertyBySpreadElementOperation(ByteCodeLOC(m_loc.index), objIndex, fillCount), context, this);
+                memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyBySpreadElementOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyBySpreadElementOperation>())->m_loadRegisterIndexs,
+                       regs, sizeof(regs));
+            } else {
+                codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, i, fillCount), context, this);
+                memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyOperation>())->m_loadRegisterIndexs,
+                       regs, sizeof(regs));
+            }
+
             for (size_t j = 0; j < regCount; j++) {
                 // drop value register
                 context->giveUpRegister();
             }
         }
-        codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
+
+        if (!m_hasSpreadElement) {
+            codeBlock->peekCode<CreateArray>(arrayIndex)->m_length = arrLen;
+        }
 
         codeBlock->m_shouldClearStack = true;
 

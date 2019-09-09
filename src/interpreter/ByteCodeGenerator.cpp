@@ -299,6 +299,13 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     assignStackIndexIfNeeded(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case ArrayDefineOwnPropertyBySpreadElementOperationOpcode: {
+                ArrayDefineOwnPropertyBySpreadElementOperation* cd = (ArrayDefineOwnPropertyBySpreadElementOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                for (size_t i = 0; i < cd->m_count; i++)
+                    assignStackIndexIfNeeded(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case GetObjectPreComputedCaseOpcode: {
                 GetObjectPreComputedCase* cd = (GetObjectPreComputedCase*)currentCode;
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
@@ -523,10 +530,10 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(plus->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case CreateSpreadObjectOpcode: {
-                CreateSpreadObject* cd = (CreateSpreadObject*)currentCode;
+            case CreateSpreadArrayObjectOpcode: {
+                CreateSpreadArrayObject* cd = (CreateSpreadArrayObject*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_spreadIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_argumentIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case NewOperationWithSpreadElementOpcode: {

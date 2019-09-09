@@ -33,104 +33,105 @@ class Node;
 struct GlobalVariableAccessCacheItem;
 
 // <OpcodeName, PushCount, PopCount>
-#define FOR_EACH_BYTECODE_OP(F)                       \
-    F(LoadLiteral, 1, 0)                              \
-    F(LoadByName, 1, 0)                               \
-    F(StoreByName, 0, 0)                              \
-    F(InitializeByName, 0, 0)                         \
-    F(LoadByHeapIndex, 1, 0)                          \
-    F(StoreByHeapIndex, 0, 0)                         \
-    F(InitializeByHeapIndex, 0, 0)                    \
-    F(NewOperation, 1, 0)                             \
-    F(NewOperationWithSpreadElement, 1, 0)            \
-    F(BinaryPlus, 1, 2)                               \
-    F(BinaryMinus, 1, 2)                              \
-    F(BinaryMultiply, 1, 2)                           \
-    F(BinaryDivision, 1, 2)                           \
-    F(BinaryMod, 1, 2)                                \
-    F(BinaryEqual, 1, 2)                              \
-    F(BinaryLessThan, 1, 2)                           \
-    F(BinaryLessThanOrEqual, 1, 2)                    \
-    F(BinaryGreaterThan, 1, 2)                        \
-    F(BinaryGreaterThanOrEqual, 1, 2)                 \
-    F(BinaryNotEqual, 1, 2)                           \
-    F(BinaryStrictEqual, 1, 2)                        \
-    F(BinaryNotStrictEqual, 1, 2)                     \
-    F(BinaryBitwiseAnd, 1, 2)                         \
-    F(BinaryBitwiseOr, 1, 2)                          \
-    F(BinaryBitwiseXor, 1, 2)                         \
-    F(BinaryLeftShift, 1, 2)                          \
-    F(BinarySignedRightShift, 1, 2)                   \
-    F(BinaryUnsignedRightShift, 1, 2)                 \
-    F(BinaryInOperation, 1, 2)                        \
-    F(BinaryInstanceOfOperation, 1, 2)                \
-    F(CreateObject, 1, 0)                             \
-    F(CreateArray, 1, 0)                              \
-    F(CreateSpreadObject, 1, 0)                       \
-    F(CreateFunction, 1, 0)                           \
-    F(CreateClass, 0, 0)                              \
-    F(CreateRestElement, 0, 0)                        \
-    F(SuperReference, 1, 0)                           \
-    F(CallSuper, -1, 0)                               \
-    F(LoadThisBinding, 0, 0)                          \
-    F(ObjectDefineOwnPropertyOperation, 0, 0)         \
-    F(ObjectDefineOwnPropertyWithNameOperation, 0, 0) \
-    F(ArrayDefineOwnPropertyOperation, 0, 0)          \
-    F(GetObject, 1, 2)                                \
-    F(SetObjectOperation, 0, 2)                       \
-    F(GetObjectPreComputedCase, 1, 1)                 \
-    F(SetObjectPreComputedCase, 0, 1)                 \
-    F(GetGlobalVariable, 1, 1)                        \
-    F(SetGlobalVariable, 0, 1)                        \
-    F(InitializeGlobalVariable, 0, 1)                 \
-    F(Move, 1, 0)                                     \
-    F(Increment, 1, 1)                                \
-    F(Decrement, 1, 1)                                \
-    F(ToNumberIncrement, 2, 2)                        \
-    F(ToNumberDecrement, 2, 2)                        \
-    F(ToNumber, 1, 1)                                 \
-    F(UnaryMinus, 1, 1)                               \
-    F(UnaryNot, 1, 1)                                 \
-    F(UnaryBitwiseNot, 1, 1)                          \
-    F(UnaryTypeof, 1, 1)                              \
-    F(UnaryDelete, 1, 1)                              \
-    F(TemplateOperation, 1, 1)                        \
-    F(Jump, 0, 0)                                     \
-    F(JumpComplexCase, 0, 0)                          \
-    F(JumpIfTrue, 0, 0)                               \
-    F(JumpIfFalse, 0, 0)                              \
-    F(JumpIfRelation, 0, 0)                           \
-    F(JumpIfEqual, 0, 0)                              \
-    F(CallFunction, -1, 0)                            \
-    F(CallFunctionWithReceiver, -1, 0)                \
-    F(CallFunctionWithSpreadElement, -1, 0)           \
-    F(GetParameter, 0, 0)                             \
-    F(ReturnFunction, 0, 0)                           \
-    F(ReturnFunctionWithValue, 0, 0)                  \
-    F(ReturnFunctionSlowCase, 0, 0)                   \
-    F(TryOperation, 0, 0)                             \
-    F(TryCatchWithBlockBodyEnd, 0, 0)                 \
-    F(FinallyEnd, 0, 0)                               \
-    F(ThrowOperation, 0, 0)                           \
-    F(ThrowStaticErrorOperation, 0, 0)                \
-    F(EnumerateObject, 1, 0)                          \
-    F(EnumerateObjectKey, 1, 0)                       \
-    F(CheckIfKeyIsLast, 0, 0)                         \
-    F(GetIterator, 1, 0)                              \
-    F(IteratorStep, 1, 0)                             \
-    F(LoadRegexp, 1, 0)                               \
-    F(WithOperation, 0, 0)                            \
-    F(ObjectDefineGetter, 0, 0)                       \
-    F(ObjectDefineSetter, 0, 0)                       \
-    F(CallEvalFunction, 0, 0)                         \
-    F(CallFunctionInWithScope, 0, 0)                  \
-    F(BindingRestElement, 1, 0)                       \
-    F(GeneratorResume, 0, 0)                          \
-    F(Yield, 0, 0)                                    \
-    F(YieldDelegate, 1, 0)                            \
-    F(NewTargetOperation, 1, 0)                       \
-    F(BlockOperation, 0, 0)                           \
-    F(EnsureArgumentsObject, 0, 0)                    \
+#define FOR_EACH_BYTECODE_OP(F)                             \
+    F(LoadLiteral, 1, 0)                                    \
+    F(LoadByName, 1, 0)                                     \
+    F(StoreByName, 0, 0)                                    \
+    F(InitializeByName, 0, 0)                               \
+    F(LoadByHeapIndex, 1, 0)                                \
+    F(StoreByHeapIndex, 0, 0)                               \
+    F(InitializeByHeapIndex, 0, 0)                          \
+    F(NewOperation, 1, 0)                                   \
+    F(NewOperationWithSpreadElement, 1, 0)                  \
+    F(BinaryPlus, 1, 2)                                     \
+    F(BinaryMinus, 1, 2)                                    \
+    F(BinaryMultiply, 1, 2)                                 \
+    F(BinaryDivision, 1, 2)                                 \
+    F(BinaryMod, 1, 2)                                      \
+    F(BinaryEqual, 1, 2)                                    \
+    F(BinaryLessThan, 1, 2)                                 \
+    F(BinaryLessThanOrEqual, 1, 2)                          \
+    F(BinaryGreaterThan, 1, 2)                              \
+    F(BinaryGreaterThanOrEqual, 1, 2)                       \
+    F(BinaryNotEqual, 1, 2)                                 \
+    F(BinaryStrictEqual, 1, 2)                              \
+    F(BinaryNotStrictEqual, 1, 2)                           \
+    F(BinaryBitwiseAnd, 1, 2)                               \
+    F(BinaryBitwiseOr, 1, 2)                                \
+    F(BinaryBitwiseXor, 1, 2)                               \
+    F(BinaryLeftShift, 1, 2)                                \
+    F(BinarySignedRightShift, 1, 2)                         \
+    F(BinaryUnsignedRightShift, 1, 2)                       \
+    F(BinaryInOperation, 1, 2)                              \
+    F(BinaryInstanceOfOperation, 1, 2)                      \
+    F(CreateObject, 1, 0)                                   \
+    F(CreateArray, 1, 0)                                    \
+    F(CreateSpreadArrayObject, 1, 0)                        \
+    F(CreateFunction, 1, 0)                                 \
+    F(CreateClass, 0, 0)                                    \
+    F(CreateRestElement, 0, 0)                              \
+    F(SuperReference, 1, 0)                                 \
+    F(CallSuper, -1, 0)                                     \
+    F(LoadThisBinding, 0, 0)                                \
+    F(ObjectDefineOwnPropertyOperation, 0, 0)               \
+    F(ObjectDefineOwnPropertyWithNameOperation, 0, 0)       \
+    F(ArrayDefineOwnPropertyOperation, 0, 0)                \
+    F(ArrayDefineOwnPropertyBySpreadElementOperation, 0, 0) \
+    F(GetObject, 1, 2)                                      \
+    F(SetObjectOperation, 0, 2)                             \
+    F(GetObjectPreComputedCase, 1, 1)                       \
+    F(SetObjectPreComputedCase, 0, 1)                       \
+    F(GetGlobalVariable, 1, 1)                              \
+    F(SetGlobalVariable, 0, 1)                              \
+    F(InitializeGlobalVariable, 0, 1)                       \
+    F(Move, 1, 0)                                           \
+    F(Increment, 1, 1)                                      \
+    F(Decrement, 1, 1)                                      \
+    F(ToNumberIncrement, 2, 2)                              \
+    F(ToNumberDecrement, 2, 2)                              \
+    F(ToNumber, 1, 1)                                       \
+    F(UnaryMinus, 1, 1)                                     \
+    F(UnaryNot, 1, 1)                                       \
+    F(UnaryBitwiseNot, 1, 1)                                \
+    F(UnaryTypeof, 1, 1)                                    \
+    F(UnaryDelete, 1, 1)                                    \
+    F(TemplateOperation, 1, 1)                              \
+    F(Jump, 0, 0)                                           \
+    F(JumpComplexCase, 0, 0)                                \
+    F(JumpIfTrue, 0, 0)                                     \
+    F(JumpIfFalse, 0, 0)                                    \
+    F(JumpIfRelation, 0, 0)                                 \
+    F(JumpIfEqual, 0, 0)                                    \
+    F(CallFunction, -1, 0)                                  \
+    F(CallFunctionWithReceiver, -1, 0)                      \
+    F(CallFunctionWithSpreadElement, -1, 0)                 \
+    F(GetParameter, 0, 0)                                   \
+    F(ReturnFunction, 0, 0)                                 \
+    F(ReturnFunctionWithValue, 0, 0)                        \
+    F(ReturnFunctionSlowCase, 0, 0)                         \
+    F(TryOperation, 0, 0)                                   \
+    F(TryCatchWithBlockBodyEnd, 0, 0)                       \
+    F(FinallyEnd, 0, 0)                                     \
+    F(ThrowOperation, 0, 0)                                 \
+    F(ThrowStaticErrorOperation, 0, 0)                      \
+    F(EnumerateObject, 1, 0)                                \
+    F(EnumerateObjectKey, 1, 0)                             \
+    F(CheckIfKeyIsLast, 0, 0)                               \
+    F(GetIterator, 1, 0)                                    \
+    F(IteratorStep, 1, 0)                                   \
+    F(LoadRegexp, 1, 0)                                     \
+    F(WithOperation, 0, 0)                                  \
+    F(ObjectDefineGetter, 0, 0)                             \
+    F(ObjectDefineSetter, 0, 0)                             \
+    F(CallEvalFunction, 0, 0)                               \
+    F(CallFunctionInWithScope, 0, 0)                        \
+    F(BindingRestElement, 1, 0)                             \
+    F(GeneratorResume, 0, 0)                                \
+    F(Yield, 0, 0)                                          \
+    F(YieldDelegate, 1, 0)                                  \
+    F(NewTargetOperation, 1, 0)                             \
+    F(BlockOperation, 0, 0)                                 \
+    F(EnsureArgumentsObject, 0, 0)                          \
     F(End, 0, 0)
 
 enum Opcode {
@@ -500,21 +501,21 @@ public:
 
 class CallSuper : public ByteCode {
 public:
-    CallSuper(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex, bool hasSpreadElement)
+    CallSuper(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount, bool hasSpreadElement)
         : ByteCode(Opcode::CallSuperOpcode, loc)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
         , m_hasSpreadElement(hasSpreadElement)
     {
     }
 
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
-    bool m_hasSpreadElement : 1;
+    uint16_t m_argumentCount;
+    bool m_hasSpreadElement;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -610,17 +611,15 @@ public:
 
 class CreateArray : public ByteCode {
 public:
-    CreateArray(const ByteCodeLOC& loc, const size_t registerIndex, bool hasSpreadElement)
+    CreateArray(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::CreateArrayOpcode, loc)
         , m_registerIndex(registerIndex)
-        , m_hasSpreadElement(hasSpreadElement)
+        , m_length(0)
     {
-        m_length = 0;
     }
 
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_length;
-    bool m_hasSpreadElement : 1;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -630,22 +629,22 @@ public:
 #endif
 };
 
-class CreateSpreadObject : public ByteCode {
+class CreateSpreadArrayObject : public ByteCode {
 public:
-    CreateSpreadObject(const ByteCodeLOC& loc, const size_t registerIndex, const size_t spreadIndex)
-        : ByteCode(Opcode::CreateSpreadObjectOpcode, loc)
+    CreateSpreadArrayObject(const ByteCodeLOC& loc, const size_t registerIndex, const size_t argumentIndex)
+        : ByteCode(Opcode::CreateSpreadArrayObjectOpcode, loc)
         , m_registerIndex(registerIndex)
-        , m_spreadIndex(spreadIndex)
+        , m_argumentIndex(argumentIndex)
     {
     }
 
     ByteCodeRegisterIndex m_registerIndex;
-    ByteCodeRegisterIndex m_spreadIndex;
+    ByteCodeRegisterIndex m_argumentIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("create spread object(r%d) -> r%d", (int)m_spreadIndex, (int)m_registerIndex);
+        printf("create spread array object(r%d) -> r%d", (int)m_argumentIndex, (int)m_registerIndex);
     }
 #endif
 };
@@ -763,6 +762,34 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("array define own property r%d[%d - %d] <- ", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)(m_baseIndex + m_count));
+        for (int i = 0; i < m_count; i++) {
+            if (m_loadRegisterIndexs[i] == REGISTER_LIMIT) {
+                printf(", ");
+            } else {
+                printf("r%d, ", m_loadRegisterIndexs[i]);
+            }
+        }
+    }
+#endif
+};
+
+class ArrayDefineOwnPropertyBySpreadElementOperation : public ByteCode {
+public:
+    ArrayDefineOwnPropertyBySpreadElementOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, uint8_t count)
+        : ByteCode(Opcode::ArrayDefineOwnPropertyBySpreadElementOperationOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_count(count)
+    {
+    }
+
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    uint8_t m_count;
+    ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("array define own property by spread element r%d[ - ] <- ", (int)m_objectRegisterIndex);
         for (int i = 0; i < m_count; i++) {
             if (m_loadRegisterIndexs[i] == REGISTER_LIMIT) {
                 printf(", ");
@@ -1460,18 +1487,18 @@ public:
 
 class CallFunction : public ByteCode {
 public:
-    CallFunction(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
+    CallFunction(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
         : ByteCode(Opcode::CallFunctionOpcode, loc)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
     {
     }
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
+    uint16_t m_argumentCount;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1483,21 +1510,21 @@ public:
 
 class CallFunctionWithReceiver : public ByteCode {
 public:
-    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
+    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
         : ByteCode(Opcode::CallFunctionWithReceiverOpcode, loc)
         , m_receiverIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
     {
     }
 
     ByteCodeRegisterIndex m_receiverIndex;
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
+    uint16_t m_argumentCount;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1509,21 +1536,21 @@ public:
 
 class CallFunctionWithSpreadElement : public ByteCode {
 public:
-    CallFunctionWithSpreadElement(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount, const size_t resultIndex)
+    CallFunctionWithSpreadElement(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
         : ByteCode(Opcode::CallFunctionWithSpreadElementOpcode, loc)
         , m_receiverIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
     {
     }
 
     ByteCodeRegisterIndex m_receiverIndex;
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
+    uint16_t m_argumentCount;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1539,20 +1566,20 @@ public:
 
 class CallEvalFunction : public ByteCode {
 public:
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t evalIndex, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex, bool inWithScope, bool hasSpreadElement)
+    CallEvalFunction(const ByteCodeLOC& loc, const size_t evalIndex, const size_t argumentsStartIndex, const size_t resultIndex, size_t argumentCount, bool inWithScope, bool hasSpreadElement)
         : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
         , m_evalIndex(evalIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
         , m_inWithScope(inWithScope)
         , m_hasSpreadElement(hasSpreadElement)
     {
     }
     ByteCodeRegisterIndex m_evalIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
+    uint16_t m_argumentCount;
     bool m_inWithScope : 1;
     bool m_hasSpreadElement : 1;
 
@@ -1566,21 +1593,21 @@ public:
 
 class CallFunctionInWithScope : public ByteCode {
 public:
-    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t argumentsStartIndex, size_t argumentCount, const size_t resultIndex, bool hasSpreadElement)
+    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t argumentsStartIndex, const size_t resultIndex, size_t argumentCount, bool hasSpreadElement)
         : ByteCode(Opcode::CallFunctionInWithScopeOpcode, loc)
         , m_calleeName(calleeName)
         , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
         , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
         , m_hasSpreadElement(hasSpreadElement)
     {
     }
 
     AtomicString m_calleeName;
     ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
-    bool m_hasSpreadElement : 1;
+    uint16_t m_argumentCount;
+    bool m_hasSpreadElement;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)

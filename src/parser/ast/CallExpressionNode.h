@@ -34,7 +34,6 @@ public:
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(std::move(arguments))
-        , m_hasSpreadElement(false)
     {
     }
 
@@ -44,57 +43,56 @@ public:
 
     Node* callee() { return m_callee.get(); }
     virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
-    ByteCodeRegisterIndex generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
+    std::pair<ByteCodeRegisterIndex, bool> generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
         context->m_inCallingExpressionScope = !clearInCallingExpressionScope;
+        static const unsigned smallAmountOfArguments = 16;
 
-        ByteCodeRegisterIndex ret = context->getRegister();
-        context->giveUpRegister();
+        if (m_arguments.size() > 0) {
+            bool hasSpreadElement = false;
 
-        const unsigned smallAmountOfArguments = 16;
-        if (m_arguments.size() && m_arguments.size() < smallAmountOfArguments) {
-            ByteCodeRegisterIndex regs[smallAmountOfArguments];
-            for (size_t i = 0; i < m_arguments.size(); i++) {
-                regs[i] = m_arguments[i]->getRegister(codeBlock, context);
-                if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
-                    m_hasSpreadElement = true;
-                }
-            }
-
-            bool isSorted = true;
-
-            auto k = regs[0];
-            for (size_t i = 1; i < m_arguments.size(); i++) {
-                if (k + i != regs[i]) {
-                    isSorted = false;
-                    break;
-                }
-            }
-            for (size_t i = 0; i < m_arguments.size(); i++) {
-                context->giveUpRegister();
-            }
-            if (isSorted) {
+            if (m_arguments.size() < smallAmountOfArguments) {
+                bool isSorted = true;
+                ByteCodeRegisterIndex regs[smallAmountOfArguments];
                 for (size_t i = 0; i < m_arguments.size(); i++) {
                     regs[i] = m_arguments[i]->getRegister(codeBlock, context);
-                    m_arguments[i]->generateExpressionByteCode(codeBlock, context, regs[i]);
+                    if (regs[i] != regs[0] + i) {
+                        isSorted = false;
+                    }
+                    if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
+                        hasSpreadElement = true;
+                    }
+                }
+
+                if (isSorted) {
+                    for (size_t i = 0; i < m_arguments.size(); i++) {
+                        m_arguments[i]->generateExpressionByteCode(codeBlock, context, regs[i]);
+                    }
                 }
                 for (size_t i = 0; i < m_arguments.size(); i++) {
                     context->giveUpRegister();
                 }
-                return k;
+                if (isSorted) {
+                    return std::make_pair(regs[0], hasSpreadElement);
+                }
             }
-        }
 
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            size_t registerExpect = context->getRegister();
-            m_arguments[i]->generateExpressionByteCode(codeBlock, context, registerExpect);
-        }
-
-        for (size_t i = 0; i < m_arguments.size(); i++) {
+            ByteCodeRegisterIndex argStartIndex = context->getRegister();
             context->giveUpRegister();
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
+                    hasSpreadElement = true;
+                }
+                ByteCodeRegisterIndex argIndex = context->getRegister();
+                m_arguments[i]->generateExpressionByteCode(codeBlock, context, argIndex);
+            }
+            for (size_t i = 0; i < m_arguments.size(); i++) {
+                context->giveUpRegister();
+            }
+            return std::make_pair(argStartIndex, hasSpreadElement);
         }
 
-        return ret;
+        return std::make_pair(REGISTER_LIMIT, false);
     }
 
     static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const ArgumentVector& args)
@@ -142,11 +140,12 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
-            size_t evalIndex = context->getRegister();
+            ByteCodeRegisterIndex evalIndex = context->getRegister();
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
-            size_t startIndex = generateArguments(codeBlock, context, false);
+            auto args = generateArguments(codeBlock, context, false);
+            ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
-            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, m_arguments.size(), dstRegister, context->m_isWithScope, m_hasSpreadElement), context, this);
+            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, dstRegister, m_arguments.size(), context->m_isWithScope, args.second), context, this);
             return;
         }
 
@@ -162,9 +161,10 @@ public:
             // CallFunction should check whether receiver is global obj or with obj.
             ASSERT(m_callee->isIdentifier());
             AtomicString calleeName = m_callee->asIdentifier()->name();
-            size_t startIndex = generateArguments(codeBlock, context);
+            auto args = generateArguments(codeBlock, context);
+            ByteCodeRegisterIndex startIndex = args.first;
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-            codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), calleeName, startIndex, m_arguments.size(), dstRegister, m_hasSpreadElement), context, this);
+            codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), calleeName, startIndex, dstRegister, m_arguments.size(), args.second), context, this);
             return;
         }
 
@@ -177,8 +177,8 @@ public:
             context->m_isHeadOfMemberExpression = true;
         }
 
-        size_t receiverIndex = SIZE_MAX;
-        size_t calleeIndex = SIZE_MAX;
+        ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
+        ByteCodeRegisterIndex calleeIndex = REGISTER_LIMIT;
 
         calleeIndex = m_callee->getRegister(codeBlock, context);
         m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
@@ -193,7 +193,9 @@ public:
             }
         }
 
-        size_t argumentsStartIndex = generateArguments(codeBlock, context);
+        auto args = generateArguments(codeBlock, context);
+        ByteCodeRegisterIndex argumentsStartIndex = args.first;
+        bool hasSpreadElement = args.second;
 
         // drop callee, receiver registers
         if (isCalleeHasReceiver) {
@@ -204,13 +206,13 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallSuper(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister, m_hasSpreadElement), context, this);
-        } else if (m_hasSpreadElement) {
-            codeBlock->pushCode(CallFunctionWithSpreadElement(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(CallSuper(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size(), hasSpreadElement), context, this);
+        } else if (hasSpreadElement) {
+            codeBlock->pushCode(CallFunctionWithSpreadElement(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
         } else if (isCalleeHasReceiver) {
-            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
         } else {
-            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
         }
 
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
@@ -229,7 +231,6 @@ public:
 private:
     RefPtr<Node> m_callee; // callee: Expression;
     ArgumentVector m_arguments; // arguments: [ Expression ];
-    bool m_hasSpreadElement : 1;
 };
 }
 

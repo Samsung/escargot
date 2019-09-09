@@ -28,14 +28,14 @@ namespace Escargot {
 
 size_t g_arrayObjectTag;
 
-ArrayObject::ArrayObject(ExecutionState& state, bool hasSpreadElement)
+ArrayObject::ArrayObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
 {
     m_structure = state.context()->defaultStructureForArrayObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
     Object::setPrototype(state, state.context()->globalObject()->arrayPrototype());
 
-    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() || hasSpreadElement)) {
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
         ensureObjectRareData()->m_isFastModeArrayObject = false;
     }
 }
@@ -53,6 +53,18 @@ ArrayObject::ArrayObject(ExecutionState& state, double length)
     }
     defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(Value(length),
                                                                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+}
+
+ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
+{
+    // SpreadArray is a Fixed Array which has no __proto__ property
+    // Array.Prototype should not affect any SpreadArray operation
+    ArrayObject* spreadArray = new ArrayObject(state);
+    spreadArray->ensureObjectRareData()->m_isFastModeArrayObject = true;
+    spreadArray->ensureObjectRareData()->m_isSpreadArrayObject = true;
+    spreadArray->ensureObjectRareData()->m_prototype = nullptr;
+
+    return spreadArray;
 }
 
 ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
