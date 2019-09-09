@@ -59,6 +59,11 @@ public:
         return m_value.get();
     }
 
+    void setValue(Node* value)
+    {
+        m_value = value;
+    }
+
     Kind kind()
     {
         return m_kind;

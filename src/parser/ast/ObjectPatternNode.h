@@ -31,6 +31,22 @@ public:
     ObjectPatternNode(PropertiesNodeVector&& properties)
         : m_properties(properties)
     {
+#ifndef NDEBUG
+        for (size_t i = 0; i < m_properties.size(); i++) {
+            ASSERT(m_properties[i]->isProperty());
+        }
+#endif
+    }
+
+    ObjectPatternNode(PropertiesNodeVector&& properties, NodeLOC& loc)
+        : m_properties(properties)
+    {
+        m_loc = loc;
+#ifndef NDEBUG
+        for (size_t i = 0; i < m_properties.size(); i++) {
+            ASSERT(m_properties[i]->isProperty());
+        }
+#endif
     }
 
     virtual ASTNodeType type() { return ASTNodeType::ObjectPattern; }
@@ -75,7 +91,7 @@ public:
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i].get();
+            PropertyNode* p = m_properties[i].get()->asProperty();
             if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }

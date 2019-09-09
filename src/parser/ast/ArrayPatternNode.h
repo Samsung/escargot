@@ -33,6 +33,12 @@ public:
     {
     }
 
+    ArrayPatternNode(ExpressionNodeVector&& elements, NodeLOC& loc)
+        : m_elements(elements)
+    {
+        m_loc = loc;
+    }
+
     virtual ASTNodeType type() { return ASTNodeType::ArrayPattern; }
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {

@@ -363,11 +363,6 @@ public:
         return type() == ASTNodeType::SuperExpression;
     }
 
-    bool isValidAssignmentTarget()
-    {
-        return isIdentifier() || isMemberExpression();
-    }
-
     virtual bool isExpressionNode()
     {
         return false;
@@ -811,7 +806,7 @@ typedef std::vector<RefPtr<Node>> ArgumentVector;
 typedef std::vector<RefPtr<Node>> ExpressionNodeVector;
 typedef std::vector<RefPtr<Node>> PatternNodeVector;
 class PropertyNode;
-typedef std::vector<RefPtr<PropertyNode>> PropertiesNodeVector;
+typedef std::vector<RefPtr<Node>> PropertiesNodeVector;
 class VariableDeclaratorNode;
 typedef std::vector<RefPtr<VariableDeclaratorNode>> VariableDeclaratorVector;
 }

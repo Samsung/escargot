@@ -27,10 +27,17 @@ namespace Escargot {
 
 class RestElementNode : public ExpressionNode {
 public:
-    RestElementNode(IdentifierNode* argument)
+    RestElementNode(Node* argument)
         : ExpressionNode()
+        , m_argument(argument)
     {
-        m_argument = argument;
+    }
+
+    RestElementNode(Node* argument, NodeLOC& loc)
+        : ExpressionNode()
+        , m_argument(argument)
+    {
+        m_loc = loc;
     }
 
     virtual ~RestElementNode()
@@ -38,7 +45,7 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::RestElement; }
-    IdentifierNode* argument()
+    Node* argument()
     {
         return m_argument.get();
     }
@@ -48,6 +55,7 @@ public:
         // srcRegister indicates iteratorRegister
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
+        m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, needToReferenceSelf);
         context->giveUpRegister();
     }
@@ -62,7 +70,7 @@ public:
     }
 
 protected:
-    RefPtr<IdentifierNode> m_argument;
+    RefPtr<Node> m_argument;
 };
 }
 

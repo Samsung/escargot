@@ -51,7 +51,7 @@ public:
         codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
         for (unsigned i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i].get();
+            PropertyNode* p = m_properties[i].get()->asProperty();
             AtomicString propertyAtomicName;
             bool hasKey = false;
             size_t propertyIndex = SIZE_MAX;
@@ -106,44 +106,10 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
-    {
-        if (m_properties.size() > 0) {
-            for (size_t i = 0; i < m_properties.size(); i++) {
-                m_properties[i]->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
-            }
-        } else {
-            // ObjectAssignmentPattern without AssignmentPropertyList requires object-coercible
-            // check if srcRegister is undefined or null
-            size_t cmpIndex = context->getRegister();
-
-            LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
-            size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
-            undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this);
-            codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
-            context->giveUpRegister(); // for drop undefinedIndex
-
-            LiteralNode* nullNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value(Value::Null));
-            size_t nullIndex = nullNode->getRegister(codeBlock, context);
-            nullNode->generateExpressionByteCode(codeBlock, context, nullIndex);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), srcRegister, nullIndex, cmpIndex), context, this);
-            codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos2 = codeBlock->lastCodePosition<JumpIfFalse>();
-            context->giveUpRegister(); // for drop nullIndex
-            context->giveUpRegister(); // for drop cmpIndex
-
-            codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_Can_Not_Be_Destructed), context, this);
-            codeBlock->peekCode<JumpIfTrue>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
-        }
-    }
-
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i].get();
+            PropertyNode* p = m_properties[i].get()->asProperty();
             if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }

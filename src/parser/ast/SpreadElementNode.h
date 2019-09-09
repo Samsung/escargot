@@ -36,9 +36,10 @@ public:
     {
     }
 
-    virtual ASTNodeType type()
+    virtual ASTNodeType type() { return SpreadElement; }
+    Node* argument()
     {
-        return SpreadElement;
+        return m_argument.get();
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
@@ -46,16 +47,6 @@ public:
         size_t spreadIndex = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, spreadIndex);
         codeBlock->pushCode(CreateSpreadObject(ByteCodeLOC(m_loc.index), dstRegister, spreadIndex), context, this);
-        context->giveUpRegister();
-    }
-
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
-    {
-        // srcRegister indicates iteratorRegister
-        size_t restElementRegister = m_argument->getRegister(codeBlock, context);
-        codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
-        m_argument->generateResolveAddressByteCode(codeBlock, context);
-        m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, needToReferenceSelf);
         context->giveUpRegister();
     }
 

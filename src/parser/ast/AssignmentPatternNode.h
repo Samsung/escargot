@@ -39,6 +39,14 @@ public:
     {
     }
 
+    AssignmentPatternNode(Node* left, Node* right, NodeLOC& loc)
+        : ExpressionNode()
+        , m_left(left)
+        , m_right(right)
+    {
+        m_loc = loc;
+    }
+
     virtual ~AssignmentPatternNode()
     {
     }
@@ -59,42 +67,6 @@ public:
     }
 
     virtual ASTNodeType type() { return ASTNodeType::AssignmentPattern; }
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
-    {
-        LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
-        size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
-        undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
-
-        size_t src0 = m_left->getRegister(codeBlock, context);
-        m_left->generateExpressionByteCode(codeBlock, context, src0);
-
-        context->giveUpRegister();
-
-        size_t cmpIndex = context->getRegister();
-        codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), src0, undefinedIndex, cmpIndex), context, this);
-
-        context->giveUpRegister(); // for drop undefinedIndex
-
-        codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-        size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
-
-        context->giveUpRegister(); // for drop cmpIndex
-
-        AssignmentExpressionSimpleNode* assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_left.get(), m_right.get());
-        assign->m_loc = m_loc;
-        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-
-        codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
-    }
-
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
-    {
-        // Note: This could only happen by destructuring a pattern
-        AssignmentExpressionSimpleNode* assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_left.get(), m_right.get());
-        assign->m_loc = m_loc;
-        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-    }
-
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
     {
         LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
