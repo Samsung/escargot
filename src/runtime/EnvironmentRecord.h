@@ -29,6 +29,7 @@
 #include "runtime/String.h"
 #include "runtime/Value.h"
 #include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
@@ -228,11 +229,18 @@ public:
     {
         ObjectPropertyName propertyName(name);
         auto result = m_bindingObject->hasProperty(state, propertyName);
+
         if (result) {
+            Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
+
+            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, ObjectPropertyName(state, name)).value(state, unscopables).toBoolean(state))) {
+                return GetBindingValueResult();
+            }
+
             return GetBindingValueResult(result.value(state, propertyName, m_bindingObject));
-        } else {
-            return GetBindingValueResult();
         }
+
+        return GetBindingValueResult();
     }
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override

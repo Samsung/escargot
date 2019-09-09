@@ -1828,6 +1828,17 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().copyWithin),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().copyWithin, builtinArrayCopyWithin, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    Object* blackList = new Object(state);
+    blackList->setPrototype(state, Value(Value::Null));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().copyWithin), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().entries), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fill), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().find), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().findIndex), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+
+
     FunctionObject* values = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, NativeFunctionInfo::Strict));
     // Well-Known Intrinsic Objects : %ArrayProto_values%
     // The initial value of the values data property of %ArrayPrototype%
@@ -1841,6 +1852,9 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().entries),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinArrayEntries, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().unscopables),
+                                                       ObjectPropertyDescriptor(blackList, ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 
