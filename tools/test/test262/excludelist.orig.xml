@@ -269,9 +269,6 @@
   <test id="attempt-to-redeclare-function-declaration-with-function-declaration"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-var"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-with-function-declaration"><reason>TODO</reason></test>
-  <test id="arrowparameters-bindingidentifier-no-arguments"><reason>TODO</reason></test>
-  <test id="arrowparameters-bindingidentifier-no-eval"><reason>TODO</reason></test>
-  <test id="arrowparameters-cover-no-duplicates"><reason>TODO</reason></test>
   <test id="array-elem-init-simple-strict"><reason>TODO</reason></test>
   <test id="array-elem-nested-array-invalid"><reason>TODO</reason></test>
   <test id="array-elem-nested-obj-invalid"><reason>TODO</reason></test>

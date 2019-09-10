@@ -100,6 +100,9 @@ const char* IllegalImportDeclaration = "Unexpected token";
 const char* IllegalExportDeclaration = "Unexpected token";
 const char* DuplicateBinding = "Duplicate binding %s";
 const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
+const char* BadGetterArity = "Getter must not have any formal parameters";
+const char* BadSetterArity = "Setter must have exactly one formal parameter";
+const char* BadSetterRestParameter = "Setter function argument must not be a rest parameter";
 } // namespace Messages
 
 struct Config {
@@ -381,7 +384,7 @@ public:
         }
 
         // Check if any identifier names are duplicated.
-        if (hasParameterOtherThanIdentifier) {
+        if (hasParameterOtherThanIdentifier || this->context->inArrowFunction) {
             if (paramNames.size() < 2) {
                 return;
             }
@@ -1609,9 +1612,6 @@ public:
 
     PassRefPtr<Node> parsePropertyMethod(ParseFormalParametersResult& params)
     {
-        bool previousInArrowFunction = this->context->inArrowFunction;
-
-        this->context->inArrowFunction = false;
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
@@ -1624,7 +1624,6 @@ public:
             this->throwUnexpectedToken(&params.stricted, params.message);
         }
         this->context->strict = previousStrict;
-        this->context->inArrowFunction = previousInArrowFunction;
 
         return body;
     }
@@ -1633,19 +1632,23 @@ public:
     {
         const bool isGenerator = false;
         const bool previousAllowYield = this->context->allowYield;
-        this->context->allowYield = false;
+        const bool previousInArrowFunction = this->context->inArrowFunction;
+        this->context->allowYield = true;
+        this->context->inArrowFunction = false;
+
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
         pushScopeContext(AtomicString());
         ParseFormalParametersResult params = this->parseFormalParameters();
         extractNamesFromFunctionParams(params);
         RefPtr<Node> method = this->parsePropertyMethod(params);
+
         this->context->allowYield = previousAllowYield;
+        this->context->inArrowFunction = previousInArrowFunction;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-
         return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
@@ -3502,8 +3505,8 @@ public:
 
                 // FIXME reinterpretAsCoverFormalsList
                 if (type == Identifier) {
+                    this->validateParam(list, &this->lookahead, exprNode->asIdentifier()->name());
                     list.params.push_back(exprNode);
-                    list.paramSet.push_back(exprNode->asIdentifier()->name());
                     list.valid = true;
                 } else {
                     this->scanner->index = startMarker.index;
@@ -3527,17 +3530,17 @@ public:
                     }
                     this->context->firstCoverInitializedNameError.reset();
 
-                    scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
-                    scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
-                    scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
-
-                    extractNamesFromFunctionParams(list);
-
                     bool previousStrict = this->context->strict;
                     bool previousAllowYield = this->context->allowYield;
                     bool previousInArrowFunction = this->context->inArrowFunction;
                     this->context->allowYield = true;
                     this->context->inArrowFunction = true;
+
+                    scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
+                    scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
+                    scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
+
+                    extractNamesFromFunctionParams(list);
 
                     this->expect(Arrow);
 
@@ -5772,11 +5775,16 @@ public:
         bool isGenerator = false;
         ParseFormalParametersResult params;
         bool previousAllowYield = this->context->allowYield;
-        this->context->allowYield = false;
+        bool previousInArrowFunction = this->context->inArrowFunction;
+        this->context->allowYield = true;
+        this->context->inArrowFunction = false;
+
         pushScopeContext(AtomicString());
         extractNamesFromFunctionParams(params);
         RefPtr<Node> method = this->parsePropertyMethod(params);
+
         this->context->allowYield = previousAllowYield;
+        this->context->inArrowFunction = previousInArrowFunction;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
@@ -5788,67 +5796,56 @@ public:
     {
         MetaNode node = this->createNode();
 
-        ParseFormalParametersResult options;
-
         bool isGenerator = false;
         bool previousAllowYield = this->context->allowYield;
-        this->context->allowYield = false;
+        bool previousInArrowFunction = this->context->inArrowFunction;
+        this->context->allowYield = true;
+        this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
-
         pushScopeContext(AtomicString());
-
-        if (this->match(RightParenthesis)) {
-            this->throwUnexpectedToken(&this->lookahead);
-        } else {
-            this->parseFormalParameter(options);
+        ParseFormalParametersResult formalParameters = this->parseFormalParameters();
+        if (formalParameters.params.size() != 1) {
+            this->throwError(Messages::BadSetterArity);
+        } else if (formalParameters.params[0]->type() == ASTNodeType::RestElement) {
+            this->throwError(Messages::BadSetterRestParameter);
         }
-        this->expect(RightParenthesis);
+        extractNamesFromFunctionParams(formalParameters);
+        RefPtr<Node> method = this->parsePropertyMethod(formalParameters);
 
-        bool previousInArrowFunction = this->context->inArrowFunction;
-        this->context->inArrowFunction = false;
-        this->context->isAssignmentTarget = false;
-        this->context->isBindingElement = false;
+        this->context->allowYield = previousAllowYield;
+        this->context->inArrowFunction = previousInArrowFunction;
 
-        extractNamesFromFunctionParams(options);
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-
-        const bool previousStrict = this->context->strict;
-        PassRefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
-        if (this->context->strict && options.firstRestricted) {
-            this->throwUnexpectedToken(&options.firstRestricted, options.message);
-        }
-        if (this->context->strict && options.stricted) {
-            this->throwUnexpectedToken(&options.stricted, options.message);
-        }
-        this->context->strict = previousStrict;
-        this->context->inArrowFunction = previousInArrowFunction;
-        this->context->allowYield = previousAllowYield;
-
         return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     PassRefPtr<FunctionExpressionNode> parseGeneratorMethod()
     {
         MetaNode node = this->createNode();
-        const bool previousAllowYield = this->context->allowYield;
-        this->expect(LeftParenthesis);
 
-        pushScopeContext(AtomicString());
+        bool isGenerator = true;
+        bool previousAllowYield = this->context->allowYield;
+        bool previousInArrowFunction = this->context->inArrowFunction;
         this->context->allowYield = true;
+        this->context->inArrowFunction = false;
+
+        this->expect(LeftParenthesis);
+        pushScopeContext(AtomicString());
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
-        this->context->allowYield = false;
         extractNamesFromFunctionParams(formalParameters);
-        // Note: Change it to parsePropertyMethod, if possible
-        RefPtr<Node> method = this->isolateCoverGrammar(&Parser::parseFunctionSourceElements);
+        this->context->allowYield = false;
+        RefPtr<Node> method = this->parsePropertyMethod(formalParameters);
+
         this->context->allowYield = previousAllowYield;
+        this->context->inArrowFunction = previousInArrowFunction;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), true, this->subCodeBlockIndex));
+        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
