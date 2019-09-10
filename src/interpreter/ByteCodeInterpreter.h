@@ -99,6 +99,7 @@ public:
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
+    static void arrayDefineOwnPropertyBySpreadElementSlowCase(ExecutionState& state, Value* registerFile, ByteCodeRegisterIndex objectRegisterIndex, size_t count, ByteCodeRegisterIndex* loadRegisterIndexs);
 
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);

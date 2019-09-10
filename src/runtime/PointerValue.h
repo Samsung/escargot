@@ -28,7 +28,6 @@ class Symbol;
 class Object;
 class FunctionObject;
 class ArrayObject;
-class SpreadObject;
 class StringObject;
 class SymbolObject;
 class NumberObject;
@@ -111,11 +110,6 @@ public:
     }
 
     virtual bool isArrayPrototypeObject() const
-    {
-        return false;
-    }
-
-    virtual bool isSpreadObject() const
     {
         return false;
     }
@@ -302,12 +296,6 @@ public:
     {
         ASSERT(isArrayObject());
         return (ArrayObject*)this;
-    }
-
-    SpreadObject* asSpreadObject()
-    {
-        ASSERT(isSpreadObject());
-        return (SpreadObject*)this;
     }
 
     FunctionObject* asFunctionObject()
