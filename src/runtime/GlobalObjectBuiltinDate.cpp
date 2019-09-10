@@ -25,6 +25,10 @@
 #include "ErrorObject.h"
 #include "NativeFunctionObject.h"
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#include "IntlDateTimeFormat.h"
+#endif
+
 namespace Escargot {
 
 #define FOR_EACH_DATE_VALUES(F)                     \
@@ -216,14 +220,36 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
     return thisObject->asDateObject()->toTimeString(state);
 }
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT)                                                                                   \
+    double x = thisObject->asDateObject()->primitiveValue();                                                                              \
+    if (std::isnan(x)) {                                                                                                                  \
+        return new ASCIIString("Invalid Date");                                                                                           \
+    }                                                                                                                                     \
+    Value locales, options;                                                                                                               \
+    if (argc >= 1) {                                                                                                                      \
+        locales = argv[0];                                                                                                                \
+    }                                                                                                                                     \
+    if (argc >= 2) {                                                                                                                      \
+        options = argv[1];                                                                                                                \
+    }                                                                                                                                     \
+    auto dateTimeOption = IntlDateTimeFormat::toDateTimeOptions(state, options, String::fromASCII(REQUIRED), String::fromASCII(DEFUALT)); \
+    Object* dateFormat = IntlDateTimeFormat::create(state, locales, dateTimeOption);                                                      \
+    auto result = IntlDateTimeFormat::format(state, dateFormat, x);                                                                       \
+    return new UTF16String(result.data(), result.length());
+#endif
+
 static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
     if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    INTL_DATE_TIME_FORMAT_FORMAT("any", "all")
+#else
     return thisObject->asDateObject()->toLocaleFullString(state);
+#endif
 }
 
 static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -232,8 +258,11 @@ static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValu
     if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    INTL_DATE_TIME_FORMAT_FORMAT("date", "date")
+#else
     return thisObject->asDateObject()->toLocaleDateString(state);
+#endif
 }
 
 static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -242,8 +271,11 @@ static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValu
     if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
     }
-
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    INTL_DATE_TIME_FORMAT_FORMAT("time", "time")
+#else
     return thisObject->asDateObject()->toLocaleTimeString(state);
+#endif
 }
 
 static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

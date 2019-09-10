@@ -89,14 +89,6 @@
 
   <test id="10.6-13-a-2"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
   <test id="10.6-13-a-3"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
-  <test id="12.1.1_TDTO"><reason>TODO : Need to fix 'Date.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
-  <test id="12.3.2_FDT_7_a_iv"><reason>TODO : Need to fix 'Date.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
-  <test id="13.1.1_6_1"><reason>TODO : Need to fix 'String.prototype.localeCompare' according to ECMAScript 6.0 spec</reason></test>
-  <test id="13.1.1_7"><reason>TODO : Need to fix 'String.prototype.localeCompare' according to ECMAScript 6.0 spec</reason></test>
-  <test id="13.2.1_4_1"><reason>TODO : Need to fix 'Number.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
-  <test id="13.2.1_5"><reason>TODO : Need to fix 'Number.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
-  <test id="13.3.0_6_1"><reason>TODO : Need to fix 'Date.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
-  <test id="13.3.0_7"><reason>TODO : Need to fix 'Date.prototype.toLocaleString' according to ECMAScript 6.0 spec</reason></test>
 
   <test id="6.2.3"><reason>TODO</reason></test>
   <test id="S11.13.1_A5_T1"><reason>TODO</reason></test>
