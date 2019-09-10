@@ -101,12 +101,15 @@ public:
         m_locale = locale;
     }
 
-    icu::TimeZone* timezone() const
+    icu::TimeZone* timezone()
     {
+        if (m_timezone == nullptr) {
+            ensureTimezone();
+        }
         return m_timezone;
     }
 
-    void setTimezone()
+    void ensureTimezone()
     {
         if (m_timezoneID == "") {
             icu::TimeZone* tz = icu::TimeZone::createDefault();
@@ -118,6 +121,7 @@ public:
             m_timezone = (icu::TimeZone::createTimeZone(m_timezoneID));
         }
     }
+
     void setTimezoneID(icu::UnicodeString id)
     {
         m_timezoneID = id;

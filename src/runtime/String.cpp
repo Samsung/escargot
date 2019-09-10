@@ -60,6 +60,48 @@ size_t g_utf16StringTag;
 size_t g_ropeStringTag;
 size_t g_stringViewTag;
 
+std::vector<std::string> split(const std::string& s, char seperator)
+{
+    std::vector<std::string> output;
+    std::string::size_type prevPos = 0, pos = 0;
+
+    while ((pos = s.find(seperator, pos)) != std::string::npos) {
+        std::string substring(s.substr(prevPos, pos - prevPos));
+        output.push_back(substring);
+        prevPos = ++pos;
+    }
+
+    output.push_back(s.substr(prevPos, pos - prevPos));
+    return output;
+}
+
+bool isASCIIAlpha(char ch)
+{
+    return isalpha(ch);
+}
+
+bool isASCIIDigit(char ch)
+{
+    return isdigit(ch);
+}
+
+bool isASCIIAlphanumeric(char ch)
+{
+    return isASCIIAlpha(ch) || isASCIIDigit(ch);
+}
+
+bool isAllSpecialCharacters(const std::string& s, bool (*fn)(char))
+{
+    bool isAllSpecial = true;
+    for (size_t i = 0; i < s.size(); i++) {
+        if (!fn(s[i])) {
+            isAllSpecial = false;
+            break;
+        }
+    }
+    return isAllSpecial;
+}
+
 bool isAllASCII(const char* buf, const size_t len)
 {
     for (unsigned i = 0; i < len; i++) {

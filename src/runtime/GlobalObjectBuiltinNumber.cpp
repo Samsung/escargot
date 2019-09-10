@@ -27,6 +27,10 @@
 #include "ieee.h"
 #include "double-conversion.h"
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#include "IntlNumberFormat.h"
+#endif
+
 #define NUMBER_TO_STRING_BUFFER_LENGTH 96
 
 namespace Escargot {
@@ -262,10 +266,32 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
 static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Number, toLocaleString);
-
     if (!thisObject->isNumberObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotNumber);
     }
+
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Value locales, options;
+
+    if (argc >= 1) {
+        locales = argv[0];
+    }
+    if (argc >= 2) {
+        options = argv[1];
+    }
+    Object* numberFormat = IntlNumberFormat::create(state, locales, options);
+    double x = 0;
+    if (thisValue.isNumber()) {
+        x = thisValue.asNumber();
+    } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
+        x = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotNumber);
+    }
+    auto result = IntlNumberFormat::format(state, numberFormat, x);
+
+    return new UTF16String(result.data(), result.length());
+#else
 
     ObjectGetResult toStrFuncGetResult = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toString));
     if (toStrFuncGetResult.hasValue()) {
@@ -277,6 +303,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
     RELEASE_ASSERT_NOT_REACHED();
+#endif
 }
 
 static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

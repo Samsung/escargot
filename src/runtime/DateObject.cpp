@@ -276,12 +276,6 @@ static int equivalentYearForDST(int year)
 time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 {
 #ifdef ENABLE_ICU
-    if (state.context()->vmInstance()->timezone() == NULL) {
-        state.context()->vmInstance()->setTimezone();
-    }
-#endif
-
-#ifdef ENABLE_ICU
     UErrorCode succ = U_ZERO_ERROR;
 #endif
     int32_t stdOffset, dstOffset;
@@ -1120,12 +1114,6 @@ int DateObject::daysFromTime(time64_t t)
 // This function expects m_primitiveValue is valid.
 void DateObject::resolveCache(ExecutionState& state)
 {
-#ifdef ENABLE_ICU
-    if (state.context()->vmInstance()->timezone() == NULL) {
-        state.context()->vmInstance()->setTimezone();
-    }
-#endif
-
     time64_t t = m_primitiveValue;
     int realYear = yearFromTime(t);
     int equivalentYear = equivalentYearForDST(realYear);
@@ -1264,6 +1252,7 @@ String* DateObject::toLocaleDateString(ExecutionState& state)
 #ifdef ENABLE_ICU
         icu::UnicodeString myString;
         icu::DateFormat* df = icu::DateFormat::createDateInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
+        df->setTimeZone(*state.context()->vmInstance()->timezone());
         df->format(primitiveValue(), myString);
 
         delete df;

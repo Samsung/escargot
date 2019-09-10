@@ -43,6 +43,13 @@ typedef std::basic_string<char, std::char_traits<char>> UTF8StringDataNonGCStd;
 typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataNonGCStd;
 typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
+std::vector<std::string> split(const std::string& s, char seperator);
+
+bool isASCIIAlpha(char ch);
+bool isASCIIDigit(char ch);
+bool isASCIIAlphanumeric(char ch);
+bool isAllSpecialCharacters(const std::string& s, bool (*fn)(char));
+
 bool isAllASCII(const char* buf, const size_t len);
 bool isAllASCII(const char16_t* buf, const size_t len);
 bool isAllLatin1(const char16_t* buf, const size_t len);

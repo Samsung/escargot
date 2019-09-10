@@ -27,6 +27,9 @@
 #include "ArrayObject.h"
 #include "NativeFunctionObject.h"
 #include "parser/Lexer.h"
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#include "IntlCollator.h"
+#endif
 
 namespace Escargot {
 
@@ -123,8 +126,24 @@ static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, si
 static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(S, String, localeCompare);
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    String* That = argv[0].toString(state);
+    Value locales, options;
+
+    if (argc >= 2) {
+        locales = argv[1];
+    }
+    if (argc >= 3) {
+        options = argv[2];
+    }
+
+    Object* collator = IntlCollator::create(state, locales, options);
+
+    return Value(IntlCollator::compare(state, collator, S, That));
+#else
     String* That = argv[0].toString(state);
     return Value(stringCompare(*S, *That));
+#endif
 }
 
 static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
