@@ -97,6 +97,734 @@ static std::string grandfatheredLangTag(String* locale)
     return std::string();
 }
 
+static std::string intlPreferredLanguageTag(const std::string& tag)
+{
+    // 78 possible replacements
+    if (tag == "aam")
+        return "aas";
+    if (tag == "adp")
+        return "dz";
+    if (tag == "aue")
+        return "ktz";
+    if (tag == "ayx")
+        return "nun";
+    if (tag == "bgm")
+        return "bcg";
+    if (tag == "bjd")
+        return "drl";
+    if (tag == "ccq")
+        return "rki";
+    if (tag == "cjr")
+        return "mom";
+    if (tag == "cka")
+        return "cmr";
+    if (tag == "cmk")
+        return "xch";
+    if (tag == "coy")
+        return "pij";
+    if (tag == "cqu")
+        return "quh";
+    if (tag == "drh")
+        return "khk";
+    if (tag == "drw")
+        return "prs";
+    if (tag == "gav")
+        return "dev";
+    if (tag == "gfx")
+        return "vaj";
+    if (tag == "ggn")
+        return "gvr";
+    if (tag == "gti")
+        return "nyc";
+    if (tag == "guv")
+        return "duz";
+    if (tag == "hrr")
+        return "jal";
+    if (tag == "ibi")
+        return "opa";
+    if (tag == "ilw")
+        return "gal";
+    if (tag == "in")
+        return "id";
+    if (tag == "iw")
+        return "he";
+    if (tag == "jeg")
+        return "oyb";
+    if (tag == "ji")
+        return "yi";
+    if (tag == "jw")
+        return "jv";
+    if (tag == "kgc")
+        return "tdf";
+    if (tag == "kgh")
+        return "kml";
+    if (tag == "koj")
+        return "kwv";
+    if (tag == "krm")
+        return "bmf";
+    if (tag == "ktr")
+        return "dtp";
+    if (tag == "kvs")
+        return "gdj";
+    if (tag == "kwq")
+        return "yam";
+    if (tag == "kxe")
+        return "tvd";
+    if (tag == "kzj")
+        return "dtp";
+    if (tag == "kzt")
+        return "dtp";
+    if (tag == "lii")
+        return "raq";
+    if (tag == "lmm")
+        return "rmx";
+    if (tag == "meg")
+        return "cir";
+    if (tag == "mo")
+        return "ro";
+    if (tag == "mst")
+        return "mry";
+    if (tag == "mwj")
+        return "vaj";
+    if (tag == "myt")
+        return "mry";
+    if (tag == "nad")
+        return "xny";
+    if (tag == "ncp")
+        return "kdz";
+    if (tag == "nnx")
+        return "ngv";
+    if (tag == "nts")
+        return "pij";
+    if (tag == "oun")
+        return "vaj";
+    if (tag == "pcr")
+        return "adx";
+    if (tag == "pmc")
+        return "huw";
+    if (tag == "pmu")
+        return "phr";
+    if (tag == "ppa")
+        return "bfy";
+    if (tag == "ppr")
+        return "lcq";
+    if (tag == "pry")
+        return "prt";
+    if (tag == "puz")
+        return "pub";
+    if (tag == "sca")
+        return "hle";
+    if (tag == "skk")
+        return "oyb";
+    if (tag == "tdu")
+        return "dtp";
+    if (tag == "thc")
+        return "tpo";
+    if (tag == "thx")
+        return "oyb";
+    if (tag == "tie")
+        return "ras";
+    if (tag == "tkk")
+        return "twm";
+    if (tag == "tlw")
+        return "weo";
+    if (tag == "tmp")
+        return "tyj";
+    if (tag == "tne")
+        return "kak";
+    if (tag == "tnf")
+        return "prs";
+    if (tag == "tsf")
+        return "taj";
+    if (tag == "uok")
+        return "ema";
+    if (tag == "xba")
+        return "cax";
+    if (tag == "xia")
+        return "acn";
+    if (tag == "xkh")
+        return "waw";
+    if (tag == "xsj")
+        return "suj";
+    if (tag == "ybd")
+        return "rki";
+    if (tag == "yma")
+        return "lrr";
+    if (tag == "ymt")
+        return "mtm";
+    if (tag == "yos")
+        return "zom";
+    if (tag == "yuu")
+        return "yug";
+    return "";
+}
+
+static std::string intlRedundantLanguageTag(const std::string& tag)
+{
+    // 24 possible replacements
+    if (tag == "hy-arevela")
+        return "hy";
+    if (tag == "hy-arevmda")
+        return "hyw";
+    if (tag == "ja-Latn-hepburn-heploc")
+        return "ja-Latn-alalc97";
+    if (tag == "sgn-BR")
+        return "bzs";
+    if (tag == "sgn-CO")
+        return "csn";
+    if (tag == "sgn-DE")
+        return "gsg";
+    if (tag == "sgn-DK")
+        return "dsl";
+    if (tag == "sgn-ES")
+        return "ssp";
+    if (tag == "sgn-FR")
+        return "fsl";
+    if (tag == "sgn-GB")
+        return "bfi";
+    if (tag == "sgn-GR")
+        return "gss";
+    if (tag == "sgn-IE")
+        return "isg";
+    if (tag == "sgn-IT")
+        return "ise";
+    if (tag == "sgn-JP")
+        return "jsl";
+    if (tag == "sgn-MX")
+        return "mfs";
+    if (tag == "sgn-NI")
+        return "ncs";
+    if (tag == "sgn-NL")
+        return "dse";
+    if (tag == "sgn-NO")
+        return "nsl";
+    if (tag == "sgn-PT")
+        return "psr";
+    if (tag == "sgn-SE")
+        return "swl";
+    if (tag == "sgn-US")
+        return "ase";
+    if (tag == "sgn-ZA")
+        return "sfs";
+    if (tag == "zh-cmn-Hans")
+        return "cmn-Hans";
+    if (tag == "zh-cmn-Hant")
+        return "cmn-Hant";
+    return "";
+}
+
+static std::string preferredLanguage(const std::string& language)
+{
+    auto preferred = intlPreferredLanguageTag(language);
+    if (preferred != "") {
+        return preferred;
+    }
+    return language;
+}
+
+static std::string intlPreferredExtlangTag(const std::string& tag)
+{
+    // 235 possible replacements
+    if (tag == "aao")
+        return "ar";
+    if (tag == "abh")
+        return "ar";
+    if (tag == "abv")
+        return "ar";
+    if (tag == "acm")
+        return "ar";
+    if (tag == "acq")
+        return "ar";
+    if (tag == "acw")
+        return "ar";
+    if (tag == "acx")
+        return "ar";
+    if (tag == "acy")
+        return "ar";
+    if (tag == "adf")
+        return "ar";
+    if (tag == "ads")
+        return "sgn";
+    if (tag == "aeb")
+        return "ar";
+    if (tag == "aec")
+        return "ar";
+    if (tag == "aed")
+        return "sgn";
+    if (tag == "aen")
+        return "sgn";
+    if (tag == "afb")
+        return "ar";
+    if (tag == "afg")
+        return "sgn";
+    if (tag == "ajp")
+        return "ar";
+    if (tag == "apc")
+        return "ar";
+    if (tag == "apd")
+        return "ar";
+    if (tag == "arb")
+        return "ar";
+    if (tag == "arq")
+        return "ar";
+    if (tag == "ars")
+        return "ar";
+    if (tag == "ary")
+        return "ar";
+    if (tag == "arz")
+        return "ar";
+    if (tag == "ase")
+        return "sgn";
+    if (tag == "asf")
+        return "sgn";
+    if (tag == "asp")
+        return "sgn";
+    if (tag == "asq")
+        return "sgn";
+    if (tag == "asw")
+        return "sgn";
+    if (tag == "auz")
+        return "ar";
+    if (tag == "avl")
+        return "ar";
+    if (tag == "ayh")
+        return "ar";
+    if (tag == "ayl")
+        return "ar";
+    if (tag == "ayn")
+        return "ar";
+    if (tag == "ayp")
+        return "ar";
+    if (tag == "bbz")
+        return "ar";
+    if (tag == "bfi")
+        return "sgn";
+    if (tag == "bfk")
+        return "sgn";
+    if (tag == "bjn")
+        return "ms";
+    if (tag == "bog")
+        return "sgn";
+    if (tag == "bqn")
+        return "sgn";
+    if (tag == "bqy")
+        return "sgn";
+    if (tag == "btj")
+        return "ms";
+    if (tag == "bve")
+        return "ms";
+    if (tag == "bvl")
+        return "sgn";
+    if (tag == "bvu")
+        return "ms";
+    if (tag == "bzs")
+        return "sgn";
+    if (tag == "cdo")
+        return "zh";
+    if (tag == "cds")
+        return "sgn";
+    if (tag == "cjy")
+        return "zh";
+    if (tag == "cmn")
+        return "zh";
+    if (tag == "coa")
+        return "ms";
+    if (tag == "cpx")
+        return "zh";
+    if (tag == "csc")
+        return "sgn";
+    if (tag == "csd")
+        return "sgn";
+    if (tag == "cse")
+        return "sgn";
+    if (tag == "csf")
+        return "sgn";
+    if (tag == "csg")
+        return "sgn";
+    if (tag == "csl")
+        return "sgn";
+    if (tag == "csn")
+        return "sgn";
+    if (tag == "csq")
+        return "sgn";
+    if (tag == "csr")
+        return "sgn";
+    if (tag == "czh")
+        return "zh";
+    if (tag == "czo")
+        return "zh";
+    if (tag == "doq")
+        return "sgn";
+    if (tag == "dse")
+        return "sgn";
+    if (tag == "dsl")
+        return "sgn";
+    if (tag == "dup")
+        return "ms";
+    if (tag == "ecs")
+        return "sgn";
+    if (tag == "esl")
+        return "sgn";
+    if (tag == "esn")
+        return "sgn";
+    if (tag == "eso")
+        return "sgn";
+    if (tag == "eth")
+        return "sgn";
+    if (tag == "fcs")
+        return "sgn";
+    if (tag == "fse")
+        return "sgn";
+    if (tag == "fsl")
+        return "sgn";
+    if (tag == "fss")
+        return "sgn";
+    if (tag == "gan")
+        return "zh";
+    if (tag == "gds")
+        return "sgn";
+    if (tag == "gom")
+        return "kok";
+    if (tag == "gse")
+        return "sgn";
+    if (tag == "gsg")
+        return "sgn";
+    if (tag == "gsm")
+        return "sgn";
+    if (tag == "gss")
+        return "sgn";
+    if (tag == "gus")
+        return "sgn";
+    if (tag == "hab")
+        return "sgn";
+    if (tag == "haf")
+        return "sgn";
+    if (tag == "hak")
+        return "zh";
+    if (tag == "hds")
+        return "sgn";
+    if (tag == "hji")
+        return "ms";
+    if (tag == "hks")
+        return "sgn";
+    if (tag == "hos")
+        return "sgn";
+    if (tag == "hps")
+        return "sgn";
+    if (tag == "hsh")
+        return "sgn";
+    if (tag == "hsl")
+        return "sgn";
+    if (tag == "hsn")
+        return "zh";
+    if (tag == "icl")
+        return "sgn";
+    if (tag == "iks")
+        return "sgn";
+    if (tag == "ils")
+        return "sgn";
+    if (tag == "inl")
+        return "sgn";
+    if (tag == "ins")
+        return "sgn";
+    if (tag == "ise")
+        return "sgn";
+    if (tag == "isg")
+        return "sgn";
+    if (tag == "isr")
+        return "sgn";
+    if (tag == "jak")
+        return "ms";
+    if (tag == "jax")
+        return "ms";
+    if (tag == "jcs")
+        return "sgn";
+    if (tag == "jhs")
+        return "sgn";
+    if (tag == "jls")
+        return "sgn";
+    if (tag == "jos")
+        return "sgn";
+    if (tag == "jsl")
+        return "sgn";
+    if (tag == "jus")
+        return "sgn";
+    if (tag == "kgi")
+        return "sgn";
+    if (tag == "knn")
+        return "kok";
+    if (tag == "kvb")
+        return "ms";
+    if (tag == "kvk")
+        return "sgn";
+    if (tag == "kvr")
+        return "ms";
+    if (tag == "kxd")
+        return "ms";
+    if (tag == "lbs")
+        return "sgn";
+    if (tag == "lce")
+        return "ms";
+    if (tag == "lcf")
+        return "ms";
+    if (tag == "liw")
+        return "ms";
+    if (tag == "lls")
+        return "sgn";
+    if (tag == "lsg")
+        return "sgn";
+    if (tag == "lsl")
+        return "sgn";
+    if (tag == "lso")
+        return "sgn";
+    if (tag == "lsp")
+        return "sgn";
+    if (tag == "lst")
+        return "sgn";
+    if (tag == "lsy")
+        return "sgn";
+    if (tag == "ltg")
+        return "lv";
+    if (tag == "lvs")
+        return "lv";
+    if (tag == "lws")
+        return "sgn";
+    if (tag == "lzh")
+        return "zh";
+    if (tag == "max")
+        return "ms";
+    if (tag == "mdl")
+        return "sgn";
+    if (tag == "meo")
+        return "ms";
+    if (tag == "mfa")
+        return "ms";
+    if (tag == "mfb")
+        return "ms";
+    if (tag == "mfs")
+        return "sgn";
+    if (tag == "min")
+        return "ms";
+    if (tag == "mnp")
+        return "zh";
+    if (tag == "mqg")
+        return "ms";
+    if (tag == "mre")
+        return "sgn";
+    if (tag == "msd")
+        return "sgn";
+    if (tag == "msi")
+        return "ms";
+    if (tag == "msr")
+        return "sgn";
+    if (tag == "mui")
+        return "ms";
+    if (tag == "mzc")
+        return "sgn";
+    if (tag == "mzg")
+        return "sgn";
+    if (tag == "mzy")
+        return "sgn";
+    if (tag == "nan")
+        return "zh";
+    if (tag == "nbs")
+        return "sgn";
+    if (tag == "ncs")
+        return "sgn";
+    if (tag == "nsi")
+        return "sgn";
+    if (tag == "nsl")
+        return "sgn";
+    if (tag == "nsp")
+        return "sgn";
+    if (tag == "nsr")
+        return "sgn";
+    if (tag == "nzs")
+        return "sgn";
+    if (tag == "okl")
+        return "sgn";
+    if (tag == "orn")
+        return "ms";
+    if (tag == "ors")
+        return "ms";
+    if (tag == "pel")
+        return "ms";
+    if (tag == "pga")
+        return "ar";
+    if (tag == "pgz")
+        return "sgn";
+    if (tag == "pks")
+        return "sgn";
+    if (tag == "prl")
+        return "sgn";
+    if (tag == "prz")
+        return "sgn";
+    if (tag == "psc")
+        return "sgn";
+    if (tag == "psd")
+        return "sgn";
+    if (tag == "pse")
+        return "ms";
+    if (tag == "psg")
+        return "sgn";
+    if (tag == "psl")
+        return "sgn";
+    if (tag == "pso")
+        return "sgn";
+    if (tag == "psp")
+        return "sgn";
+    if (tag == "psr")
+        return "sgn";
+    if (tag == "pys")
+        return "sgn";
+    if (tag == "rms")
+        return "sgn";
+    if (tag == "rsi")
+        return "sgn";
+    if (tag == "rsl")
+        return "sgn";
+    if (tag == "rsm")
+        return "sgn";
+    if (tag == "sdl")
+        return "sgn";
+    if (tag == "sfb")
+        return "sgn";
+    if (tag == "sfs")
+        return "sgn";
+    if (tag == "sgg")
+        return "sgn";
+    if (tag == "sgx")
+        return "sgn";
+    if (tag == "shu")
+        return "ar";
+    if (tag == "slf")
+        return "sgn";
+    if (tag == "sls")
+        return "sgn";
+    if (tag == "sqk")
+        return "sgn";
+    if (tag == "sqs")
+        return "sgn";
+    if (tag == "ssh")
+        return "ar";
+    if (tag == "ssp")
+        return "sgn";
+    if (tag == "ssr")
+        return "sgn";
+    if (tag == "svk")
+        return "sgn";
+    if (tag == "swc")
+        return "sw";
+    if (tag == "swh")
+        return "sw";
+    if (tag == "swl")
+        return "sgn";
+    if (tag == "syy")
+        return "sgn";
+    if (tag == "szs")
+        return "sgn";
+    if (tag == "tmw")
+        return "ms";
+    if (tag == "tse")
+        return "sgn";
+    if (tag == "tsm")
+        return "sgn";
+    if (tag == "tsq")
+        return "sgn";
+    if (tag == "tss")
+        return "sgn";
+    if (tag == "tsy")
+        return "sgn";
+    if (tag == "tza")
+        return "sgn";
+    if (tag == "ugn")
+        return "sgn";
+    if (tag == "ugy")
+        return "sgn";
+    if (tag == "ukl")
+        return "sgn";
+    if (tag == "uks")
+        return "sgn";
+    if (tag == "urk")
+        return "ms";
+    if (tag == "uzn")
+        return "uz";
+    if (tag == "uzs")
+        return "uz";
+    if (tag == "vgt")
+        return "sgn";
+    if (tag == "vkk")
+        return "ms";
+    if (tag == "vkt")
+        return "ms";
+    if (tag == "vsi")
+        return "sgn";
+    if (tag == "vsl")
+        return "sgn";
+    if (tag == "vsv")
+        return "sgn";
+    if (tag == "wbs")
+        return "sgn";
+    if (tag == "wuu")
+        return "zh";
+    if (tag == "xki")
+        return "sgn";
+    if (tag == "xml")
+        return "sgn";
+    if (tag == "xmm")
+        return "ms";
+    if (tag == "xms")
+        return "sgn";
+    if (tag == "yds")
+        return "sgn";
+    if (tag == "ygs")
+        return "sgn";
+    if (tag == "yhs")
+        return "sgn";
+    if (tag == "ysl")
+        return "sgn";
+    if (tag == "yue")
+        return "zh";
+    if (tag == "zib")
+        return "sgn";
+    if (tag == "zlm")
+        return "ms";
+    if (tag == "zmi")
+        return "ms";
+    if (tag == "zsl")
+        return "sgn";
+    if (tag == "zsm")
+        return "ms";
+    return "";
+}
+
+static std::string intlPreferredRegionTag(const std::string& tag)
+{
+    // 6 possible replacements
+    if (tag == "BU")
+        return "MM";
+    if (tag == "DD")
+        return "DE";
+    if (tag == "FX")
+        return "FR";
+    if (tag == "TP")
+        return "TL";
+    if (tag == "YD")
+        return "YE";
+    if (tag == "ZR")
+        return "CD";
+    return "";
+}
+
+static std::string preferredRegion(const std::string& region)
+{
+    auto preferred = intlPreferredRegionTag(region);
+    if (preferred != "") {
+        return preferred;
+    }
+    return region;
+}
+
 static std::string privateUseLangTag(const std::vector<std::string>& parts, size_t startIndex)
 {
     size_t numParts = parts.size();
@@ -167,6 +895,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     StringBuilder canonical;
 
     std::transform(language.begin(), language.end(), language.begin(), tolower);
+    language = preferredLanguage(language);
     canonical.appendString(String::fromASCII(language.c_str()));
 
     // Check for extlang.
@@ -177,8 +906,13 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             unsigned extlangLength = extlang.length();
             if (extlangLength == 3 && isAllSpecialCharacters(extlang, isASCIIAlpha)) {
                 ++currentIndex;
-                canonical.appendString("-");
                 std::transform(extlang.begin(), extlang.end(), extlang.begin(), tolower);
+                if (!times && intlPreferredExtlangTag(extlang) == language) {
+                    canonical.clear();
+                    canonical.appendString(String::fromASCII(extlang.c_str()));
+                    continue;
+                }
+                canonical.appendString("-");
                 canonical.appendString(String::fromASCII(extlang.c_str()));
             } else {
                 break;
@@ -212,7 +946,8 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             ++currentIndex;
             canonical.appendChar('-');
             std::transform(region.begin(), region.end(), region.begin(), toupper);
-            canonical.appendString(String::fromASCII(region.c_str()));
+            auto preffered = preferredRegion(region);
+            canonical.appendString(String::fromASCII(preffered.c_str()));
         }
     }
 
@@ -316,8 +1051,12 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     }
 
     String* e = canonical.finalize();
-    auto estd = e->toUTF8StringData();
-    return std::string(estd.data(), estd.length());
+    auto estd = e->toNonGCUTF8StringData();
+    auto preferred = intlRedundantLanguageTag(estd);
+    if (preferred != "") {
+        return preferred;
+    }
+    return estd;
 }
 
 static String* isStructurallyValidLanguageTagAndcanonicalizeLanguageTag(ExecutionState& state, String* locale)
@@ -532,7 +1271,7 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
             size_t extensionIndex = locale->find(String::fromASCII("-u-"));
             RELEASE_ASSERT(extensionIndex != SIZE_MAX);
 
-            size_t extensionLength = locale->length();
+            size_t extensionLength = locale->length() - extensionIndex;
             size_t end = extensionIndex + 3;
             while (end < locale->length()) {
                 end = locale->find(String::fromASCII("-"), end);
@@ -544,8 +1283,7 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
                 }
                 end++;
             }
-
-            result.extension = locale->substring(extensionIndex, extensionLength);
+            result.extension = locale->substring(extensionIndex, extensionIndex + extensionLength);
             result.extensionIndex = extensionIndex;
         }
     } else {
@@ -692,10 +1430,15 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
 
     // If the length of supportedExtension is greater than 2, then
     if (supportedExtension->length() > 2) {
+        size_t len = foundLocale->length();
         // Let preExtension be the substring of foundLocale from position 0, inclusive, to position extensionIndex, exclusive.
-        String* preExtension = supportedExtension->substring(0, r.extensionIndex);
+        String* preExtension = foundLocale->substring(0, len > r.extensionIndex ? r.extensionIndex : len);
+
         // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
-        String* postExtension = supportedExtension->substring(r.extensionIndex, supportedExtension->length());
+        String* postExtension = String::emptyString;
+        if (r.extensionIndex < len) {
+            postExtension = foundLocale->substring(r.extensionIndex, len);
+        }
         // Let foundLocale be the concatenation of preExtension, supportedExtension, and postExtension.
         StringBuilder sb;
         sb.appendString(preExtension);
@@ -842,7 +1585,12 @@ std::vector<std::string> Intl::numberingSystemsForLocale(String* locale)
         // Numbering system names are always ASCII, so use char[].
         while (const char* result = uenum_next(numberingSystemNames, &resultLength, &status)) {
             ASSERT(U_SUCCESS(status));
-            availableNumberingSystems.push_back(std::string(result, resultLength));
+            auto numsys = unumsys_openByName(result, &status);
+            ASSERT(U_SUCCESS(status));
+            if (!unumsys_isAlgorithmic(numsys)) {
+                availableNumberingSystems.push_back(std::string(result, resultLength));
+            }
+            unumsys_close(numsys);
         }
         uenum_close(numberingSystemNames);
     }

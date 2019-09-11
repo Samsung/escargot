@@ -129,7 +129,6 @@
   <test id="10.6-13-a-2"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
   <test id="10.6-13-a-3"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
 
-  <test id="6.2.3"><reason>TODO</reason></test>
   <test id="obj-id-identifier-yield-ident-valid"><reason>TODO</reason></test>
   <test id="has-instance"><reason>TODO</reason></test>
   <test id="prototype-value"><reason>TODO</reason></test>
