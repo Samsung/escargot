@@ -37,7 +37,7 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Identifier; }
+    virtual ASTNodeType type() override { return ASTNodeType::Identifier; }
     AtomicString name()
     {
         return m_name;
@@ -78,7 +78,33 @@ public:
         return false;
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    bool mayNeedsResolveAddress(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            if (!info.m_isResultSaved) {
+                if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                    if (context->m_isWithScope) {
+                        return true;
+                    }
+                }
+
+                if (context->m_isLeftBindingAffectedByRightExpression) {
+                    return true;
+                }
+            }
+        } else {
+            if (context->m_isWithScope) {
+                return true;
+            }
+            if (context->m_isLeftBindingAffectedByRightExpression) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         bool isFunctionDeclarationBindingInitialization = context->m_isFunctionDeclarationBindingInitialization;
@@ -99,10 +125,19 @@ public:
 
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                    size_t addressRegisterIndex = SIZE_MAX;
+                    if (mayNeedsResolveAddress(codeBlock, context) && !needToReferenceSelf) {
+                        addressRegisterIndex = context->getLastRegisterIndex();
+                        context->giveUpRegister();
+                    }
                     if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
                         codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
                     } else {
-                        codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                        if (addressRegisterIndex != SIZE_MAX) {
+                            codeBlock->pushCode(StoreByNameWithAddress(ByteCodeLOC(m_loc.index), addressRegisterIndex, srcRegister, m_name), context, this);
+                        } else {
+                            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                        }
                     }
                 } else {
                     if (isLexicallyDeclaredBindingInitialization) {
@@ -143,15 +178,24 @@ public:
             }
         } else {
             ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
+            size_t addressRegisterIndex = SIZE_MAX;
+            if (mayNeedsResolveAddress(codeBlock, context) && !needToReferenceSelf) {
+                addressRegisterIndex = context->getLastRegisterIndex();
+                context->giveUpRegister();
+            }
             if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
                 codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
             } else {
-                codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                if (addressRegisterIndex != SIZE_MAX) {
+                    codeBlock->pushCode(StoreByNameWithAddress(ByteCodeLOC(m_loc.index), addressRegisterIndex, srcRegister, m_name), context, this);
+                } else {
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                }
             }
         }
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (isPointsArgumentsObject(context)) {
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
@@ -189,9 +233,17 @@ public:
         }
     }
 
-    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         generateExpressionByteCode(codeBlock, context, getRegister(codeBlock, context));
+    }
+
+    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
+    {
+        if (mayNeedsResolveAddress(codeBlock, context)) {
+            auto r = context->getRegister();
+            codeBlock->pushCode(ResolveNameAddress(ByteCodeLOC(m_loc.index), m_name, r), context, this);
+        }
     }
 
     std::tuple<bool, ByteCodeRegisterIndex, InterpretedCodeBlock::IndexedIdentifierInfo> isAllocatedOnStack(ByteCodeGenerateContext* context)
@@ -219,7 +271,7 @@ public:
         }
     }
 
-    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         auto ret = isAllocatedOnStack(context);
         if (std::get<0>(ret)) {
@@ -231,17 +283,17 @@ public:
     }
 
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         fn(m_name, false);
     }
 
-    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         fn(m_name, true);
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();

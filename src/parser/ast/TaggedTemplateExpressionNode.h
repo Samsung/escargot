@@ -44,13 +44,13 @@ public:
         return m_quasi.get();
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::TaggedTemplateExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::TaggedTemplateExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         RELEASE_ASSERT_NOT_REACHED();
     }

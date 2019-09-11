@@ -38,8 +38,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ConditionalExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::ConditionalExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         size_t resultRegisterExpected = dstRegister;
 
@@ -63,11 +63,20 @@ public:
         jumpForEndOfConsequence->m_jumpPosition = codeBlock->currentCodeSize();
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_test->iterateChildrenIdentifier(fn);
         m_consequente->iterateChildrenIdentifier(fn);
         m_alternate->iterateChildrenIdentifier(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_test->iterateChildren(fn);
+        m_consequente->iterateChildren(fn);
+        m_alternate->iterateChildren(fn);
     }
 
 private:

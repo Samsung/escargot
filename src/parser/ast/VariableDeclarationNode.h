@@ -40,13 +40,13 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::VariableDeclaration; }
+    virtual ASTNodeType type() override { return ASTNodeType::VariableDeclaration; }
     EscargotLexer::KeywordKind kind()
     {
         return m_kind;
     }
     VariableDeclaratorVector& declarations() { return m_declarations; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t len = m_declarations.size();
         for (size_t i = 0; i < len; i++) {
@@ -54,20 +54,31 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf) override
     {
         ASSERT(m_declarations.size() == 1);
-        m_declarations[0]->id()->generateStoreByteCode(codeBlock, context, src, false);
+        m_declarations[0]->id()->generateStoreByteCode(codeBlock, context, src, true);
     }
 
-    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         generateExpressionByteCode(codeBlock, context, context->getRegister());
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         generateStatementByteCode(codeBlock, context);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        size_t len = m_declarations.size();
+        for (size_t i = 0; i < len; i++) {
+            m_declarations[i]->id()->iterateChildren(fn);
+            m_declarations[i]->init()->iterateChildren(fn);
+        }
     }
 
 private:

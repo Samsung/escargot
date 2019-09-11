@@ -38,8 +38,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::LabeledStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::LabeledStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t start = codeBlock->currentCodeSize();
         context->m_positionToContinue = start;
@@ -47,6 +47,13 @@ public:
         size_t end = codeBlock->currentCodeSize();
         context->consumeLabeledBreakPositions(codeBlock, end, m_label, context->tryCatchWithBlockStatementCount());
         context->consumeLabeledContinuePositions(codeBlock, context->m_positionToContinue, m_label, context->tryCatchWithBlockStatementCount());
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_statementNode->iterateChildren(fn);
     }
 
 private:

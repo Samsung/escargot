@@ -33,8 +33,8 @@ public:
         scopeContext->m_isGenerator = isGenerator;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::FunctionExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
+    virtual ASTNodeType type() override { return ASTNodeType::FunctionExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[m_subCodeBlockIndex];
         if (UNLIKELY(blk->isClassConstructor())) {

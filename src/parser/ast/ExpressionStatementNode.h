@@ -38,9 +38,9 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ExpressionStatement; }
+    virtual ASTNodeType type() override { return ASTNodeType::ExpressionStatement; }
     Node* expression() { return m_expression.get(); }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (!context->m_isEvalCode && !context->m_isGlobalScope) {
             m_expression->generateResultNotRequiredExpressionByteCode(codeBlock, context);
@@ -52,6 +52,13 @@ public:
         m_expression->generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();
         ASSERT(context->m_registerStack->size() == before);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_expression->iterateChildren(fn);
     }
 
 private:

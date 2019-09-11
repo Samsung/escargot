@@ -37,8 +37,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ReturnStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::ReturnStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (context->tryCatchWithBlockStatementCount() != 0) {
             if (m_argument) {
@@ -58,6 +58,15 @@ public:
             } else {
                 codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
             }
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_argument) {
+            m_argument->iterateChildren(fn);
         }
     }
 

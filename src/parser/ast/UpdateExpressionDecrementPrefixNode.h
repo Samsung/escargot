@@ -37,8 +37,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::UpdateExpressionDecrementPrefix; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::UpdateExpressionDecrementPrefix; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
@@ -48,7 +48,7 @@ public:
         m_argument->generateStoreByteCode(codeBlock, context, dstRegister, false);
     }
 
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (m_argument->isIdentifier()) {
             auto r = m_argument->asIdentifier()->isAllocatedOnStack(context);
@@ -66,9 +66,16 @@ public:
         context->giveUpRegister();
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_argument->iterateChildrenIdentifierAssigmentCase(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
     }
 
 private:

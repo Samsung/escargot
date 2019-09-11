@@ -39,8 +39,8 @@ public:
         m_loc = loc;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ArrayPattern; }
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    virtual ASTNodeType type() override { return ASTNodeType::ArrayPattern; }
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         // store each element by iterator
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
@@ -58,7 +58,7 @@ public:
                     m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
                 } else {
                     ASSERT(i == m_elements.size() - 1);
-                    m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorIndex, false);
+                    m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorIndex, true);
                 }
             } else {
                 codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
@@ -70,12 +70,22 @@ public:
         context->giveUpRegister(); // for drop iteratorIndex
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (size_t i = 0; i < m_elements.size(); i++) {
             if (m_elements[i]) {
                 m_elements[i]->iterateChildrenIdentifier(fn);
             }
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        for (size_t i = 0; i < m_elements.size(); i++) {
+            if (m_elements[i])
+                m_elements[i]->iterateChildren(fn);
         }
     }
 

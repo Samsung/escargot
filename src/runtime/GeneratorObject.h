@@ -47,7 +47,7 @@ class GeneratorObject : public Object {
 
 public:
     GeneratorObject(ExecutionState& state);
-    GeneratorObject(ExecutionState& state, ExecutionState* executionState, ByteCodeBlock* blk);
+    GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
     virtual const char* internalClassProperty() override
     {
@@ -73,6 +73,7 @@ private:
         Object::fillGCDescriptor(desc);
 
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionState));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_registerFile));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_byteCodeBlock));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_resumeValue));
     }
@@ -96,6 +97,7 @@ private:
     }
 
     ExecutionState* m_executionState;
+    Value* m_registerFile;
     ByteCodeBlock* m_byteCodeBlock;
     size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
     size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)

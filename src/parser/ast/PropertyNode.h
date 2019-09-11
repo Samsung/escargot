@@ -48,7 +48,7 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Property; }
+    virtual ASTNodeType type() override { return ASTNodeType::Property; }
     Node* key()
     {
         return m_key.get();
@@ -79,7 +79,7 @@ public:
         return m_key->isIdentifier() || m_key->isLiteral();
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         ASSERT(m_kind == Init);
         size_t valueIndex = context->getRegister();
@@ -97,6 +97,14 @@ public:
             context->giveUpRegister(); // for drop propertyIndex
         }
         context->giveUpRegister(); // for drop valueIndex
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_key->iterateChildren(fn);
+        m_value->iterateChildren(fn);
     }
 
 private:

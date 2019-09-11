@@ -43,10 +43,10 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::VariableDeclarator; }
+    virtual ASTNodeType type() override { return ASTNodeType::VariableDeclarator; }
     Node* id() { return m_id.get(); }
     Node* init() { return m_init.get(); }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         bool addFakeUndefinedLiteralNode = false;
         if (m_kind != EscargotLexer::KeywordKind::VarKeyword && !m_init && !context->m_forInOfVarBinding) {
@@ -68,7 +68,7 @@ public:
             } else {
                 auto r = m_init->getRegister(codeBlock, context);
                 m_init->generateExpressionByteCode(codeBlock, context, r);
-                m_id->generateStoreByteCode(codeBlock, context, r, false);
+                m_id->generateStoreByteCode(codeBlock, context, r, true);
                 context->giveUpRegister();
             }
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);

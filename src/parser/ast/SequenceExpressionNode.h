@@ -38,7 +38,7 @@ public:
     {
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ByteCodeRegisterIndex r = 0;
         for (size_t i = 0; i < m_expressions.size(); i++) {
@@ -51,15 +51,24 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (size_t i = 0; i < m_expressions.size(); i++) {
             m_expressions[i]->iterateChildrenIdentifier(fn);
         }
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::SequenceExpression; }
+    virtual ASTNodeType type() override { return ASTNodeType::SequenceExpression; }
     ExpressionNodeVector& expressions() { return m_expressions; }
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        for (size_t i = 0; i < m_expressions.size(); i++) {
+            m_expressions[i]->iterateChildren(fn);
+        }
+    }
+
 private:
     ExpressionNodeVector m_expressions; // expression: Expression;
 };

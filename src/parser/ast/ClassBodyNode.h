@@ -118,7 +118,21 @@ public:
         codeBlock->m_shouldClearStack = true;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ClassBody; }
+    virtual ASTNodeType type() override { return ASTNodeType::ClassBody; }
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_constructor) {
+            m_constructor->iterateChildren(fn);
+        }
+
+        for (unsigned i = 0; i < m_elementList.size(); i++) {
+            ClassElementNode* p = m_elementList[i].get();
+            p->iterateChildren(fn);
+        }
+    }
+
 private:
     ClassElementNodeVector m_elementList;
     RefPtr<FunctionExpressionNode> m_constructor;

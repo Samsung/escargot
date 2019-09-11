@@ -190,7 +190,7 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
             auto dstIndex = id->getRegister(this, context);
             pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, SIZE_MAX, b), context, node);
             context->m_isFunctionDeclarationBindingInitialization = true;
-            id->generateStoreByteCode(this, context, dstIndex, false);
+            id->generateStoreByteCode(this, context, dstIndex, true);
             context->giveUpRegister();
 
             context->giveUpRegister(); // give up useless register

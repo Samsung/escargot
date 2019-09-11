@@ -83,6 +83,7 @@ struct ByteCodeGenerateContext {
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_shouldGenerateLOCData(false)
         , m_forInOfVarBinding(false)
+        , m_isLeftBindingAffectedByRightExpression(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
         , m_offsetToBasePointer(0)
@@ -117,6 +118,7 @@ struct ByteCodeGenerateContext {
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
+        , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
         , m_registerStack(contextBefore.m_registerStack)
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
@@ -316,6 +318,7 @@ struct ByteCodeGenerateContext {
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;
     bool m_forInOfVarBinding : 1;
+    bool m_isLeftBindingAffectedByRightExpression : 1; // x = delete x; or x = eval("var x"), 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;

@@ -36,7 +36,7 @@ public:
     {
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_argument->isIdentifier()) {
             AtomicString name = m_argument->asIdentifier()->name();
@@ -68,12 +68,19 @@ public:
         codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_argument->iterateChildrenIdentifier(fn);
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionTypeOf; }
+    virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionTypeOf; }
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
+    }
+
 private:
     RefPtr<Node> m_argument;
 };

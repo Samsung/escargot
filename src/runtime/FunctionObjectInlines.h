@@ -145,7 +145,7 @@ public:
         Value* registerFile;
 
         if (isGenerator) {
-            registerFile = (Value*)GC_MALLOC((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+            registerFile = (Value*)CustomAllocator<Value>().allocate(registerSize + stackStorageSize + literalStorageSize);
         } else {
             registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
         }
@@ -190,11 +190,12 @@ public:
 
         ThisValueBinder thisValueBinder;
         if (isGenerator) {
-            Value* gcArgv = (Value*)GC_MALLOC(sizeof(Value) * argc);
-            memcpy(gcArgv, argv, sizeof(Value) * argc);
-            ExecutionState* newState = new ExecutionState(ctx, nullptr, lexEnv, argc, gcArgv, isStrict, registerFile);
-            // prepare receiver(this variable)
+            Value* arguments = CustomAllocator<Value>().allocate(argc);
+            memcpy(arguments, argv, sizeof(Value) * argc);
 
+            ExecutionState* newState = new ExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict, ExecutionState::OnlyForGenerator);
+
+            // prepare receiver(this variable)
             // we should use newState because
             // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
             // NOTE ToObject produces wrapper objects using calleeRealm. <<----
@@ -205,7 +206,7 @@ public:
                 newTargetBinder(*newState, self, newTarget, record);
             }
 
-            GeneratorObject* gen = new GeneratorObject(state, newState, blk);
+            GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk);
             newState->setGeneratorTarget(gen);
             return gen;
         }

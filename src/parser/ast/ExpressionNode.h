@@ -34,12 +34,12 @@ public:
     {
     }
 
-    virtual bool isExpressionNode()
+    virtual bool isExpressionNode() override
     {
         return true;
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();

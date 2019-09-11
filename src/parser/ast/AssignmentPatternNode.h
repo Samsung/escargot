@@ -66,8 +66,8 @@ public:
         return m_right.get();
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::AssignmentPattern; }
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    virtual ASTNodeType type() override { return ASTNodeType::AssignmentPattern; }
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
         size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
@@ -97,9 +97,22 @@ public:
         codeBlock->peekCode<Jump>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_left->iterateChildrenIdentifier(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_left) {
+            m_left->iterateChildren(fn);
+        }
+
+        if (m_right) {
+            m_right->iterateChildren(fn);
+        }
     }
 
 private:

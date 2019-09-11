@@ -70,7 +70,15 @@ public:
         return m_isStatic;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ClassBody; }
+    virtual ASTNodeType type() override { return ASTNodeType::ClassBody; }
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_key->iterateChildren(fn);
+        m_value->iterateChildren(fn);
+    }
+
 private:
     RefPtr<Node> m_key; // key: Literal | Identifier;
     RefPtr<Node> m_value; // value: Expression;

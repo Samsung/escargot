@@ -132,7 +132,10 @@ struct GlobalVariableAccessCacheItem;
     F(NewTargetOperation, 1, 0)                             \
     F(BlockOperation, 0, 0)                                 \
     F(EnsureArgumentsObject, 0, 0)                          \
+    F(ResolveNameAddress, 1, 0)                             \
+    F(StoreByNameWithAddress, 0, 1)                         \
     F(End, 0, 0)
+
 
 enum Opcode {
 #define DECLARE_BYTECODE(name, pushCount, popCount) name##Opcode,
@@ -2154,6 +2157,47 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("ensure arguments object");
+    }
+#endif
+};
+
+class ResolveNameAddress : public ByteCode {
+public:
+    ResolveNameAddress(const ByteCodeLOC& loc, AtomicString name, ByteCodeRegisterIndex registerIndex)
+        : ByteCode(Opcode::ResolveNameAddressOpcode, loc)
+        , m_name(name)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("r%d <- resolve name address (%s)", (int)m_registerIndex, m_name.string()->toNonGCUTF8StringData().data());
+    }
+#endif
+
+    AtomicString m_name;
+    ByteCodeRegisterIndex m_registerIndex;
+};
+
+class StoreByNameWithAddress : public ByteCode {
+public:
+    StoreByNameWithAddress(const ByteCodeLOC& loc, const size_t addressRegisterIndex, const size_t valueRegisterIndex, const AtomicString& name)
+        : ByteCode(Opcode::StoreByNameWithAddressOpcode, loc)
+        , m_addressRegisterIndex(addressRegisterIndex)
+        , m_valueRegisterIndex(valueRegisterIndex)
+        , m_name(name)
+    {
+    }
+    ByteCodeRegisterIndex m_addressRegisterIndex;
+    ByteCodeRegisterIndex m_valueRegisterIndex;
+    AtomicString m_name;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("store with address r%d, %s <- r%d", (int)m_addressRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_valueRegisterIndex);
     }
 #endif
 };

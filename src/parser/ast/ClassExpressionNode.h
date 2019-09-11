@@ -36,8 +36,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ClassExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
+    virtual ASTNodeType type() override { return ASTNodeType::ClassExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         RefPtr<IdentifierNode> classIdent = m_class.id();
 
@@ -81,7 +81,7 @@ public:
             ASSERT(classIdent);
             // Initialize class name
             context->m_isLexicallyDeclaredBindingInitialization = true;
-            classIdent->generateStoreByteCode(codeBlock, context, dstIndex, false);
+            classIdent->generateStoreByteCode(codeBlock, context, dstIndex, true);
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
             codeBlock->finalizeLexicalBlock(context, blockContext);
@@ -96,6 +96,23 @@ public:
         codeBlock->m_shouldClearStack = true;
 
         context->m_classInfo = classInfoBefore;
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_class.id()) {
+            m_class.id()->iterateChildren(fn);
+        }
+
+        if (m_class.superClass()) {
+            m_class.superClass()->iterateChildren(fn);
+        }
+
+        if (m_class.classBody()) {
+            m_class.classBody()->iterateChildren(fn);
+        }
     }
 
 private:

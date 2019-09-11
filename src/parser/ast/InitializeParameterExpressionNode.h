@@ -40,8 +40,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::InitializeParameterExpression; }
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::InitializeParameterExpression; }
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         // ignore LexicalBlockIndex during parameter initialization
         auto oldLexicalBlockIndex = context->m_lexicalBlockIndex;
@@ -68,6 +68,13 @@ public:
         }
 
         context->m_lexicalBlockIndex = oldLexicalBlockIndex;
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_left->iterateChildren(fn);
     }
 
 private:

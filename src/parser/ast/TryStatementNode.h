@@ -40,7 +40,7 @@ public:
     {
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
         codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
         size_t tryStartPosition = codeBlock->lastCodePosition<TryOperation>();
@@ -107,7 +107,23 @@ public:
         codeBlock->m_shouldClearStack = true;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::TryStatement; }
+    virtual ASTNodeType type() override { return ASTNodeType::TryStatement; }
+    virtual void iterateChildren(const std::function<void(Node *node)> &fn) override
+    {
+        fn(this);
+
+        m_block->iterateChildren(fn);
+
+        if (m_handler) {
+            m_handler->param()->iterateChildren(fn);
+            m_handler->body()->iterateChildren(fn);
+        }
+
+        if (m_finalizer) {
+            m_finalizer->iterateChildren(fn);
+        }
+    }
+
 private:
     RefPtr<BlockStatementNode> m_block;
     RefPtr<CatchClauseNode> m_handler;

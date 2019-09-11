@@ -77,6 +77,15 @@ public:
         }
     }
 
+    void iterateChildren(const std::function<void(Node* node)>& fn)
+    {
+        StatementNode* nd = m_firstChild.get();
+        while (nd) {
+            nd->iterateChildren(fn);
+            nd = nd->nextSilbing();
+        }
+    }
+
     StatementNode* appendChild(RefPtr<StatementNode> c)
     {
         return appendChild(c.get());

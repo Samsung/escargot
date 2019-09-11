@@ -35,8 +35,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ClassMethod; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::ClassMethod; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         context->getRegister(); // To ensure that the result of the classDeclaration is undefined
         size_t classIndex = context->getRegister();
@@ -80,7 +80,7 @@ public:
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
             // Initialize class name
             context->m_isLexicallyDeclaredBindingInitialization = true;
-            classIdent->generateStoreByteCode(codeBlock, context, classIndex, false);
+            classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
             codeBlock->finalizeLexicalBlock(context, blockContext);
@@ -88,7 +88,7 @@ public:
         }
 
         context->m_isLexicallyDeclaredBindingInitialization = true;
-        classIdent->generateStoreByteCode(codeBlock, context, classIndex, false);
+        classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
         if (context->m_classInfo.m_superIndex != SIZE_MAX) {
@@ -100,6 +100,23 @@ public:
         codeBlock->m_shouldClearStack = true;
 
         context->m_classInfo = classInfoBefore;
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_class.id()) {
+            m_class.id()->iterateChildren(fn);
+        }
+
+        if (m_class.superClass()) {
+            m_class.superClass()->iterateChildren(fn);
+        }
+
+        if (m_class.classBody()) {
+            m_class.classBody()->iterateChildren(fn);
+        }
     }
 
 private:

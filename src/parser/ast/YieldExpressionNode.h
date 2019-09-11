@@ -33,8 +33,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::YieldExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::YieldExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         static_assert(sizeof(ByteCodeGenerateContext::RecursiveStatementKind) == sizeof(size_t), "");
         size_t mostBigCode = std::max({ sizeof(WithOperation), sizeof(BlockOperation), (sizeof(TryOperation) + sizeof(TryCatchWithBlockBodyEnd) + sizeof(FinallyEnd)) });
@@ -79,6 +79,15 @@ public:
             codeBlock->m_code.resizeWithUninitializedValues(pos + sizeof(size_t));
             new (codeBlock->m_code.data() + pos) size_t(iter->second);
             iter++;
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_argument) {
+            m_argument->iterateChildren(fn);
         }
     }
 

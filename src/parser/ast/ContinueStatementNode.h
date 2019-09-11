@@ -32,8 +32,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ContinueStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::ContinueStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         context->pushContinuePositions(codeBlock->lastCodePosition<Jump>());

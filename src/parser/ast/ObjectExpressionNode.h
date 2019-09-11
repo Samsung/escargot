@@ -45,8 +45,8 @@ public:
         return m_properties;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ObjectExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::ObjectExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
@@ -106,13 +106,22 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
             PropertyNode* p = m_properties[i].get()->asProperty();
             if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        for (size_t i = 0; i < m_properties.size(); i++) {
+            m_properties[i]->iterateChildren(fn);
         }
     }
 

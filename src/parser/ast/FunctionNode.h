@@ -39,8 +39,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Function; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::Function; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         m_params->generateStatementByteCode(codeBlock, context);
         m_body->generateStatementByteCode(codeBlock, context);

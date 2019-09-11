@@ -51,7 +51,7 @@ public:
         return m_property.get();
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::MemberExpression; }
+    virtual ASTNodeType type() override { return ASTNodeType::MemberExpression; }
     bool isPreComputedCase()
     {
         return m_computed;
@@ -63,7 +63,7 @@ public:
         return ((IdentifierNode*)m_property.get())->name();
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         bool prevHead = context->m_isHeadOfMemberExpression;
         context->m_isHeadOfMemberExpression = false;
@@ -100,7 +100,7 @@ public:
         }
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf) override
     {
         if (isPreComputedCase()) {
             size_t valueIndex;
@@ -139,7 +139,7 @@ public:
         }
     }
 
-    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (m_object->isSuperNode()) {
             ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
@@ -156,7 +156,7 @@ public:
         }
     }
 
-    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (isPreComputedCase()) {
             size_t objectIndex = context->getLastRegisterIndex();
@@ -172,7 +172,7 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_object->iterateChildrenIdentifier(fn);
         if (!isPreComputedCase()) {
@@ -180,12 +180,20 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_object->iterateChildrenIdentifierAssigmentCase(fn);
         if (!isPreComputedCase()) {
             m_property->iterateChildrenIdentifierAssigmentCase(fn);
         }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_object->iterateChildren(fn);
+        m_property->iterateChildren(fn);
     }
 
 private:

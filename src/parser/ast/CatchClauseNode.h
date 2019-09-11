@@ -61,7 +61,7 @@ public:
         return m_paramLexicalBlockIndex;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::CatchClause; }
+    virtual ASTNodeType type() override { return ASTNodeType::CatchClause; }
 private:
     RefPtr<Node> m_param;
     RefPtr<ExpressionNode> m_guard;

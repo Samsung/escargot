@@ -46,8 +46,8 @@ public:
         return m_elements;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ArrayExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::ArrayExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         size_t arrayIndex = codeBlock->currentCodeSize();
         size_t arrLen = 0;
@@ -100,7 +100,7 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (size_t i = 0; i < m_elements.size(); i++) {
             if (m_elements[i])
@@ -108,6 +108,20 @@ public:
         }
         if (m_additionalPropertyExpression) {
             m_additionalPropertyExpression->iterateChildrenIdentifier(fn);
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        for (size_t i = 0; i < m_elements.size(); i++) {
+            if (m_elements[i])
+                m_elements[i]->iterateChildren(fn);
+        }
+
+        if (m_additionalPropertyExpression) {
+            m_additionalPropertyExpression->iterateChildren(fn);
         }
     }
 

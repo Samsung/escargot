@@ -44,29 +44,36 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::RestElement; }
+    virtual ASTNodeType type() override { return ASTNodeType::RestElement; }
     Node* argument()
     {
         return m_argument.get();
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf)
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         // srcRegister indicates iteratorRegister
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
         m_argument->generateResolveAddressByteCode(codeBlock, context);
-        m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, needToReferenceSelf);
+        m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, false);
         context->giveUpRegister();
     }
 
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(CreateRestElement(ByteCodeLOC(m_loc.index), restElementRegister), context, this);
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, false);
         context->giveUpRegister();
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
     }
 
 protected:
