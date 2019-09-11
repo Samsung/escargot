@@ -96,6 +96,8 @@ public:
         , m_throwerGetterSetterData(nullptr)
         , m_stringProxyObject(nullptr)
         , m_numberProxyObject(nullptr)
+        , m_booleanProxyObject(nullptr)
+        , m_symbolProxyObject(nullptr)
         , m_json(nullptr)
         , m_jsonStringify(nullptr)
         , m_jsonParse(nullptr)
@@ -645,6 +647,16 @@ public:
         return m_numberProxyObject;
     }
 
+    BooleanObject* booleanProxyObject()
+    {
+        return m_booleanProxyObject;
+    }
+
+    SymbolObject* symbolProxyObject()
+    {
+        return m_symbolProxyObject;
+    }
+
     virtual bool isInlineCacheable()
     {
         return false;
@@ -725,6 +737,8 @@ private:
 
     StringObject* m_stringProxyObject;
     NumberObject* m_numberProxyObject;
+    BooleanObject* m_booleanProxyObject;
+    SymbolObject* m_symbolProxyObject;
 
     Object* m_json;
     FunctionObject* m_jsonStringify;

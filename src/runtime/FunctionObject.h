@@ -165,6 +165,7 @@ protected:
     void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator);
     virtual size_t functionPrototypeIndex()
     {
+        ASSERT(isConstructor());
         return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER;
     }
 

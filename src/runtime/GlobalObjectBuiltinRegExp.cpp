@@ -260,10 +260,10 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     Value z;
     // If size = 0, then
     if (size == 0) {
-        Value execFunction = Object::getMethod(state, splitter, ObjectPropertyName(state.context()->staticStrings().exec));
+        auto execFunction = splitter->getMethod(state, ObjectPropertyName(state.context()->staticStrings().exec));
         // Let z be RegExpExec(splitter, S).
         Value arg[1] = { S };
-        z = Object::call(state, execFunction, splitter, 1, arg);
+        z = Object::call(state, execFunction ? execFunction.value() : Value(), splitter, 1, arg);
         // If z is not null, return A.
         if (!z.isNull()) {
             return A;
@@ -281,9 +281,9 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
         // Let setStatus be Set(splitter, "lastIndex", q, true).
         splitter->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(q), splitter);
         // Let z be RegExpExec(splitter, S).
-        Value execFunction = Object::getMethod(state, splitter, ObjectPropertyName(state.context()->staticStrings().exec));
+        auto execFunction = splitter->getMethod(state, ObjectPropertyName(state.context()->staticStrings().exec));
         Value arg[1] = { S };
-        z = Object::call(state, execFunction, splitter, 1, arg);
+        z = Object::call(state, execFunction ? execFunction.value() : Value(), splitter, 1, arg);
         // If z is null, let q be AdvanceStringIndex(S, q, unicodeMatching).
         if (z.isNull()) {
             q = S->advanceStringIndex(q, unicodeMatching);

@@ -909,11 +909,15 @@ public:
         ensureObjectRareData()->m_internalSlot = object;
     }
 
-    static Value get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName);
-    static Value getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName);
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
     static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
-    static bool hasInstance(ExecutionState& state, const Value& C, const Value O);
+
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
+    static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
+    Optional<Object*> getMethod(ExecutionState& state, const ObjectPropertyName& propertyName); // returns nullptr or callable
+
+    bool hasInstance(ExecutionState& state, const Value O);
+
     static bool isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult current);
 
     static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);

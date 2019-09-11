@@ -29,6 +29,8 @@
 #include "ErrorObject.h"
 #include "StringObject.h"
 #include "NumberObject.h"
+#include "BooleanObject.h"
+#include "SymbolObject.h"
 #include "DateObject.h"
 #include "NativeFunctionObject.h"
 #include "parser/Lexer.h"
@@ -1180,6 +1182,8 @@ void GlobalObject::installOthers(ExecutionState& state)
 
     m_stringProxyObject = new StringObject(state);
     m_numberProxyObject = new NumberObject(state);
+    m_booleanProxyObject = new BooleanObject(state);
+    m_symbolProxyObject = new SymbolObject(state, state.context()->vmInstance()->globalSymbols().iterator);
 
     // 8.2.2 - 12
     // AddRestrictedFunctionProperties(funcProto, realmRec).

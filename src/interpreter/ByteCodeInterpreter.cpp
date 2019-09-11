@@ -2940,16 +2940,40 @@ NEVER_INLINE void ByteCodeInterpreter::newTargetOperation(ExecutionState& state,
     }
 }
 
+static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix)
+{
+    StringBuilder builder;
+    if (name.isSymbol()) {
+        builder.appendString(prefix);
+        builder.appendString("[");
+        builder.appendString(name.asSymbol()->description());
+        builder.appendString("]");
+    } else {
+        builder.appendString(prefix);
+        builder.appendString(name.toString(state));
+    }
+    return builder.finalize(&state);
+}
+
 NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile)
 {
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
-    ObjectPropertyName objPropName = ObjectPropertyName(state, property);
+    const Value& value = registerFile[code->m_loadRegisterIndex];
+
+    Value propertyStringOrSymbol = property.isSymbol() ? property : property.toString(state);
+
+    if (code->m_needsToRedefineFunctionNameOnValue) {
+        Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
+        value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+    }
+
+    ObjectPropertyName objPropName = ObjectPropertyName(state, propertyStringOrSymbol);
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-    if (property.isString() && property.asString()->equals("__proto__")) {
-        willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+    if (propertyStringOrSymbol.isString() && propertyStringOrSymbol.asString()->equals("__proto__")) {
+        willBeObject.asObject()->setPrototype(state, value);
     } else {
-        willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
+        willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(value, code->m_presentAttribute));
     }
 }
 
@@ -3080,19 +3104,7 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state,
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
-    Value fnName = pName;
-    if (fnName.isSymbol()) {
-        StringBuilder builder;
-        builder.appendString("get [");
-        builder.appendString(fnName.asSymbol()->description());
-        builder.appendString("]");
-        fnName = builder.finalize(&state);
-    } else {
-        StringBuilder builder;
-        builder.appendString("get ");
-        builder.appendString(fnName.toString(state));
-        fnName = builder.finalize(&state);
-    }
+    Value fnName = createObjectPropertyFunctionName(state, pName, "get ");
     fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     JSGetterSetter gs(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
     ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
@@ -3104,19 +3116,7 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectSetter(ExecutionState& state,
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
-    Value fnName = pName;
-    if (fnName.isSymbol()) {
-        StringBuilder builder;
-        builder.appendString("set [");
-        builder.appendString(fnName.asSymbol()->description());
-        builder.appendString("]");
-        fnName = builder.finalize(&state);
-    } else {
-        StringBuilder builder;
-        builder.appendString("set ");
-        builder.appendString(fnName.toString(state));
-        fnName = builder.finalize(&state);
-    }
+    Value fnName = createObjectPropertyFunctionName(state, pName, "set ");
     fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     JSGetterSetter gs(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
     ObjectPropertyDescriptor desc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent));
