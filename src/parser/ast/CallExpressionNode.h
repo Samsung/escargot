@@ -42,7 +42,7 @@ public:
     }
 
     Node* callee() { return m_callee.get(); }
-    virtual ASTNodeType type() { return ASTNodeType::CallExpression; }
+    virtual ASTNodeType type() override { return ASTNodeType::CallExpression; }
     std::pair<ByteCodeRegisterIndex, bool> generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
         context->m_inCallingExpressionScope = !clearInCallingExpressionScope;
@@ -137,7 +137,7 @@ public:
         return true;
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
@@ -220,11 +220,21 @@ public:
         context->m_canSkipCopyToRegister = directBefore;
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_callee->iterateChildrenIdentifier(fn);
         for (size_t i = 0; i < m_arguments.size(); i++) {
             m_arguments[i]->iterateChildrenIdentifier(fn);
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_callee->iterateChildren(fn);
+        for (size_t i = 0; i < m_arguments.size(); i++) {
+            m_arguments[i]->iterateChildren(fn);
         }
     }
 

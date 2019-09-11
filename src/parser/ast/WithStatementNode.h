@@ -34,8 +34,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::WithStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::WithStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t start = codeBlock->currentCodeSize();
         auto r = m_object->getRegister(codeBlock, context);
@@ -55,6 +55,14 @@ public:
         context->m_isWithScope = isWithScopeBefore;
 
         context->m_recursiveStatementStack.pop_back();
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_object->iterateChildren(fn);
+        m_body->iterateChildren(fn);
     }
 
 private:

@@ -407,6 +407,11 @@ public:
     {
     }
 
+    virtual void iterateChildren(const std::function<void(Node *node)> &fn)
+    {
+        fn(this);
+    }
+
     NodeLOC m_loc;
 };
 
@@ -536,7 +541,6 @@ struct ASTFunctionScopeContext : public gc {
     bool m_hasEval : 1;
     bool m_hasWith : 1;
     bool m_hasYield : 1;
-    bool m_hasEvaluateBindingId : 1;
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
@@ -772,7 +776,6 @@ struct ASTFunctionScopeContext : public gc {
         , m_hasEval(false)
         , m_hasWith(false)
         , m_hasYield(false)
-        , m_hasEvaluateBindingId(false)
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
         , m_isClassConstructor(false)

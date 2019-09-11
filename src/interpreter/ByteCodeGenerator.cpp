@@ -229,6 +229,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case StoreByNameWithAddressOpcode: {
+                StoreByNameWithAddress* cd = (StoreByNameWithAddress*)currentCode;
+                assignStackIndexIfNeeded(cd->m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case LoadByHeapIndexOpcode: {
                 LoadByHeapIndex* cd = (LoadByHeapIndex*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);

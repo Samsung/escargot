@@ -55,14 +55,6 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 #endif
 
     if (parentCodeBlock) {
-        if (scopeCtx->m_hasEvaluateBindingId) {
-            InterpretedCodeBlock* c = codeBlock;
-            while (c) {
-                c->m_canAllocateEnvironmentOnStack = false;
-                c = c->parentCodeBlock();
-            }
-        }
-
         if (!codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {

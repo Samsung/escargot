@@ -34,10 +34,10 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::RegExpLiteral; }
+    virtual ASTNodeType type() override { return ASTNodeType::RegExpLiteral; }
     String* body() { return m_body; }
     String* flag() { return m_flag; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         codeBlock->m_literalData.pushBack(m_body);
         codeBlock->m_literalData.pushBack(m_flag);

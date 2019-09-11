@@ -38,8 +38,8 @@ public:
     virtual ~BlockStatementNode()
     {
     }
-    virtual ASTNodeType type() { return ASTNodeType::BlockStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::BlockStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
@@ -62,6 +62,14 @@ public:
     {
         return m_container->firstChild();
     }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_container->iterateChildren(fn);
+    }
+
 
 private:
     RefPtr<StatementContainer> m_container;

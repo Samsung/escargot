@@ -36,18 +36,25 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return SpreadElement; }
+    virtual ASTNodeType type() override { return SpreadElement; }
     Node* argument()
     {
         return m_argument.get();
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ByteCodeRegisterIndex argumentIndex = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, argumentIndex);
         codeBlock->pushCode(CreateSpreadArrayObject(ByteCodeLOC(m_loc.index), dstRegister, argumentIndex), context, this);
         context->giveUpRegister();
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
     }
 
 private:

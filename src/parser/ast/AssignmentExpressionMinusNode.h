@@ -42,11 +42,10 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::AssignmentExpressionMinus; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionMinus; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool slowMode = AssignmentExpressionSimpleNode::hasSlowAssignmentOperation(m_left.get(), m_right.get());
-        ;
+        bool slowMode = AssignmentExpressionSimpleNode::isLeftReferenceExpressionRelatedWithRightExpression(m_left.get(), m_right.get());
         bool flagBefore;
         if (slowMode) {
             flagBefore = context->m_canSkipCopyToRegister;
@@ -68,15 +67,23 @@ public:
         }
     }
 
-    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         return m_left->getRegister(codeBlock, context);
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_left->iterateChildrenIdentifierAssigmentCase(fn);
         m_right->iterateChildrenIdentifier(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_left->iterateChildren(fn);
+        m_right->iterateChildren(fn);
     }
 
 private:

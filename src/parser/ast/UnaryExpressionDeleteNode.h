@@ -36,8 +36,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionDelete; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionDelete; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_argument->isIdentifier()) {
             AtomicString name = m_argument->asIdentifier()->name();
@@ -83,9 +83,21 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_argument->iterateChildrenIdentifier(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
+    }
+
+    ExpressionNode* argument()
+    {
+        return m_argument.get();
     }
 
 private:

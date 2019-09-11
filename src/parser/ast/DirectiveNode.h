@@ -38,12 +38,19 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Directive; }
+    virtual ASTNodeType type() override { return ASTNodeType::Directive; }
     StringView value() { return m_value; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         m_expr->generateExpressionByteCode(codeBlock, context, context->getRegister());
         context->giveUpRegister();
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_expr->iterateChildren(fn);
     }
 
 private:

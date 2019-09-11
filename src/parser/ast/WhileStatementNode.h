@@ -39,8 +39,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::WhileStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual ASTNodeType type() override { return ASTNodeType::WhileStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
         ByteCodeGenerateContext newContext(*context);
 
@@ -79,6 +79,14 @@ public:
             codeBlock->peekCode<JumpByteCode>(testPos)->m_jumpPosition = whileEnd;
         newContext.m_positionToContinue = context->m_positionToContinue;
         newContext.propagateInformationTo(*context);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node *node)> &fn) override
+    {
+        fn(this);
+
+        m_test->iterateChildren(fn);
+        m_body->iterateChildren(fn);
     }
 
 private:

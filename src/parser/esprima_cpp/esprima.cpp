@@ -2928,9 +2928,6 @@ public:
                     if (this->context->strict && subExpr->isIdentifier()) {
                         this->throwError(Messages::StrictDelete);
                     }
-                    if (subExpr->isIdentifier()) {
-                        this->scopeContexts.back()->m_hasEvaluateBindingId = true;
-                    }
 
                     exprNode = this->finalize(node, new UnaryExpressionDeleteNode(subExpr.get()));
                 } else {
@@ -2938,9 +2935,6 @@ public:
 
                     if (this->context->strict && subExpr == ASTNodeType::Identifier) {
                         this->throwError(Messages::StrictDelete);
-                    }
-                    if (subExpr == ASTNodeType::Identifier) {
-                        this->scopeContexts.back()->m_hasEvaluateBindingId = true;
                     }
                 }
                 this->context->isAssignmentTarget = false;

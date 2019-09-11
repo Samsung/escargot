@@ -36,8 +36,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::UnaryExpressionLogicalNot; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionLogicalNot; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         size_t srcIndex = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
@@ -45,9 +45,16 @@ public:
         codeBlock->pushCode(UnaryNot(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this);
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_argument->iterateChildrenIdentifier(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
     }
 
 private:

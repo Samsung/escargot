@@ -825,39 +825,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(CreateObject)
-            :
-        {
-            CreateObject* code = (CreateObject*)programCounter;
-            registerFile[code->m_registerIndex] = new Object(*state);
-            ADD_PROGRAM_COUNTER(CreateObject);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(CreateArray)
-            :
-        {
-            CreateArray* code = (CreateArray*)programCounter;
-            ArrayObject* arr = new ArrayObject(*state);
-            arr->setArrayLength(*state, code->m_length);
-            registerFile[code->m_registerIndex] = arr;
-            ADD_PROGRAM_COUNTER(CreateArray);
-            NEXT_INSTRUCTION();
-        }
-
         DEFINE_OPCODE(ObjectDefineOwnPropertyOperation)
             :
         {
             ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            ObjectPropertyName objPropName = ObjectPropertyName(*state, property);
-            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-            if (property.isString() && property.asString()->equals("__proto__")) {
-                willBeObject.asObject()->setPrototype(*state, registerFile[code->m_loadRegisterIndex]);
-            } else {
-                willBeObject.asObject()->defineOwnProperty(*state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
-            }
+            objectDefineOwnPropertyOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
             NEXT_INSTRUCTION();
         }
@@ -866,13 +838,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-            if (code->m_propertyName == state->context()->staticStrings().__proto__) {
-                willBeObject.asObject()->setPrototype(*state, registerFile[code->m_loadRegisterIndex]);
-            } else {
-                willBeObject.asObject()->defineOwnProperty(*state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
-            }
+            objectDefineOwnPropertyWithNameOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
             NEXT_INSTRUCTION();
         }
@@ -881,22 +847,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ArrayDefineOwnPropertyOperation* code = (ArrayDefineOwnPropertyOperation*)programCounter;
-            ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
-            if (LIKELY(arr->isFastModeArray())) {
-                for (size_t i = 0; i < code->m_count; i++) {
-                    if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
-                        arr->m_fastModeData[i + code->m_baseIndex] = registerFile[code->m_loadRegisterIndexs[i]];
-                    }
-                }
-            } else {
-                for (size_t i = 0; i < code->m_count; i++) {
-                    if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
-                        const Value& element = registerFile[code->m_loadRegisterIndexs[i]];
-
-                        arr->defineOwnProperty(*state, ObjectPropertyName(*state, i + code->m_baseIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
-                    }
-                }
-            }
+            arrayDefineOwnPropertyOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyOperation);
             NEXT_INSTRUCTION();
         }
@@ -905,50 +856,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ArrayDefineOwnPropertyBySpreadElementOperation* code = (ArrayDefineOwnPropertyBySpreadElementOperation*)programCounter;
-            ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
-
-            if (LIKELY(arr->isFastModeArray())) {
-                size_t baseIndex = arr->getArrayLength(*state);
-                size_t elementLength = code->m_count;
-                for (size_t i = 0; i < code->m_count; i++) {
-                    if (code->m_loadRegisterIndexs[i] != REGISTER_LIMIT) {
-                        Value element = registerFile[code->m_loadRegisterIndexs[i]];
-                        if (element.isObject() && element.asObject()->isSpreadArray()) {
-                            elementLength = elementLength + element.asObject()->asArrayObject()->getArrayLength(*state) - 1;
-                        }
-                    }
-                }
-
-                size_t newLength = baseIndex + elementLength;
-                arr->setArrayLength(*state, newLength);
-                ASSERT(arr->isFastModeArray());
-
-                size_t elementIndex = 0;
-                for (size_t i = 0; i < code->m_count; i++) {
-                    if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
-                        Value element = registerFile[code->m_loadRegisterIndexs[i]];
-                        if (element.isObject() && element.asObject()->isSpreadArray()) {
-                            ArrayObject* spreadArray = element.asObject()->asArrayObject();
-                            ASSERT(spreadArray->isFastModeArray());
-                            for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(*state); spreadIndex++) {
-                                arr->m_fastModeData[baseIndex + elementIndex] = spreadArray->m_fastModeData[spreadIndex];
-                                elementIndex++;
-                            }
-                        } else {
-                            arr->m_fastModeData[baseIndex + elementIndex] = element;
-                            elementIndex++;
-                        }
-                    } else {
-                        elementIndex++;
-                    }
-                }
-
-                ASSERT(elementIndex == elementLength);
-
-            } else {
-                arrayDefineOwnPropertyBySpreadElementSlowCase(*state, registerFile, code->m_objectRegisterIndex, code->m_count, code->m_loadRegisterIndexs);
-            }
-
+            arrayDefineOwnPropertyBySpreadElementOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyBySpreadElementOperation);
             NEXT_INSTRUCTION();
         }
@@ -957,21 +865,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateSpreadArrayObject* code = (CreateSpreadArrayObject*)programCounter;
-            ArrayObject* spreadArray = ArrayObject::createSpreadArray(*state);
-            ASSERT(spreadArray->isFastModeArray());
-
-            Value iterator = getIterator(*state, registerFile[code->m_argumentIndex]);
-            size_t i = 0;
-            while (true) {
-                Value next = iteratorStep(*state, iterator);
-                if (next.isFalse()) {
-                    break;
-                }
-                Value value = iteratorValue(*state, next);
-                spreadArray->setIndexedProperty(*state, Value(i++), iteratorValue(*state, next));
-            }
-            registerFile[code->m_registerIndex] = spreadArray;
-
+            createSpreadArrayObject(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(CreateSpreadArrayObject);
             NEXT_INSTRUCTION();
         }
@@ -989,35 +883,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             UnaryTypeof* code = (UnaryTypeof*)programCounter;
-            Value val;
-            if (code->m_id.string()->length()) {
-                val = loadByName(*state, state->lexicalEnvironment(), code->m_id, false);
-            } else {
-                val = registerFile[code->m_srcIndex];
-            }
-            if (val.isUndefined()) {
-                val = state->context()->staticStrings().undefined.string();
-            } else if (val.isNull()) {
-                val = state->context()->staticStrings().object.string();
-            } else if (val.isBoolean()) {
-                val = state->context()->staticStrings().boolean.string();
-            } else if (val.isNumber()) {
-                val = state->context()->staticStrings().number.string();
-            } else if (val.isString()) {
-                val = state->context()->staticStrings().string.string();
-            } else {
-                ASSERT(val.isPointerValue());
-                PointerValue* p = val.asPointerValue();
-                if (p->isCallable()) {
-                    val = state->context()->staticStrings().function.string();
-                } else if (p->isSymbol()) {
-                    val = state->context()->staticStrings().symbol.string();
-                } else {
-                    val = state->context()->staticStrings().object.string();
-                }
-            }
-
-            registerFile[code->m_dstIndex] = val;
+            unaryTypeof(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(UnaryTypeof);
             NEXT_INSTRUCTION();
         }
@@ -1026,15 +892,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             GetObject* code = (GetObject*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            Object* obj;
-            if (LIKELY(willBeObject.isObject())) {
-                obj = willBeObject.asObject();
-            } else {
-                obj = fastToObject(*state, willBeObject);
-            }
-            registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(*state, property).value(*state, willBeObject);
+            getObjectOpcodeSlowCase(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -1043,17 +901,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            Object* obj = willBeObject.toObject(*state);
-            if (willBeObject.isPrimitive()) {
-                obj->preventExtensions(*state);
-            }
-
-            bool result = obj->setIndexedProperty(*state, property, registerFile[code->m_loadRegisterIndex]);
-            if (UNLIKELY(!result) && state->inStrictMode()) {
-                Object::throwCannotWriteError(*state, PropertyName(*state, property.toString(*state)));
-            }
+            setObjectOpcodeSlowCase(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(SetObjectOperation);
             NEXT_INSTRUCTION();
         }
@@ -1082,6 +930,26 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             InitializeByName* code = (InitializeByName*)programCounter;
             initializeByName(*state, state->lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(InitializeByName);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CreateObject)
+            :
+        {
+            CreateObject* code = (CreateObject*)programCounter;
+            registerFile[code->m_registerIndex] = new Object(*state);
+            ADD_PROGRAM_COUNTER(CreateObject);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CreateArray)
+            :
+        {
+            CreateArray* code = (CreateArray*)programCounter;
+            ArrayObject* arr = new ArrayObject(*state);
+            arr->setArrayLength(*state, code->m_length);
+            registerFile[code->m_registerIndex] = arr;
+            ADD_PROGRAM_COUNTER(CreateArray);
             NEXT_INSTRUCTION();
         }
 
@@ -1241,42 +1109,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CheckIfKeyIsLast* code = (CheckIfKeyIsLast*)programCounter;
-            EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
-            bool shouldUpdateEnumerateObjectData = false;
-            Object* obj = data->m_object;
-            for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
-                auto hc = data->m_hiddenClassChain[i];
-                ObjectStructureChainItem testItem;
-                testItem.m_objectStructure = obj->structure();
-                if (hc != testItem) {
-                    shouldUpdateEnumerateObjectData = true;
-                    break;
-                }
-                Value val = obj->getPrototype(*state);
-                if (val.isObject()) {
-                    obj = val.asObject();
-                } else {
-                    break;
-                }
-            }
-
-            if (!shouldUpdateEnumerateObjectData && data->m_object->isArrayObject() && data->m_object->length(*state) != data->m_originalLength) {
-                shouldUpdateEnumerateObjectData = true;
-            }
-            if (!shouldUpdateEnumerateObjectData && data->m_object->rareData() && data->m_object->rareData()->m_shouldUpdateEnumerateObjectData) {
-                shouldUpdateEnumerateObjectData = true;
-            }
-
-            if (shouldUpdateEnumerateObjectData) {
-                registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(*state, data));
-                data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
-            }
-
-            if (data->m_keys.size() <= data->m_idx) {
-                programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
-            } else {
-                ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
-            }
+            checkIfKeyIsLast(*state, code, codeBuffer, programCounter, registerFile);
             NEXT_INSTRUCTION();
         }
 
@@ -1538,6 +1371,24 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(ResolveNameAddress)
+            :
+        {
+            ResolveNameAddress* code = (ResolveNameAddress*)programCounter;
+            resolveNameAddress(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(ResolveNameAddress);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(StoreByNameWithAddress)
+            :
+        {
+            StoreByNameWithAddress* code = (StoreByNameWithAddress*)programCounter;
+            storeByNameWithAddress(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(StoreByNameWithAddress);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(End)
             :
         {
@@ -1632,6 +1483,45 @@ NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, L
         }
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
     }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile)
+{
+    LexicalEnvironment* env = state.lexicalEnvironment();
+    int64_t count = 0;
+    while (env) {
+        auto result = env->record()->hasBinding(state, code->m_name);
+        if (result.m_index != SIZE_MAX) {
+            registerFile[code->m_registerIndex] = Value(count);
+            return;
+        }
+        count++;
+        env = env->outerEnvironment();
+    }
+    registerFile[code->m_registerIndex] = Value(-1);
+}
+
+NEVER_INLINE void ByteCodeInterpreter::storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile)
+{
+    LexicalEnvironment* env = state.lexicalEnvironment();
+    const Value& value = registerFile[code->m_valueRegisterIndex];
+    int64_t count = registerFile[code->m_addressRegisterIndex].toNumber(state);
+    if (count != -1) {
+        int64_t idx = 0;
+        while (env) {
+            if (idx == count) {
+                env->record()->setMutableBinding(state, code->m_name, value);
+                return;
+            }
+            idx++;
+            env = env->outerEnvironment();
+        }
+    }
+    if (state.inStrictMode()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, code->m_name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+    }
+    GlobalObject* o = state.context()->globalObject();
+    o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, const Value& left, const Value& right)
@@ -2360,6 +2250,7 @@ NEVER_INLINE size_t ByteCodeInterpreter::tryOperation(ExecutionState*& state, si
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
+        newState->ensureRareData();
     } else {
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
     }
@@ -2628,6 +2519,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExecutionState(state, newEnv, state->inStrictMode());
+        newState->ensureRareData();
     } else {
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, newEnv, state->inStrictMode());
     }
@@ -2712,6 +2604,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
     ExecutionState* newState;
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExecutionState(state, newEnv, state->inStrictMode());
+        newState->ensureRareData();
     } else {
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, newEnv, state->inStrictMode());
     }
@@ -2801,36 +2694,6 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
             }
         } else {
             argVector.push_back(arg);
-        }
-    }
-}
-
-NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementSlowCase(ExecutionState& state, Value* registerFile, ByteCodeRegisterIndex objectRegisterIndex, size_t count, ByteCodeRegisterIndex* loadRegisterIndexs)
-{
-    ArrayObject* arr = registerFile[objectRegisterIndex].asObject()->asArrayObject();
-    ASSERT(!arr->isFastModeArray());
-
-    size_t baseIndex = arr->getArrayLength(state);
-    size_t elementIndex = 0;
-
-    for (size_t i = 0; i < count; i++) {
-        if (LIKELY(loadRegisterIndexs[i] != REGISTER_LIMIT)) {
-            Value element = registerFile[loadRegisterIndexs[i]];
-            if (element.isObject() && element.asObject()->isSpreadArray()) {
-                ArrayObject* spreadArray = element.asObject()->asArrayObject();
-                ASSERT(spreadArray->isFastModeArray());
-                Value spreadElement;
-                for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(state); spreadIndex++) {
-                    spreadElement = spreadArray->m_fastModeData[spreadIndex];
-                    arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(spreadElement, ObjectPropertyDescriptor::AllPresent));
-                    elementIndex++;
-                }
-            } else {
-                arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
-                elementIndex++;
-            }
-        } else {
-            elementIndex++;
         }
     }
 }
@@ -3077,6 +2940,142 @@ NEVER_INLINE void ByteCodeInterpreter::newTargetOperation(ExecutionState& state,
     }
 }
 
+NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile)
+{
+    const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+    const Value& property = registerFile[code->m_propertyRegisterIndex];
+    ObjectPropertyName objPropName = ObjectPropertyName(state, property);
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+    if (property.isString() && property.asString()->equals("__proto__")) {
+        willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+    } else {
+        willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, Value* registerFile)
+{
+    const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+    // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+    if (code->m_propertyName == state.context()->staticStrings().__proto__) {
+        willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+    } else {
+        willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile)
+{
+    ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
+    if (LIKELY(arr->isFastModeArray())) {
+        for (size_t i = 0; i < code->m_count; i++) {
+            if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+                arr->m_fastModeData[i + code->m_baseIndex] = registerFile[code->m_loadRegisterIndexs[i]];
+            }
+        }
+    } else {
+        for (size_t i = 0; i < code->m_count; i++) {
+            if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+                const Value& element = registerFile[code->m_loadRegisterIndexs[i]];
+                arr->defineOwnProperty(state, ObjectPropertyName(state, i + code->m_baseIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+            }
+        }
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile)
+{
+    ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
+
+    if (LIKELY(arr->isFastModeArray())) {
+        size_t baseIndex = arr->getArrayLength(state);
+        size_t elementLength = code->m_count;
+        for (size_t i = 0; i < code->m_count; i++) {
+            if (code->m_loadRegisterIndexs[i] != REGISTER_LIMIT) {
+                Value element = registerFile[code->m_loadRegisterIndexs[i]];
+                if (element.isObject() && element.asObject()->isSpreadArray()) {
+                    elementLength = elementLength + element.asObject()->asArrayObject()->getArrayLength(state) - 1;
+                }
+            }
+        }
+
+        size_t newLength = baseIndex + elementLength;
+        arr->setArrayLength(state, newLength);
+        ASSERT(arr->isFastModeArray());
+
+        size_t elementIndex = 0;
+        for (size_t i = 0; i < code->m_count; i++) {
+            if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+                Value element = registerFile[code->m_loadRegisterIndexs[i]];
+                if (element.isObject() && element.asObject()->isSpreadArray()) {
+                    ArrayObject* spreadArray = element.asObject()->asArrayObject();
+                    ASSERT(spreadArray->isFastModeArray());
+                    for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(state); spreadIndex++) {
+                        arr->m_fastModeData[baseIndex + elementIndex] = spreadArray->m_fastModeData[spreadIndex];
+                        elementIndex++;
+                    }
+                } else {
+                    arr->m_fastModeData[baseIndex + elementIndex] = element;
+                    elementIndex++;
+                }
+            } else {
+                elementIndex++;
+            }
+        }
+
+        ASSERT(elementIndex == elementLength);
+
+    } else {
+        ByteCodeRegisterIndex objectRegisterIndex = code->m_objectRegisterIndex;
+        size_t count = code->m_count;
+        ByteCodeRegisterIndex* loadRegisterIndexs = code->m_loadRegisterIndexs;
+        ArrayObject* arr = registerFile[objectRegisterIndex].asObject()->asArrayObject();
+        ASSERT(!arr->isFastModeArray());
+
+        size_t baseIndex = arr->getArrayLength(state);
+        size_t elementIndex = 0;
+
+        for (size_t i = 0; i < count; i++) {
+            if (LIKELY(loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+                Value element = registerFile[loadRegisterIndexs[i]];
+                if (element.isObject() && element.asObject()->isSpreadArray()) {
+                    ArrayObject* spreadArray = element.asObject()->asArrayObject();
+                    ASSERT(spreadArray->isFastModeArray());
+                    Value spreadElement;
+                    for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(state); spreadIndex++) {
+                        spreadElement = spreadArray->m_fastModeData[spreadIndex];
+                        arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(spreadElement, ObjectPropertyDescriptor::AllPresent));
+                        elementIndex++;
+                    }
+                } else {
+                    arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+                    elementIndex++;
+                }
+            } else {
+                elementIndex++;
+            }
+        }
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile)
+{
+    ArrayObject* spreadArray = ArrayObject::createSpreadArray(state);
+    ASSERT(spreadArray->isFastModeArray());
+
+    Value iterator = getIterator(state, registerFile[code->m_argumentIndex]);
+    size_t i = 0;
+    while (true) {
+        Value next = iteratorStep(state, iterator);
+        if (next.isFalse()) {
+            break;
+        }
+        Value value = iteratorValue(state, next);
+        spreadArray->setIndexedProperty(state, Value(i++), iteratorValue(state, next));
+    }
+    registerFile[code->m_registerIndex] = spreadArray;
+}
+
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
@@ -3156,6 +3155,107 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
         }
     } else {
         return Value(value.toNumber(state) - 1);
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile)
+{
+    Value val;
+    if (code->m_id.string()->length()) {
+        val = loadByName(state, state.lexicalEnvironment(), code->m_id, false);
+    } else {
+        val = registerFile[code->m_srcIndex];
+    }
+    if (val.isUndefined()) {
+        val = state.context()->staticStrings().undefined.string();
+    } else if (val.isNull()) {
+        val = state.context()->staticStrings().object.string();
+    } else if (val.isBoolean()) {
+        val = state.context()->staticStrings().boolean.string();
+    } else if (val.isNumber()) {
+        val = state.context()->staticStrings().number.string();
+    } else if (val.isString()) {
+        val = state.context()->staticStrings().string.string();
+    } else {
+        ASSERT(val.isPointerValue());
+        PointerValue* p = val.asPointerValue();
+        if (p->isCallable()) {
+            val = state.context()->staticStrings().function.string();
+        } else if (p->isSymbol()) {
+            val = state.context()->staticStrings().symbol.string();
+        } else {
+            val = state.context()->staticStrings().object.string();
+        }
+    }
+
+    registerFile[code->m_dstIndex] = val;
+}
+
+NEVER_INLINE void ByteCodeInterpreter::checkIfKeyIsLast(ExecutionState& state, CheckIfKeyIsLast* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
+{
+    EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
+    bool shouldUpdateEnumerateObjectData = false;
+    Object* obj = data->m_object;
+    for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
+        auto hc = data->m_hiddenClassChain[i];
+        ObjectStructureChainItem testItem;
+        testItem.m_objectStructure = obj->structure();
+        if (hc != testItem) {
+            shouldUpdateEnumerateObjectData = true;
+            break;
+        }
+        Value val = obj->getPrototype(state);
+        if (val.isObject()) {
+            obj = val.asObject();
+        } else {
+            break;
+        }
+    }
+
+    if (!shouldUpdateEnumerateObjectData && data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
+        shouldUpdateEnumerateObjectData = true;
+    }
+    if (!shouldUpdateEnumerateObjectData && data->m_object->rareData() && data->m_object->rareData()->m_shouldUpdateEnumerateObjectData) {
+        shouldUpdateEnumerateObjectData = true;
+    }
+
+    if (shouldUpdateEnumerateObjectData) {
+        registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
+        data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
+    }
+
+    if (data->m_keys.size() <= data->m_idx) {
+        programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
+    } else {
+        ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
+    }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile)
+{
+    const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+    const Value& property = registerFile[code->m_propertyRegisterIndex];
+    Object* obj;
+    if (LIKELY(willBeObject.isObject())) {
+        obj = willBeObject.asObject();
+    } else {
+        obj = fastToObject(state, willBeObject);
+    }
+    registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, willBeObject);
+}
+
+NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile)
+{
+    const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+    const Value& property = registerFile[code->m_propertyRegisterIndex];
+    Object* obj = willBeObject.toObject(state);
+    if (willBeObject.isPrimitive()) {
+        obj->preventExtensions(state);
+    }
+
+    bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
+    if (UNLIKELY(!result) && state.inStrictMode()) {
+        Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
     }
 }
 

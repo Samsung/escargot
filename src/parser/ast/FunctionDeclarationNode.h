@@ -32,8 +32,8 @@ public:
         scopeContext->m_isGenerator = isGenerator;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::FunctionDeclaration; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::FunctionDeclaration; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         // do nothing
     }

@@ -39,8 +39,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::DoWhileStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual ASTNodeType type() override { return ASTNodeType::DoWhileStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
         ByteCodeGenerateContext newContext(*context);
 
@@ -61,6 +61,14 @@ public:
         newContext.consumeBreakPositions(codeBlock, doEnd, context->tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = testPos;
         newContext.propagateInformationTo(*context);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node *node)> &fn) override
+    {
+        fn(this);
+
+        m_test->iterateChildren(fn);
+        m_body->iterateChildren(fn);
     }
 
 private:

@@ -37,8 +37,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::BinaryExpressionMod; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionMod; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         bool isSlow = !canUseDirectRegister(context, m_left.get(), m_right.get());
         bool directBefore = context->m_canSkipCopyToRegister;
@@ -58,11 +58,20 @@ public:
         context->m_canSkipCopyToRegister = directBefore;
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_left->iterateChildrenIdentifier(fn);
         m_right->iterateChildrenIdentifier(fn);
     }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_left->iterateChildren(fn);
+        m_right->iterateChildren(fn);
+    }
+
 
 private:
     RefPtr<ExpressionNode> m_left;

@@ -40,9 +40,9 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Program; }
+    virtual ASTNodeType type() override { return ASTNodeType::Program; }
     ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(0);
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext = codeBlock->pushLexicalBlock(context, bi, this);
@@ -53,6 +53,13 @@ public:
         codeBlock->finalizeLexicalBlock(context, blockContext);
 
         codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_container->iterateChildren(fn);
     }
 
 private:

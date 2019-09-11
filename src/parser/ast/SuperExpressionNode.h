@@ -39,8 +39,8 @@ public:
         return m_isCall;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::SuperExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
+    virtual ASTNodeType type() override { return ASTNodeType::SuperExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         codeBlock->pushCode(SuperReference(ByteCodeLOC(m_loc.index), dstIndex, m_isCall), context, this);
     }

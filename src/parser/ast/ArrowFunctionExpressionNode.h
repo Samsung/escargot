@@ -48,7 +48,7 @@ public:
         return m_params;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ArrowParameterPlaceHolder; }
+    virtual ASTNodeType type() override { return ASTNodeType::ArrowParameterPlaceHolder; }
 private:
     ExpressionNodeVector m_params;
 };
@@ -64,8 +64,8 @@ public:
         scopeContext->m_isGenerator = false;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ArrowFunctionExpression; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex)
+    virtual ASTNodeType type() override { return ASTNodeType::ArrowFunctionExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[m_subCodeBlockIndex];
         if (blk->usesArgumentsObject() && !codeBlock->m_codeBlock->isArrowFunctionExpression()) {

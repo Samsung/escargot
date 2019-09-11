@@ -42,7 +42,7 @@ public:
     {
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         ByteCodeGenerateContext newContext(*context);
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
@@ -118,7 +118,19 @@ public:
         }
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::SwitchStatement; }
+    virtual ASTNodeType type() override { return ASTNodeType::SwitchStatement; }
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_discriminant->iterateChildren(fn);
+        m_casesA->iterateChildren(fn);
+        if (m_default) {
+            m_default->iterateChildren(fn);
+        }
+        m_casesB->iterateChildren(fn);
+    }
+
 private:
     RefPtr<ExpressionNode> m_discriminant;
     RefPtr<StatementContainer> m_casesA;

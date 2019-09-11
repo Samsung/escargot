@@ -47,11 +47,11 @@ public:
     {
     }
 
-    virtual ASTNodeType type()
+    virtual ASTNodeType type() override
     {
         return ASTNodeType::ForStatement;
     }
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
         size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
@@ -121,7 +121,7 @@ public:
                 IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
-                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], false);
+                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
                 ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
                 newContext.giveUpRegister();
             }
@@ -155,7 +155,7 @@ public:
                 IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
-                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], false);
+                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
                 ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
                 newContext.giveUpRegister();
             }
@@ -189,6 +189,27 @@ public:
         if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             codeBlock->finalizeLexicalBlock(context, headBlockContext);
             context->m_lexicalBlockIndex = headLexicalBlockIndexBefore;
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node *node)> &fn) override
+    {
+        fn(this);
+
+        if (m_init) {
+            m_init->iterateChildren(fn);
+        }
+
+        if (m_test) {
+            m_test->iterateChildren(fn);
+        }
+
+        if (m_update) {
+            m_update->iterateChildren(fn);
+        }
+
+        if (m_body) {
+            m_body->iterateChildren(fn);
         }
     }
 

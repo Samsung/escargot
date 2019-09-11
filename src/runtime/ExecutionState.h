@@ -37,14 +37,12 @@ struct ExecutionStateRareData : public gc {
     Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
     ExecutionState* m_parent;
     CodeBlock* m_codeBlock;
-    Value* m_registerFile;
     GeneratorObject* m_generatorTarget;
     size_t m_programCounterWhenItStoppedByYield;
 
     ExecutionStateRareData()
     {
         m_codeBlock = nullptr;
-        m_registerFile = nullptr;
         m_controlFlowRecord = nullptr;
         m_generatorTarget = nullptr;
         m_parent = nullptr;
@@ -119,7 +117,10 @@ public:
     {
     }
 
-    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, Value* registerFile)
+    enum ForGenerator {
+        OnlyForGenerator
+    };
+    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForGenerator)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackBase(0)
@@ -131,7 +132,6 @@ public:
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
     {
-        ensureRareData()->m_registerFile = registerFile;
     }
 
     Context* context()
@@ -156,11 +156,6 @@ public:
     size_t stackBase()
     {
         return m_stackBase;
-    }
-
-    Value* registerFile()
-    {
-        return rareData()->m_registerFile;
     }
 
     void throwException(const Value& e);

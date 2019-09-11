@@ -49,9 +49,20 @@ class UnaryDelete;
 class TemplateOperation;
 class DeclareFunctionDeclarations;
 class NewTargetOperation;
+class ObjectDefineOwnPropertyOperation;
+class ObjectDefineOwnPropertyWithNameOperation;
+class ArrayDefineOwnPropertyOperation;
+class ArrayDefineOwnPropertyBySpreadElementOperation;
+class CreateSpreadArrayObject;
 class ObjectDefineGetter;
 class ObjectDefineSetter;
+class ResolveNameAddress;
+class StoreByNameWithAddress;
 class GlobalObject;
+class UnaryTypeof;
+class GetObject;
+class SetObjectOperation;
+class CheckIfKeyIsLast;
 
 class ByteCodeInterpreter {
 public:
@@ -60,6 +71,9 @@ public:
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
     static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value);
+    static void resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile);
+    static void storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile);
+
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
     static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
@@ -99,7 +113,6 @@ public:
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
-    static void arrayDefineOwnPropertyBySpreadElementSlowCase(ExecutionState& state, Value* registerFile, ByteCodeRegisterIndex objectRegisterIndex, size_t count, ByteCodeRegisterIndex* loadRegisterIndexs);
 
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
@@ -108,10 +121,22 @@ public:
 
     static void newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile);
 
+    static void objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile);
+    static void objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, Value* registerFile);
+    static void arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile);
+    static void arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile);
+    static void createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile);
     static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
     static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);
     static Value incrementOperation(ExecutionState& state, const Value& value);
     static Value decrementOperation(ExecutionState& state, const Value& value);
+
+    static void getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile);
+    static void setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile);
+
+    static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
+
+    static void checkIfKeyIsLast(ExecutionState& state, CheckIfKeyIsLast* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 };

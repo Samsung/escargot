@@ -32,8 +32,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::EmptyStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual ASTNodeType type() override { return ASTNodeType::EmptyStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
     }
 

@@ -28,13 +28,14 @@
 namespace Escargot {
 
 GeneratorObject::GeneratorObject(ExecutionState& state)
-    : GeneratorObject(state, nullptr, nullptr)
+    : GeneratorObject(state, nullptr, nullptr, nullptr)
 {
 }
 
-GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, ByteCodeBlock* blk)
+GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
     : Object(state)
     , m_executionState(executionState)
+    , m_registerFile(registerFile)
     , m_byteCodeBlock(blk)
     , m_byteCodePosition(SIZE_MAX)
     , m_extraDataByteCodePosition(0)
@@ -109,7 +110,7 @@ Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resume
 
     gen->m_generatorState = GeneratorState::Executing;
     if (gen->m_resumeValueIdx != REGISTER_LIMIT) {
-        generatorOriginalState->registerFile()[gen->m_resumeValueIdx] = resumeValue;
+        gen->m_registerFile[gen->m_resumeValueIdx] = resumeValue;
     }
 
     gen->m_resumeValue = resumeValue;
@@ -139,7 +140,7 @@ Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resume
                                                              );
             es = new ExecutionState(&state, env, false);
         }
-        result = ByteCodeInterpreter::interpret(es, gen->m_byteCodeBlock, startPos, generatorOriginalState->registerFile());
+        result = ByteCodeInterpreter::interpret(es, gen->m_byteCodeBlock, startPos, gen->m_registerFile);
         // normal return means generator end
         gen->m_generatorState = GeneratorState::CompletedReturn;
         gen->releaseExecutionVariables();

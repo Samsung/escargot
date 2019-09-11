@@ -39,8 +39,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::IfStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::IfStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         context->getRegister(); // ExeuctionResult of m_consequente|m_alternate should not be overwritten by m_test
         size_t jPos = 0;
@@ -76,6 +76,23 @@ public:
             m_alternate->generateStatementByteCode(codeBlock, context);
             Jump* j2 = codeBlock->peekCode<Jump>(jPos2);
             j2->m_jumpPosition = codeBlock->currentCodeSize();
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_test) {
+            m_test->iterateChildren(fn);
+        }
+
+        if (m_consequente) {
+            m_consequente->iterateChildren(fn);
+        }
+
+        if (m_alternate) {
+            m_alternate->iterateChildren(fn);
         }
     }
 

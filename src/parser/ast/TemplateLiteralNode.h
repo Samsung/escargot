@@ -51,8 +51,8 @@ public:
         return m_expressions;
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::TemplateLiteral; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::TemplateLiteral; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ASSERT(m_expressions.size() + 1 == m_quasis->size());
         String* str = new UTF16String(std::move((*m_quasis)[0]->value));
@@ -76,10 +76,19 @@ public:
         }
     }
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (size_t i = 0; i < m_expressions.size(); i++) {
             m_expressions[i]->iterateChildrenIdentifier(fn);
+        }
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        for (size_t i = 0; i < m_expressions.size(); i++) {
+            m_expressions[i]->iterateChildren(fn);
         }
     }
 

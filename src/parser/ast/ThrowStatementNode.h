@@ -37,8 +37,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::ThrowStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ASTNodeType type() override { return ASTNodeType::ThrowStatement; }
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         context->getRegister();
         auto r = m_argument->getRegister(codeBlock, context);
@@ -46,6 +46,13 @@ public:
         codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), r), context, this);
         context->giveUpRegister();
         context->giveUpRegister();
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
     }
 
 private:

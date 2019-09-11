@@ -40,15 +40,25 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::SwitchCase; }
+    virtual ASTNodeType type() override { return ASTNodeType::SwitchCase; }
     bool isDefaultNode()
     {
         return !m_test;
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         m_consequent->generateStatementByteCode(codeBlock, context);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        if (m_test) {
+            m_test->iterateChildren(fn);
+        }
+        m_consequent->iterateChildren(fn);
     }
 
 private:

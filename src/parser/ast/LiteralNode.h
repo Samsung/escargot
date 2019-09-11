@@ -34,9 +34,9 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Literal; }
+    virtual ASTNodeType type() override { return ASTNodeType::Literal; }
     const Value& value() { return m_value; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_value.isPointerValue()) {
             codeBlock->m_literalData.pushBack(m_value.asPointerValue());
@@ -46,7 +46,7 @@ public:
         }
     }
 
-    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t idxExists = SIZE_MAX;
         if (context->m_keepNumberalLiteralsInRegisterFile && !m_value.isPointerValue()) {

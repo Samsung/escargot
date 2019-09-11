@@ -32,8 +32,8 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::MetaProperty; }
-    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    virtual ASTNodeType type() override { return ASTNodeType::MetaProperty; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         codeBlock->pushCode(NewTargetOperation(ByteCodeLOC(m_loc.index), dstRegister), context, this);
     }

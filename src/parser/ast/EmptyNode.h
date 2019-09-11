@@ -31,7 +31,7 @@ public:
     {
     }
 
-    virtual ASTNodeType type() { return ASTNodeType::Empty; }
+    virtual ASTNodeType type() override { return ASTNodeType::Empty; }
 protected:
 };
 }
