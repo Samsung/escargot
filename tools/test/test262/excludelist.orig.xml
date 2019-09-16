@@ -155,7 +155,6 @@
   <test id="S11.4.4_A6_T3"><reason>ALLOW_FAIL</reason></test>
   <test id="S11.4.5_A6_T3"><reason>ALLOW_FAIL</reason></test>
 
-  <test id="obj-id-identifier-yield-ident-valid"><reason>TODO</reason></test>
   <test id="yield-as-label-in-sloppy"><reason>TODO</reason></test>
   <test id="let-non-strict-access"><reason>TODO</reason></test>
   <test id="let-non-strict-syntax"><reason>TODO</reason></test>
@@ -183,21 +182,6 @@
   <test id="attempt-to-redeclare-function-declaration-with-function-declaration"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-var"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-with-function-declaration"><reason>TODO</reason></test>
-  <test id="array-elem-init-simple-strict"><reason>TODO</reason></test>
-  <test id="array-elem-nested-array-invalid"><reason>TODO</reason></test>
-  <test id="array-elem-nested-obj-invalid"><reason>TODO</reason></test>
-  <test id="array-elem-target-simple-strict"><reason>TODO</reason></test>
-  <test id="array-rest-before-element"><reason>TODO</reason></test>
-  <test id="array-rest-before-elision"><reason>TODO</reason></test>
-  <test id="array-rest-before-rest"><reason>TODO</reason></test>
-  <test id="array-rest-elision-invalid"><reason>TODO</reason></test>
-  <test id="array-rest-init"><reason>TODO</reason></test>
-  <test id="array-rest-nested-array-invalid"><reason>TODO</reason></test>
-  <test id="array-rest-nested-obj-invalid"><reason>TODO</reason></test>
-  <test id="obj-id-init-simple-strict"><reason>TODO</reason></test>
-  <test id="obj-id-simple-strict"><reason>TODO</reason></test>
-  <test id="obj-prop-nested-array-invalid"><reason>TODO</reason></test>
-  <test id="obj-prop-nested-obj-invalid"><reason>TODO</reason></test>
   <test id="generator-param-id-yield"><reason>TODO</reason></test>
   <test id="generator-param-init-yield"><reason>TODO</reason></test>
   <test id="generator-super-call-body"><reason>TODO</reason></test>

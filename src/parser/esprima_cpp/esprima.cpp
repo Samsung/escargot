@@ -135,6 +135,7 @@ struct Context {
     bool inWith : 1;
     bool inCatchClause : 1;
     bool inLoop : 1;
+    bool hasRestrictedWordInArrayOrObjectInitializer : 1;
     bool strict : 1;
     Scanner::ScannerResult firstCoverInitializedNameError;
     std::vector<AtomicString> catchClauseSimplyDeclaredVariableNames;
@@ -471,7 +472,6 @@ public:
         this->context->allowIn = true;
         this->context->allowYield = true;
         this->context->allowLexicalDeclaration = false;
-        this->context->firstCoverInitializedNameError.reset();
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         this->context->inFunctionBody = false;
@@ -481,7 +481,9 @@ public:
         this->context->inWith = false;
         this->context->inCatchClause = false;
         this->context->inLoop = false;
+        this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         this->context->strict = this->sourceType == Module;
+        this->context->firstCoverInitializedNameError.reset();
         this->setMarkers(startLoc);
     }
 
@@ -1032,7 +1034,6 @@ public:
         if (trackUsingNames) {
             insertUsingName(name);
         }
-
         return ScanExpressionResult(ASTNodeType::Identifier, name);
     }
 
@@ -1375,10 +1376,10 @@ public:
                 this->nextToken();
 
                 if (isParse) {
-                    RefPtr<Node> expr = this->assignmentExpression<Parse>();
+                    RefPtr<Node> expr = this->assignmentExpression<Parse, false>();
                     valueNode = this->finalize(this->startNode(keyToken), new AssignmentPatternNode(keyNode.get(), expr.get()));
                 } else {
-                    this->assignmentExpression<Scan>();
+                    this->assignmentExpression<Scan, false>();
                 }
             } else if (!this->match(Colon)) {
                 if (isParse) {
@@ -1486,7 +1487,7 @@ public:
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
-            PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+            PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
             this->context->allowYield = previousAllowYield;
 
             return this->finalize(this->startNode(startToken), new AssignmentPatternNode(pattern.get(), right.get()));
@@ -1546,13 +1547,18 @@ public:
 
     // ECMA-262 12.2.5 Array Initializer
 
-    template <typename T, bool isParse>
+    template <typename T, bool isParse, bool checkLeftHasRestrictedWord>
     T spreadElement()
     {
         MetaNode node = this->createNode();
         this->expect(PunctuatorKind::PeriodPeriodPeriod);
 
-        RefPtr<Node> arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+        RefPtr<Node> arg;
+        arg = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, checkLeftHasRestrictedWord>);
+        if (arg->isAssignmentOperation()) {
+            this->throwError(Messages::DefaultRestParameter);
+        }
+
         if (isParse) {
             return T(this->finalize(node, new SpreadElementNode(arg.get())));
         }
@@ -1577,9 +1583,9 @@ public:
                 }
             } else if (this->match(PeriodPeriodPeriod)) {
                 if (isParse) {
-                    elements.push_back(this->spreadElement<Parse>());
+                    elements.push_back(this->spreadElement<Parse, true>());
                 } else {
-                    this->spreadElement<Scan>();
+                    this->spreadElement<Scan, true>();
                 }
 
                 hasSpreadElement = true;
@@ -1591,9 +1597,9 @@ public:
                 }
             } else {
                 if (isParse) {
-                    elements.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
+                    elements.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, true>));
                 } else {
-                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan, true>);
                 }
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
@@ -1694,7 +1700,7 @@ public:
         }
         case Token::PunctuatorToken:
             if (token->valuePunctuatorKind == LeftSquareBracket) {
-                key = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                key = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 this->expect(RightSquareBracket);
             } else {
                 this->throwUnexpectedToken(token);
@@ -1749,7 +1755,7 @@ public:
         }
         case Token::PunctuatorToken:
             if (token->valuePunctuatorKind == LeftSquareBracket) {
-                key = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                key = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                 this->expect(RightSquareBracket);
             } else {
                 this->throwUnexpectedToken(token);
@@ -1824,7 +1830,7 @@ public:
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
             if (isParse) {
-                keyNode = this->finalize(this->createNode(), finishIdentifier(token, true));
+                keyNode = this->finalize(node, finishIdentifier(token, true));
             } else {
                 key = finishScanIdentifier(token, true);
             }
@@ -1923,12 +1929,12 @@ public:
                 this->nextToken();
                 ASTNodeType type = ASTNodeType::ASTNodeTypeError;
                 if (isParse) {
-                    valueNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    valueNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, true>);
                     if (valueNode) {
                         type = valueNode->type();
                     }
                 } else {
-                    type = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    type = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan, true>);
                 }
                 if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && lastPoppedScopeContext->m_functionName == AtomicString()) {
                     needImplictName = true;
@@ -1940,31 +1946,40 @@ public:
                     this->parsePropertyMethodFunction();
                 }
                 method = true;
-            } else if (token->type == Token::IdentifierToken) {
-                RefPtr<Node> id;
-                if (isParse) {
-                    id = this->finalize(node, finishIdentifier(token, true));
-                }
+            } else if ((token->type == Token::IdentifierToken) || (token->type == Token::KeywordToken && token->valueKeywordKind == KeywordKind::YieldKeyword && this->context->allowYield)) {
                 if (this->match(Substitution)) {
                     this->context->firstCoverInitializedNameError = this->lookahead;
                     this->nextToken();
                     shorthand = true;
                     if (isParse) {
-                        RefPtr<Node> init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
-                        valueNode = this->finalize(node, new AssignmentExpressionSimpleNode(id.get(), init.get()));
+                        RefPtr<Node> init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
+                        valueNode = this->finalize(node, new AssignmentPatternNode(keyNode.get(), init.get()));
                     } else {
-                        this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                        this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                     }
                 } else {
                     shorthand = true;
                     if (isParse) {
-                        valueNode = id;
+                        valueNode = keyNode;
                     }
                 }
             } else {
                 ALLOC_TOKEN(token);
                 this->nextToken(token);
                 this->throwUnexpectedToken(token);
+            }
+        }
+
+        // check if restricted words are used as target in array/object initializer
+        if (shorthand && this->context->strict && token->type == Token::IdentifierToken) {
+            AtomicString name;
+            if (isParse) {
+                name = keyNode->asIdentifier()->name();
+            } else {
+                name = key.string();
+            }
+            if (this->scanner->isRestrictedWord(name)) {
+                this->context->hasRestrictedWordInArrayOrObjectInitializer = true;
             }
         }
 
@@ -1992,6 +2007,7 @@ public:
         this->expect(LeftBrace);
         MetaNode node = this->createNode();
         PropertiesNodeVector properties;
+
         bool hasProto = false;
         while (!this->match(RightBrace)) {
             if (isParse) {
@@ -2210,9 +2226,9 @@ public:
                 bool arrow = false;
                 this->context->isBindingElement = true;
                 if (isParse) {
-                    exprNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    exprNode = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 } else {
-                    expr = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    expr = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                 }
 
                 if (this->match(Comma)) {
@@ -2264,9 +2280,9 @@ public:
                             }
                         } else {
                             if (isParse) {
-                                expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>));
+                                expressions.push_back(this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, false>));
                             } else {
-                                this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan>);
+                                this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                             }
                         }
                         if (arrow) {
@@ -2351,9 +2367,9 @@ public:
             while (true) {
                 RefPtr<Node> expr;
                 if (this->match(PeriodPeriodPeriod)) {
-                    expr = this->spreadElement<Parse>();
+                    expr = this->spreadElement<Parse, false>();
                 } else {
-                    expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 }
                 args.push_back(expr);
                 if (this->match(RightParenthesis)) {
@@ -2378,9 +2394,9 @@ public:
         if (!this->match(RightParenthesis)) {
             while (true) {
                 if (this->match(PeriodPeriodPeriod)) {
-                    this->spreadElement<Parse>();
+                    this->spreadElement<Parse, false>();
                 } else {
-                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                 }
                 count++;
                 if (this->match(RightParenthesis)) {
@@ -3375,18 +3391,18 @@ public:
             bool previousAllowIn = this->context->allowIn;
             this->context->allowIn = true;
             if (isParse) {
-                consequent = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                consequent = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
             } else {
-                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
             }
             this->context->allowIn = previousAllowIn;
 
             this->expect(Colon);
             if (isParse) {
-                RefPtr<Node> alternate = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                RefPtr<Node> alternate = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 exprNode = this->finalize(this->startNode(startToken), new ConditionalExpressionNode(exprNode.get(), consequent.get(), alternate.get()));
             } else {
-                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
             }
 
             this->context->isAssignmentTarget = false;
@@ -3401,7 +3417,7 @@ public:
 
     // ECMA-262 12.15 Assignment Operators
 
-    template <typename T, bool isParse>
+    template <typename T, bool isParse, bool checkLeftHasRestrictedWord>
     T assignmentExpression()
     {
         RefPtr<Node> exprNode;
@@ -3538,7 +3554,7 @@ public:
                                 ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                                 this->config.parseSingleFunctionChildIndex++;
                             }
-                            body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                            body = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
 
                             this->subCodeBlockIndex = oldSubCodeBlockIndex;
                             this->lexicalBlockIndex = lexicalBlockIndexBefore;
@@ -3574,26 +3590,49 @@ public:
                     this->context->inArrowFunction = previousInArrowFunction;
                 }
             } else {
-                if (this->matchAssign()) {
-                    if (!this->context->isAssignmentTarget && this->context->strict) {
-                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
-
+                // check if restricted words are used as target in array/object initializer
+                if (checkLeftHasRestrictedWord) {
                     if (this->context->strict && type == Identifier) {
                         AtomicString name;
-
                         if (isParse) {
-                            IdentifierNode* id = exprNode->asIdentifier();
-                            name = id->name();
+                            name = exprNode->asIdentifier()->name();
                         } else {
                             name = expr.string();
                         }
-
                         if (this->scanner->isRestrictedWord(name)) {
-                            this->throwUnexpectedToken(token, Messages::StrictLHSAssignment);
+                            this->context->hasRestrictedWordInArrayOrObjectInitializer = true;
                         }
-                        if (this->scanner->isStrictModeReservedWord(name)) {
-                            this->throwUnexpectedToken(token, Messages::StrictReservedWord);
+                    }
+                }
+                if (this->matchAssign()) {
+                    if (!this->context->isAssignmentTarget) {
+                        if (type == ArrayExpression || type == ObjectExpression) {
+                            this->throwError(Messages::InvalidLHSInAssignment);
+                        }
+                        if (this->context->strict) {
+                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                        }
+                    }
+
+                    if (this->context->strict) {
+                        if (type == Identifier) {
+                            AtomicString name;
+                            if (isParse) {
+                                IdentifierNode* id = exprNode->asIdentifier();
+                                name = id->name();
+                            } else {
+                                name = expr.string();
+                            }
+                            if (this->scanner->isRestrictedWord(name)) {
+                                this->throwUnexpectedToken(token, Messages::StrictLHSAssignment);
+                            }
+                            if (this->scanner->isStrictModeReservedWord(name)) {
+                                this->throwUnexpectedToken(token, Messages::StrictReservedWord);
+                            }
+                        } else if (type == ArrayExpression || type == ObjectExpression) {
+                            if (this->context->hasRestrictedWordInArrayOrObjectInitializer) {
+                                this->throwError(Messages::StrictLHSAssignment);
+                            }
                         }
                     }
 
@@ -3621,9 +3660,9 @@ public:
                     Node* exprResult;
 
                     if (isParse) {
-                        rightNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                        rightNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                     } else {
-                        this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                        this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                     }
 
                     switch (token->valuePunctuatorKind) {
@@ -3740,9 +3779,9 @@ public:
         ScanExpressionResult expr;
 
         if (isParse) {
-            exprNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+            exprNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
         } else {
-            expr = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+            expr = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
         }
 
         if (this->match(Comma)) {
@@ -3756,9 +3795,9 @@ public:
                 }
                 this->nextToken();
                 if (isParse) {
-                    expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
+                    expressions.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>));
                 } else {
-                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                 }
             }
 
@@ -3783,6 +3822,7 @@ public:
         RefPtr<StatementNode> statement;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
+        this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         if (this->lookahead.type == KeywordToken) {
             switch (this->lookahead.valueKeywordKind) {
             case FunctionKeyword:
@@ -4024,11 +4064,11 @@ public:
             if (kind == KeywordKind::ConstKeyword) {
                 if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
                     this->expect(Substitution);
-                    init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                    init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 }
             } else if ((!inFor && !isIdentifier) || this->match(Substitution)) {
                 this->expect(Substitution);
-                init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                init = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
             }
 
             return T(this->finalize(node, new VariableDeclaratorNode(kind, idNode.get(), init.get())));
@@ -4036,11 +4076,11 @@ public:
             if (kind == KeywordKind::ConstKeyword) {
                 if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
                     this->expect(Substitution);
-                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                    this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
                 }
             } else if ((!inFor && !isIdentifier) || this->match(Substitution)) {
                 this->expect(Substitution);
-                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
             }
             return T(nullptr);
         }
@@ -4240,12 +4280,12 @@ public:
             this->nextToken();
             ASTNodeType type = ASTNodeType::ASTNodeTypeError;
             if (isParse) {
-                initNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+                initNode = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 if (initNode) {
                     type = initNode->type();
                 }
             } else {
-                type = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan>);
+                type = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
             }
             if (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) {
                 if (lastPoppedScopeContext->m_functionName == AtomicString()) {
@@ -4593,7 +4633,7 @@ public:
                 *initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
-                init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse>);
+                init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, false>);
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(InKeyword)) {
@@ -4622,7 +4662,7 @@ public:
                         initSeq.push_back(init);
                         while (this->match(Comma)) {
                             this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>));
+                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>));
                         }
                         init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
                     }
@@ -4653,9 +4693,9 @@ public:
             ASSERT(!isParse || left != nullptr);
 
             if (isParse) {
-                right = this->assignmentExpression<Parse>();
+                right = this->assignmentExpression<Parse, false>();
             } else {
-                this->assignmentExpression<Scan>();
+                this->assignmentExpression<Scan, false>();
             }
         }
 
@@ -5869,15 +5909,15 @@ public:
             if (delegate) {
                 this->nextToken();
                 if (isParse) {
-                    exprNode = this->assignmentExpression<Parse>();
+                    exprNode = this->assignmentExpression<Parse, false>();
                 } else {
-                    this->assignmentExpression<Scan>();
+                    this->assignmentExpression<Scan, false>();
                 }
             } else if (isStartOfExpression()) {
                 if (isParse) {
-                    exprNode = this->assignmentExpression<Parse>();
+                    exprNode = this->assignmentExpression<Parse, false>();
                 } else {
-                    this->assignmentExpression<Scan>();
+                    this->assignmentExpression<Scan, false>();
                 }
             }
             this->context->allowYield = previousAllowYield;
@@ -6250,7 +6290,7 @@ public:
             bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
 
-            RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse>);
+            RefPtr<Node> expr = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
 
             container->appendChild(this->finalize(nodeStart, new ReturnStatmentNode(expr.get())), nullptr);
 
