@@ -2070,17 +2070,19 @@ public:
 
 class ObjectDefineGetter : public ByteCode {
 public:
-    ObjectDefineGetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex)
+    ObjectDefineGetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
         : ByteCode(Opcode::ObjectDefineGetterOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
         , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
+        , m_presentAttribute(presentAttribute)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
     ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
+    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
@@ -2091,17 +2093,19 @@ public:
 
 class ObjectDefineSetter : public ByteCode {
 public:
-    ObjectDefineSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex)
+    ObjectDefineSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
         : ByteCode(Opcode::ObjectDefineSetterOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
         , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
+        , m_presentAttribute(presentAttribute)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
     ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
+    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
