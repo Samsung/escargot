@@ -172,10 +172,7 @@
   <test id="setter"><reason>TODO</reason></test>
   <test id="yield-non-strict-access"><reason>TODO</reason></test>
   <test id="yield-non-strict-syntax"><reason>TODO</reason></test>
-  <test id="accessors"><reason>TODO</reason></test>
   <test id="basics"><reason>TODO</reason></test>
-  <test id="getters"><reason>TODO</reason></test>
-  <test id="numeric-property-names"><reason>TODO</reason></test>
   <test id="setters"><reason>TODO</reason></test>
   <test id="body-dstr-assign-error"><reason>TODO</reason></test>
   <test id="body-put-error"><reason>TODO</reason></test>
