@@ -185,12 +185,15 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     // Let status be DefinePropertyOrThrow(F, "length", PropertyDescriptor {[[Value]]: L, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true}).
     // Perform SetFunctionName(F, targetName, "bound").
     // Return F.
-    return new BoundFunctionObject(state, thisValue, boundThis, boundArgc, boundArgv, Value(length), Value(builder.finalize(&state)));
+    return new BoundFunctionObject(state, target, boundThis, boundArgc, boundArgv, Value(length), Value(builder.finalize(&state)));
 }
 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return Value(Object::hasInstance(state, thisValue, argv[0]));
+    if (!thisValue.isObject()) {
+        return Value(false);
+    }
+    return Value(thisValue.asObject()->hasInstance(state, argv[0]));
 }
 
 void GlobalObject::installFunction(ExecutionState& state)

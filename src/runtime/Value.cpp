@@ -460,21 +460,22 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
     if (!other.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
+    Object* C = other.asObject();
     // Let instOfHandler be GetMethod(C,@@hasInstance).
     Value instOfHandler = Object::getMethod(state, other, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().hasInstance));
     // If instOfHandler is not undefined, then
     if (!instOfHandler.isUndefined()) {
         // Return ToBoolean(Call(instOfHandler, C, «O»)).
         Value arg[1] = { *this };
-        return Object::call(state, instOfHandler, other, 1, arg).toBoolean(state);
+        return Object::call(state, instOfHandler, Value(C), 1, arg).toBoolean(state);
     }
 
     // If IsCallable(C) is false, throw a TypeError exception.
-    if (!other.isCallable()) {
+    if (!C->isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
     }
     // Return OrdinaryHasInstance(C, O).
-    return Object::hasInstance(state, other, *this);
+    return C->hasInstance(state, *this);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber

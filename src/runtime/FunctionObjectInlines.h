@@ -207,6 +207,7 @@ public:
             }
 
             GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk);
+            gen->setPrototype(state, self->get(state, state.context()->staticStrings().prototype).value(state, self));
             newState->setGeneratorTarget(gen);
             return gen;
         }

@@ -1805,7 +1805,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T objectProperty(bool& hasProto, std::vector<std::pair<AtomicString, size_t>>& usedNames) //: Node.Property
+    T objectProperty(bool& hasProto) //: Node.Property
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -1968,46 +1968,9 @@ public:
             }
         }
 
-        if (!this->config.parseSingleFunction && (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier)) {
-            AtomicString as = isParse ? keyNode->asIdentifier()->name() : key.string();
-            bool seenInit = kind == PropertyNode::Kind::Init;
-            bool seenGet = kind == PropertyNode::Kind::Get;
-            bool seenSet = kind == PropertyNode::Kind::Set;
-            size_t len = usedNames.size();
-
-            for (size_t i = 0; i < len; i++) {
-                const auto& n = usedNames[i];
-                if (n.first == as) {
-                    if (n.second == PropertyNode::Kind::Init) {
-                        if (this->context->strict) {
-                            if (seenInit || seenGet || seenSet) {
-                                this->throwError("invalid object literal");
-                            }
-                        } else {
-                            if (seenGet || seenSet) {
-                                this->throwError("invalid object literal");
-                            }
-                        }
-                        seenInit = true;
-                    } else if (n.second == PropertyNode::Kind::Get) {
-                        if (seenInit || seenGet) {
-                            this->throwError("invalid object literal");
-                        }
-                        seenGet = true;
-                    } else if (n.second == PropertyNode::Kind::Set) {
-                        if (seenInit || seenSet) {
-                            this->throwError("invalid object literal");
-                        }
-                        seenSet = true;
-                    }
-                }
-            }
-            usedNames.push_back(std::make_pair(as, kind));
-        }
-
         if (!this->config.parseSingleFunction && (method || isGet || isSet || needImplictName)) {
             AtomicString as;
-            if (isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier) {
+            if (!computed && isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier) {
                 as = isParse ? keyNode->asIdentifier()->name() : key.string();
             }
             lastPoppedScopeContext->m_functionName = as;
@@ -2030,12 +1993,11 @@ public:
         MetaNode node = this->createNode();
         PropertiesNodeVector properties;
         bool hasProto = false;
-        std::vector<std::pair<AtomicString, size_t>> usedNames;
         while (!this->match(RightBrace)) {
             if (isParse) {
-                properties.push_back(this->objectProperty<ParseAs(PropertyNode)>(hasProto, usedNames));
+                properties.push_back(this->objectProperty<ParseAs(PropertyNode)>(hasProto));
             } else {
-                this->objectProperty<Scan>(hasProto, usedNames);
+                this->objectProperty<Scan>(hasProto);
             }
             if (!this->match(RightBrace)) {
                 this->expectCommaSeparator();

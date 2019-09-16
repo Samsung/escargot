@@ -26,12 +26,7 @@ namespace Escargot {
 
 class BoundFunctionObject : public Object {
 public:
-    BoundFunctionObject(ExecutionState& state)
-        : Object(state)
-    {
-    }
-
-    BoundFunctionObject(ExecutionState& state, Value& targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name);
+    BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name);
 
     virtual bool isBoundFunctionObject() const override
     {
@@ -63,7 +58,7 @@ private:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv) override;
     virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget) override;
 
-    SmallValue m_boundTargetFunction;
+    Object* m_boundTargetFunction;
     SmallValue m_boundThis;
     SmallValueVector m_boundArguments;
 };

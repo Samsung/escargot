@@ -26,6 +26,10 @@
 #include "FunctionObject.h"
 #include "ArrayObject.h"
 #include "BoundFunctionObject.h"
+#include "StringObject.h"
+#include "NumberObject.h"
+#include "BooleanObject.h"
+#include "SymbolObject.h"
 #include "util/Util.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
@@ -925,34 +929,48 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     return true;
 }
 
-Value Object::get(ExecutionState& state, const Value& value, const ObjectPropertyName& propertyName)
+// https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
+Value Object::getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName)
 {
-    // 7.3.1 Get ( O, P )
-    // Assert: Type(O) is Object.
-    ASSERT(value.isObject());
-    // TODO : Assert: IsPropertyKey(P) is true.
-    // Return O.[[Get]](P, O).
-    auto o = value.asObject();
-    // 4. Return O.[[Get]](P, V).
-    return o->get(state, propertyName).value(state, value);
+    // below method use fake object instead of Value::toObject when O is isPrimitive.
+    // we can use proxy object instead of Value::toObject because converted object only used on getting method
+    Object* obj;
+
+    if (O.isObject()) {
+        obj = O.asObject();
+    } else if (O.isString()) {
+        obj = state.context()->globalObject()->stringProxyObject();
+    } else if (O.isNumber()) {
+        obj = state.context()->globalObject()->numberProxyObject();
+    } else if (O.isBoolean()) {
+        obj = state.context()->globalObject()->booleanProxyObject();
+    } else if (O.isSymbol()) {
+        obj = state.context()->globalObject()->symbolProxyObject();
+    } else {
+        obj = O.toObject(state); // this always cause type error
+    }
+
+    auto r = obj->getMethod(state, propertyName);
+    if (r) {
+        return Value(r.value());
+    }
+    return Value();
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
-Value Object::getMethod(ExecutionState& state, const Value& object, const ObjectPropertyName& propertyName)
+Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
     // 2. Let func be GetV(O, P).
-    Object* obj = object.toObject(state);
-    Value func = obj->get(state, propertyName).value(state, object);
+    Value func = get(state, propertyName).value(state, this);
     // 4. If func is either undefined or null, return undefined.
     if (func.isUndefinedOrNull()) {
-        return Value();
+        return nullptr;
     }
     // 5. If IsCallable(func) is false, throw a TypeError exception.
     if (!func.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, false, String::emptyString, "%s: return value of getMethod is not callable");
     }
     // 6. Return func.
-    return func;
+    return Optional<Object*>(func.asObject());
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -982,17 +1000,18 @@ Object* Object::construct(ExecutionState& state, const Value& constructor, const
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
-bool Object::hasInstance(ExecutionState& state, const Value& C, Value O)
+bool Object::hasInstance(ExecutionState& state, Value O)
 {
+    Object* C = this;
     // If IsCallable(C) is false, return false.
-    if (!C.isCallable()) {
+    if (!C->isCallable()) {
         return false;
     }
 
     // If C has a [[BoundTargetFunction]] internal slot, then
-    if (UNLIKELY(C.isObject() && C.asObject()->isBoundFunctionObject())) {
+    if (UNLIKELY(isBoundFunctionObject())) {
         // Let BC be the value of C’s [[BoundTargetFunction]] internal slot.
-        Value BC = C.asObject()->asBoundFunctionObject()->targetFunction();
+        Value BC = C->asBoundFunctionObject()->targetFunction();
         // Return InstanceofOperator(O,BC) (see 12.9.4).
         return O.instanceOf(state, BC);
     }
@@ -1001,8 +1020,7 @@ bool Object::hasInstance(ExecutionState& state, const Value& C, Value O)
         return false;
     }
     // Let P be Get(C, "prototype").
-    ASSERT(C.isFunction());
-    Value P = C.asFunction()->getFunctionPrototype(state);
+    Value P = C->get(state, state.context()->staticStrings().prototype).value(state, C);
     // If Type(P) is not Object, throw a TypeError exception.
     if (!P.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
@@ -1176,7 +1194,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
         auto indexName = Value(index).toString(state);
         // b. Let next be Get(obj, indexName).
         // c. ReturnIfAbrupt(next).
-        auto next = Object::get(state, o, ObjectPropertyName(state, indexName));
+        auto next = o->get(state, ObjectPropertyName(state, indexName)).value(state, o);
 
         // d. If Type(next) is not an element of elementTypes, throw a TypeError exception.
         if (!(((elementTypes & (uint8_t)ElementTypes::Undefined) && next.isUndefined()) || ((elementTypes & (uint8_t)ElementTypes::Null) && next.isNull()) || ((elementTypes & (uint8_t)ElementTypes::Boolean) && next.isBoolean()) || ((elementTypes & (uint8_t)ElementTypes::String) && next.isString()) || ((elementTypes & (uint8_t)ElementTypes::Symbol) && next.isSymbol()) || ((elementTypes & (uint8_t)ElementTypes::Number) && next.isNumber()) || ((elementTypes & (uint8_t)ElementTypes::Object) && next.isObject()))) {
@@ -1439,7 +1457,7 @@ ValueVector Object::enumerableOwnProperties(ExecutionState& state, Object* objec
                 } else {
                     // 2. Else
                     // a. Let value be ? Get(O, key).
-                    Value value = Object::get(state, object, propertyName);
+                    Value value = object->get(state, propertyName).value(state, object);
                     // b. If kind is "value", append value to properties.
                     if (kind == EnumerableOwnPropertiesType::Value) {
                         properties.pushBack(value);

@@ -116,7 +116,7 @@ public:
     {
     }
 
-    Optional(T value)
+    Optional(T* value)
         : m_value(value)
     {
     }

@@ -26,17 +26,16 @@
 
 namespace Escargot {
 
-BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Value& targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
+BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2, false)
     , m_boundTargetFunction(targetFunction)
     , m_boundThis(boundThis)
 {
-    ASSERT(targetFunction.isObject());
     m_structure = state.context()->defaultStructureForBoundFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = length;
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = name;
 
-    Value proto = targetFunction.asObject()->getPrototype(state);
+    Value proto = m_boundTargetFunction->getPrototype(state);
     Object::setPrototype(state, proto);
 
     if (boundArgc > 0) {
