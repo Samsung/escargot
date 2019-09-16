@@ -1603,7 +1603,7 @@ public:
         this->expect(RightSquareBracket);
 
         if (isParse) {
-            return T(this->finalize(node, new ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement)));
+            return T(this->finalize(node, new ArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement, false)));
         }
         return ScanExpressionResult(ASTNodeType::ArrayExpression);
     }
@@ -2691,7 +2691,7 @@ public:
             arrayExpressionForRaw = this->finalize(node, new ArrayExpressionNode(std::move(elements)));
         }
 
-        RefPtr<ArrayExpressionNode> quasiVector = this->finalize(node, new ArrayExpressionNode(std::move(elements), this->escargotContext->staticStrings().raw, arrayExpressionForRaw.get()));
+        RefPtr<ArrayExpressionNode> quasiVector = this->finalize(node, new ArrayExpressionNode(std::move(elements), this->escargotContext->staticStrings().raw, arrayExpressionForRaw.get(), false, true));
         args.push_back(quasiVector.get());
         for (size_t i = 0; i < templateLiteral->expressions().size(); i++) {
             args.push_back(templateLiteral->expressions()[i]);

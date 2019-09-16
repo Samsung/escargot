@@ -64,15 +64,15 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
     if (fp) {
         std::string utf8Str;
         Latin1StringDataNonGCStd str;
-        char buf[512];
+        char buf[8];
         bool hasNonLatin1Content = false;
-        while (fgets(buf, sizeof buf, fp) != NULL) {
+        size_t readLen;
+        while ((readLen = fread(buf, 1, sizeof buf, fp))) {
             if (!hasNonLatin1Content) {
                 const char* source = buf;
-                size_t len = strlen(buf);
                 int charlen;
                 bool valid;
-                while (source < buf + len) {
+                while (source < buf + readLen) {
                     char32_t ch = readUTF8Sequence(source, valid, charlen);
                     if (ch > 255) {
                         hasNonLatin1Content = true;
@@ -83,7 +83,7 @@ static String* builtinHelperFileRead(ExecutionState& state, const char* fileName
                     }
                 }
             } else {
-                utf8Str += buf;
+                utf8Str.append(buf, readLen);
             }
         }
         fclose(fp);
@@ -999,15 +999,12 @@ static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // Note : this implementation of caller and arguments restrict-properties is non-normative and we don't fully support fully it at this time.
-    // If you decide to implement the same behavior as any other major JavaScript-engine, you'll need to reimplement it.
-    // Nevertheless, the following implementation is related to test262's restrict-properties related tests.
-
+    FunctionObject* targetFunction = nullptr;
     bool needThrow = false;
     if (thisValue.isCallable()) {
         if (thisValue.isFunction()) {
-            auto function = thisValue.asFunction();
-            if (function->codeBlock()->isStrict() || function->codeBlock()->isArrowFunctionExpression() || function->codeBlock()->isGenerator()) {
+            targetFunction = thisValue.asFunction();
+            if (targetFunction->codeBlock()->isStrict() || targetFunction->codeBlock()->isArrowFunctionExpression() || targetFunction->codeBlock()->isGenerator()) {
                 needThrow = true;
             }
         } else if (thisValue.isObject()) {
@@ -1021,8 +1018,42 @@ static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value 
     }
 
     if (needThrow) {
-        state.throwException(new TypeErrorObject(state, String::fromASCII("'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them")));
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
     }
+
+    bool inStrict = false;
+
+    ExecutionState* p = state.parent();
+    while (p) {
+        if (p->inStrictMode()) {
+            inStrict = true;
+            break;
+        }
+        p = p->parent();
+    }
+
+    if (targetFunction && !inStrict) {
+        bool foundTargetFunction = false;
+        ExecutionState* p = &state;
+        while (p) {
+            if (foundTargetFunction) {
+                auto callee = p->resolveCallee();
+                if (callee != targetFunction) {
+                    if (callee) {
+                        return Value(callee);
+                    } else {
+                        return Value(Value::Null);
+                    }
+                }
+            } else {
+                if (p->resolveCallee() == targetFunction) {
+                    foundTargetFunction = true;
+                }
+            }
+            p = p->parent();
+        }
+    }
+
     return Value(Value::Null);
 }
 

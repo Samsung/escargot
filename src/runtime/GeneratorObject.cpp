@@ -144,9 +144,23 @@ Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resume
         // normal return means generator end
         gen->m_generatorState = GeneratorState::CompletedReturn;
         gen->releaseExecutionVariables();
+
+        result = createIterResultObject(state, result, true);
     } catch (GeneratorObject::GeneratorExitValue* exitValue) {
         result = exitValue->m_value;
+        auto isDelegateOperation = exitValue->m_isDelegateOperation;
         delete exitValue;
+
+        if (isDelegateOperation) {
+            return result;
+        }
+
+        if (gen->m_generatorState >= GeneratorState::CompletedReturn) {
+            return createIterResultObject(state, result, true);
+        }
+
+        return createIterResultObject(state, result, false);
+
     } catch (const Value& thrownValue) {
         gen->m_generatorState = GeneratorState::CompletedThrow;
         gen->releaseExecutionVariables();
@@ -169,13 +183,7 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
 
     ASSERT(gen->m_generatorState == GeneratorState::SuspendedStart || gen->m_generatorState == SuspendedYield);
 
-    Value result = generatorExecute(state, gen, value, false, false);
-
-    if (gen->m_generatorState >= GeneratorState::CompletedReturn) {
-        return createIterResultObject(state, result, true);
-    }
-
-    return createIterResultObject(state, result, false);
+    return generatorExecute(state, gen, value, false, false);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresumeabrupt
@@ -196,8 +204,6 @@ Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const
 
     ASSERT(gen->generatorState() == GeneratorState::SuspendedYield);
 
-    Value result = generatorExecute(state, gen, value, type == GeneratorAbruptType::Return, type == GeneratorAbruptType::Throw);
-
-    return createIterResultObject(state, result, gen->generatorState() == GeneratorState::CompletedReturn || gen->generatorState() == GeneratorState::CompletedThrow);
+    return generatorExecute(state, gen, value, type == GeneratorAbruptType::Return, type == GeneratorAbruptType::Throw);
 }
 }

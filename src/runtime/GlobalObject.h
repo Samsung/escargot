@@ -54,6 +54,7 @@ public:
         , m_object(nullptr)
         , m_objectPrototypeToString(nullptr)
         , m_objectCreate(nullptr)
+        , m_objectFreeze(nullptr)
         , m_function(nullptr)
         , m_functionPrototype(nullptr)
         , m_iteratorPrototype(nullptr)
@@ -245,6 +246,10 @@ public:
     FunctionObject* objectCreate()
     {
         return m_objectCreate;
+    }
+    FunctionObject* objectFreeze()
+    {
+        return m_objectFreeze;
     }
 
     FunctionObject* function()
@@ -678,6 +683,7 @@ private:
     Object* m_objectPrototype;
     FunctionObject* m_objectPrototypeToString;
     FunctionObject* m_objectCreate;
+    FunctionObject* m_objectFreeze;
 
     FunctionObject* m_function;
     FunctionObject* m_functionPrototype;

@@ -568,6 +568,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case SuperSetObjectOperationOpcode: {
+                SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case CallSuperOpcode: {
                 CallSuper* cd = (CallSuper*)currentCode;
                 assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
