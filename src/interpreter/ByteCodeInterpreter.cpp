@@ -980,6 +980,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(SuperSetObjectOperation)
+            :
+        {
+            SuperSetObjectOperation* code = (SuperSetObjectOperation*)programCounter;
+            superSetObjectOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(SuperSetObjectOperation);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(CallSuper)
             :
         {
@@ -2457,6 +2466,22 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
     }
 }
 
+NEVER_INLINE void ByteCodeInterpreter::superSetObjectOperation(ExecutionState& state, SuperSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+{
+    // find `this` value for receiver
+    Value thisValue(Value::ForceUninitialized);
+    if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+        EnvironmentRecord* envRec = state.getThisEnvironment();
+        ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+        thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
+    } else {
+        thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+    }
+
+    Value object = registerFile[code->m_objectRegisterIndex];
+    object.toObject(state)->set(state, ObjectPropertyName(state, code->m_propertyName), registerFile[code->m_loadRegisterIndex], thisValue);
+}
+
 NEVER_INLINE void ByteCodeInterpreter::callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile)
 {
     // Let newTarget be GetNewTarget().
@@ -2698,7 +2723,7 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex)
+NEVER_INLINE void ByteCodeInterpreter::yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, bool isDelegateOperation)
 {
     ASSERT(state.inGeneratorScope());
 
@@ -2780,6 +2805,7 @@ NEVER_INLINE void ByteCodeInterpreter::yieldOperationImplementation(ExecutionSta
 
     GeneratorObject::GeneratorExitValue* exitValue = new GeneratorObject::GeneratorExitValue();
     exitValue->m_value = returnValue;
+    exitValue->m_isDelegateOperation = isDelegateOperation;
     throw exitValue;
 }
 
@@ -2794,7 +2820,7 @@ NEVER_INLINE void ByteCodeInterpreter::yieldOperation(ExecutionState& state, Val
     auto dstIdx = code->m_dstIdx;
 
     size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(Yield) + code->m_tailDataLength;
-    yieldOperationImplementation(state, ret, programCounter + sizeof(Yield), code->m_tailDataLength, nextProgramCounter, dstIdx);
+    yieldOperationImplementation(state, ret, programCounter + sizeof(Yield), code->m_tailDataLength, nextProgramCounter, dstIdx, false);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
@@ -2870,7 +2896,7 @@ NEVER_INLINE Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& s
     registerFile[code->m_valueIdx] = nextValue;
 
     size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(YieldDelegate) + code->m_tailDataLength;
-    yieldOperationImplementation(state, nextValue, programCounter + sizeof(YieldDelegate), code->m_tailDataLength, nextProgramCounter, REGISTER_LIMIT);
+    yieldOperationImplementation(state, nextResult, programCounter + sizeof(YieldDelegate), code->m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, true);
 
     ASSERT_NOT_REACHED();
 }

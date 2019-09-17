@@ -1468,18 +1468,26 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                 if (ch == '\r' && this->peekChar() == '\n') {
                     ++this->index;
                 }
-                raw += '\n';
+                if (ch == 0x2028 || ch == 0x2029) {
+                    raw += ch;
+                } else {
+                    raw += '\n';
+                }
                 this->lineStart = this->index;
             }
         } else if (isLineTerminator(ch)) {
             ++this->lineNumber;
-            raw += ch;
             if (ch == '\r' && this->peekChar() == '\n') {
-                raw += this->peekChar();
                 ++this->index;
             }
+            if (ch == 0x2028 || ch == 0x2029) {
+                raw += ch;
+                cooked += ch;
+            } else {
+                raw += '\n';
+                cooked += '\n';
+            }
             this->lineStart = this->index;
-            cooked += '\n';
         } else {
             cooked += ch;
             raw += ch;

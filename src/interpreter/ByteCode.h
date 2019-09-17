@@ -71,6 +71,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateClass, 0, 0)                                    \
     F(CreateRestElement, 0, 0)                              \
     F(SuperReference, 1, 0)                                 \
+    F(SuperSetObjectOperation, 0, 2)                        \
     F(CallSuper, -1, 0)                                     \
     F(LoadThisBinding, 0, 0)                                \
     F(ObjectDefineOwnPropertyOperation, 0, 0)               \
@@ -498,6 +499,28 @@ public:
         } else {
             printf("super property -> r%d", (int)m_dstIndex);
         }
+    }
+#endif
+};
+
+class SuperSetObjectOperation : public ByteCode {
+public:
+    SuperSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, PropertyName propertyName, const size_t loadRegisterIndex)
+        : ByteCode(Opcode::SuperSetObjectOperationOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_loadRegisterIndex(loadRegisterIndex)
+        , m_propertyName(propertyName)
+    {
+    }
+
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_loadRegisterIndex;
+    PropertyName m_propertyName;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("set object super(r%d).%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
     }
 #endif
 };

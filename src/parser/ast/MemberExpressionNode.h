@@ -113,10 +113,16 @@ public:
                 valueIndex = src;
                 objectIndex = context->getLastRegisterIndex();
             }
-            SetObjectInlineCache* inlineCache = new SetObjectInlineCache();
-            codeBlock->m_literalData.pushBack(inlineCache);
-            codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex, inlineCache), context, this);
-            context->giveUpRegister();
+
+            if (m_object->isSuperNode()) {
+                codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
+                context->giveUpRegister();
+            } else {
+                SetObjectInlineCache* inlineCache = new SetObjectInlineCache();
+                codeBlock->m_literalData.pushBack(inlineCache);
+                codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex, inlineCache), context, this);
+                context->giveUpRegister();
+            }
         } else {
             size_t valueIndex;
             size_t objectIndex;
@@ -141,15 +147,9 @@ public:
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        if (m_object->isSuperNode()) {
-            ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
-            nd->m_loc = m_loc;
-            ByteCodeRegisterIndex objectIndex = nd->getRegister(codeBlock, context);
-            nd->generateExpressionByteCode(codeBlock, context, objectIndex);
-        } else {
-            ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
-            m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
-        }
+        ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
+        m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
+
         if (!isPreComputedCase()) {
             ByteCodeRegisterIndex propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);

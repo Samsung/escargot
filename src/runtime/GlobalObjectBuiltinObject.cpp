@@ -605,8 +605,9 @@ void GlobalObject::installObject(ExecutionState& state)
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.5 Object.freeze ( O )
+    m_objectFreeze = new NativeFunctionObject(state, NativeFunctionInfo(strings.freeze, builtinObjectFreeze, 1, NativeFunctionInfo::Strict));
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.freeze),
-                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.freeze, builtinObjectFreeze, 1, NativeFunctionInfo::Strict)),
+                                ObjectPropertyDescriptor(m_objectFreeze,
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )

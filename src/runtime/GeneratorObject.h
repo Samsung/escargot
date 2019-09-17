@@ -81,6 +81,7 @@ private:
     // yield is implemented throw this type of by this class
     // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
     struct GeneratorExitValue : public gc {
+        bool m_isDelegateOperation;
         Value m_value;
 
         void* operator new(size_t size)
@@ -93,6 +94,7 @@ private:
     void releaseExecutionVariables()
     {
         m_executionState = nullptr;
+        m_registerFile = nullptr;
         m_byteCodeBlock = nullptr;
     }
 

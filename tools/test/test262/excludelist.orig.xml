@@ -93,6 +93,12 @@
   <test id="prototype-value"><reason>Test is wrong. Generator is not constructor</reason></test>
   <test id="generator-invoke-ctor"><reason>Test is wrong. Generator is not constructor</reason></test>
   <test id="S11.2.1_A4_T5"><reason>Test is wrong. String.prototype.length is not undefined</reason></test>
+  <test id="cache-differing-expressions-eval"><reason>Test is wrong. TC contents is wrong and fixed newer version</reason></test>
+  <test id="cache-differing-expressions-new-function"><reason>Test is wrong. TC contents is wrong and fixed newer version</reason></test>
+  <test id="cache-differing-expressions"><reason>Test is wrong. TC contents is wrong and fixed newer version</reason></test>
+  <test id="cache-identical-source-eval"><reason>Test is wrong. TC contents is wrong and fixed newer version</reason></test>
+  <test id="cache-identical-source-new-function"><reason>Test is wrong. TC contents is wrong and fixed newer version</reason></test>
+  <test id="cache-identical-source"><reason>Test is wrong. TC contents is wrong and fixed newer version</reason></test>
 
   <!-- Assigment expression should get left-reference first test cases. TC are right, but every major engine don't pass these cases -->
   <test id="S11.13.1_A5_T5"><reason>ALLOW_FAIL</reason></test>
@@ -149,31 +155,13 @@
   <test id="S11.4.4_A6_T3"><reason>ALLOW_FAIL</reason></test>
   <test id="S11.4.5_A6_T3"><reason>ALLOW_FAIL</reason></test>
 
-  <test id="10.6-13-a-2"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
-  <test id="10.6-13-a-3"><reason>TODO: Need to set caller of arguments's callee correctly(not 'null' or 'undefined')</reason></test>
-
   <test id="obj-id-identifier-yield-ident-valid"><reason>TODO</reason></test>
-  <test id="cache-differing-expressions-eval"><reason>TODO</reason></test>
-  <test id="cache-differing-expressions-new-function"><reason>TODO</reason></test>
-  <test id="cache-differing-expressions"><reason>TODO</reason></test>
-  <test id="cache-identical-source-eval"><reason>TODO</reason></test>
-  <test id="cache-identical-source-new-function"><reason>TODO</reason></test>
-  <test id="cache-identical-source"><reason>TODO</reason></test>
-  <test id="template-object-frozen-non-strict"><reason>TODO</reason></test>
-  <test id="template-object-frozen-strict"><reason>TODO</reason></test>
-  <test id="template-object"><reason>TODO</reason></test>
-  <test id="tv-line-continuation"><reason>TODO</reason></test>
-  <test id="tv-line-terminator-sequence"><reason>TODO</reason></test>
-  <test id="tv-null-character-escape-sequence"><reason>TODO</reason></test>
-  <test id="star-iterable"><reason>TODO</reason></test>
   <test id="yield-as-label-in-sloppy"><reason>TODO</reason></test>
   <test id="let-non-strict-access"><reason>TODO</reason></test>
   <test id="let-non-strict-syntax"><reason>TODO</reason></test>
-  <test id="setter"><reason>TODO</reason></test>
   <test id="yield-non-strict-access"><reason>TODO</reason></test>
   <test id="yield-non-strict-syntax"><reason>TODO</reason></test>
   <test id="basics"><reason>TODO</reason></test>
-  <test id="setters"><reason>TODO</reason></test>
   <test id="body-dstr-assign-error"><reason>TODO</reason></test>
   <test id="body-put-error"><reason>TODO</reason></test>
   <test id="generator-close-via-break"><reason>TODO</reason></test>
