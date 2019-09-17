@@ -108,12 +108,9 @@ struct GlobalVariableAccessCacheItem;
     F(CallFunctionWithReceiver, -1, 0)                      \
     F(CallFunctionWithSpreadElement, -1, 0)                 \
     F(GetParameter, 0, 0)                                   \
-    F(ReturnFunction, 0, 0)                                 \
-    F(ReturnFunctionWithValue, 0, 0)                        \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
     F(TryCatchWithBlockBodyEnd, 0, 0)                       \
-    F(FinallyEnd, 0, 0)                                     \
     F(ThrowOperation, 0, 0)                                 \
     F(ThrowStaticErrorOperation, 0, 0)                      \
     F(EnumerateObject, 1, 0)                                \
@@ -121,6 +118,7 @@ struct GlobalVariableAccessCacheItem;
     F(CheckIfKeyIsLast, 0, 0)                               \
     F(GetIterator, 1, 0)                                    \
     F(IteratorStep, 1, 0)                                   \
+    F(IteratorClose, 1, 0)                                  \
     F(LoadRegexp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
     F(ObjectDefineGetter, 0, 0)                             \
@@ -437,12 +435,11 @@ public:
 
 class CreateClass : public ByteCode {
 public:
-    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, AtomicString name, CodeBlock* cb)
+    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, CodeBlock* cb)
         : ByteCode(Opcode::CreateClassOpcode, loc)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
-        , m_name(name)
         , m_codeBlock(cb)
     {
     }
@@ -450,13 +447,12 @@ public:
     ByteCodeRegisterIndex m_classConstructorRegisterIndex;
     ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
     ByteCodeRegisterIndex m_superClassRegisterIndex;
-    AtomicString m_name;
     CodeBlock* m_codeBlock;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         if (m_superClassRegisterIndex == REGISTER_LIMIT) {
-            printf("create class r%d(%s) { r%d }", (int)m_classConstructorRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_classPrototypeRegisterIndex);
+            printf("create class r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_classPrototypeRegisterIndex);
         } else {
             printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
         }
@@ -1804,37 +1800,6 @@ public:
 #endif
 };
 
-class ReturnFunction : public ByteCode {
-public:
-    explicit ReturnFunction(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::ReturnFunctionOpcode, loc)
-    {
-    }
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("return");
-    }
-#endif
-};
-
-class ReturnFunctionWithValue : public ByteCode {
-public:
-    ReturnFunctionWithValue(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::ReturnFunctionWithValueOpcode, loc)
-        , m_registerIndex(registerIndex)
-    {
-    }
-    ByteCodeRegisterIndex m_registerIndex;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("return r%d", (int)m_registerIndex);
-    }
-#endif
-};
-
 class ReturnFunctionSlowCase : public ByteCode {
 public:
     ReturnFunctionSlowCase(const ByteCodeLOC& loc, const size_t registerIndex)
@@ -1857,21 +1822,24 @@ public:
     explicit TryOperation(const ByteCodeLOC& loc)
         : ByteCode(Opcode::TryOperationOpcode, loc)
     {
-        m_isTryResumeProcess = m_isCatchResumeProcess = m_hasCatch = false;
-        m_tryCatchEndPosition = m_catchPosition = SIZE_MAX;
+        m_isTryResumeProcess = m_isCatchResumeProcess = m_isFinallyResumeProcess = m_hasCatch = m_hasFinalizer = false;
+        m_finallyEndPosition = m_tryCatchEndPosition = m_catchPosition = SIZE_MAX;
         m_catchedValueRegisterIndex = REGISTER_LIMIT;
     }
 
-    bool m_hasCatch;
-    bool m_isTryResumeProcess;
-    bool m_isCatchResumeProcess;
+    bool m_hasCatch : 1;
+    bool m_hasFinalizer : 1;
+    bool m_isTryResumeProcess : 1;
+    bool m_isCatchResumeProcess : 1;
+    bool m_isFinallyResumeProcess : 1;
     ByteCodeRegisterIndex m_catchedValueRegisterIndex;
     size_t m_catchPosition;
     size_t m_tryCatchEndPosition;
+    size_t m_finallyEndPosition;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("try (hasCatch:%d, save catched value to:r%d)", (int)m_hasCatch, (int)m_catchedValueRegisterIndex);
+        printf("try (hasCatch:%d, save catched value to:r%d, hasFinalizer:%d)", (int)m_hasCatch, (int)m_catchedValueRegisterIndex, (int)m_hasFinalizer);
     }
 #endif
 };
@@ -1887,21 +1855,6 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("try-catch-with-block end");
-    }
-#endif
-};
-
-class FinallyEnd : public ByteCode {
-public:
-    explicit FinallyEnd(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::FinallyEndOpcode, loc)
-    {
-    }
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("finally end");
     }
 #endif
 };
@@ -1977,7 +1930,7 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("enumerate object r%d, r%d", (int)m_objectRegisterIndex, (int)m_dataRegisterIndex);
+        printf("enumerate object r%d <- r%d", (int)m_dataRegisterIndex, (int)m_objectRegisterIndex);
     }
 #endif
 };
@@ -2071,6 +2024,24 @@ public:
         printf("iterator step(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
     }
 #endif
+};
+
+class IteratorClose : public ByteCode {
+public:
+    explicit IteratorClose(const ByteCodeLOC& loc, size_t iterIndex)
+        : ByteCode(Opcode::IteratorCloseOpcode, loc)
+    {
+        m_iterRegisterIndex = iterIndex;
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("iterator close(r%d)", (int)m_iterRegisterIndex);
+    }
+#endif
+
+    ByteCodeRegisterIndex m_iterRegisterIndex;
 };
 
 class LoadRegexp : public ByteCode {
@@ -2255,15 +2226,17 @@ public:
 
 class End : public ByteCode {
 public:
-    explicit End(const ByteCodeLOC& loc)
+    explicit End(const ByteCodeLOC& loc, const size_t registerIndex)
         : ByteCode(Opcode::EndOpcode, loc)
+        , m_registerIndex(registerIndex)
     {
     }
 
+    ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("end");
+        printf("end(return with r[%d])", (int)m_registerIndex);
     }
 #endif
 };

@@ -155,20 +155,6 @@
   <test id="S11.4.4_A6_T3"><reason>ALLOW_FAIL</reason></test>
   <test id="S11.4.5_A6_T3"><reason>ALLOW_FAIL</reason></test>
 
-  <test id="basics"><reason>TODO</reason></test>
-  <test id="body-dstr-assign-error"><reason>TODO</reason></test>
-  <test id="body-put-error"><reason>TODO</reason></test>
-  <test id="generator-close-via-break"><reason>TODO</reason></test>
-  <test id="generator-close-via-return"><reason>TODO</reason></test>
-  <test id="generator-close-via-throw"><reason>TODO</reason></test>
-  <test id="head-expr-to-obj"><reason>TODO</reason></test>
-  <test id="iterator-close-get-method-error"><reason>TODO</reason></test>
-  <test id="iterator-close-non-object"><reason>TODO</reason></test>
-  <test id="iterator-close-via-break"><reason>TODO</reason></test>
-  <test id="iterator-close-via-return"><reason>TODO</reason></test>
-  <test id="iterator-close-via-throw"><reason>TODO</reason></test>
-  <test id="yield-star-from-catch"><reason>TODO</reason></test>
-  <test id="yield-star-from-try"><reason>TODO</reason></test>
   <test id="let-closure-inside-condition"><reason>TODO</reason></test>
   <test id="let-closure-inside-initialization"><reason>TODO</reason></test>
   <test id="let-closure-inside-next-expression"><reason>TODO</reason></test>

@@ -139,20 +139,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     // generate common codes
     try {
         ast->generateStatementByteCode(block, &ctx);
-        // add return bytecode at the end of function body
-        if (!isGlobalScope && !isEvalMode) {
-            ASSERT(ast->type() == ASTNodeType::Function);
-            BlockStatementNode* blk = ((FunctionNode*)ast)->body();
-            StatementNode* nd = blk->firstChild();
-            StatementNode* last = nullptr;
-            while (nd) {
-                last = nd;
-                nd = nd->nextSilbing();
-            }
-            if (!(last && last->type() == ASTNodeType::ReturnStatement)) {
-                block->pushCode(ReturnFunction(ByteCodeLOC(SIZE_MAX)), &ctx, nullptr);
-            }
-        }
     } catch (const ByteCodeGenerateError& err) {
         block->m_code.clear();
         char* data = (char*)GC_MALLOC_ATOMIC(err.m_message.size());
@@ -328,8 +314,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case ReturnFunctionWithValueOpcode: {
-                ReturnFunctionWithValue* cd = (ReturnFunctionWithValue*)currentCode;
+            case EndOpcode: {
+                End* cd = (End*)currentCode;
                 assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
@@ -497,6 +483,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case IteratorCloseOpcode: {
+                IteratorClose* cd = (IteratorClose*)currentCode;
+                assignStackIndexIfNeeded(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case BindingRestElementOpcode: {
                 BindingRestElement* cd = (BindingRestElement*)currentCode;
                 assignStackIndexIfNeeded(cd->m_iterIndex, stackBase, stackBaseWillBe, stackVariableSize);
@@ -580,6 +571,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
             }
             case CallSuperOpcode: {
                 CallSuper* cd = (CallSuper*)currentCode;
@@ -604,6 +596,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 assignStackIndexIfNeeded(cd->m_iterIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_valueIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                code += cd->m_tailDataLength;
                 break;
             }
             case TryOperationOpcode: {

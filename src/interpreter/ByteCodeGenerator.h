@@ -86,7 +86,6 @@ struct ByteCodeGenerateContext {
         , m_isLeftBindingAffectedByRightExpression(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
         , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
-        , m_offsetToBasePointer(0)
         , m_positionToContinue(0)
         , m_complexJumpBreakIgnoreCount(0)
         , m_complexJumpContinueIgnoreCount(0)
@@ -121,7 +120,6 @@ struct ByteCodeGenerateContext {
         , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
         , m_registerStack(contextBefore.m_registerStack)
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
-        , m_offsetToBasePointer(contextBefore.m_offsetToBasePointer)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
         , m_complexJumpBreakIgnoreCount(contextBefore.m_complexJumpBreakIgnoreCount)
@@ -149,7 +147,6 @@ struct ByteCodeGenerateContext {
         ctx.m_labeledContinueStatmentPositions.insert(ctx.m_labeledContinueStatmentPositions.end(), m_labeledContinueStatmentPositions.begin(), m_labeledContinueStatmentPositions.end());
         ctx.m_complexCaseStatementPositions.insert(m_complexCaseStatementPositions.begin(), m_complexCaseStatementPositions.end());
         ctx.m_getObjectCodePositions.insert(ctx.m_getObjectCodePositions.end(), m_getObjectCodePositions.begin(), m_getObjectCodePositions.end());
-        ctx.m_offsetToBasePointer = m_offsetToBasePointer;
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
@@ -327,14 +324,13 @@ struct ByteCodeGenerateContext {
     std::vector<std::pair<String*, size_t>> m_labeledBreakStatmentPositions;
     std::vector<std::pair<String*, size_t>> m_labeledContinueStatmentPositions;
     std::vector<size_t> m_getObjectCodePositions;
-    // For For In Statement
-    size_t m_offsetToBasePointer;
     // For Label Statement
     size_t m_positionToContinue;
     // code position, special Statement count
     enum RecursiveStatementKind : size_t {
         Try,
         Catch,
+        Finally,
         With,
         Block
     };

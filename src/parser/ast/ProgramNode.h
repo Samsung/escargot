@@ -52,7 +52,7 @@ public:
 
         codeBlock->finalizeLexicalBlock(context, blockContext);
 
-        codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX)), context, this);
+        codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX), 0), context, this);
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
