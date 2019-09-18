@@ -155,11 +155,6 @@
   <test id="S11.4.4_A6_T3"><reason>ALLOW_FAIL</reason></test>
   <test id="S11.4.5_A6_T3"><reason>ALLOW_FAIL</reason></test>
 
-  <test id="yield-as-label-in-sloppy"><reason>TODO</reason></test>
-  <test id="let-non-strict-access"><reason>TODO</reason></test>
-  <test id="let-non-strict-syntax"><reason>TODO</reason></test>
-  <test id="yield-non-strict-access"><reason>TODO</reason></test>
-  <test id="yield-non-strict-syntax"><reason>TODO</reason></test>
   <test id="basics"><reason>TODO</reason></test>
   <test id="body-dstr-assign-error"><reason>TODO</reason></test>
   <test id="body-put-error"><reason>TODO</reason></test>
@@ -174,20 +169,14 @@
   <test id="iterator-close-via-throw"><reason>TODO</reason></test>
   <test id="yield-star-from-catch"><reason>TODO</reason></test>
   <test id="yield-star-from-try"><reason>TODO</reason></test>
-  <test id="yield-as-generator-declaration-binding-identifier"><reason>TODO</reason></test>
-  <test id="identifier-let-allowed-as-lefthandside-expression-non-strict"><reason>TODO</reason></test>
   <test id="let-closure-inside-condition"><reason>TODO</reason></test>
   <test id="let-closure-inside-initialization"><reason>TODO</reason></test>
   <test id="let-closure-inside-next-expression"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-function-declaration"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-var"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-with-function-declaration"><reason>TODO</reason></test>
-  <test id="generator-param-id-yield"><reason>TODO</reason></test>
-  <test id="generator-param-init-yield"><reason>TODO</reason></test>
   <test id="generator-super-call-body"><reason>TODO</reason></test>
   <test id="generator-super-call-param"><reason>TODO</reason></test>
-  <test id="yield-as-parameter"><reason>TODO</reason></test>
-  <test id="non-simple"><reason>TODO</reason></test>
   <test id="invalid-hexidecimal-character-escape-sequence-truncated"><reason>TODO</reason></test>
   <test id="invalid-unicode-escape-sequence-truncated"><reason>TODO</reason></test>
   <test id="class-body-has-direct-super-missing-class-heritage"><reason>TODO</reason></test>

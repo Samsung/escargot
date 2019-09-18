@@ -135,6 +135,7 @@ struct Context {
     bool inWith : 1;
     bool inCatchClause : 1;
     bool inLoop : 1;
+    bool inParameterParsing : 1;
     bool hasRestrictedWordInArrayOrObjectInitializer : 1;
     bool strict : 1;
     Scanner::ScannerResult firstCoverInitializedNameError;
@@ -481,6 +482,7 @@ public:
         this->context->inWith = false;
         this->context->inCatchClause = false;
         this->context->inLoop = false;
+        this->context->inParameterParsing = false;
         this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         this->context->strict = this->sourceType == Module;
         this->context->firstCoverInitializedNameError.reset();
@@ -1486,9 +1488,7 @@ public:
         if (this->match(PunctuatorKind::Substitution)) {
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
-            this->context->allowYield = true;
             PassRefPtr<Node> right = this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>);
-            this->context->allowYield = previousAllowYield;
 
             return this->finalize(this->startNode(startToken), new AssignmentPatternNode(pattern.get(), right.get()));
         }
@@ -1520,6 +1520,7 @@ public:
 
     ParseFormalParametersResult parseFormalParameters(Scanner::ScannerResult* firstRestricted = nullptr)
     {
+        this->context->inParameterParsing = true;
         ParseFormalParametersResult options;
 
         if (firstRestricted) {
@@ -1541,6 +1542,7 @@ public:
 
         this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
+        this->context->inParameterParsing = false;
         options.valid = true;
         return options;
     }
@@ -1946,7 +1948,25 @@ public:
                     this->parsePropertyMethodFunction();
                 }
                 method = true;
-            } else if ((token->type == Token::IdentifierToken) || (token->type == Token::KeywordToken && token->valueKeywordKind == KeywordKind::YieldKeyword && this->context->allowYield)) {
+            } else {
+                if (token->type != Token::IdentifierToken) {
+                    if (token->type == Token::KeywordToken && token->valueKeywordKind == KeywordKind::YieldKeyword) {
+                        // yield is a valid Identifier in AssignmentProperty outside of strict mode and generator functions
+                        if (!this->context->allowYield) {
+                            this->throwUnexpectedToken(token);
+                        }
+                    } else if (token->type == Token::KeywordToken && token->valueKeywordKind == KeywordKind::LetKeyword) {
+                        // In non-strict mode, let is a valid Identifier
+                        if (this->context->strict) {
+                            this->throwUnexpectedToken(token);
+                        }
+                    } else {
+                        ALLOC_TOKEN(token);
+                        this->nextToken(token);
+                        this->throwUnexpectedToken(token);
+                    }
+                }
+
                 if (this->match(Substitution)) {
                     this->context->firstCoverInitializedNameError = this->lookahead;
                     this->nextToken();
@@ -1963,10 +1983,6 @@ public:
                         valueNode = keyNode;
                     }
                 }
-            } else {
-                ALLOC_TOKEN(token);
-                this->nextToken(token);
-                this->throwUnexpectedToken(token);
             }
         }
 
@@ -2777,34 +2793,37 @@ public:
             }
             if (!this->hasLineTerminator && this->lookahead.type == Token::PunctuatorToken && (this->match(PlusPlus) || this->match(MinusMinus))) {
                 bool isPlus = this->match(PlusPlus);
-                if (isParse && this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
-                    this->throwError(Messages::StrictLHSPostfix);
+                if (isParse) {
+                    if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
+                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                    }
+                    if (this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(((IdentifierNode*)exprNode.get())->name())) {
+                        this->throwError(Messages::StrictLHSPostfix);
+                    }
+                } else {
+                    if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
+                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                    }
+                    if (this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.string())) {
+                        this->throwError(Messages::StrictLHSPostfix);
+                    }
                 }
-                if (!isParse && this->context->strict && expr == ASTNodeType::Identifier && this->scanner->isRestrictedWord(expr.string())) {
-                    this->throwError(Messages::StrictLHSPostfix);
-                }
+
                 if (!this->context->isAssignmentTarget && this->context->strict) {
                     this->throwError(Messages::InvalidLHSInAssignment);
                 }
+
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 this->nextToken();
 
                 if (isParse) {
-                    if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
-
                     if (isPlus) {
                         exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionIncrementPostfixNode(exprNode.get()));
                     } else {
                         exprNode = this->finalize(this->startNode(startToken), new UpdateExpressionDecrementPostfixNode(exprNode.get()));
                     }
                 } else {
-                    if (expr == ASTNodeType::Literal || expr == ASTNodeType::ThisExpression) {
-                        this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
-                    }
-
                     if (isPlus) {
                         expr = ScanExpressionResult(ASTNodeType::UpdateExpressionIncrementPostfix);
                     } else {
@@ -4588,15 +4607,15 @@ public:
                 const bool previousAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
                 this->context->allowLexicalDeclaration = true;
 
-                ALLOC_TOKEN(token);
-                KeywordKind kind = this->lookahead.valueKeywordKind;
-                this->nextToken(token);
+                Scanner::ScannerResult keyword = this->lookahead;
+                KeywordKind kind = keyword.valueKeywordKind;
+                this->nextToken();
 
                 if (!this->context->strict && this->matchKeyword(InKeyword)) {
                     this->nextToken();
-                    left = this->finalize(this->createNode(), new IdentifierNode(AtomicString(this->escargotContext, this->lookahead.relatedSource())));
-                    right = this->expression<Parse>();
+                    left = this->finalize(this->createNode(), new IdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource())));
                     init = nullptr;
+                    type = statementTypeForIn;
                 } else {
                     const bool previousAllowIn = this->context->allowIn;
                     this->context->allowIn = false;
@@ -5324,6 +5343,13 @@ public:
             case ClassKeyword:
                 statement = asStatementNode(this->parseClassDeclaration());
                 break;
+            case YieldKeyword: {
+                if (this->context->strict) {
+                    this->throwError("Cannot use yield as a label in strict mode");
+                }
+                statement = this->labelledStatement<ParseAs(StatementNode)>();
+                break;
+            }
             default:
                 statement = asStatementNode(this->parseExpressionStatement());
                 break;
@@ -5607,9 +5633,9 @@ public:
         return this->finalize(nodeStart, new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
     }
 
-    template <class FunctionType, bool isFunctionDeclaration>
-    PassRefPtr<FunctionType> parseFunction(MetaNode node)
+    PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
     {
+        MetaNode node = this->createNode();
         this->expectKeyword(FunctionKeyword);
 
         bool isGenerator = this->match(Multiply);
@@ -5621,15 +5647,10 @@ public:
         RefPtr<IdentifierNode> id;
         Scanner::ScannerResult firstRestricted;
 
-        bool previousAllowYield = this->context->allowYield;
-        bool previousInArrowFunction = this->context->inArrowFunction;
-        this->context->allowYield = !isGenerator;
-        this->context->inArrowFunction = false;
-
-        if (isFunctionDeclaration || !this->match(LeftParenthesis)) {
+        {
             ALLOC_TOKEN(token);
             *token = this->lookahead;
-            id = (!isFunctionDeclaration && !this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
+            id = this->parseVariableIdentifier();
 
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource())) {
@@ -5650,17 +5671,90 @@ public:
         this->expect(LeftParenthesis);
         AtomicString fnName = id ? id->name() : AtomicString();
 
-        if (isFunctionDeclaration) {
-            ASSERT(id);
-            addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
-            insertUsingName(fnName);
-            pushScopeContext(fnName);
-        } else {
-            pushScopeContext(fnName);
-            if (id) {
-                scopeContexts.back()->insertVarName(fnName, 0, false);
-                scopeContexts.back()->insertUsingName(fnName, 0);
+        ASSERT(id);
+        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
+        insertUsingName(fnName);
+        pushScopeContext(fnName);
+
+        scopeContexts.back()->m_paramsStartLOC.index = paramsStart.index;
+        scopeContexts.back()->m_paramsStartLOC.column = paramsStart.column;
+        scopeContexts.back()->m_paramsStartLOC.line = paramsStart.line;
+
+        bool previousAllowYield = this->context->allowYield;
+        bool previousInArrowFunction = this->context->inArrowFunction;
+        this->context->allowYield = !isGenerator;
+        this->context->inArrowFunction = false;
+
+        ParseFormalParametersResult formalParameters = this->parseFormalParameters(&firstRestricted);
+        Scanner::ScannerResult stricted = formalParameters.stricted;
+        firstRestricted = formalParameters.firstRestricted;
+        if (formalParameters.message) {
+            message = formalParameters.message;
+        }
+
+        extractNamesFromFunctionParams(formalParameters);
+        bool previousStrict = this->context->strict;
+        RefPtr<Node> body = this->parseFunctionSourceElements();
+        if (this->context->strict && firstRestricted) {
+            this->throwUnexpectedToken(&firstRestricted, message);
+        }
+        if (this->context->strict && stricted) {
+            this->throwUnexpectedToken(&stricted, message);
+        }
+        this->context->strict = previousStrict;
+        this->context->allowYield = previousAllowYield;
+        this->context->inArrowFunction = previousInArrowFunction;
+
+        return this->finalize(node, new FunctionDeclarationNode(popScopeContext(node), isGenerator, subCodeBlockIndex));
+    }
+
+    PassRefPtr<FunctionExpressionNode> parseFunctionExpression()
+    {
+        MetaNode node = this->createNode();
+        this->expectKeyword(FunctionKeyword);
+
+        bool isGenerator = this->match(Multiply);
+        if (isGenerator) {
+            this->nextToken();
+        }
+
+        const char* message = nullptr;
+        RefPtr<IdentifierNode> id;
+        Scanner::ScannerResult firstRestricted;
+
+        bool previousAllowYield = this->context->allowYield;
+        bool previousInArrowFunction = this->context->inArrowFunction;
+        this->context->allowYield = !isGenerator;
+        this->context->inArrowFunction = false;
+
+        if (!this->match(LeftParenthesis)) {
+            ALLOC_TOKEN(token);
+            *token = this->lookahead;
+            id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName() : this->parseVariableIdentifier();
+
+            if (this->context->strict) {
+                if (this->scanner->isRestrictedWord(token->relatedSource())) {
+                    this->throwUnexpectedToken(token, Messages::StrictFunctionName);
+                }
+            } else {
+                if (this->scanner->isRestrictedWord(token->relatedSource())) {
+                    firstRestricted = *token;
+                    message = Messages::StrictFunctionName;
+                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource())) {
+                    firstRestricted = *token;
+                    message = Messages::StrictReservedWord;
+                }
             }
+        }
+
+        MetaNode paramsStart = this->createNode();
+        this->expect(LeftParenthesis);
+        AtomicString fnName = id ? id->name() : AtomicString();
+
+        pushScopeContext(fnName);
+        if (id) {
+            scopeContexts.back()->insertVarName(fnName, 0, false);
+            scopeContexts.back()->insertUsingName(fnName, 0);
         }
 
         scopeContexts.back()->m_paramsStartLOC.index = paramsStart.index;
@@ -5687,19 +5781,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        return this->finalize(node, new FunctionType(popScopeContext(node), isGenerator, subCodeBlockIndex));
-    }
-
-    PassRefPtr<FunctionDeclarationNode> parseFunctionDeclaration()
-    {
-        MetaNode node = this->createNode();
-        return parseFunction<FunctionDeclarationNode, true>(node);
-    }
-
-    PassRefPtr<FunctionExpressionNode> parseFunctionExpression()
-    {
-        MetaNode node = this->createNode();
-        return parseFunction<FunctionExpressionNode, false>(node);
+        return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, subCodeBlockIndex));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -5825,14 +5907,13 @@ public:
         bool isGenerator = true;
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
-        this->context->allowYield = true;
+        this->context->allowYield = false;
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
         pushScopeContext(AtomicString());
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
         extractNamesFromFunctionParams(formalParameters);
-        this->context->allowYield = false;
         RefPtr<Node> method = this->parsePropertyMethod(formalParameters);
 
         this->context->allowYield = previousAllowYield;
@@ -5895,6 +5976,10 @@ public:
     template <typename T, bool isParse>
     T yieldExpression()
     {
+        if (this->context->inParameterParsing) {
+            this->throwError("Cannot use yield expression within parameters");
+        }
+
         MetaNode node = this->createNode();
         this->expectKeyword(YieldKeyword);
 
