@@ -572,7 +572,14 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
                 assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
+            }
+            case SuperGetObjectOperationOpcode: {
+                SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
+                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                assignStackIndexIfNeeded(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }
             case CallSuperOpcode: {
                 CallSuper* cd = (CallSuper*)currentCode;

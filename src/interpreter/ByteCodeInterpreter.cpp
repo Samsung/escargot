@@ -989,6 +989,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(SuperGetObjectOperation)
+            :
+        {
+            SuperGetObjectOperation* code = (SuperGetObjectOperation*)programCounter;
+            registerFile[code->m_storeRegisterIndex] = superGetObjectOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(SuperGetObjectOperation);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(CallSuper)
             :
         {
@@ -2479,7 +2488,23 @@ NEVER_INLINE void ByteCodeInterpreter::superSetObjectOperation(ExecutionState& s
     }
 
     Value object = registerFile[code->m_objectRegisterIndex];
-    object.toObject(state)->set(state, ObjectPropertyName(state, code->m_propertyName), registerFile[code->m_loadRegisterIndex], thisValue);
+    object.toObject(state)->set(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]), registerFile[code->m_loadRegisterIndex], thisValue);
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::superGetObjectOperation(ExecutionState& state, SuperGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+{
+    // find `this` value for receiver
+    Value thisValue(Value::ForceUninitialized);
+    if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+        EnvironmentRecord* envRec = state.getThisEnvironment();
+        ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+        thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
+    } else {
+        thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+    }
+
+    Value object = registerFile[code->m_objectRegisterIndex];
+    return object.toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex])).value(state, thisValue);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile)

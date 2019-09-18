@@ -72,6 +72,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateRestElement, 0, 0)                              \
     F(SuperReference, 1, 0)                                 \
     F(SuperSetObjectOperation, 0, 2)                        \
+    F(SuperGetObjectOperation, 1, 2)                        \
     F(CallSuper, -1, 0)                                     \
     F(LoadThisBinding, 0, 0)                                \
     F(ObjectDefineOwnPropertyOperation, 0, 0)               \
@@ -505,22 +506,43 @@ public:
 
 class SuperSetObjectOperation : public ByteCode {
 public:
-    SuperSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, PropertyName propertyName, const size_t loadRegisterIndex)
+    SuperSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyNameIndex, const size_t loadRegisterIndex)
         : ByteCode(Opcode::SuperSetObjectOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
-        , m_propertyName(propertyName)
+        , m_propertyNameIndex(propertyNameIndex)
     {
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
-    PropertyName m_propertyName;
+    ByteCodeRegisterIndex m_propertyNameIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("set object super(r%d).%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
+        printf("set object super(r%d).r%d <- r%d", (int)m_objectRegisterIndex, (int)m_propertyNameIndex, (int)m_loadRegisterIndex);
+    }
+#endif
+};
+
+class SuperGetObjectOperation : public ByteCode {
+public:
+    SuperGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, const size_t propertyNameIndex)
+        : ByteCode(Opcode::SuperGetObjectOperationOpcode, loc)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_storeRegisterIndex(storeRegisterIndex)
+        , m_propertyNameIndex(propertyNameIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_storeRegisterIndex;
+    ByteCodeRegisterIndex m_propertyNameIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("get object r%d <- super(r%d).r%d", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyNameIndex);
     }
 #endif
 };

@@ -85,13 +85,24 @@ public:
 
         if (isPreComputedCase()) {
             ASSERT(m_property->isIdentifier());
-            size_t pos = codeBlock->currentCodeSize();
-            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
-            context->m_getObjectCodePositions.push_back(pos);
+            if (m_object->isSuperNode()) {
+                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property.get());
+                codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
+                context->giveUpRegister();
+            } else {
+                size_t pos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
+                context->m_getObjectCodePositions.push_back(pos);
+            }
         } else {
             size_t propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
-            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
+            if (m_object->isSuperNode()) {
+                codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
+            } else {
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
+            }
             context->giveUpRegister();
         }
 
@@ -115,7 +126,10 @@ public:
             }
 
             if (m_object->isSuperNode()) {
-                codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
+                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property.get());
+                codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                context->giveUpRegister();
                 context->giveUpRegister();
             } else {
                 SetObjectInlineCache* inlineCache = new SetObjectInlineCache();
@@ -139,7 +153,11 @@ public:
                 propertyIndex = context->getLastRegisterIndex();
                 objectIndex = context->getLastRegisterIndex(1);
             }
-            codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+            if (m_object->isSuperNode()) {
+                codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+            } else {
+                codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+            }
             context->giveUpRegister();
             context->giveUpRegister();
         }
