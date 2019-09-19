@@ -28,6 +28,7 @@ using namespace Escargot::EscargotLexer;
 
 namespace Escargot {
 
+const char* Messages::InvalidHexEscapeSequence = "Invalid hexadecimal escape sequence";
 const char* Messages::UnexpectedTokenIllegal = "Unexpected token ILLEGAL";
 const char* Messages::UnterminatedRegExp = "Invalid regular expression: missing /";
 const char* Messages::TemplateOctalLiteral = "Octal literals are not allowed in template strings.";
@@ -1305,12 +1306,16 @@ void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
             if (!ch || !isLineTerminator(ch)) {
                 switch (ch) {
                 case 'u':
-                case 'x':
                     if (this->peekChar() == '{') {
                         ++this->index;
                         this->scanUnicodeCodePointEscape();
                     } else if (this->scanHexEscape(ch) == EMPTY_CODE_POINT) {
-                        this->throwUnexpectedToken();
+                        this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
+                    }
+                    break;
+                case 'x':
+                    if (this->scanHexEscape(ch) == EMPTY_CODE_POINT) {
+                        this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
                     }
                     break;
                 case 'n':
@@ -1418,7 +1423,6 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                     cooked += '\t';
                     break;
                 case 'u':
-                case 'x':
                     if (this->peekChar() == '{') {
                         ++this->index;
                         cooked += this->scanUnicodeCodePointEscape();
@@ -1429,11 +1433,19 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                             ParserCharPiece piece(unescaped);
                             cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
                         } else {
-                            this->index = restore;
-                            cooked += ch;
+                            this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
                         }
                     }
                     break;
+                case 'x': {
+                    const char32_t unescaped = this->scanHexEscape(ch);
+                    if (unescaped == EMPTY_CODE_POINT) {
+                        this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
+                    }
+                    ParserCharPiece piece(unescaped);
+                    cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
+                    break;
+                }
                 case 'b':
                     cooked += '\b';
                     break;

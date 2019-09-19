@@ -220,6 +220,7 @@ public:
 };
 
 namespace Messages {
+extern const char* InvalidHexEscapeSequence;
 extern const char* UnexpectedTokenIllegal;
 extern const char* UnterminatedRegExp;
 extern const char* TemplateOctalLiteral;

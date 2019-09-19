@@ -127,4 +127,6 @@
 #include "WithStatementNode.h"
 #include "YieldExpressionNode.h"
 
+#include "ASTContext.h"
+
 #endif
