@@ -545,11 +545,12 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
         // b. Remove key from uncheckedResultKeys
         bool found = false;
-        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end(); iter++) {
+        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end();) {
             if (iter->equalsTo(state, key)) {
-                uncheckedResultKeys.erase(iter);
+                iter = uncheckedResultKeys.erase(iter);
                 found = true;
-                break;
+            } else {
+                iter++;
             }
         }
         if (!found) {
@@ -568,11 +569,12 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
         // b. Remove key from uncheckedResultKeys
         bool found = false;
-        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end(); iter++) {
+        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end();) {
             if (iter->equalsTo(state, key)) {
-                uncheckedResultKeys.erase(iter);
+                iter = uncheckedResultKeys.erase(iter);
                 found = true;
-                break;
+            } else {
+                iter++;
             }
         }
         if (!found) {
@@ -586,6 +588,19 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
 
     // 25. Return trapResult.
     return trapResult;
+}
+
+bool ProxyObject::isArray(ExecutionState& state) const
+{
+    // 3.a. If handler is null, throw a TypeError exception.
+    if (m_handler == nullptr) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
+        return false;
+    }
+
+    // 3.b Let target be the value of the [[ProxyTarget]] internal slot of argument.
+    // 3.c Return IsArray(target).
+    return m_target->isArray(state);
 }
 
 bool ProxyObject::isExtensible(ExecutionState& state)
@@ -680,6 +695,11 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     bool booleanTrapResult;
     Value arguments[] = { target, value };
     booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+
+    // For ES2018 compatibility 9.5.2.9
+    if (!booleanTrapResult) {
+        return booleanTrapResult;
+    }
 
     // 11. Let extensibleTarget be IsExtensible(target).
     bool extensibleTarget = target.asObject()->isExtensible(state);

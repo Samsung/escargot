@@ -217,6 +217,8 @@ private:
     PropertyName toPropertyNameUintCase(ExecutionState& state) const;
 };
 
+typedef std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> ObjectPropertyNameVector;
+
 class JSGetterSetter : public PointerValue {
     friend class ObjectPropertyDescriptor;
     friend class Object;
@@ -723,6 +725,12 @@ public:
     virtual bool isExtensible(ExecutionState&)
     {
         return rareData() == nullptr ? true : rareData()->m_isExtensible;
+    }
+
+    // http://www.ecma-international.org/ecma-262/6.0/index.html#is-array
+    virtual bool isArray(ExecutionState& state) const
+    {
+        return false;
     }
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions

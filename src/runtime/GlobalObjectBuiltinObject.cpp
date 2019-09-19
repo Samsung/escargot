@@ -80,14 +80,21 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     }
 
     Object* thisObject = thisValue.toObject(state);
+
     StringBuilder builder;
     builder.appendString("[object ");
-    Value toStringTag = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
-    if (toStringTag.isString()) {
-        builder.appendString(toStringTag.asString());
+
+    if (thisObject->isArray(state)) {
+        builder.appendString("Array");
     } else {
-        builder.appendString(thisObject->internalClassProperty());
+        Value toStringTag = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
+        if (toStringTag.isString()) {
+            builder.appendString(toStringTag.asString());
+        } else {
+            builder.appendString(thisObject->internalClassProperty());
+        }
     }
+
     builder.appendString("]");
     return AtomicString(state, builder.finalize()).string();
 }
@@ -525,7 +532,12 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
             // If desc is not undefined and desc.[[Enumerable]] is true, then
             if (desc.hasValue() && desc.isEnumerable()) {
                 // Let propValue be ? Get(from, nextKey).
-                Value propValue = desc.value(state, from);
+                Value propValue;
+                if (from->isProxyObject()) {
+                    propValue = from->get(state, ObjectPropertyName(state, Value(nextKey))).value(state, from);
+                } else {
+                    propValue = desc.value(state, from);
+                }
                 // Perform ? Set(to, nextKey, propValue, true).
                 to->setThrowsException(state, ObjectPropertyName(state, nextKey), propValue, to);
             }
