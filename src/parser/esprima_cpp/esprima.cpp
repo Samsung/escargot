@@ -4263,25 +4263,25 @@ public:
     }
 
     template <typename T, bool isParse>
-    T variableDeclaration(DeclarationOptions& options)
+    T variableDeclaration(DeclarationOptions& options, bool& hasInit, ScanExpressionResult& leftSideType)
     {
         ScannerResultVector params;
         RefPtr<Node> idNode;
-        ScanExpressionResult id;
         bool isIdentifier;
         AtomicString name;
 
         if (isParse) {
             idNode = this->pattern<Parse>(params, options.kind, true);
-            isIdentifier = (idNode->type() == Identifier);
+            leftSideType = idNode->type();
+            isIdentifier = (leftSideType == Identifier);
             if (isIdentifier) {
                 name = ((IdentifierNode*)idNode.get())->name();
             }
         } else {
-            id = this->pattern<Scan>(params, options.kind, true);
-            isIdentifier = (id == Identifier);
+            leftSideType = this->pattern<Scan>(params, options.kind, true);
+            isIdentifier = (leftSideType == Identifier);
             if (isIdentifier) {
-                name = id.string();
+                name = leftSideType.string();
             }
         }
 
@@ -4295,7 +4295,9 @@ public:
         }
 
         RefPtr<Node> initNode = nullptr;
+        hasInit = false;
         if (this->match(Substitution)) {
+            hasInit = true;
             this->nextToken();
             ASTNodeType type = ASTNodeType::ASTNodeTypeError;
             if (isParse) {
@@ -4320,8 +4322,10 @@ public:
             this->expect(Substitution);
         }
 
-        if (isParse && initNode == nullptr && options.kind == ConstKeyword && !options.inFor) {
-            this->throwError("Missing initializer in const identifier '%s' declaration", name.string());
+        if (options.kind == ConstKeyword && !options.inFor) {
+            if ((isParse && initNode == nullptr) || (!isParse && !hasInit)) {
+                this->throwError("Missing initializer in const identifier '%s' declaration", name.string());
+            }
         }
 
         if (isParse) {
@@ -4338,27 +4342,36 @@ public:
         opt.kind = options.kind;
 
         VariableDeclaratorVector list;
-        list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt));
+        bool ignored;
+        ScanExpressionResult ignored2;
+        list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt, ignored, ignored2));
         while (this->match(Comma)) {
             this->nextToken();
-            list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt));
+            list.push_back(this->variableDeclaration<ParseAs(VariableDeclaratorNode)>(opt, ignored, ignored2));
         }
 
         return list;
     }
 
-    void scanVariableDeclarationList(DeclarationOptions& options)
+    std::tuple<size_t, bool, ScanExpressionResult> scanVariableDeclarationList(DeclarationOptions& options)
     {
         DeclarationOptions opt;
         opt.inFor = options.inFor;
         opt.kind = options.kind;
-        size_t listSize = 0;
+        size_t listSize = 1;
 
-        this->variableDeclaration<ScanAsVoid>(opt);
+        bool hasInit;
+        ScanExpressionResult leftSideType;
+        this->variableDeclaration<ScanAsVoid>(opt, hasInit, leftSideType);
         while (this->match(Comma)) {
+            listSize++;
             this->nextToken();
-            this->variableDeclaration<ScanAsVoid>(opt);
+            bool ignored;
+            ScanExpressionResult ignored2;
+            this->variableDeclaration<ScanAsVoid>(opt, ignored, ignored2);
         }
+
+        return std::make_tuple(listSize, hasInit, leftSideType);
     }
 
     PassRefPtr<VariableDeclarationNode> parseVariableStatement(KeywordKind kind = VarKeyword)
@@ -4578,33 +4591,45 @@ public:
                 DeclarationOptions opt;
                 opt.inFor = true;
                 opt.kind = VarKeyword;
-                VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
-                this->context->allowIn = previousAllowIn;
+                if (isParse) {
+                    VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
+                    this->context->allowIn = previousAllowIn;
 
-                if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
-                    RefPtr<VariableDeclaratorNode> decl = declarations[0];
-                    if (decl->init() && (decl->id()->type() == ArrayPattern || decl->id()->type() == ObjectPattern || this->context->strict)) {
-                        this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
-                    }
-                    if (isParse) {
+                    if (declarations.size() == 1 && this->matchKeyword(InKeyword)) {
+                        RefPtr<VariableDeclaratorNode> decl = declarations[0];
+                        if (decl->init() && (decl->id()->type() == ArrayPattern || decl->id()->type() == ObjectPattern || this->context->strict)) {
+                            this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                        }
                         left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), VarKeyword));
-                    }
-
-                    this->nextToken();
-                    type = statementTypeForIn;
-                } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
-                           && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
-                    if (isParse) {
+                        this->nextToken();
+                        type = statementTypeForIn;
+                    } else if (declarations.size() == 1 && declarations[0]->init() == nullptr
+                               && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
                         left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), VarKeyword));
-                    }
-
-                    this->nextToken();
-                    type = statementTypeForOf;
-                } else {
-                    if (isParse) {
+                        this->nextToken();
+                        type = statementTypeForOf;
+                    } else {
                         init = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), VarKeyword));
+                        this->expect(SemiColon);
                     }
-                    this->expect(SemiColon);
+                } else {
+                    auto declarations /* <declCount, hasInitNode, leftSideType> */ = this->scanVariableDeclarationList(opt);
+                    this->context->allowIn = previousAllowIn;
+
+                    if (std::get<0>(declarations) == 1 && this->matchKeyword(InKeyword)) {
+                        ScanExpressionResult decl = std::get<2>(declarations);
+                        if (std::get<1>(declarations) && (decl == ArrayPattern || decl == ObjectPattern || this->context->strict)) {
+                            this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                        }
+                        this->nextToken();
+                        type = statementTypeForIn;
+                    } else if (std::get<0>(declarations) == 1 && !std::get<1>(declarations)
+                               && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
+                        this->nextToken();
+                        type = statementTypeForOf;
+                    } else {
+                        this->expect(SemiColon);
+                    }
                 }
             } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
                 isLexicalDeclaration = true;
@@ -4615,38 +4640,58 @@ public:
                 KeywordKind kind = keyword.valueKeywordKind;
                 this->nextToken();
 
-                if (!this->context->strict && this->matchKeyword(InKeyword)) {
-                    this->nextToken();
-                    left = this->finalize(this->createNode(), new IdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource())));
-                    init = nullptr;
-                    type = statementTypeForIn;
-                } else {
-                    const bool previousAllowIn = this->context->allowIn;
-                    this->context->allowIn = false;
+                if (isParse) {
+                    if (!this->context->strict && this->matchKeyword(InKeyword)) {
+                        this->nextToken();
+                        left = this->finalize(this->createNode(), new IdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource())));
+                        init = nullptr;
+                        type = statementTypeForIn;
+                    } else {
+                        const bool previousAllowIn = this->context->allowIn;
+                        this->context->allowIn = false;
 
-                    DeclarationOptions opt;
-                    opt.inFor = true;
-                    opt.kind = kind;
-                    VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
-                    this->context->allowIn = previousAllowIn;
+                        DeclarationOptions opt;
+                        opt.inFor = true;
+                        opt.kind = kind;
+                        VariableDeclaratorVector declarations = this->parseVariableDeclarationList(opt);
+                        this->context->allowIn = previousAllowIn;
 
-                    if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->matchKeyword(InKeyword)) {
-                        if (isParse) {
+                        if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->matchKeyword(InKeyword)) {
                             left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), kind));
+                            this->nextToken();
+                            type = statementTypeForIn;
+                        } else if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
+                            left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), kind));
+                            this->nextToken();
+                            type = statementTypeForOf;
+                        } else {
+                            init = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), kind));
+                            this->expect(SemiColon);
                         }
+                    }
+                } else {
+                    if (!this->context->strict && this->matchKeyword(InKeyword)) {
                         this->nextToken();
                         type = statementTypeForIn;
-                    } else if (declarations.size() == 1 && declarations[0]->init() == nullptr && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
-                        if (isParse) {
-                            left = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), kind));
-                        }
-                        this->nextToken();
-                        type = statementTypeForOf;
                     } else {
-                        if (isParse) {
-                            init = this->finalize(this->createNode(), new VariableDeclarationNode(std::move(declarations), kind));
+                        const bool previousAllowIn = this->context->allowIn;
+                        this->context->allowIn = false;
+
+                        DeclarationOptions opt;
+                        opt.inFor = true;
+                        opt.kind = kind;
+                        auto declarations /* <declCount, hasInitNode, leftSideType> */ = this->scanVariableDeclarationList(opt);
+                        this->context->allowIn = previousAllowIn;
+
+                        if (std::get<0>(declarations) == 1 && !std::get<1>(declarations) && this->matchKeyword(InKeyword)) {
+                            this->nextToken();
+                            type = statementTypeForIn;
+                        } else if (std::get<0>(declarations) == 1 && !std::get<1>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
+                            this->nextToken();
+                            type = statementTypeForOf;
+                        } else {
+                            this->expect(SemiColon);
                         }
-                        this->expect(SemiColon);
                     }
                 }
 
@@ -4656,52 +4701,80 @@ public:
                 *initStartToken = this->lookahead;
                 bool previousAllowIn = this->context->allowIn;
                 this->context->allowIn = false;
-                init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, false>);
+                ASTNodeType initNodeType;
+                if (isParse) {
+                    init = this->inheritCoverGrammar(&Parser::assignmentExpression<Parse, false>);
+                    initNodeType = init->type();
+                } else {
+                    initNodeType = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan, false>);
+                }
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(InKeyword)) {
-                    if (init->isLiteral() || init->isAssignmentOperation() || init->type() == ASTNodeType::ThisExpression) {
+                    if (initNodeType == ASTNodeType::Literal || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple) || initNodeType == ASTNodeType::ThisExpression) {
                         this->throwError(Messages::InvalidLHSInForIn);
                     }
 
                     this->nextToken();
-                    init = this->reinterpretExpressionAsPattern(init.get());
-                    left = init;
-                    init = nullptr;
+                    if (isParse) {
+                        init = this->reinterpretExpressionAsPattern(init.get());
+                        left = init;
+                        init = nullptr;
+                    }
                     type = statementTypeForIn;
                 } else if (this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
-                    if (!this->context->isAssignmentTarget || init->isAssignmentOperation()) {
+                    if (!this->context->isAssignmentTarget || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple)) {
                         this->throwError(Messages::InvalidLHSInForLoop);
                     }
 
                     this->nextToken();
-                    init = this->reinterpretExpressionAsPattern(init.get());
-                    left = init;
-                    init = nullptr;
+                    if (isParse) {
+                        init = this->reinterpretExpressionAsPattern(init.get());
+                        left = init;
+                        init = nullptr;
+                    }
                     type = statementTypeForOf;
                 } else {
                     if (this->match(Comma)) {
-                        ExpressionNodeVector initSeq;
-                        initSeq.push_back(init);
-                        while (this->match(Comma)) {
-                            this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>));
+                        if (isParse) {
+                            ExpressionNodeVector initSeq;
+                            initSeq.push_back(init);
+                            while (this->match(Comma)) {
+                                this->nextToken();
+                                initSeq.push_back(this->isolateCoverGrammar(&Parser::assignmentExpression<Parse, false>));
+                            }
+                            init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
+                        } else {
+                            while (this->match(Comma)) {
+                                this->nextToken();
+                                this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
+                            }
                         }
-                        init = this->finalize(this->startNode(initStartToken), new SequenceExpressionNode(std::move(initSeq)));
                     }
                     this->expect(SemiColon);
                 }
             }
         }
 
+        ParserBlockContext iterationBlockContext;
+
         if (type == statementTypeFor) {
+            iterationBlockContext = openBlock();
             this->context->inLoop = true;
             if (!this->match(SemiColon)) {
-                test = this->expression<Parse>();
+                if (isParse) {
+                    test = this->expression<Parse>();
+                } else {
+                    this->expression<Scan>();
+                }
             }
             this->expect(SemiColon);
             if (!this->match(RightParenthesis)) {
-                update = this->expression<Parse>();
+                if (isParse) {
+                    update = this->expression<Parse>();
+                } else {
+                    this->expression<Scan>();
+                }
             }
         } else if (type == statementTypeForIn) {
             ASSERT(!isParse || left != nullptr);
@@ -4711,6 +4784,8 @@ public:
             } else {
                 this->expression<Scan>();
             }
+
+            iterationBlockContext = openBlock();
         } else {
             ASSERT(type == statementTypeForOf);
             ASSERT(!isParse || left != nullptr);
@@ -4720,12 +4795,13 @@ public:
             } else {
                 this->assignmentExpression<Scan, false>();
             }
+
+            iterationBlockContext = openBlock();
         }
 
 
         this->expect(RightParenthesis);
 
-        ParserBlockContext iterationBlockContext = openBlock();
         ASTBlockScopeContext* headBlockContextInstance = this->scopeContexts.back()->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
         if (headBlockContextInstance->m_names.size()) {
             // if there are names on headContext (let, const)

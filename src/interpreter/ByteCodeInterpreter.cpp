@@ -1040,7 +1040,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(TryCatchWithBlockBodyEnd)
+        DEFINE_OPCODE(TryCatchFinallyWithBlockBodyEnd)
             :
         {
             (*(state->rareData()->m_controlFlowRecord))[state->rareData()->m_controlFlowRecord->size() - 1] = nullptr;
@@ -1185,21 +1185,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(ObjectDefineGetter)
+        DEFINE_OPCODE(ObjectDefineGetterSetter)
             :
         {
-            ObjectDefineGetter* code = (ObjectDefineGetter*)programCounter;
-            defineObjectGetter(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineGetter);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(ObjectDefineSetter)
-            :
-        {
-            ObjectDefineSetter* code = (ObjectDefineSetter*)programCounter;
-            defineObjectSetter(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineGetter);
+            ObjectDefineGetterSetter* code = (ObjectDefineGetterSetter*)programCounter;
+            defineObjectGetterSetter(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(ObjectDefineGetterSetter);
             NEXT_INSTRUCTION();
         }
 
@@ -1207,7 +1198,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
-            registerFile[code->m_resultIndex] = callFunctionInWithScope(*state, code, state->lexicalEnvironment(), &registerFile[code->m_argumentsStartIndex]);
+            callFunctionInWithScope(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
             NEXT_INSTRUCTION();
         }
@@ -1324,6 +1315,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (!v.isEmpty()) {
                 return v;
             }
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(ReplaceBlockLexicalEnvironmentOperation)
+            :
+        {
+            replaceBlockLexicalEnvironmentOperation(*state, programCounter, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(ReplaceBlockLexicalEnvironmentOperation);
             NEXT_INSTRUCTION();
         }
 
@@ -2594,6 +2593,32 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
     }
 }
 
+NEVER_INLINE void ByteCodeInterpreter::replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock)
+{
+    ReplaceBlockLexicalEnvironmentOperation* code = (ReplaceBlockLexicalEnvironmentOperation*)programCounter;
+    // setup new env
+    EnvironmentRecord* newRecord;
+    LexicalEnvironment* newEnv;
+
+    bool shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
+    ASSERT(code->m_blockInfo->m_shouldAllocateEnvironment);
+    if (LIKELY(shouldUseIndexedStorage)) {
+        newRecord = new DeclarativeEnvironmentRecordIndexed(state, code->m_blockInfo);
+    } else {
+        newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
+
+        auto& iv = code->m_blockInfo->m_identifiers;
+        auto siz = iv.size();
+        for (size_t i = 0; i < siz; i++) {
+            newRecord->createBinding(state, iv[i].m_name, false, iv[i].m_isMutable, false);
+        }
+    }
+    newEnv = new LexicalEnvironment(newRecord, state.lexicalEnvironment()->outerEnvironment());
+    ASSERT(newEnv->isAllocatedOnHeap());
+
+    state.setLexicalEnvironment(newEnv, state.inStrictMode());
+}
+
 NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (!state->ensureRareData()->m_controlFlowRecord) {
@@ -2690,27 +2715,30 @@ NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv)
+NEVER_INLINE void ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, Value* registerFile)
 {
     const AtomicString& calleeName = code->m_calleeName;
     // NOTE: record for with scope
     Object* receiverObj = NULL;
     Value callee;
-    EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, env, calleeName, callee);
-    if (!bindedRecord)
+    EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, state.lexicalEnvironment(), calleeName, callee);
+    if (!bindedRecord) {
         callee = Value();
+    }
 
-    if (bindedRecord && bindedRecord->isObjectEnvironmentRecord())
+    if (bindedRecord && bindedRecord->isObjectEnvironmentRecord()) {
         receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
-    else
+    } else {
         receiverObj = state.context()->globalObject();
+    }
 
     if (code->m_hasSpreadElement) {
         ValueVector spreadArgs;
-        spreadFunctionArguments(state, argv, code->m_argumentCount, spreadArgs);
-        return Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+        spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+        registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+    } else {
+        registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
     }
-    return Object::call(state, callee, receiverObj, code->m_argumentCount, argv);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
@@ -3139,26 +3167,24 @@ NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& s
     registerFile[code->m_registerIndex] = spreadArray;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, Value* registerFile)
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
-    Value fnName = createObjectPropertyFunctionName(state, pName, "get ");
+    Value fnName;
+    if (code->m_isGetter) {
+        fnName = createObjectPropertyFunctionName(state, pName, "get ");
+    } else {
+        Value fnName = createObjectPropertyFunctionName(state, pName, "set ");
+    }
     fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
-    JSGetterSetter gs(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
-    ObjectPropertyDescriptor desc(gs, code->m_presentAttribute);
-    Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
-    object->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, pName), desc);
-}
-
-NEVER_INLINE void ByteCodeInterpreter::defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile)
-{
-    FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
-    Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
-    Value fnName = createObjectPropertyFunctionName(state, pName, "set ");
-    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
-    JSGetterSetter gs(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
-    ObjectPropertyDescriptor desc(gs, code->m_presentAttribute);
+    JSGetterSetter* gs;
+    if (code->m_isGetter) {
+        gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
+    } else {
+        gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
+    }
+    ObjectPropertyDescriptor desc(*gs, code->m_presentAttribute);
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
     object->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, pName), desc);
 }

@@ -162,19 +162,9 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
     return ExtendedNodeLOC(line, column, index);
 }
 
-ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
 {
-    ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
     InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
-
-    ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
-
-    if (bi->m_shouldAllocateEnvironment) {
-        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
-        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
-        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
-    }
-
     size_t len = codeBlock->childBlocks().size();
     for (size_t i = 0; i < len; i++) {
         CodeBlock* b = codeBlock->childBlocks()[i];
@@ -196,7 +186,22 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
             context->giveUpRegister(); // give up useless register
         }
     }
+}
 
+ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+{
+    ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
+    InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
+
+    ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
+
+    if (bi->m_shouldAllocateEnvironment) {
+        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
+        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
+    }
+
+    initFunctionDeclarationWithinBlock(context, bi, node);
     ctx.lexicalBlockStartPosition = currentCodeSize();
 
     return ctx;
@@ -214,7 +219,7 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
         context->registerJumpPositionsToComplexCase(ctx.lexicalBlockStartPosition);
     }
 
-    this->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
+    this->pushCode(TryCatchFinallyWithBlockBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
     this->peekCode<BlockOperation>(ctx.lexicalBlockSetupStartPosition)->m_blockEndPosition = this->currentCodeSize();
     context->m_recursiveStatementStack.pop_back();
 }
