@@ -21,6 +21,7 @@
 #define __EscargotCodeBlock__
 
 #include "parser/ast/Node.h"
+#include "parser/ast/ASTContext.h"
 #include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/String.h"

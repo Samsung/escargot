@@ -300,24 +300,24 @@ public:
     {
         auto ret = scopeContexts.back();
         scopeContexts.pop_back();
-        lastUsingName = AtomicString();
-        lastPoppedScopeContext = ret;
+        this->lastUsingName = AtomicString();
+        this->lastPoppedScopeContext = ret;
         return ret;
     }
 
     void pushScopeContext(ASTFunctionScopeContext* ctx)
     {
         scopeContexts.push_back(ctx);
-        lastUsingName = AtomicString();
+        this->lastUsingName = AtomicString();
     }
 
     ALWAYS_INLINE void insertUsingName(AtomicString name)
     {
-        if (lastUsingName == name) {
+        if (this->lastUsingName == name) {
             return;
         }
         scopeContexts.back()->insertUsingName(name, this->lexicalBlockIndex);
-        lastUsingName = name;
+        this->lastUsingName = name;
     }
 
     void extractNamesFromFunctionParams(const ParseFormalParametersResult& paramsResult)
@@ -438,8 +438,8 @@ public:
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
         this->subCodeBlockIndex = 0;
-        lastPoppedScopeContext = nullptr;
-        trackUsingNames = true;
+        this->lastPoppedScopeContext = nullptr;
+        this->trackUsingNames = true;
         config.range = false;
         config.loc = false;
         // config.source = String::emptyString;
@@ -993,7 +993,7 @@ public:
         }
     }
 
-    IdentifierNode* finishIdentifier(Scanner::ScannerResult* token, bool isScopeVariableName)
+    IdentifierNode* finishIdentifier(Scanner::ScannerResult* token)
     {
         ASSERT(token != nullptr);
         IdentifierNode* ret;
@@ -1010,13 +1010,13 @@ public:
             }
         }
 
-        if (trackUsingNames) {
+        if (this->trackUsingNames) {
             insertUsingName(ret->name());
         }
         return ret;
     }
 
-    ScanExpressionResult finishScanIdentifier(Scanner::ScannerResult* token, bool isScopeVariableName)
+    ScanExpressionResult finishScanIdentifier(Scanner::ScannerResult* token)
     {
         ASSERT(token != nullptr);
         AtomicString name;
@@ -1033,7 +1033,7 @@ public:
             }
         }
 
-        if (trackUsingNames) {
+        if (this->trackUsingNames) {
             insertUsingName(name);
         }
         return ScanExpressionResult(ASTNodeType::Identifier, name);
@@ -1067,9 +1067,9 @@ public:
             ALLOC_TOKEN(token);
             this->nextToken(token);
             if (isParse) {
-                return T(this->finalize(node, finishIdentifier(token, true)));
+                return T(this->finalize(node, finishIdentifier(token)));
             }
-            return finishScanIdentifier(token, true);
+            return finishScanIdentifier(token);
         }
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
@@ -1499,8 +1499,8 @@ public:
     bool parseFormalParameter(ParseFormalParametersResult& options)
     {
         RefPtr<Node> param;
-        bool trackUsingNamesBefore = trackUsingNames;
-        trackUsingNames = false;
+        bool trackUsingNamesBefore = this->trackUsingNames;
+        this->trackUsingNames = false;
         ScannerResultVector params;
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -1514,7 +1514,7 @@ public:
             this->validateParam(options, &params[i], as);
         }
         options.params.push_back(param);
-        trackUsingNames = trackUsingNamesBefore;
+        this->trackUsingNames = trackUsingNamesBefore;
         return !this->match(PunctuatorKind::RightParenthesis);
     }
 
@@ -1696,7 +1696,7 @@ public:
         case Token::KeywordToken: {
             bool trackUsingNamesBefore = this->trackUsingNames;
             this->trackUsingNames = false;
-            key = this->finalize(node, finishIdentifier(token, false));
+            key = this->finalize(node, finishIdentifier(token));
             this->trackUsingNames = trackUsingNamesBefore;
             break;
         }
@@ -1750,7 +1750,7 @@ public:
         case Token::KeywordToken: {
             bool trackUsingNamesBefore = this->trackUsingNames;
             this->trackUsingNames = false;
-            key = finishScanIdentifier(token, false);
+            key = finishScanIdentifier(token);
             keyString = key.string().string();
             this->trackUsingNames = trackUsingNamesBefore;
             break;
@@ -1832,9 +1832,9 @@ public:
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
             if (isParse) {
-                keyNode = this->finalize(node, finishIdentifier(token, true));
+                keyNode = this->finalize(node, finishIdentifier(token));
             } else {
-                key = finishScanIdentifier(token, true);
+                key = finishScanIdentifier(token);
             }
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
@@ -1938,7 +1938,7 @@ public:
                 } else {
                     type = this->scanInheritCoverGrammar(&Parser::assignmentExpression<Scan, true>);
                 }
-                if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && lastPoppedScopeContext->m_functionName == AtomicString()) {
+                if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && this->lastPoppedScopeContext->m_functionName == AtomicString()) {
                     needImplictName = true;
                 }
             } else if (this->match(LeftParenthesis)) {
@@ -2004,11 +2004,11 @@ public:
             if (!computed && isParse ? keyNode->isIdentifier() : key == ASTNodeType::Identifier) {
                 as = isParse ? keyNode->asIdentifier()->name() : key.string();
             }
-            lastPoppedScopeContext->m_functionName = as;
+            this->lastPoppedScopeContext->m_functionName = as;
             if (needImplictName) {
-                lastPoppedScopeContext->m_hasImplictFunctionName = true;
+                this->lastPoppedScopeContext->m_hasImplictFunctionName = true;
             } else {
-                lastPoppedScopeContext->m_isClassMethod = true;
+                this->lastPoppedScopeContext->m_isClassMethod = true;
             }
         }
         if (isParse) {
@@ -2441,7 +2441,7 @@ public:
         if (!this->isIdentifierName(token)) {
             this->throwUnexpectedToken(token);
         }
-        return this->finalize(node, finishIdentifier(token, true));
+        return this->finalize(node, finishIdentifier(token));
     }
 
     ScanExpressionResult scanIdentifierName()
@@ -2452,7 +2452,7 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        return finishScanIdentifier(token, false);
+        return finishScanIdentifier(token);
     }
 
     template <typename T, bool isParse>
@@ -4190,7 +4190,7 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        IdentifierNode* id = finishIdentifier(token, true);
+        IdentifierNode* id = finishIdentifier(token);
 
         if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
             addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
@@ -4222,7 +4222,7 @@ public:
             this->throwUnexpectedToken(token);
         }
 
-        ScanExpressionResult id = finishScanIdentifier(token, true);
+        ScanExpressionResult id = finishScanIdentifier(token);
 
         if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
             addDeclaredNameIntoContext(id.string(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
@@ -4251,7 +4251,7 @@ public:
             /* code end */
 
             if (!this->scopeContexts.back()->canDeclareName(name, blockIndex, kind == VarKeyword)) {
-                this->throwError("Identifier '%s' has already been declared", name.string());
+                this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
             }
             if (kind == VarKeyword) {
                 this->scopeContexts.back()->insertVarName(name, blockIndex, true, true);
@@ -4307,9 +4307,9 @@ public:
                 type = this->scanIsolateCoverGrammar(&Parser::assignmentExpression<Scan, false>);
             }
             if (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) {
-                if (lastPoppedScopeContext->m_functionName == AtomicString()) {
-                    lastPoppedScopeContext->m_functionName = name;
-                    lastPoppedScopeContext->m_hasImplictFunctionName = true;
+                if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                    this->lastPoppedScopeContext->m_functionName = name;
+                    this->lastPoppedScopeContext->m_hasImplictFunctionName = true;
                 }
             }
 
@@ -5333,9 +5333,8 @@ public:
             case TryKeyword:
                 statement = asStatementNode(this->parseTryStatement());
                 break;
+            // Lexical declaration (let, const) cannot appear in a single-statement context
             case VarKeyword:
-            case LetKeyword:
-            case ConstKeyword:
                 statement = asStatementNode(this->parseVariableStatement(this->lookahead.valueKeywordKind));
                 break;
             case WhileKeyword:
@@ -6140,9 +6139,9 @@ public:
                     this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
                 } else {
                     if (!this->config.parseSingleFunction) {
-                        lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
-                        lastPoppedScopeContext->m_isClassConstructor = true;
-                        lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                        this->lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                        this->lastPoppedScopeContext->m_isClassConstructor = true;
+                        this->lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
                     }
                     *constructor = value;
                     return T(nullptr);
@@ -6163,9 +6162,9 @@ public:
                     this->throwUnexpectedToken(token, Messages::DuplicateConstructor);
                 } else {
                     if (!this->config.parseSingleFunction) {
-                        lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
-                        lastPoppedScopeContext->m_isClassConstructor = true;
-                        lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
+                        this->lastPoppedScopeContext->m_functionName = escargotContext->staticStrings().constructor;
+                        this->lastPoppedScopeContext->m_isClassConstructor = true;
+                        this->lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
                     }
                     *constructor = value;
                     return T(nullptr);
@@ -6176,17 +6175,17 @@ public:
         if (!this->config.parseSingleFunction) {
             if (isParse) {
                 if (keyNode->type() == Identifier) {
-                    lastPoppedScopeContext->m_functionName = keyNode->asIdentifier()->name();
+                    this->lastPoppedScopeContext->m_functionName = keyNode->asIdentifier()->name();
                 }
             } else {
                 if (keyScanResult.first == Identifier) {
-                    lastPoppedScopeContext->m_functionName = keyScanResult.first.string();
+                    this->lastPoppedScopeContext->m_functionName = keyScanResult.first.string();
                 }
             }
             if (isStatic) {
-                lastPoppedScopeContext->m_isClassStaticMethod = true;
+                this->lastPoppedScopeContext->m_isClassStaticMethod = true;
             } else {
-                lastPoppedScopeContext->m_isClassMethod = true;
+                this->lastPoppedScopeContext->m_isClassMethod = true;
             }
         }
 
