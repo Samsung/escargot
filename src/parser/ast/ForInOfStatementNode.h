@@ -22,6 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "StatementNode.h"
+#include "TryStatementNode.h"
 
 namespace Escargot {
 
@@ -144,25 +145,36 @@ public:
         }
 
         size_t baseCountBefore = newContext.m_registerStack->size();
-        size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
-        m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
-        size_t literalIdx = newContext.getLastRegisterIndex();
-        newContext.giveUpRegister();
-        size_t equalResultIndex = newContext.getRegister();
-        newContext.giveUpRegister();
-        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
-        size_t exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
 
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this);
-        codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
-        size_t exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+        size_t exit1Pos, exit2Pos, exit3Pos, continuePosition;
+        // for-of only
+        TryStatementNode::TryStatementByteCodeContext forOfTryStatmentContext;
+        ByteCodeRegisterIndex finishCheckRegisterIndex, iteratorDataRegisterIndex;
+        size_t forOfEndCheckRegisterHeadStartPosition;
+        size_t forOfEndCheckRegisterHeadEndPosition;
+        size_t forOfEndCheckRegisterBodyEndPosition;
 
-        size_t exit3Pos, continuePosition;
         if (m_forIn) {
             // for-in statement
+            auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
+            codeBlock->m_requiredRegisterFileSizeInValueSize = 0;
+
+            size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
+            m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
+            size_t literalIdx = newContext.getLastRegisterIndex();
+            newContext.giveUpRegister();
+            size_t equalResultIndex = newContext.getRegister();
+            newContext.giveUpRegister();
+            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
+            exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this);
+            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
+            exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+
             size_t ePosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(EnumerateObject(ByteCodeLOC(m_loc.index)), &newContext, this);
             codeBlock->peekCode<EnumerateObject>(ePosition)->m_objectRegisterIndex = rightIdx;
@@ -189,19 +201,51 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
 
+            auto headRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
+
+            oldRequiredRegisterFileSizeInValueSize = std::max(oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredRegisterFileSizeInValueSize);
+            codeBlock->m_requiredRegisterFileSizeInValueSize = 0;
             generateBodyByteCode(codeBlock, context, newContext);
 
-            size_t forInIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
-            codeBlock->m_requiredRegisterFileSizeInValueSize++;
+            auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
+            auto dataRegisterIndex = std::max(headRequiredRegisterFileSizeInValueSize, bodyRequiredRegisterFileSizeInValueSize);
 
-            codeBlock->peekCode<EnumerateObject>(ePosition)->m_dataRegisterIndex = forInIndex;
-            codeBlock->peekCode<CheckIfKeyIsLast>(checkPos)->m_registerIndex = forInIndex;
-            codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_dataRegisterIndex = forInIndex;
+            codeBlock->m_requiredRegisterFileSizeInValueSize = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredRegisterFileSizeInValueSize, (ByteCodeRegisterIndex)(dataRegisterIndex + 1) });
+
+            codeBlock->peekCode<EnumerateObject>(ePosition)->m_dataRegisterIndex = dataRegisterIndex;
+            codeBlock->peekCode<CheckIfKeyIsLast>(checkPos)->m_registerIndex = dataRegisterIndex;
+            codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_dataRegisterIndex = dataRegisterIndex;
         } else {
             // for-of statement
+            TryStatementNode::generateTryStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatmentContext);
+
+            auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
+            codeBlock->m_requiredRegisterFileSizeInValueSize = 0;
+
+            forOfEndCheckRegisterHeadStartPosition = codeBlock->currentCodeSize();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this);
+
+            size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
+            m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
+
             size_t iPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index)), &newContext, this);
             codeBlock->peekCode<GetIterator>(iPosition)->m_objectRegisterIndex = rightIdx;
+
+            size_t literalIdx = newContext.getRegister();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value()), &newContext, this);
+            newContext.giveUpRegister();
+            size_t equalResultIndex = newContext.getRegister();
+            newContext.giveUpRegister();
+            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
+            exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this);
+            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this);
+            exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+
             // drop rightIdx
             newContext.giveUpRegister();
 
@@ -211,6 +255,9 @@ public:
 
             size_t iterStepPos = exit3Pos = codeBlock->lastCodePosition<IteratorStep>();
             codeBlock->peekCode<IteratorStep>(iterStepPos)->m_registerIndex = newContext.getRegister();
+
+            forOfEndCheckRegisterHeadEndPosition = codeBlock->currentCodeSize();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(false)), &newContext, this);
 
             newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
             m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
@@ -222,13 +269,24 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
 
+            auto headRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
+
+            oldRequiredRegisterFileSizeInValueSize = std::max(oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredRegisterFileSizeInValueSize);
+            codeBlock->m_requiredRegisterFileSizeInValueSize = 0;
+
             generateBodyByteCode(codeBlock, context, newContext);
 
-            size_t iteratorIndex = codeBlock->m_requiredRegisterFileSizeInValueSize;
-            codeBlock->m_requiredRegisterFileSizeInValueSize++;
+            forOfEndCheckRegisterBodyEndPosition = codeBlock->currentCodeSize();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this);
 
-            codeBlock->peekCode<GetIterator>(iPosition)->m_registerIndex = iteratorIndex;
-            codeBlock->peekCode<IteratorStep>(iterStepPos)->m_iterRegisterIndex = iteratorIndex;
+            auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
+            iteratorDataRegisterIndex = std::max(headRequiredRegisterFileSizeInValueSize, bodyRequiredRegisterFileSizeInValueSize);
+            finishCheckRegisterIndex = iteratorDataRegisterIndex + 1;
+
+            codeBlock->m_requiredRegisterFileSizeInValueSize = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredRegisterFileSizeInValueSize, (ByteCodeRegisterIndex)(iteratorDataRegisterIndex + 2) });
+
+            codeBlock->peekCode<GetIterator>(iPosition)->m_registerIndex = iteratorDataRegisterIndex;
+            codeBlock->peekCode<IteratorStep>(iterStepPos)->m_iterRegisterIndex = iteratorDataRegisterIndex;
         }
 
         size_t blockExitPos = codeBlock->currentCodeSize();
@@ -237,9 +295,26 @@ public:
         size_t exitPos = codeBlock->currentCodeSize();
         ASSERT(codeBlock->peekCode<CheckIfKeyIsLast>(continuePosition)->m_orgOpcode == CheckIfKeyIsLastOpcode || codeBlock->peekCode<IteratorStep>(continuePosition)->m_orgOpcode == IteratorStepOpcode);
 
-        newContext.consumeBreakPositions(codeBlock, exitPos, context->tryCatchWithBlockStatementCount());
-        newContext.consumeContinuePositions(codeBlock, continuePosition, context->tryCatchWithBlockStatementCount());
+        // we need to add 1 on third parameter because we add try operation manually
+        newContext.consumeBreakPositions(codeBlock, exitPos, context->tryCatchWithBlockStatementCount() + (m_forIn ? 0 : 1));
+        newContext.consumeContinuePositions(codeBlock, continuePosition, context->tryCatchWithBlockStatementCount() + (m_forIn ? 0 : 1));
         newContext.m_positionToContinue = continuePosition;
+
+        if (!m_forIn) {
+            TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, &newContext, this, forOfTryStatmentContext);
+            TryStatementNode::generateTryFinalizerStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatmentContext, true);
+
+            size_t exceptionThrownCheckStartJumpPos = codeBlock->currentCodeSize();
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), finishCheckRegisterIndex, SIZE_MAX), &newContext, this);
+            codeBlock->pushCode(IteratorClose(ByteCodeLOC(m_loc.index), iteratorDataRegisterIndex), &newContext, this);
+
+            codeBlock->peekCode<JumpIfTrue>(exceptionThrownCheckStartJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+            TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, &newContext, this, forOfTryStatmentContext, true);
+
+            codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterHeadStartPosition)->m_registerIndex = finishCheckRegisterIndex;
+            codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterHeadEndPosition)->m_registerIndex = finishCheckRegisterIndex;
+            codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterBodyEndPosition)->m_registerIndex = finishCheckRegisterIndex;
+        }
 
         codeBlock->peekCode<JumpIfTrue>(exit1Pos)->m_jumpPosition = exitPos;
         codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;

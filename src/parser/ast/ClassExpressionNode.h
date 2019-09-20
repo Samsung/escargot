@@ -36,6 +36,11 @@ public:
     {
     }
 
+    const ClassNode& classNode()
+    {
+        return m_class;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::ClassExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
@@ -63,14 +68,17 @@ public:
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, dstIndex);
         } else {
-            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, context->m_classInfo.m_name, nullptr), context, this);
+            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, nullptr), context, this);
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, dstIndex);
 
         size_t nameRegister = context->getRegister();
         // we don't need to root class name string because it is AtomicString
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(context->m_classInfo.m_name.string())), context, this);
+
+        AtomicString className = context->m_classInfo.m_name.string()->length() ? context->m_classInfo.m_name : m_implictName;
+
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(className.string())), context, this);
         codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstIndex,
                                                                      codeBlock->m_codeBlock->context()->staticStrings().name,
                                                                      nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
@@ -115,8 +123,14 @@ public:
         }
     }
 
+    void setImplictName(AtomicString s)
+    {
+        m_implictName = s;
+    }
+
 private:
     ClassNode m_class;
+    AtomicString m_implictName;
 };
 }
 

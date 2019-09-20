@@ -21,6 +21,7 @@
 #define TryStatementNode_h
 
 #include "CatchClauseNode.h"
+#include "RegisterReferenceNode.h"
 #include "StatementNode.h"
 
 namespace Escargot {
@@ -40,71 +41,121 @@ public:
     {
     }
 
+    struct TryStatementByteCodeContext {
+        size_t tryStartPosition;
+        size_t tryCatchBodyPos;
+
+        TryStatementByteCodeContext()
+        {
+            tryCatchBodyPos = tryStartPosition = SIZE_MAX;
+        }
+    };
+
+    static void generateTryStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx)
+    {
+        codeBlock->pushCode(TryOperation(ByteCodeLOC(self->loc().index)), context, self);
+        ctx.tryStartPosition = codeBlock->lastCodePosition<TryOperation>();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
+    }
+
+    static void generateTryStatementBodyEndByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx)
+    {
+        codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(self->loc().index)), context, self);
+        ctx.tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBlockBodyEnd>();
+    }
+
+    static void generateTryHandlerStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, CatchClauseNode *handler)
+    {
+        context->m_recursiveStatementStack.pop_back();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Catch, ctx.tryStartPosition));
+        codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_hasCatch = true;
+        codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_catchPosition = codeBlock->currentCodeSize();
+
+        // catch paramter block
+        size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+        if (handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+            context->m_lexicalBlockIndex = handler->paramLexicalBlockIndex();
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(handler->paramLexicalBlockIndex());
+            blockContext = codeBlock->pushLexicalBlock(context, bi, self);
+        }
+
+        // use dummy register for avoiding ruin script result
+        context->getRegister();
+
+        auto catchedValueRegister = context->getRegister();
+        codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_catchedValueRegisterIndex = catchedValueRegister;
+        RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister));
+        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(handler->param(), registerRef.get()));
+        assign->m_loc = handler->m_loc;
+        context->m_isLexicallyDeclaredBindingInitialization = true;
+        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+        assign->giveupChildren();
+        assign.release().leakRef();
+        registerRef.release().leakRef();
+
+        context->giveUpRegister();
+
+        handler->body()->generateStatementByteCode(codeBlock, context);
+
+        if (handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(context, blockContext);
+            context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        }
+
+        codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(self->loc().index)), context, self);
+        context->m_recursiveStatementStack.pop_back();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
+    }
+
+    static void generateTryFinalizerStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, bool hasFinalizer)
+    {
+        codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
+        context->m_recursiveStatementStack.pop_back();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Finally, ctx.tryStartPosition));
+
+        if (hasFinalizer) {
+            codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_hasFinalizer = true;
+            context->getRegister();
+        }
+    }
+
+    static void generateTryFinalizerStatementEndByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, bool hasFinalizer)
+    {
+        if (hasFinalizer) {
+            context->giveUpRegister();
+        }
+        context->registerJumpPositionsToComplexCase(ctx.tryStartPosition);
+        if (codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_hasFinalizer) {
+            // we can use `End` here because we don't care about return value of interpret function
+            codeBlock->pushCode(End(ByteCodeLOC(self->loc().index), 0), context, self);
+        }
+        codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_finallyEndPosition = codeBlock->currentCodeSize();
+        codeBlock->m_shouldClearStack = true;
+        context->m_recursiveStatementStack.pop_back();
+    }
+
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
-        codeBlock->pushCode(TryOperation(ByteCodeLOC(m_loc.index)), context, this);
-        size_t tryStartPosition = codeBlock->lastCodePosition<TryOperation>();
-        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, tryStartPosition));
+        TryStatementByteCodeContext ctx;
+        generateTryStatementStartByteCode(codeBlock, context, this, ctx);
+
         m_block->generateStatementByteCode(codeBlock, context);
-        codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        size_t tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchWithBlockBodyEnd>();
+
+        generateTryStatementBodyEndByteCode(codeBlock, context, this, ctx);
 
         if (m_handler) {
-            context->m_recursiveStatementStack.pop_back();
-            context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Catch, tryStartPosition));
-            codeBlock->peekCode<TryOperation>(tryStartPosition)->m_hasCatch = true;
-            codeBlock->peekCode<TryOperation>(tryStartPosition)->m_catchPosition = codeBlock->currentCodeSize();
-
-            // catch paramter block
-            size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
-            ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
-            if (m_handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
-                context->m_lexicalBlockIndex = m_handler->paramLexicalBlockIndex();
-                InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_handler->paramLexicalBlockIndex());
-                blockContext = codeBlock->pushLexicalBlock(context, bi, this);
-            }
-
-            // use dummy register for avoiding ruin script result
-            context->getRegister();
-
-            auto catchedValueRegister = context->getRegister();
-            codeBlock->peekCode<TryOperation>(tryStartPosition)->m_catchedValueRegisterIndex = catchedValueRegister;
-            RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister));
-            RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_handler->param(), registerRef.get()));
-            assign->m_loc = m_handler->m_loc;
-            context->m_isLexicallyDeclaredBindingInitialization = true;
-            assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-            assign->giveupChildren();
-            assign.release().leakRef();
-            registerRef.release().leakRef();
-
-            context->giveUpRegister();
-
-            m_handler->body()->generateStatementByteCode(codeBlock, context);
-
-            if (m_handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
-                codeBlock->finalizeLexicalBlock(context, blockContext);
-                context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
-            }
-
-            codeBlock->pushCode(TryCatchWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-            context->m_recursiveStatementStack.pop_back();
-            context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, tryStartPosition));
+            generateTryHandlerStatementStartByteCode(codeBlock, context, this, ctx, m_handler.get());
         }
 
-        context->registerJumpPositionsToComplexCase(tryStartPosition);
-        codeBlock->peekCode<TryOperation>(tryStartPosition)->m_tryCatchEndPosition = codeBlock->currentCodeSize();
-        context->m_recursiveStatementStack.pop_back();
+        generateTryFinalizerStatementStartByteCode(codeBlock, context, this, ctx, m_finalizer);
 
         if (m_finalizer) {
-            context->getRegister();
             m_finalizer->generateStatementByteCode(codeBlock, context);
-            context->giveUpRegister();
         }
-        codeBlock->pushCode(FinallyEnd(ByteCodeLOC(m_loc.index)), context, this);
 
-        codeBlock->m_shouldClearStack = true;
+        generateTryFinalizerStatementEndByteCode(codeBlock, context, this, ctx, m_finalizer);
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::TryStatement; }

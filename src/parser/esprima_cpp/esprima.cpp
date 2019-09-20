@@ -4312,6 +4312,10 @@ public:
                     lastPoppedScopeContext->m_hasImplictFunctionName = true;
                 }
             }
+
+            if (isParse && initNode->type() == ASTNodeType::ClassExpression && !((ClassExpressionNode*)initNode.get())->classNode().id()) {
+                ((ClassExpressionNode*)initNode.get())->setImplictName(name);
+            }
         } else if (!isIdentifier && !options.inFor) {
             this->expect(Substitution);
         }
@@ -5533,6 +5537,12 @@ public:
             }
             referNode = body->appendChild(this->statementListItem<ParseAs(StatementNode)>().get(), referNode);
         }
+
+        bool isEndedWithReturnNode = referNode && referNode->type() == ASTNodeType::ReturnStatement;
+        if (!isEndedWithReturnNode) {
+            referNode = body->appendChild(adoptRef(new ReturnStatmentNode(nullptr)));
+        }
+
         this->expect(RightBrace);
 
         return this->finalize(nodeStart, new BlockStatementNode(body.get(), 0));

@@ -125,7 +125,7 @@ Value iteratorClose(ExecutionState& state, const Value& iterator, const Value& c
     }
     // If Type(innerResult.[[value]]) is not Object, throw a TypeError exception.
     if (!innerResult.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
     }
     // Return Completion(completion).
     return completionValue;

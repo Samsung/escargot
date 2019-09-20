@@ -41,23 +41,28 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (context->tryCatchWithBlockStatementCount() != 0) {
+            ByteCodeRegisterIndex index;
             if (m_argument) {
-                ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
+                index = m_argument->getRegister(codeBlock, context);
                 m_argument->generateExpressionByteCode(codeBlock, context, index);
                 codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this);
-                context->giveUpRegister();
             } else {
-                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), REGISTER_LIMIT), context, this);
+                index = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), index, Value()), context, this);
+                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this);
             }
+            context->giveUpRegister();
         } else {
+            size_t r;
             if (m_argument) {
-                ByteCodeRegisterIndex index = m_argument->getRegister(codeBlock, context);
-                m_argument->generateExpressionByteCode(codeBlock, context, index);
-                codeBlock->pushCode(ReturnFunctionWithValue(ByteCodeLOC(m_loc.index), index), context, this);
-                context->giveUpRegister();
+                r = m_argument->getRegister(codeBlock, context);
+                m_argument->generateExpressionByteCode(codeBlock, context, r);
             } else {
-                codeBlock->pushCode(ReturnFunction(ByteCodeLOC(m_loc.index)), context, this);
+                r = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this);
             }
+            codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this);
+            context->giveUpRegister();
         }
     }
 

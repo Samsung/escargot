@@ -106,7 +106,7 @@ Value ExecutionState::makeSuperPropertyReference()
 
     // If env.HasSuperBinding() is false, throw a ReferenceError exception.
     if (!env->hasSuperBinding()) {
-        ErrorObject::throwBuiltinError(*this, ErrorObject::Code::TypeError, errorMessage_No_Super_Binding);
+        ErrorObject::throwBuiltinError(*this, ErrorObject::Code::ReferenceError, errorMessage_No_Super_Binding);
     }
 
     // Let actualThis be env.GetThisBinding().

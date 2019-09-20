@@ -65,6 +65,9 @@ class UnaryTypeof;
 class GetObject;
 class SetObjectOperation;
 class CheckIfKeyIsLast;
+class GetIterator;
+class IteratorStep;
+class IteratorClose;
 
 class ByteCodeInterpreter {
 public:
@@ -102,7 +105,7 @@ public:
     static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block);
     static void initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value);
 
-    static size_t tryOperation(ExecutionState*& state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Value tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
@@ -141,6 +144,9 @@ public:
     static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
 
     static void checkIfKeyIsLast(ExecutionState& state, CheckIfKeyIsLast* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
+    static void getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile);
+    static void iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
+    static void iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 };
