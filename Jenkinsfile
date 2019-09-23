@@ -62,9 +62,6 @@ timeout(60) {
 
             stage('Prepare build(gcc)') {
             parallel (
-                'npm' : {
-                    sh 'npm install'
-                },
                 '32bit' : {
                     sh 'LDFLAGS=" -L/usr/icu32/lib/  -Wl,-rpath=/usr/icu32/lib/" cmake  -H./ -Bbuild/out_linux -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja'
                     sh 'LDFLAGS=" -L/usr/icu32/lib/  -Wl,-rpath=/usr/icu32/lib/" cmake  -H./ -Bbuild/out_linux_release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja'

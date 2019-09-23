@@ -17,72 +17,13 @@
  *  USA
  */
 
-#include "Escargot.h"
-#include "runtime/VMInstance.h"
-#include "util/Vector.h"
-#include "util/Util.h"
-#include "runtime/Value.h"
-#include "parser/ScriptParser.h"
-#include "runtime/JobQueue.h"
+#include <string.h>
+#include "api/EscargotPublic.h"
 
-#ifdef ESCARGOT_ENABLE_VENDORTEST
-namespace Escargot {
-void installTestFunctions(Escargot::ExecutionState& state);
-}
-#endif // ESCARGOT_ENABLE_VENDORTEST
-
-NEVER_INLINE bool eval(Escargot::Context* context, Escargot::String* str, Escargot::String* fileName, bool shouldPrintScriptResult)
-{
-    Escargot::ExecutionState state(context);
-    Escargot::ExecutionState stateForInit(&state, nullptr, false);
-    Escargot::SandBox sb(context);
-    Escargot::Script::ScriptSandboxExecuteResult result;
-
-    Escargot::SandBox::SandBoxResult sandBoxResult = sb.run([&]() -> Escargot::Value {
-        Escargot::Script* script = context->scriptParser().initializeScript(state, str, fileName);
-        return script->execute(stateForInit);
-    });
-
-    result.result = sandBoxResult.result;
-    result.msgStr = sandBoxResult.msgStr;
-    result.error.errorValue = sandBoxResult.error;
-    if (!sandBoxResult.error.isEmpty()) {
-        for (size_t i = 0; i < sandBoxResult.stackTraceData.size(); i++) {
-            Escargot::Script::ScriptSandboxExecuteResult::Error::StackTrace t;
-            t.fileName = sandBoxResult.stackTraceData[i].fileName;
-            t.line = sandBoxResult.stackTraceData[i].loc.line;
-            t.column = sandBoxResult.stackTraceData[i].loc.column;
-            result.error.stackTrace.pushBack(t);
-        }
-    }
-
-    if (UNLIKELY(!result.error.errorValue.isEmpty())) {
-        printf("Uncaught %s:\n", result.msgStr->toUTF8StringData().data());
-        for (size_t i = 0; i < result.error.stackTrace.size(); i++) {
-            printf("%s (%d:%d)\n", result.error.stackTrace[i].fileName->toUTF8StringData().data(), (int)result.error.stackTrace[i].line, (int)result.error.stackTrace[i].column);
-        }
-        return false;
-    }
-
-    if (shouldPrintScriptResult) {
-        puts(result.msgStr->toUTF8StringData().data());
-    }
-
-    Escargot::DefaultJobQueue* jobQueue = Escargot::DefaultJobQueue::get(context->jobQueue());
-    while (jobQueue->hasNextJob()) {
-        auto jobResult = jobQueue->nextJob()->run();
-        if (shouldPrintScriptResult) {
-            if (jobResult.error.isEmpty()) {
-                printf("%s\n", jobResult.result.toString(state)->toUTF8StringData().data());
-            } else {
-                printf("Uncaught %s:\n", jobResult.msgStr->toUTF8StringData().data());
-            }
-        }
-    }
-
-    return true;
-}
-
+#if defined(ESCARGOT_ENABLE_VENDORTEST)
+// these header & function below are used for Escargot internal development
+// general client doesn't need this
+#include <GCUtil.h>
 void doFullGCWithoutSeeingStack()
 {
     GC_register_mark_stack_func([]() {
@@ -97,7 +38,7 @@ void doFullGCWithoutSeeingStack()
 
 void printEveryReachableGCObjects()
 {
-    ESCARGOT_LOG_INFO("print reachable pointers -->\n");
+    printf("print reachable pointers -->\n");
     GC_gcollect();
     GC_disable();
     size_t totalRemainSize = 0;
@@ -108,15 +49,346 @@ void printEveryReachableGCObjects()
             void* ptr = GC_USR_PTR_FROM_BASE(obj);
             size_t* totalSize = (size_t*)cd;
             *totalSize += size;
-            ESCARGOT_LOG_INFO("@@@ kind %d pointer %p size %d\n", (int)kind, ptr, (int)size);
+            printf("@@@ kind %d pointer %p size %d\n", (int)kind, ptr, (int)size);
 #if !defined(NDEBUG)
             GC_print_backtrace(ptr);
 #endif
         },
         &totalRemainSize);
     GC_enable();
-    ESCARGOT_LOG_INFO("<-- end of print reachable pointers %fKB\n", totalRemainSize / 1024.f);
+    printf("<-- end of print reachable pointers %fKB\n", totalRemainSize / 1024.f);
 }
+
+// <---- these header & function above are used for Escargot internal development
+#endif
+
+using namespace Escargot;
+
+ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 1) {
+        if (argv[0]->isSymbol()) {
+            puts(argv[0]->asSymbol()->symbolDescriptiveString()->toStdUTF8String().data());
+        } else {
+            puts(argv[0]->toString(state)->toStdUTF8String().data());
+        }
+    } else {
+        puts("undefined");
+    }
+    return ValueRef::createUndefined();
+}
+
+static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
+
+char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
+{
+    unsigned length;
+    const char sch = *sequence;
+    valid = true;
+    if ((sch & 0x80) == 0)
+        length = 1;
+    else {
+        unsigned char ch2 = static_cast<unsigned char>(*(sequence + 1));
+        if ((sch & 0xE0) == 0xC0
+            && (ch2 & 0xC0) == 0x80)
+            length = 2;
+        else {
+            unsigned char ch3 = static_cast<unsigned char>(*(sequence + 2));
+            if ((sch & 0xF0) == 0xE0
+                && (ch2 & 0xC0) == 0x80
+                && (ch3 & 0xC0) == 0x80)
+                length = 3;
+            else {
+                unsigned char ch4 = static_cast<unsigned char>(*(sequence + 3));
+                if ((sch & 0xF8) == 0xF0
+                    && (ch2 & 0xC0) == 0x80
+                    && (ch3 & 0xC0) == 0x80
+                    && (ch4 & 0xC0) == 0x80)
+                    length = 4;
+                else {
+                    valid = false;
+                    sequence++;
+                    return -1;
+                }
+            }
+        }
+    }
+
+    charlen = length;
+    char32_t ch = 0;
+    switch (length) {
+    case 4:
+        ch += static_cast<unsigned char>(*sequence++);
+        ch <<= 6; // Fall through.
+    case 3:
+        ch += static_cast<unsigned char>(*sequence++);
+        ch <<= 6; // Fall through.
+    case 2:
+        ch += static_cast<unsigned char>(*sequence++);
+        ch <<= 6; // Fall through.
+    case 1:
+        ch += static_cast<unsigned char>(*sequence++);
+    }
+    return ch - offsetsFromUTF8[length - 1];
+}
+
+static StringRef* builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
+{
+    FILE* fp = fopen(fileName, "r");
+    StringRef* src = StringRef::emptyString();
+    if (fp) {
+        std::string utf8Str;
+        std::basic_string<unsigned char, std::char_traits<unsigned char>> str;
+        char buf[8];
+        bool hasNonLatin1Content = false;
+        size_t readLen;
+        while ((readLen = fread(buf, 1, sizeof buf, fp))) {
+            if (!hasNonLatin1Content) {
+                const char* source = buf;
+                int charlen;
+                bool valid;
+                while (source < buf + readLen) {
+                    char32_t ch = readUTF8Sequence(source, valid, charlen);
+                    if (ch > 255) {
+                        hasNonLatin1Content = true;
+                        fseek(fp, 0, SEEK_SET);
+                        break;
+                    } else {
+                        str += (unsigned char)ch;
+                    }
+                }
+            } else {
+                utf8Str.append(buf, readLen);
+            }
+        }
+        fclose(fp);
+        if (hasNonLatin1Content) {
+            src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length());
+        } else {
+            src = StringRef::createFromLatin1(str.data(), str.length());
+        }
+    } else {
+        char msg[1024];
+        snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
+        if (state) {
+            state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromUTF8(msg, strnlen(msg, sizeof msg))));
+        } else {
+            puts(msg);
+        }
+    }
+    return src;
+}
+
+static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 1) {
+        auto f = argv[0]->toString(state)->toStdUTF8String();
+        const char* fileName = f.data();
+        StringRef* src = builtinHelperFileRead(state, fileName, "load");
+
+        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state)).fetchScriptThrowsExceptionIfParseError(state);
+        return script->execute(state);
+    } else {
+        return ValueRef::createUndefined();
+    }
+}
+
+static ValueRef* builtinRead(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 1) {
+        auto f = argv[0]->toString(state)->toStdUTF8String();
+        const char* fileName = f.data();
+        StringRef* src = builtinHelperFileRead(state, fileName, "read");
+        return src;
+    } else {
+        return StringRef::emptyString();
+    }
+}
+
+static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 1) {
+        double startTime = DateObjectRef::currentTime();
+
+        auto f = argv[0]->toString(state)->toStdUTF8String();
+        const char* fileName = f.data();
+        StringRef* src = builtinHelperFileRead(state, fileName, "run");
+        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state)).fetchScriptThrowsExceptionIfParseError(state);
+        script->execute(state);
+        return ValueRef::create(DateObjectRef::currentTime() - startTime);
+    } else {
+        return ValueRef::create(0);
+    }
+}
+
+#if defined(ESCARGOT_ENABLE_VENDORTEST)
+static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc) {
+        return argv[0]->toString(state);
+    }
+    return StringRef::emptyString();
+}
+
+static ValueRef* builtinDrainJobQueue(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    ContextRef* context = state->context();
+    while (context->vmInstance()->hasPendingPromiseJob()) {
+        auto jobResult = context->vmInstance()->executePendingPromiseJob();
+        if (jobResult.error) {
+            return ValueRef::create(false);
+        }
+    }
+    return ValueRef::create(true);
+}
+
+static ValueRef* builtinAddPromiseReactions(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 3) {
+        PromiseObjectRef* promise = argv[0]->toObject(state)->asPromiseObject();
+        promise->then(state, argv[1], argv[2]);
+    } else {
+        state->throwException(TypeErrorObjectRef::create(state, StringRef::emptyString()));
+    }
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtinDrainCreateNewGlobalObject(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    return ContextRef::create(state->context()->vmInstance())->globalObject();
+}
+#endif
+
+PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
+{
+    PersistentRefHolder<ContextRef> context = ContextRef::create(instance);
+
+    Evaluator::execute(context, [](ExecutionStateRef* state) -> ValueRef* {
+        ContextRef* context = state->context();
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("print"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "load"), builtinLoad, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("load"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "read"), builtinRead, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("read"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "run"), builtinRun, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("run"), buildFunctionObjectRef, true, true, true);
+        }
+
+#if defined(ESCARGOT_ENABLE_VENDORTEST)
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "uneval"), builtinUneval, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("uneval"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "drainJobQueue"), builtinDrainJobQueue, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("drainJobQueue"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "addPromiseReactions"), builtinAddPromiseReactions, 3, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("addPromiseReactions"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createNewGlobalObject"), builtinDrainCreateNewGlobalObject, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("createNewGlobalObject"), buildFunctionObjectRef, true, true, true);
+        }
+#endif
+
+        return ValueRef::createUndefined();
+    });
+
+    return context;
+}
+
+static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName, bool shouldPrintScriptResult)
+{
+    auto scriptInitializeResult = context->scriptParser()->initializeScript(str, fileName);
+    if (!scriptInitializeResult.script) {
+        printf("Script parsing error: ");
+        switch (scriptInitializeResult.parseErrorCode) {
+        case Escargot::ErrorObjectRef::Code::SyntaxError:
+            printf("SyntaxError");
+            break;
+        case Escargot::ErrorObjectRef::Code::EvalError:
+            printf("EvalError");
+            break;
+        case Escargot::ErrorObjectRef::Code::RangeError:
+            printf("RangeError");
+            break;
+        case Escargot::ErrorObjectRef::Code::ReferenceError:
+            printf("ReferenceError");
+            break;
+        case Escargot::ErrorObjectRef::Code::TypeError:
+            printf("TypeError");
+            break;
+        case Escargot::ErrorObjectRef::Code::URIError:
+            printf("URIError");
+            break;
+        default:
+            break;
+        }
+        printf(": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
+        return false;
+    }
+
+    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
+        return script->execute(state);
+    },
+                                         scriptInitializeResult.script.get());
+
+    if (!evalResult.isSuccessful()) {
+        printf("Uncaught %s:\n", evalResult.resultOrErrorAsString->toStdUTF8String().data());
+        for (size_t i = 0; i < evalResult.stackTraceData.size(); i++) {
+            printf("%s (%d:%d)\n", evalResult.stackTraceData[i].fileName->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
+        }
+        return false;
+    }
+
+    if (shouldPrintScriptResult) {
+        puts(evalResult.resultOrErrorAsString->toStdUTF8String().data());
+    }
+
+    while (context->vmInstance()->hasPendingPromiseJob()) {
+        auto jobResult = context->vmInstance()->executePendingPromiseJob();
+        if (shouldPrintScriptResult) {
+            if (jobResult.error) {
+                printf("Uncaught %s:\n", jobResult.resultOrErrorAsString->toStdUTF8String().data());
+            } else {
+                printf("%s\n", jobResult.resultOrErrorAsString->toStdUTF8String().data());
+            }
+        }
+    }
+    return true;
+}
+
+class ShellPlatform : public PlatformRef {
+public:
+    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj)
+    {
+        // ignore. we always check pending job after script eval
+    }
+};
 
 int main(int argc, char* argv[])
 {
@@ -125,18 +397,21 @@ int main(int argc, char* argv[])
     setbuf(stderr, NULL);
 #endif
 
-    Escargot::Heap::initialize();
-    Escargot::VMInstance* instance = new Escargot::VMInstance();
-    Escargot::Context* context = new Escargot::Context(instance);
-    Escargot::ExecutionState stateForInit(context);
-#ifdef ESCARGOT_ENABLE_VENDORTEST
-    installTestFunctions(stateForInit);
+#ifdef M_MMAP_THRESHOLD
+    mallopt(M_MMAP_THRESHOLD, 2048);
+#endif
+#ifdef M_MMAP_MAX
+    mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
 
-    bool runShell = true;
-    bool memStats = false;
+    Globals::initialize();
 
-    Escargot::FunctionObject* fnRead = context->globalObject()->getOwnProperty(stateForInit, Escargot::ObjectPropertyName(stateForInit, Escargot::String::fromUTF8("read", 4))).value(stateForInit, context->globalObject()).asFunction();
+    Memory::setGCFrequency(24);
+
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create(new ShellPlatform());
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    bool runShell = true;
 
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
@@ -145,17 +420,12 @@ int main(int argc, char* argv[])
                     runShell = true;
                     continue;
                 }
-                if (strcmp(argv[i], "--mem-stats") == 0) {
-                    memStats = true;
-                    continue;
-                }
             } else { // `-option` case
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;
                     i++;
-                    Escargot::String* src = new Escargot::ASCIIString(argv[i], strlen(argv[i]));
-                    const char* source = "shell input";
-                    if (!eval(context, src, Escargot::String::fromUTF8(source, strlen(source)), false))
+                    StringRef* src = StringRef::createFromUTF8(argv[i], strlen(argv[i]));
+                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false))
                         return 3;
                     continue;
                 }
@@ -170,12 +440,14 @@ int main(int argc, char* argv[])
 
         FILE* fp = fopen(argv[i], "r");
         if (fp) {
+            fclose(fp);
             runShell = false;
-            Escargot::Value arg(Escargot::String::fromUTF8(argv[i], strlen(argv[i])));
-            Escargot::String* src = Escargot::Object::call(stateForInit, fnRead, Escargot::Value(), 1, &arg).asString();
 
-            if (!eval(context, src, Escargot::String::fromUTF8(argv[i], strlen(argv[i])), false))
+            StringRef* src = builtinHelperFileRead(nullptr, argv[i], "read");
+
+            if (!evalScript(context, src, StringRef::createFromUTF8(argv[i], strlen(argv[i])), false)) {
                 return 3;
+            }
         } else {
             runShell = false;
             printf("Cannot open file %s\n", argv[i]);
@@ -185,7 +457,7 @@ int main(int argc, char* argv[])
 
     if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {
         int d = atoi(getenv("GC_FREE_SPACE_DIVISOR"));
-        GC_set_free_space_divisor(d);
+        Memory::setGCFrequency(d);
     }
 
     while (runShell) {
@@ -195,30 +467,14 @@ int main(int argc, char* argv[])
             printf("ERROR: Cannot read interactive shell input\n");
             return 3;
         }
-        auto s = Escargot::utf8StringToUTF16String(buf, strlen(buf));
-        Escargot::String* str = new Escargot::UTF16String(std::move(s));
-        eval(context, str, Escargot::String::fromUTF8("from shell input", strlen("from shell input")), true);
+        StringRef* str = Escargot::StringRef::createFromUTF8(buf, strlen(buf));
+        evalScript(context, str, StringRef::createFromASCII("from shell input"), true);
     }
 
-    delete context;
-    context = nullptr;
-    delete instance;
-    instance = nullptr;
+    context.release();
+    instance.release();
 
-    Escargot::clearStack<4096>();
+    Globals::finalize();
 
-    Escargot::Heap::finalize();
-
-    if (memStats) {
-        Escargot::Heap::printGCHeapUsage();
-    }
-
-    // remove comment you want to find memory leak
-    /*
-    doFullGCWithoutSeeingStack();
-    doFullGCWithoutSeeingStack();
-    doFullGCWithoutSeeingStack();
-    printEveryReachableGCObjects();
-    */
     return 0;
 }

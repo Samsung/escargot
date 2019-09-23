@@ -60,9 +60,9 @@ private:
     WeakSetObjectData m_storage;
 };
 
-class WeakSetProtoTypeObject : public WeakSetObject {
+class WeakSetPrototypeObject : public WeakSetObject {
 public:
-    explicit WeakSetProtoTypeObject(ExecutionState& state)
+    explicit WeakSetPrototypeObject(ExecutionState& state)
         : WeakSetObject(state)
     {
     }

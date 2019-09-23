@@ -27,24 +27,10 @@ namespace Escargot {
 class ExecutionState;
 
 class JobQueue : public gc {
-protected:
+public:
     JobQueue() {}
-public:
-    virtual ~JobQueue() {}
-    static JobQueue* create();
-    virtual size_t enqueueJob(ExecutionState& state, Job* job) = 0;
-};
-
-class DefaultJobQueue : public JobQueue {
-private:
-    DefaultJobQueue() {}
-public:
-    static DefaultJobQueue* create()
-    {
-        return new DefaultJobQueue();
-    }
-
-    size_t enqueueJob(ExecutionState& state, Job* job);
+    void enqueueJob(Job* job);
+    void clearJobRelatedWithSpecificContext(Context* context);
     bool hasNextJob()
     {
         return !m_jobs.empty();
@@ -56,16 +42,6 @@ public:
         Job* job = m_jobs.front();
         m_jobs.pop_front();
         return job;
-    }
-
-    std::list<Job*, gc_allocator<Job*>>& impl()
-    {
-        return m_jobs;
-    }
-
-    static DefaultJobQueue* get(JobQueue* jobQueue)
-    {
-        return (DefaultJobQueue*)jobQueue;
     }
 
 private:

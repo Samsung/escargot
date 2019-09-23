@@ -44,9 +44,9 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
         if (numberLength != byteLength) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
         }
-        obj->allocateBuffer(byteLength);
+        obj->allocateBuffer(state, byteLength);
     } else {
-        obj->allocateBuffer(0);
+        obj->allocateBuffer(state, 0);
     }
     return obj;
 }
@@ -433,7 +433,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             if (obj->typedArrayType() == srcArray->typedArrayType()) {
                 // Let data be CloneArrayBuffer(srcData, srcByteOffset).
                 data = new ArrayBufferObject(state);
-                data->cloneBuffer(srcData, srcByteOffset);
+                data->cloneBuffer(state, srcData, srcByteOffset);
             } else {
                 // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
                 Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
@@ -478,7 +478,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferSize);
             }
             ArrayBufferObject* buffer = new ArrayBufferObject(state);
-            buffer->allocateBuffer(bufferSize);
+            buffer->allocateBuffer(state, bufferSize);
             obj->setBuffer(buffer, 0, length * elementSize, length);
             for (uint64_t i = 0; i < length; i++) {
                 ObjectPropertyName pK(state, Value(i));
@@ -749,7 +749,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         if (srcBuffer == targetBuffer) {
             // NOTE: Step 24
             srcBuffer = new ArrayBufferObject(state);
-            bool succeed = srcBuffer->cloneBuffer(targetBuffer, srcByteOffset, oldSrcBytelength);
+            bool succeed = srcBuffer->cloneBuffer(state, targetBuffer, srcByteOffset, oldSrcBytelength);
             if (!succeed) {
                 const StaticStrings* strings = &state.context()->staticStrings();
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "");

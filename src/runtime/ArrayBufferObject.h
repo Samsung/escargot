@@ -37,13 +37,6 @@ enum TypedArrayType : unsigned {
     Float64
 };
 
-typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
-typedef void (*ArrayBufferObjectBufferFreeFunction)(void* buffer);
-
-extern ArrayBufferObjectBufferMallocFunction g_arrayBufferObjectBufferMallocFunction;
-extern bool g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill;
-extern ArrayBufferObjectBufferFreeFunction g_arrayBufferObjectBufferFreeFunction;
-
 class ArrayBufferObject : public Object {
 public:
     explicit ArrayBufferObject(ExecutionState& state);
@@ -56,11 +49,12 @@ public:
     static const uint32_t maxArrayBufferSize = 210000000;
 
     // Clone srcBuffer's srcByteOffset ~ end.
-    bool cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset);
+    bool cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset);
     // Clone srcBuffer's srcByteOffset ~ (srcByteOffset + cloneLength).
-    bool cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength);
-    void allocateBuffer(size_t bytelength);
-    void attachBuffer(void* buffer, size_t bytelength);
+    bool cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength);
+    void allocateBuffer(ExecutionState& state, size_t bytelength);
+    void attachBuffer(ExecutionState& state, void* buffer, size_t bytelength);
+    void detachArrayBuffer(ExecutionState& state);
 
     virtual bool isArrayBufferObject() const
     {
@@ -142,13 +136,6 @@ public:
         return false;
     }
 
-    void detachArrayBuffer()
-    {
-        free(m_data);
-        m_data = NULL;
-        m_bytelength = 0;
-    }
-
     void fillData(const uint8_t* data, unsigned length)
     {
         ASSERT(!isDetachedBuffer());
@@ -159,6 +146,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    Context* m_context;
     uint8_t* m_data;
     unsigned m_bytelength;
 };

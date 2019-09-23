@@ -92,8 +92,8 @@ public:
         return "Promise";
     }
 
-    void fulfillPromise(ExecutionState& state, Value value);
-    void rejectPromise(ExecutionState& state, Value reason);
+    void fulfill(ExecutionState& state, Value value);
+    void reject(ExecutionState& state, Value reason);
 
     typedef Vector<PromiseReaction, GCUtil::gc_malloc_allocator<PromiseReaction> > Reactions;
     void triggerPromiseReactions(ExecutionState& state, Reactions& reactions);
@@ -112,16 +112,19 @@ public:
     PromiseState state() { return m_state; }
     Value promiseResult()
     {
-        ASSERT(m_state != PromiseState::Pending);
         return m_promiseResult;
     }
+
+    PromiseObject* then(ExecutionState& state, Value handler);
+    PromiseObject* catchOperation(ExecutionState& state, Value handler);
+    PromiseObject* then(ExecutionState& state, Value onFulfilled, Value onRejected);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
     PromiseState m_state;
-    Value m_promiseResult;
+    SmallValue m_promiseResult;
     Reactions m_fulfillReactions;
     Reactions m_rejectReactions;
 

@@ -148,6 +148,18 @@ public:
         return hasValue();
     }
 
+    T* operator->()
+    {
+        ASSERT(hasValue());
+        return m_value;
+    }
+
+    const T* operator->() const
+    {
+        ASSERT(hasValue());
+        return m_value;
+    }
+
     bool operator==(const Optional<T*>& other) const
     {
         if (hasValue() != other.hasValue()) {

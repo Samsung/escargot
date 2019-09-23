@@ -50,7 +50,7 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
         Value value = argv[0];
         // If NewTarget is undefined and Type(value) is Symbol, return SymbolDescriptiveString(value).
         if (value.isSymbol()) {
-            return value.asSymbol()->getSymbolDescriptiveString();
+            return value.asSymbol()->symbolDescriptiveString();
         }
         return value.toString(state);
     }

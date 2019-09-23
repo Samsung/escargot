@@ -46,6 +46,10 @@
 #include "runtime/ProxyObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
+#include "runtime/SetObject.h"
+#include "runtime/WeakSetObject.h"
+#include "runtime/MapObject.h"
+#include "runtime/WeakMapObject.h"
 
 namespace Escargot {
 
@@ -63,7 +67,6 @@ namespace Escargot {
 
 DEFINE_CAST(VMInstance);
 DEFINE_CAST(Context);
-DEFINE_CAST(SandBox);
 DEFINE_CAST(ExecutionState);
 DEFINE_CAST(String);
 DEFINE_CAST(Symbol);
@@ -102,26 +105,12 @@ DEFINE_CAST(Uint32ArrayObject);
 DEFINE_CAST(Uint8ClampedArrayObject);
 DEFINE_CAST(Float32ArrayObject);
 DEFINE_CAST(Float64ArrayObject);
+DEFINE_CAST(SetObject);
+DEFINE_CAST(WeakSetObject);
+DEFINE_CAST(MapObject);
+DEFINE_CAST(WeakMapObject);
 
 #undef DEFINE_CAST
-
-template <typename T>
-inline T* NullablePtr<T>::getValue()
-{
-    ASSERT(!!m_value);
-    return m_value;
-}
-
-template <typename T>
-inline const T* NullablePtr<T>::getValue() const
-{
-    ASSERT(!!m_value);
-    return m_value;
-}
-
-template struct NullablePtr<ValueRef>;
-template struct NullablePtr<ObjectRef>;
-template struct NullablePtr<FunctionObjectRef>;
 
 inline ValueRef* toRef(const Value& v)
 {
@@ -135,15 +124,15 @@ inline Value toImpl(const ValueRef* v)
     return Value(SmallValue::fromPayload(v));
 }
 
-inline NullablePtr<ValueRef> toNullablePtr(const Value& v)
+inline OptionalRef<ValueRef> toOptionalValue(const Value& v)
 {
-    return NullablePtr<ValueRef>(reinterpret_cast<ValueRef*>(SmallValue(v).payload()));
+    return OptionalRef<ValueRef>(reinterpret_cast<ValueRef*>(SmallValue(v).payload()));
 }
 
-inline Value toImpl(const NullablePtr<ValueRef>& v)
+inline Value toImpl(const OptionalRef<ValueRef>& v)
 {
     if (LIKELY(v.hasValue())) {
-        return Value(SmallValue::fromPayload(v.getValue()));
+        return Value(SmallValue::fromPayload(v.value()));
     }
     return Value(Value::EmptyValue);
 }
@@ -168,34 +157,157 @@ inline AtomicString toImpl(AtomicStringRef* v)
     return AtomicString::fromPayload(reinterpret_cast<void*>(v));
 }
 
-void Globals::initialize(bool applyMallOpt, bool applyGcOpt)
+void Globals::initialize()
 {
-    Heap::initialize(applyMallOpt, applyGcOpt);
+    Heap::initialize();
 }
 
 void Globals::finalize()
 {
-    return;
+    Heap::finalize();
 }
 
-StringRef* StringRef::fromASCII(const char* s)
+void* Memory::gcMalloc(size_t siz)
 {
-    return toRef(new ASCIIString(s, strlen(s)));
+    return GC_MALLOC(siz);
 }
 
-StringRef* StringRef::fromASCII(const char* s, size_t len)
+void* Memory::gcMallocAtomic(size_t siz)
+{
+    return GC_MALLOC(siz);
+}
+
+void* Memory::gcMallocUncollectable(size_t siz)
+{
+    return GC_MALLOC_UNCOLLECTABLE(siz);
+}
+
+void* Memory::gcMallocAtomicUncollectable(size_t siz)
+{
+    return GC_MALLOC_ATOMIC_UNCOLLECTABLE(siz);
+}
+
+void Memory::gcFree(void* ptr)
+{
+    GC_FREE(ptr);
+}
+
+void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback)
+{
+    if (callback) {
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj,
+                                               void*) {
+            ((GCAllocatedMemoryFinalizer)obj)(obj);
+        },
+                                       (void*)callback, nullptr, nullptr);
+    } else {
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, nullptr, nullptr, nullptr, nullptr);
+    }
+}
+
+void Memory::gc()
+{
+    GC_gcollect_and_unmap();
+}
+
+void Memory::setGCFrequency(size_t value)
+{
+    GC_set_free_space_divisor(value);
+}
+
+size_t Memory::heapSize()
+{
+    return GC_get_heap_size();
+}
+
+size_t Memory::totalSize()
+{
+    return GC_get_total_bytes();
+}
+
+static Memory::OnGCEventListener g_gcEventListener;
+void Memory::setEventEventListener(OnGCEventListener l)
+{
+    g_gcEventListener = l;
+    GC_set_on_collection_event([](GC_EventType evtType) {
+        if (GC_EVENT_RECLAIM_END == evtType && g_gcEventListener) {
+            g_gcEventListener();
+        }
+    });
+}
+
+// I store ref count as SmallValue. this can prevent what bdwgc can see ref count as address (SmallValue store integer value as odd)
+using PersistentValueRefMapImpl = std::unordered_map<ValueRef*, SmallValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef*, SmallValue>>>;
+
+PersistentRefHolder<PersistentValueRefMap> PersistentValueRefMap::create()
+{
+    return PersistentRefHolder<PersistentValueRefMap>((PersistentValueRefMap*)new (Memory::gcMalloc(sizeof(PersistentValueRefMapImpl))) PersistentValueRefMapImpl());
+}
+
+uint32_t PersistentValueRefMap::add(ValueRef* ptr)
+{
+    auto value = SmallValue::fromPayload(ptr);
+    if (!value.isStoredInHeap()) {
+        return 0;
+    }
+
+    PersistentValueRefMapImpl* self = (PersistentValueRefMapImpl*)this;
+    auto iter = self->find(ptr);
+    if (iter == self->end()) {
+        self->insert(std::make_pair(ptr, SmallValue(1)));
+        return 1;
+    } else {
+        iter->second = SmallValue(iter->second.asUint32() + 1);
+        return iter->second.asUint32();
+    }
+}
+
+uint32_t PersistentValueRefMap::remove(ValueRef* ptr)
+{
+    auto value = SmallValue::fromPayload(ptr);
+    if (!value.isStoredInHeap()) {
+        return 0;
+    }
+
+    PersistentValueRefMapImpl* self = (PersistentValueRefMapImpl*)this;
+    auto iter = self->find(ptr);
+    if (iter == self->end()) {
+        return 0;
+    } else {
+        if (iter->second.asUint32() == 1) {
+            self->erase(iter);
+            return 0;
+        } else {
+            iter->second = SmallValue(iter->second.asUint32() - 1);
+            return iter->second.asUint32();
+        }
+    }
+}
+
+void PersistentValueRefMap::clear()
+{
+    PersistentValueRefMapImpl* self = (PersistentValueRefMapImpl*)this;
+    self->clear();
+}
+
+StringRef* StringRef::createFromASCII(const char* s, size_t len)
 {
     return toRef(new ASCIIString(s, len));
 }
 
-StringRef* StringRef::fromUTF8(const char* s, size_t len)
+StringRef* StringRef::createFromUTF8(const char* s, size_t len)
 {
     return toRef(String::fromUTF8(s, len));
 }
 
-StringRef* StringRef::fromUTF16(const char16_t* s, size_t len)
+StringRef* StringRef::createFromUTF16(const char16_t* s, size_t len)
 {
     return toRef(new UTF16String(s, len));
+}
+
+StringRef* StringRef::createFromLatin1(const unsigned char* s, size_t len)
+{
+    return toRef(new Latin1String(s, len));
 }
 
 StringRef* StringRef::emptyString()
@@ -245,178 +357,69 @@ SymbolRef* SymbolRef::create(StringRef* desc)
     return toRef(new Symbol(toImpl(desc)));
 }
 
+SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* desc)
+{
+    return toRef(Symbol::fromGlobalSymbolRegistry(toImpl(vm), toImpl(desc)));
+}
+
 StringRef* SymbolRef::description()
 {
     return toRef(toImpl(this)->description());
 }
 
-bool PointerValueRef::isString()
+StringRef* SymbolRef::symbolDescriptiveString()
 {
-    return toImpl(this)->isString();
+    return toRef(toImpl(this)->symbolDescriptiveString());
 }
 
-StringRef* PointerValueRef::asString()
+#define DEFINE_IS_POINTERVALUE_XXX(XXX) \
+    bool ValueRef::is##XXX() { return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->is##XXX(); }
+#define DEFINE_AS_POINTERVALUE_XXX(XXX) \
+    XXX##Ref* ValueRef::as##XXX() { return toRef(toImpl(this).asPointerValue()->as##XXX()); }
+#define DEFINE_IS_AS_POINTERVALUE_XXX(XXX) \
+    DEFINE_IS_POINTERVALUE_XXX(XXX)        \
+    DEFINE_AS_POINTERVALUE_XXX(XXX)
+
+DEFINE_IS_AS_POINTERVALUE_XXX(String)
+DEFINE_IS_AS_POINTERVALUE_XXX(Symbol)
+DEFINE_IS_AS_POINTERVALUE_XXX(Object)
+DEFINE_IS_AS_POINTERVALUE_XXX(FunctionObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(ArrayObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(StringObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(SymbolObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(NumberObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(BooleanObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(RegExpObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(DateObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(ErrorObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferView)
+
+bool ValueRef::isTypedArrayObject()
 {
-    return toRef(toImpl(this)->asString());
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject();
 }
 
-bool PointerValueRef::isSymbol()
+bool ValueRef::isTypedArrayPrototypeObject()
 {
-    return toImpl(this)->isSymbol();
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayPrototypeObject();
 }
 
-SymbolRef* PointerValueRef::asSymbol()
+bool ValueRef::isDataViewObject()
 {
-    return toRef(toImpl(this)->asSymbol());
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isDataViewObject();
 }
 
-bool PointerValueRef::isObject()
-{
-    return toImpl(this)->isObject();
-}
-
-ObjectRef* PointerValueRef::asObject()
-{
-    return toRef(toImpl(this)->asObject());
-}
-
-bool PointerValueRef::isFunctionObject()
-{
-    return toImpl(this)->isFunctionObject();
-}
-
-FunctionObjectRef* PointerValueRef::asFunctionObject()
-{
-    return toRef(toImpl(this)->asFunctionObject());
-}
-
-bool PointerValueRef::isArrayObject()
-{
-    return toImpl(this)->isArrayObject();
-}
-
-bool PointerValueRef::isArrayPrototypeObject()
-{
-    return toImpl(this)->isArrayPrototypeObject();
-}
-
-ArrayObjectRef* PointerValueRef::asArrayObject()
-{
-    return toRef(toImpl(this)->asArrayObject());
-}
-
-bool PointerValueRef::isStringObject()
-{
-    return toImpl(this)->isStringObject();
-}
-
-StringObjectRef* PointerValueRef::asStringObject()
-{
-    return toRef(toImpl(this)->asStringObject());
-}
-
-bool PointerValueRef::isSymbolObject()
-{
-    return toImpl(this)->isSymbolObject();
-}
-
-SymbolObjectRef* PointerValueRef::asSymbolObject()
-{
-    return toRef(toImpl(this)->asSymbolObject());
-}
-
-bool PointerValueRef::isNumberObject()
-{
-    return toImpl(this)->isNumberObject();
-}
-
-NumberObjectRef* PointerValueRef::asNumberObject()
-{
-    return toRef(toImpl(this)->asNumberObject());
-}
-
-bool PointerValueRef::isBooleanObject()
-{
-    return toImpl(this)->isBooleanObject();
-}
-
-BooleanObjectRef* PointerValueRef::asBooleanObject()
-{
-    return toRef(toImpl(this)->asBooleanObject());
-}
-
-bool PointerValueRef::isRegExpObject(ExecutionStateRef* state)
-{
-    ASSERT(state != nullptr);
-    return toImpl(this)->isRegExpObject();
-}
-
-RegExpObjectRef* PointerValueRef::asRegExpObject(ExecutionStateRef* state)
-{
-    ASSERT(state != nullptr);
-    return toRef(toImpl(this)->asRegExpObject());
-}
-
-bool PointerValueRef::isDateObject()
-{
-    return toImpl(this)->isDateObject();
-}
-
-DateObjectRef* PointerValueRef::asDateObject()
-{
-    return toRef(toImpl(this)->asDateObject());
-}
-
-bool PointerValueRef::isGlobalObject()
-{
-    return toImpl(this)->isGlobalObject();
-}
-
-GlobalObjectRef* PointerValueRef::asGlobalObject()
-{
-    return toRef(toImpl(this)->asGlobalObject());
-}
-
-bool PointerValueRef::isErrorObject()
-{
-    return toImpl(this)->isErrorObject();
-}
-
-ErrorObjectRef* PointerValueRef::asErrorObject()
-{
-    return toRef(toImpl(this)->asErrorObject());
-}
-
-bool PointerValueRef::isArrayBufferObject()
-{
-    return toImpl(this)->isArrayBufferObject();
-}
-
-ArrayBufferObjectRef* PointerValueRef::asArrayBufferObject()
-{
-    return toRef(toImpl(this)->asArrayBufferObject());
-}
-
-bool PointerValueRef::isArrayBufferView()
-{
-    return toImpl(this)->isArrayBufferView();
-}
-
-ArrayBufferViewRef* PointerValueRef::asArrayBufferView()
-{
-    return toRef(toImpl(this)->asArrayBufferView());
-}
-
-#define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                             \
-    bool PointerValueRef::is##TypeName##ArrayObject()                                                                                \
-    {                                                                                                                                \
-        return toImpl(this)->isArrayBufferView() && toImpl(this)->asArrayBufferView()->typedArrayType() == TypedArrayType::TypeName; \
-    }                                                                                                                                \
-                                                                                                                                     \
-    TypeName##ArrayObjectRef* PointerValueRef::as##TypeName##ArrayObject()                                                           \
-    {                                                                                                                                \
-        ASSERT(is##TypeName##ArrayObject());                                                                                         \
-        return toRef((TypeName##ArrayObject*)(toImpl(this)->asArrayBufferView()));                                                   \
+#define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                                                                                                \
+    bool ValueRef::is##TypeName##ArrayObject()                                                                                                                                                          \
+    {                                                                                                                                                                                                   \
+        return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArrayBufferView() && toImpl(this).asPointerValue()->asArrayBufferView()->typedArrayType() == TypedArrayType::TypeName; \
+    }                                                                                                                                                                                                   \
+                                                                                                                                                                                                        \
+    TypeName##ArrayObjectRef* ValueRef::as##TypeName##ArrayObject()                                                                                                                                     \
+    {                                                                                                                                                                                                   \
+        return toRef((TypeName##ArrayObject*)(toImpl(this).asPointerValue()->asArrayBufferView()));                                                                                                     \
     }
 
 DEFINE_TYPEDARRAY_IMPL(Int8);
@@ -429,40 +432,174 @@ DEFINE_TYPEDARRAY_IMPL(Uint8Clamped);
 DEFINE_TYPEDARRAY_IMPL(Float32);
 DEFINE_TYPEDARRAY_IMPL(Float64);
 
-bool PointerValueRef::isTypedArrayPrototypeObject()
+
+DEFINE_IS_AS_POINTERVALUE_XXX(PromiseObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(ProxyObject)
+
+bool ValueRef::isArgumentsObject()
 {
-    return toImpl(this)->isTypedArrayPrototypeObject();
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArgumentsObject();
 }
 
-bool PointerValueRef::isPromiseObject()
+bool ValueRef::isGeneratorFunctionObject()
 {
-    return toImpl(this)->isPromiseObject();
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isFunctionObject() && toImpl(this).asPointerValue()->asFunctionObject()->isGenerator();
 }
 
-PromiseObjectRef* PointerValueRef::asPromiseObject()
+bool ValueRef::isGeneratorObject()
 {
-    return toRef(toImpl(this)->asPromiseObject());
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isGeneratorObject();
 }
 
-bool PointerValueRef::isProxyObject()
+DEFINE_IS_AS_POINTERVALUE_XXX(SetObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(WeakSetObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(MapObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(WeakMapObject)
+
+bool ValueRef::isSetIteratorObject()
 {
-    return toImpl(this)->isProxyObject();
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isSetIteratorObject();
 }
 
-ProxyObjectRef* PointerValueRef::asProxyObject()
+bool ValueRef::isMapIteratorObject()
 {
-    return toRef(toImpl(this)->asProxyObject());
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isMapIteratorObject();
 }
 
-VMInstanceRef* VMInstanceRef::create(const char* locale, const char* timezone)
+ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
 {
-    return toRef(new (NoGC) VMInstance(locale, timezone));
+    PointerValue* o = toImpl(this).asPointerValue();
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
 }
 
-void VMInstanceRef::destroy()
+ObjectRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
 {
-    VMInstance* imp = toImpl(this);
-    delete imp;
+    PointerValue* o = toImpl(this).asPointerValue();
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+    return toRef(Object::construct(*toImpl(state), o, argc, newArgv));
+}
+
+class PlatformBridge : public Platform {
+public:
+    PlatformBridge(PlatformRef* p)
+        : m_platform(p)
+    {
+    }
+
+    virtual void* arrayBufferObjectDataBufferMallocCallback(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte)
+    {
+        return m_platform->arrayBufferObjectDataBufferMallocCallback(toRef(whereObjectMade), toRef(obj), sizeInByte);
+    }
+
+    virtual void arrayBufferObjectDataBufferFreeCallback(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer)
+    {
+        m_platform->arrayBufferObjectDataBufferFreeCallback(toRef(whereObjectMade), toRef(obj), buffer);
+    }
+
+    virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj)
+    {
+        m_platform->didPromiseJobEnqueued(toRef(relatedContext), toRef(obj));
+    }
+
+    PlatformRef* m_platform;
+};
+
+Evaluator::StackTraceData::StackTraceData()
+    : fileName(toRef(String::emptyString))
+    , source(toRef(String::emptyString))
+    , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+{
+}
+
+Evaluator::EvaluatorResult::EvaluatorResult()
+    : result()
+    , error()
+    , resultOrErrorAsString(toRef(String::emptyString))
+{
+}
+
+static Evaluator::EvaluatorResult toEvaluatorResultRef(SandBox::SandBoxResult& result)
+{
+    Evaluator::EvaluatorResult r;
+    r.error = toOptionalValue(result.error);
+    r.resultOrErrorAsString = toRef(result.resultOrErrorAsString);
+    r.result = toRef(result.result);
+
+    if (!result.error.isEmpty()) {
+        new (&r.stackTraceData) GCManagedVector<Evaluator::StackTraceData>(result.stackTraceData.size());
+        for (size_t i = 0; i < result.stackTraceData.size(); i++) {
+            Evaluator::StackTraceData t;
+            t.fileName = toRef(result.stackTraceData[i].fileName);
+            t.source = toRef(result.stackTraceData[i].source);
+            t.loc.index = result.stackTraceData[i].loc.index;
+            t.loc.line = result.stackTraceData[i].loc.line;
+            t.loc.column = result.stackTraceData[i].loc.column;
+            r.stackTraceData[i] = t;
+        }
+    }
+
+    return r;
+}
+
+Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData), void* data)
+{
+    SandBox sb(toImpl(ctx));
+
+    struct DataSender {
+        void* fn;
+        void* data;
+    } sender;
+
+    sender.fn = (void*)runner;
+    sender.data = data;
+
+    auto result = sb.run([](ExecutionState& state, void* data) -> Value {
+        DataSender* sender = (DataSender*)data;
+        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData))sender->fn;
+        return toImpl(runner(toRef(&state), sender->data));
+    },
+                         &sender);
+    return toEvaluatorResultRef(result);
+}
+
+Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2)
+{
+    SandBox sb(toImpl(ctx));
+
+    struct DataSender {
+        void* fn;
+        void* data;
+        void* data2;
+    } sender;
+
+    sender.fn = (void*)runner;
+    sender.data = data;
+    sender.data2 = data2;
+
+    auto result = sb.run([](ExecutionState& state, void* data) -> Value {
+        DataSender* sender = (DataSender*)data;
+        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2))sender->fn;
+        return toImpl(runner(toRef(&state), sender->data, sender->data2));
+    },
+                         &sender);
+    return toEvaluatorResultRef(result);
+}
+
+PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, const char* locale, const char* timezone)
+{
+    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(new PlatformBridge(platform), locale, timezone)));
+}
+
+PlatformRef* VMInstanceRef::platform()
+{
+    return ((PlatformBridge*)toImpl(this))->m_platform;
 }
 
 void VMInstanceRef::clearCachesRelatedWithContext()
@@ -474,94 +611,35 @@ void VMInstanceRef::clearCachesRelatedWithContext()
     imp->globalSymbolRegistry().clear();
 }
 
-bool VMInstanceRef::addRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
-{
-    auto value = SmallValue::fromPayload(ptr);
-    if (!value.isStoredInHeap()) {
-        return false;
+#define DECLARE_GLOBAL_SYMBOLS(name)                      \
+    SymbolRef* VMInstanceRef::name##Symbol()              \
+    {                                                     \
+        return toRef(toImpl(this)->globalSymbols().name); \
     }
-    void* vptr = reinterpret_cast<void*>(value.payload());
-    toImpl(this)->addRoot(vptr);
-    return true;
-}
+DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
+#undef DECLARE_GLOBAL_SYMBOLS
 
-bool VMInstanceRef::removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr)
+bool VMInstanceRef::hasPendingPromiseJob()
 {
-    auto value = SmallValue::fromPayload(ptr);
-    if (!value.isStoredInHeap()) {
-        return false;
-    }
-    void* vptr = reinterpret_cast<void*>(value.payload());
-    return toImpl(this)->removeRoot(vptr);
+    return toImpl(this)->hasPendingPromiseJob();
 }
 
-SymbolRef* VMInstanceRef::toStringTagSymbol()
+Evaluator::EvaluatorResult VMInstanceRef::executePendingPromiseJob()
 {
-    return toRef(toImpl(this)->globalSymbols().toStringTag);
+    auto result = toImpl(this)->executePendingPromiseJob();
+    return toEvaluatorResultRef(result);
 }
 
-SymbolRef* VMInstanceRef::iteratorSymbol()
-{
-    return toRef(toImpl(this)->globalSymbols().iterator);
-}
-
-SymbolRef* VMInstanceRef::unscopablesSymbol()
-{
-    return toRef(toImpl(this)->globalSymbols().unscopables);
-}
-
-VMInstanceRef::DrainJobQueueResult::DrainJobQueueResult()
-{
-    isThereRemainedJob = false;
-}
-
-VMInstanceRef::DrainJobQueueResult VMInstanceRef::drainJobQueue()
-{
-    VMInstance* imp = toImpl(this);
-    auto drainResult = imp->drainJobQueue();
-
-    VMInstanceRef::DrainJobQueueResult result;
-    result.isThereRemainedJob = drainResult.first;
-    if (drainResult.second) {
-        result.error = NullablePtr<ValueRef>(toRef(drainResult.second.value()));
-    }
-    return result;
-}
-
-void VMInstanceRef::setNewPromiseJobListener(NewPromiseJobListener l)
-{
-    VMInstance* imp = toImpl(this);
-    imp->m_publicJobQueueListenerPointer = (void*)l;
-    imp->setNewPromiseJobListener([](ExecutionState& state, Job* job) {
-        ((NewPromiseJobListener)state.context()->vmInstance()->m_publicJobQueueListenerPointer)(toRef(&state), toRef(job));
-    });
-}
-
-ContextRef* ContextRef::create(VMInstanceRef* vminstanceref)
+PersistentRefHolder<ContextRef> ContextRef::create(VMInstanceRef* vminstanceref)
 {
     VMInstance* vminstance = toImpl(vminstanceref);
-    return toRef(new Context(vminstance));
+    return PersistentRefHolder<ContextRef>(toRef(new Context(vminstance)));
 }
 
 void ContextRef::clearRelatedQueuedPromiseJobs()
 {
     Context* imp = toImpl(this);
-    DefaultJobQueue* jobQueue = DefaultJobQueue::get(imp->vmInstance()->jobQueue());
-    std::list<Job*, gc_allocator<Job*>>& impl = jobQueue->impl();
-    auto iter = impl.begin();
-    while (iter != impl.end()) {
-        if ((*iter)->relatedContext() == imp) {
-            iter = impl.erase(iter);
-        } else {
-            iter++;
-        }
-    }
-}
-
-void ContextRef::destroy()
-{
-    Context* imp = toImpl(this);
-    delete imp;
+    imp->vmInstance()->jobQueue()->clearJobRelatedWithSpecificContext(imp);
 }
 
 ContextRef* ExecutionStateRef::context()
@@ -569,9 +647,9 @@ ContextRef* ExecutionStateRef::context()
     return toRef(toImpl(this)->context());
 }
 
-AtomicStringRef* AtomicStringRef::create(ContextRef* c, const char* src)
+AtomicStringRef* AtomicStringRef::create(ContextRef* c, const char* src, size_t len)
 {
-    AtomicString a(toImpl(c), src, strlen(src));
+    AtomicString a(toImpl(c), src, len);
     return toRef(a);
 }
 
@@ -667,7 +745,7 @@ public:
         if (!PV.isSymbol()) {
             auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(PV));
             if (result.m_value.hasValue()) {
-                return ObjectGetResult(toImpl(result.m_value.getValue()), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
+                return ObjectGetResult(toImpl(result.m_value.value()), result.m_isWritable, result.m_isEnumerable, result.m_isConfigurable);
             }
         }
         return Object::getOwnProperty(state, P);
@@ -855,7 +933,7 @@ ValueRef* ObjectRef::getPrototype(ExecutionStateRef* state)
     return toRef(toImpl(this)->getPrototype(*toImpl(state)));
 }
 
-NullablePtr<ObjectRef> ObjectRef::getPrototypeObject(ExecutionStateRef* state)
+OptionalRef<ObjectRef> ObjectRef::getPrototypeObject(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
 
@@ -916,26 +994,6 @@ void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std:
         return (*cb)(toRef(&state), toRef(name.toPlainValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
     },
                               (void*)&cb);
-}
-
-ValueRef* ObjectRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
-{
-    Object* o = toImpl(this);
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
-    for (size_t i = 0; i < argc; i++) {
-        newArgv[i] = toImpl(argv[i]);
-    }
-    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
-}
-
-ObjectRef* ObjectRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
-{
-    Object* o = toImpl(this);
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
-    for (size_t i = 0; i < argc; i++) {
-        newArgv[i] = toImpl(argv[i]);
-    }
-    return toRef(Object::construct(*toImpl(state), o, argc, newArgv));
 }
 
 FunctionObjectRef* GlobalObjectRef::object()
@@ -1243,6 +1301,7 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
 {
     CodeBlock* dataCb = state.resolveCallee()->codeBlock();
     CallPublicFunctionData* code = (CallPublicFunctionData*)(dataCb->nativeFunctionData());
+
     ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*, state);
     for (size_t i = 0; i < calledArgc; i++) {
         newArgv[i] = toRef(calledArgv[i]);
@@ -1312,69 +1371,6 @@ void FunctionObjectRef::markFunctionNeedsSlowVirtualIdentifierOperation()
     }
 }
 
-SandBoxRef* SandBoxRef::create(ContextRef* contextRef)
-{
-    Context* ctx = toImpl(contextRef);
-    return toRef(new SandBox(ctx));
-}
-
-void SandBoxRef::destroy()
-{
-    SandBox* imp = toImpl(this);
-    delete imp;
-}
-
-SandBoxRef::StackTraceData::StackTraceData()
-    : fileName(toRef(String::emptyString))
-    , source(toRef(String::emptyString))
-    , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-{
-}
-
-SandBoxRef::SandBoxResult::SandBoxResult()
-    : result(ValueRef::createEmpty())
-    , error(ValueRef::createEmpty())
-    , msgStr(toRef(String::emptyString))
-{
-}
-
-static SandBoxRef::SandBoxResult toSandBoxResultRef(SandBox::SandBoxResult& result)
-{
-    SandBoxRef::SandBoxResult r;
-    r.error = toNullablePtr(result.error);
-    r.msgStr = toRef(result.msgStr);
-    r.result = toRef(result.result);
-
-    if (!result.error.isEmpty()) {
-        for (size_t i = 0; i < result.stackTraceData.size(); i++) {
-            SandBoxRef::StackTraceData t;
-            t.fileName = toRef(result.stackTraceData[i].fileName);
-            t.source = toRef(result.stackTraceData[i].source);
-            t.loc.index = result.stackTraceData[i].loc.index;
-            t.loc.line = result.stackTraceData[i].loc.line;
-            t.loc.column = result.stackTraceData[i].loc.column;
-            r.stackTraceData.push_back(t);
-        }
-    }
-
-    return r;
-}
-
-SandBoxRef::SandBoxResult SandBoxRef::run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner)
-{
-    auto result = toImpl(this)->run([&]() -> Value {
-        ExecutionState state(toImpl(this)->context());
-        return toImpl(scriptRunner(toRef(&state)));
-    });
-    return toSandBoxResultRef(result);
-}
-
-SandBoxRef::SandBoxResult JobRef::run()
-{
-    auto result = toImpl(this)->run();
-    return toSandBoxResultRef(result);
-}
-
 GlobalObjectRef* ContextRef::globalObject()
 {
     Context* ctx = toImpl(this);
@@ -1417,19 +1413,7 @@ void ContextRef::setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
     });
 }
 
-ExecutionStateRef* ExecutionStateRef::create(ContextRef* ctxref)
-{
-    Context* ctx = toImpl(ctxref);
-    return toRef(new ExecutionState(ctx));
-}
-
-void ExecutionStateRef::destroy()
-{
-    ExecutionState* imp = toImpl(this);
-    delete imp;
-}
-
-NullablePtr<FunctionObjectRef> ExecutionStateRef::resolveCallee()
+OptionalRef<FunctionObjectRef> ExecutionStateRef::resolveCallee()
 {
     auto ec = toImpl(this);
     if (ec != nullptr) {
@@ -1441,18 +1425,31 @@ NullablePtr<FunctionObjectRef> ExecutionStateRef::resolveCallee()
     return nullptr;
 }
 
-std::vector<FunctionObjectRef*> ExecutionStateRef::resolveCallstack()
+GCManagedVector<FunctionObjectRef*> ExecutionStateRef::resolveCallstack()
 {
     ExecutionState* state = toImpl(this);
 
-    std::vector<FunctionObjectRef*> result;
-
-    while (state) {
-        if (state->lexicalEnvironment() && state->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
-            && state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            result.push_back(toRef(state->resolveCallee()));
+    ExecutionState* pstate = state;
+    size_t count = 0;
+    while (pstate) {
+        if (pstate->lexicalEnvironment() && pstate->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
+            && pstate->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            count++;
         }
-        state = state->parent();
+        pstate = pstate->parent();
+    }
+
+    GCManagedVector<FunctionObjectRef*> result(count);
+
+    size_t idx = 0;
+
+    pstate = state;
+    while (pstate) {
+        if (pstate->lexicalEnvironment() && pstate->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord()
+            && pstate->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            result[idx++] = toRef(pstate->resolveCallee());
+        }
+        pstate = pstate->parent();
     }
 
     return result;
@@ -1524,21 +1521,9 @@ ValueRef* ValueRef::create(unsigned long long value)
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
 }
 
-ValueRef* ValueRef::create(ValueRef* value)
-{
-    ASSERT(value);
-    return reinterpret_cast<ValueRef*>(value);
-}
-
 ValueRef* ValueRef::createNull()
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Null))
-                                           .payload());
-}
-
-ValueRef* ValueRef::createEmpty()
-{
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::EmptyValue))
                                            .payload());
 }
 
@@ -1548,12 +1533,12 @@ ValueRef* ValueRef::createUndefined()
                                            .payload());
 }
 
-bool ValueRef::isBoolean() const
+bool ValueRef::isBoolean()
 {
     return toImpl(this).isBoolean();
 }
 
-bool ValueRef::isStoreInHeap() const
+bool ValueRef::isStoreInHeap()
 {
     auto value = SmallValue::fromPayload(this);
     if (value.isStoredInHeap()) {
@@ -1562,74 +1547,59 @@ bool ValueRef::isStoreInHeap() const
     return false;
 }
 
-bool ValueRef::isNumber() const
+bool ValueRef::isNumber()
 {
     return toImpl(this).isNumber();
 }
 
-bool ValueRef::isNull() const
+bool ValueRef::isNull()
 {
     return toImpl(this).isNull();
 }
 
-bool ValueRef::isUndefined() const
+bool ValueRef::isUndefined()
 {
     return toImpl(this).isUndefined();
 }
 
-bool ValueRef::isEmpty() const
-{
-    return toImpl(this).isEmpty();
-}
-
-bool ValueRef::isString() const
-{
-    return toImpl(this).isString();
-}
-
-bool ValueRef::isObject() const
-{
-    return toImpl(this).isObject();
-}
-
-bool ValueRef::isPointerValue() const
+bool ValueRef::isPointerValue()
 {
     return toImpl(this).isPointerValue();
 }
 
-bool ValueRef::isInt32() const
+bool ValueRef::isInt32()
 {
     return toImpl(this).isInt32();
 }
 
-bool ValueRef::isUInt32() const
+bool ValueRef::isUInt32()
 {
     return toImpl(this).isUInt32();
 }
 
-bool ValueRef::isDouble() const
+bool ValueRef::isDouble()
 {
     return toImpl(this).isDouble();
 }
 
-bool ValueRef::isTrue() const
+bool ValueRef::isTrue()
 {
     return toImpl(this).isTrue();
 }
 
-bool ValueRef::isFalse() const
+bool ValueRef::isFalse()
 {
     return toImpl(this).isFalse();
 }
 
-bool ValueRef::isFunction() const
-{
-    return toImpl(this).isFunction();
-}
-
-bool ValueRef::isCallable() const
+bool ValueRef::isCallable()
 {
     return toImpl(this).isCallable();
+}
+
+bool ValueRef::isConstructible() // can ValueRef::construct
+{
+    return toImpl(this).isConstructor();
 }
 
 bool ValueRef::toBoolean(ExecutionStateRef* es)
@@ -1666,6 +1636,12 @@ StringRef* ValueRef::toString(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
     return toRef(toImpl(this).toString(*esi));
+}
+
+StringRef* ValueRef::toStringWithoutException(ExecutionStateRef* es)
+{
+    ExecutionState* esi = toImpl(es);
+    return toRef(toImpl(this).toStringWithoutException(*esi));
 }
 
 ObjectRef* ValueRef::toObject(ExecutionStateRef* es)
@@ -1711,21 +1687,6 @@ uint32_t ValueRef::asUint32()
     return toImpl(this).asUInt32();
 }
 
-StringRef* ValueRef::asString()
-{
-    return toRef(toImpl(this).asString());
-}
-
-ObjectRef* ValueRef::asObject()
-{
-    return toRef(toImpl(this).asObject());
-}
-
-FunctionObjectRef* ValueRef::asFunction()
-{
-    return toRef(toImpl(this).asFunction());
-}
-
 PointerValueRef* ValueRef::asPointerValue()
 {
     return toRef(toImpl(this).asPointerValue());
@@ -1759,6 +1720,18 @@ ValueRef* IteratorObjectRef::next(ExecutionStateRef* state)
 ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new ArrayObject(*toImpl(state)));
+}
+
+ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state, ValueVectorRef* source)
+{
+    auto sourceSize = source->size();
+    ArrayObject* ret = new ArrayObject(*toImpl(state), sourceSize);
+
+    for (size_t i = 0; i < sourceSize; i++) {
+        ret->setIndexedProperty(*toImpl(state), Value(i), toImpl(source->at(i)));
+    }
+
+    return toRef(ret);
 }
 
 IteratorObjectRef* ArrayObjectRef::values(ExecutionStateRef* state)
@@ -1820,6 +1793,11 @@ EvalErrorObjectRef* EvalErrorObjectRef::create(ExecutionStateRef* state, StringR
 DateObjectRef* DateObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new DateObject(*toImpl(state)));
+}
+
+int64_t DateObjectRef::currentTime()
+{
+    return DateObject::currentTime();
 }
 
 void DateObjectRef::setTimeValue(ExecutionStateRef* state, ValueRef* str)
@@ -1917,39 +1895,24 @@ RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
     return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
-void ArrayBufferObjectRef::setMallocFunction(ArrayBufferObjectBufferMallocFunction fn)
-{
-    g_arrayBufferObjectBufferMallocFunction = fn;
-}
-
-void ArrayBufferObjectRef::setFreeFunction(ArrayBufferObjectBufferFreeFunction fn)
-{
-    g_arrayBufferObjectBufferFreeFunction = fn;
-}
-
-void ArrayBufferObjectRef::setMallocFunctionNeedsZeroFill(bool n)
-{
-    g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill = n;
-}
-
 ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new ArrayBufferObject(*toImpl(state)));
 }
 
-void ArrayBufferObjectRef::allocateBuffer(size_t bytelength)
+void ArrayBufferObjectRef::allocateBuffer(ExecutionStateRef* state, size_t bytelength)
 {
-    toImpl(this)->allocateBuffer(bytelength);
+    toImpl(this)->allocateBuffer(*toImpl(state), bytelength);
 }
 
-void ArrayBufferObjectRef::attachBuffer(void* buffer, size_t bytelength)
+void ArrayBufferObjectRef::attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength)
 {
-    toImpl(this)->attachBuffer(buffer, bytelength);
+    toImpl(this)->attachBuffer(*toImpl(state), buffer, bytelength);
 }
 
-void ArrayBufferObjectRef::detachArrayBuffer()
+void ArrayBufferObjectRef::detachArrayBuffer(ExecutionStateRef* state)
 {
-    toImpl(this)->detachArrayBuffer();
+    toImpl(this)->detachArrayBuffer(*toImpl(state));
 }
 
 uint8_t* ArrayBufferObjectRef::rawBuffer()
@@ -2061,14 +2024,43 @@ PromiseObjectRef* PromiseObjectRef::create(ExecutionStateRef* state)
     return toRef(new PromiseObject(*toImpl(state)));
 }
 
+COMPILE_ASSERT((int)PromiseObjectRef::PromiseState::Pending == (int)PromiseObject::PromiseState::Pending, "");
+COMPILE_ASSERT((int)PromiseObjectRef::PromiseState::FulFilled == (int)PromiseObject::PromiseState::FulFilled, "");
+COMPILE_ASSERT((int)PromiseObjectRef::PromiseState::FulFilled == (int)PromiseObject::PromiseState::FulFilled, "");
+
+PromiseObjectRef::PromiseState PromiseObjectRef::state()
+{
+    return (PromiseObjectRef::PromiseState)toImpl(this)->state();
+}
+
+ValueRef* PromiseObjectRef::promiseResult()
+{
+    return toRef(toImpl(this)->promiseResult());
+}
+
+PromiseObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* handler)
+{
+    return toRef(toImpl(this)->then(*toImpl(state), toImpl(handler)));
+}
+
+PromiseObjectRef* PromiseObjectRef::catchOperation(ExecutionStateRef* state, ValueRef* handler)
+{
+    return toRef(toImpl(this)->catchOperation(*toImpl(state), toImpl(handler)));
+}
+
+PromiseObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected)
+{
+    return toRef(toImpl(this)->then(*toImpl(state), toImpl(onFulfilled), toImpl(onRejected)));
+}
+
 void PromiseObjectRef::fulfill(ExecutionStateRef* state, ValueRef* value)
 {
-    toImpl(this)->fulfillPromise(*toImpl(state), toImpl(value));
+    toImpl(this)->fulfill(*toImpl(state), toImpl(value));
 }
 
 void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
 {
-    toImpl(this)->rejectPromise(*toImpl(state), toImpl(reason));
+    toImpl(this)->reject(*toImpl(state), toImpl(reason));
 }
 
 ProxyObjectRef* ProxyObjectRef::create(ExecutionStateRef* state, ObjectRef* target, ObjectRef* handler)
@@ -2097,9 +2089,144 @@ void ProxyObjectRef::revoke()
     toImpl(this)->setHandler(nullptr);
 }
 
-ScriptRef* ScriptParserRef::initializeScript(ExecutionStateRef* state, StringRef* script, StringRef* fileName)
+SetObjectRef* SetObjectRef::create(ExecutionStateRef* state)
 {
-    return toRef(toImpl(this)->initializeScript(*toImpl(state), toImpl(script), toImpl(fileName)));
+    return toRef(new SetObject(*toImpl(state)));
+}
+
+void SetObjectRef::add(ExecutionStateRef* state, ValueRef* key)
+{
+    toImpl(this)->add(*toImpl(state), toImpl(key));
+}
+
+void SetObjectRef::clear(ExecutionStateRef* state)
+{
+    toImpl(this)->clear(*toImpl(state));
+}
+
+bool SetObjectRef::deleteOperation(ExecutionStateRef* state, ValueRef* key)
+{
+    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key));
+}
+
+bool SetObjectRef::has(ExecutionStateRef* state, ValueRef* key)
+{
+    return toImpl(this)->has(*toImpl(state), toImpl(key));
+}
+
+size_t SetObjectRef::size(ExecutionStateRef* state)
+{
+    return toImpl(this)->size(*toImpl(state));
+}
+
+WeakSetObjectRef* WeakSetObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new WeakSetObject(*toImpl(state)));
+}
+
+void WeakSetObjectRef::add(ExecutionStateRef* state, ObjectRef* key)
+{
+    toImpl(this)->add(*toImpl(state), toImpl(key));
+}
+
+bool WeakSetObjectRef::deleteOperation(ExecutionStateRef* state, ObjectRef* key)
+{
+    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key));
+}
+
+bool WeakSetObjectRef::has(ExecutionStateRef* state, ObjectRef* key)
+{
+    return toImpl(this)->has(*toImpl(state), toImpl(key));
+}
+
+MapObjectRef* MapObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new MapObject(*toImpl(state)));
+}
+
+void MapObjectRef::clear(ExecutionStateRef* state)
+{
+    toImpl(this)->clear(*toImpl(state));
+}
+
+ValueRef* MapObjectRef::get(ExecutionStateRef* state, ValueRef* key)
+{
+    return toRef(toImpl(this)->get(*toImpl(state), toImpl(key)));
+}
+
+void MapObjectRef::set(ExecutionStateRef* state, ValueRef* key, ValueRef* value)
+{
+    toImpl(this)->set(*toImpl(state), toImpl(key), toImpl(value));
+}
+
+bool MapObjectRef::deleteOperation(ExecutionStateRef* state, ValueRef* key)
+{
+    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key));
+}
+
+bool MapObjectRef::has(ExecutionStateRef* state, ValueRef* key)
+{
+    return toImpl(this)->has(*toImpl(state), toImpl(key));
+}
+
+size_t MapObjectRef::size(ExecutionStateRef* state)
+{
+    return toImpl(this)->size(*toImpl(state));
+}
+
+WeakMapObjectRef* WeakMapObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new WeakMapObject(*toImpl(state)));
+}
+
+bool WeakMapObjectRef::deleteOperation(ExecutionStateRef* state, ObjectRef* key)
+{
+    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key));
+}
+
+ValueRef* WeakMapObjectRef::get(ExecutionStateRef* state, ObjectRef* key)
+{
+    return toRef(toImpl(this)->get(*toImpl(state), toImpl(key)));
+}
+
+void WeakMapObjectRef::set(ExecutionStateRef* state, ObjectRef* key, ValueRef* value)
+{
+    toImpl(this)->set(*toImpl(state), toImpl(key), toImpl(value));
+}
+
+bool WeakMapObjectRef::has(ExecutionStateRef* state, ObjectRef* key)
+{
+    return toImpl(this)->has(*toImpl(state), toImpl(key));
+}
+
+ScriptParserRef::InitializeScriptResult::InitializeScriptResult()
+    : script()
+    , parseErrorMessage(StringRef::emptyString())
+    , parseErrorCode(ErrorObjectRef::Code::None)
+{
+}
+
+ScriptRef* ScriptParserRef::InitializeScriptResult::fetchScriptThrowsExceptionIfParseError(ExecutionStateRef* state)
+{
+    if (!script.hasValue()) {
+        ErrorObject::throwBuiltinError(*toImpl(state), (ErrorObject::Code)parseErrorCode, toImpl(parseErrorMessage)->toNonGCUTF8StringData().data());
+    }
+
+    return script.value();
+}
+
+ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* script, StringRef* fileName)
+{
+    auto internalResult = toImpl(this)->initializeScript(toImpl(script), toImpl(fileName));
+    ScriptParserRef::InitializeScriptResult result;
+    if (internalResult.script) {
+        result.script = toRef(internalResult.script.value());
+    } else {
+        result.parseErrorMessage = toRef(internalResult.parseErrorMessage);
+        result.parseErrorCode = (Escargot::ErrorObjectRef::Code)internalResult.parseErrorCode;
+    }
+
+    return result;
 }
 
 ValueRef* ScriptRef::execute(ExecutionStateRef* state)

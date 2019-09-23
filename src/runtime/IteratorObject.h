@@ -38,26 +38,6 @@ public:
         return true;
     }
 
-    virtual bool isArrayIteratorObject() const
-    {
-        return false;
-    }
-
-    virtual bool isStringIteratorObject() const
-    {
-        return false;
-    }
-
-    virtual bool isMapIteratorObject() const
-    {
-        return false;
-    }
-
-    virtual bool isSetIteratorObject() const
-    {
-        return false;
-    }
-
     ArrayIteratorObject* asArrayIteratorObject()
     {
         ASSERT(isArrayIteratorObject());

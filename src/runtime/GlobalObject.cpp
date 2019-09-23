@@ -46,94 +46,7 @@ Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, 
     return thisValue;
 }
 
-#ifdef ESCARGOT_SHELL
-static Value builtinPrint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    if (argv[0].isSymbol()) {
-        puts(argv[0].asSymbol()->getSymbolDescriptiveString()->toNonGCUTF8StringData().data());
-    } else {
-        puts(argv[0].toString(state)->toNonGCUTF8StringData().data());
-    }
-    return Value();
-}
-
-static String* builtinHelperFileRead(ExecutionState& state, const char* fileName, AtomicString builtinName)
-{
-    FILE* fp = fopen(fileName, "r");
-    String* src = String::emptyString;
-    if (fp) {
-        std::string utf8Str;
-        Latin1StringDataNonGCStd str;
-        char buf[8];
-        bool hasNonLatin1Content = false;
-        size_t readLen;
-        while ((readLen = fread(buf, 1, sizeof buf, fp))) {
-            if (!hasNonLatin1Content) {
-                const char* source = buf;
-                int charlen;
-                bool valid;
-                while (source < buf + readLen) {
-                    char32_t ch = readUTF8Sequence(source, valid, charlen);
-                    if (ch > 255) {
-                        hasNonLatin1Content = true;
-                        fseek(fp, 0, SEEK_SET);
-                        break;
-                    } else {
-                        str += (LChar)ch;
-                    }
-                }
-            } else {
-                utf8Str.append(buf, readLen);
-            }
-        }
-        fclose(fp);
-        if (hasNonLatin1Content) {
-            auto s = utf8StringToUTF16String(utf8Str.data(), utf8Str.length());
-            src = new UTF16String(std::move(s));
-        } else {
-            src = new Latin1String(str.data(), str.length());
-        }
-    } else {
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "%%s: cannot open file %s", fileName);
-        String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
-        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, builtinName.string(), msg);
-    }
-    return src;
-}
-
-static Value builtinLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto f = argv[0].toString(state)->toUTF8StringData();
-    const char* fileName = f.data();
-
-    String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().load);
-    Context* context = state.context();
-    Script* script = context->scriptParser().initializeScript(state, src, argv[0].toString(state));
-    return script->execute(state, false, false);
-}
-
-static Value builtinRead(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto f = argv[0].toString(state)->toUTF8StringData();
-    const char* fileName = f.data();
-    String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().read);
-    return src;
-}
-
-static Value builtinRun(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    double startTime = DateObject::currentTime();
-
-    auto f = argv[0].toString(state)->toUTF8StringData();
-    const char* fileName = f.data();
-    String* src = builtinHelperFileRead(state, fileName, state.context()->staticStrings().run);
-    Context* context = state.context();
-    Script* script = context->scriptParser().initializeScript(state, src, argv[0].toString(state));
-    script->execute(state, false, false);
-    return Value(DateObject::currentTime() - startTime);
-}
-
+#if defined(ESCARGOT_ENABLE_VENDORTEST)
 static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     bool result = false;
@@ -162,13 +75,12 @@ static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisVal
     return Value(result);
 }
 
-#endif
-
 static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     GC_gcollect_and_unmap();
     return Value();
 }
+#endif
 
 class EvalFunctionObject : public NativeFunctionObject {
 public:
@@ -250,7 +162,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false);
+        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -294,7 +206,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
-        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty());
+        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty()).scriptThrowsExceptionIfParseError(state);
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;
@@ -1148,23 +1060,7 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                                            NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, 0)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-#ifdef ESCARGOT_SHELL
-    defineOwnProperty(state, ObjectPropertyName(strings->print),
-                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                        NativeFunctionInfo(strings->print, builtinPrint, 1, NativeFunctionInfo::Strict)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-    defineOwnProperty(state, ObjectPropertyName(strings->load),
-                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                        NativeFunctionInfo(strings->load, builtinLoad, 1, NativeFunctionInfo::Strict)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-    defineOwnProperty(state, ObjectPropertyName(strings->read),
-                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                        NativeFunctionInfo(strings->read, builtinRead, 1, NativeFunctionInfo::Strict)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-    defineOwnProperty(state, ObjectPropertyName(strings->run),
-                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                        NativeFunctionInfo(strings->run, builtinRun, 1, NativeFunctionInfo::Strict)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+#if defined(ESCARGOT_ENABLE_VENDORTEST)
     AtomicString isFunctionAllocatedOnStackFunctionName(state, "isFunctionAllocatedOnStack");
     defineOwnProperty(state, ObjectPropertyName(isFunctionAllocatedOnStackFunctionName),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
@@ -1176,22 +1072,12 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                         NativeFunctionInfo(strings->run, builtinIsBlockAllocatedOnStack, 2, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-/*
-    defineOwnProperty(state, ObjectPropertyName(strings->dbgBreak),
-                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                  NativeFunctionInfo(strings->dbgBreak, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) -> Value {
-                                                                      puts("dbgBreak");
-                                                                      return Value();
-                                                                  },
-                                                                                     0, NativeFunctionInfo::Strict)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-*/
-#endif
 
     defineOwnProperty(state, ObjectPropertyName(strings->gc),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                         NativeFunctionInfo(strings->gc, builtinGc, 0, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+#endif
 
 #ifdef PROFILE_BDWGC
     AtomicString dumpBackTrace(state, "dumpBackTrace");

@@ -19,46 +19,35 @@
 
 #include "Escargot.h"
 #include "ArrayBufferObject.h"
+#include "VMInstance.h"
 #include "Context.h"
 
 namespace Escargot {
 
-static void* callocWrapper(size_t siz)
-{
-    return calloc(1, siz);
-}
-
-ArrayBufferObjectBufferMallocFunction g_arrayBufferObjectBufferMallocFunction = callocWrapper;
-bool g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill = false;
-ArrayBufferObjectBufferFreeFunction g_arrayBufferObjectBufferFreeFunction = free;
-
-
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+    , m_context(state.context())
     , m_data(nullptr)
     , m_bytelength(0)
 {
     Object::setPrototype(state, state.context()->globalObject()->arrayBufferPrototype());
 }
 
-void ArrayBufferObject::allocateBuffer(size_t bytelength)
+void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
 
-    m_data = (uint8_t*)g_arrayBufferObjectBufferMallocFunction(bytelength);
-    if (g_arrayBufferObjectBufferMallocFunctionNeedsZeroFill) {
-        memset(m_data, 0, bytelength);
-    }
+    m_data = (uint8_t*)m_context->vmInstance()->platform()->arrayBufferObjectDataBufferMallocCallback(m_context, this, bytelength);
     m_bytelength = bytelength;
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        g_arrayBufferObjectBufferFreeFunction(self->m_data);
+        self->m_context->vmInstance()->platform()->arrayBufferObjectDataBufferFreeCallback(self->m_context, self, self->m_data);
     },
                                    nullptr, nullptr, nullptr);
 }
 
-void ArrayBufferObject::attachBuffer(void* buffer, size_t bytelength)
+void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
     m_data = (uint8_t*)buffer;
@@ -66,25 +55,32 @@ void ArrayBufferObject::attachBuffer(void* buffer, size_t bytelength)
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        g_arrayBufferObjectBufferFreeFunction(self->m_data);
+        self->m_context->vmInstance()->platform()->arrayBufferObjectDataBufferFreeCallback(self->m_context, self, self->m_data);
     },
                                    nullptr, nullptr, nullptr);
 }
 
+void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
+{
+    m_context->vmInstance()->platform()->arrayBufferObjectDataBufferFreeCallback(m_context, this, m_data);
+    m_data = NULL;
+    m_bytelength = 0;
+}
+
 // http://www.ecma-international.org/ecma-262/6.0/#sec-clonearraybuffer
-bool ArrayBufferObject::cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset)
+bool ArrayBufferObject::cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset)
 {
     unsigned srcLength = srcBuffer->bytelength();
     ASSERT(srcByteOffset <= srcLength);
     unsigned cloneLength = srcLength - srcByteOffset;
-    return cloneBuffer(srcBuffer, srcByteOffset, cloneLength);
+    return cloneBuffer(state, srcBuffer, srcByteOffset, cloneLength);
 }
 
-bool ArrayBufferObject::cloneBuffer(ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength)
+bool ArrayBufferObject::cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength)
 {
     if (srcBuffer->isDetachedBuffer())
         return false;
-    allocateBuffer(cloneLength);
+    allocateBuffer(state, cloneLength);
     fillData(srcBuffer->data() + srcByteOffset, cloneLength);
     return true;
 }
@@ -98,6 +94,7 @@ void* ArrayBufferObject::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_structure));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_prototype));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_context));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferObject));
         typeInited = true;
     }

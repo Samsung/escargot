@@ -59,17 +59,18 @@ public:
     struct SandBoxResult {
         Value result;
         Value error;
-        String* msgStr;
+        String* resultOrErrorAsString;
         Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
         SandBoxResult()
             : result(Value::EmptyValue)
             , error(Value::EmptyValue)
-            , msgStr(String::emptyString)
+            , resultOrErrorAsString(String::emptyString)
         {
         }
     };
 
     SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
+    SandBoxResult run(Value (*runner)(ExecutionState&, void*), void* data);
     void throwException(ExecutionState& state, Value exception);
 
     Context* context()
@@ -78,6 +79,7 @@ public:
     }
 
 protected:
+    void processCatch(const Value& error, SandBoxResult& result);
     void fillStackDataIntoErrorObject(const Value& e);
 
 private:

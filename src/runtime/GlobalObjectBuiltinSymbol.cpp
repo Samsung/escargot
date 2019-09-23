@@ -59,7 +59,7 @@ Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, size_t ar
 Value builtinSymbolToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_SYMBOL(S, Symbol, toString);
-    return S->getSymbolDescriptiveString();
+    return S->symbolDescriptiveString();
 }
 
 Value builtinSymbolValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -78,24 +78,7 @@ Value builtinSymbolFor(ExecutionState& state, Value thisValue, size_t argc, Valu
 {
     // Let stringKey be ? ToString(key).
     String* stringKey = argv[0].toString(state);
-    // For each element e of the GlobalSymbolRegistry List,
-    auto& list = state.context()->vmInstance()->globalSymbolRegistry();
-    for (size_t i = 0; i < list.size(); i++) {
-        // If SameValue(e.[[Key]], stringKey) is true, return e.[[Symbol]].
-        if (list[i].key->equals(stringKey)) {
-            return list[i].symbol;
-        }
-    }
-    // Assert: GlobalSymbolRegistry does not currently contain an entry for stringKey.
-    // Let newSymbol be a new unique Symbol value whose [[Description]] value is stringKey.
-    Symbol* newSymbol = new Symbol(stringKey);
-    // Append the Record { [[Key]]: stringKey, [[Symbol]]: newSymbol } to the GlobalSymbolRegistry List.
-    GlobalSymbolRegistryItem item;
-    item.key = stringKey;
-    item.symbol = newSymbol;
-    list.pushBack(item);
-    // Return newSymbol.
-    return newSymbol;
+    return Symbol::fromGlobalSymbolRegistry(state.context()->vmInstance(), stringKey);
 }
 
 Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

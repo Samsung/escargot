@@ -25,7 +25,7 @@ namespace Escargot {
 
 class Heap {
 public:
-    static void initialize(bool applyMallOpt = true, bool applyGcOpt = true);
+    static void initialize();
     static void finalize();
     static void printGCHeapUsage();
 };

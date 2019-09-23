@@ -219,11 +219,6 @@ public:
         return false;
     }
 
-    virtual bool isIteratorObject() const
-    {
-        return false;
-    }
-
     virtual bool isMapObject() const
     {
         return false;
@@ -250,6 +245,31 @@ public:
     }
 
     virtual bool isWeakSetPrototypeObject() const
+    {
+        return false;
+    }
+
+    virtual bool isIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isArrayIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isStringIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isMapIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isSetIteratorObject() const
     {
         return false;
     }

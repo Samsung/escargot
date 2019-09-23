@@ -29,36 +29,56 @@
 
 namespace Escargot {
 
+void SandBox::processCatch(const Value& error, SandBoxResult& result)
+{
+    ExecutionState state(m_context);
+    // when exception occurred, an undefined value is allocated for result value which will be never used.
+    // this is to avoid dereferencing of null pointer.
+    result.result = Value();
+    result.error = error;
+    result.resultOrErrorAsString = result.error.toStringWithoutException(state);
+
+    fillStackDataIntoErrorObject(error);
+
+    for (size_t i = 0; i < m_stackTraceData.size(); i++) {
+        if ((size_t)m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            // this means loc not computed yet.
+            ExtendedNodeLOC loc = m_stackTraceData[i].second.loc.actualCodeBlock->computeNodeLOCFromByteCode(m_context,
+                                                                                                             m_stackTraceData[i].second.loc.byteCodePosition, m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock);
+            StackTraceData traceData;
+            traceData.loc = loc;
+            traceData.fileName = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->fileName();
+            traceData.source = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
+            result.stackTraceData.pushBack(traceData);
+        } else {
+            result.stackTraceData.pushBack(m_stackTraceData[i].second);
+        }
+    }
+}
+
+SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*), void* data)
+{
+    SandBox::SandBoxResult result;
+    try {
+        ExecutionState state(m_context);
+        result.result = scriptRunner(state, data);
+        result.resultOrErrorAsString = result.result.toStringWithoutException(state);
+    } catch (const Value& err) {
+        processCatch(err, result);
+    }
+    return result;
+}
+
 SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 {
     SandBox::SandBoxResult result;
-    ExecutionState state(m_context);
+
     try {
         result.result = scriptRunner();
-        result.msgStr = result.result.toStringWithoutException(state);
+        ExecutionState state(m_context);
+        result.resultOrErrorAsString = result.result.toStringWithoutException(state);
     } catch (const Value& err) {
-        // when exception occurred, an undefined value is allocated for result value which will be never used.
-        // this is to avoid dereferencing of null pointer.
-        result.result = Value();
-        result.error = err;
-        result.msgStr = result.error.toStringWithoutException(state);
-
-        fillStackDataIntoErrorObject(err);
-
-        for (size_t i = 0; i < m_stackTraceData.size(); i++) {
-            if ((size_t)m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
-                // this means loc not computed yet.
-                ExtendedNodeLOC loc = m_stackTraceData[i].second.loc.actualCodeBlock->computeNodeLOCFromByteCode(m_context,
-                                                                                                                 m_stackTraceData[i].second.loc.byteCodePosition, m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock);
-                StackTraceData traceData;
-                traceData.loc = loc;
-                traceData.fileName = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->fileName();
-                traceData.source = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
-                result.stackTraceData.pushBack(traceData);
-            } else {
-                result.stackTraceData.pushBack(m_stackTraceData[i].second);
-            }
-        }
+        processCatch(err, result);
     }
     return result;
 }

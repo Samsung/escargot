@@ -38,10 +38,31 @@ class ScriptParser : public gc {
 public:
     explicit ScriptParser(Context* c);
 
-    Script* initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty);
-    Script* initializeScript(ExecutionState& state, String* scriptSource, String* fileName, bool strictFromOutside = false, bool isRunningEvalOnFunction = false, bool isEvalMode = false, size_t stackSizeRemain = SIZE_MAX)
+    struct InitializeScriptResult {
+        Optional<Script*> script;
+        ErrorObject::Code parseErrorCode;
+        String* parseErrorMessage;
+
+        InitializeScriptResult()
+            : parseErrorCode(ErrorObject::Code::None)
+            , parseErrorMessage(String::emptyString)
+        {
+        }
+
+        Script* scriptThrowsExceptionIfParseError(ExecutionState& state)
+        {
+            if (!script) {
+                ErrorObject::throwBuiltinError(state, parseErrorCode, parseErrorMessage->toUTF8StringData().data());
+            }
+
+            return script.value();
+        }
+    };
+
+    InitializeScriptResult initializeScript(StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty);
+    InitializeScriptResult initializeScript(String* scriptSource, String* fileName, bool strictFromOutside = false, bool isRunningEvalOnFunction = false, bool isEvalMode = false, size_t stackSizeRemain = SIZE_MAX)
     {
-        return initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), fileName, nullptr, strictFromOutside, isRunningEvalOnFunction, isEvalMode, false, stackSizeRemain, true, false, false);
+        return initializeScript(StringView(scriptSource, 0, scriptSource->length()), fileName, nullptr, strictFromOutside, isRunningEvalOnFunction, isEvalMode, false, stackSizeRemain, true, false, false);
     }
 
     void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
@@ -50,7 +71,6 @@ private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
     InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
     void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
-    void generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty);
 #ifndef NDEBUG
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
 #endif

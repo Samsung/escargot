@@ -37,7 +37,6 @@ class ScriptParser;
 class ObjectStructure;
 class ControlFlowRecord;
 class SandBox;
-class JobQueue;
 class ByteCodeBlock;
 class ToStringRecursionPreventer;
 
@@ -180,11 +179,6 @@ public:
 
     void throwException(ExecutionState& state, const Value& exception);
 
-    JobQueue* jobQueue()
-    {
-        return m_jobQueue;
-    }
-
     Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& compiledCodeBlocks()
     {
         return m_compiledCodeBlocks;
@@ -262,7 +256,6 @@ private:
     // public helper variable
     void* m_virtualIdentifierCallbackPublic;
     void* m_securityPolicyCheckCallbackPublic;
-    JobQueue* m_jobQueue;
 };
 }
 

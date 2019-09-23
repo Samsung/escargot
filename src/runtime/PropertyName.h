@@ -137,7 +137,7 @@ public:
         if (isPlainString()) {
             return plainString();
         }
-        return ((Symbol*)m_data)->getSymbolDescriptiveString();
+        return ((Symbol*)m_data)->symbolDescriptiveString();
     }
 
 private:
