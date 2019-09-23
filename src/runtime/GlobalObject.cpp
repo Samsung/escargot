@@ -250,7 +250,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, false, stackRemainApprox, true);
+        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -294,7 +294,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
-        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true);
+        Script* script = parser.initializeScript(state, StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty());
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;

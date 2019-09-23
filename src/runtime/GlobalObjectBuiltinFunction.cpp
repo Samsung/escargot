@@ -46,7 +46,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
-    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false);
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false);
 
     return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 }

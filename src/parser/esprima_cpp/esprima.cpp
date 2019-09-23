@@ -126,6 +126,8 @@ struct Context {
     bool allowIn : 1;
     bool allowYield : 1;
     bool allowLexicalDeclaration : 1;
+    bool allowSuperCall : 1;
+    bool allowSuperProperty : 1;
     bool isAssignmentTarget : 1;
     bool isBindingElement : 1;
     bool inFunctionBody : 1;
@@ -473,6 +475,8 @@ public:
         this->context->allowIn = true;
         this->context->allowYield = true;
         this->context->allowLexicalDeclaration = false;
+        this->context->allowSuperCall = false;
+        this->context->allowSuperProperty = false;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         this->context->inFunctionBody = false;
@@ -992,6 +996,22 @@ public:
             this->lastMarker.lineStart = this->startMarker.lineStart;
         }
     }
+    void throwIfSuperOperationIsNotAllowed()
+    {
+        Scanner::ScannerResult token;
+        this->nextToken(&token);
+        if (this->match(LeftParenthesis)) {
+            if (!this->context->allowSuperCall) {
+                this->throwUnexpectedToken(&token);
+            }
+        } else if (this->match(Period) || this->match(LeftSquareBracket)) {
+            if (!this->context->allowSuperProperty) {
+                this->throwUnexpectedToken(&token);
+            }
+        } else {
+            this->throwUnexpectedToken(&this->lookahead);
+        }
+    }
 
     IdentifierNode* finishIdentifier(Scanner::ScannerResult* token)
     {
@@ -1208,11 +1228,7 @@ public:
                     }
                     return ScanExpressionResult(ASTNodeType::ThisExpression);
                 } else if (this->matchKeyword(SuperKeyword)) {
-                    this->nextToken();
-                    if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
-                        this->throwUnexpectedToken(&this->lookahead);
-                    }
-
+                    throwIfSuperOperationIsNotAllowed();
                     if (isParse) {
                         return T(this->finalize(node, new SuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis)));
                     }
@@ -1636,13 +1652,21 @@ public:
         return body;
     }
 
-    PassRefPtr<FunctionExpressionNode> parsePropertyMethodFunction()
+    PassRefPtr<FunctionExpressionNode> parsePropertyMethodFunction(bool allowSuperCall)
     {
         const bool isGenerator = false;
         const bool previousAllowYield = this->context->allowYield;
+        const bool previousAllowSuperCall = this->context->allowSuperCall;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousInArrowFunction = this->context->inArrowFunction;
+
         this->context->allowYield = true;
         this->context->inArrowFunction = false;
+        this->context->allowSuperProperty = true;
+
+        if (allowSuperCall) {
+            this->context->allowSuperCall = true;
+        }
 
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
@@ -1653,10 +1677,16 @@ public:
 
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
+        this->context->allowSuperCall = previousAllowSuperCall;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
+        scopeContexts.back()->m_allowSuperProperty = true;
+        if (allowSuperCall) {
+            scopeContexts.back()->m_allowSuperCall = true;
+        }
         return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
@@ -1943,9 +1973,9 @@ public:
                 }
             } else if (this->match(LeftParenthesis)) {
                 if (isParse) {
-                    valueNode = this->parsePropertyMethodFunction();
+                    valueNode = this->parsePropertyMethodFunction(false);
                 } else {
-                    this->parsePropertyMethodFunction();
+                    this->parsePropertyMethodFunction(false);
                 }
                 method = true;
             } else {
@@ -2513,11 +2543,7 @@ public:
         ScanExpressionResult expr;
 
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
-            this->nextToken();
-            if (!this->match(LeftParenthesis) && !this->match(Period) && !this->match(LeftSquareBracket)) {
-                this->throwUnexpectedToken(&this->lookahead);
-            }
-
+            throwIfSuperOperationIsNotAllowed();
             scopeContexts.back()->m_hasSuperOrNewTarget = true;
 
             if (isParse) {
@@ -3524,8 +3550,12 @@ public:
                     bool previousStrict = this->context->strict;
                     bool previousAllowYield = this->context->allowYield;
                     bool previousInArrowFunction = this->context->inArrowFunction;
+
                     this->context->allowYield = true;
                     this->context->inArrowFunction = true;
+
+                    scopeContexts.back()->m_allowSuperCall = this->context->allowSuperCall;
+                    scopeContexts.back()->m_allowSuperProperty = this->context->allowSuperProperty;
 
                     scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
                     scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
@@ -5548,7 +5578,6 @@ public:
     }
 
     // ECMA-262 14.1 Function Definition
-
     PassRefPtr<BlockStatementNode> parseFunctionSourceElements()
     {
         if (this->config.parseSingleFunction) {
@@ -5572,6 +5601,7 @@ public:
             this->lookahead.type = Token::PunctuatorToken;
             this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
             this->expect(RightBrace);
+
             return this->finalize(this->createNode(), new BlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
         }
 
@@ -5861,10 +5891,13 @@ public:
 
         bool isGenerator = false;
         ParseFormalParametersResult params;
-        bool previousAllowYield = this->context->allowYield;
-        bool previousInArrowFunction = this->context->inArrowFunction;
+        const bool previousAllowYield = this->context->allowYield;
+        const bool previousInArrowFunction = this->context->inArrowFunction;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+
         this->context->allowYield = true;
         this->context->inArrowFunction = false;
+        this->context->allowSuperProperty = true;
 
         pushScopeContext(AtomicString());
         extractNamesFromFunctionParams(params);
@@ -5872,10 +5905,12 @@ public:
 
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
+        scopeContexts.back()->m_allowSuperProperty = true;
         return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
@@ -5884,9 +5919,12 @@ public:
         MetaNode node = this->createNode();
 
         bool isGenerator = false;
-        bool previousAllowYield = this->context->allowYield;
-        bool previousInArrowFunction = this->context->inArrowFunction;
+        const bool previousAllowYield = this->context->allowYield;
+        const bool previousInArrowFunction = this->context->inArrowFunction;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+
         this->context->allowYield = true;
+        this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
@@ -5901,11 +5939,13 @@ public:
         RefPtr<Node> method = this->parsePropertyMethod(formalParameters);
 
         this->context->allowYield = previousAllowYield;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
+        scopeContexts.back()->m_allowSuperProperty = true;
         return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
@@ -5914,9 +5954,12 @@ public:
         MetaNode node = this->createNode();
 
         bool isGenerator = true;
-        bool previousAllowYield = this->context->allowYield;
-        bool previousInArrowFunction = this->context->inArrowFunction;
+        const bool previousAllowYield = this->context->allowYield;
+        const bool previousInArrowFunction = this->context->inArrowFunction;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+
         this->context->allowYield = false;
+        this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
@@ -5926,11 +5969,13 @@ public:
         RefPtr<Node> method = this->parsePropertyMethod(formalParameters);
 
         this->context->allowYield = previousAllowYield;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
 
         scopeContexts.back()->m_paramsStartLOC.index = node.index;
         scopeContexts.back()->m_paramsStartLOC.column = node.column;
         scopeContexts.back()->m_paramsStartLOC.line = node.line;
+        scopeContexts.back()->m_allowSuperProperty = true;
         return this->finalize(node, new FunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
     }
 
@@ -6116,7 +6161,13 @@ public:
 
         if (kind == ClassElementNode::Kind::None && (keyNode || keyScanResult.first != ASTNodeTypeError) && this->match(LeftParenthesis)) {
             kind = ClassElementNode::Kind::Method;
-            value = this->parsePropertyMethodFunction();
+            bool allowSuperCall = false;
+            if (hasSuperClass) {
+                if ((keyNode && this->isPropertyKey(keyNode.get(), "constructor")) || (this->isPropertyKey(keyScanResult.first, keyScanResult.second, "constructor"))) {
+                    allowSuperCall = true;
+                }
+            }
+            value = this->parsePropertyMethodFunction(allowSuperCall);
         }
 
         if (kind == ClassElementNode::Kind::None) {
@@ -6644,11 +6695,14 @@ public:
     */
 };
 
-RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, bool inWith, size_t stackRemain)
+RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside)
 {
     Parser parser(ctx, source, stackRemain);
     parser.context->strict = strictFromOutside;
     parser.context->inWith = inWith;
+    parser.context->allowSuperCall = allowSuperCallOutside;
+    parser.context->allowSuperProperty = allowSuperPropertyOutside;
+
     RefPtr<ProgramNode> nd = parser.parseProgram();
     return nd;
 }
@@ -6658,7 +6712,10 @@ RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCo
     Parser parser(ctx, codeBlock->src(), stackRemain, codeBlock->sourceElementStart());
     parser.trackUsingNames = false;
     parser.context->allowLexicalDeclaration = true;
+    parser.context->allowSuperCall = true;
+    parser.context->allowSuperProperty = true;
     parser.config.parseSingleFunction = true;
+
     parser.config.parseSingleFunctionTarget = codeBlock;
     // when parsing for function call, childindex should be set to index 1
     parser.config.parseSingleFunctionChildIndex = 1;

@@ -196,15 +196,15 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     }
 }
 
-Script* ScriptParser::initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration)
+Script* ScriptParser::initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
 {
     Script* script = new Script(fileName, new StringView(scriptSource));
-    generateProgramCodeBlock(state, scriptSource, script, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, stackSizeRemain, needByteCodeGeneration);
+    generateProgramCodeBlock(state, scriptSource, script, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, stackSizeRemain, needByteCodeGeneration, allowSuperCall, allowSuperProperty);
 
     return script;
 }
 
-void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration)
+void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
 {
     ASSERT(script != nullptr);
 
@@ -214,11 +214,13 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
     GC_disable();
 
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
+    bool allowSC = (parentCodeBlock ? parentCodeBlock->allowSuperCall() : false) || allowSuperCall;
+    bool allowSP = (parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false) || allowSuperProperty;
 
     // Parsing
     try {
         m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
-        programNode = esprima::parseProgram(m_context, scriptSource, strictFromOutside, inWith, stackSizeRemain);
+        programNode = esprima::parseProgram(m_context, scriptSource, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
 
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
@@ -228,6 +230,8 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
             programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
             programNode->scopeContext()->m_isClassMethod = parentCodeBlock->isClassMethod();
             programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
+            programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
+            programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get(), isEvalMode, isEvalCodeInFunction);

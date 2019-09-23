@@ -238,6 +238,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasArrowParameterPlaceHolder = false;
     m_hasParameterOtherThanIdentifier = false;
 
+    m_allowSuperCall = scopeCtx->m_allowSuperCall;
+    m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
+
     const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
 
@@ -306,6 +309,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
     m_needsVirtualIDOperation = false;
+
+    m_allowSuperCall = scopeCtx->m_allowSuperCall;
+    m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
 
     m_parameterNames.resizeWithUninitializedValues(parameterNames.size());
     for (size_t i = 0; i < parameterNames.size(); i++) {

@@ -161,14 +161,4 @@
   <test id="attempt-to-redeclare-function-declaration-with-function-declaration"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-var"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-with-function-declaration"><reason>TODO</reason></test>
-  <test id="generator-super-call-body"><reason>TODO</reason></test>
-  <test id="generator-super-call-param"><reason>TODO</reason></test>
-  <test id="class-body-has-direct-super-missing-class-heritage"><reason>TODO</reason></test>
-  <test id="class-body-method-contains-direct-super"><reason>TODO</reason></test>
-  <test id="class-body-special-method-generator-contains-direct-super"><reason>TODO</reason></test>
-  <test id="class-body-special-method-get-contains-direct-super"><reason>TODO</reason></test>
-  <test id="class-body-special-method-set-contains-direct-super"><reason>TODO</reason></test>
-  <test id="class-body-static-method-contains-direct-super"><reason>TODO</reason></test>
-  <test id="class-body-static-method-get-contains-direct-super"><reason>TODO</reason></test>
-  <test id="class-body-static-method-set-contains-direct-super"><reason>TODO</reason></test>
 </excludeList>

@@ -2416,12 +2416,12 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
-            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false);
+            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false);
             functionSource.codeBlock->setAsClassConstructor();
             constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto);
         } else {
             Value argv[] = { new ASCIIString("...args"), new ASCIIString("super(...args)") };
-            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false);
+            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, true);
             functionSource.codeBlock->setAsClassConstructor();
             functionSource.codeBlock->setAsDerivedClassConstructor();
             constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto);
