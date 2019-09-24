@@ -31,7 +31,7 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
-    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true);
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, false);
 
     return new ScriptGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
 }

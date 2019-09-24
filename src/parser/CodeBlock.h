@@ -214,6 +214,16 @@ public:
         return m_hasParameterOtherThanIdentifier;
     }
 
+    bool allowSuperCall() const
+    {
+        return m_allowSuperCall;
+    }
+
+    bool allowSuperProperty() const
+    {
+        return m_allowSuperProperty;
+    }
+
     bool hasImplictFunctionName()
     {
         return m_hasImplictFunctionName;
@@ -334,6 +344,8 @@ protected:
     bool m_hasImplictFunctionName : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
+    bool m_allowSuperCall : 1;
+    bool m_allowSuperProperty : 1;
     uint16_t m_parameterCount;
 
     AtomicString m_functionName;

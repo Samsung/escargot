@@ -72,7 +72,7 @@ FunctionObject::FunctionObject(ExecutionState& state, size_t defaultSpace)
 {
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator)
+FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool allowSuperCall)
 {
     StringBuilder src, srcToTest;
     if (useStrict) {
@@ -113,7 +113,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
         srcToTest.appendString(") { }");
         String* cur = srcToTest.finalize(&state);
         state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
-        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, SIZE_MAX);
+        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, SIZE_MAX, false, false);
     } catch (esprima::Error& orgError) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
     }
@@ -142,7 +142,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     ScriptParser parser(state.context());
     String* scriptSource = src.finalize(&state);
 
-    Script* script = parser.initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), new ASCIIString("Function Constructor input"), nullptr, false, false, false, false, SIZE_MAX, false);
+    Script* script = parser.initializeScript(state, StringView(scriptSource, 0, scriptSource->length()), new ASCIIString("Function Constructor input"), nullptr, false, false, false, false, SIZE_MAX, false, allowSuperCall, false);
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlocks()[0];
     cb->updateSourceElementStart(3, 1);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), &state.context()->globalDeclarativeRecord(), &state.context()->globalDeclarativeStorage()), nullptr);
