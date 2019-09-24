@@ -45,6 +45,7 @@ class SuperGetObjectOperation;
 class CallSuper;
 class WithOperation;
 class BlockOperation;
+class ReplaceBlockLexicalEnvironmentOperation;
 class TryOperation;
 class BinaryInstanceOfOperation;
 class UnaryDelete;
@@ -56,8 +57,7 @@ class ObjectDefineOwnPropertyWithNameOperation;
 class ArrayDefineOwnPropertyOperation;
 class ArrayDefineOwnPropertyBySpreadElementOperation;
 class CreateSpreadArrayObject;
-class ObjectDefineGetter;
-class ObjectDefineSetter;
+class ObjectDefineGetterSetter;
 class ResolveNameAddress;
 class StoreByNameWithAddress;
 class GlobalObject;
@@ -117,8 +117,9 @@ public:
     static void callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile);
     static Value withOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
-    static Value callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, LexicalEnvironment* env, Value* argv);
+    static void callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, Value* registerFile);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
 
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
@@ -133,8 +134,7 @@ public:
     static void arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile);
     static void arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile);
     static void createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile);
-    static void defineObjectGetter(ExecutionState& state, ObjectDefineGetter* code, Value* registerFile);
-    static void defineObjectSetter(ExecutionState& state, ObjectDefineSetter* code, Value* registerFile);
+    static void defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, Value* registerFile);
     static Value incrementOperation(ExecutionState& state, const Value& value);
     static Value decrementOperation(ExecutionState& state, const Value& value);
 

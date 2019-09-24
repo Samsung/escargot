@@ -110,7 +110,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetParameter, 0, 0)                                   \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
-    F(TryCatchWithBlockBodyEnd, 0, 0)                       \
+    F(TryCatchFinallyWithBlockBodyEnd, 0, 0)                \
     F(ThrowOperation, 0, 0)                                 \
     F(ThrowStaticErrorOperation, 0, 0)                      \
     F(EnumerateObject, 1, 0)                                \
@@ -121,8 +121,7 @@ struct GlobalVariableAccessCacheItem;
     F(IteratorClose, 1, 0)                                  \
     F(LoadRegexp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
-    F(ObjectDefineGetter, 0, 0)                             \
-    F(ObjectDefineSetter, 0, 0)                             \
+    F(ObjectDefineGetterSetter, 0, 0)                       \
     F(CallEvalFunction, 0, 0)                               \
     F(CallFunctionInWithScope, 0, 0)                        \
     F(BindingRestElement, 1, 0)                             \
@@ -131,6 +130,7 @@ struct GlobalVariableAccessCacheItem;
     F(YieldDelegate, 1, 0)                                  \
     F(NewTargetOperation, 1, 0)                             \
     F(BlockOperation, 0, 0)                                 \
+    F(ReplaceBlockLexicalEnvironmentOperation, 0, 0)        \
     F(EnsureArgumentsObject, 0, 0)                          \
     F(ResolveNameAddress, 1, 0)                             \
     F(StoreByNameWithAddress, 0, 1)                         \
@@ -174,6 +174,12 @@ struct ByteCodeLOC {
     {
     }
 };
+
+#if defined(NDEBUG) && defined(ESCARGOT_32)
+#define BYTECODE_SIZE_CHECK_IN_32BIT(codeName, size) COMPILE_ASSERT(sizeof(codeName) == size, "");
+#else
+#define BYTECODE_SIZE_CHECK_IN_32BIT(CodeName, Size)
+#endif
 
 /* Byte code is never instantiated on the heap, it is part of the byte code stream. */
 class ByteCode {
@@ -335,8 +341,8 @@ public:
         , m_name(name)
     {
     }
-    bool m_isLexicallyDeclaredName;
-    ByteCodeRegisterIndex m_registerIndex;
+    bool m_isLexicallyDeclaredName : 1;
+    ByteCodeRegisterIndex m_registerIndex : REGISTER_INDEX_IN_BIT;
     AtomicString m_name;
 
 #ifndef NDEBUG
@@ -346,6 +352,8 @@ public:
     }
 #endif
 };
+
+BYTECODE_SIZE_CHECK_IN_32BIT(InitializeByName, sizeof(size_t) * 3);
 
 class LoadByHeapIndex : public ByteCode {
 public:
@@ -486,8 +494,8 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_dstIndex;
-    bool m_isCall;
+    ByteCodeRegisterIndex m_dstIndex : REGISTER_INDEX_IN_BIT;
+    bool m_isCall : 1;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
@@ -499,6 +507,8 @@ public:
     }
 #endif
 };
+
+BYTECODE_SIZE_CHECK_IN_32BIT(SuperReference, sizeof(size_t) * 2);
 
 class SuperSetObjectOperation : public ByteCode {
 public:
@@ -555,11 +565,11 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_calleeIndex;
-    ByteCodeRegisterIndex m_argumentsStartIndex;
-    ByteCodeRegisterIndex m_resultIndex;
-    uint16_t m_argumentCount;
-    bool m_hasSpreadElement;
+    ByteCodeRegisterIndex m_calleeIndex : REGISTER_INDEX_IN_BIT;
+    ByteCodeRegisterIndex m_argumentsStartIndex : REGISTER_INDEX_IN_BIT;
+    ByteCodeRegisterIndex m_resultIndex : REGISTER_INDEX_IN_BIT;
+    uint16_t m_argumentCount : 16;
+    bool m_hasSpreadElement : 1;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -568,6 +578,8 @@ public:
     }
 #endif
 };
+
+BYTECODE_SIZE_CHECK_IN_32BIT(CallSuper, sizeof(size_t) * 4);
 
 class LoadThisBinding : public ByteCode {
 public:
@@ -763,6 +775,8 @@ public:
 #endif
 };
 
+BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineOwnPropertyOperation, sizeof(size_t) * 3);
+
 class ObjectDefineOwnPropertyWithNameOperation : public ByteCode {
 public:
     ObjectDefineOwnPropertyWithNameOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString propertyName, const size_t loadRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
@@ -787,6 +801,8 @@ public:
 #endif
 };
 
+BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineOwnPropertyWithNameOperation, sizeof(size_t) * 4);
+
 #define ARRAY_DEFINE_OPERATION_MERGE_COUNT 8
 
 class ArrayDefineOwnPropertyOperation : public ByteCode {
@@ -799,8 +815,8 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_objectRegisterIndex;
-    uint8_t m_count;
+    ByteCodeRegisterIndex m_objectRegisterIndex : REGISTER_INDEX_IN_BIT;
+    uint8_t m_count : 8;
     uint32_t m_baseIndex;
     ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
 
@@ -828,8 +844,8 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_objectRegisterIndex;
-    uint8_t m_count;
+    ByteCodeRegisterIndex m_objectRegisterIndex : REGISTER_INDEX_IN_BIT;
+    uint8_t m_count : 8;
     ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
 
 #ifndef NDEBUG
@@ -1385,7 +1401,7 @@ private:
 
 class JumpComplexCase : public ByteCode {
 public:
-    JumpComplexCase(Jump* jmp, ControlFlowRecord* controlFlowRecord)
+    JumpComplexCase(ControlFlowRecord* controlFlowRecord)
         : ByteCode(Opcode::JumpComplexCaseOpcode, ByteCodeLOC(SIZE_MAX))
         , m_controlFlowRecord(controlFlowRecord)
     {
@@ -1844,17 +1860,17 @@ public:
 #endif
 };
 
-class TryCatchWithBlockBodyEnd : public ByteCode {
+class TryCatchFinallyWithBlockBodyEnd : public ByteCode {
 public:
-    explicit TryCatchWithBlockBodyEnd(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::TryCatchWithBlockBodyEndOpcode, loc)
+    explicit TryCatchFinallyWithBlockBodyEnd(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::TryCatchFinallyWithBlockBodyEndOpcode, loc)
     {
     }
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("try-catch-with-block end");
+        printf("try-catch-finally-with-block");
     }
 #endif
 };
@@ -2084,51 +2100,37 @@ public:
 #endif
 };
 
-class ObjectDefineGetter : public ByteCode {
+class ObjectDefineGetterSetter : public ByteCode {
 public:
-    ObjectDefineGetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
-        : ByteCode(Opcode::ObjectDefineGetterOpcode, loc)
+    ObjectDefineGetterSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute, bool isGetter)
+        : ByteCode(Opcode::ObjectDefineGetterSetterOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
         , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
         , m_presentAttribute(presentAttribute)
+        , m_isGetter(isGetter)
     {
     }
 
-    ByteCodeRegisterIndex m_objectRegisterIndex;
-    ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
-    ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
-    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
+    ByteCodeRegisterIndex m_objectRegisterIndex : REGISTER_INDEX_IN_BIT;
+    ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex : REGISTER_INDEX_IN_BIT;
+    ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex : REGISTER_INDEX_IN_BIT;
+    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute : 8;
+    bool m_isGetter : 1; // other case, this is setter
+
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("object define getter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+        if (m_isGetter) {
+            printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+        } else {
+            printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+        }
     }
 #endif
 };
 
-class ObjectDefineSetter : public ByteCode {
-public:
-    ObjectDefineSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute)
-        : ByteCode(Opcode::ObjectDefineSetterOpcode, loc)
-        , m_objectRegisterIndex(objectRegisterIndex)
-        , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
-        , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
-        , m_presentAttribute(presentAttribute)
-    {
-    }
-
-    ByteCodeRegisterIndex m_objectRegisterIndex;
-    ByteCodeRegisterIndex m_objectPropertyNameRegisterIndex;
-    ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex;
-    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
-    }
-#endif
-};
+BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineGetterSetter, sizeof(size_t) * 3);
 
 class BindingRestElement : public ByteCode {
 public:
@@ -2164,6 +2166,23 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("block operation (%p) -> end %d", m_blockInfo, (int)m_blockEndPosition);
+    }
+#endif
+};
+
+class ReplaceBlockLexicalEnvironmentOperation : public ByteCode {
+public:
+    ReplaceBlockLexicalEnvironmentOperation(const ByteCodeLOC& loc, InterpretedCodeBlock::BlockInfo* bi)
+        : ByteCode(Opcode::ReplaceBlockLexicalEnvironmentOperationOpcode, loc)
+        , m_blockInfo(bi)
+    {
+    }
+
+    InterpretedCodeBlock::BlockInfo* m_blockInfo;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("replace block lexical env operation (%p)", m_blockInfo);
     }
 #endif
 };
@@ -2336,6 +2355,7 @@ public:
     };
     ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
+    void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
 
     template <typename CodeType>
     CodeType* peekCode(size_t position)

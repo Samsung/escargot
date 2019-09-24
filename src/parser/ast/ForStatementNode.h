@@ -51,8 +51,10 @@ public:
     {
         return ASTNodeType::ForStatement;
     }
+
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
+        // TODO remove iterationLexicalBlock if there is no capture from child blocks or self
         size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
         if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
@@ -68,28 +70,6 @@ public:
         if (m_init && m_init->type() != ASTNodeType::RegExpLiteral) {
             m_init->generateStatementByteCode(codeBlock, &newContext);
         }
-
-        size_t forStart = codeBlock->currentCodeSize();
-
-        size_t testIndex = 0;
-        size_t testPos = 0;
-        if (m_test) {
-            if (m_test->isRelationOperation()) {
-                m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
-                testPos = codeBlock->lastCodePosition<JumpIfRelation>();
-            } else if (m_test->isEqualityOperation()) {
-                m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
-                testPos = codeBlock->lastCodePosition<JumpIfEqual>();
-            } else {
-                testIndex = m_test->getRegister(codeBlock, &newContext);
-                m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
-                testPos = codeBlock->lastCodePosition<JumpIfFalse>();
-                newContext.giveUpRegister();
-            }
-        }
-
-        newContext.giveUpRegister();
 
         // per iteration block
         size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
@@ -131,40 +111,66 @@ public:
             }
         }
 
-        m_body->generateStatementByteCode(codeBlock, &newContext);
+        size_t forStart = codeBlock->currentCodeSize();
 
-        size_t updatePosition = codeBlock->currentCodeSize();
-        if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
-            std::vector<size_t> nameRegisters;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                nameRegisters.push_back(newContext.getRegister());
-            }
-
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
-                id->m_loc = m_loc;
-                id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
-            }
-
-            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
-            newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
-
-            size_t reverse = bi->m_identifiers.size() - 1;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
-                id->m_loc = m_loc;
-                newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
-                id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
-                ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+        size_t testIndex = 0;
+        size_t testPos = 0;
+        if (m_test) {
+            if (m_test->isRelationOperation()) {
+                m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
+                testPos = codeBlock->lastCodePosition<JumpIfRelation>();
+            } else if (m_test->isEqualityOperation()) {
+                m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
+                testPos = codeBlock->lastCodePosition<JumpIfEqual>();
+            } else {
+                testIndex = m_test->getRegister(codeBlock, &newContext);
+                m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
+                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
+                testPos = codeBlock->lastCodePosition<JumpIfFalse>();
                 newContext.giveUpRegister();
-            }
-
-            if (bi->m_shouldAllocateEnvironment) {
-                newContext.m_complexJumpContinueIgnoreCount--;
             }
         }
 
+        newContext.giveUpRegister();
+
+        m_body->generateStatementByteCode(codeBlock, &newContext);
+
+        // replace env if needed
+        if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            if (bi->m_shouldAllocateEnvironment) {
+                newContext.getRegister();
+
+                std::vector<size_t> nameRegisters;
+                for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                    nameRegisters.push_back(newContext.getRegister());
+                }
+
+                for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                    IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+                    id->m_loc = m_loc;
+                    id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
+                }
+
+                codeBlock->pushCode(ReplaceBlockLexicalEnvironmentOperation(ByteCodeLOC(m_loc.index), bi), &newContext, this);
+
+                codeBlock->initFunctionDeclarationWithinBlock(&newContext, bi, this);
+
+                size_t reverse = bi->m_identifiers.size() - 1;
+                for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
+                    IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                    id->m_loc = m_loc;
+                    newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
+                    id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
+                    ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+                    newContext.giveUpRegister();
+                }
+
+                newContext.giveUpRegister();
+            }
+        }
+
+        size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
             if (!context->m_isEvalCode && !context->m_isGlobalScope) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
@@ -179,6 +185,15 @@ public:
         size_t forEnd = codeBlock->currentCodeSize();
         if (m_test) {
             codeBlock->peekCode<JumpByteCode>(testPos)->m_jumpPosition = forEnd;
+        }
+
+        if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
+            newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
+            if (bi->m_shouldAllocateEnvironment) {
+                newContext.m_complexJumpContinueIgnoreCount--;
+            }
         }
 
         newContext.consumeBreakPositions(codeBlock, forEnd, context->tryCatchWithBlockStatementCount());

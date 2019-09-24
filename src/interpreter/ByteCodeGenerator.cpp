@@ -82,25 +82,23 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
     if (iter != m_complexCaseStatementPositions.end()) {
         ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second, outerLimitCount);
         m_byteCodeBlock->m_literalData.pushBack(r);
-        JumpComplexCase j(cb->peekCode<Jump>(codePos), r);
-        memcpy(cb->m_code.data() + codePos, &j, sizeof(JumpComplexCase));
+        new (cb->m_code.data() + codePos) JumpComplexCase(r);
         m_complexCaseStatementPositions.erase(iter);
     }
 }
 
-ALWAYS_INLINE void assignStackIndexIfNeeded(ByteCodeRegisterIndex& registerIndex, ByteCodeRegisterIndex stackBase, ByteCodeRegisterIndex stackBaseWillBe, ByteCodeRegisterIndex stackVariableSize)
-{
-    if (UNLIKELY(registerIndex == REGISTER_LIMIT)) {
-        return;
+#define ASSIGN_STACKINDEX_IF_NEEDED(registerIndex, stackBase, stackBaseWillBe, stackVariableSize)                         \
+    {                                                                                                                     \
+        if (LIKELY(registerIndex != REGISTER_LIMIT)) {                                                                    \
+            if (registerIndex >= stackBase) {                                                                             \
+                if (registerIndex >= (stackBase + VARIABLE_LIMIT)) {                                                      \
+                    registerIndex = stackBaseWillBe + (registerIndex - (stackBase + VARIABLE_LIMIT)) + stackVariableSize; \
+                } else {                                                                                                  \
+                    registerIndex = stackBaseWillBe + (registerIndex - stackBase);                                        \
+                }                                                                                                         \
+            }                                                                                                             \
+        }                                                                                                                 \
     }
-    if (registerIndex >= stackBase) {
-        if (registerIndex >= (stackBase + VARIABLE_LIMIT)) {
-            registerIndex = stackBaseWillBe + (registerIndex - (stackBase + VARIABLE_LIMIT)) + stackVariableSize;
-        } else {
-            registerIndex = stackBaseWillBe + (registerIndex - stackBase);
-        }
-    }
-}
 
 static const uint8_t byteCodeLengths[] = {
 #define ITER_BYTE_CODE(code, pushCount, popCount) \
@@ -192,171 +190,164 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             switch (opcode) {
             case LoadLiteralOpcode: {
                 LoadLiteral* cd = (LoadLiteral*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case LoadRegexpOpcode: {
                 LoadRegexp* cd = (LoadRegexp*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case LoadByNameOpcode: {
                 LoadByName* cd = (LoadByName*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case StoreByNameOpcode: {
                 StoreByName* cd = (StoreByName*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case InitializeByNameOpcode: {
                 InitializeByName* cd = (InitializeByName*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case StoreByNameWithAddressOpcode: {
                 StoreByNameWithAddress* cd = (StoreByNameWithAddress*)currentCode;
-                assignStackIndexIfNeeded(cd->m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case LoadByHeapIndexOpcode: {
                 LoadByHeapIndex* cd = (LoadByHeapIndex*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case StoreByHeapIndexOpcode: {
                 StoreByHeapIndex* cd = (StoreByHeapIndex*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case InitializeByHeapIndexOpcode: {
                 InitializeByHeapIndex* cd = (InitializeByHeapIndex*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CreateFunctionOpcode: {
                 CreateFunction* cd = (CreateFunction*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CreateRestElementOpcode: {
                 CreateRestElement* cd = (CreateRestElement*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CreateObjectOpcode: {
                 CreateObject* cd = (CreateObject*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CreateArrayOpcode: {
                 CreateArray* cd = (CreateArray*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case GetObjectOpcode: {
                 GetObject* cd = (GetObject*)currentCode;
-                assignStackIndexIfNeeded(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case SetObjectOperationOpcode: {
                 SetObjectOperation* cd = (SetObjectOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ObjectDefineOwnPropertyOperationOpcode: {
                 ObjectDefineOwnPropertyOperation* cd = (ObjectDefineOwnPropertyOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ObjectDefineOwnPropertyWithNameOperationOpcode: {
                 ObjectDefineOwnPropertyWithNameOperation* cd = (ObjectDefineOwnPropertyWithNameOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ArrayDefineOwnPropertyOperationOpcode: {
                 ArrayDefineOwnPropertyOperation* cd = (ArrayDefineOwnPropertyOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 for (size_t i = 0; i < cd->m_count; i++)
-                    assignStackIndexIfNeeded(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ArrayDefineOwnPropertyBySpreadElementOperationOpcode: {
                 ArrayDefineOwnPropertyBySpreadElementOperation* cd = (ArrayDefineOwnPropertyBySpreadElementOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 for (size_t i = 0; i < cd->m_count; i++)
-                    assignStackIndexIfNeeded(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndexs[i], stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case GetObjectPreComputedCaseOpcode: {
                 GetObjectPreComputedCase* cd = (GetObjectPreComputedCase*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case SetObjectPreComputedCaseOpcode: {
                 SetObjectPreComputedCase* cd = (SetObjectPreComputedCase*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case GetParameterOpcode: {
                 GetParameter* cd = (GetParameter*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case EndOpcode: {
                 End* cd = (End*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ReturnFunctionSlowCaseOpcode: {
                 ReturnFunctionSlowCase* cd = (ReturnFunctionSlowCase*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case MoveOpcode: {
                 Move* cd = (Move*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case ObjectDefineGetterOpcode: {
-                ObjectDefineGetter* cd = (ObjectDefineGetter*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_objectPropertyNameRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_objectPropertyValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case ObjectDefineSetterOpcode: {
-                ObjectDefineSetter* cd = (ObjectDefineSetter*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_objectPropertyNameRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_objectPropertyValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            case ObjectDefineGetterSetterOpcode: {
+                ObjectDefineGetterSetter* cd = (ObjectDefineGetterSetter*)currentCode;
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectPropertyNameRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectPropertyValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case GetGlobalVariableOpcode: {
                 GetGlobalVariable* cd = (GetGlobalVariable*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case SetGlobalVariableOpcode: {
                 SetGlobalVariable* cd = (SetGlobalVariable*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case InitializeGlobalVariableOpcode: {
                 InitializeGlobalVariable* cd = (InitializeGlobalVariable*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ToNumberOpcode:
@@ -366,70 +357,70 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case UnaryNotOpcode:
             case UnaryBitwiseNotOpcode: {
                 ToNumber* cd = (ToNumber*)currentCode;
-                assignStackIndexIfNeeded(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ToNumberIncrementOpcode:
             case ToNumberDecrementOpcode: {
                 ToNumberIncrement* cd = (ToNumberIncrement*)currentCode;
-                assignStackIndexIfNeeded(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_storeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case UnaryTypeofOpcode: {
                 UnaryTypeof* cd = (UnaryTypeof*)currentCode;
-                assignStackIndexIfNeeded(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case UnaryDeleteOpcode: {
                 UnaryDelete* cd = (UnaryDelete*)currentCode;
-                assignStackIndexIfNeeded(cd->m_srcIndex0, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_srcIndex1, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex0, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex1, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case TemplateOperationOpcode: {
                 TemplateOperation* cd = (TemplateOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_src0Index, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_src1Index, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_src0Index, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_src1Index, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CallFunctionOpcode: {
                 CallFunction* cd = (CallFunction*)currentCode;
-                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CallFunctionWithReceiverOpcode: {
                 CallFunctionWithReceiver* cd = (CallFunctionWithReceiver*)currentCode;
-                assignStackIndexIfNeeded(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CallEvalFunctionOpcode: {
                 CallEvalFunction* cd = (CallEvalFunction*)currentCode;
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CallFunctionInWithScopeOpcode: {
                 CallFunctionInWithScope* cd = (CallFunctionInWithScope*)currentCode;
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case NewOperationOpcode: {
                 NewOperation* cd = (NewOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case JumpOpcode: {
@@ -440,63 +431,63 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case JumpIfTrueOpcode: {
                 JumpIfTrue* cd = (JumpIfTrue*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case JumpIfFalseOpcode: {
                 JumpIfFalse* cd = (JumpIfFalse*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case JumpIfRelationOpcode: {
                 JumpIfRelation* cd = (JumpIfRelation*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
-                assignStackIndexIfNeeded(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case JumpIfEqualOpcode: {
                 JumpIfEqual* cd = (JumpIfEqual*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
-                assignStackIndexIfNeeded(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case ThrowOperationOpcode: {
                 ThrowOperation* cd = (ThrowOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case EnumerateObjectOpcode: {
                 EnumerateObject* cd = (EnumerateObject*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case GetIteratorOpcode: {
                 GetIterator* cd = (GetIterator*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case IteratorStepOpcode: {
                 IteratorStep* cd = (IteratorStep*)currentCode;
-                assignStackIndexIfNeeded(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case IteratorCloseOpcode: {
                 IteratorClose* cd = (IteratorClose*)currentCode;
-                assignStackIndexIfNeeded(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case BindingRestElementOpcode: {
                 BindingRestElement* cd = (BindingRestElement*)currentCode;
-                assignStackIndexIfNeeded(cd->m_iterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case WithOperationOpcode: {
                 WithOperation* cd = (WithOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case BinaryPlusOpcode:
@@ -521,92 +512,92 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case BinaryInOperationOpcode:
             case BinaryInstanceOfOperationOpcode: {
                 BinaryPlus* plus = (BinaryPlus*)currentCode;
-                assignStackIndexIfNeeded(plus->m_srcIndex0, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(plus->m_srcIndex1, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(plus->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(plus->m_srcIndex0, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(plus->m_srcIndex1, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(plus->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CreateSpreadArrayObjectOpcode: {
                 CreateSpreadArrayObject* cd = (CreateSpreadArrayObject*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_argumentIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case NewOperationWithSpreadElementOpcode: {
                 NewOperationWithSpreadElement* cd = (NewOperationWithSpreadElement*)currentCode;
-                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CallFunctionWithSpreadElementOpcode: {
                 CallFunctionWithSpreadElement* cd = (CallFunctionWithSpreadElement*)currentCode;
-                assignStackIndexIfNeeded(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CreateClassOpcode: {
                 CreateClass* cd = (CreateClass*)currentCode;
-                assignStackIndexIfNeeded(cd->m_classConstructorRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_classConstructorRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case SuperReferenceOpcode: {
                 SuperReference* cd = (SuperReference*)currentCode;
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case SuperSetObjectOperationOpcode: {
                 SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case SuperGetObjectOperationOpcode: {
                 SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case CallSuperOpcode: {
                 CallSuper* cd = (CallSuper*)currentCode;
-                assignStackIndexIfNeeded(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case LoadThisBindingOpcode: {
                 LoadThisBinding* cd = (LoadThisBinding*)currentCode;
-                assignStackIndexIfNeeded(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case YieldOpcode: {
                 Yield* cd = (Yield*)currentCode;
-                assignStackIndexIfNeeded(cd->m_yieldIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 code += cd->m_tailDataLength;
                 break;
             }
             case YieldDelegateOpcode: {
                 YieldDelegate* cd = (YieldDelegate*)currentCode;
-                assignStackIndexIfNeeded(cd->m_iterIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_valueIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                assignStackIndexIfNeeded(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueIdx, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
                 code += cd->m_tailDataLength;
                 break;
             }
             case TryOperationOpcode: {
                 TryOperation* cd = (TryOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_catchedValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_catchedValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case NewTargetOperationOpcode: {
                 NewTargetOperation* cd = (NewTargetOperation*)currentCode;
-                assignStackIndexIfNeeded(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             default:

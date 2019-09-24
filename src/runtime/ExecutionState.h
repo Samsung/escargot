@@ -34,7 +34,7 @@ class GeneratorObject;
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
-    Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>>* m_controlFlowRecord;
+    ControlFlowRecordVector* m_controlFlowRecord;
     ExecutionState* m_parent;
     CodeBlock* m_codeBlock;
     GeneratorObject* m_generatorTarget;
@@ -146,9 +146,6 @@ public:
 
     void setLexicalEnvironment(LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
     {
-        ASSERT(m_lexicalEnvironment == nullptr && !m_inStrictMode);
-        ASSERT(lexicalEnvironment != nullptr);
-
         m_lexicalEnvironment = lexicalEnvironment;
         m_inStrictMode = inStrictMode;
     }

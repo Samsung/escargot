@@ -155,9 +155,6 @@
   <test id="S11.4.4_A6_T3"><reason>ALLOW_FAIL</reason></test>
   <test id="S11.4.5_A6_T3"><reason>ALLOW_FAIL</reason></test>
 
-  <test id="let-closure-inside-condition"><reason>TODO</reason></test>
-  <test id="let-closure-inside-initialization"><reason>TODO</reason></test>
-  <test id="let-closure-inside-next-expression"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-function-declaration"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-function-declaration-with-var"><reason>TODO</reason></test>
   <test id="attempt-to-redeclare-var-with-function-declaration"><reason>TODO</reason></test>
