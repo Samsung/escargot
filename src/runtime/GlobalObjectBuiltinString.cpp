@@ -218,7 +218,10 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
     };
 
     RESOLVE_THIS_BINDING_TO_STRING(str, String, normalize);
-    Value argument = argv[0];
+    Value argument = Value();
+    if (argc > 0) {
+        argument = argv[0];
+    }
     NormalizationForm form = NFC;
     if (LIKELY(!argument.isUndefined())) {
         String* formString = argument.toString(state);
@@ -234,6 +237,9 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid normalization form");
             return Value();
         }
+    }
+    if (str->length() == 0) {
+        return Value(str);
     }
 
     auto utf16Str = str->toUTF16StringData();
