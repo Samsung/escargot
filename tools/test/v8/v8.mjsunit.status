@@ -875,7 +875,6 @@
   # builtins
   'html-string-funcs': [SKIP],
   'number-is': [SKIP],
-  'string-normalize': [SKIP],
   'asm/math-fround': [SKIP],
   'global-hash': [SKIP],
   'harmony/dataview-accessors': [SKIP],
@@ -903,7 +902,6 @@
   'regress/regress-function-length-strict': [SKIP],
   'regress/regress-crbug-581577': [SKIP],
   'regress/regress-crbug-626715': [SKIP],
-  'regress/regress-4654': [SKIP],
   'regress/regress-4870': [SKIP],
   'regress/regress-4962': [SKIP],
   'regress/regress-4815': [SKIP],
