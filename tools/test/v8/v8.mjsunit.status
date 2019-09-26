@@ -49,7 +49,6 @@
 
   # This test-cases always fails in ES6 Well-known symbol replace
   'regress/regress-2437': [SKIP],
-  'string-replace-gc': [SKIP],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -61,19 +60,11 @@
   'regress/regress-430201b': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
-  # Too slow in debug mode for GC stress mode.
-
-  # Too slow in debug mode and under turbofan.
-  'regress/regress-4595': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
-
-  ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
-  'regexp-global': [PASS, NO_VARIANTS],
   'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
-  'd8-performance-now': [PASS, NO_VARIANTS],
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
 
   # Issue 488: this test sometimes times out.
@@ -108,9 +99,6 @@
   'tools/tickprocessor': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
   'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
-  ##############################################################################
-  # Long running test that reproduces memory leak and should be run manually.
-  'regress/regress-2073': [SKIP],
 
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
@@ -162,9 +150,6 @@
 
   # BUG(v8:5807): Flaky data race.
   'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
-
-  # TODO rest of Intl spec
-  'regress/regress-builtinbust-7': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -181,7 +166,6 @@
   'array-constructor-feedback': [SKIP],
   'array-feedback': [SKIP],
   'array-literal-feedback': [SKIP],
-  'd8-performance-now': [SKIP],
   'elements-kind': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
@@ -197,10 +181,7 @@
   # Tests taking too long
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
-  'regress/regress-353551': [SKIP],
   'stack-traces-overflow': [SKIP],
-  'unicode-test': [SKIP],
-  'whitespaces': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
@@ -247,10 +228,7 @@
   # arm64 TF timeout.
   'regress/regress-1257': [PASS, TIMEOUT],
 
-  # Requires bigger stack size in the Genesis and if stack size is increased,
-  # the test requires too much time to run.  However, the problem test covers
-  # should be platform-independent.
-  'regress/regress-1132': [SKIP],
+
 
   # Pass but take too long to run. Skip.
   # Some similar tests (with fewer iterations) may be included in arm64-js
@@ -273,7 +251,6 @@
   # Slow tests.
   'array-concat': [PASS, SLOW],
   'array-constructor': [PASS, SLOW],
-  'array-indexing': [PASS, SLOW],
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
   'array-splice': [PASS, SLOW],
@@ -290,8 +267,6 @@
   'string-indexof-2': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
-  'unicode-test': [PASS, SLOW],
-  'whitespaces': [PASS, TIMEOUT, SLOW],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -299,7 +274,6 @@
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, TIMEOUT],
   'packed-elements': [SKIP],
-  'regexp-global': [SKIP],
   'math-floor-of-div': [PASS, TIMEOUT],
   'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
   'unicodelctest': [PASS, TIMEOUT],
@@ -314,8 +288,7 @@
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
 
-  # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
-  'regress/regress-1132': [SKIP],
+
 }],  # 'asan == True'
 
 ##############################################################################
@@ -323,16 +296,11 @@
   # Skip tests not suitable for MSAN.
   'big-array-literal': [SKIP],
   # ICU upstream issues.
-  'date': [SKIP],
-  'deep-recursion': [SKIP],
   'regress/regress-builtinbust-7': [SKIP],
-  'string-localecompare': [SKIP],
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
 
-  # Flaky with baseline?
-  'regress/regress-2185-2': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -343,8 +311,7 @@
   'array-constructor': [PASS, ['mode == debug', SKIP]],
   'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
 
-  # Flaky test that can hit compilation-time stack overflow in debug mode.
-  'unicode-test': [PASS, ['mode == debug', PASS, FAIL]],
+
 
   # Times out often in release mode on ARM.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == release', TIMEOUT]],
@@ -355,11 +322,6 @@
   'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
 
-  # Requires bigger stack size in the Genesis and if stack size is increased,
-  # the test requires too much time to run.  However, the problem test covers
-  # should be platform-independent.
-  'regress/regress-1132': [SKIP],
-
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 
@@ -367,7 +329,6 @@
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-2185-2': [PASS, SLOW],
   'string-indexof-2': [PASS, TIMEOUT],
 }],  # 'arch == arm or arch == android_arm'
 
@@ -388,11 +349,6 @@
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
   'compiler/alloc-number': [SKIP],
-
-  # Requires bigger stack size in the Genesis and if stack size is increased,
-  # the test requires too much time to run.  However, the problem test covers
-  # should be platform-independent.
-  'regress/regress-1132': [SKIP],
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
@@ -434,11 +390,6 @@
   'compiler/simple-deopt': [PASS, SLOW],
   'regress/regress-3218915': [PASS, SLOW],
 
-  # Requires bigger stack size in the Genesis and if stack size is increased,
-  # the test requires too much time to run.  However, the problem test covers
-  # should be platform-independent.
-  'regress/regress-1132': [SKIP],
-
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
@@ -473,7 +424,6 @@
   # Skip tests that are not suitable for deoptimization fuzzing.
   'assert-opt-and-deopt': [SKIP],
   'never-optimize': [SKIP],
-  'regress/regress-2185-2': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 
@@ -496,20 +446,9 @@
 ##############################################################################
 ['predictable == True', {
 
-  # Skip tests that are known to be non-deterministic.
-  'd8-worker-sharedarraybuffer': [SKIP],
-  'd8-os': [SKIP],
-
   # crbug.com/v8/5803
   'wasm/gc-frame': [SKIP],
 }],  # 'predictable == True'
-
-##############################################################################
-['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
-
-  # take too long with the simulator.
-  'regress/regress-1132': [SKIP],
-}],  # 'arch == ppc and simulator_run == True'
 
 ##############################################################################
 ['arch == ppc64', {
@@ -529,7 +468,6 @@
   'es6/array-iterator-turbo': [SKIP],
 
   'ignition/regress-599001-verifyheap': [SKIP],
-  'unicode-test': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -542,7 +480,6 @@
   # Too slow.
   'big-object-literal': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
-  'unicode-test': [SKIP],
 
 }],  # variant == turbofan_opt
 
@@ -576,8 +513,6 @@
   'tools/*': [SKIP],
   'apply': [SKIP],
   'math-*': [SKIP],
-  'unicode-test': [SKIP],
-  'whitespaces': [SKIP],
 }],  # variant == asm_wasm
 
 ['variant == wasm_traps', {
@@ -594,8 +529,6 @@
   'tools/*': [SKIP],
   'apply': [SKIP],
   'math-*': [SKIP],
-  'unicode-test': [SKIP],
-  'whitespaces': [SKIP],
 }],  # variant == wasm_traps
 
 ##############################################################################
@@ -605,39 +538,28 @@
   #'es6/*': [SKIP],
   'es6/regress/regress-2156': [SKIP],
   'es6/regress/regress-2225': [SKIP],
-  'es6/regress/regress-2322': [SKIP],
-  'es6/regress/regress-2681': [SKIP],
   'es6/regress/regress-347906': [SKIP],
   'es6/regress/regress-3741': [SKIP],
-  'es6/regress/regress-3938': [SKIP],
   'es6/regress/regress-4097': [SKIP],
   'es6/regress/regress-411237': [SKIP],
   'es6/regress/regress-4160': [SKIP],
   'es6/regress/regress-4395': [SKIP],
-  'es6/regress/regress-4585': [SKIP],
   'es6/regress/regress-508074': [SKIP],
-  'es6/regress/regress-5337': [SKIP],
   'es6/regress/regress-5598': [SKIP],
   'es6/regress/regress-576662': [SKIP],
   'es6/regress/regress-594084': [SKIP],
-  'es6/regress/regress-660925': [SKIP],
   'es6/regress/regress-666622': [SKIP],
   'es6/regress/regress-cr372788': [SKIP],
   'es6/regress/regress-cr493566': [SKIP],
   'es6/regress/regress-crbug-448730': [SKIP],
   'es6/regress/regress-inlined-new-target': [SKIP],
-  'es6/regress/regress-lookup-transition': [SKIP],
-  'es6/regress/regress-new-target-context': [SKIP],
   'es6/array-concat' : [SKIP],
-  'es6/array-concat-revoked-proxy-1' : [SKIP],
   'es6/array-concat-revoked-proxy-2' : [SKIP],
-  'es6/array-copywithin' : [SKIP],
   'es6/array-from' : [SKIP],
   'es6/array-iterator-detached' : [SKIP],
   'es6/array-iterator' : [SKIP],
   'es6/array-iterator-turbo' : [SKIP],
   'es6/array-length' : [SKIP],
-  'es6/array-prototype-values' : [SKIP],
   'es6/array-species-constructor-accessor' : [SKIP],
   'es6/array-species-constructor-delete' : [SKIP],
   'es6/array-species-constructor' : [SKIP],
@@ -656,8 +578,6 @@
   'es6/block-eval-var-over-let' : [SKIP],
   'es6/block-for' : [SKIP],
   'es6/block-for-sloppy' : [SKIP],
-  'es6/block-leave' : [SKIP],
-  'es6/block-leave-sloppy' : [SKIP],
   'es6/block-let-contextual-sloppy' : [SKIP],
   'es6/block-let-crankshaft' : [SKIP],
   'es6/block-let-crankshaft-sloppy' : [SKIP],
@@ -671,25 +591,18 @@
   'es6/block-scoping-top-level' : [SKIP],
   'es6/block-scoping-top-level-sloppy' : [SKIP],
   'es6/block-sloppy-function' : [SKIP],
-  'es6/built-in-accessor-names' : [SKIP],
   'es6/catch-parameter-redeclaration' : [SKIP],
-  'es6/class-computed-property-names-super' : [SKIP],
-  'es6/classes-derived-return-type' : [SKIP],
-  'es6/classes-experimental' : [SKIP],
   'es6/classes' : [SKIP],
   'es6/classes-maps' : [SKIP],
   'es6/classes-proxy' : [SKIP],
-  'es6/classes-subclass-arrays' : [SKIP],
   'es6/classes-subclass-builtins' : [SKIP],
   'es6/classof-proxy' : [SKIP],
   'es6/class-property-name-eval-arguments' : [SKIP],
   'es6/collection-iterator' : [SKIP],
   'es6/collections' : [SKIP],
   'es6/completion' : [SKIP],
-  'es6/computed-property-names-classes' : [SKIP],
   'es6/computed-property-names-deopt' : [SKIP],
   'es6/computed-property-names' : [SKIP],
-  'es6/computed-property-names-object-literals-methods' : [SKIP],
   'es6/computed-property-names-super' : [SKIP],
   'es6/default-parameters-destructuring' : [SKIP],
   'es6/default-parameters' : [SKIP],
@@ -698,7 +611,6 @@
   'es6/destructuring-parameters-literalcount' : [SKIP],
   'es6/destructuring-parameters-literalcount-nolazy' : [SKIP],
   'es6/for-each-in-catch' : [SKIP],
-  'es6/function-length-configurable' : [SKIP],
   'es6/function-name-configurable' : [SKIP],
   'es6/function-name' : [SKIP],
   'es6/function-prototype-name' : [SKIP],
@@ -706,13 +618,10 @@
   'es6/generators-iteration' : [SKIP],
   'es6/generators-objects' : [SKIP],
   'es6/generators-parsing' : [SKIP],
-  'es6/generators-poisoned-properties' : [SKIP],
   'es6/generators-runtime' : [SKIP],
-  'es6/generators-states' : [SKIP],
   'es6/indexed-integer-exotics' : [SKIP],
   'es6/instanceof-proxies' : [SKIP],
   'es6/iteration-semantics' : [SKIP],
-  'es6/iteration-syntax' : [SKIP],
   'es6/iterator-close' : [SKIP],
   'es6/iterator-prototype' : [SKIP],
   'es6/math-clz32' : [SKIP],
@@ -727,7 +636,6 @@
   'es6/object-literals-super' : [SKIP],
   'es6/object-tostring' : [SKIP],
   'es6/pattern-brand-check' : [SKIP],
-  'es6/promise-lookup-getter-setter' : [SKIP],
   'es6/promises' : [SKIP],
   'es6/promise-species' : [SKIP],
   'es6/promise-thenable-proxy' : [SKIP],
@@ -736,13 +644,9 @@
   'es6/proxies-bind' : [SKIP],
   'es6/proxies-construct' : [SKIP],
   'es6/proxies-cross-realm-exception' : [SKIP],
-  'es6/proxies-define-property' : [SKIP],
   'es6/proxies-example-membrane' : [SKIP],
   'es6/proxies-for' : [SKIP],
   'es6/proxies-function' : [SKIP],
-  'es6/proxies-get' : [SKIP],
-  'es6/proxies-get-own-property-descriptor' : [SKIP],
-  'es6/proxies-get-prototype-of' : [SKIP],
   'es6/proxies-global-reference' : [SKIP],
   'es6/proxies-integrity' : [SKIP],
   'es6/proxies' : [SKIP],
@@ -754,7 +658,6 @@
   'es6/proxies-with-unscopables' : [SKIP],
   'es6/reflect-construct' : [SKIP],
   'es6/reflect-define-property' : [SKIP],
-  'es6/reflect-get-prototype-of' : [SKIP],
   'es6/reflect' : [SKIP],
   'es6/reflect-prevent-extensions' : [SKIP],
   'es6/regexp-constructor' : [SKIP],
@@ -763,15 +666,11 @@
   'es6/regexp-tostring' : [SKIP],
   'es6/rest-params' : [SKIP],
   'es6/sloppy-restrictive-block-function' : [SKIP],
-  'es6/species' : [SKIP],
   'es6/string-codepointat' : [SKIP],
   'es6/string-endswith' : [SKIP],
   'es6/string-fromcodepoint' : [SKIP],
-  'es6/string-html' : [SKIP],
   'es6/string-includes' : [SKIP],
   'es6/string-match' : [SKIP],
-  'es6/string-replace' : [SKIP],
-  'es6/string-search' : [SKIP],
   'es6/string-startswith' : [SKIP],
   'es6/super' : [SKIP],
   'es6/symbols' : [SKIP],
@@ -795,8 +694,6 @@
   'es6/typedarray-from' : [SKIP],
   'es6/typedarray' : [SKIP],
   'es6/typedarray-neutered' : [SKIP],
-  'es6/typedarray-of' : [SKIP],
-  'es6/typedarray-proto' : [SKIP],
   'es6/typedarray-reduce' : [SKIP],
   'es6/typedarray-set-length' : [SKIP],
   'es6/typedarray-sort' : [SKIP],
@@ -807,26 +704,17 @@
   'es6/unicode-regexp-backrefs' : [SKIP],
   'es6/unicode-regexp-ignore-case' : [SKIP],
   'es6/unicode-regexp-last-index' : [SKIP],
-  'es6/unicode-regexp-restricted-syntax' : [SKIP],
   'es6/unicode-regexp-zero-length' : [SKIP],
   'es6/unscopables' : [SKIP],
 
   # object/class (FIXME: check after conversion to ES5)
-  'accessors-no-prototype': [SKIP],
-  'regress/regress-4255-4': [SKIP],
-  'regress/regress-5106': [SKIP],
-  'regress/regress-520029': [SKIP],
   'regress/regress-5216': [SKIP],
   'regress/regress-5434': [SKIP],
-  'regress/regress-544991': [SKIP],
-  'regress/regress-5476': [SKIP],
   'regress/regress-595319': [SKIP],
-  'regress/regress-crbug-592340': [SKIP],
 
   # object pattern
   'regress/regress-crbug-669540': [SKIP],
   # array
-  'array-indexing': [SKIP],
   'array-join': [SKIP], #Proxy
   'array-length': [SKIP], #arrow function
   # const
@@ -835,176 +723,77 @@
   'compiler/regress-447567': [SKIP],
   'regress/regress-1201933': [SKIP],
   'regress/regress-1207276': [SKIP],
-  'regress/regress-189': [SKIP],
   'regress/regress-641': [SKIP],
   'regress/regress-799761': [SKIP],
-  'regress/regress-88591': [SKIP],
   'regress/regress-1182832': [SKIP],
   'regress/regress-1213575': [SKIP],
-  'regress/regress-1528': [SKIP],
   'regress/regress-1170': [SKIP],
   'object-literal': [SKIP],
-  'regress/regress-648719': [SKIP],
-  'smi-ops': [SKIP],
 
   # let
   'compiler/regress-451012': [SKIP],
   'regress/regress-4377': [SKIP],
-  'regress/regress-crbug-498811': [SKIP],
-  'regress/regress-eval-context': [SKIP],
-  'array-push11': [SKIP],
-  'array-push13': [SKIP],
-  'array-push14': [SKIP],
-  'array-tostring': [SKIP],
-  'string-indexof-1': [SKIP],
   'substr': [SKIP],
   'regress/redeclaration-error-types': [SKIP],
   'regress/regress-3926': [SKIP],
 
-  # RegExp
-  'regress/regress-crbug-592343': [SKIP],
-
   # builtins
-  'html-string-funcs': [SKIP],
-  'number-is': [SKIP],
+  'string-normalize': [SKIP],
   'asm/math-fround': [SKIP],
-  'global-hash': [SKIP],
   'harmony/dataview-accessors': [SKIP],
-  'regress/regress-3859': [SKIP],
   'regress/regress-349870': [SKIP],
-  'regress/regress-crbug-350864': [SKIP],
-  'object-is': [SKIP],
-  'get-own-property-descriptor-non-objects': [SKIP],
   'compiler/truncating-store': [SKIP],
-  'regress/regress-319120': [SKIP],
   'regress/regress-3159': [SKIP],
   'regress/regress-324028': [SKIP],
-  'regress/regress-425551': [SKIP],
   'regress/regress-95920': [SKIP],
   'regress/regress-crbug-109362': [SKIP],
   'to_number_order': [SKIP],
-  'regress/regress-585775': [SKIP],
-  'regress/regress-615776': [SKIP],
-  'regress/regress-object-assign-deprecated': [SKIP],
-  'regress/regress-object-assign-deprecated-2': [SKIP],
   'regress/regress-r3391': [SKIP],
-  'regress/regress-crbug-621611': [SKIP],
   'regress/regress-crbug-627934': [SKIP],
   'third_party/object-keys/object-keys': [SKIP],
-  'regress/regress-function-length-strict': [SKIP],
-  'regress/regress-crbug-581577': [SKIP],
-  'regress/regress-crbug-626715': [SKIP],
-  'regress/regress-4870': [SKIP],
-  'regress/regress-4962': [SKIP],
+  'regress/regress-4654': [SKIP],
   'regress/regress-4815': [SKIP],
   'regress/regress-5036': [SKIP],
 
   # ES5-ES6 differ
   'object-get-own-property-names': [SKIP],
-  'object-literal-multiple-fields': [SKIP],
   'strict-mode': [SKIP],
-  'regress/regress-1419': [SKIP],
   'regress/regress-1530': [SKIP],
-  'regress/regress-447561': [SKIP],
-  'regress/regress-crbug-618788': [SKIP],
   'regress/regress-2470': [SKIP],
 
-  # Symbol
-  'regress/regress-5780': [SKIP],
-  'regress/regress-670808': [SKIP],
-  'regress/regress-crbug-549162': [SKIP],
-  'regress/regress-crbug-580584': [SKIP],
-  'regress/regress-crbug-612142': [SKIP],
-  'regress/regress-crbug-668414': [SKIP],
-  'es6/array-tostring': [SKIP],
-  'object-toprimitive': [SKIP],
   # Proxy
   'array-isarray': [SKIP],
-  'object-literal': [SKIP],
-  'regress/regress-5174': [SKIP],
-  'regress/regress-5181': [SKIP],
   'regress/regress-578775': [SKIP],
-  'regress/regress-583260': [SKIP],
-  'regress/regress-649078': [SKIP],
-  'regress/regress-crbug-578039-Proxy_construct_prototype_change': [SKIP],
-  'regress/regress-crbug-603463': [SKIP],
-  'regress/regress-v8-4972': [SKIP],
   'regress/regress-crbug-599067': [SKIP],
   # Realm
   'call-cross-realm': [SKIP],
   'realm-property-access': [SKIP],
-  'regress/regress-4509-Class-constructor-typeerror-realm': [SKIP],
   'regress/regress-cr-344285': [SKIP],
 
-  # Map
-  'regress/regress-crbug-416558': [SKIP],
-  'regress/regress-crbug-664974': [SKIP],
   # Arrow (FIXME: check after conversion to ES5)
-  'regress/regress-5351': [SKIP],
-  'regress/regress-554865': [SKIP],
-  'regress/regress-679727': [SKIP],
   'regress/regress-crbug-613905': [SKIP],
   'regress/regress-crbug-615774': [SKIP],
   'error-constructors': [SKIP],
   'error-tostring': [SKIP],
-  'global-arrow-delete-this': [SKIP],
-  'has-own-property-evaluation-order': [SKIP],
-  'json-replacer-order': [SKIP],
-  'json-stringify-holder': [SKIP],
-  'json-stringify-stack': [SKIP],
   'json': [SKIP],
   'lookup-behind-property': [SKIP],
   'regress/regress-5173': [SKIP],
-  'regress/regress-5178': [SKIP],
-  'regress/regress-5295': [SKIP],
   'regress/regress-5454': [SKIP],
   'regress/regress-5648': [SKIP],
-  'regress/regress-670671': [SKIP],
-  'regress/regress-672041': [SKIP],
-  'regress/regress-677055': [SKIP],
-  'regress/regress-crbug-580934': [SKIP],
-  'regress/regress-crbug-662854': [SKIP],
   'regexp': [SKIP],
-  'string-wrapper': [SKIP],
   'regress/regress-1403': [SKIP],
-  'regress/regress-4595': [SKIP],
-  'regress/regress-4769': [SKIP],
-  'regress/regress-recurse-patch-binary-op': [SKIP],
-
-  # const
-  'int32-ops': [SKIP],
-  'negate': [SKIP],
 
   # class
   'regress/regress-4967': [SKIP],
-
-  # yield
-  'regress/regress-4945': [SKIP],
-
-  # rest
-  'regress/regress-crbug-614727': [SKIP],
-
-  # dataview
-  'regress/regress-5018': [SKIP],
-
-  # Intl
-  'regress/regress-crbug-364374': [SKIP],
-  'regress/regress-crbug-487322': [SKIP],
 
   # etc
   'harmony/*': [SKIP],
   'es7/*': [SKIP],
   'es8/*': [SKIP],
-  'get-prototype-of': [SKIP],
-  'global-properties': [SKIP],
   'regress/regress-4577': [SKIP],
   'regress/regress-4693': [SKIP],
   'regress/regress-353551': [SKIP],
-  'regress/regress-604044': [SKIP],
-  'regress/regress-crbug-625590': [SKIP],
-  'regress/regress-crbug-631917': [SKIP],
   'regress/regress-crbug-663410': [SKIP],
-  'regress/regress-recurse-patch-binary-op': [SKIP],
 
   ## 2. Non-standard
   # enumeration order
@@ -1022,7 +811,6 @@
 
   # RegExp Issues
   'regress/regress-5566': [SKIP],
-  'regress/regress-5836': [SKIP],
   'regress/regress-3229': [SKIP],
 
 
@@ -1030,9 +818,7 @@
   # function.[arguments|caller|callee]
   'arguments-indirect': [SKIP],
   'extra-arguments': [SKIP],
-  'function-arguments-null': [SKIP],
   'function-caller': [SKIP],
-  'regress/regress-1548': [SKIP],
   'regress/regress-105': [SKIP],
 
   # old string functions
@@ -1041,15 +827,12 @@
   ## 4. v8-only
   # Worker
   'd8-worker*': [SKIP],
-  'regress/regress-crbug-511880': [SKIP],
   # Error.prototype.stack
   'eval-stack-trace': [SKIP],
   'stack-trace*': [SKIP],
   'regress/regress-crbug-393988': [SKIP],
   'regress/regress-crbug-489597': [SKIP],
   'compiler/regress-stacktrace': [SKIP],
-  'regress/regress-237617': [SKIP],
-  'regress/regress-3404': [SKIP],
   'regress/regress-3718': [SKIP],
   'regress/regress-798': [SKIP],
   'regress/regress-5245': [SKIP],
@@ -1063,16 +846,11 @@
   # etc
   'contextual-calls': [SKIP],
   'cross-realm-filtering': [SKIP],
-  'regress/regress-280531': [SKIP],
-  'regress/regress-crbug-501808': [SKIP],
   'number-tostring-big-integer': [SKIP],
   'print': [SKIP],
   'regress/regress-integer-indexed-element': [SKIP],
   'string-split': [SKIP],
   'regress/regress-114': [SKIP],
-  'regress/regress-1151': [SKIP],
-  'regress/regress-1591': [SKIP],
-  'regress/regress-4255-1': [SKIP],
   'regress/regress-4255-2': [SKIP],
   'regress/regress-4255-3': [SKIP],
   'regress/regress-4665': [SKIP],
@@ -1080,8 +858,6 @@
   'regress/regress-crbug-100859': [SKIP],
   'regress/regress-crbug-352586': [SKIP],
   'regress/regress-crbug-422858': [SKIP],
-  'regress/regress-crbug-596394': [SKIP],
-  'regress/regress-crbug-515897': [SKIP],
   'regress/regress-v8-5009': [SKIP],
 
   # splice optimize
@@ -1111,12 +887,10 @@
   'regress/regress-136048': [SKIP],
   'regress/regress-1980': [SKIP],
   'regress/regress-633998': [SKIP],
-  'regress/regress-4769': [SKIP],
 
   ## 9. asm.js
   'asm-directive': [SKIP],
   'asm/*': [SKIP],
-  'regress/regress-crbug-552304': [SKIP],
 
   ## 10. Script is too long to run
   'big-object-literal': [SKIP],
@@ -1127,13 +901,8 @@
   ## 12. Variable limit excceed
   'compiler/regress-625966': [SKIP],
   'regress/regress-1122': [SKIP],
+  'regress/regress-353551': [SKIP],
   'regress/regress-655573': [SKIP],
-
-  ## 13. Yarr oom
-  'regress/regress-1472': [SKIP],
-
-  ## try-catch implemention limit
-  'regress/regress-148378': [SKIP],
 
   ## 12. implementation-dependent (according to the spec)
   'regress/regress-5767': [SKIP],
