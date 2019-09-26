@@ -27,9 +27,10 @@ namespace Escargot {
 class ImportNamespaceSpecifierNode : public Node {
 public:
     friend class ScriptParser;
-    ImportNamespaceSpecifierNode(RefPtr<IdentifierNode> local)
+    ImportNamespaceSpecifierNode(RefPtr<Node> local)
         : m_local(local)
     {
+        ASSERT(local->isIdentifier());
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ImportNamespaceSpecifier; }
@@ -40,13 +41,13 @@ public:
         m_local->iterateChildren(fn);
     }
 
-    RefPtr<IdentifierNode> local()
+    IdentifierNode* local()
     {
-        return m_local;
+        return m_local->asIdentifier();
     }
 
 private:
-    RefPtr<IdentifierNode> m_local;
+    RefPtr<Node> m_local;
 };
 }
 

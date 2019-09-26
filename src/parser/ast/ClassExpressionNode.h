@@ -30,27 +30,24 @@ namespace Escargot {
 class ClassExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    ClassExpressionNode(RefPtr<IdentifierNode> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassExpressionNode() {}
+    ClassExpressionNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : ExpressionNode()
-        , m_class(id, superClass, classBody, classBodyLexicalBlockIndex, classSrc)
+        // id can be nullptr
+        , m_class(id, superClass, classBody->asClassBody(), classBodyLexicalBlockIndex, classSrc)
     {
-    }
-
-    const ClassNode& classNode()
-    {
-        return m_class;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ClassExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        RefPtr<IdentifierNode> classIdent = m_class.id();
+        RefPtr<Node> classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_constructorIndex = dstIndex;
         context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
-        context->m_classInfo.m_name = classIdent ? classIdent.get()->name() : AtomicString();
+        context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : AtomicString();
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_literalData.push_back(context->m_classInfo.m_src);
 
@@ -78,7 +75,7 @@ public:
         size_t nameRegister = context->getRegister();
         // we don't need to root class name string because it is AtomicString
 
-        AtomicString className = context->m_classInfo.m_name.string()->length() ? context->m_classInfo.m_name : m_implictName;
+        AtomicString className = context->m_classInfo.m_name.string()->length() ? context->m_classInfo.m_name : m_implicitName;
 
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(className.string())), context, this);
         codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstIndex,
@@ -125,14 +122,16 @@ public:
         }
     }
 
-    void setImplictName(AtomicString s)
+    void tryToSetImplicitName(AtomicString s)
     {
-        m_implictName = s;
+        if (!m_class.id()) {
+            m_implicitName = s;
+        }
     }
 
 private:
     ClassNode m_class;
-    AtomicString m_implictName;
+    AtomicString m_implicitName;
 };
 }
 

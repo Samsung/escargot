@@ -108,7 +108,7 @@
 #include "RegExpLiteralNode.h"
 #include "RegisterReferenceNode.h"
 #include "RestElementNode.h"
-#include "ReturnStatmentNode.h"
+#include "ReturnStatementNode.h"
 #include "SequenceExpressionNode.h"
 #include "SpreadElementNode.h"
 #include "StatementNode.h"

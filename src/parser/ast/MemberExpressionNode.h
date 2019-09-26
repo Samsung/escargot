@@ -85,7 +85,7 @@ public:
 
         if (isPreComputedCase()) {
             ASSERT(m_property->isIdentifier());
-            if (m_object->isSuperNode()) {
+            if (m_object->isSuperExpression()) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property.get());
                 codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
@@ -98,7 +98,7 @@ public:
         } else {
             size_t propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
-            if (m_object->isSuperNode()) {
+            if (m_object->isSuperExpression()) {
                 codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
             } else {
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
@@ -125,7 +125,7 @@ public:
                 objectIndex = context->getLastRegisterIndex();
             }
 
-            if (m_object->isSuperNode()) {
+            if (m_object->isSuperExpression()) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property.get());
                 codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
@@ -153,7 +153,7 @@ public:
                 propertyIndex = context->getLastRegisterIndex();
                 objectIndex = context->getLastRegisterIndex(1);
             }
-            if (m_object->isSuperNode()) {
+            if (m_object->isSuperExpression()) {
                 codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
             } else {
                 codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);

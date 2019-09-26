@@ -27,12 +27,11 @@
 
 namespace Escargot {
 
-typedef std::vector<RefPtr<ClassElementNode>> ClassElementNodeVector;
 
 class ClassBodyNode : public Node {
 public:
     friend class ScriptParser;
-    ClassBodyNode(ClassElementNodeVector&& elementList, RefPtr<FunctionExpressionNode> constructor)
+    ClassBodyNode(ExpressionNodeVector&& elementList, RefPtr<Node> constructor)
         : Node()
         , m_elementList(elementList)
         , m_constructor(constructor)
@@ -54,7 +53,7 @@ public:
         size_t objIndex = context->m_classInfo.m_prototypeIndex;
 
         for (unsigned i = 0; i < m_elementList.size(); i++) {
-            ClassElementNode* p = m_elementList[i].get();
+            ClassElementNode* p = m_elementList[i]->asClassElement();
 
             size_t destIndex = p->isStatic() ? classIndex : objIndex;
 
@@ -128,14 +127,14 @@ public:
         }
 
         for (unsigned i = 0; i < m_elementList.size(); i++) {
-            ClassElementNode* p = m_elementList[i].get();
+            ClassElementNode* p = m_elementList[i]->asClassElement();
             p->iterateChildren(fn);
         }
     }
 
 private:
-    ClassElementNodeVector m_elementList;
-    RefPtr<FunctionExpressionNode> m_constructor;
+    ExpressionNodeVector m_elementList;
+    RefPtr<Node> m_constructor;
 };
 }
 

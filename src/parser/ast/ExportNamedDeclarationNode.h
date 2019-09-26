@@ -29,7 +29,7 @@ namespace Escargot {
 class ExportNamedDeclarationNode : public ExportDeclarationNode {
 public:
     friend class ScriptParser;
-    ExportNamedDeclarationNode(RefPtr<StatementNode> declaration, ExportSpecifierNodeVector&& specifiers, RefPtr<LiteralNode> source)
+    ExportNamedDeclarationNode(RefPtr<Node> declaration, NodeVector&& specifiers, RefPtr<Node> source)
         : m_declaration(declaration)
         , m_specifiers(std::move(specifiers))
         , m_source(source)
@@ -63,9 +63,9 @@ public:
 
 
 private:
-    RefPtr<StatementNode> m_declaration;
-    ExportSpecifierNodeVector m_specifiers;
-    RefPtr<LiteralNode> m_source;
+    RefPtr<Node> m_declaration;
+    NodeVector m_specifiers;
+    RefPtr<Node> m_source;
 };
 }
 

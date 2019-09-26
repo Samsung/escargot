@@ -38,7 +38,7 @@ public:
     virtual ~BinaryExpressionDivisionNode()
     {
     }
-    virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionDivison; }
+    virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionDivision; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         bool isSlow = !canUseDirectRegister(context, m_left.get(), m_right.get());

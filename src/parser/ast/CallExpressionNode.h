@@ -169,7 +169,7 @@ public:
         }
 
         bool isCalleeHasReceiver = false;
-        bool isSuperCall = m_callee->isSuperNode() && ((SuperExpressionNode*)m_callee.get())->isCall();
+        bool isSuperCall = m_callee->isSuperExpression() && ((SuperExpressionNode*)m_callee.get())->isCall();
 
         if (m_callee->isMemberExpression()) {
             isCalleeHasReceiver = true;
@@ -187,7 +187,7 @@ public:
         if (isCalleeHasReceiver) {
             receiverIndex = context->getLastRegisterIndex();
             Node* object = ((MemberExpressionNode*)(m_callee.get()))->object();
-            if (object->isSuperNode()) {
+            if (object->isSuperExpression()) {
                 ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
                 nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
             }

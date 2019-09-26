@@ -27,7 +27,7 @@ namespace Escargot {
 
 class DirectiveNode : public StatementNode {
 public:
-    DirectiveNode(ExpressionNode* expr, StringView value)
+    DirectiveNode(Node* expr, StringView value)
         : StatementNode()
         , m_expr(expr)
         , m_value(value)
@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_expr;
+    RefPtr<Node> m_expr;
     StringView m_value;
 };
 }

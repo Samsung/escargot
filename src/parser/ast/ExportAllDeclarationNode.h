@@ -28,9 +28,10 @@ namespace Escargot {
 class ExportAllDeclarationNode : public ExportDeclarationNode {
 public:
     friend class ScriptParser;
-    ExportAllDeclarationNode(RefPtr<LiteralNode> src)
+    ExportAllDeclarationNode(RefPtr<Node> src)
         : m_src(src)
     {
+        ASSERT(src->isLiteral());
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ExportAllDeclaration; }
@@ -42,7 +43,7 @@ public:
     }
 
 private:
-    RefPtr<LiteralNode> m_src;
+    RefPtr<Node> m_src;
 };
 }
 

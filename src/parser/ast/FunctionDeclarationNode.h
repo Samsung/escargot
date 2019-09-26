@@ -29,8 +29,6 @@ public:
         : m_isGenerator(isGenerator)
         , m_scopeContext(scopeContext)
     {
-        scopeContext->m_nodeType = this->type();
-        scopeContext->m_isGenerator = isGenerator;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::FunctionDeclaration; }

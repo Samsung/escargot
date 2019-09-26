@@ -31,6 +31,13 @@ namespace Escargot {
 class IdentifierNode : public Node {
 public:
     friend class ScriptParser;
+
+    IdentifierNode()
+        : Node()
+        , m_name()
+    {
+    }
+
     explicit IdentifierNode(const AtomicString& name)
         : Node()
         , m_name(name)

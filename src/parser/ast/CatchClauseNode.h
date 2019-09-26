@@ -68,8 +68,6 @@ private:
     RefPtr<BlockStatementNode> m_body;
     LexicalBlockIndex m_paramLexicalBlockIndex;
 };
-
-typedef std::vector<RefPtr<Node>> CatchClauseNodeVector;
 }
 
 #endif

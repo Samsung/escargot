@@ -29,11 +29,10 @@ namespace Escargot {
 class TryStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    TryStatementNode(Node *block, Node *handler, CatchClauseNodeVector &&guardedHandlers, Node *finalizer)
+    TryStatementNode(Node *block, Node *handler, Node *finalizer)
         : StatementNode()
         , m_block((BlockStatementNode *)block)
         , m_handler((CatchClauseNode *)handler)
-        , m_guardedHandlers(std::move(guardedHandlers))
         , m_finalizer((BlockStatementNode *)finalizer)
     {
     }
@@ -178,7 +177,6 @@ public:
 private:
     RefPtr<BlockStatementNode> m_block;
     RefPtr<CatchClauseNode> m_handler;
-    CatchClauseNodeVector m_guardedHandlers;
     RefPtr<BlockStatementNode> m_finalizer;
 };
 }

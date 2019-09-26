@@ -29,9 +29,12 @@ namespace Escargot {
 class ClassDeclarationNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ClassDeclarationNode(RefPtr<IdentifierNode> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+
+    ClassDeclarationNode() {}
+    ClassDeclarationNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : StatementNode()
-        , m_class(id, superClass, classBody, classBodyLexicalBlockIndex, classSrc)
+        // id can be nullptr
+        , m_class(id, superClass, classBody->asClassBody(), classBodyLexicalBlockIndex, classSrc)
     {
     }
 
@@ -40,18 +43,19 @@ public:
         return m_class;
     }
 
-    virtual ASTNodeType type() override { return ASTNodeType::ClassMethod; }
+    virtual ASTNodeType type() override { return ASTNodeType::ClassDeclaration; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         context->getRegister(); // To ensure that the result of the classDeclaration is undefined
         size_t classIndex = context->getRegister();
-        RefPtr<IdentifierNode> classIdent = m_class.id();
+        RefPtr<Node> classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_constructorIndex = classIndex;
         context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
-        context->m_classInfo.m_name = classIdent ? classIdent.get()->name() : AtomicString();
+
+        context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : AtomicString();
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_literalData.push_back(context->m_classInfo.m_src);
 
@@ -85,6 +89,7 @@ public:
         context->giveUpRegister();
 
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+            ASSERT(classIdent);
             // Initialize class name
             context->m_isLexicallyDeclaredBindingInitialization = true;
             classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);
