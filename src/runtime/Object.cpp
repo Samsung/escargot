@@ -436,14 +436,13 @@ bool Object::isConcatSpreadable(ExecutionState& state)
         return false;
     }
     // Let spreadable be Get(O, @@isConcatSpreadable).
-    ObjectGetResult spreadable = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().isConcatSpreadable));
-    Value val = spreadable.value(state, Value());
+    Value spreadable = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().isConcatSpreadable)).value(state, this);
     // If spreadable is not undefined, return ToBoolean(spreadable).
-    if (!val.isUndefined()) {
-        return val.toBoolean(state);
+    if (!spreadable.isUndefined()) {
+        return spreadable.toBoolean(state);
     }
     // Return IsArray(O).
-    return isArrayObject();
+    return isArray(state);
 }
 
 void Object::initPlainObject(ExecutionState& state)
@@ -1181,8 +1180,13 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
 
     // 4. Let len be ToLength(Get(obj, "length")).
     // 5. ReturnIfAbrupt(len).
-    Object* o = obj.toObject(state);
+    Object* o = obj.asObject();
     auto len = o->lengthES6(state);
+
+    // Honorate "length" property: If length>2^32-1, throw a RangeError exception.
+    if (len > ((1LL << 32LL) - 1LL)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+    }
 
     // 6. Let list be an empty List.
     ValueVector list;

@@ -88,7 +88,7 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
     Value C;
     // Let isArray be IsArray(originalArray).
     // If isArray is true, then
-    if (originalArray->isArrayObject()) {
+    if (originalArray->isArray(state)) {
         // Let C be Get(originalArray, "constructor").
         C = originalArrayConstructor;
 
@@ -117,12 +117,8 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
 static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     ASSERT(argv != nullptr);
-    if (!argv[0].isObject())
-        return Value(false);
-    if (argv[0].asObject()->isArrayObject())
-        return Value(true);
-    else
-        return Value(false);
+
+    return Value(argv[0].isObject() && argv[0].asObject()->isArray(state));
 }
 
 // Array.from ( items [ , mapfn [ , thisArg ] ] )#

@@ -219,16 +219,16 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
         Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
             Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
             if (val.isObject()) {
-                if (val.asObject()->isArrayObject()) {
-                    ArrayObject* arrObject = val.asObject()->asArrayObject();
+                if (val.asObject()->isArray(state)) {
+                    Object* object = val.asObject();
                     uint32_t i = 0;
-                    uint32_t len = arrObject->length(state);
+                    uint32_t len = object->lengthES6(state);
                     while (i < len) {
                         Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
                         if (newElement.isUndefined()) {
-                            arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
+                            object->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
                         } else {
-                            arrObject->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
+                            object->defineOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)), ObjectPropertyDescriptor(newElement, ObjectPropertyDescriptor::AllPresent));
                         }
                         i++;
                     }
@@ -247,18 +247,26 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                     }
                 } else {
                     Object* object = val.asObject();
-                    std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> keys;
-                    object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                        if (desc.isEnumerable()) {
-                            std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>* keys = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>*)data;
-                            keys->push_back(P);
+
+                    ObjectPropertyNameVector keys;
+                    if (object->isProxyObject()) {
+                        ValueVector keyValues = Object::enumerableOwnProperties(state, object, EnumerableOwnPropertiesType::Key);
+
+                        for (size_t i = 0; i < keyValues.size(); ++i) {
+                            keys.push_back(ObjectPropertyName(state, keyValues[i]));
                         }
-                        return true;
-                    },
-                                        &keys);
+                    } else {
+                        object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                            if (desc.isEnumerable()) {
+                                ObjectPropertyNameVector* keys = (ObjectPropertyNameVector*)data;
+                                keys->push_back(P);
+                            }
+                            return true;
+                        },
+                                            &keys);
+                    }
+
                     for (auto key : keys) {
-                        if (!object->hasOwnProperty(state, key))
-                            continue;
                         Value newElement = Walk(val, key);
                         if (newElement.isUndefined()) {
                             object->deleteOwnProperty(state, key);
@@ -278,6 +286,29 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
     return unfiltered;
 }
 
+static void builtinJSONArrayReplacerHelper(ExecutionState& state, ObjectPropertyNameVector& propertyList, Value property)
+{
+    String* item;
+
+    if (property.isString()) {
+        item = property.asString();
+    } else if (property.isNumber()) {
+        item = property.toString(state);
+    } else if (property.isObject() && (property.asPointerValue()->isStringObject() || property.asPointerValue()->isNumberObject())) {
+        item = property.toString(state);
+    } else {
+        return;
+    }
+
+    for (size_t i = 0; i < propertyList.size(); i++) {
+        ObjectPropertyName& v = propertyList[i];
+        if (v.toPropertyName(state).equals(item)) {
+            return;
+        }
+    }
+    propertyList.push_back(ObjectPropertyName(state, Value(item)));
+}
+
 static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
@@ -288,7 +319,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value space = argv[2];
     String* indent = new ASCIIString("");
     ValueVector stack;
-    std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> propertyList;
+    ObjectPropertyNameVector propertyList;
     bool propertyListTouched = false;
 
     // 4
@@ -314,25 +345,18 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             for (uint32_t i = 0; i < indexes.size(); ++i) {
                 String* item = nullptr;
                 Value property = arrObject->get(state, ObjectPropertyName(state, Value(indexes[i]))).value(state, arrObject);
-                if (property.isString()) {
-                    item = property.asString();
-                } else if (property.isNumber()) {
-                    item = property.toString(state);
-                } else if (property.isObject() && (property.asPointerValue()->isStringObject() || property.asPointerValue()->isNumberObject())) {
-                    item = property.toString(state);
-                }
-                if (item) {
-                    bool flag = false;
-                    for (size_t i = 0; i < propertyList.size(); i++) {
-                        ObjectPropertyName& v = propertyList[i];
-                        if (v.toPropertyName(state).equals(item)) {
-                            flag = true;
-                            break;
-                        }
-                    }
-                    if (!flag)
-                        propertyList.push_back(ObjectPropertyName(state, Value(item)));
-                }
+                builtinJSONArrayReplacerHelper(state, propertyList, property);
+            }
+        } else if (replacer.asObject()->isArray(state)) {
+            propertyListTouched = true;
+            Object* replacerObj = replacer.asObject();
+            uint64_t len = replacerObj->lengthES6(state);
+            uint64_t k = 0;
+
+            while (k < len) {
+                Value v = replacerObj->getIndexedProperty(state, Value(k)).value(state, replacerObj);
+                builtinJSONArrayReplacerHelper(state, propertyList, v);
+                k++;
             }
         }
     }
@@ -367,7 +391,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     }
 
     std::function<Value(ObjectPropertyName key, Object * holder)> Str;
-    std::function<String*(ArrayObject*)> JA;
+    std::function<String*(Object*)> JA;
     std::function<String*(Object*)> JO;
     std::function<String*(ObjectPropertyName value)> Quote;
 
@@ -414,8 +438,8 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             return strings->null.string();
         }
         if (value.isObject() && !value.isCallable()) {
-            if (value.asObject()->isArrayObject()) {
-                return JA(value.asObject()->asArrayObject());
+            if (value.asObject()->isArray(state)) {
+                return JA(value.asObject());
             } else {
                 return JO(value.asObject());
             }
@@ -464,16 +488,16 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     };
 
     // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonarray
-    JA = [&](ArrayObject* arrayObj) -> String* {
+    JA = [&](Object* obj) -> String* {
         // 1
         for (size_t i = 0; i < stack.size(); i++) {
             Value& v = stack[i];
-            if (v == Value(arrayObj)) {
+            if (v == Value(obj)) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), errorMessage_GlobalObject_JAError);
             }
         }
         // 2
-        stack.push_back(Value(arrayObj));
+        stack.push_back(Value(obj));
         // 3
         String* stepback = indent;
         // 4
@@ -484,11 +508,17 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         // 5
         std::vector<String*, GCUtil::gc_malloc_allocator<String*>> partial;
         // 6, 7
-        uint32_t len = arrayObj->length(state);
+        uint32_t len = obj->lengthES6(state);
+
+        // Each array element requires at least 1 character for the value, and 1 character for the separator
+        if (len / 2 > STRING_MAXIMUM_LENGTH) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->JSON.string(), false, strings->stringify.string(), errorMessage_GlobalObject_JAError);
+        }
+
         uint32_t index = 0;
         // 8
         while (index < len) {
-            Value strP = Str(ObjectPropertyName(state, Value(index).toString(state)), arrayObj);
+            Value strP = Str(ObjectPropertyName(state, Value(index).toString(state)), obj);
             if (strP.isUndefined()) {
                 partial.push_back(strings->null.string());
             } else {
@@ -553,12 +583,18 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         newIndent.appendString(gap);
         indent = newIndent.finalize(&state);
         // 5, 6
-        std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> k;
+        ObjectPropertyNameVector k;
         if (propertyListTouched) {
             k = propertyList;
+        } else if (value->isProxyObject()) {
+            ValueVector keyValues = Object::enumerableOwnProperties(state, value, EnumerableOwnPropertiesType::Key);
+
+            for (size_t i = 0; i < keyValues.size(); ++i) {
+                k.push_back(ObjectPropertyName(state, keyValues[i]));
+            }
         } else {
             value->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>* k = (std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>>*)data;
+                ObjectPropertyNameVector* k = (ObjectPropertyNameVector*)data;
                 if (desc.isEnumerable()) {
                     k->push_back(P);
                 }

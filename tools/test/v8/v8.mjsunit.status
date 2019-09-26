@@ -746,24 +746,17 @@
   'es6/proxies-global-reference' : [SKIP],
   'es6/proxies-integrity' : [SKIP],
   'es6/proxies' : [SKIP],
-  'es6/proxies-json' : [SKIP],
-  'es6/proxies-keys' : [SKIP],
-  'es6/proxies-object-assign' : [SKIP],
-  'es6/proxies-ownkeys' : [SKIP],
   'es6/proxies-prototype-handler-stackoverflow' : [SKIP],
   'es6/proxies-prototype-target-stackoverflow' : [SKIP],
   'es6/proxies-revocable' : [SKIP],
   'es6/proxies-set' : [SKIP],
-  'es6/proxies-set-prototype-of' : [SKIP],
   'es6/proxies-with' : [SKIP],
   'es6/proxies-with-unscopables' : [SKIP],
   'es6/reflect-construct' : [SKIP],
   'es6/reflect-define-property' : [SKIP],
   'es6/reflect-get-prototype-of' : [SKIP],
   'es6/reflect' : [SKIP],
-  'es6/reflect-own-keys' : [SKIP],
   'es6/reflect-prevent-extensions' : [SKIP],
-  'es6/reflect-set-prototype-of' : [SKIP],
   'es6/regexp-constructor' : [SKIP],
   'es6/regexp-sticky' : [SKIP],
   'es6/regexp-tolength' : [SKIP],
@@ -834,7 +827,6 @@
   'regress/regress-crbug-669540': [SKIP],
   # array
   'array-indexing': [SKIP],
-  'array-isarray': [SKIP], #Proxy
   'array-join': [SKIP], #Proxy
   'array-length': [SKIP], #arrow function
   # const
