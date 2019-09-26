@@ -254,35 +254,23 @@ def run_spidermonkey(engine, arch):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
 
-    for nodejs in ['nodejs', 'node']:
-        try:
-            run([nodejs, '-v'])
-            break
-        except Exception:
-            continue
-
-    run([nodejs, join(PROJECT_SOURCE_DIR, 'node_modules', '.bin', 'babel'), join(SPIDERMONKEY_DIR, 'ecma_6', 'Promise'), '--out-dir', join(SPIDERMONKEY_DIR, 'ecma_6', 'Promise')])
-    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.shell.js'), join(SPIDERMONKEY_DIR, 'shell.js'))
-    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.js1_8_1.jit.shell.js'), join(SPIDERMONKEY_DIR, 'js1_8_1', 'jit', 'shell.js'))
-    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.ecma_6.shell.js'), join(SPIDERMONKEY_DIR, 'ecma_6', 'shell.js'))
-    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.ecma_6.TypedArray.shell.js'), join(SPIDERMONKEY_DIR, 'ecma_6', 'TypedArray', 'shell.js'))
-    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.ecma_6.Math.shell.js'), join(SPIDERMONKEY_DIR, 'ecma_6', 'Math', 'shell.js'))
-
     run([join(SPIDERMONKEY_DIR, 'jstests.py'),
          '--no-progress', '-s',
          '--xul-info', '%s-gcc3:Linux:false' % arch,
-         '--exclude-file', join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.excludelist.txt'),
+         '--exclude-file', join(SPIDERMONKEY_OVERRIDE_DIR, 'excludelist.txt'),
          engine,
-         '--output-file', join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.%s.log.txt' % arch),
-         '--failure-file', join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.%s.gen.txt' % arch),
-         'ecma/', 'ecma_2/', 'ecma_3/', 'ecma_3_1/', 'ecma_5/',
-         'ecma_6/Promise', 'ecma_6/TypedArray', 'ecma_6/ArrayBuffer', 'ecma_6/Number', 'ecma_6/Math',
-         'js1_1/', 'js1_2/',  'js1_3/', 'js1_4/', 'js1_5/', 'js1_6/', 'js1_7/', 'js1_8/', 'js1_8_1/', 'js1_8_5/',
-         'shell/', 'supporting/'],
+         '--output-file', join(SPIDERMONKEY_OVERRIDE_DIR, '%s.log.txt' % arch),
+         '--failure-file', join(SPIDERMONKEY_OVERRIDE_DIR, '%s.gen.txt' % arch),
+         'non262/Array', 'non262/ArrayBuffer', 'non262/arrow-functions', 'non262/BigInt', 'non262/Boolean', 'non262/class', 'non262/comprehensions', 'non262/DataView', 'non262/Date',
+         'non262/destructuring', 'non262/Error', 'non262/eval', 'non262/Exceptions', 'non262/execution-contexts', 'non262/expressions', 'non262/extensions', 'non262/fields', 'non262/Function',
+         'non262/GC', 'non262/generators', 'non262/get-set', 'non262/global', 'non262/Intl', 'non262/iterable', 'non262/jit', 'non262/JSON', 'non262/lexical', 'non262/lexical-conventions',
+         'non262/lexical-environment', 'non262/literals', 'non262/Map', 'non262/Math', 'non262/misc', 'non262/module', 'non262/Number', 'non262/object', 'non262/operators', 'non262/pipeline',
+         'non262/Promise', 'non262/Proxy', 'non262/Reflect', 'non262/reflect-parse', 'non262/RegExp', 'non262/regress', 'non262/Scope', 'non262/Script', 'non262/Set', 'non262/statements',
+         'non262/strict', 'non262/String', 'non262/Symbol', 'non262/syntax', 'non262/template-strings', 'non262/TypedArray', 'non262/TypedObject', 'non262/types', 'non262/Unicode', 'non262/WeakMap'],
         env={'LOCALE': 'en_US'})
 
-    orig = sorted(readfile(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.%s.orig.txt' % arch)))
-    gen = sorted(readfile(join(SPIDERMONKEY_OVERRIDE_DIR, 'spidermonkey.%s.gen.txt' % arch)))
+    orig = sorted(readfile(join(SPIDERMONKEY_OVERRIDE_DIR, '%s.orig.txt' % arch)))
+    gen = sorted(readfile(join(SPIDERMONKEY_OVERRIDE_DIR, '%s.gen.txt' % arch)))
     diff = list(unified_diff(orig, gen))
     if diff:
         for diffline in diff:

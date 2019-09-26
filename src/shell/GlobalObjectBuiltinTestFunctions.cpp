@@ -52,6 +52,12 @@ static Value builtinCreateNewGlobalObject(ExecutionState& state, Value thisValue
     return ctx->globalObject();
 }
 
+// SpiderMonkey 'uneval'
+static Value builtinUneval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return argv[0].toString(state);
+}
+
 void installTestFunctions(ExecutionState& state)
 {
     GlobalObject* globalObject = state.context()->globalObject();
@@ -70,6 +76,11 @@ void installTestFunctions(ExecutionState& state)
     globalObject->defineOwnProperty(state, ObjectPropertyName(createNewGlobalObject),
                                     ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                                       NativeFunctionInfo(createNewGlobalObject, builtinCreateNewGlobalObject, 0, NativeFunctionInfo::Strict)),
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    AtomicString uneval(state, "uneval");
+    globalObject->defineOwnProperty(state, ObjectPropertyName(uneval),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                      NativeFunctionInfo(uneval, builtinUneval, 1, NativeFunctionInfo::Strict)),
                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 }
 }
