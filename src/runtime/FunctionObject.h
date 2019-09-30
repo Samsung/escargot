@@ -50,7 +50,8 @@ public:
         Derived,
     };
 
-    // getter of internal [[Prototype]]
+    // getter prototype property of constructible function(not [[prototype]]!!!)
+    // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     Value getFunctionPrototype(ExecutionState& state)
     {
         if (LIKELY(isConstructor())) {
@@ -60,7 +61,8 @@ public:
         }
     }
 
-    // setter of internal [[Prototype]]
+    // getter prototype property constructible function(not [[prototype]]!!!)
+    // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     bool setFunctionPrototype(ExecutionState& state, const Value& v)
     {
         if (LIKELY(isConstructor())) {

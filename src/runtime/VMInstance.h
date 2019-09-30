@@ -20,6 +20,7 @@
 #ifndef __EscargotVMInstance__
 #define __EscargotVMInstance__
 
+#include "runtime/Platform.h"
 #include "runtime/Context.h"
 #include "runtime/AtomicString.h"
 #include "runtime/GlobalObject.h"
@@ -36,7 +37,6 @@ class CodeBlock;
 class JobQueue;
 class Job;
 
-// TODO match,
 #define DEFINE_GLOBAL_SYMBOLS(F) \
     F(hasInstance)               \
     F(isConcatSpreadable)        \
@@ -47,6 +47,7 @@ class Job;
     F(toStringTag)               \
     F(unscopables)               \
     F(search)                    \
+    F(match)                     \
     F(replace)
 
 struct GlobalSymbols {
@@ -65,18 +66,11 @@ typedef Vector<GlobalSymbolRegistryItem, GCUtil::gc_malloc_allocator<GlobalSymbo
 class VMInstance : public gc {
     friend class Context;
     friend class VMInstanceRef;
-    friend class DefaultJobQueue;
     friend class ScriptParser;
 
 public:
-    VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
-    ~VMInstance()
-    {
-        clearCaches();
-#ifdef ENABLE_ICU
-        delete m_timezone;
-#endif
-    }
+    VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
+    ~VMInstance();
 
     void clearCaches();
 
@@ -187,14 +181,9 @@ public:
         return m_jobQueue;
     }
 
-    //   <is there any job after drain, thrown error value>
-    std::pair<bool, Optional<Value>> drainJobQueue();
-
-    typedef void (*NewPromiseJobListener)(ExecutionState& state, Job* job);
-    void setNewPromiseJobListener(NewPromiseJobListener l);
-
-    void addRoot(void* ptr);
-    bool removeRoot(void* ptr);
+    void enqueuePromiseJob(PromiseObject* promise, Job* job);
+    bool hasPendingPromiseJob();
+    SandBox::SandBoxResult executePendingPromiseJob();
 
     Vector<String*, GCUtil::gc_malloc_allocator<String*>>& parsedSourceCodes()
     {
@@ -216,15 +205,17 @@ public:
         return m_randEngine;
     }
 
+    Platform* platform()
+    {
+        return m_platform;
+    }
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
     GlobalSymbols m_globalSymbols;
     GlobalSymbolRegistryVector m_globalSymbolRegistry;
     Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
-    std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>,
-                       GCUtil::gc_malloc_allocator<std::pair<void* const, size_t>>>
-        m_rootSet;
 
     std::mt19937 m_randEngine;
 
@@ -263,10 +254,10 @@ private:
 #endif
     DateObject* m_cachedUTC;
 
-    // promise data
+    Platform* m_platform;
+
+    // promise job queue
     JobQueue* m_jobQueue;
-    NewPromiseJobListener m_jobQueueListener;
-    void* m_publicJobQueueListenerPointer;
 };
 } // namespace Escargot
 

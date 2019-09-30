@@ -20,12 +20,36 @@
 #include "Escargot.h"
 #include "Symbol.h"
 #include "Value.h"
+#include "VMInstance.h"
 
 namespace Escargot {
 
 size_t g_symbolTag;
 
-String* Symbol::getSymbolDescriptiveString() const
+Symbol* Symbol::fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey)
+{
+    // Let stringKey be ? ToString(key).
+    // For each element e of the GlobalSymbolRegistry List,
+    auto& list = vm->globalSymbolRegistry();
+    for (size_t i = 0; i < list.size(); i++) {
+        // If SameValue(e.[[Key]], stringKey) is true, return e.[[Symbol]].
+        if (list[i].key->equals(stringKey)) {
+            return list[i].symbol;
+        }
+    }
+    // Assert: GlobalSymbolRegistry does not currently contain an entry for stringKey.
+    // Let newSymbol be a new unique Symbol value whose [[Description]] value is stringKey.
+    Symbol* newSymbol = new Symbol(stringKey);
+    // Append the Record { [[Key]]: stringKey, [[Symbol]]: newSymbol } to the GlobalSymbolRegistry List.
+    GlobalSymbolRegistryItem item;
+    item.key = stringKey;
+    item.symbol = newSymbol;
+    list.pushBack(item);
+    // Return newSymbol.
+    return newSymbol;
+}
+
+String* Symbol::symbolDescriptiveString() const
 {
     StringBuilder sb;
     sb.appendString("Symbol(");

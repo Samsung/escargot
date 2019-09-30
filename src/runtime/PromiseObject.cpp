@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "PromiseObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "JobQueue.h"
 #include "NativeFunctionObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
@@ -28,6 +29,7 @@ namespace Escargot {
 
 PromiseObject::PromiseObject(ExecutionState& state)
     : Object(state)
+    , m_state(PromiseState::Pending)
 {
     Object::setPrototype(state, state.context()->globalObject()->promisePrototype());
 }
@@ -111,7 +113,7 @@ Object* PromiseObject::resolvingFunctionAlreadyResolved(ExecutionState& state, O
     return alreadyResolved.asObject();
 }
 
-void PromiseObject::fulfillPromise(ExecutionState& state, Value value)
+void PromiseObject::fulfill(ExecutionState& state, Value value)
 {
     m_state = PromiseState::FulFilled;
     m_promiseResult = value;
@@ -120,7 +122,7 @@ void PromiseObject::fulfillPromise(ExecutionState& state, Value value)
     m_rejectReactions.clear();
 }
 
-void PromiseObject::rejectPromise(ExecutionState& state, Value reason)
+void PromiseObject::reject(ExecutionState& state, Value reason)
 {
     m_state = PromiseState::Rejected;
     m_promiseResult = reason;
@@ -130,9 +132,53 @@ void PromiseObject::rejectPromise(ExecutionState& state, Value reason)
     m_rejectReactions.clear();
 }
 
+PromiseObject* PromiseObject::then(ExecutionState& state, Value handler)
+{
+    return then(state, handler, Value());
+}
+
+PromiseObject* PromiseObject::catchOperation(ExecutionState& state, Value handler)
+{
+    return then(state, Value(), handler);
+}
+
+PromiseObject* PromiseObject::then(ExecutionState& state, Value onFulfilledValue, Value onRejectedValue)
+{
+    Object* onFulfilled = onFulfilledValue.isCallable() ? onFulfilledValue.asObject() : (Object*)(1);
+    Object* onRejected = onRejectedValue.isCallable() ? onRejectedValue.asObject() : (Object*)(2);
+
+    // Let C be SpeciesConstructor(promise, %Promise%)
+    Value C = speciesConstructor(state, state.context()->globalObject()->promise());
+
+    // Let resultCapability be NewPromiseCapability(C).
+    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, C.toObject(state));
+
+    switch (this->state()) {
+    case PromiseObject::PromiseState::Pending: {
+        appendReaction(onFulfilled, onRejected, capability);
+        break;
+    }
+    case PromiseObject::PromiseState::FulFilled: {
+        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onFulfilled, capability), promiseResult());
+        state.context()->vmInstance()->enqueuePromiseJob(this, job);
+        break;
+    }
+    case PromiseObject::PromiseState::Rejected: {
+        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onRejected, capability), promiseResult());
+        state.context()->vmInstance()->enqueuePromiseJob(this, job);
+        break;
+    }
+    default:
+        break;
+    }
+
+    return capability.m_promise.asPointerValue()->asPromiseObject();
+}
+
 void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject::Reactions& reactions)
 {
-    for (size_t i = 0; i < reactions.size(); i++)
-        state.context()->jobQueue()->enqueueJob(state, new PromiseReactionJob(state.context(), reactions[i], m_promiseResult));
+    for (size_t i = 0; i < reactions.size(); i++) {
+        state.context()->vmInstance()->enqueuePromiseJob(this, new PromiseReactionJob(state.context(), reactions[i], m_promiseResult));
+    }
 }
 }

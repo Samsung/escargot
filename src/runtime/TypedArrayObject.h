@@ -346,7 +346,7 @@ public:
     void allocateTypedArray(ExecutionState& state, unsigned length)
     {
         auto obj = new ArrayBufferObject(state);
-        obj->allocateBuffer(length * typedArrayElementSize);
+        obj->allocateBuffer(state, length * typedArrayElementSize);
         setBuffer(obj, 0, length * typedArrayElementSize, length);
     }
 

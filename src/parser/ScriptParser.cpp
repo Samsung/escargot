@@ -196,18 +196,9 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     }
 }
 
-Script* ScriptParser::initializeScript(ExecutionState& state, StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
 {
     Script* script = new Script(fileName, new StringView(scriptSource));
-    generateProgramCodeBlock(state, scriptSource, script, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, stackSizeRemain, needByteCodeGeneration, allowSuperCall, allowSuperProperty);
-
-    return script;
-}
-
-void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView scriptSource, Script* script, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
-{
-    ASSERT(script != nullptr);
-
     InterpretedCodeBlock* topCodeBlock = nullptr;
     RefPtr<ProgramNode> programNode;
 
@@ -247,9 +238,13 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
         }
 #endif
     } catch (esprima::Error& orgError) {
+        m_context->vmInstance()->m_parsedSourceCodes.pop_back();
         GC_enable();
-        ErrorObject::throwBuiltinError(state, orgError.errorCode, orgError.message->toUTF8StringData().data());
-        RELEASE_ASSERT_NOT_REACHED();
+
+        ScriptParser::InitializeScriptResult result;
+        result.parseErrorCode = orgError.errorCode;
+        result.parseErrorMessage = orgError.message;
+        return result;
     }
 
     GC_enable();
@@ -257,8 +252,12 @@ void ScriptParser::generateProgramCodeBlock(ExecutionState& state, StringView sc
 
     // Generate ByteCode
     if (LIKELY(needByteCodeGeneration)) {
-        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
     }
+
+    ScriptParser::InitializeScriptResult result;
+    result.script = script;
+    return result;
 }
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)

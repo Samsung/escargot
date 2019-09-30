@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2019-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,29 +17,24 @@
  *  USA
  */
 
-#include "Escargot.h"
-#include "JobQueue.h"
-#include "runtime/Job.h"
-#include "runtime/Context.h"
+#ifndef __EscargotPlatform__
+#define __EscargotPlatform__
+
 #include "runtime/SandBox.h"
-#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
-void JobQueue::enqueueJob(Job* job)
-{
-    m_jobs.push_back(job);
+class ArrayBufferObject;
+class Context;
+class Job;
+
+class Platform {
+public:
+    virtual ~Platform() {}
+    virtual void* arrayBufferObjectDataBufferMallocCallback(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) = 0;
+    virtual void arrayBufferObjectDataBufferFreeCallback(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
+    virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) = 0;
+};
 }
 
-void JobQueue::clearJobRelatedWithSpecificContext(Context* context)
-{
-    auto iter = m_jobs.begin();
-    while (iter != m_jobs.end()) {
-        if ((*iter)->relatedContext() == context) {
-            iter = m_jobs.erase(iter);
-        } else {
-            iter++;
-        }
-    }
-}
-}
+#endif

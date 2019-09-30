@@ -25,6 +25,7 @@
 namespace Escargot {
 
 extern size_t g_symbolTag;
+class VMInstance;
 
 class Symbol : public PointerValue {
 public:
@@ -44,7 +45,9 @@ public:
         return m_description;
     }
 
-    String* getSymbolDescriptiveString() const;
+    String* symbolDescriptiveString() const;
+
+    static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
 
 private:
     size_t m_tag;

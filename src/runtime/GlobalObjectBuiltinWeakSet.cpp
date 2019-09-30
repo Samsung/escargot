@@ -132,7 +132,7 @@ void GlobalObject::installWeakSet(ExecutionState& state)
     m_weakSet->markThisObjectDontNeedStructureTransitionTable(state);
     m_weakSet->setPrototype(state, m_functionPrototype);
     m_weakSetPrototype = m_objectPrototype;
-    m_weakSetPrototype = new WeakSetProtoTypeObject(state);
+    m_weakSetPrototype = new WeakSetPrototypeObject(state);
     m_weakSetPrototype->markThisObjectDontNeedStructureTransitionTable(state);
     m_weakSetPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

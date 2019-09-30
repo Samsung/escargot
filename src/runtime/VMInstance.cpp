@@ -121,12 +121,27 @@ bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
 
-VMInstance::VMInstance(const char* locale, const char* timezone)
+VMInstance::~VMInstance()
+{
+    clearCaches();
+#ifdef ENABLE_ICU
+    delete m_timezone;
+#endif
+}
+
+VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
     : m_randEngine((unsigned int)time(NULL))
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
     , m_cachedUTC(nullptr)
+    , m_platform(platform)
 {
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        VMInstance* self = (VMInstance*)obj;
+        self->~VMInstance();
+    },
+                                   nullptr, nullptr, nullptr);
+
     if (!String::emptyString) {
         String::emptyString = new (NoGC) ASCIIString("");
     }
@@ -227,9 +242,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone)
     m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForUnmappedArgumentsObject->addProperty(stateForInit, m_staticStrings.caller, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
     m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForUnmappedArgumentsObject->addProperty(stateForInit, m_staticStrings.callee, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
 
-    m_jobQueue = JobQueue::create();
-    m_jobQueueListener = nullptr;
-    m_publicJobQueueListenerPointer = nullptr;
+    m_jobQueue = new JobQueue();
 }
 
 void VMInstance::clearCaches()
@@ -261,44 +274,19 @@ void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
     }
 }
 
-void VMInstance::addRoot(void* ptr)
+void VMInstance::enqueuePromiseJob(PromiseObject* promise, Job* job)
 {
-    auto iter = m_rootSet.find(ptr);
-    if (iter == m_rootSet.end()) {
-        m_rootSet.insert(std::make_pair(ptr, 1));
-    } else {
-        iter->second++;
-    }
+    m_jobQueue->enqueueJob(job);
+    m_platform->didPromiseJobEnqueued(job->relatedContext(), promise);
 }
 
-bool VMInstance::removeRoot(void* ptr)
+bool VMInstance::hasPendingPromiseJob()
 {
-    auto iter = m_rootSet.find(ptr);
-    if (iter == m_rootSet.end()) {
-        return false;
-    } else {
-        iter->second++;
-        if (iter->second == 0) {
-            m_rootSet.erase(iter);
-        }
-    }
-    return true;
+    return m_jobQueue->hasNextJob();
 }
 
-std::pair<bool, Optional<Value>> VMInstance::drainJobQueue()
+SandBox::SandBoxResult VMInstance::executePendingPromiseJob()
 {
-    DefaultJobQueue* jobQueue = DefaultJobQueue::get(this->jobQueue());
-    while (jobQueue->hasNextJob()) {
-        auto jobResult = jobQueue->nextJob()->run();
-        if (!jobResult.error.isEmpty())
-            return std::make_pair(jobQueue->hasNextJob(), jobResult.error);
-    }
-
-    return std::make_pair(false, Optional<Value>());
-}
-
-void VMInstance::setNewPromiseJobListener(NewPromiseJobListener l)
-{
-    m_jobQueueListener = l;
+    return m_jobQueue->nextJob()->run();
 }
 }

@@ -365,38 +365,7 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
     if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
     PromiseObject* promise = thisValue.asPointerValue()->asPromiseObject();
-
-    Value onFulfilledValue = argv[0];
-    Value onRejectedValue = argv[1];
-
-    Object* onFulfilled = onFulfilledValue.isCallable() ? onFulfilledValue.asObject() : (Object*)(1);
-    Object* onRejected = onRejectedValue.isCallable() ? onRejectedValue.asObject() : (Object*)(2);
-
-    // Let C be SpeciesConstructor(promise, %Promise%)
-    Value C = promise->speciesConstructor(state, state.context()->globalObject()->promise());
-
-    // Let resultCapability be NewPromiseCapability(C).
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, C.toObject(state));
-
-    switch (promise->state()) {
-    case PromiseObject::PromiseState::Pending: {
-        promise->appendReaction(onFulfilled, onRejected, capability);
-        break;
-    }
-    case PromiseObject::PromiseState::FulFilled: {
-        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onFulfilled, capability), promise->promiseResult());
-        state.context()->jobQueue()->enqueueJob(state, job);
-        break;
-    }
-    case PromiseObject::PromiseState::Rejected: {
-        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onRejected, capability), promise->promiseResult());
-        state.context()->jobQueue()->enqueueJob(state, job);
-        break;
-    }
-    default:
-        break;
-    }
-    return capability.m_promise;
+    return promise->then(state, argv[0], argv[1]);
 }
 
 // $25.4.1.5.1 Internal GetCapabilitiesExecutor Function
@@ -433,12 +402,12 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
 
     Value resolutionValue = argv[0];
     if (resolutionValue == Value(promise)) {
-        promise->rejectPromise(state, new TypeErrorObject(state, new ASCIIString("Self resolution error")));
+        promise->reject(state, new TypeErrorObject(state, new ASCIIString("Self resolution error")));
         return Value();
     }
 
     if (!resolutionValue.isObject()) {
-        promise->fulfillPromise(state, resolutionValue);
+        promise->fulfill(state, resolutionValue);
         return Value();
     }
     Object* resolution = resolutionValue.asObject();
@@ -448,15 +417,15 @@ Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc
         return resolution->get(state, strings->then).value(state, resolution);
     });
     if (!res.error.isEmpty()) {
-        promise->rejectPromise(state, res.error);
+        promise->reject(state, res.error);
         return Value();
     }
     Value then = res.result;
 
     if (then.isCallable()) {
-        state.context()->jobQueue()->enqueueJob(state, new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
+        state.context()->vmInstance()->enqueuePromiseJob(promise, new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
     } else {
-        promise->fulfillPromise(state, resolution);
+        promise->fulfill(state, resolution);
         return Value();
     }
 
@@ -475,7 +444,7 @@ Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc,
         return Value();
     alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
 
-    promise->rejectPromise(state, argv[0]);
+    promise->reject(state, argv[0]);
     return Value();
 }
 

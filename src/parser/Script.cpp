@@ -36,6 +36,11 @@ namespace Escargot {
 
 Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool inStrictMode)
 {
+    if (UNLIKELY(m_topCodeBlock->m_byteCodeBlock == nullptr)) {
+        ESCARGOT_LOG_ERROR("You cannot re-execute Script object...");
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     ExecutionState newState(state.context());
     ExecutionState* codeExecutionState = &newState;
 
@@ -86,14 +91,15 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     Value resultValue = ByteCodeInterpreter::interpret(codeExecutionState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
     clearStack<512>();
 
+    // we give up program bytecodeblock after first excution for reducing memory usage
+    m_topCodeBlock->m_byteCodeBlock = nullptr;
+
     return resultValue;
 }
 
 // NOTE: eval by direct call
 Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside, bool isEvalCodeOnFunction)
 {
-    ASSERT(m_topCodeBlock != nullptr);
-
     EnvironmentRecord* record;
     bool inStrict = false;
     if (UNLIKELY(isStrictModeOutside)) {

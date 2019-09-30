@@ -20,25 +20,31 @@
 #ifndef __ESCARGOT_PUBLIC__
 #define __ESCARGOT_PUBLIC__
 
-#ifndef EXPORT
+#ifndef ESCARGOT_EXPORT
 #if defined(_MSC_VER)
-#define EXPORT __declspec(dllexport)
+#define ESCARGOT_EXPORT __declspec(dllESCARGOT_EXPORT)
 #else
-#define EXPORT __attribute__((visibility("default")))
+#define ESCARGOT_EXPORT __attribute__((visibility("default")))
 #endif
 #endif
 
-#include <string>
 #include <cstdlib>
-#include <vector>
+#include <cstddef>
+#include <string>
 #include <functional>
 #include <limits>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
-#include <GCUtil.h>
+#if !defined(NDEBUG) && defined(__GLIBCXX__) && !defined(_GLIBCXX_DEBUG)
+#pragma message("You should define `_GLIBCXX_DEBUG` in {debug mode + libstdc++} because Escargot uses it")
+#endif
 
 namespace Escargot {
 
 class VMInstanceRef;
+class ContextRef;
 class StringRef;
 class SymbolRef;
 class ValueRef;
@@ -59,6 +65,10 @@ class Uint8ClampedArrayObjectRef;
 class Float32ArrayObjectRef;
 class Float64ArrayObjectRef;
 class PromiseObjectRef;
+class SetObjectRef;
+class WeakSetObjectRef;
+class MapObjectRef;
+class WeakMapObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
 class StringObjectRef;
@@ -73,27 +83,276 @@ class ExecutionStateRef;
 class ValueVectorRef;
 class JobRef;
 
-class EXPORT Globals {
+class ESCARGOT_EXPORT Globals {
 public:
-    static void initialize(bool applyMallOpt = false, bool applyGcOpt = false);
+    static void initialize();
     static void finalize();
 };
 
-template <typename T>
-struct EXPORT NullablePtr {
+class ESCARGOT_EXPORT Memory {
 public:
-    NullablePtr()
+    static void* gcMalloc(size_t siz); // allocate memory it can hold gc-allocated pointer
+    static void* gcMallocAtomic(size_t siz); // allocate memory it can not hold gc-allocated pointer like string, number
+    static void* gcMallocUncollectable(size_t siz); // allocate memory it can hold gc-allocated pointer & it is never collect by gc
+    static void* gcMallocAtomicUncollectable(size_t siz); // allocate memory it can not hold gc-allocated pointer & it is never collect by gc
+    static void gcFree(void* ptr);
+    typedef void (*GCAllocatedMemoryFinalizer)(void* self);
+    // if you want to free memory explicitly, you must remove registered finalizer
+    // if there was no finalizer, you can just free memory
+    // ex) void* gcPointer;
+    //     gcRegisterFinalizer(gcPointer, ....);
+    //     ......
+    //     gcRegisterFinalizer(gcPointer, nullptr);
+    //     Memory::gcFree(gcPointer);
+    static void gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback);
+
+    static void gc();
+
+    static size_t heapSize(); // Return the number of bytes in the heap.  Excludes bdwgc private data structures. Excludes the unmapped memory
+    static size_t totalSize(); // Return the total number of bytes allocated in this process
+
+    typedef void (*OnGCEventListener)();
+    static void setEventEventListener(OnGCEventListener l);
+    // NOTE bdwgc(c/c++ gc library escargot use) allocate at least N/GC_free_space_divisor bytes between collections
+    // (Allocated memory by GC x 2) / (Frequency parameter value)
+    // Increasing this value may use less space but there is more collection event
+    static void setGCFrequency(size_t value = 1);
+};
+
+// NOTE only {stack, kinds of PersistentHolders} are root set. if you store the data you need on other space, you may lost your data
+template <typename T>
+class ESCARGOT_EXPORT PersistentRefHolder {
+public:
+    ~PersistentRefHolder()
+    {
+        destoryHolderSpace();
+    }
+
+    PersistentRefHolder()
+    {
+        m_holder = nullptr;
+    }
+
+    PersistentRefHolder(T* ptr)
+    {
+        initHolderSpace(ptr);
+    }
+
+    PersistentRefHolder(PersistentRefHolder<T>&& src)
+    {
+        m_holder = src.m_holder;
+        src.destoryHolderSpace();
+    }
+
+    PersistentRefHolder<T>& operator=(PersistentRefHolder<T>&& src)
+    {
+        m_holder = src.m_holder;
+        src.destoryHolderSpace();
+
+        return *this;
+    }
+
+    PersistentRefHolder(const PersistentRefHolder<T>&) = delete;
+    const PersistentRefHolder<T>& operator=(const PersistentRefHolder<T>&) = delete;
+
+    void reset(T* ptr)
+    {
+        if (!ptr) {
+            destoryHolderSpace();
+            return;
+        }
+        if (m_holder == nullptr) {
+            initHolderSpace(ptr);
+        } else {
+            *m_holder = ptr;
+        }
+    }
+
+    operator T*()
+    {
+        return *m_holder;
+    }
+
+    T* get()
+    {
+        return *m_holder;
+    }
+
+    T* release()
+    {
+        if (m_holder) {
+            T* ptr = *m_holder;
+            destoryHolderSpace();
+            return ptr;
+        }
+        return nullptr;
+    }
+
+    T* operator->()
+    {
+        return *m_holder;
+    }
+
+private:
+    void initHolderSpace(T* initialValue)
+    {
+        m_holder = (T**)Memory::gcMallocUncollectable(sizeof(T*));
+        *m_holder = initialValue;
+    }
+
+    void destoryHolderSpace()
+    {
+        if (m_holder) {
+            Memory::gcFree(m_holder);
+        }
+        m_holder = nullptr;
+    }
+
+    T** m_holder;
+};
+
+class PersistentValueRefMap {
+public:
+    static PersistentRefHolder<PersistentValueRefMap> create();
+
+    // we can count 0~2^30 range
+    // returns how many times rooted
+    // if ValueRef has type doesn't require root ex) undefined, number, boolean, small integer value
+    // this functions return 0;
+    uint32_t add(ValueRef* ptr);
+    // return how many times rooted after remove root
+    // 0 means the value is not heap-allocated value or is removed from root list
+    uint32_t remove(ValueRef* ptr);
+
+    void clear();
+};
+
+template <typename T>
+class ESCARGOT_EXPORT GCManagedVector {
+public:
+    GCManagedVector()
+    {
+        m_buffer = nullptr;
+        m_size = 0;
+    }
+
+    explicit GCManagedVector(size_t size)
+    {
+        if (size) {
+            m_buffer = (T*)Memory::gcMalloc(sizeof(T) * size);
+            m_size = size;
+            for (size_t i = 0; i < size; i++) {
+                new (&m_buffer[i]) T();
+            }
+        } else {
+            m_buffer = nullptr;
+            m_size = 0;
+        }
+    }
+
+    GCManagedVector(GCManagedVector<T>&& other)
+    {
+        m_size = other.size();
+        m_buffer = other.m_buffer;
+        other.m_buffer = nullptr;
+        other.m_size = 0;
+    }
+
+    GCManagedVector(const GCManagedVector<T>& other) = delete;
+    const GCManagedVector<T>& operator=(const GCManagedVector<T>& other) = delete;
+
+    ~GCManagedVector()
+    {
+        if (m_buffer) {
+            for (size_t i = 0; i < m_size; i++) {
+                m_buffer[i].~T();
+            }
+            Memory::gcFree(m_buffer);
+        }
+    }
+
+    size_t size() const
+    {
+        return m_size;
+    }
+
+    T& operator[](const size_t idx)
+    {
+        return m_buffer[idx];
+    }
+
+    const T& operator[](const size_t idx) const
+    {
+        return m_buffer[idx];
+    }
+
+    void clear()
+    {
+        if (m_buffer) {
+            Memory::gcFree(m_buffer);
+        }
+        m_size = 0;
+        m_buffer = nullptr;
+    }
+
+    void* operator new(size_t size)
+    {
+        return Memory::gcMalloc(size);
+    }
+    void* operator new(size_t, void* ptr)
+    {
+        return ptr;
+    }
+    void* operator new[](size_t size) = delete;
+
+    void operator delete(void* ptr)
+    {
+        Memory::gcFree(ptr);
+    }
+    void operator delete[](void* obj) = delete;
+
+private:
+    T* m_buffer;
+    size_t m_size;
+};
+
+template <typename T>
+class ESCARGOT_EXPORT OptionalRef {
+public:
+    OptionalRef()
         : m_value(nullptr)
     {
     }
 
-    NullablePtr(T* value)
-        : m_value(value ? value : nullptr)
+    OptionalRef(T* value)
+        : m_value(value)
     {
     }
 
-    T* getValue();
-    const T* getValue() const;
+    OptionalRef(std::nullptr_t value)
+        : m_value(nullptr)
+    {
+    }
+
+    T* value()
+    {
+        return m_value;
+    }
+
+    const T* value() const
+    {
+        return m_value;
+    }
+
+    T* get()
+    {
+        return m_value;
+    }
+
+    const T* get() const
+    {
+        return m_value;
+    }
 
     bool hasValue() const
     {
@@ -105,95 +364,407 @@ public:
         return hasValue();
     }
 
-    bool operator==(const NullablePtr<T>& other) const
+    T* operator->()
     {
-        return m_value == other.m_value;
+        return m_value;
     }
 
-    bool operator!=(const NullablePtr<T>& other) const
+    bool operator==(const OptionalRef<T*>& other) const
     {
-        return !this->operator==(other);
+        if (hasValue() != other.hasValue()) {
+            return false;
+        }
+        return hasValue() ? *m_value == *other.m_value : true;
     }
 
-    bool operator==(const T* other) const
-    {
-        return m_value == other;
-    }
-
-    bool operator!=(const T* other) const
+    bool operator!=(const OptionalRef<T*>& other) const
     {
         return !this->operator==(other);
     }
 
-private:
+    bool operator==(const T*& other) const
+    {
+        if (hasValue()) {
+            return *value() == *other;
+        }
+        return false;
+    }
+
+    bool operator!=(const T*& other) const
+    {
+        return !operator==(other);
+    }
+
+protected:
     T* m_value;
 };
 
-// `double` value is not presented in PointerValue, but it is stored in heap
-class EXPORT PointerValueRef {
+class ESCARGOT_EXPORT PlatformRef {
 public:
-    bool isString();
-    StringRef* asString();
-    bool isSymbol();
-    SymbolRef* asSymbol();
-    bool isObject();
-    ObjectRef* asObject();
-    bool isFunctionObject();
-    FunctionObjectRef* asFunctionObject();
-    bool isArrayObject();
-    ArrayObjectRef* asArrayObject();
-    bool isArrayPrototypeObject();
-    bool isStringObject();
-    StringObjectRef* asStringObject();
-    bool isSymbolObject();
-    SymbolObjectRef* asSymbolObject();
-    bool isNumberObject();
-    NumberObjectRef* asNumberObject();
-    bool isBooleanObject();
-    BooleanObjectRef* asBooleanObject();
-    bool isRegExpObject(ExecutionStateRef* state);
-    RegExpObjectRef* asRegExpObject(ExecutionStateRef* state);
-    bool isDateObject();
-    DateObjectRef* asDateObject();
-    bool isGlobalObject();
-    GlobalObjectRef* asGlobalObject();
-    bool isErrorObject();
-    ErrorObjectRef* asErrorObject();
-    bool isArrayBufferObject();
-    ArrayBufferObjectRef* asArrayBufferObject();
-    bool isArrayBufferView();
-    ArrayBufferViewRef* asArrayBufferView();
-    bool isInt8ArrayObject();
-    Int8ArrayObjectRef* asInt8ArrayObject();
-    bool isUint8ArrayObject();
-    Uint8ArrayObjectRef* asUint8ArrayObject();
-    bool isInt16ArrayObject();
-    Int16ArrayObjectRef* asInt16ArrayObject();
-    bool isUint16ArrayObject();
-    Uint16ArrayObjectRef* asUint16ArrayObject();
-    bool isInt32ArrayObject();
-    Int32ArrayObjectRef* asInt32ArrayObject();
-    bool isUint32ArrayObject();
-    Uint32ArrayObjectRef* asUint32ArrayObject();
-    bool isUint8ClampedArrayObject();
-    Uint8ClampedArrayObjectRef* asUint8ClampedArrayObject();
-    bool isFloat32ArrayObject();
-    Float32ArrayObjectRef* asFloat32ArrayObject();
-    bool isFloat64ArrayObject();
-    Float64ArrayObjectRef* asFloat64ArrayObject();
-    bool isTypedArrayPrototypeObject();
-    bool isPromiseObject();
-    PromiseObjectRef* asPromiseObject();
-    bool isProxyObject();
-    ProxyObjectRef* asProxyObject();
+    virtual ~PlatformRef() {}
+    // client must returns zero-filled memory
+    virtual void* arrayBufferObjectDataBufferMallocCallback(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, size_t sizeInByte)
+    {
+        return calloc(sizeInByte, 1);
+    }
+    virtual void arrayBufferObjectDataBufferFreeCallback(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
+    {
+        return free(buffer);
+    }
+
+    // If you want to use promise on Escargot, you should call VMInstanceRef::executePendingPromiseJob after event. see Shell.cpp
+    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) = 0;
 };
 
-class EXPORT StringRef : public PointerValueRef {
+// Don't save ExecutionStateRef anywhere yourself
+// If you want to acquire ExecutionStateRef, you can use Evaluator::run
+class ESCARGOT_EXPORT ExecutionStateRef {
 public:
-    static StringRef* fromASCII(const char* s);
-    static StringRef* fromASCII(const char* s, size_t len);
-    static StringRef* fromUTF8(const char* s, size_t len);
-    static StringRef* fromUTF16(const char16_t* s, size_t len);
+    OptionalRef<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
+    GCManagedVector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
+    GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
+
+    void throwException(ValueRef* value);
+
+    ContextRef* context();
+};
+
+// expand tuple into variadic template function's arguments
+// https://stackoverflow.com/questions/687490/how-do-i-expand-a-tuple-into-variadic-template-functions-arguments
+namespace EvaluatorUtil {
+template <size_t N>
+struct ApplyTupleIntoArgumentsOfVariadicTemplateFunction {
+    template <typename F, typename T, typename... A>
+    static inline auto apply(F&& f, T&& t, A&&... a)
+        -> decltype(ApplyTupleIntoArgumentsOfVariadicTemplateFunction<N - 1>::apply(
+            ::std::forward<F>(f), ::std::forward<T>(t),
+            ::std::get<N - 1>(::std::forward<T>(t)), ::std::forward<A>(a)...))
+    {
+        return ApplyTupleIntoArgumentsOfVariadicTemplateFunction<N - 1>::apply(::std::forward<F>(f), ::std::forward<T>(t),
+                                                                               ::std::get<N - 1>(::std::forward<T>(t)), ::std::forward<A>(a)...);
+    }
+};
+
+template <>
+struct ApplyTupleIntoArgumentsOfVariadicTemplateFunction<0> {
+    template <typename F, typename T, typename... A>
+    static inline auto apply(F&& f, T&&, A&&... a)
+        -> decltype(::std::forward<F>(f)(::std::forward<A>(a)...))
+    {
+        return ::std::forward<F>(f)(::std::forward<A>(a)...);
+    }
+};
+
+template <typename F, typename T>
+inline auto applyTupleIntoArgumentsOfVariadicTemplateFunction(F&& f, T&& t)
+    -> decltype(ApplyTupleIntoArgumentsOfVariadicTemplateFunction< ::std::tuple_size<
+                    typename ::std::decay<T>::type>::value>::apply(::std::forward<F>(f), ::std::forward<T>(t)))
+{
+    return ApplyTupleIntoArgumentsOfVariadicTemplateFunction< ::std::tuple_size<
+        typename ::std::decay<T>::type>::value>::apply(::std::forward<F>(f), ::std::forward<T>(t));
+}
+}
+
+class ESCARGOT_EXPORT Evaluator {
+public:
+    struct LOC {
+        size_t line;
+        size_t column;
+        size_t index;
+
+        LOC(size_t line, size_t column, size_t index)
+            : line(line)
+            , column(column)
+            , index(index)
+        {
+        }
+    };
+
+    struct StackTraceData {
+        StringRef* fileName;
+        StringRef* source;
+        LOC loc;
+        StackTraceData();
+    };
+
+    struct EvaluatorResult {
+        EvaluatorResult();
+        bool isSuccessful()
+        {
+            return !error.hasValue();
+        }
+
+        ValueRef* result;
+        OptionalRef<ValueRef> error;
+        StringRef* resultOrErrorAsString;
+        GCManagedVector<StackTraceData> stackTraceData;
+    };
+
+    template <typename... Args, typename F>
+    static EvaluatorResult execute(ContextRef* ctx, F&& closure, Args... args)
+    {
+        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
+        return executeImpl(ctx, Closure(closure), args...);
+    }
+
+    static EvaluatorResult executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData), void* data);
+    static EvaluatorResult executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2);
+
+private:
+    template <typename... Args>
+    static EvaluatorResult executeImpl(ContextRef* ctx, ValueRef* (*fn)(ExecutionStateRef* state, Args...), Args... args)
+    {
+        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
+        std::tuple<ExecutionStateRef*, Args...> tuple = std::tuple<ExecutionStateRef*, Args...>(nullptr, args...);
+
+        return executeFunction(ctx, [](ExecutionStateRef* state, void* tuplePtr, void* fnPtr) -> ValueRef* {
+            std::tuple<ExecutionStateRef*, Args...>* tuple = (std::tuple<ExecutionStateRef*, Args...>*)tuplePtr;
+            Closure fn = (Closure)fnPtr;
+
+            std::get<0>(*tuple) = state;
+
+            return EvaluatorUtil::applyTupleIntoArgumentsOfVariadicTemplateFunction(fn, *tuple);
+        },
+                               &tuple, (void*)fn);
+    }
+};
+
+class ESCARGOT_EXPORT VMInstanceRef {
+public:
+    static PersistentRefHolder<VMInstanceRef> create(PlatformRef* platform, const char* locale = nullptr, const char* timezone = nullptr);
+
+    void clearCachesRelatedWithContext();
+
+    PlatformRef* platform();
+
+    SymbolRef* toStringTagSymbol();
+    SymbolRef* iteratorSymbol();
+    SymbolRef* unscopablesSymbol();
+    SymbolRef* hasInstanceSymbol();
+    SymbolRef* isConcatSpreadableSymbol();
+    SymbolRef* speciesSymbol();
+    SymbolRef* toPrimitiveSymbol();
+    SymbolRef* searchSymbol();
+    SymbolRef* matchSymbol();
+    SymbolRef* replaceSymbol();
+    SymbolRef* splitSymbol();
+
+    bool hasPendingPromiseJob();
+    Evaluator::EvaluatorResult executePendingPromiseJob();
+};
+
+class ESCARGOT_EXPORT ContextRef {
+public:
+    static PersistentRefHolder<ContextRef> create(VMInstanceRef* vmInstance);
+
+    void clearRelatedQueuedPromiseJobs();
+
+    ScriptParserRef* scriptParser();
+    GlobalObjectRef* globalObject();
+    VMInstanceRef* vmInstance();
+
+    typedef OptionalRef<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
+    typedef OptionalRef<ValueRef> (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
+
+    // this is not compatible with ECMAScript
+    // but this callback is needed for browser-implementation
+    // if there is a Identifier with that value, callback should return non empty optional value
+    void setVirtualIdentifierCallback(VirtualIdentifierCallback cb);
+    VirtualIdentifierCallback virtualIdentifierCallback();
+
+    void setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb);
+};
+
+// AtomicStringRef is never deleted by gc until VMInstance destroyed
+// client doesn't need to store this ref in Persistent storage
+class ESCARGOT_EXPORT AtomicStringRef {
+public:
+    static AtomicStringRef* create(ContextRef* c, const char* src, size_t length); // from ASCII string
+    template <size_t N>
+    static AtomicStringRef* create(ContextRef* c, const char (&str)[N])
+    {
+        return create(c, str, N - 1);
+    }
+    static AtomicStringRef* create(ContextRef* c, StringRef* src);
+    static AtomicStringRef* emptyAtomicString();
+    StringRef* string();
+
+    bool equals(AtomicStringRef* ref) const
+    {
+        return this == ref;
+    }
+};
+
+// only large integer, double, PointerValueRef are stored in heap
+// other types are represented by pointer, but doesn't use heap
+// client must save heap-allocated values on the space where gc can find from root space(stack, VMInstance, PersistentHolders) if don't want to delete by gc
+class ESCARGOT_EXPORT ValueRef {
+public:
+    static ValueRef* create(bool);
+    static ValueRef* create(int);
+    static ValueRef* create(unsigned);
+    static ValueRef* create(float);
+    static ValueRef* create(double);
+    static ValueRef* create(long);
+    static ValueRef* create(unsigned long);
+    static ValueRef* create(long long);
+    static ValueRef* create(unsigned long long);
+    static ValueRef* createNull();
+    static ValueRef* createUndefined();
+
+    bool isStoreInHeap();
+    bool isBoolean();
+    bool isNumber();
+    bool isNull();
+    bool isUndefined();
+    bool isInt32();
+    bool isUInt32();
+    bool isDouble();
+    bool isTrue();
+    bool isFalse();
+    bool isString();
+    bool isSymbol();
+    bool isPointerValue();
+    bool isCallable(); // can ValueRef::call
+    bool isConstructible(); // can ValueRef::construct
+    bool isUndefinedOrNull()
+    {
+        return isUndefined() || isNull();
+    }
+    bool isObject();
+    bool isFunctionObject();
+    bool isArrayObject();
+    bool isArrayPrototypeObject();
+    bool isStringObject();
+    bool isSymbolObject();
+    bool isNumberObject();
+    bool isBooleanObject();
+    bool isRegExpObject();
+    bool isDateObject();
+    bool isGlobalObject();
+    bool isErrorObject();
+    bool isArrayBufferObject();
+    bool isArrayBufferView();
+    bool isInt8ArrayObject();
+    bool isUint8ArrayObject();
+    bool isInt16ArrayObject();
+    bool isUint16ArrayObject();
+    bool isInt32ArrayObject();
+    bool isUint32ArrayObject();
+    bool isUint8ClampedArrayObject();
+    bool isFloat32ArrayObject();
+    bool isFloat64ArrayObject();
+    bool isTypedArrayObject();
+    bool isTypedArrayPrototypeObject();
+    bool isDataViewObject();
+    bool isPromiseObject();
+    bool isProxyObject();
+    bool isArgumentsObject();
+    bool isGeneratorFunctionObject();
+    bool isGeneratorObject();
+    bool isSetObject();
+    bool isWeakSetObject();
+    bool isSetIteratorObject();
+    bool isMapObject();
+    bool isWeakMapObject();
+    bool isMapIteratorObject();
+
+    bool toBoolean(ExecutionStateRef* state);
+    double toNumber(ExecutionStateRef* state);
+    double toInteger(ExecutionStateRef* state);
+    double toLength(ExecutionStateRef* state);
+    int32_t toInt32(ExecutionStateRef* state);
+    uint32_t toUint32(ExecutionStateRef* state);
+    StringRef* toString(ExecutionStateRef* state);
+    // we never throw exception in this function but returns "Error while converting to string, but do not throw an exception" string
+    StringRef* toStringWithoutException(ExecutionStateRef* state);
+    ObjectRef* toObject(ExecutionStateRef* state);
+
+    enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
+    typedef uint64_t ValueIndex;
+    ValueIndex toIndex(ExecutionStateRef* state);
+
+    enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
+    uint32_t toArrayIndex(ExecutionStateRef* state);
+
+    bool asBoolean();
+    double asNumber();
+    int32_t asInt32();
+    uint32_t asUint32();
+    PointerValueRef* asPointerValue();
+    StringRef* asString();
+    SymbolRef* asSymbol();
+    ObjectRef* asObject();
+    FunctionObjectRef* asFunctionObject();
+    ArrayObjectRef* asArrayObject();
+    StringObjectRef* asStringObject();
+    SymbolObjectRef* asSymbolObject();
+    NumberObjectRef* asNumberObject();
+    BooleanObjectRef* asBooleanObject();
+    RegExpObjectRef* asRegExpObject();
+    DateObjectRef* asDateObject();
+    GlobalObjectRef* asGlobalObject();
+    ErrorObjectRef* asErrorObject();
+    ArrayBufferObjectRef* asArrayBufferObject();
+    ArrayBufferViewRef* asArrayBufferView();
+    Int8ArrayObjectRef* asInt8ArrayObject();
+    Uint8ArrayObjectRef* asUint8ArrayObject();
+    Int16ArrayObjectRef* asInt16ArrayObject();
+    Uint16ArrayObjectRef* asUint16ArrayObject();
+    Int32ArrayObjectRef* asInt32ArrayObject();
+    Uint32ArrayObjectRef* asUint32ArrayObject();
+    Uint8ClampedArrayObjectRef* asUint8ClampedArrayObject();
+    Float32ArrayObjectRef* asFloat32ArrayObject();
+    Float64ArrayObjectRef* asFloat64ArrayObject();
+    PromiseObjectRef* asPromiseObject();
+    ProxyObjectRef* asProxyObject();
+    SetObjectRef* asSetObject();
+    WeakSetObjectRef* asWeakSetObject();
+    MapObjectRef* asMapObject();
+    WeakMapObjectRef* asWeakMapObject();
+
+    bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
+    bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // ===
+    bool instanceOf(ExecutionStateRef* state, const ValueRef* other) const;
+    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
+    ObjectRef* construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv); // same with new expression in js
+};
+
+class ESCARGOT_EXPORT ValueVectorRef {
+public:
+    static ValueVectorRef* create(size_t size = 0);
+
+    size_t size();
+    void pushBack(ValueRef* val);
+    void insert(size_t pos, ValueRef* val);
+    void erase(size_t pos);
+    void erase(size_t start, size_t end);
+    ValueRef* at(const size_t idx);
+    void set(const size_t idx, ValueRef* newValue);
+    void resize(size_t newSize);
+};
+
+// `double` value is not presented in PointerValue, but it is stored in heap
+class ESCARGOT_EXPORT PointerValueRef : public ValueRef {
+public:
+};
+
+class ESCARGOT_EXPORT StringRef : public PointerValueRef {
+public:
+    template <size_t N>
+    static StringRef* createFromASCII(const char (&str)[N])
+    {
+        return createFromASCII(str, N - 1);
+    }
+    static StringRef* createFromASCII(const char* s, size_t len);
+    template <size_t N>
+    static StringRef* createFromUTF8(const char (&str)[N])
+    {
+        return createFromUTF8(str, N - 1);
+    }
+    static StringRef* createFromUTF8(const char* s, size_t len);
+    static StringRef* createFromUTF16(const char16_t* s, size_t len);
+    static StringRef* createFromLatin1(const unsigned char* s, size_t len);
     static StringRef* emptyString();
 
     char16_t charAt(size_t idx);
@@ -237,182 +808,17 @@ public:
     StringBufferAccessDataRef stringBufferAccessData();
 };
 
-class EXPORT SymbolRef : public PointerValueRef {
+class ESCARGOT_EXPORT SymbolRef : public PointerValueRef {
 public:
     static SymbolRef* create(StringRef* desc);
+    static SymbolRef* fromGlobalSymbolRegistry(VMInstanceRef* context, StringRef* desc); // this is same with Symbol.for
     StringRef* description();
+    StringRef* symbolDescriptiveString();
 };
 
-class EXPORT VMInstanceRef {
-public:
-    static VMInstanceRef* create(const char* locale = nullptr, const char* timezone = nullptr);
-    void destroy();
-
-    void clearCachesRelatedWithContext();
-    bool addRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
-    bool removeRoot(VMInstanceRef* instanceRef, ValueRef* ptr);
-
-    SymbolRef* toStringTagSymbol();
-    SymbolRef* iteratorSymbol();
-    SymbolRef* unscopablesSymbol();
-
-    struct DrainJobQueueResult {
-        // test job queue ended without error
-        bool isSuccessful()
-        {
-            return !error.hasValue();
-        }
-        // is there any job after drain
-        bool isThereRemainedJob;
-        NullablePtr<ValueRef> error;
-        DrainJobQueueResult();
-    };
-    DrainJobQueueResult drainJobQueue();
-
-    typedef void (*NewPromiseJobListener)(ExecutionStateRef* state, JobRef* job);
-    void setNewPromiseJobListener(NewPromiseJobListener l);
-};
-
-class EXPORT ContextRef {
-public:
-    static ContextRef* create(VMInstanceRef* vmInstance);
-    void clearRelatedQueuedPromiseJobs();
-    void destroy();
-
-    ScriptParserRef* scriptParser();
-    GlobalObjectRef* globalObject();
-    VMInstanceRef* vmInstance();
-
-    typedef NullablePtr<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
-    typedef NullablePtr<ValueRef> (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
-
-    // this is not compatible with ECMAScript
-    // but this callback is needed for browser-implementation
-    // if there is a Identifier with that value, callback should return non-empty value
-    void setVirtualIdentifierCallback(VirtualIdentifierCallback cb);
-    VirtualIdentifierCallback virtualIdentifierCallback();
-
-    void setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb);
-};
-
-class EXPORT AtomicStringRef {
-public:
-    static AtomicStringRef* create(ContextRef* c, const char* src); // from ASCII string
-    static AtomicStringRef* create(ContextRef* c, StringRef* src);
-    static AtomicStringRef* emptyAtomicString();
-    StringRef* string();
-};
-
-class EXPORT ExecutionStateRef {
-public:
-    // this can not create sandbox
-    // use this function only non-exececption area
-    static ExecutionStateRef* create(ContextRef* ctx);
-    void destroy();
-
-    NullablePtr<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
-    std::vector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
-    GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
-
-    void throwException(ValueRef* value);
-
-    ContextRef* context();
-};
-
-// double, PointerValueRef are stored in heap
-// client should root heap values
-class EXPORT ValueRef {
-public:
-    union PublicValueDescriptor {
-        int64_t asInt64;
-    };
-
-    static ValueRef* create(bool);
-    static ValueRef* create(int);
-    static ValueRef* create(unsigned);
-    static ValueRef* create(float);
-    static ValueRef* create(double);
-    static ValueRef* create(long);
-    static ValueRef* create(unsigned long);
-    static ValueRef* create(long long);
-    static ValueRef* create(unsigned long long);
-    static ValueRef* create(ValueRef* value);
-    static ValueRef* create(PointerValueRef* value)
-    {
-        return reinterpret_cast<ValueRef*>(value);
-    }
-    static ValueRef* createNull();
-    static ValueRef* createUndefined();
-    static ValueRef* createEmpty();
-
-    bool isStoreInHeap() const;
-    bool isBoolean() const;
-    bool isNumber() const;
-    bool isNull() const;
-    bool isUndefined() const;
-    bool isEmpty() const;
-    bool isInt32() const;
-    bool isUInt32() const;
-    bool isDouble() const;
-    bool isTrue() const;
-    bool isFalse() const;
-    bool isString() const;
-    bool isObject() const;
-    bool isPointerValue() const;
-    bool isFunction() const;
-    bool isCallable() const;
-    bool isUndefinedOrNull() const
-    {
-        return isUndefined() || isNull();
-    }
-
-    bool toBoolean(ExecutionStateRef* state);
-    double toNumber(ExecutionStateRef* state);
-    double toInteger(ExecutionStateRef* state);
-    double toLength(ExecutionStateRef* state);
-    int32_t toInt32(ExecutionStateRef* state);
-    uint32_t toUint32(ExecutionStateRef* state);
-    StringRef* toString(ExecutionStateRef* state);
-    ObjectRef* toObject(ExecutionStateRef* state);
-
-    enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
-    typedef uint64_t ValueIndex;
-    ValueIndex toIndex(ExecutionStateRef* state);
-
-    enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
-    uint32_t toArrayIndex(ExecutionStateRef* state);
-
-    bool asBoolean();
-    double asNumber();
-    int32_t asInt32();
-    uint32_t asUint32();
-    StringRef* asString();
-    ObjectRef* asObject();
-    FunctionObjectRef* asFunction();
-    PointerValueRef* asPointerValue();
-
-    bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const;
-    bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // BinaryStrictEqual
-    bool instanceOf(ExecutionStateRef* state, const ValueRef* other) const;
-};
-
-class EXPORT ValueVectorRef {
-public:
-    static ValueVectorRef* create(size_t size = 0);
-
-    size_t size();
-    void pushBack(ValueRef* val);
-    void insert(size_t pos, ValueRef* val);
-    void erase(size_t pos);
-    void erase(size_t start, size_t end);
-    ValueRef* at(const size_t idx);
-    void set(const size_t idx, ValueRef* newValue);
-    void resize(size_t newSize);
-};
-
-struct EXPORT ExposableObjectGetOwnPropertyCallbackResult {
+struct ESCARGOT_EXPORT ExposableObjectGetOwnPropertyCallbackResult {
     ExposableObjectGetOwnPropertyCallbackResult()
-        : m_value(ValueRef::createEmpty())
+        : m_value()
         , m_isWritable(false)
         , m_isEnumerable(false)
         , m_isConfigurable(false)
@@ -427,13 +833,13 @@ struct EXPORT ExposableObjectGetOwnPropertyCallbackResult {
     {
     }
 
-    NullablePtr<ValueRef> m_value;
+    OptionalRef<ValueRef> m_value;
     bool m_isWritable;
     bool m_isEnumerable;
     bool m_isConfigurable;
 };
 
-struct EXPORT ExposableObjectEnumerationCallbackResult {
+struct ESCARGOT_EXPORT ExposableObjectEnumerationCallbackResult {
     ExposableObjectEnumerationCallbackResult(ValueRef* name, bool isWritable, bool isEnumerable, bool isConfigurable)
         : m_name(name)
         , m_isWritable(isWritable)
@@ -442,7 +848,6 @@ struct EXPORT ExposableObjectEnumerationCallbackResult {
     {
     }
 
-    ExposableObjectEnumerationCallbackResult() {} // for std vector
     ValueRef* m_name;
     bool m_isWritable;
     bool m_isEnumerable;
@@ -451,11 +856,11 @@ struct EXPORT ExposableObjectEnumerationCallbackResult {
 
 typedef ExposableObjectGetOwnPropertyCallbackResult (*ExposableObjectGetOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
 typedef bool (*ExposableObjectDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName, ValueRef* value);
-typedef std::vector<ExposableObjectEnumerationCallbackResult, GCUtil::gc_malloc_allocator<ExposableObjectEnumerationCallbackResult>> ExposableObjectEnumerationCallbackResultVector;
+typedef GCManagedVector<ExposableObjectEnumerationCallbackResult> ExposableObjectEnumerationCallbackResultVector;
 typedef ExposableObjectEnumerationCallbackResultVector (*ExposableObjectEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self);
 typedef bool (*ExposableObjectDeleteOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* propertyName);
 
-class EXPORT ObjectRef : public PointerValueRef {
+class ESCARGOT_EXPORT ObjectRef : public PointerValueRef {
 public:
     static ObjectRef* create(ExecutionStateRef* state);
     // can not redefine or delete virtual property
@@ -495,10 +900,10 @@ public:
 
     class AccessorPropertyDescriptor {
     public:
-        // only undefined, empty, function are allowed to getter, setter parameter
-        // empty means unspecified state
+        // only undefined, empty optional value, function are allowed to getter, setter parameter
+        // empty optional value means unspecified state
         // undefined means truely undefined -> ex) { get: undefined }
-        AccessorPropertyDescriptor(ValueRef* getter, NullablePtr<ValueRef> setter, PresentAttribute attr)
+        AccessorPropertyDescriptor(ValueRef* getter, OptionalRef<ValueRef> setter, PresentAttribute attr)
             : m_getter(getter)
             , m_setter(setter)
             , m_attribute(attr)
@@ -506,7 +911,7 @@ public:
         }
 
         ValueRef* m_getter;
-        NullablePtr<ValueRef> m_setter;
+        OptionalRef<ValueRef> m_setter;
         PresentAttribute m_attribute;
     };
 
@@ -521,7 +926,7 @@ public:
     // client extend this struct to give data for getter, setter if needs
     // this struct must allocated in gc-heap
     // only setter can be null
-    struct EXPORT NativeDataAccessorPropertyData {
+    struct ESCARGOT_EXPORT NativeDataAccessorPropertyData {
         bool m_isWritable : 1;
         bool m_isEnumerable : 1;
         bool m_isConfigurable : 1;
@@ -549,15 +954,12 @@ public:
     bool hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
 
     ValueRef* getPrototype(ExecutionStateRef* state);
-    NullablePtr<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
+    OptionalRef<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     bool setPrototype(ExecutionStateRef* state, ValueRef* value);
 
     ValueVectorRef* ownPropertyKeys(ExecutionStateRef* state);
 
     void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);
-
-    ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
-    ObjectRef* construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv);
 
     bool isExtensible(ExecutionStateRef* state);
     bool preventExtensions(ExecutionStateRef* state);
@@ -568,7 +970,7 @@ public:
     void removeFromHiddenClassChain(ExecutionStateRef* state);
 };
 
-class EXPORT GlobalObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT GlobalObjectRef : public ObjectRef {
 public:
     FunctionObjectRef* object();
     ObjectRef* objectPrototype();
@@ -633,10 +1035,10 @@ public:
     ObjectRef* float64ArrayPrototype();
 };
 
-class EXPORT FunctionObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT FunctionObjectRef : public ObjectRef {
 public:
-    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isNewExpression);
-    typedef ObjectRef* (*NativeFunctionConstructor)(ExecutionStateRef* state, size_t argc, ValueRef** argv);
+    // in constructor call, function must return newly created object && thisValue is always undefined
+    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall);
 
     struct NativeFunctionInfo {
         bool m_isStrict;
@@ -656,7 +1058,7 @@ public:
     };
 
     static FunctionObjectRef* create(ExecutionStateRef* state, NativeFunctionInfo info);
-    static FunctionObjectRef* createBuiltinFunction(ExecutionStateRef* state, NativeFunctionInfo info);
+    static FunctionObjectRef* createBuiltinFunction(ExecutionStateRef* state, NativeFunctionInfo info); // protoype of builtin function is non-writable
 
     // getter of internal [[Prototype]]
     ValueRef* getFunctionPrototype(ExecutionStateRef* state);
@@ -667,21 +1069,22 @@ public:
     void markFunctionNeedsSlowVirtualIdentifierOperation();
 };
 
-class EXPORT IteratorObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT IteratorObjectRef : public ObjectRef {
 public:
     static IteratorObjectRef* create(ExecutionStateRef* state);
     ValueRef* next(ExecutionStateRef* state);
 };
 
-class EXPORT ArrayObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT ArrayObjectRef : public ObjectRef {
 public:
     static ArrayObjectRef* create(ExecutionStateRef* state);
+    static ArrayObjectRef* create(ExecutionStateRef* state, ValueVectorRef* source);
     IteratorObjectRef* values(ExecutionStateRef* state);
     IteratorObjectRef* keys(ExecutionStateRef* state);
     IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
-class EXPORT ErrorObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT ErrorObjectRef : public ObjectRef {
 public:
     enum Code {
         None,
@@ -695,46 +1098,47 @@ public:
     static ErrorObjectRef* create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage);
 };
 
-class EXPORT ReferenceErrorObjectRef : public ErrorObjectRef {
+class ESCARGOT_EXPORT ReferenceErrorObjectRef : public ErrorObjectRef {
 public:
     static ReferenceErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EXPORT TypeErrorObjectRef : public ErrorObjectRef {
+class ESCARGOT_EXPORT TypeErrorObjectRef : public ErrorObjectRef {
 public:
     static TypeErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EXPORT SyntaxErrorObjectRef : public ErrorObjectRef {
+class ESCARGOT_EXPORT SyntaxErrorObjectRef : public ErrorObjectRef {
 public:
     static SyntaxErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EXPORT RangeErrorObjectRef : public ErrorObjectRef {
+class ESCARGOT_EXPORT RangeErrorObjectRef : public ErrorObjectRef {
 public:
     static RangeErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EXPORT URIErrorObjectRef : public ErrorObjectRef {
+class ESCARGOT_EXPORT URIErrorObjectRef : public ErrorObjectRef {
 public:
     static URIErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EXPORT EvalErrorObjectRef : public ErrorObjectRef {
+class ESCARGOT_EXPORT EvalErrorObjectRef : public ErrorObjectRef {
 public:
     static EvalErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
-class EXPORT DateObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT DateObjectRef : public ObjectRef {
 public:
     static DateObjectRef* create(ExecutionStateRef* state);
+    static int64_t currentTime();
     void setTimeValue(ExecutionStateRef* state, ValueRef* str);
     void setTimeValue(int64_t value);
     StringRef* toUTCString(ExecutionStateRef* state);
     double primitiveValue();
 };
 
-class EXPORT StringObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT StringObjectRef : public ObjectRef {
 public:
     static StringObjectRef* create(ExecutionStateRef* state);
 
@@ -742,7 +1146,7 @@ public:
     StringRef* primitiveValue();
 };
 
-class EXPORT SymbolObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT SymbolObjectRef : public ObjectRef {
 public:
     static SymbolObjectRef* create(ExecutionStateRef* state);
 
@@ -750,7 +1154,7 @@ public:
     SymbolRef* primitiveValue();
 };
 
-class EXPORT NumberObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT NumberObjectRef : public ObjectRef {
 public:
     static NumberObjectRef* create(ExecutionStateRef* state);
 
@@ -758,7 +1162,7 @@ public:
     double primitiveValue();
 };
 
-class EXPORT BooleanObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT BooleanObjectRef : public ObjectRef {
 public:
     static BooleanObjectRef* create(ExecutionStateRef* state);
 
@@ -766,14 +1170,13 @@ public:
     bool primitiveValue();
 };
 
-class EXPORT RegExpObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT RegExpObjectRef : public ObjectRef {
 public:
     enum RegExpObjectOption {
         None = 1,
         Global = 1 << 1,
         IgnoreCase = 1 << 2,
         MultiLine = 1 << 3,
-        // NOTE(ES6): Sticky and Unicode option is added in ES6
         Sticky = 1 << 4,
         Unicode = 1 << 5,
     };
@@ -783,25 +1186,18 @@ public:
     RegExpObjectOption option();
 };
 
-class EXPORT ArrayBufferObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
-    typedef void* (*ArrayBufferObjectBufferMallocFunction)(size_t siz);
-    typedef void (*ArrayBufferObjectBufferFreeFunction)(void* buffer);
-
-    static void setMallocFunction(ArrayBufferObjectBufferMallocFunction fn);
-    static void setFreeFunction(ArrayBufferObjectBufferFreeFunction fn);
-    static void setMallocFunctionNeedsZeroFill(bool n);
-
     static ArrayBufferObjectRef* create(ExecutionStateRef* state);
-    void allocateBuffer(size_t bytelength);
-    void attachBuffer(void* buffer, size_t bytelength);
-    void detachArrayBuffer();
+    void allocateBuffer(ExecutionStateRef* state, size_t bytelength);
+    void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
+    void detachArrayBuffer(ExecutionStateRef* state);
     uint8_t* rawBuffer();
     unsigned bytelength();
     bool isDetachedBuffer();
 };
 
-class EXPORT ArrayBufferViewRef : public ObjectRef {
+class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
     ArrayBufferObjectRef* buffer();
     void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength);
@@ -812,59 +1208,71 @@ public:
     unsigned arrayLength();
 };
 
-class EXPORT Int8ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Int8ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Int8ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Uint8ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Uint8ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint8ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Int16ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Int16ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Int16ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Uint16ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Uint16ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint16ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Uint32ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Uint32ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint32ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Int32ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Int32ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Int32ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint8ClampedArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Float32ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Float32ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Float32ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT Float64ArrayObjectRef : public ArrayBufferViewRef {
+class ESCARGOT_EXPORT Float64ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Float64ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
-class EXPORT PromiseObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT PromiseObjectRef : public ObjectRef {
 public:
     static PromiseObjectRef* create(ExecutionStateRef* state);
+
+    enum PromiseState {
+        Pending,
+        FulFilled,
+        Rejected
+    };
+    PromiseState state();
+    ValueRef* promiseResult();
+
+    PromiseObjectRef* then(ExecutionStateRef* state, ValueRef* handler);
+    PromiseObjectRef* catchOperation(ExecutionStateRef* state, ValueRef* handler);
+    PromiseObjectRef* then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected);
     void fulfill(ExecutionStateRef* state, ValueRef* value);
     void reject(ExecutionStateRef* state, ValueRef* reason);
 };
 
-class EXPORT ProxyObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT ProxyObjectRef : public ObjectRef {
 public:
     static ProxyObjectRef* create(ExecutionStateRef* state, ObjectRef* target, ObjectRef* handler);
     ObjectRef* target();
@@ -873,53 +1281,64 @@ public:
     void revoke();
 };
 
-class EXPORT SandBoxRef {
+class ESCARGOT_EXPORT SetObjectRef : public ObjectRef {
 public:
-    static SandBoxRef* create(ContextRef* ctxRef);
-    void destroy();
+    static SetObjectRef* create(ExecutionStateRef* state);
+    void add(ExecutionStateRef* state, ValueRef* key);
+    void clear(ExecutionStateRef* state);
+    bool deleteOperation(ExecutionStateRef* state, ValueRef* key);
+    bool has(ExecutionStateRef* state, ValueRef* key);
+    size_t size(ExecutionStateRef* state);
+};
 
-    struct LOC {
-        size_t line;
-        size_t column;
-        size_t index;
+class ESCARGOT_EXPORT WeakSetObjectRef : public ObjectRef {
+public:
+    static WeakSetObjectRef* create(ExecutionStateRef* state);
+    void add(ExecutionStateRef* state, ObjectRef* key);
+    bool deleteOperation(ExecutionStateRef* state, ObjectRef* key);
+    bool has(ExecutionStateRef* state, ObjectRef* key);
+};
 
-        LOC(size_t line, size_t column, size_t index)
-            : line(line)
-            , column(column)
-            , index(index)
+class ESCARGOT_EXPORT MapObjectRef : public ObjectRef {
+public:
+    static MapObjectRef* create(ExecutionStateRef* state);
+    void clear(ExecutionStateRef* state);
+    bool deleteOperation(ExecutionStateRef* state, ValueRef* key);
+    ValueRef* get(ExecutionStateRef* state, ValueRef* key);
+    bool has(ExecutionStateRef* state, ValueRef* key);
+    void set(ExecutionStateRef* state, ValueRef* key, ValueRef* value);
+    size_t size(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT WeakMapObjectRef : public ObjectRef {
+public:
+    static WeakMapObjectRef* create(ExecutionStateRef* state);
+    bool deleteOperation(ExecutionStateRef* state, ObjectRef* key);
+    ValueRef* get(ExecutionStateRef* state, ObjectRef* key);
+    bool has(ExecutionStateRef* state, ObjectRef* key);
+    void set(ExecutionStateRef* state, ObjectRef* key, ValueRef* value);
+};
+
+class ESCARGOT_EXPORT ScriptParserRef {
+public:
+    struct InitializeScriptResult {
+        bool isSuccessful()
         {
+            return script.hasValue();
         }
+
+        OptionalRef<ScriptRef> script;
+        StringRef* parseErrorMessage;
+        ErrorObjectRef::Code parseErrorCode;
+
+        InitializeScriptResult();
+        ScriptRef* fetchScriptThrowsExceptionIfParseError(ExecutionStateRef* state);
     };
 
-    struct StackTraceData {
-        StringRef* fileName;
-        StringRef* source;
-        LOC loc;
-        StackTraceData();
-    };
-
-    struct SandBoxResult {
-        ValueRef* result;
-        NullablePtr<ValueRef> error;
-        StringRef* msgStr;
-        std::vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
-        SandBoxResult();
-    };
-
-    SandBoxResult run(const std::function<ValueRef*(ExecutionStateRef* state)>& scriptRunner); // for capsule script executing with try-catch
+    InitializeScriptResult initializeScript(StringRef* scriptSource, StringRef* fileName);
 };
 
-class EXPORT JobRef {
-public:
-    SandBoxRef::SandBoxResult run();
-};
-
-class EXPORT ScriptParserRef {
-public:
-    ScriptRef* initializeScript(ExecutionStateRef* state, StringRef* script, StringRef* fileName);
-};
-
-class EXPORT ScriptRef {
+class ESCARGOT_EXPORT ScriptRef {
 public:
     ValueRef* execute(ExecutionStateRef* state);
 };
