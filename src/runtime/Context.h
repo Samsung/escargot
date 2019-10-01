@@ -48,6 +48,12 @@ struct IdentifierRecord {
 };
 
 typedef Vector<IdentifierRecord, GCUtil::gc_malloc_atomic_allocator<IdentifierRecord>> IdentifierRecordVector;
+struct LoadedModule {
+    Optional<Script*> m_referrer;
+    Script* m_loadedModule;
+    String* m_src;
+};
+typedef Vector<LoadedModule, GCUtil::gc_malloc_allocator<LoadedModule>> LoadedModuleVector;
 
 typedef Value (*VirtualIdentifierCallback)(ExecutionState& state, Value name);
 typedef Value (*SecurityPolicyCheckCallback)(ExecutionState& state, bool isEval);
@@ -219,6 +225,11 @@ public:
 
     GlobalVariableAccessCacheItem* ensureGlobalVariableAccessCacheSlot(AtomicString as);
 
+    LoadedModuleVector& loadedModules()
+    {
+        return m_loadedModules;
+    }
+
 private:
     VMInstance* m_instance;
 
@@ -233,6 +244,7 @@ private:
     std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
                        GCUtil::gc_malloc_allocator<std::pair<AtomicString, GlobalVariableAccessCacheItem*>>>
         m_globalVariableAccessCache;
+    LoadedModuleVector m_loadedModules;
     Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& m_compiledCodeBlocks;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;

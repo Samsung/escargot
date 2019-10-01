@@ -388,6 +388,7 @@ namespace Escargot {
     F(raw)                        \
     F(load)                       \
     F(getCanonicalLocales)        \
+    F(Module)                     \
     F(anchor)                     \
     F(big)                        \
     F(blink)                      \
@@ -550,6 +551,7 @@ public:
     AtomicString stringDelete;
     AtomicString stringFor;
     AtomicString stringDefault;
+    AtomicString stringStarDefaultStar;
     AtomicString stringThis;
 
     // this js keywords are used in esprima

@@ -75,6 +75,20 @@ public:
         m_stackBase = (size_t)&sp;
     }
 
+    ExecutionState(Context* context, size_t stackBase)
+        : m_context(context)
+        , m_lexicalEnvironment(nullptr)
+        , m_stackBase(stackBase)
+        , m_programCounter(nullptr)
+        , m_argc(0)
+        , m_argv(nullptr)
+        , m_parent(1)
+        , m_inStrictMode(false)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(false)
+    {
+    }
+
     ALWAYS_INLINE ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)

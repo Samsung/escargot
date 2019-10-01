@@ -31,9 +31,22 @@ class Job;
 class Platform {
 public:
     virtual ~Platform() {}
-    virtual void* arrayBufferObjectDataBufferMallocCallback(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) = 0;
-    virtual void arrayBufferObjectDataBufferFreeCallback(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
+    // ArrayBuffer
+    virtual void* onArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) = 0;
+    virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
+
+    // Promise
     virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) = 0;
+
+    // Module
+    virtual void willLoadModuleWhenScriptExecuted(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) = 0;
+    struct LoadModuleResult {
+        Optional<Script*> script;
+        String* errorMessage;
+        int errorCode;
+    };
+    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) = 0;
+    virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) = 0;
 };
 }
 

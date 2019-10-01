@@ -61,6 +61,7 @@ extern const char* errorMessage_InvalidDerivedConstructorReturnValue;
 extern const char* errorMessage_InstanceOf_NotFunction;
 extern const char* errorMessage_InstanceOf_InvalidPrototypeProperty;
 extern const char* errorMessage_ArgumentsOrCaller_InStrictMode;
+extern const char* errorMessage_FailedToLoadModule;
 extern const char* errorMessage_GlobalObject_ThisUndefinedOrNull;
 extern const char* errorMessage_GlobalObject_ThisNotObject;
 extern const char* errorMessage_GlobalObject_ThisNotRegExpObject;
@@ -123,6 +124,10 @@ public:
     static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, AtomicString templateDataString)
     {
         throwBuiltinError(state, code, templateDataString.string(), false, String::emptyString, templateString);
+    }
+    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, String* templateDataString)
+    {
+        throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
     }
     static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
     static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);

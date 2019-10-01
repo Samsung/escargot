@@ -47,8 +47,8 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
                                                                                                              m_stackTraceData[i].second.loc.byteCodePosition, m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock);
             StackTraceData traceData;
             traceData.loc = loc;
-            traceData.fileName = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->fileName();
-            traceData.source = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
+            traceData.fileName = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
+            traceData.source = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->source();
             result.stackTraceData.pushBack(traceData);
         } else {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
@@ -113,25 +113,28 @@ void SandBox::throwException(ExecutionState& state, Value exception)
 
         if (!alreadyExists) {
             if (!callee && es && es->lexicalEnvironment()) {
+                // can be null on module outer env
                 CodeBlock* cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
-                ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
-                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-                ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
-                if (pstate->m_programCounter != nullptr) {
-                    loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
-                    loc.actualCodeBlock = b;
+                if (cb) {
+                    ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
+                    ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+                    ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
+                    if (pstate->m_programCounter != nullptr) {
+                        loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
+                        loc.actualCodeBlock = b;
+                    }
+                    SandBox::StackTraceData data;
+                    data.loc = loc;
+                    data.fileName = cb->asInterpretedCodeBlock()->script()->src();
+                    data.source = cb->asInterpretedCodeBlock()->script()->source();
+                    m_stackTraceData.pushBack(std::make_pair(es, data));
                 }
-                SandBox::StackTraceData data;
-                data.loc = loc;
-                data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
-                data.source = cb->asInterpretedCodeBlock()->script()->src();
-                m_stackTraceData.pushBack(std::make_pair(es, data));
             } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
                 CodeBlock* cb = pstate->codeBlock();
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
                 SandBox::StackTraceData data;
                 data.loc = loc;
-                data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+                data.fileName = cb->asInterpretedCodeBlock()->script()->src();
                 data.source = String::emptyString;
                 m_stackTraceData.pushBack(std::make_pair(es, data));
             } else if (callee) {
@@ -148,7 +151,7 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                 SandBox::StackTraceData data;
                 data.loc = loc;
                 if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
-                    data.fileName = cb->asInterpretedCodeBlock()->script()->fileName();
+                    data.fileName = cb->asInterpretedCodeBlock()->script()->src();
                 } else {
                     StringBuilder builder;
                     builder.appendString("function ");
@@ -240,13 +243,13 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
         } else {
             ExtendedNodeLOC loc = gcValues[i].byteCodeBlock->computeNodeLOCFromByteCode(context,
                                                                                         nonGCValues[i].byteCodePosition, gcValues[i].byteCodeBlock->m_codeBlock);
-            builder.appendString(gcValues[i].byteCodeBlock->m_codeBlock->script()->fileName());
+            builder.appendString(gcValues[i].byteCodeBlock->m_codeBlock->script()->src());
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.line));
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.column));
 
-            String* src = gcValues[i].byteCodeBlock->m_codeBlock->script()->src();
+            String* src = gcValues[i].byteCodeBlock->m_codeBlock->script()->source();
             if (src->length()) {
                 const size_t preLineMax = 40;
                 const size_t afterLineMax = 40;

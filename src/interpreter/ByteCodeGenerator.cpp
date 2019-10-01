@@ -162,7 +162,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     }
 
     if (ctx.m_maxYieldStatementExtraDataLength) {
-        block->m_code.reserve(block->m_code.size() + ctx.m_maxYieldStatementExtraDataLength);
+        // yield delegate + .next call can use yield * 2 at once
+        block->m_code.reserve(block->m_code.size() + ctx.m_maxYieldStatementExtraDataLength * 2);
     } else {
         block->m_code.shrinkToFit();
     }

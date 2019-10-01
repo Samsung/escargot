@@ -130,6 +130,71 @@ inline bool operator!=(const AtomicString& a, const AtomicString& b)
 
 typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_allocator<AtomicString> > AtomicStringVector;
 typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_allocator<AtomicString> > AtomicStringTightVector;
+
+template <>
+class Optional<AtomicString> {
+public:
+    Optional()
+        : m_value(AtomicString::fromPayload(nullptr))
+    {
+    }
+
+    Optional(AtomicString value)
+        : m_value(value)
+    {
+    }
+
+    AtomicString value()
+    {
+        ASSERT(hasValue());
+        return m_value;
+    }
+
+    AtomicString value() const
+    {
+        ASSERT(hasValue());
+        return m_value;
+    }
+
+    bool hasValue() const
+    {
+        return m_value.string();
+    }
+
+    operator bool() const
+    {
+        return hasValue();
+    }
+
+    bool operator==(const Optional<AtomicString>& other) const
+    {
+        if (hasValue() != other.hasValue()) {
+            return false;
+        }
+        return hasValue() ? m_value == other.m_value : true;
+    }
+
+    bool operator!=(const Optional<AtomicString>& other) const
+    {
+        return !this->operator==(other);
+    }
+
+    bool operator==(const AtomicString& other) const
+    {
+        if (hasValue()) {
+            return value() == other;
+        }
+        return false;
+    }
+
+    bool operator!=(const AtomicString& other) const
+    {
+        return !operator==(other);
+    }
+
+protected:
+    AtomicString m_value;
+};
 }
 
 namespace std {

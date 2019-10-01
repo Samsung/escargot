@@ -29,6 +29,7 @@ namespace Escargot {
 class ArrayObject;
 class FunctionEnvironmentRecord;
 class ScriptFunctionObject;
+class ScriptClassConstructorFunctionObject;
 class NativeFunctionObject;
 class FunctionObjectProcessCallGenerator;
 
@@ -109,10 +110,21 @@ public:
         return false;
     }
 
+    virtual bool isScriptClassConstructorFunctionObject() const
+    {
+        return false;
+    }
+
     ScriptFunctionObject* asScriptFunctionObject()
     {
         ASSERT(isScriptFunctionObject());
         return (ScriptFunctionObject*)this;
+    }
+
+    ScriptClassConstructorFunctionObject* asScriptClassConstructorFunctionObject()
+    {
+        ASSERT(isScriptClassConstructorFunctionObject());
+        return (ScriptClassConstructorFunctionObject*)this;
     }
 
     virtual bool isCallable() const override

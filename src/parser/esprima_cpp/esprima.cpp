@@ -43,6 +43,7 @@
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
 #include "parser/Lexer.h"
+#include "parser/Script.h"
 
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
 
@@ -194,6 +195,8 @@ public:
     Scanner::ScannerResult lookahead;
     bool hasLineTerminator;
 
+    Script::ModuleData* moduleData;
+
     Context contextInstance;
     Context* context;
     Marker baseMarker;
@@ -203,6 +206,7 @@ public:
     Vector<ASTFunctionScopeContext*, GCUtil::gc_malloc_allocator<ASTFunctionScopeContext*>> scopeContexts;
     ASTFunctionScopeContext* lastPoppedScopeContext;
     bool trackUsingNames;
+    std::function<void(AtomicString, LexicalBlockIndex, KeywordKind, bool)> nameDeclaredCallback;
     AtomicString lastUsingName;
     size_t stackLimit;
     size_t subCodeBlockIndex;
@@ -421,7 +425,7 @@ public:
         }
     }
 
-    Parser(::Escargot::Context* escargotContext, StringView code, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
+    Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
         : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
     {
         ASSERT(escargotContext != nullptr);
@@ -450,25 +454,14 @@ public:
         config.parseSingleFunction = false;
         config.parseSingleFunctionTarget = nullptr;
         config.parseSingleFunctionChildIndex = 0;
-        /*
-        this->config = {
-            range: (typeof options.range == 'boolean') && options.range,
-            loc: (typeof options.loc == 'boolean') && options.loc,
-            source: null,
-            tokens: (typeof options.tokens == 'boolean') && options.tokens,
-            comment: (typeof options.comment == 'boolean') && options.comment,
-        };
-        if (this->config.loc && options.source && options.source !== null) {
-            this->config.source = String(options.source);
-        }*/
 
         this->scanner = &scannerInstance;
         if (stackRemain >= STACK_LIMIT_FROM_BASE) {
             stackRemain = STACK_LIMIT_FROM_BASE;
         }
 
-        // this->sourceType = (options && options.sourceType == 'module') ? 'module' : 'script';
-        this->sourceType = Script;
+        this->sourceType = isModule ? Module : Script;
+        this->moduleData = isModule ? new Script::ModuleData() : nullptr;
         this->hasLineTerminator = false;
 
         this->context = &contextInstance;
@@ -1078,7 +1071,6 @@ public:
     {
         MetaNode node = this->createNode();
 
-        // let value, token, raw;
         switch (this->lookahead.type) {
         case Token::IdentifierToken: {
             if (this->sourceType == SourceType::Module && this->lookahead.valueKeywordKind == AwaitKeyword) {
@@ -3599,6 +3591,8 @@ public:
                             size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
                             this->subCodeBlockIndex = 0;
 
+                            auto oldNameCallback = this->nameDeclaredCallback;
+
                             if (this->config.parseSingleFunction) {
                                 ASSERT(this->config.parseSingleFunctionChildIndex > 0);
                                 this->config.parseSingleFunctionChildIndex++;
@@ -3608,6 +3602,7 @@ public:
                             this->subCodeBlockIndex = oldSubCodeBlockIndex;
                             this->lexicalBlockIndex = lexicalBlockIndexBefore;
                             this->lexicalBlockCount = lexicalBlockCountBefore;
+                            this->nameDeclaredCallback = oldNameCallback;
 
                             scopeContexts.back()->m_bodyStartLOC.line = bodyStart.line;
                             scopeContexts.back()->m_bodyStartLOC.column = bodyStart.column;
@@ -3882,22 +3877,24 @@ public:
                 }
                 break;
             case ExportKeyword:
-                /*
-                if (this->sourceType !== 'module') {
-                    this->throwUnexpectedToken(this->lookahead, Messages.IllegalExportDeclaration);
+                if (this->sourceType != Module) {
+                    this->throwUnexpectedToken(&this->lookahead, Messages::IllegalExportDeclaration);
                 }
-                statement = this->parseExportDeclaration();
-                */
-                this->throwError("export keyword is not supported yet");
+                if (isParse) {
+                    statement = this->exportDeclaration<ParseAs(StatementNode)>();
+                } else {
+                    this->exportDeclaration<ScanAsVoid>();
+                }
                 break;
             case ImportKeyword:
-                /*
-                if (this->sourceType !== 'module') {
-                    this->throwUnexpectedToken(this->lookahead, Messages.IllegalImportDeclaration);
+                if (this->sourceType != Module) {
+                    this->throwUnexpectedToken(&this->lookahead, Messages::IllegalImportDeclaration);
                 }
-                statement = this->parseImportDeclaration();
-                */
-                this->throwError("import keyword is not supported yet");
+                if (isParse) {
+                    statement = this->importDeclaration<ParseAs(StatementNode)>();
+                } else {
+                    this->importDeclaration<ScanAsVoid>();
+                }
                 break;
             case ConstKeyword:
                 if (isParse) {
@@ -4289,6 +4286,10 @@ public:
                 this->scopeContexts.back()->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
                 this->scopeContexts.back()->m_needsToComputeLexicalBlockStuffs = true;
             }
+        }
+
+        if (nameDeclaredCallback) {
+            nameDeclaredCallback(name, blockIndex, kind, isExplicitVariableDeclaration);
         }
     }
 
@@ -5355,17 +5356,17 @@ public:
     }
 
     // ECMA-262 13.16 The debugger statement
-
-    PassRefPtr<StatementNode> parseDebuggerStatement()
+    template <typename T, bool isParse>
+    T debuggerStatement()
     {
-        this->throwError("debugger keyword is not supported yet");
-        RELEASE_ASSERT_NOT_REACHED();
-        /*
-        const node = this->createNode();
-        this->expectKeyword('debugger');
+        ESCARGOT_LOG_ERROR("debugger keyword is not supported yet");
+        MetaNode node = this->createNode();
+        this->expectKeyword(KeywordKind::DebuggerKeyword);
         this->consumeSemicolon();
-        return this->finalize(node, new Node.DebuggerStatement());
-        */
+        if (isParse) {
+            return T(this->finalize(node, new DebuggerStatementNode()));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 13 Statements
@@ -5409,7 +5410,7 @@ public:
                 statement = this->continueStatement<ParseAs(StatementNode)>();
                 break;
             case DebuggerKeyword:
-                statement = asStatementNode(this->parseDebuggerStatement());
+                statement = this->debuggerStatement<ParseAs(StatementNode)>();
                 break;
             case DoKeyword:
                 statement = this->doWhileStatement<ParseAs(StatementNode)>();
@@ -5511,7 +5512,7 @@ public:
                 this->continueStatement<ScanAsVoid>();
                 break;
             case DebuggerKeyword:
-                this->parseDebuggerStatement();
+                this->debuggerStatement<ScanAsVoid>();
                 break;
             case DoKeyword:
                 this->doWhileStatement<ScanAsVoid>();
@@ -5684,6 +5685,8 @@ public:
         ASSERT(!this->config.parseSingleFunction);
         LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
         LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+        auto oldNameCallback = this->nameDeclaredCallback;
+
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
 
@@ -5726,6 +5729,7 @@ public:
 
         this->lexicalBlockIndex = lexicalBlockIndexBefore;
         this->lexicalBlockCount = lexicalBlockCountBefore;
+        this->nameDeclaredCallback = oldNameCallback;
 
         this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
@@ -6323,7 +6327,7 @@ public:
     }
 
     template <typename T, bool isParse>
-    T classBody(bool hasSuperClass)
+    T classBody(bool hasSuperClass, MetaNode& endNode)
     {
         MetaNode node = this->createNode();
 
@@ -6345,6 +6349,8 @@ public:
                 }
             }
         }
+        endNode = this->createNode();
+        endNode.index++; // advancing for '{'
         this->expect(RightBrace);
 
         if (isParse) {
@@ -6358,8 +6364,8 @@ public:
     {
         bool previousStrict = this->context->strict;
         this->context->strict = true;
+        MetaNode startNode = this->createNode();
         this->expectKeyword(ClassKeyword);
-        MetaNode node = this->createNode();
 
         RefPtr<IdentifierNode> idNode;
         AtomicString id;
@@ -6394,18 +6400,19 @@ public:
             addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
         }
 
+        MetaNode endNode;
         RefPtr<ClassBodyNode> classBody;
         if (isParse) {
-            classBody = this->classBody<ParseAs(ClassBodyNode)>(hasSuperClass);
+            classBody = this->classBody<ParseAs(ClassBodyNode)>(hasSuperClass, endNode);
         } else {
-            this->classBody<ScanAsVoid>(hasSuperClass);
+            this->classBody<ScanAsVoid>(hasSuperClass, endNode);
         }
 
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
 
         if (isParse) {
-            return T(this->finalize(node, new ClassType(idNode, superClass, classBody.get(), classBlockContext.childLexicalBlockIndex)));
+            return T(this->finalize(startNode, new ClassType(idNode, superClass, classBody.get(), classBlockContext.childLexicalBlockIndex, StringView(this->scanner->source, startNode.index, endNode.index))));
         }
         return T(nullptr);
     }
@@ -6454,7 +6461,7 @@ public:
         scopeContexts.back()->m_bodyEndLOC.column = endNode.column;
 #endif
         scopeContexts.back()->m_bodyEndLOC.index = endNode.index;
-        return this->finalize(startNode, new ProgramNode(container.get(), scopeContexts.back() /*, this->sourceType*/));
+        return this->finalize(startNode, new ProgramNode(container.get(), scopeContexts.back(), this->moduleData));
     }
 
     PassRefPtr<FunctionNode> parseScriptFunction()
@@ -6539,241 +6546,524 @@ public:
     }
 
     // ECMA-262 15.2.2 Imports
-    /*
-    parseModuleSpecifier(): Node.Literal {
-        const node = this.createNode();
 
-        if (this.lookahead.type !== Token.StringLiteral) {
-            this.throwError(Messages.InvalidModuleSpecifier);
+    template <typename T, bool isParse>
+    T moduleSpecifier()
+    {
+        MetaNode node = this->createNode();
+
+        if (this->lookahead.type != Token::StringLiteralToken) {
+            this->throwError(Messages::InvalidModuleSpecifier);
         }
 
-        const token = this.nextToken();
-        const raw = this.getTokenRaw(token);
-        return this.finalize(node, new Node.Literal(token.value, raw));
+        ALLOC_TOKEN(token);
+        this->nextToken(token);
+
+        // const raw = this->getTokenRaw(token);
+        ASSERT(token->type == Token::StringLiteralToken);
+        if (isParse) {
+            return T(this->finalize(node, new LiteralNode(token->valueStringLiteralForAST())));
+        }
+        return T(nullptr);
     }
 
     // import {<foo as bar>} ...;
-    parseImportSpecifier(): Node.ImportSpecifier {
-        const node = this.createNode();
+    template <typename T, bool isParse>
+    T importSpecifier()
+    {
+        MetaNode node = this->createNode();
 
-        let local;
-        const imported = this.parseIdentifierName();
-        if (this.matchContextualKeyword('as')) {
-            this.nextToken();
-            local = this.parseVariableIdentifier();
+        if (isParse) {
+            RefPtr<IdentifierNode> local;
+            RefPtr<IdentifierNode> imported = this->parseIdentifierName();
+            if (this->matchContextualKeyword("as")) {
+                this->nextToken();
+                local = this->parseVariableIdentifier();
+            } else {
+                local = imported;
+            }
+
+            return T(this->finalize(node, new ImportSpecifierNode(local, imported)));
         } else {
-            local = imported;
+            this->scanIdentifierName();
+            if (this->matchContextualKeyword("as")) {
+                this->nextToken();
+                this->scanVariableIdentifier();
+            }
+            return T(nullptr);
         }
-
-        return this.finalize(node, new Node.ImportSpecifier(local, imported));
     }
 
     // {foo, bar as bas}
-    parseNamedImports(): Node.ImportSpecifier[] {
-        this.expect('{');
-        const specifiers: Node.ImportSpecifier[] = [];
-        while (!this.match('}')) {
-            specifiers.push(this.parseImportSpecifier());
-            if (!this.match('}')) {
-                this.expect(',');
+    ImportSpecifierNodeVector parseNamedImports()
+    {
+        this->expect(PunctuatorKind::LeftBrace);
+        ImportSpecifierNodeVector specifiers;
+        while (!this->match(PunctuatorKind::RightBrace)) {
+            specifiers.push_back(this->importSpecifier<ParseAs(ImportSpecifierNode)>());
+            if (!this->match(PunctuatorKind::RightBrace)) {
+                this->expect(PunctuatorKind::Comma);
             }
         }
-        this.expect('}');
+        this->expect(PunctuatorKind::RightBrace);
 
         return specifiers;
     }
 
+    void scanNamedImports()
+    {
+        this->expect(PunctuatorKind::LeftBrace);
+        while (!this->match(PunctuatorKind::RightBrace)) {
+            this->importSpecifier<ScanAsVoid>();
+            if (!this->match(PunctuatorKind::RightBrace)) {
+                this->expect(PunctuatorKind::Comma);
+            }
+        }
+        this->expect(PunctuatorKind::RightBrace);
+    }
+
     // import <foo> ...;
-    parseImportDefaultSpecifier(): Node.ImportDefaultSpecifier {
-        const node = this.createNode();
-        const local = this.parseIdentifierName();
-        return this.finalize(node, new Node.ImportDefaultSpecifier(local));
+    template <typename T, bool isParse>
+    T importDefaultSpecifier()
+    {
+        MetaNode node = this->createNode();
+        if (isParse) {
+            PassRefPtr<IdentifierNode> local = this->parseIdentifierName();
+            return T(this->finalize(node, new ImportDefaultSpecifierNode(local)));
+        } else {
+            this->scanIdentifierName();
+            return T(nullptr);
+        }
     }
 
     // import <* as foo> ...;
-    parseImportNamespaceSpecifier(): Node.ImportNamespaceSpecifier {
-        const node = this.createNode();
+    template <typename T, bool isParse>
+    T importNamespaceSpecifier()
+    {
+        MetaNode node = this->createNode();
 
-        this.expect('*');
-        if (!this.matchContextualKeyword('as')) {
-            this.throwError(Messages.NoAsAfterImportNamespace);
+        this->expect(PunctuatorKind::Multiply);
+        if (!this->matchContextualKeyword("as")) {
+            this->throwError(Messages::NoAsAfterImportNamespace);
         }
-        this.nextToken();
-        const local = this.parseIdentifierName();
-
-        return this.finalize(node, new Node.ImportNamespaceSpecifier(local));
+        this->nextToken();
+        if (isParse) {
+            RefPtr<IdentifierNode> local = this->parseIdentifierName();
+            return T(this->finalize(node, new ImportNamespaceSpecifierNode(local)));
+        } else {
+            this->scanIdentifierName();
+            return T(nullptr);
+        }
     }
 
-    parseImportDeclaration(): Node.ImportDeclaration {
-        if (this.context.inFunctionBody) {
-            this.throwError(Messages.IllegalImportDeclaration);
+    template <typename T, bool isParse>
+    T importDeclaration()
+    {
+        if (this->context->inFunctionBody) {
+            this->throwError(Messages::IllegalImportDeclaration);
         }
 
-        const node = this.createNode();
-        this.expectKeyword('import');
+        if (this->lexicalBlockIndex != 0) {
+            this->throwError(Messages::IllegalImportDeclaration);
+        }
 
-        let src: Node.Literal;
-        let specifiers: Node.ImportDeclarationSpecifier[] = [];
-        if (this.lookahead.type === Token.StringLiteral) {
+        MetaNode node = this->createNode();
+        this->expectKeyword(KeywordKind::ImportKeyword);
+
+        RefPtr<LiteralNode> src;
+
+        Script::ImportEntryVector importEntrys;
+        ImportSpecifierNodeVector specifiers;
+        if (this->lookahead.type == Token::StringLiteralToken) {
             // import 'foo';
-            src = this.parseModuleSpecifier();
+            if (isParse) {
+                src = this->moduleSpecifier<ParseAs(LiteralNode)>();
+            } else {
+                this->moduleSpecifier<ScanAsVoid>();
+            }
         } else {
-            if (this.match('{')) {
+            if (this->match(PunctuatorKind::LeftBrace)) {
                 // import {bar}
-                specifiers = specifiers.concat(this.parseNamedImports());
-            } else if (this.match('*')) {
+                if (isParse) {
+                    specifiers = this->parseNamedImports();
+
+                    for (size_t i = 0; i < specifiers.size(); i++) {
+                        Script::ImportEntry entry;
+                        entry.m_importName = ((ImportSpecifierNode*)specifiers[i].get())->imported()->name();
+                        entry.m_localName = ((ImportSpecifierNode*)specifiers[i].get())->local()->name();
+                        importEntrys.push_back(entry);
+                    }
+                } else {
+                    this->scanNamedImports();
+                }
+
+            } else if (this->match(PunctuatorKind::Multiply)) {
                 // import * as foo
-                specifiers.push(this.parseImportNamespaceSpecifier());
-            } else if (this.isIdentifierName(this.lookahead) && !this.matchKeyword('default')) {
+                if (isParse) {
+                    specifiers.push_back(this->importNamespaceSpecifier<ParseAs(ImportNamespaceSpecifierNode)>());
+
+                    Script::ImportEntry entry;
+                    entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
+                    entry.m_localName = ((ImportNamespaceSpecifierNode*)specifiers.back().get())->local()->name();
+                    importEntrys.push_back(entry);
+                } else {
+                    this->importNamespaceSpecifier<ScanAsVoid>();
+                }
+            } else if (this->isIdentifierName(&this->lookahead) && !this->matchKeyword(KeywordKind::DefaultKeyword)) {
                 // import foo
-                specifiers.push(this.parseImportDefaultSpecifier());
-                if (this.match(',')) {
-                    this.nextToken();
-                    if (this.match('*')) {
+                if (isParse) {
+                    specifiers.push_back(this->importDefaultSpecifier<ParseAs(ImportDefaultSpecifierNode)>());
+
+                    Script::ImportEntry entry;
+                    entry.m_importName = this->escargotContext->staticStrings().stringDefault;
+                    entry.m_localName = ((ImportDefaultSpecifierNode*)specifiers.back().get())->local()->name();
+                    importEntrys.push_back(entry);
+                } else {
+                    this->importDefaultSpecifier<ScanAsVoid>();
+                }
+                if (this->match(PunctuatorKind::Comma)) {
+                    this->nextToken();
+                    if (this->match(PunctuatorKind::Multiply)) {
                         // import foo, * as foo
-                        specifiers.push(this.parseImportNamespaceSpecifier());
-                    } else if (this.match('{')) {
+                        if (isParse) {
+                            specifiers.push_back(this->importNamespaceSpecifier<ParseAs(ImportNamespaceSpecifierNode)>());
+
+                            Script::ImportEntry entry;
+                            entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
+                            entry.m_localName = ((ImportNamespaceSpecifierNode*)specifiers.back().get())->local()->name();
+                            importEntrys.push_back(entry);
+                        } else {
+                            this->importNamespaceSpecifier<ScanAsVoid>();
+                        }
+                    } else if (this->match(PunctuatorKind::LeftBrace)) {
                         // import foo, {bar}
-                        specifiers = specifiers.concat(this.parseNamedImports());
+                        if (isParse) {
+                            auto v = this->parseNamedImports();
+
+                            for (size_t i = 0; i < v.size(); i++) {
+                                Script::ImportEntry entry;
+                                entry.m_importName = ((ImportSpecifierNode*)v[i].get())->imported()->name();
+                                entry.m_localName = ((ImportSpecifierNode*)v[i].get())->local()->name();
+                                importEntrys.push_back(entry);
+                            }
+
+                            specifiers.insert(specifiers.end(), v.begin(), v.end());
+                        } else {
+                            this->scanNamedImports();
+                        }
                     } else {
-                        this.throwUnexpectedToken(this.lookahead);
+                        this->throwUnexpectedToken(&this->lookahead);
                     }
                 }
             } else {
-                this.throwUnexpectedToken(this.nextToken());
+                ALLOC_TOKEN(token);
+                this->nextToken(token);
+                this->throwUnexpectedToken(token);
             }
 
-            if (!this.matchContextualKeyword('from')) {
-                const message = this.lookahead.value ? Messages.UnexpectedToken : Messages.MissingFromClause;
-                this.throwError(message, this.lookahead.value);
+            if (!this->matchContextualKeyword("from")) {
+                this->throwUnexpectedToken(&this->lookahead);
             }
-            this.nextToken();
-            src = this.parseModuleSpecifier();
+            this->nextToken();
+            if (isParse) {
+                src = this->moduleSpecifier<ParseAs(LiteralNode)>();
+            } else {
+                this->moduleSpecifier<ScanAsVoid>();
+            }
         }
-        this.consumeSemicolon();
+        this->consumeSemicolon();
 
-        return this.finalize(node, new Node.ImportDeclaration(specifiers, src));
+        if (isParse) {
+            for (size_t i = 0; i < importEntrys.size(); i++) {
+                importEntrys[i].m_moduleRequest = src->asLiteral()->value().asString();
+                addDeclaredNameIntoContext(importEntrys[i].m_localName, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
+                this->moduleData->m_importEntries.insert(this->moduleData->m_importEntries.size(), importEntrys[i]);
+            }
+            return T(this->finalize(node, new ImportDeclarationNode(std::move(specifiers), src)));
+        }
+        return T(nullptr);
     }
 
     // ECMA-262 15.2.3 Exports
+    template <typename T, bool isParse>
+    T exportSpecifier()
+    {
+        MetaNode node = this->createNode();
 
-    parseExportSpecifier(): Node.ExportSpecifier {
-        const node = this.createNode();
-
-        const local = this.parseIdentifierName();
-        let exported = local;
-        if (this.matchContextualKeyword('as')) {
-            this.nextToken();
-            exported = this.parseIdentifierName();
+        RefPtr<IdentifierNode> local;
+        if (isParse) {
+            local = this->parseIdentifierName();
+        } else {
+            this->scanIdentifierName();
         }
 
-        return this.finalize(node, new Node.ExportSpecifier(local, exported));
+        RefPtr<IdentifierNode> exported = local;
+        if (this->matchContextualKeyword("as")) {
+            this->nextToken();
+            if (isParse) {
+                exported = this->parseIdentifierName();
+            } else {
+                this->scanIdentifierName();
+            }
+        }
+
+        if (isParse) {
+            return T(this->finalize(node, new ExportSpecifierNode(local, exported)));
+        }
+
+        return T(nullptr);
     }
 
-    parseExportDeclaration(): Node.ExportDeclaration {
-        if (this.context.inFunctionBody) {
-            this.throwError(Messages.IllegalExportDeclaration);
+    void addExportDeclarationEntry(Script::ExportEntry ee)
+    {
+        // http://www.ecma-international.org/ecma-262/6.0/#sec-parsemodule
+        // If ee.[[ModuleRequest]] is null, then
+        if (!ee.m_moduleRequest.hasValue()) {
+            // If ee.[[LocalName]] is not an element of importedBoundNames, then
+            size_t localNameExistInImportedBoundNamesIndex = SIZE_MAX;
+            for (size_t i = 0; i < this->moduleData->m_importEntries.size(); i++) {
+                if (ee.m_localName == this->moduleData->m_importEntries[i].m_localName) {
+                    localNameExistInImportedBoundNamesIndex = i;
+                    break;
+                }
+            }
+
+            if (localNameExistInImportedBoundNamesIndex == SIZE_MAX) {
+                // Append ee to localExportEntries.
+                this->moduleData->m_localExportEntries.push_back(ee);
+            } else {
+                // Let ie be the element of importEntries whose [[LocalName]] is the same as ee.[[LocalName]].
+                Script::ImportEntry ie = this->moduleData->m_importEntries[localNameExistInImportedBoundNamesIndex];
+                // If ie.[[ImportName]] is "*", then
+                if (ie.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
+                    // Assert: this is a re-export of an imported module namespace object.
+                    // Append ee to localExportEntries.
+                    this->moduleData->m_localExportEntries.push_back(ee);
+                } else {
+                    // Else, this is a re-export of a single name
+                    // Append to indirectExportEntries the Record {[[ModuleRequest]]: ie.[[ModuleRequest]], [[ImportName]]: ie.[[ImportName]], [[LocalName]]: null, [[ExportName]]: ee.[[ExportName]] }.
+                    Script::ExportEntry newEntry;
+                    newEntry.m_moduleRequest = ie.m_moduleRequest;
+                    newEntry.m_importName = ie.m_importName;
+                    newEntry.m_exportName = ee.m_exportName;
+
+                    this->moduleData->m_indirectExportEntries.push_back(newEntry);
+                }
+            }
+        } else if (ee.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
+            // Else, if ee.[[ImportName]] is "*", then
+            this->moduleData->m_starExportEntries.push_back(ee);
+        } else {
+            // Append ee to indirectExportEntries.
+            this->moduleData->m_indirectExportEntries.push_back(ee);
+        }
+    }
+
+    template <typename T, bool isParse>
+    T exportDeclaration()
+    {
+        if (this->context->inFunctionBody) {
+            this->throwError(Messages::IllegalExportDeclaration);
         }
 
-        const node = this.createNode();
-        this.expectKeyword('export');
+        if (this->lexicalBlockIndex != 0) {
+            this->throwError(Messages::IllegalExportDeclaration);
+        }
 
-        let exportDeclaration;
-        if (this.matchKeyword('default')) {
+        MetaNode node = this->createNode();
+        this->expectKeyword(KeywordKind::ExportKeyword);
+
+        RefPtr<ExportDeclarationNode> exportDeclaration;
+        if (this->matchKeyword(KeywordKind::DefaultKeyword)) {
             // export default ...
-            this.nextToken();
-            if (this.matchKeyword('function')) {
+
+            this->nextToken();
+            if (this->matchKeyword(KeywordKind::FunctionKeyword)) {
                 // export default function foo () {}
                 // export default function () {}
-                const declaration = this.parseFunctionDeclaration(true);
-                exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
-            } else if (this.matchKeyword('class')) {
+                RefPtr<FunctionDeclarationNode> declaration = this->parseFunctionDeclaration();
+
+                if (isParse) {
+                    Script::ExportEntry entry;
+                    entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
+                    entry.m_localName = declaration->scopeContext()->m_functionName.string()->length() ? declaration->scopeContext()->m_functionName : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                    addExportDeclarationEntry(entry);
+                    exportDeclaration = this->finalize(node, new ExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));
+                }
+            } else if (this->matchKeyword(KeywordKind::ClassKeyword)) {
                 // export default class foo {}
-                const declaration = this.parseClassDeclaration(true);
-                exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
+                if (isParse) {
+                    auto classNode = this->parseClassExpression();
+
+                    Script::ExportEntry entry;
+                    entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
+                    entry.m_localName = classNode->classNode().id().get() ? classNode->classNode().id()->name() : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                    addExportDeclarationEntry(entry);
+
+                    exportDeclaration = this->finalize(node, new ExportDefaultDeclarationNode(classNode, entry.m_exportName.value(), entry.m_localName.value()));
+                } else {
+                    this->scanClassDeclaration();
+                }
             } else {
-                if (this.matchContextualKeyword('from')) {
-                    this.throwError(Messages.UnexpectedToken, this.lookahead.value);
+                if (this->matchContextualKeyword("from")) {
+                    this->throwUnexpectedToken(&this->lookahead);
                 }
                 // export default {};
                 // export default [];
                 // export default (1 + 2);
-                const declaration = this.match('{') ? this.parseObjectInitializer() :
-                    this.match('[') ? this.parseArrayInitializer() : this.assignmentExpression<Parse>();
-                this.consumeSemicolon();
-                exportDeclaration = this.finalize(node, new Node.ExportDefaultDeclaration(declaration));
+                if (isParse) {
+                    Script::ExportEntry entry;
+                    entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
+                    entry.m_localName = this->escargotContext->staticStrings().stringStarDefaultStar;
+                    RefPtr<Node> declaration = this->match(PunctuatorKind::LeftBrace) ? this->objectInitializer<Parse>() : this->match(PunctuatorKind::LeftSquareBracket) ? this->arrayInitializer<Parse>() : this->assignmentExpression<Parse, true>();
+                    exportDeclaration = this->finalize(node, new ExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));
+
+                    addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                    addExportDeclarationEntry(entry);
+                } else {
+                    this->match(PunctuatorKind::LeftBrace) ? this->objectInitializer<Scan>() : this->match(PunctuatorKind::LeftSquareBracket) ? this->arrayInitializer<Scan>() : this->assignmentExpression<Scan, true>();
+                }
+                this->consumeSemicolon();
             }
 
-        } else if (this.match('*')) {
+        } else if (this->match(PunctuatorKind::Multiply)) {
             // export * from 'foo';
-            this.nextToken();
-            if (!this.matchContextualKeyword('from')) {
-                const message = this.lookahead.value ? Messages.UnexpectedToken : Messages.MissingFromClause;
-                this.throwError(message, this.lookahead.value);
+            this->nextToken();
+            if (!this->matchContextualKeyword("from")) {
+                this->throwUnexpectedToken(&this->lookahead);
             }
-            this.nextToken();
-            const src = this.parseModuleSpecifier();
-            this.consumeSemicolon();
-            exportDeclaration = this.finalize(node, new Node.ExportAllDeclaration(src));
+            this->nextToken();
+            if (this->lookahead.type != Token::StringLiteralToken) {
+                this->throwUnexpectedToken(&this->lookahead);
+            }
+            if (isParse) {
+                RefPtr<LiteralNode> src = this->moduleSpecifier<ParseAs(LiteralNode)>();
 
-        } else if (this.lookahead.type === Token.Keyword) {
+                Script::ExportEntry entry;
+                entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
+                entry.m_moduleRequest = src->value().asString();
+                entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
+                addExportDeclarationEntry(entry);
+
+                exportDeclaration = this->finalize(node, new ExportAllDeclarationNode(src));
+            } else {
+                this->moduleSpecifier<ScanAsVoid>();
+            }
+            this->consumeSemicolon();
+
+        } else if (this->lookahead.type == Token::KeywordToken) {
             // export var f = 1;
-            let declaration;
-            switch (this.lookahead.value) {
-                case 'let':
-                case 'const':
-                    declaration = this.parseLexicalDeclaration({ inFor: false });
-                    break;
-                case 'var':
-                case 'class':
-                case 'function':
-                    declaration = this.statementListItem<ParseAs(StatementNode)>();
-                    break;
-                default:
-                    this.throwUnexpectedToken(this.lookahead);
+            auto oldNameCallback = this->nameDeclaredCallback;
+            AtomicStringVector declaredNames;
+            if (isParse) {
+                this->nameDeclaredCallback = [&declaredNames](AtomicString name, LexicalBlockIndex, KeywordKind, bool) {
+                    declaredNames.push_back(name);
+                };
             }
-            exportDeclaration = this.finalize(node, new Node.ExportNamedDeclaration(declaration, [], null));
-
+            AtomicStringVector declaredName;
+            RefPtr<StatementNode> declaration;
+            switch (this->lookahead.valueKeywordKind) {
+            case KeywordKind::LetKeyword:
+            case KeywordKind::ConstKeyword:
+                if (isParse) {
+                    declaration = this->lexicalDeclaration<ParseAs(StatementNode)>(false);
+                } else {
+                    this->lexicalDeclaration<ScanAsVoid>(false);
+                }
+                break;
+            case KeywordKind::VarKeyword:
+            case KeywordKind::ClassKeyword:
+            case KeywordKind::FunctionKeyword:
+                if (isParse) {
+                    declaration = this->statementListItem<ParseAs(StatementNode)>();
+                } else {
+                    this->statementListItem<ScanAsVoid>();
+                }
+                break;
+            default:
+                this->throwUnexpectedToken(&this->lookahead);
+                break;
+            }
+            if (isParse) {
+                for (size_t i = 0; i < declaredNames.size(); i++) {
+                    Script::ExportEntry entry;
+                    entry.m_exportName = declaredNames[i];
+                    entry.m_localName = declaredNames[i];
+                    addExportDeclarationEntry(entry);
+                }
+                exportDeclaration = this->finalize(node, new ExportNamedDeclarationNode(declaration, ExportSpecifierNodeVector(), nullptr));
+            }
+            this->nameDeclaredCallback = oldNameCallback;
         } else {
-            const specifiers = [];
-            let source = null;
-            let isExportFromIdentifier = false;
+            ExportSpecifierNodeVector specifiers;
+            RefPtr<LiteralNode> source;
+            bool isExportFromIdentifier = false;
 
-            this.expect('{');
-            while (!this.match('}')) {
-                isExportFromIdentifier = isExportFromIdentifier || this.matchKeyword('default');
-                specifiers.push(this.parseExportSpecifier());
-                if (!this.match('}')) {
-                    this.expect(',');
+            this->expect(PunctuatorKind::LeftBrace);
+            while (!this->match(PunctuatorKind::RightBrace)) {
+                isExportFromIdentifier = isExportFromIdentifier || this->matchKeyword(KeywordKind::DefaultKeyword);
+                if (isParse) {
+                    specifiers.push_back(this->exportSpecifier<ParseAs(ExportSpecifierNode)>());
+                } else {
+                    this->exportSpecifier<ScanAsVoid>();
+                }
+                if (!this->match(PunctuatorKind::RightBrace)) {
+                    this->expect(PunctuatorKind::Comma);
                 }
             }
-            this.expect('}');
+            this->expect(PunctuatorKind::RightBrace);
 
-            if (this.matchContextualKeyword('from')) {
+            bool seenFrom = false;
+            if (this->matchContextualKeyword("from")) {
+                seenFrom = true;
                 // export {default} from 'foo';
                 // export {foo} from 'foo';
-                this.nextToken();
-                source = this.parseModuleSpecifier();
-                this.consumeSemicolon();
+                this->nextToken();
+                if (isParse) {
+                    source = this->moduleSpecifier<ParseAs(LiteralNode)>();
+                } else {
+                    this->moduleSpecifier<ScanAsVoid>();
+                }
+                this->consumeSemicolon();
             } else if (isExportFromIdentifier) {
                 // export {default}; // missing fromClause
-                const message = this.lookahead.value ? Messages.UnexpectedToken : Messages.MissingFromClause;
-                this.throwError(message, this.lookahead.value);
+                this->throwUnexpectedToken(&this->lookahead);
             } else {
                 // export {foo};
-                this.consumeSemicolon();
+                this->consumeSemicolon();
             }
-            exportDeclaration = this.finalize(node, new Node.ExportNamedDeclaration(null, specifiers, source));
+            if (isParse) {
+                for (size_t i = 0; i < specifiers.size(); i++) {
+                    Script::ExportEntry entry;
+                    if (seenFrom) {
+                        entry.m_exportName = specifiers[i]->exported()->name();
+                        entry.m_importName = specifiers[i]->local()->name();
+                        entry.m_moduleRequest = source->asLiteral()->value().asString();
+                    } else {
+                        entry.m_exportName = specifiers[i]->exported()->name();
+                        entry.m_localName = specifiers[i]->local()->name();
+                    }
+
+                    addExportDeclarationEntry(entry);
+                }
+
+                exportDeclaration = this->finalize(node, new ExportNamedDeclarationNode(nullptr, std::move(specifiers), source));
+            }
         }
 
-        return exportDeclaration;
+        if (isParse) {
+            return T(exportDeclaration);
+        }
+
+        return T(nullptr);
     }
-    */
 };
 
-RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside)
+RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside)
 {
-    Parser parser(ctx, source, stackRemain);
+    Parser parser(ctx, source, isModule, stackRemain);
     parser.context->strict = strictFromOutside;
     parser.context->inWith = inWith;
     parser.context->allowSuperCall = allowSuperCallOutside;
@@ -6785,7 +7075,7 @@ RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bo
 
 RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
 {
-    Parser parser(ctx, codeBlock->src(), stackRemain, codeBlock->sourceElementStart());
+    Parser parser(ctx, codeBlock->src(), false, stackRemain, codeBlock->sourceElementStart());
     parser.trackUsingNames = false;
     parser.context->allowLexicalDeclaration = true;
     parser.context->allowSuperCall = true;

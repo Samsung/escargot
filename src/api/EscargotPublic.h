@@ -77,6 +77,7 @@ class NumberObjectRef;
 class BooleanObjectRef;
 class RegExpObjectRef;
 class ProxyObjectRef;
+class PlatformRef;
 class ScriptRef;
 class ScriptParserRef;
 class ExecutionStateRef;
@@ -141,13 +142,13 @@ public:
     PersistentRefHolder(PersistentRefHolder<T>&& src)
     {
         m_holder = src.m_holder;
-        src.destoryHolderSpace();
+        src.m_holder = nullptr;
     }
 
-    PersistentRefHolder<T>& operator=(PersistentRefHolder<T>&& src)
+    const PersistentRefHolder<T>& operator=(PersistentRefHolder<T>&& src)
     {
         m_holder = src.m_holder;
-        src.destoryHolderSpace();
+        src.m_holder = nullptr;
 
         return *this;
     }
@@ -196,7 +197,7 @@ public:
 private:
     void initHolderSpace(T* initialValue)
     {
-        m_holder = (T**)Memory::gcMallocUncollectable(sizeof(T*));
+        m_holder = (T**)Memory::gcMallocUncollectable(sizeof(T**));
         *m_holder = initialValue;
     }
 
@@ -399,25 +400,8 @@ protected:
     T* m_value;
 };
 
-class ESCARGOT_EXPORT PlatformRef {
-public:
-    virtual ~PlatformRef() {}
-    // client must returns zero-filled memory
-    virtual void* arrayBufferObjectDataBufferMallocCallback(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, size_t sizeInByte)
-    {
-        return calloc(sizeInByte, 1);
-    }
-    virtual void arrayBufferObjectDataBufferFreeCallback(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
-    {
-        return free(buffer);
-    }
-
-    // If you want to use promise on Escargot, you should call VMInstanceRef::executePendingPromiseJob after event. see Shell.cpp
-    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) = 0;
-};
-
 // Don't save ExecutionStateRef anywhere yourself
-// If you want to acquire ExecutionStateRef, you can use Evaluator::run
+// If you want to acquire ExecutionStateRef, you can use Evaluator::execute
 class ESCARGOT_EXPORT ExecutionStateRef {
 public:
     OptionalRef<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
@@ -1335,12 +1319,53 @@ public:
         ScriptRef* fetchScriptThrowsExceptionIfParseError(ExecutionStateRef* state);
     };
 
-    InitializeScriptResult initializeScript(StringRef* scriptSource, StringRef* fileName);
+    InitializeScriptResult initializeScript(StringRef* scriptSource, StringRef* fileName, bool isModule = false);
 };
 
 class ESCARGOT_EXPORT ScriptRef {
 public:
+    bool isModule();
+    bool isExecuted();
+    StringRef* source();
+    StringRef* src();
     ValueRef* execute(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT PlatformRef {
+public:
+    virtual ~PlatformRef() {}
+    // ArrayBuffer
+    // client must returns zero-filled memory
+    virtual void* onArrayBufferObjectDataBufferMalloc(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, size_t sizeInByte)
+    {
+        return calloc(sizeInByte, 1);
+    }
+    virtual void onArrayBufferObjectDataBufferFree(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
+    {
+        return free(buffer);
+    }
+
+    // Promise
+    // If you want to use promise on Escargot, you should call VMInstanceRef::executePendingPromiseJob after event. see Shell.cpp
+    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) = 0;
+
+    // Module
+    virtual void willLoadModuleWhenScriptExecuted(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc)
+    {
+        // This callback is may optional
+    }
+    // escargot request module load per every import statement
+    // client needs cache module map<absolute_module_path, ScriptRef*>
+    struct LoadModuleResult {
+        LoadModuleResult(ScriptRef* result);
+        LoadModuleResult(ErrorObjectRef::Code errorCode, StringRef* errorMessage);
+
+        OptionalRef<ScriptRef> script;
+        StringRef* errorMessage;
+        ErrorObjectRef::Code errorCode;
+    };
+    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) = 0;
+    virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> whereRequestFrom, ScriptRef* loadedModule) = 0;
 };
 
 } // namespace Escargot

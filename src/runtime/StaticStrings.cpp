@@ -43,6 +43,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(stringDelete, "delete");
     INIT_STATIC_STRING(stringFor, "for");
     INIT_STATIC_STRING(stringDefault, "default");
+    INIT_STATIC_STRING(stringStarDefaultStar, "*default*");
     INIT_STATIC_STRING(stringThis, "this");
 
     INIT_STATIC_STRING(stringIf, "if");

@@ -46,7 +46,7 @@ Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, 
     return thisValue;
 }
 
-#if defined(ESCARGOT_ENABLE_VENDORTEST)
+#if defined(ESCARGOT_ENABLE_TEST)
 static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     bool result = false;
@@ -162,7 +162,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
-        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), false, nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -206,7 +206,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
 #endif
 
-        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty()).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), false, parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty()).scriptThrowsExceptionIfParseError(state);
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;
@@ -1060,7 +1060,7 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                                            NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, 0)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-#if defined(ESCARGOT_ENABLE_VENDORTEST)
+#if defined(ESCARGOT_ENABLE_TEST)
     AtomicString isFunctionAllocatedOnStackFunctionName(state, "isFunctionAllocatedOnStack");
     defineOwnProperty(state, ObjectPropertyName(isFunctionAllocatedOnStackFunctionName),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,

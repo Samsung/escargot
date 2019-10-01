@@ -56,6 +56,7 @@ const char* errorMessage_InvalidDerivedConstructorReturnValue = "Derived constru
 const char* errorMessage_InstanceOf_NotFunction = "Invalid operand to 'instanceof': right expr is not a function object";
 const char* errorMessage_InstanceOf_InvalidPrototypeProperty = "instanceof called on an object with an invalid prototype property";
 const char* errorMessage_ArgumentsOrCaller_InStrictMode = "'caller' and 'arguments' are restricted function properties and cannot be accessed in this context.";
+const char* errorMessage_FailedToLoadModule = "Failed to load module %s";
 const char* errorMessage_GlobalObject_ThisUndefinedOrNull = "%s: this value is undefined or null";
 const char* errorMessage_GlobalObject_ThisNotObject = "%s: this value is not an object";
 const char* errorMessage_GlobalObject_ThisNotRegExpObject = "%s: this value is not a RegExp object";

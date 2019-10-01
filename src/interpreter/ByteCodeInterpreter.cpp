@@ -2411,19 +2411,19 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     ScriptClassConstructorFunctionObject* constructor;
 
     if (code->m_codeBlock) {
-        constructor = new ScriptClassConstructorFunctionObject(state, code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto);
+        constructor = new ScriptClassConstructorFunctionObject(state, code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc);
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
             auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false);
             functionSource.codeBlock->setAsClassConstructor();
-            constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto);
+            constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
         } else {
             Value argv[] = { new ASCIIString("...args"), new ASCIIString("super(...args)") };
             auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, true);
             functionSource.codeBlock->setAsClassConstructor();
             functionSource.codeBlock->setAsDerivedClassConstructor();
-            constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto);
+            constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
         }
     }
 
