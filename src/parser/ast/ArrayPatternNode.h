@@ -51,6 +51,7 @@ public:
         codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), srcRegister, iteratorIndex), context, this);
 
         for (size_t i = 0; i < m_elements.size(); i++) {
+            context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             if (m_elements[i]) {
                 if (LIKELY(m_elements[i]->type() != RestElement)) {
                     codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);

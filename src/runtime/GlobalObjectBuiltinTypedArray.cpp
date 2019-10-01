@@ -433,7 +433,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             if (obj->typedArrayType() == srcArray->typedArrayType()) {
                 // Let data be CloneArrayBuffer(srcData, srcByteOffset).
                 data = new ArrayBufferObject(state);
-                data->cloneBuffer(state, srcData, srcByteOffset);
+                data->cloneBuffer(state, srcData, srcByteOffset, byteLength);
             } else {
                 // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
                 Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
