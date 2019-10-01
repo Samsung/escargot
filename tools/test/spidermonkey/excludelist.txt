@@ -4,8 +4,6 @@ test/fixtures
 
 
 # TODO
-non262/ArrayBuffer/CloneArrayBuffer.js
-non262/ArrayBuffer/slice-species.js
 non262/Array/concat-spreadable-primitive.js
 non262/Array/fill.js
 non262/Array/from_errors.js
@@ -14,7 +12,6 @@ non262/Array/from_primitive.js
 non262/Array/from_proxy.js
 non262/Array/generics.js
 non262/Array/indexOf-packed-array.js
-non262/Array/isArray.js
 non262/Array/iterator_edge_cases.js
 non262/Array/pop-no-has-trap.js
 non262/Array/regress-304828.js
@@ -38,13 +35,11 @@ non262/BigInt/large-bit-length.js
 non262/BigInt/mod.js
 non262/BigInt/Number-conversion-rounding.js
 non262/class/className.js
-non262/class/extendBuiltinConstructors.js
 non262/class/member-expr-after-super.js
 non262/class/methDefnGen.js
 non262/class/methodInstallation.js
 non262/class/methodName.js
 non262/class/newTargetArrow.js
-non262/class/newTargetCCW.js
 non262/class/newTargetDefaults.js
 non262/class/newTargetDVG.js
 non262/class/newTargetEval.js
@@ -53,13 +48,11 @@ non262/class/outerBinding.js
 non262/class/parenExprToString.js
 non262/class/strictExecution.js
 non262/class/superCallBaseInvoked.js
-non262/class/superCallIllegal.js
 non262/class/superElemDelete.js
 non262/class/superPropBasicCalls.js
 non262/class/superPropDelete.js
 non262/class/superPropDerivedCalls.js
 non262/class/superPropDVG.js
-non262/class/superPropEvalInsideNested.js
 non262/class/superPropNoOverwriting.js
 non262/class/superPropOrdering.js
 non262/class/superPropProxies.js
@@ -68,7 +61,6 @@ non262/class/uninitializedThisError.js
 non262/DataView/detach-after-construction.js
 non262/DataView/get-set-index-range.js
 non262/Date/15.9.4.2.js
-non262/Date/constructor-one-Date-argument.js
 non262/Date/non-iso.js
 non262/Date/parse-from-tostring-methods.js
 non262/Date/regress-301738-01.js
@@ -114,7 +106,6 @@ non262/expressions/destructuring-array-default-class.js
 non262/expressions/destructuring-array-done.js
 non262/expressions/destructuring-array-lexical.js
 non262/expressions/destructuring-pattern-parenthesized.js
-non262/expressions/destructuring-scope.js
 non262/expressions/inNotObjectError.js
 non262/expressions/object-literal-computed-property-evaluation.js
 non262/expressions/object-literal-__proto__.js
@@ -127,7 +118,6 @@ non262/expressions/trailing_comma_parameters.js
 non262/extensions/8.12.5-01.js
 non262/extensions/arguments-property-access-in-function.js
 non262/extensions/ArrayBuffer-slice-arguments-detaching.js
-non262/extensions/array-isArray-proxy-recursion.js
 non262/extensions/array-toString-recursion.js
 non262/extensions/bad-regexp-data-clone.js
 non262/extensions/Boolean-toSource.js
@@ -150,10 +140,9 @@ non262/extensions/clone-typed-array.js
 non262/extensions/clone-v1-typed-array.js
 non262/extensions/collect-gray.js
 non262/extensions/column-numbers.js
-non262/extensions/cross-global-eval-is-indirect.js
 non262/extensions/cross-global-getPrototypeOf.js
-non262/extensions/DataView-construct-arguments-detaching.js
 non262/extensions/dataview.js
+non262/extensions/DataView-construct-arguments-detaching.js
 non262/extensions/DataView-set-arguments-detaching.js
 non262/extensions/decompile-for-of.js
 non262/extensions/element-setting-ToNumber-detaches.js
@@ -167,7 +156,6 @@ non262/extensions/function-definition-with.js
 non262/extensions/function-properties.js
 non262/extensions/misplaced-inconsistent-directive.js
 non262/extensions/mutable-proto-special-form.js
-non262/extensions/new-cross-compartment.js
 non262/extensions/newer-type-functions-caller-arguments.js
 non262/extensions/non_syntactic.js
 non262/extensions/Number-toSource.js
@@ -258,7 +246,6 @@ non262/extensions/TypedArray-subarray-arguments-detaching.js
 non262/extensions/unterminated-literal-error-location.js
 non262/fields/scopes.js
 non262/Function/arguments-caller-callee.js
-non262/Function/arguments-iterator.js
 non262/Function/arguments-parameter-shadowing.js
 non262/Function/arguments-property-attributes.js
 non262/Function/bound-prototype.js
@@ -311,7 +298,6 @@ non262/Intl/Collator/call.js
 non262/Intl/Collator/caseFirst.js
 non262/Intl/Collator/compare.js
 non262/Intl/Collator/construct-newtarget.js
-non262/Intl/Collator/cross-compartment.js
 non262/Intl/DateTimeFormat/calendar-aliases.js
 non262/Intl/DateTimeFormat/call.js
 non262/Intl/DateTimeFormat/construct-newtarget.js
@@ -455,7 +441,6 @@ non262/object/15.2.3.14-01.js
 non262/object/15.2.3.6-function-length.js
 non262/object/15.2.3.6-new-definition.js
 non262/object/accessor-name.js
-non262/object/assign.js
 non262/object/defineGetter-defineSetter.js
 non262/object/defineProperties-order.js
 non262/object/defineProperty-proxy.js
@@ -469,7 +454,6 @@ non262/object/property-descriptor-order.js
 non262/object/propertyIsEnumerable-proxy.js
 non262/object/regress-444787.js
 non262/object/seal-proxy.js
-non262/object/setPrototypeOf-cross-realm-cycle.js
 non262/object/setPrototypeOf-cycle.js
 non262/object/toLocaleString-01.js
 non262/object/toPrimitive-callers.js
@@ -479,7 +463,6 @@ non262/object/values-entries-typedarray.js
 non262/object/values.js
 non262/operators/instanceof-bound-function-recursion.js
 non262/Promise/allSettled.js
-non262/Promise/bug-1289040.js
 non262/Promise/dependent-promises.js
 non262/Promise/get-wait-for-all-promise.js
 non262/Promise/iterator-close.js
@@ -489,14 +472,11 @@ non262/Proxy/define-writable-as-non-writable.js
 non262/Proxy/delete-non-extensible.js
 non262/Proxy/global-receiver.js
 non262/Proxy/hasInstance.js
-non262/Proxy/json-stringify-replacer-array-revocable-proxy.js
 non262/Proxy/ownkeys-trap-duplicates.js
 non262/Proxy/proxy-for-in.js
-non262/Proxy/proxy-with-revoked-arguments.js
 non262/Proxy/regress-bug1062349.js
 non262/Proxy/report-writable-as-non-writable.js
 non262/Proxy/revoke-no-name.js
-non262/Reflect/apply.js
 non262/Reflect/argumentsList.js
 non262/Reflect/construct.js
 non262/Reflect/defineProperty.js
@@ -610,7 +590,6 @@ non262/regress/regress-355556.js
 non262/regress/regress-363040-01.js
 non262/regress/regress-372364.js
 non262/regress/regress-383674.js
-non262/regress/regress-414553.js
 non262/regress/regress-420919.js
 non262/regress/regress-422348.js
 non262/regress/regress-452346.js
@@ -649,7 +628,6 @@ non262/strict/12.14.1.js
 non262/strict/12.2.1-01.js
 non262/strict/B.1.2.js
 non262/strict/primitive-this-getter.js
-non262/strict/regress-532254.js
 non262/String/AdvanceStringIndex.js
 non262/String/codePointAt.js
 non262/String/fromCodePoint.js
@@ -661,8 +639,6 @@ non262/String/match.js
 non262/String/normalize-generateddata-part0.js
 non262/String/normalize-generateddata-part2.js
 non262/String/normalize-generateddata-part3.js
-non262/String/normalize-generic.js
-non262/String/normalize-parameter.js
 non262/String/replace-rope-empty.js
 non262/String/ropes.js
 non262/String/search.js
@@ -675,7 +651,6 @@ non262/String/unicode-braced.js
 non262/String/utf8-encode.js
 non262/Symbol/as-base-value.js
 non262/Symbol/enumeration-order.js
-non262/Symbol/toPrimitive.js
 non262/Symbol/toStringTag.js
 non262/Symbol/well-known.js
 non262/syntax/column-numbers-in-long-lines.js
@@ -692,7 +667,6 @@ non262/syntax/omitted-catch-binding.js
 non262/syntax/statement-versus-statementlistitem.js
 non262/syntax/unicode_other_id_continue.js
 non262/syntax/unicode_other_id_start.js
-non262/syntax/yield-as-identifier.js
 non262/template-strings/bug1559123.js
 non262/template-strings/debugLineNumber.js
 non262/template-strings/lineNumber.js
@@ -733,16 +707,13 @@ non262/TypedArray/slice-bitwise.js
 non262/TypedArray/slice-memcpy.js
 non262/TypedArray/slice-validation.js
 non262/TypedArray/sort_comparators.js
-non262/TypedArray/sort_globals.js
 non262/TypedArray/sort-negative-nan.js
 non262/TypedArray/sort_stable.js
 non262/TypedArray/subarray-validation.js
-non262/TypedArray/Tconstructor-fromTypedArray-byteLength.js
 non262/TypedArray/test-integrity-level-detached.js
 non262/TypedArray/test-integrity-level.js
 non262/TypedArray/toLocaleString.js
 non262/TypedArray/toString.js
-non262/TypedArray/toStringTag-cross-compartment.js
 non262/TypedArray/write-out-of-bounds-tonumber.js
 non262/TypedObject/architecture.js
 non262/TypedObject/arrayequiv.js

@@ -313,6 +313,12 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("createNewGlobalObject"), buildFunctionObjectRef, true, true, true);
         }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "newGlobal"), builtinDrainCreateNewGlobalObject, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("newGlobal"), buildFunctionObjectRef, true, true, true);
+        }
 #endif
 
         return ValueRef::createUndefined();
