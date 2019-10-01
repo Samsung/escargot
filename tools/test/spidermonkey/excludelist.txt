@@ -4,12 +4,10 @@ test/fixtures
 
 
 # TODO
-non262/Array/concat-spreadable-primitive.js
 non262/Array/fill.js
 non262/Array/from_errors.js
 non262/Array/from-iterator-close.js
 non262/Array/from_primitive.js
-non262/Array/from_proxy.js
 non262/Array/generics.js
 non262/Array/indexOf-packed-array.js
 non262/Array/iterator_edge_cases.js
@@ -431,7 +429,6 @@ non262/lexical-environment/var-in-catch-body-annex-b-eval.js
 non262/lexical-environment/var-in-catch-body-annex-b.js
 non262/lexical/regress-351515.js
 non262/Map/constructor-iterator-close.js
-non262/Map/symbols.js
 non262/Math/Pow.js
 non262/misc/function-definition-evaluate.js
 non262/misc/future-reserved-words.js
@@ -448,8 +445,6 @@ non262/object/destructuring-shorthand-defaults.js
 non262/object/entries.js
 non262/object/freeze-global-eval-const.js
 non262/object/freeze-proxy.js
-non262/object/getOwnPropertySymbols.js
-non262/object/getOwnPropertySymbols-proxy.js
 non262/object/property-descriptor-order.js
 non262/object/propertyIsEnumerable-proxy.js
 non262/object/regress-444787.js
@@ -457,7 +452,6 @@ non262/object/seal-proxy.js
 non262/object/setPrototypeOf-cycle.js
 non262/object/toLocaleString-01.js
 non262/object/toPrimitive-callers.js
-non262/object/toPrimitive.js
 non262/object/values-entries-lazy-props.js
 non262/object/values-entries-typedarray.js
 non262/object/values.js
@@ -471,7 +465,6 @@ non262/Promise/promise-rejection-tracking-optimized.js
 non262/Proxy/define-writable-as-non-writable.js
 non262/Proxy/delete-non-extensible.js
 non262/Proxy/global-receiver.js
-non262/Proxy/hasInstance.js
 non262/Proxy/ownkeys-trap-duplicates.js
 non262/Proxy/proxy-for-in.js
 non262/Proxy/regress-bug1062349.js
@@ -481,7 +474,6 @@ non262/Reflect/argumentsList.js
 non262/Reflect/construct.js
 non262/Reflect/defineProperty.js
 non262/Reflect/get.js
-non262/Reflect/ownKeys.js
 non262/reflect-parse/alternateBuilder.js
 non262/reflect-parse/async.js
 non262/reflect-parse/basicBuilder.js
@@ -505,7 +497,6 @@ non262/reflect-parse/proxyArgs.js
 non262/reflect-parse/stackOverflow.js
 non262/reflect-parse/statements.js
 non262/reflect-parse/templateStrings.js
-non262/Reflect/propertyKeys.js
 non262/Reflect/set.js
 non262/Reflect/setPrototypeOf.js
 non262/RegExp/character-class-escape-s.js
@@ -616,7 +607,6 @@ non262/regress/regress-619003-1.js
 non262/regress/regress-698028-2.js
 non262/regress/regress-698028-3.js
 non262/regress/regress-736792.js
-non262/Set/symbols.js
 non262/statements/for-inof-coverinitname-destr-assign.js
 non262/statements/for-in-with-assignment-semantics.js
 non262/statements/for-in-with-assignment-syntax.js

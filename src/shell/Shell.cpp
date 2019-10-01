@@ -225,6 +225,9 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
 static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc) {
+        if (argv[0]->isSymbol()) {
+            return argv[0]->asSymbol()->symbolDescriptiveString();
+        }
         return argv[0]->toString(state);
     }
     return StringRef::emptyString();
