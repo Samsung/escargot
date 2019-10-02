@@ -850,7 +850,23 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
             }
             return (v.toNumber(state) < 0);
         } else {
-            return (x.toNumber(state) < y.toNumber(state));
+            double xNum = x.asNumber();
+            double yNum = y.asNumber();
+
+            // 22.2.3.25.3-10
+            if (std::isnan(xNum)) {
+                return false;
+            }
+
+            if (std::isnan(yNum)) {
+                return true;
+            }
+
+            if (xNum == 0.0 && xNum == yNum) {
+                return std::signbit(xNum);
+            }
+
+            return xNum <= yNum;
         } });
     return O;
 }
