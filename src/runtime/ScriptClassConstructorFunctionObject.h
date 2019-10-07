@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject);
+    ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* sourceSrc);
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
@@ -37,9 +37,19 @@ public:
         return true;
     }
 
+    virtual bool isScriptClassConstructorFunctionObject() const override
+    {
+        return true;
+    }
+
     virtual Object* homeObject() override
     {
         return m_homeObject;
+    }
+
+    String* sourceSrc()
+    {
+        return m_sourceSrc;
     }
 
 private:
@@ -49,6 +59,7 @@ private:
     }
 
     Object* m_homeObject;
+    String* m_sourceSrc;
 };
 }
 

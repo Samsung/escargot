@@ -37,12 +37,12 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
 
-    m_data = (uint8_t*)m_context->vmInstance()->platform()->arrayBufferObjectDataBufferMallocCallback(m_context, this, bytelength);
+    m_data = (uint8_t*)m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, bytelength);
     m_bytelength = bytelength;
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        self->m_context->vmInstance()->platform()->arrayBufferObjectDataBufferFreeCallback(self->m_context, self, self->m_data);
+        self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
     },
                                    nullptr, nullptr, nullptr);
 }
@@ -55,14 +55,14 @@ void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        self->m_context->vmInstance()->platform()->arrayBufferObjectDataBufferFreeCallback(self->m_context, self, self->m_data);
+        self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
     },
                                    nullptr, nullptr, nullptr);
 }
 
 void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
 {
-    m_context->vmInstance()->platform()->arrayBufferObjectDataBufferFreeCallback(m_context, this, m_data);
+    m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
     m_data = NULL;
     m_bytelength = 0;
 }

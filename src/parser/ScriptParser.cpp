@@ -196,12 +196,8 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     }
 }
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
 {
-    Script* script = new Script(fileName, new StringView(scriptSource));
-    InterpretedCodeBlock* topCodeBlock = nullptr;
-    RefPtr<ProgramNode> programNode;
-
     GC_disable();
 
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
@@ -211,8 +207,10 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
     // Parsing
     try {
         m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
-        programNode = esprima::parseProgram(m_context, scriptSource, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
+        InterpretedCodeBlock* topCodeBlock = nullptr;
+        RefPtr<ProgramNode> programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
 
+        Script* script = new Script(fileName, new StringView(scriptSource), programNode->moduleData());
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
@@ -237,6 +235,26 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
             dumpCodeBlockTree(topCodeBlock);
         }
 #endif
+
+        GC_enable();
+        ASSERT(script->m_topCodeBlock == topCodeBlock);
+
+        if (isModule) {
+            for (size_t i = 0; i < programNode->moduleData()->m_importEntries.size(); i++) {
+                // TODO remove duplicate src
+                m_context->vmInstance()->platform()->willLoadModuleWhenScriptExecuted(m_context, script, programNode->moduleData()->m_importEntries[i].m_moduleRequest);
+            }
+        }
+
+        // Generate ByteCode
+        if (LIKELY(needByteCodeGeneration)) {
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
+        }
+
+        ScriptParser::InitializeScriptResult result;
+        result.script = script;
+        return result;
+
     } catch (esprima::Error& orgError) {
         m_context->vmInstance()->m_parsedSourceCodes.pop_back();
         GC_enable();
@@ -246,18 +264,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         result.parseErrorMessage = orgError.message;
         return result;
     }
-
-    GC_enable();
-    ASSERT(script->m_topCodeBlock == topCodeBlock);
-
-    // Generate ByteCode
-    if (LIKELY(needByteCodeGeneration)) {
-        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
-    }
-
-    ScriptParser::InitializeScriptResult result;
-    result.script = script;
-    return result;
 }
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)

@@ -27,12 +27,14 @@ public:
     friend class ScriptParser;
     FunctionDeclarationNode(ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t /*subCodeBlockIndex not used yet*/)
         : m_isGenerator(isGenerator)
+        , m_scopeContext(scopeContext)
     {
         scopeContext->m_nodeType = this->type();
         scopeContext->m_isGenerator = isGenerator;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::FunctionDeclaration; }
+    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         // do nothing
@@ -45,6 +47,7 @@ public:
 
 private:
     bool m_isGenerator;
+    ASTFunctionScopeContext* m_scopeContext;
 };
 }
 

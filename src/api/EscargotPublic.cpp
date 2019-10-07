@@ -56,12 +56,10 @@ namespace Escargot {
 #define DEFINE_CAST(ClassName)                       \
     inline ClassName* toImpl(ClassName##Ref* v)      \
     {                                                \
-        ASSERT(v != nullptr);                        \
         return reinterpret_cast<ClassName*>(v);      \
     }                                                \
     inline ClassName##Ref* toRef(ClassName* v)       \
     {                                                \
-        ASSERT(v != nullptr);                        \
         return reinterpret_cast<ClassName##Ref*>(v); \
     }
 
@@ -493,19 +491,45 @@ public:
     {
     }
 
-    virtual void* arrayBufferObjectDataBufferMallocCallback(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte)
+    virtual void* onArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) override
     {
-        return m_platform->arrayBufferObjectDataBufferMallocCallback(toRef(whereObjectMade), toRef(obj), sizeInByte);
+        return m_platform->onArrayBufferObjectDataBufferMalloc(toRef(whereObjectMade), toRef(obj), sizeInByte);
     }
 
-    virtual void arrayBufferObjectDataBufferFreeCallback(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer)
+    virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) override
     {
-        m_platform->arrayBufferObjectDataBufferFreeCallback(toRef(whereObjectMade), toRef(obj), buffer);
+        m_platform->onArrayBufferObjectDataBufferFree(toRef(whereObjectMade), toRef(obj), buffer);
     }
 
-    virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj)
+    virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) override
     {
         m_platform->didPromiseJobEnqueued(toRef(relatedContext), toRef(obj));
+    }
+
+    virtual void willLoadModuleWhenScriptExecuted(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
+    {
+        m_platform->willLoadModuleWhenScriptExecuted(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
+    }
+
+    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
+    {
+        LoadModuleResult result;
+        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
+
+        result.script = toImpl(refResult.script.get());
+        result.errorMessage = toImpl(refResult.errorMessage);
+        result.errorCode = refResult.errorCode;
+
+        return result;
+    }
+
+    virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) override
+    {
+        if (whereRequestFrom) {
+            m_platform->didLoadModule(toRef(relatedContext), toRef(whereRequestFrom.value()), toRef(loadedModule));
+        } else {
+            m_platform->didLoadModule(toRef(relatedContext), nullptr, toRef(loadedModule));
+        }
     }
 
     PlatformRef* m_platform;
@@ -2215,9 +2239,9 @@ ScriptRef* ScriptParserRef::InitializeScriptResult::fetchScriptThrowsExceptionIf
     return script.value();
 }
 
-ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* script, StringRef* fileName)
+ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* script, StringRef* fileName, bool isModule)
 {
-    auto internalResult = toImpl(this)->initializeScript(toImpl(script), toImpl(fileName));
+    auto internalResult = toImpl(this)->initializeScript(toImpl(script), toImpl(fileName), isModule);
     ScriptParserRef::InitializeScriptResult result;
     if (internalResult.script) {
         result.script = toRef(internalResult.script.value());
@@ -2229,8 +2253,42 @@ ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(String
     return result;
 }
 
+bool ScriptRef::isModule()
+{
+    return toImpl(this)->isModule();
+}
+
+bool ScriptRef::isExecuted()
+{
+    return toImpl(this)->isExecuted();
+}
+
+StringRef* ScriptRef::source()
+{
+    return toRef(toImpl(this)->source());
+}
+
+StringRef* ScriptRef::src()
+{
+    return toRef(toImpl(this)->src());
+}
+
 ValueRef* ScriptRef::execute(ExecutionStateRef* state)
 {
     return toRef(toImpl(this)->execute(*toImpl(state)));
+}
+
+PlatformRef::LoadModuleResult::LoadModuleResult(ScriptRef* result)
+    : script(result)
+    , errorMessage(StringRef::emptyString())
+    , errorCode(ErrorObjectRef::Code::None)
+{
+}
+
+PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, StringRef* errorMessage)
+    : script(nullptr)
+    , errorMessage(errorMessage)
+    , errorCode(errorCode)
+{
 }
 }

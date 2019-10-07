@@ -37,6 +37,7 @@ struct ClassContextInformation {
         , m_prototypeIndex(SIZE_MAX)
         , m_superIndex(SIZE_MAX)
         , m_name(AtomicString())
+        , m_src(String::emptyString)
     {
     }
 
@@ -44,7 +45,7 @@ struct ClassContextInformation {
     size_t m_prototypeIndex;
     size_t m_superIndex;
     AtomicString m_name;
-    bool isAssigmentTarget : 1;
+    String* m_src;
 };
 
 struct ParserContextInformation {
@@ -150,7 +151,7 @@ struct ByteCodeGenerateContext {
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
-        ctx.m_maxYieldStatementExtraDataLength = m_maxYieldStatementExtraDataLength;
+        ctx.m_maxYieldStatementExtraDataLength = std::max(m_maxYieldStatementExtraDataLength, ctx.m_maxYieldStatementExtraDataLength);
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();

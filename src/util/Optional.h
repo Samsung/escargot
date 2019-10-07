@@ -165,7 +165,7 @@ public:
         if (hasValue() != other.hasValue()) {
             return false;
         }
-        return hasValue() ? *m_value == *other.m_value : true;
+        return hasValue() ? m_value == other.m_value : true;
     }
 
     bool operator!=(const Optional<T*>& other) const
@@ -176,7 +176,7 @@ public:
     bool operator==(const T*& other) const
     {
         if (hasValue()) {
-            return *value() == *other;
+            return value() == other;
         }
         return false;
     }

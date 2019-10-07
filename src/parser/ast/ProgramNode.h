@@ -23,16 +23,18 @@
 #include "Node.h"
 #include "StatementNode.h"
 #include "parser/ScriptParser.h"
+#include "parser/Script.h"
 
 namespace Escargot {
 
 class ProgramNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext)
+    ProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData)
         : StatementNode()
         , m_container(body)
         , m_scopeContext(scopeContext)
+        , m_moduleData(moduleData)
     {
     }
 
@@ -40,8 +42,10 @@ public:
     {
     }
 
+
     virtual ASTNodeType type() override { return ASTNodeType::Program; }
     ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
+    Script::ModuleData* moduleData() { return m_moduleData; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(0);
@@ -65,6 +69,7 @@ public:
 private:
     RefPtr<StatementContainer> m_container;
     ASTFunctionScopeContext* m_scopeContext;
+    Script::ModuleData* m_moduleData;
 };
 }
 

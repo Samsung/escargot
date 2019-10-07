@@ -23,6 +23,7 @@
 #include "runtime/SmallValue.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
+#include "runtime/ModuleNamespaceObject.h"
 #include "parser/CodeBlock.h"
 
 namespace Escargot {
@@ -392,4 +393,116 @@ template class FunctionEnvironmentRecordOnHeap<false, true>;
 template class FunctionEnvironmentRecordNotIndexed<false, false>;
 template class FunctionEnvironmentRecordNotIndexed<true, true>;
 template class FunctionEnvironmentRecordNotIndexed<false, true>;
+
+EnvironmentRecord::BindingSlot ModuleEnvironmentRecord::hasBinding(ExecutionState& state, const AtomicString& atomicName)
+{
+    for (size_t i = 0; i < m_moduleDeclarativeRecord.size(); i++) {
+        if (m_moduleDeclarativeRecord[i].m_name == atomicName) {
+            return BindingSlot(this, i, !m_moduleDeclarativeRecord[i].m_isVarDeclaration);
+        }
+    }
+    return BindingSlot(this, SIZE_MAX, false);
+}
+
+void ModuleEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
+{
+    auto hasBindingResult = hasBinding(state, name);
+    if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
+        if (!m_moduleDeclarativeRecord[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, errorMessage_DuplicatedIdentifier);
+        }
+        return;
+    }
+    IdentifierRecord record;
+    record.m_name = name;
+    record.m_canDelete = false;
+    record.m_isMutable = isMutable;
+    record.m_isVarDeclaration = isVarDeclaration;
+    m_moduleDeclarativeRecord.pushBack(record);
+    if (isVarDeclaration) {
+        m_moduleDeclarativeStorage.pushBack(Value());
+    } else {
+        m_moduleDeclarativeStorage.pushBack(Value(Value::EmptyValue));
+    }
+}
+
+void ModuleEnvironmentRecord::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    for (size_t i = 0; i < m_moduleDeclarativeRecord.size(); i++) {
+        if (m_moduleDeclarativeRecord[i].m_name == name) {
+            m_moduleDeclarativeStorage[i] = V;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
+}
+
+void ModuleEnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
+{
+    size_t len = m_moduleDeclarativeRecord.size();
+    for (size_t i = 0; i < len; i++) {
+        if (m_moduleDeclarativeRecord[i].m_name == name) {
+            writeCheck(state, i);
+            m_moduleDeclarativeStorage[i] = V;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
+}
+
+void ModuleEnvironmentRecord::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
+{
+    writeCheck(state, slot.m_index);
+    m_moduleDeclarativeStorage[slot.m_index] = v;
+}
+
+void ModuleEnvironmentRecord::setMutableBindingByIndex(ExecutionState& state, const size_t i, const Value& v)
+{
+    writeCheck(state, i);
+    m_moduleDeclarativeStorage[i] = v;
+}
+
+void ModuleEnvironmentRecord::initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
+{
+    m_moduleDeclarativeStorage[idx] = v;
+}
+
+EnvironmentRecord::GetBindingValueResult ModuleEnvironmentRecord::getBindingValue(ExecutionState& state, const AtomicString& name)
+{
+    size_t len = m_moduleDeclarativeRecord.size();
+    for (size_t i = 0; i < len; i++) {
+        if (m_moduleDeclarativeRecord[i].m_name == name) {
+            readCheck(state, i);
+            return GetBindingValueResult(m_moduleDeclarativeStorage[i]);
+        }
+    }
+    return GetBindingValueResult();
+}
+
+Value ModuleEnvironmentRecord::getBindingValue(ExecutionState& state, const size_t i)
+{
+    readCheck(state, i);
+    return m_moduleDeclarativeStorage[i];
+}
+
+void ModuleEnvironmentRecord::setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v)
+{
+    writeCheck(state, idx);
+    m_moduleDeclarativeStorage[idx] = v;
+}
+
+Value ModuleEnvironmentRecord::getHeapValueByIndex(ExecutionState& state, const size_t idx)
+{
+    readCheck(state, idx);
+    return m_moduleDeclarativeStorage[idx];
+}
+
+ModuleNamespaceObject* ModuleEnvironmentRecord::namespaceObject(ExecutionState& state)
+{
+    if (!m_namespaceObject) {
+        m_namespaceObject = new ModuleNamespaceObject(state, this);
+    }
+
+    return m_namespaceObject;
+}
 }

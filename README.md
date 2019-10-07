@@ -37,7 +37,7 @@ export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
 git clone https://github.com/Samsung/escargot.git
 cd escargot
 git submodule update --init third_party
-cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -GNinja
+cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
 ninja
 ```
 
@@ -51,7 +51,7 @@ The following build options are supported when generating ninja rules using cmak
   Compile Escargot for each architecture
 * -DESCARGOT_MODE=[ debug | release ]<br>
   Compile Escargot for either release or debug mode
-* -DESCARGOT_OUTPUT=[ bin | shared_lib | static_lib ]<br>
+* -DESCARGOT_OUTPUT=[ shared_lib | static_lib | shell | shell_test ]<br>
   Define target output type
 * -DESCARGOT_LIBICU_SUPPORT=[ ON | OFF ]<br>
   Enable libicu library if set ON. (Optional, default = ON)

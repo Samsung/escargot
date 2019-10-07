@@ -127,7 +127,8 @@ public:
     bool equals(String* s) const
     {
         if (isPlainString()) {
-            return plainString()->equals(s);
+            auto ps = plainString();
+            return s == ps || plainString()->equals(s);
         }
         return false;
     }

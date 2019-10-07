@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "CodeBlock.h"
+#include "parser/Script.h"
 #include "runtime/Context.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Environment.h"
@@ -551,6 +552,53 @@ void InterpretedCodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
+    } else if (isGlobalScopeCodeBlock() && script()->isModule()) {
+        size_t s = 1;
+        size_t h = 0;
+        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+            m_identifierInfos[i].m_needToAllocateOnStack = false;
+            m_identifierInfos[i].m_indexForIndexedStorage = h;
+            h++;
+        }
+
+        m_identifierOnStackCount = s;
+        m_identifierOnHeapCount = h;
+
+        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = 0;
+
+        if (!canUseIndexedVariableStorage()) {
+            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+                m_blockInfos[i]->m_canAllocateEnvironmentOnStack = false;
+                m_blockInfos[i]->m_shouldAllocateEnvironment = m_blockInfos[i]->m_identifiers.size();
+                for (size_t j = 0; j < m_blockInfos[i]->m_identifiers.size(); j++) {
+                    m_blockInfos[i]->m_identifiers[j].m_indexForIndexedStorage = SIZE_MAX;
+                    m_blockInfos[i]->m_identifiers[j].m_needToAllocateOnStack = false;
+                }
+            }
+        } else {
+            ASSERT(isGlobalScopeCodeBlock());
+
+            size_t currentStackAllocatedVariableIndex = 0;
+            size_t maxStackAllocatedVariableDepth = 0;
+            computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+            m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+        }
+
+        InterpretedCodeBlock::BlockInfo* bi = nullptr;
+        for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            if (m_blockInfos[i]->m_blockIndex == 0) {
+                bi = m_blockInfos[i];
+                break;
+            }
+        }
+
+        // global {let, const} declaration should be processed on ModuleEnvironmentRecord
+        for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+            bi->m_identifiers[i].m_indexForIndexedStorage = i + identifierInfos().size();
+            bi->m_identifiers[i].m_needToAllocateOnStack = false;
+        }
+
+        bi->m_shouldAllocateEnvironment = false;
     } else {
         if (m_isEvalCodeInFunction) {
             AtomicString arguments = m_context->staticStrings().arguments;
@@ -644,5 +692,81 @@ bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
         return false;
     }
     return false;
+}
+
+InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentifierInfo(const AtomicString& name, LexicalBlockIndex blockIndex)
+{
+    size_t upperIndex = 0;
+    IndexedIdentifierInfo info;
+
+    InterpretedCodeBlock* blk = this;
+    while (blk && blk->canUseIndexedVariableStorage()) {
+        // search block first.
+        while (blockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            InterpretedCodeBlock::BlockInfo* bi = nullptr;
+            for (size_t i = 0; i < blk->m_blockInfos.size(); i++) {
+                if (blk->m_blockInfos[i]->m_blockIndex == blockIndex) {
+                    bi = blk->m_blockInfos[i];
+                    break;
+                }
+            }
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                if (bi->m_identifiers[i].m_name == name) {
+                    info.m_isResultSaved = true;
+                    info.m_isStackAllocated = bi->m_identifiers[i].m_needToAllocateOnStack;
+                    info.m_index = bi->m_identifiers[i].m_indexForIndexedStorage;
+                    if (info.m_isStackAllocated) {
+                        info.m_index += identifierOnStackCount();
+                    }
+                    info.m_upperIndex = upperIndex;
+                    info.m_isMutable = bi->m_identifiers[i].m_isMutable;
+                    info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
+                    info.m_blockIndex = bi->m_blockIndex;
+
+                    if (blk->isGlobalScopeCodeBlock() && !blk->script()->isModule() && bi->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                        info.m_isGlobalLexicalVariable = true;
+                    } else {
+                        info.m_isGlobalLexicalVariable = false;
+                        ASSERT(info.m_index != SIZE_MAX);
+                    }
+                    return info;
+                }
+            }
+
+            if (bi->m_shouldAllocateEnvironment) {
+                upperIndex++;
+            }
+
+            blockIndex = bi->m_parentBlockIndex;
+        }
+
+        if (blk->isGlobalScopeCodeBlock() && !blk->script()->isModule()) {
+            break;
+        }
+
+        size_t index = blk->asInterpretedCodeBlock()->findVarName(name);
+        if (index != SIZE_MAX) {
+            ASSERT(blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage != SIZE_MAX);
+            info.m_isResultSaved = true;
+            info.m_isGlobalLexicalVariable = false;
+            info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
+            info.m_upperIndex = upperIndex;
+            info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
+            info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
+            info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
+            return info;
+        }
+
+        if (blk == this) {
+            upperIndex += 1;
+        } else {
+            upperIndex += !blk->canAllocateEnvironmentOnStack();
+        }
+        blockIndex = blk->lexicalBlockIndexFunctionLocatedIn();
+        blk = blk->asInterpretedCodeBlock()->parentCodeBlock();
+    }
+
+    return info;
 }
 }

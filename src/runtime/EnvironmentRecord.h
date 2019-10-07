@@ -36,10 +36,12 @@ namespace Escargot {
 class GlobalObject;
 class CodeBlock;
 class ArgumentsObject;
+class ModuleNamespaceObject;
 class GlobalEnvironmentRecord;
 class DeclarativeEnvironmentRecord;
 class ObjectEnvironmentRecord;
 class FunctionEnvironmentRecord;
+class ModuleEnvironmentRecord;
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-environment-records
 class EnvironmentRecord : public gc {
@@ -155,6 +157,11 @@ public:
     }
 
     virtual bool isDeclarativeEnvironmentRecord()
+    {
+        return false;
+    }
+
+    virtual bool isModuleEnvironmentRecord()
     {
         return false;
     }
@@ -1024,6 +1031,76 @@ public:
     }
 
     virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+};
+
+class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
+public:
+    ModuleEnvironmentRecord(Script* script)
+        : DeclarativeEnvironmentRecord()
+        , m_script(script)
+        , m_namespaceObject(nullptr)
+    {
+    }
+    virtual bool isModuleEnvironmentRecord() override
+    {
+        return true;
+    }
+
+    virtual bool isVarDeclarationTarget() override
+    {
+        return true;
+    }
+
+    virtual bool hasThisBinding() override
+    {
+        return true;
+    }
+
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
+    {
+        return false;
+    }
+
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration) override;
+    virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t i, const Value& v) override;
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override;
+    virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
+    virtual Value getBindingValue(ExecutionState& state, const size_t i) override;
+    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override;
+    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override;
+    ModuleNamespaceObject* namespaceObject(ExecutionState& state);
+    Script* script()
+    {
+        return m_script;
+    }
+
+protected:
+    void readCheck(ExecutionState& state, const size_t i)
+    {
+        if (UNLIKELY(m_moduleDeclarativeStorage[i].isEmpty())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+        }
+    }
+
+    void writeCheck(ExecutionState& state, const size_t i)
+    {
+        if (UNLIKELY(!m_moduleDeclarativeRecord[i].m_isMutable)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, m_moduleDeclarativeRecord[i].m_name);
+        }
+
+        if (UNLIKELY(!m_moduleDeclarativeRecord[i].m_isVarDeclaration && m_moduleDeclarativeStorage[i].isEmpty())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+        }
+    }
+
+    IdentifierRecordVector m_moduleDeclarativeRecord;
+    SmallValueVector m_moduleDeclarativeStorage;
+    Script* m_script;
+    ModuleNamespaceObject* m_namespaceObject;
 };
 }
 #endif

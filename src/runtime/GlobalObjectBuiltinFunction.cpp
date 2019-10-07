@@ -24,6 +24,7 @@
 #include "NativeFunctionObject.h"
 #include "runtime/BoundFunctionObject.h"
 #include "runtime/ScriptFunctionObject.h"
+#include "runtime/ScriptClassConstructorFunctionObject.h"
 
 namespace Escargot {
 
@@ -57,25 +58,30 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     // FIXME: If Type(func) is Object and is either a built-in function object or has an [[ECMAScriptCode]] internal slot, then
     if (LIKELY(thisValue.isFunction())) {
         FunctionObject* fn = thisValue.asFunction();
-        StringBuilder builder;
-        if (!fn->codeBlock()->isArrowFunctionExpression()) {
-            builder.appendString("function ");
-            if (!fn->codeBlock()->hasImplictFunctionName()) {
-                builder.appendString(fn->codeBlock()->functionName().string());
-            }
-        }
 
-        if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
-            StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
-            while (src[src.length() - 1] != '}') {
-                src = StringView(src, 0, src.length() - 1);
-            }
-            builder.appendString(new StringView(src));
+        if (fn->isScriptClassConstructorFunctionObject()) {
+            return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->sourceSrc();
         } else {
-            builder.appendString("() { [native code] }");
-        }
+            StringBuilder builder;
+            if (!fn->codeBlock()->isArrowFunctionExpression()) {
+                builder.appendString("function ");
+                if (!fn->codeBlock()->hasImplictFunctionName()) {
+                    builder.appendString(fn->codeBlock()->functionName().string());
+                }
+            }
 
-        return builder.finalize(&state);
+            if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
+                StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
+                while (src[src.length() - 1] != '}') {
+                    src = StringView(src, 0, src.length() - 1);
+                }
+                builder.appendString(new StringView(src));
+            } else {
+                builder.appendString("() { [native code] }");
+            }
+
+            return builder.finalize(&state);
+        }
     }
 
     if (thisValue.isObject() && thisValue.asObject()->isBoundFunctionObject()) {

@@ -443,12 +443,13 @@ public:
 
 class CreateClass : public ByteCode {
 public:
-    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, CodeBlock* cb)
+    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, CodeBlock* cb, String* src)
         : ByteCode(Opcode::CreateClassOpcode, loc)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
         , m_codeBlock(cb)
+        , m_classSrc(src)
     {
     }
 
@@ -456,6 +457,7 @@ public:
     ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
     ByteCodeRegisterIndex m_superClassRegisterIndex;
     CodeBlock* m_codeBlock;
+    String* m_classSrc;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {

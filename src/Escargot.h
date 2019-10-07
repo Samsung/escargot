@@ -228,7 +228,7 @@ typedef int32_t UChar32;
 #define ESCARGOT_LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, "Escargot", __VA_ARGS__);
 #endif
 
-#if defined(ESCARGOT_TIZEN) && !defined(ESCARGOT_STANDALONE)
+#if defined(ESCARGOT_TIZEN)
 #include <dlog/dlog.h>
 #undef ESCARGOT_LOG_INFO
 #undef ESCARGOT_LOG_ERROR

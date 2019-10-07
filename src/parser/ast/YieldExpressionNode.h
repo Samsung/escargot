@@ -37,10 +37,11 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         static_assert(sizeof(ByteCodeGenerateContext::RecursiveStatementKind) == sizeof(size_t), "");
-        size_t mostBigCode = std::max({ sizeof(WithOperation), sizeof(BlockOperation), (sizeof(TryOperation) + sizeof(TryCatchFinallyWithBlockBodyEnd) + sizeof(End)) });
+        size_t mostBigCode = std::max({ sizeof(WithOperation), sizeof(BlockOperation), sizeof(TryOperation) + sizeof(TryOperation) });
         context->m_maxYieldStatementExtraDataLength = std::max(context->m_maxYieldStatementExtraDataLength,
-                                                               (mostBigCode * context->m_recursiveStatementStack.size()) + sizeof(GeneratorResume) + sizeof(size_t) /* stack size */ + context->m_recursiveStatementStack.size() * sizeof(size_t) /* code start position data size */
+                                                               sizeof(size_t) + (mostBigCode * context->m_recursiveStatementStack.size()) + sizeof(GeneratorResume) + sizeof(size_t) /* stack size */ + context->m_recursiveStatementStack.size() * sizeof(size_t) /* code start position data size */
                                                                );
+
         size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
 
         if (m_argument == nullptr) {

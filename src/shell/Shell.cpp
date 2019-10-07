@@ -18,9 +18,10 @@
  */
 
 #include <string.h>
+#include <vector>
 #include "api/EscargotPublic.h"
 
-#if defined(ESCARGOT_ENABLE_VENDORTEST)
+#if defined(ESCARGOT_ENABLE_TEST)
 // these header & function below are used for Escargot internal development
 // general client doesn't need this
 #include <GCUtil.h>
@@ -132,11 +133,11 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     return ch - offsetsFromUTF8[length - 1];
 }
 
-static StringRef* builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
+static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
 {
     FILE* fp = fopen(fileName, "r");
-    StringRef* src = StringRef::emptyString();
     if (fp) {
+        StringRef* src = StringRef::emptyString();
         std::string utf8Str;
         std::basic_string<unsigned char, std::char_traits<unsigned char>> str;
         char buf[8];
@@ -167,6 +168,7 @@ static StringRef* builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, co
         } else {
             src = StringRef::createFromLatin1(str.data(), str.length());
         }
+        return src;
     } else {
         char msg[1024];
         snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
@@ -175,8 +177,8 @@ static StringRef* builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, co
         } else {
             puts(msg);
         }
+        return nullptr;
     }
-    return src;
 }
 
 static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
@@ -184,7 +186,7 @@ static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size
     if (argc >= 1) {
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "load");
+        StringRef* src = builtinHelperFileRead(state, fileName, "load").value();
 
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state)).fetchScriptThrowsExceptionIfParseError(state);
         return script->execute(state);
@@ -198,7 +200,7 @@ static ValueRef* builtinRead(ExecutionStateRef* state, ValueRef* thisValue, size
     if (argc >= 1) {
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "read");
+        StringRef* src = builtinHelperFileRead(state, fileName, "read").value();
         return src;
     } else {
         return StringRef::emptyString();
@@ -212,7 +214,7 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
 
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "run");
+        StringRef* src = builtinHelperFileRead(state, fileName, "run").value();
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state)).fetchScriptThrowsExceptionIfParseError(state);
         script->execute(state);
         return ValueRef::create(DateObjectRef::currentTime() - startTime);
@@ -221,7 +223,7 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
     }
 }
 
-#if defined(ESCARGOT_ENABLE_VENDORTEST)
+#if defined(ESCARGOT_ENABLE_TEST)
 static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc) {
@@ -292,7 +294,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("run"), buildFunctionObjectRef, true, true, true);
         }
 
-#if defined(ESCARGOT_ENABLE_VENDORTEST)
+#if defined(ESCARGOT_ENABLE_TEST)
         {
             FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "uneval"), builtinUneval, 1, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
@@ -330,9 +332,99 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
     return context;
 }
 
-static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName, bool shouldPrintScriptResult)
+class ShellPlatform : public PlatformRef {
+public:
+    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj)
+    {
+        // ignore. we always check pending job after eval script
+    }
+
+    static std::string dirnameOf(const std::string& fname)
+    {
+        size_t pos = fname.find_last_of("/");
+        if (std::string::npos == pos) {
+            pos = fname.find_last_of("\\/");
+        }
+        return (std::string::npos == pos)
+            ? ""
+            : fname.substr(0, pos);
+    }
+
+    static std::string absolutePath(const std::string& referrerPath, const std::string& src)
+    {
+        std::string utf8MayRelativePath = dirnameOf(referrerPath) + "/" + src;
+        auto absPath = realpath(utf8MayRelativePath.data(), nullptr);
+        if (!absPath) {
+            return std::string();
+        }
+        std::string utf8AbsolutePath = absPath ? absPath : "";
+        free(absPath);
+
+        return utf8AbsolutePath;
+    }
+
+    static std::string absolutePath(const std::string& src)
+    {
+        auto absPath = realpath(src.data(), nullptr);
+        std::string utf8AbsolutePath = absPath;
+        free(absPath);
+
+        return utf8AbsolutePath;
+    }
+
+    std::vector<std::tuple<std::string /* abs path */, ContextRef*, PersistentRefHolder<ScriptRef>>> loadedModules;
+    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc)
+    {
+        std::string absPath = absolutePath(whereRequestFrom->src()->toStdUTF8String(), moduleSrc->toStdUTF8String());
+        if (absPath.length() == 0) {
+            std::string s = "Error reading : " + moduleSrc->toStdUTF8String();
+            return LoadModuleResult(ErrorObjectRef::Code::None, StringRef::createFromUTF8(s.data(), s.length()));
+        }
+
+        for (size_t i = 0; i < loadedModules.size(); i++) {
+            if (std::get<0>(loadedModules[i]) == absPath && std::get<1>(loadedModules[i]) == relatedContext) {
+                return LoadModuleResult(std::get<2>(loadedModules[i]));
+            }
+        }
+
+        OptionalRef<StringRef> source = builtinHelperFileRead(nullptr, absPath.data(), "");
+        if (!source) {
+            std::string s = "Error reading : " + absPath;
+            return LoadModuleResult(ErrorObjectRef::Code::None, StringRef::createFromUTF8(s.data(), s.length()));
+        }
+
+        auto parseResult = relatedContext->scriptParser()->initializeScript(source.value(), moduleSrc, true);
+        if (!parseResult.isSuccessful()) {
+            return LoadModuleResult(parseResult.parseErrorCode, parseResult.parseErrorMessage);
+        }
+
+        return LoadModuleResult(parseResult.script.get());
+    }
+
+    virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> referrer, ScriptRef* loadedModule)
+    {
+        std::string path;
+        if (referrer) {
+            path = absolutePath(referrer->src()->toStdUTF8String(), loadedModule->src()->toStdUTF8String());
+        } else {
+            path = absolutePath(loadedModule->src()->toStdUTF8String());
+        }
+        loadedModules.push_back(std::make_tuple(path, relatedContext, PersistentRefHolder<ScriptRef>(loadedModule)));
+    }
+};
+
+
+static bool stringEndsWith(const std::string& str, const std::string& suffix)
 {
-    auto scriptInitializeResult = context->scriptParser()->initializeScript(str, fileName);
+    return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+}
+
+static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName, bool shouldPrintScriptResult, bool isModule)
+{
+    if (stringEndsWith(fileName->toStdUTF8String(), "mjs")) {
+        isModule = isModule || true;
+    }
+    auto scriptInitializeResult = context->scriptParser()->initializeScript(str, fileName, isModule);
     if (!scriptInitializeResult.script) {
         printf("Script parsing error: ");
         switch (scriptInitializeResult.parseErrorCode) {
@@ -391,14 +483,6 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
     return true;
 }
 
-class ShellPlatform : public PlatformRef {
-public:
-    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj)
-    {
-        // ignore. we always check pending job after script eval
-    }
-};
-
 int main(int argc, char* argv[])
 {
 #ifndef NDEBUG
@@ -421,7 +505,7 @@ int main(int argc, char* argv[])
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
     bool runShell = true;
-
+    bool seenModule = false;
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
             if (argv[i][1] == '-') { // `--option` case
@@ -429,12 +513,16 @@ int main(int argc, char* argv[])
                     runShell = true;
                     continue;
                 }
+                if (strcmp(argv[i], "--module") == 0) {
+                    seenModule = true;
+                    continue;
+                }
             } else { // `-option` case
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;
                     i++;
                     StringRef* src = StringRef::createFromUTF8(argv[i], strlen(argv[i]));
-                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false))
+                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false, false))
                         return 3;
                     continue;
                 }
@@ -452,11 +540,12 @@ int main(int argc, char* argv[])
             fclose(fp);
             runShell = false;
 
-            StringRef* src = builtinHelperFileRead(nullptr, argv[i], "read");
+            StringRef* src = builtinHelperFileRead(nullptr, argv[i], "read").get();
 
-            if (!evalScript(context, src, StringRef::createFromUTF8(argv[i], strlen(argv[i])), false)) {
+            if (!evalScript(context, src, StringRef::createFromUTF8(argv[i], strlen(argv[i])), false, seenModule)) {
                 return 3;
             }
+            seenModule = false;
         } else {
             runShell = false;
             printf("Cannot open file %s\n", argv[i]);
@@ -477,7 +566,7 @@ int main(int argc, char* argv[])
             return 3;
         }
         StringRef* str = Escargot::StringRef::createFromUTF8(buf, strlen(buf));
-        evalScript(context, str, StringRef::createFromASCII("from shell input"), true);
+        evalScript(context, str, StringRef::createFromASCII("from shell input"), true, false);
     }
 
     context.release();
