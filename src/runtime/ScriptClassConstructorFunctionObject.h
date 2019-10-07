@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* sourceSrc);
+    ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode);
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
@@ -47,9 +47,9 @@ public:
         return m_homeObject;
     }
 
-    String* sourceSrc()
+    String* classSourceCode()
     {
-        return m_sourceSrc;
+        return m_classSourceCode;
     }
 
 private:
@@ -59,7 +59,8 @@ private:
     }
 
     Object* m_homeObject;
-    String* m_sourceSrc;
+    // We needs to store class source code for toString(). because class constructor stores its source code
+    String* m_classSourceCode;
 };
 }
 

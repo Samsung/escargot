@@ -60,7 +60,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         FunctionObject* fn = thisValue.asFunction();
 
         if (fn->isScriptClassConstructorFunctionObject()) {
-            return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->sourceSrc();
+            return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->classSourceCode();
         } else {
             StringBuilder builder;
             if (!fn->codeBlock()->isArrowFunctionExpression()) {

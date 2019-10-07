@@ -24,10 +24,10 @@
 #include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
-ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* sourceSrc)
+ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
     : ScriptFunctionObject(state, codeBlock, outerEnvironment, 2)
     , m_homeObject(homeObject)
-    , m_sourceSrc(sourceSrc)
+    , m_classSourceCode(classSourceCode)
 {
     ASSERT(!codeBlock->isGenerator()); // Class constructor may not be a generator
 

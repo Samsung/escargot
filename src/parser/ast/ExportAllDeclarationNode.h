@@ -42,6 +42,10 @@ public:
         m_src->iterateChildren(fn);
     }
 
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
+    {
+    }
+
 private:
     RefPtr<Node> m_src;
 };

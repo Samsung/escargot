@@ -39,7 +39,6 @@ public:
     virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) = 0;
 
     // Module
-    virtual void willLoadModuleWhenScriptExecuted(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) = 0;
     struct LoadModuleResult {
         Optional<Script*> script;
         String* errorMessage;

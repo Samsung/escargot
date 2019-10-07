@@ -65,6 +65,11 @@ void printEveryReachableGCObjects()
 
 using namespace Escargot;
 
+static bool stringEndsWith(const std::string& str, const std::string& suffix)
+{
+    return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+}
+
 ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc >= 1) {
@@ -187,8 +192,9 @@ static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
         StringRef* src = builtinHelperFileRead(state, fileName, "load").value();
+        bool isModule = stringEndsWith(f, "mjs");
 
-        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state)).fetchScriptThrowsExceptionIfParseError(state);
+        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
         return script->execute(state);
     } else {
         return ValueRef::createUndefined();
@@ -215,7 +221,8 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
         StringRef* src = builtinHelperFileRead(state, fileName, "run").value();
-        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state)).fetchScriptThrowsExceptionIfParseError(state);
+        bool isModule = stringEndsWith(f, "mjs");
+        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
         script->execute(state);
         return ValueRef::create(DateObjectRef::currentTime() - startTime);
     } else {
@@ -334,7 +341,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
 
 class ShellPlatform : public PlatformRef {
 public:
-    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj)
+    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) override
     {
         // ignore. we always check pending job after eval script
     }
@@ -373,9 +380,18 @@ public:
     }
 
     std::vector<std::tuple<std::string /* abs path */, ContextRef*, PersistentRefHolder<ScriptRef>>> loadedModules;
-    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc)
+    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) override
     {
-        std::string absPath = absolutePath(whereRequestFrom->src()->toStdUTF8String(), moduleSrc->toStdUTF8String());
+        std::string referrerPath = whereRequestFrom->src()->toStdUTF8String();
+
+        for (size_t i = 0; i < loadedModules.size(); i++) {
+            if (std::get<2>(loadedModules[i]) == whereRequestFrom) {
+                referrerPath = std::get<0>(loadedModules[i]);
+                break;
+            }
+        }
+
+        std::string absPath = absolutePath(referrerPath, moduleSrc->toStdUTF8String());
         if (absPath.length() == 0) {
             std::string s = "Error reading : " + moduleSrc->toStdUTF8String();
             return LoadModuleResult(ErrorObjectRef::Code::None, StringRef::createFromUTF8(s.data(), s.length()));
@@ -398,10 +414,11 @@ public:
             return LoadModuleResult(parseResult.parseErrorCode, parseResult.parseErrorMessage);
         }
 
+        loadedModules.push_back(std::make_tuple(absPath, relatedContext, PersistentRefHolder<ScriptRef>(parseResult.script.get())));
         return LoadModuleResult(parseResult.script.get());
     }
 
-    virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> referrer, ScriptRef* loadedModule)
+    virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> referrer, ScriptRef* loadedModule) override
     {
         std::string path;
         if (referrer) {
@@ -412,12 +429,6 @@ public:
         loadedModules.push_back(std::make_tuple(path, relatedContext, PersistentRefHolder<ScriptRef>(loadedModule)));
     }
 };
-
-
-static bool stringEndsWith(const std::string& str, const std::string& suffix)
-{
-    return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
-}
 
 static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName, bool shouldPrintScriptResult, bool isModule)
 {
@@ -461,7 +472,7 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
     if (!evalResult.isSuccessful()) {
         printf("Uncaught %s:\n", evalResult.resultOrErrorAsString->toStdUTF8String().data());
         for (size_t i = 0; i < evalResult.stackTraceData.size(); i++) {
-            printf("%s (%d:%d)\n", evalResult.stackTraceData[i].fileName->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
+            printf("%s (%d:%d)\n", evalResult.stackTraceData[i].src->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
         }
         return false;
     }

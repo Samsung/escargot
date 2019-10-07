@@ -239,13 +239,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         GC_enable();
         ASSERT(script->m_topCodeBlock == topCodeBlock);
 
-        if (isModule) {
-            for (size_t i = 0; i < programNode->moduleData()->m_importEntries.size(); i++) {
-                // TODO remove duplicate src
-                m_context->vmInstance()->platform()->willLoadModuleWhenScriptExecuted(m_context, script, programNode->moduleData()->m_importEntries[i].m_moduleRequest);
-            }
-        }
-
         // Generate ByteCode
         if (LIKELY(needByteCodeGeneration)) {
             topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);

@@ -69,6 +69,30 @@ static void registerToLoadedModuleIfNeeds(Context* context, Optional<Script*> re
     }
 }
 
+void Script::loadExternalModule(ExecutionState& state)
+{
+    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
+        bool loaded = findLoadedModule(context(), this, m_moduleData->m_importEntries[i].m_moduleRequest).hasValue();
+        if (!loaded) {
+            loadModuleFromScript(state, m_moduleData->m_importEntries[i].m_moduleRequest);
+        }
+    }
+
+    for (size_t i = 0; i < m_moduleData->m_indirectExportEntries.size(); i++) {
+        bool loaded = findLoadedModule(context(), this, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value()).hasValue();
+        if (!loaded) {
+            loadModuleFromScript(state, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value());
+        }
+    }
+
+    for (size_t i = 0; i < m_moduleData->m_starExportEntries.size(); i++) {
+        bool loaded = findLoadedModule(context(), this, m_moduleData->m_starExportEntries[i].m_moduleRequest.value()).hasValue();
+        if (!loaded) {
+            loadModuleFromScript(state, m_moduleData->m_starExportEntries[i].m_moduleRequest.value());
+        }
+    }
+}
+
 void Script::loadModuleFromScript(ExecutionState& state, String* src)
 {
     Platform::LoadModuleResult result = context()->vmInstance()->platform()->onLoadModule(context(), this, src);
@@ -76,6 +100,36 @@ void Script::loadModuleFromScript(ExecutionState& state, String* src)
         ErrorObject::throwBuiltinError(state, (ErrorObject::Code)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
     }
     registerToLoadedModuleIfNeeds(context(), this, src, result.script.value());
+    result.script->loadExternalModule(state);
+}
+
+size_t Script::moduleRequestsLength()
+{
+    if (!isModule()) {
+        return 0;
+    }
+    return m_moduleData->m_importEntries.size() + m_moduleData->m_indirectExportEntries.size() + m_moduleData->m_starExportEntries.size();
+}
+
+String* Script::moduleRequest(size_t i)
+{
+    if (!isModule()) {
+        return String::emptyString;
+    }
+
+    if (i < m_moduleData->m_importEntries.size()) {
+        return m_moduleData->m_importEntries[i].m_moduleRequest;
+    }
+
+    i = i - m_moduleData->m_importEntries.size();
+
+    if (i < m_moduleData->m_indirectExportEntries.size()) {
+        return m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value();
+    }
+
+    i = i - m_moduleData->m_indirectExportEntries.size();
+
+    return m_moduleData->m_starExportEntries[i].m_moduleRequest.value();
 }
 
 AtomicStringVector Script::exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet)
@@ -265,21 +319,7 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
 
     context()->vmInstance()->platform()->didLoadModule(context(), referrer, this);
     registerToLoadedModuleIfNeeds(context(), referrer, src(), this);
-
-    // Load external modules
-    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
-        bool loaded = findLoadedModule(context(), this, m_moduleData->m_importEntries[i].m_moduleRequest).hasValue();
-        if (!loaded) {
-            loadModuleFromScript(state, m_moduleData->m_importEntries[i].m_moduleRequest);
-        }
-    }
-
-    for (size_t i = 0; i < m_moduleData->m_indirectExportEntries.size(); i++) {
-        bool loaded = findLoadedModule(context(), this, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value()).hasValue();
-        if (!loaded) {
-            loadModuleFromScript(state, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value());
-        }
-    }
+    loadExternalModule(state);
 
     const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
@@ -341,6 +381,13 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
 
     for (size_t i = 0; i < m_moduleData->m_indirectExportEntries.size(); i++) {
         Script* script = findLoadedModule(context(), this, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value()).value();
+        if (!script->isExecuted()) {
+            script->executeModule(state, this);
+        }
+    }
+
+    for (size_t i = 0; i < m_moduleData->m_starExportEntries.size(); i++) {
+        Script* script = findLoadedModule(context(), this, m_moduleData->m_starExportEntries[i].m_moduleRequest.value()).value();
         if (!script->isExecuted()) {
             script->executeModule(state, this);
         }
