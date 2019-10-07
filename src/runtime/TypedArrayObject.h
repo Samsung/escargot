@@ -222,7 +222,7 @@ struct Uint8ClampedAdaptor {
         } else if (val.isDouble()) {
             return toNativeFromDouble(state, val.asDouble());
         }
-        return static_cast<Type>(val.toNumber(state));
+        return toNativeFromDouble(state, val.toNumber(state));
     }
 
     static Type toNativeFromInt32(ExecutionState& state, int32_t value)
@@ -247,7 +247,7 @@ struct Uint8ClampedAdaptor {
         if (value > 255) {
             return 255;
         }
-        return static_cast<uint8_t>(lrint(value));
+        return static_cast<Type>(lrint(value));
     }
 };
 

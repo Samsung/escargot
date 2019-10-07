@@ -153,7 +153,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     items = items.toObject(state);
     Value usingIterator = items.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator)).value(state, items);
     // If usingIterator is not undefined, then
-    if (!usingIterator.isUndefined()) {
+    if (!usingIterator.isUndefinedOrNull()) {
         Object* A;
         // If IsConstructor(C) is true, then
         if (C.isConstructor()) {
@@ -165,44 +165,49 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         }
         // Let iterator be ? GetIterator(items, usingIterator).
         Value iterator = getIterator(state, items, usingIterator);
-        // Let k be 0.
-        int64_t k = 0;
-        // Repeat
-        while (true) {
-            // If k ≥ 2^53-1, then
-            if (k >= ((1LL << 53LL) - 1LL)) {
-                // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
-                // Return ? IteratorClose(iterator, error).
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
+        try {
+            // Let k be 0.
+            int64_t k = 0;
+            // Repeat
+            while (true) {
+                // If k ≥ 2^53-1, then
+                if (k >= ((1LL << 53LL) - 1LL)) {
+                    // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
+                    // Return ? IteratorClose(iterator, error).
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
+                }
+                // Let Pk be ! ToString(k).
+                ObjectPropertyName pk(state, k);
+                // Let next be ? IteratorStep(iterator).
+                Value next = iteratorStep(state, iterator);
+                // If next is false, then
+                if (next.isFalse()) {
+                    // Perform ? Set(A, "length", k, true).
+                    A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
+                    // Return A.
+                    return A;
+                }
+                // Let nextValue be ? IteratorValue(next).
+                Value nextValue = iteratorValue(state, next);
+                Value mappedValue;
+                // If mapping is true, then
+                if (mapping) {
+                    // Let mappedValue be Call(mapfn, T, « nextValue, k »).
+                    // If mappedValue is an abrupt completion, return ? IteratorClose(iterator, mappedValue).
+                    // Let mappedValue be mappedValue.[[Value]].
+                    Value argv[] = { nextValue, Value(k) };
+                    mappedValue = Object::call(state, mapfn, T, 2, argv);
+                } else {
+                    mappedValue = nextValue;
+                }
+                // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
+                A->defineOwnPropertyThrowsException(state, pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+                // Increase k by 1.
+                k++;
             }
-            // Let Pk be ! ToString(k).
-            ObjectPropertyName pk(state, k);
-            // Let next be ? IteratorStep(iterator).
-            Value next = iteratorStep(state, iterator);
-            // If next is false, then
-            if (next.isFalse()) {
-                // Perform ? Set(A, "length", k, true).
-                A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
-                // Return A.
-                return A;
-            }
-            // Let nextValue be ? IteratorValue(next).
-            Value nextValue = iteratorValue(state, next);
-            Value mappedValue;
-            // If mapping is true, then
-            if (mapping) {
-                // Let mappedValue be Call(mapfn, T, « nextValue, k »).
-                // If mappedValue is an abrupt completion, return ? IteratorClose(iterator, mappedValue).
-                // Let mappedValue be mappedValue.[[Value]].
-                Value argv[] = { nextValue, Value(k) };
-                mappedValue = Object::call(state, mapfn, T, 2, argv);
-            } else {
-                mappedValue = nextValue;
-            }
-            // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
-            A->defineOwnPropertyThrowsException(state, pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
-            // Increase k by 1.
-            k++;
+        } catch (const Value& v) {
+            Value exceptionValue = v;
+            iteratorClose(state, iterator, exceptionValue, true);
         }
     }
     // NOTE: items is not an Iterable so assume it is an array-like object.
@@ -316,9 +321,40 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
         }
         prevIndex = curIndex;
         if (elem.isUndefined()) {
-            int64_t result;
-            Object::nextIndexForward(state, thisBinded, prevIndex, len, true, result);
-            curIndex = result;
+            struct Data {
+                bool exists;
+                int64_t cur;
+                int64_t ret;
+            } data;
+            data.exists = false;
+            data.cur = curIndex;
+            data.ret = len;
+
+            Value ptr = thisBinded;
+            while (ptr.isObject()) {
+                if (!ptr.asObject()->isOrdinary()) {
+                    curIndex++;
+                    break;
+                }
+                ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
+                    int64_t index;
+                    Data* e = (Data*)data;
+                    int64_t* ret = &e->ret;
+                    Value key = name.toPlainValue(state);
+                    if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
+                        if (self->get(state, name).value(state, self).isUndefined()) {
+                            return true;
+                        }
+                        if (index > e->cur && e->ret > index) {
+                            e->ret = std::min(index, e->ret);
+                        }
+                    }
+                    return true;
+                },
+                                            &data);
+                ptr = ptr.asObject()->getPrototype(state);
+            }
+            curIndex = data.ret;
         } else {
             curIndex++;
         }
@@ -367,9 +403,9 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
             O->setThrowsException(state, upperP, lowerValue, O);
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, lower, middle, false, result);
+            Object::nextIndexForward(state, O, lower, middle, result);
             int64_t nextLower = result;
-            Object::nextIndexBackward(state, O, upper, middle, false, result);
+            Object::nextIndexBackward(state, O, upper, middle, result);
             int64_t nextUpper = result;
             int64_t x = middle - nextLower;
             int64_t y = nextUpper - middle;
@@ -487,7 +523,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             k++;
         } else {
             int64_t result;
-            bool exist = Object::nextIndexForward(state, O, actualStart + k, len, false, result);
+            bool exist = Object::nextIndexForward(state, O, actualStart + k, len, result);
             if (!exist) {
                 A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(actualDeleteCount), A);
                 break;
@@ -632,7 +668,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                         k++;
                     } else {
                         int64_t result;
-                        Object::nextIndexForward(state, arr, k, len, false, result);
+                        Object::nextIndexForward(state, arr, k, len, result);
                         k = result;
                     }
                 }
@@ -677,7 +713,7 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
             n++;
         } else {
             int64_t tmp;
-            bool exist = Object::nextIndexForward(state, thisObject, k, len, false, tmp);
+            bool exist = Object::nextIndexForward(state, thisObject, k, len, tmp);
             if (!exist) {
                 n = finalEnd - kStart;
                 break;
@@ -717,7 +753,7 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
             k++;
         } else {
             int64_t result;
-            Object::nextIndexForward(state, thisObject, k, len, false, result);
+            Object::nextIndexForward(state, thisObject, k, len, result);
             k = result;
             continue;
         }
@@ -784,7 +820,7 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
             }
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             k = result;
             continue;
         }
@@ -843,7 +879,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
             }
         } else {
             int64_t result;
-            Object::nextIndexBackward(state, O, k, -1, false, result);
+            Object::nextIndexBackward(state, O, k, -1, result);
             k = result;
             continue;
         }
@@ -898,7 +934,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
             k++;
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             k = result;
         }
     }
@@ -993,7 +1029,7 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
             k++;
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             k = result;
         }
         // Increase k by 1.
@@ -1046,7 +1082,7 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
             k++;
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             k = result;
         }
         // Increase k by 1.
@@ -1098,7 +1134,7 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
             }
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             k = result;
             continue;
         }
@@ -1287,7 +1323,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
             k++;
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             k = result;
         }
     }
@@ -1342,7 +1378,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
 
             // Decrease k by 1.
             int64_t result;
-            Object::nextIndexBackward(state, O, k, -1, false, result);
+            Object::nextIndexBackward(state, O, k, -1, result);
             k = result;
         }
         // If kPresent is false, throw a TypeError exception.
@@ -1369,7 +1405,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
 
         // Decrease k by 1.
         int64_t result;
-        Object::nextIndexBackward(state, O, k, -1, false, result);
+        Object::nextIndexBackward(state, O, k, -1, result);
         k = result;
     }
 
@@ -1481,7 +1517,7 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
             k++;
         } else {
             int64_t result;
-            Object::nextIndexForward(state, O, k, len, false, result);
+            Object::nextIndexForward(state, O, k, len, result);
             int64_t r = result;
             if (r > k) {
                 k = r;
@@ -1545,7 +1581,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
                 k--;
             } else {
                 int64_t result;
-                Object::nextIndexBackward(state, O, k, -1, false, result);
+                Object::nextIndexBackward(state, O, k, -1, result);
                 int64_t r = std::max(result + 1, result - argCount + 1);
                 if (r < k && std::abs(r - k) > argCount) {
                     k = r;

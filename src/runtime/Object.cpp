@@ -501,7 +501,7 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
             return false;
         } else { // Else,
             // i. If the [[GetPrototypeOf]] internal method of p is not the ordinary object internal method defined in 9.1.1, let done be true.
-            if (UNLIKELY(!p.isObject() && p.asObject()->isOrdinary())) {
+            if (UNLIKELY(!p.isObject() || !p.asObject()->isOrdinary())) {
                 done = true;
             } else { // ii. Else, let p be the value of p’s [[Prototype]] internal slot.
                 p = p.asObject()->getPrototype(state);
@@ -1233,32 +1233,40 @@ uint64_t Object::lengthES6(ExecutionState& state)
 }
 
 
-bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, const bool skipUndefined, int64_t& nextIndex)
+bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
 {
     Value ptr = obj;
     int64_t ret = end;
     bool exists = false;
     struct Data {
         bool* exists;
-        const bool* skipUndefined;
         const int64_t* cur;
         int64_t* ret;
     } data;
     data.exists = &exists;
-    data.skipUndefined = &skipUndefined;
     data.cur = &cur;
     data.ret = &ret;
 
     while (ptr.isObject()) {
+        if (!ptr.asObject()->isOrdinary()) {
+            int64_t k = cur + 1;
+            while (k < end) {
+                auto kPresent = ptr.asObject()->hasIndexedProperty(state, Value(k));
+                if (kPresent) {
+                    nextIndex = k;
+                    return true;
+                }
+                k++;
+            }
+            nextIndex = ret;
+            return false;
+        }
         ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             int64_t index;
             Data* e = (Data*)data;
             int64_t* ret = e->ret;
             Value key = name.toPlainValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
-                if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
-                    return true;
-                }
                 if (index > *e->cur && *ret > index) {
                     *ret = std::min(index, *ret);
                     *e->exists = true;
@@ -1273,32 +1281,40 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
     return exists;
 }
 
-bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, const bool skipUndefined, int64_t& nextIndex)
+bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
 {
     Value ptr = obj;
     int64_t ret = end;
     bool exists = false;
     struct Data {
         bool* exists;
-        const bool* skipUndefined;
         const int64_t* cur;
         int64_t* ret;
     } data;
     data.exists = &exists;
-    data.skipUndefined = &skipUndefined;
     data.cur = &cur;
     data.ret = &ret;
 
     while (ptr.isObject()) {
+        if (!ptr.asObject()->isOrdinary()) {
+            int64_t k = cur - 1;
+            while (k > end) {
+                auto kPresent = ptr.asObject()->hasIndexedProperty(state, Value(k));
+                if (kPresent) {
+                    nextIndex = k;
+                    return true;
+                }
+                k--;
+            }
+            nextIndex = ret;
+            return false;
+        }
         ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             int64_t index;
             Data* e = (Data*)data;
             int64_t* ret = e->ret;
             Value key = name.toPlainValue(state);
             if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
-                if (*e->skipUndefined && self->get(state, name).value(state, self).isUndefined()) {
-                    return true;
-                }
                 if (index < *e->cur) {
                     *ret = std::max(index, *ret);
                     *e->exists = true;
@@ -1329,7 +1345,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
             k++;
         } else {
             int64_t result;
-            nextIndexForward(state, this, k, len, false, result);
+            nextIndexForward(state, this, k, len, result);
             k = result;
         }
     }
@@ -1357,7 +1373,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
             i++;
         } else {
             int64_t result;
-            nextIndexForward(state, this, i, len, false, result);
+            nextIndexForward(state, this, i, len, result);
             i = result;
         }
     }

@@ -837,8 +837,8 @@ public:
     }
 
     // returns existence of index
-    static bool nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t len, const bool skipUndefined, int64_t& nextIndex);
-    static bool nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, const bool skipUndefined, int64_t& nextIndex);
+    static bool nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t len, int64_t& nextIndex);
+    static bool nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex);
 
     virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp);
 

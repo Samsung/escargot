@@ -319,7 +319,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength
 
                 if (!getOwnProperty(state, key).hasValue()) {
                     int64_t result;
-                    Object::nextIndexBackward(state, this, oldLen, -1, false, result);
+                    Object::nextIndexBackward(state, this, oldLen, -1, result);
                     oldLen = result;
 
                     if (oldLen < newLen) {
