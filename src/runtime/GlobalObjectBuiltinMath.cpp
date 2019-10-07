@@ -36,6 +36,7 @@ static Value builtinMathAbs(ExecutionState& state, Value thisValue, size_t argc,
 
 static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    bool is_NaN = false;
     if (argc == 0) {
         double n_inf = -1 * std::numeric_limits<double>::infinity();
         return Value(n_inf);
@@ -43,11 +44,14 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
         double maxValue = argv[0].toNumber(state);
         for (unsigned i = 1; i < argc; i++) {
             double value = argv[i].toNumber(state);
-            double qnan = std::numeric_limits<double>::quiet_NaN();
             if (std::isnan(value))
-                return Value(qnan);
+                is_NaN = true;
             if (value > maxValue || (!value && !maxValue && !std::signbit(value)))
                 maxValue = value;
+        }
+        if (is_NaN) {
+            double qnan = std::numeric_limits<double>::quiet_NaN();
+            return Value(qnan);
         }
         return Value(maxValue);
     }
@@ -56,17 +60,21 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
 
 static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    bool is_NaN = false;
     if (argc == 0) {
         return Value(std::numeric_limits<double>::infinity());
     } else {
         double minValue = argv[0].toNumber(state);
         for (unsigned i = 1; i < argc; i++) {
             double value = argv[i].toNumber(state);
-            double qnan = std::numeric_limits<double>::quiet_NaN();
             if (std::isnan(value))
-                return Value(qnan);
+                is_NaN = true;
             if (value < minValue || (!value && !minValue && std::signbit(value)))
                 minValue = value;
+        }
+        if (is_NaN) {
+            double qnan = std::numeric_limits<double>::quiet_NaN();
+            return Value(qnan);
         }
         return Value(minValue);
     }
@@ -315,15 +323,19 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
 {
     double maxValue = 0;
     bool has_nan = false;
+    bool has_inf = false;
     for (unsigned i = 0; i < argc; i++) {
         double value = argv[i].toNumber(state);
         if (std::isinf(value)) {
-            return Value(std::numeric_limits<double>::infinity());
+            has_inf = true;
         } else if (std::isnan(value)) {
             has_nan = true;
         }
         double absValue = std::abs(value);
         maxValue = std::max(maxValue, absValue);
+    }
+    if (has_inf) {
+        return Value(std::numeric_limits<double>::infinity());
     }
 
     if (has_nan) {
