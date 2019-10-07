@@ -695,7 +695,6 @@
   'es6/typedarray' : [SKIP],
   'es6/typedarray-neutered' : [SKIP],
   'es6/typedarray-reduce' : [SKIP],
-  'es6/typedarray-set-length' : [SKIP],
   'es6/typedarray-species' : [SKIP],
   'es6/typedarray-tostring' : [SKIP],
   'es6/unicode-character-ranges' : [SKIP],
