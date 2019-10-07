@@ -717,7 +717,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     int targetElementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
     if (!arg0->isTypedArrayObject()) {
         Object* src = arg0;
-        uint64_t srcLength = src->length(state);
+        uint64_t srcLength = src->lengthES6(state);
         if (srcLength + (uint64_t)offset > targetLength) {
             const StaticStrings* strings = &state.context()->staticStrings();
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), errorMessage_GlobalObject_InvalidArrayLength);
