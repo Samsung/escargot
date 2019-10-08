@@ -23,37 +23,8 @@
 namespace Escargot {
 
 #define FOR_EACH_TARGET_NODE(F)               \
-    F(FunctionExpression)                     \
     F(ArrowFunctionExpression)                \
     F(ArrowParameterPlaceHolder)              \
-    F(FunctionDeclaration)                    \
-    F(Property)                               \
-    F(Empty)                                  \
-    F(EmptyStatement)                         \
-    F(BlockStatement)                         \
-    F(BreakStatement)                         \
-    F(BreakLabelStatement)                    \
-    F(ContinueStatement)                      \
-    F(ContinueLabelStatement)                 \
-    F(ReturnStatement)                        \
-    F(IfStatement)                            \
-    F(ForStatement)                           \
-    F(WhileStatement)                         \
-    F(DoWhileStatement)                       \
-    F(SpreadElement)                          \
-    F(RestElement)                            \
-    F(SwitchStatement)                        \
-    F(SwitchCase)                             \
-    F(WithStatement)                          \
-    F(ThisExpression)                         \
-    F(ExpressionStatement)                    \
-    F(UnaryExpressionBitwiseNot)              \
-    F(UnaryExpressionDelete)                  \
-    F(UnaryExpressionLogicalNot)              \
-    F(UnaryExpressionMinus)                   \
-    F(UnaryExpressionPlus)                    \
-    F(UnaryExpressionTypeOf)                  \
-    F(UnaryExpressionVoid)                    \
     F(AssignmentExpressionBitwiseAnd)         \
     F(AssignmentExpressionBitwiseOr)          \
     F(AssignmentExpressionBitwiseXor)         \
@@ -64,60 +35,86 @@ namespace Escargot {
     F(AssignmentExpressionMultiply)           \
     F(AssignmentExpressionPlus)               \
     F(AssignmentExpressionSignedRightShift)   \
-    F(AssignmentExpressionUnsignedRightShift) \
     F(AssignmentExpressionSimple)             \
+    F(AssignmentExpressionUnsignedRightShift) \
     F(BinaryExpressionBitwiseAnd)             \
     F(BinaryExpressionBitwiseOr)              \
     F(BinaryExpressionBitwiseXor)             \
     F(BinaryExpressionDivision)               \
     F(BinaryExpressionEqual)                  \
-    F(BinaryExpressionNotEqual)               \
-    F(BinaryExpressionStrictEqual)            \
-    F(BinaryExpressionNotStrictEqual)         \
     F(BinaryExpressionGreaterThan)            \
     F(BinaryExpressionGreaterThanOrEqual)     \
-    F(BinaryExpressionLessThan)               \
-    F(BinaryExpressionLessThanOrEqual)        \
     F(BinaryExpressionIn)                     \
     F(BinaryExpressionInstanceOf)             \
     F(BinaryExpressionLeftShift)              \
+    F(BinaryExpressionLessThan)               \
+    F(BinaryExpressionLessThanOrEqual)        \
     F(BinaryExpressionLogicalAnd)             \
     F(BinaryExpressionLogicalOr)              \
     F(BinaryExpressionMinus)                  \
     F(BinaryExpressionMod)                    \
     F(BinaryExpressionMultiply)               \
+    F(BinaryExpressionNotEqual)               \
+    F(BinaryExpressionNotStrictEqual)         \
     F(BinaryExpressionPlus)                   \
     F(BinaryExpressionSignedRightShift)       \
+    F(BinaryExpressionStrictEqual)            \
     F(BinaryExpressionUnsignedRightShift)     \
+    F(BlockStatement)                         \
+    F(BreakLabelStatement)                    \
+    F(BreakStatement)                         \
+    F(CatchClause)                            \
+    F(ClassElement)                           \
+    F(ConditionalExpression)                  \
+    F(ContinueLabelStatement)                 \
+    F(ContinueStatement)                      \
+    F(DebuggerStatement)                      \
+    F(Directive)                              \
+    F(DoWhileStatement)                       \
+    F(EmptyStatement)                         \
+    F(ExportAllDeclaration)                   \
+    F(ExportDefaultDeclaration)               \
+    F(ExportSpecifier)                        \
+    F(ExpressionStatement)                    \
+    F(ForStatement)                           \
+    F(FunctionDeclaration)                    \
+    F(FunctionExpression)                     \
+    F(IfStatement)                            \
+    F(ImportDefaultSpecifier)                 \
+    F(ImportNamespaceSpecifier)               \
+    F(ImportSpecifier)                        \
+    F(InitializeParameterExpression)          \
+    F(LabeledStatement)                       \
+    F(Literal)                                \
+    F(MemberExpression)                       \
+    F(MetaProperty)                           \
+    F(Property)                               \
+    F(RegExpLiteral)                          \
+    F(RestElement)                            \
+    F(ReturnStatement)                        \
+    F(SpreadElement)                          \
+    F(SuperExpression)                        \
+    F(SwitchCase)                             \
+    F(SwitchStatement)                        \
+    F(TaggedTemplateExpression)               \
+    F(ThisExpression)                         \
+    F(ThrowStatement)                         \
+    F(TryStatement)                           \
+    F(UnaryExpressionBitwiseNot)              \
+    F(UnaryExpressionDelete)                  \
+    F(UnaryExpressionLogicalNot)              \
+    F(UnaryExpressionMinus)                   \
+    F(UnaryExpressionPlus)                    \
+    F(UnaryExpressionTypeOf)                  \
+    F(UnaryExpressionVoid)                    \
     F(UpdateExpressionDecrementPostfix)       \
     F(UpdateExpressionDecrementPrefix)        \
     F(UpdateExpressionIncrementPostfix)       \
     F(UpdateExpressionIncrementPrefix)        \
-    F(MemberExpression)                       \
-    F(MetaProperty)                           \
-    F(YieldExpression)                        \
-    F(ConditionalExpression)                  \
     F(VariableDeclarator)                     \
-    F(InitializeParameterExpression)          \
-    F(LabeledStatement)                       \
-    F(Literal)                                \
-    F(TaggedTemplateExpression)               \
-    F(Directive)                              \
-    F(RegExpLiteral)                          \
-    F(CatchClause)                            \
-    F(TryStatement)                           \
-    F(ThrowStatement)                         \
-    F(ClassElement)                           \
-    F(SuperExpression)                        \
-    F(AssignmentPattern)                      \
-    F(RegisterReference)                      \
-    F(ExportDefaultDeclaration)               \
-    F(ExportAllDeclaration)                   \
-    F(ImportNamespaceSpecifier)               \
-    F(ImportDefaultSpecifier)                 \
-    F(ImportSpecifier)                        \
-    F(ExportSpecifier)                        \
-    F(DebuggerStatement)
+    F(WhileStatement)                         \
+    F(WithStatement)                          \
+    F(YieldExpression)
 
 class SyntaxNode {
 public:
@@ -125,13 +122,13 @@ public:
 
     SyntaxNode()
         : m_nodeType(ASTNodeTypeError)
-        , m_string(AtomicString())
+        , m_string()
     {
     }
 
     SyntaxNode(ASTNodeType nodeType)
         : m_nodeType(nodeType)
-        , m_string(AtomicString())
+        , m_string()
     {
     }
 
@@ -144,7 +141,7 @@ public:
 
     SyntaxNode(std::nullptr_t ptr)
         : m_nodeType(ASTNodeTypeError)
-        , m_string(AtomicString())
+        , m_string()
     {
     }
 
@@ -162,9 +159,20 @@ public:
         return m_string;
     }
 
+    AtomicString& assignmentPatternName()
+    {
+        ASSERT(m_nodeType == AssignmentPattern);
+        return m_string;
+    }
+
     void setNodeType(ASTNodeType type)
     {
         m_nodeType = type;
+    }
+
+    void setString(const AtomicString& string)
+    {
+        m_string = string;
     }
 
     ALWAYS_INLINE bool isAssignmentOperation()
@@ -326,6 +334,8 @@ private:
     AtomicString m_string;
 };
 
+typedef std::vector<SyntaxNode> SyntaxNodeVector;
+
 class SyntaxChecker {
 public:
     MAKE_STACK_ALLOCATED();
@@ -429,6 +439,16 @@ public:
         return SyntaxNode(ASTNodeType::ImportDeclaration);
     }
 
+    ALWAYS_INLINE SyntaxNode createAssignmentPatternNode(SyntaxNode* left, SyntaxNode* right)
+    {
+        SyntaxNode assign(ASTNodeType::AssignmentPattern);
+        if (left->isIdentifier()) {
+            assign.setString(left->name());
+        }
+
+        return assign;
+    }
+
     ALWAYS_INLINE SyntaxNode createStatementContainer()
     {
         return SyntaxNode(ASTNodeType::ASTStatementContainer);
@@ -469,6 +489,12 @@ public:
         }
 
         return result;
+    }
+
+    SyntaxNode& convertToParameterSyntaxNode(SyntaxNode& node)
+    {
+        ASSERT(node->type() == Identifier || node->type() == AssignmentPattern || node->type() == ArrayPattern || node->type() == ObjectPattern || node->type() == RestElement);
+        return node;
     }
 
     SyntaxNode convertTaggedTemplateExpressionToCallExpression(SyntaxNode taggedTemplateExpression, ASTFunctionScopeContext* scopeContext, AtomicString raw)
@@ -572,6 +598,11 @@ public:
         return new ImportDeclarationNode(std::forward<ASTNodeVector>(specifiers), src);
     }
 
+    AssignmentPatternNode* createAssignmentPatternNode(Node* left, Node* right)
+    {
+        return new AssignmentPatternNode(left, right);
+    }
+
     RefPtr<StatementContainer> createStatementContainer()
     {
         return StatementContainer::create();
@@ -603,7 +634,7 @@ public:
         }
         case ArrayExpression: {
             ArrayExpressionNode* array = expr->asArrayExpression();
-            ExpressionNodeVector& elements = array->elements();
+            NodeVector& elements = array->elements();
             for (size_t i = 0; i < elements.size(); i++) {
                 if (elements[i] != nullptr) {
                     elements[i] = this->reinterpretExpressionAsPattern(elements[i].get());
@@ -614,7 +645,7 @@ public:
         }
         case ObjectExpression: {
             ObjectExpressionNode* object = expr->asObjectExpression();
-            PropertiesNodeVector& properties = object->properties();
+            NodeVector& properties = object->properties();
             for (size_t i = 0; i < properties.size(); i++) {
                 ASSERT(properties[i]->type() == Property);
                 RefPtr<Node> value = this->reinterpretExpressionAsPattern(properties[i]->asProperty()->value());
@@ -635,12 +666,26 @@ public:
         return result;
     }
 
+    SyntaxNode convertToParameterSyntaxNode(RefPtr<Node> node)
+    {
+        SyntaxNode paramNode(node->type());
+        if (node->isIdentifier()) {
+            paramNode.setString(node->asIdentifier()->name());
+        } else if (node->isAssignmentPattern()) {
+            if (node->asAssignmentPattern()->left()->isIdentifier()) {
+                paramNode.setString(node->asAssignmentPattern()->left()->asIdentifier()->name());
+            }
+        }
+
+        return paramNode;
+    }
+
     // FIXME MetaNode
     PassRefPtr<Node> convertTaggedTemplateExpressionToCallExpression(RefPtr<TaggedTemplateExpressionNode> taggedTemplateExpression, ASTFunctionScopeContext* scopeContext, AtomicString raw)
     {
         TemplateLiteralNode* templateLiteral = (TemplateLiteralNode*)taggedTemplateExpression->quasi();
-        ArgumentVector args;
-        ExpressionNodeVector elements;
+        NodeVector args;
+        NodeVector elements;
         for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
             UTF16StringData& sd = (*templateLiteral->quasis())[i]->value;
             String* str = new UTF16String(std::move(sd));
@@ -649,7 +694,7 @@ public:
 
         RefPtr<ArrayExpressionNode> arrayExpressionForRaw;
         {
-            ExpressionNodeVector elements;
+            NodeVector elements;
             for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
                 UTF16StringData& sd = (*templateLiteral->quasis())[i]->valueRaw;
                 String* str = new UTF16String(std::move(sd));

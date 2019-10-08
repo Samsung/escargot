@@ -37,25 +37,24 @@ public:
         m_params.push_back(param);
     }
 
-    explicit ArrowParameterPlaceHolderNode(ExpressionNodeVector&& params)
+    explicit ArrowParameterPlaceHolderNode(NodeVector&& params)
         : Node()
         , m_params(std::move(params))
     {
     }
 
-    ExpressionNodeVector& params()
+    NodeVector& params()
     {
         return m_params;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ArrowParameterPlaceHolder; }
 private:
-    ExpressionNodeVector m_params;
+    NodeVector m_params;
 };
 
 class ArrowFunctionExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
     ArrowFunctionExpressionNode(ASTFunctionScopeContext* scopeContext, size_t subCodeBlockIndex)
         : m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {

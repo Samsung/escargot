@@ -29,7 +29,6 @@ namespace Escargot {
 
 class ClassExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
     ClassExpressionNode() {}
     ClassExpressionNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : ExpressionNode()

@@ -26,8 +26,6 @@ namespace Escargot {
 
 class BinaryExpressionLessThanOrEqualNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     BinaryExpressionLessThanOrEqualNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left((ExpressionNode*)left)

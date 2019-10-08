@@ -26,8 +26,6 @@ namespace Escargot {
 
 class BinaryExpressionBitwiseXorNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     BinaryExpressionBitwiseXorNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left((ExpressionNode*)left)

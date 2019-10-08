@@ -29,7 +29,7 @@ namespace Escargot {
 class VariableDeclarationNode : public DeclarationNode {
 public:
     friend class ScriptParser;
-    explicit VariableDeclarationNode(VariableDeclaratorVector&& decl, EscargotLexer::KeywordKind kind)
+    explicit VariableDeclarationNode(NodeVector&& decl, EscargotLexer::KeywordKind kind)
         : DeclarationNode()
         , m_declarations(decl)
         , m_kind(kind)
@@ -82,7 +82,7 @@ public:
     }
 
 private:
-    VariableDeclaratorVector m_declarations; // declarations: [ VariableDeclarator ];
+    NodeVector m_declarations; // declarations: [ VariableDeclarator ];
     EscargotLexer::KeywordKind m_kind;
 };
 }

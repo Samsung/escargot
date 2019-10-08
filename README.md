@@ -65,14 +65,8 @@ git submodule update --init
 
 ### Benchmarks
 
-Prerequisite for SpiderMonkey:
-```sh
-sudo apt-get install npm
-npm install
-```
-
 Test run for each benchmark (Sunspider, Octane, V8, Chakracore, test262,
 SpiderMonkey, etc.):
 ```sh
-tools/run-tests.py
+tools/run-tests.py --arch=x86_64 spidermonkey test262 v8
 ```

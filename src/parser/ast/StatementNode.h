@@ -99,12 +99,12 @@ public:
     StatementNode* appendChild(Node* c, Node* referNode)
     {
         ASSERT(c->isStatement());
-        StatementNode* child = c->asStatement();
+        StatementNode* child = (StatementNode*)c;
         if (referNode == nullptr) {
             appendChild(child);
         } else {
             ASSERT(referNode->isStatement());
-            referNode->asStatement()->m_nextSibling = child;
+            ((StatementNode*)referNode)->m_nextSibling = child;
         }
         return child;
     }
@@ -112,8 +112,8 @@ public:
     StatementNode* appendChild(Node* c)
     {
         ASSERT(c->isStatement());
-        ASSERT(c->asStatement()->nextSibling() == nullptr);
-        StatementNode* child = c->asStatement();
+        ASSERT(((StatementNode*)c)->nextSibling() == nullptr);
+        StatementNode* child = (StatementNode*)c;
         if (m_firstChild == nullptr) {
             m_firstChild = child;
         } else {

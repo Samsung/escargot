@@ -34,7 +34,7 @@ public:
         Method,
     };
 
-    friend class ScriptParser;
+
     ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic)
         : Node()
         , m_key(key)

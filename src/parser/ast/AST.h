@@ -80,7 +80,6 @@
 #include "ExportAllDeclarationNode.h"
 #include "ExportDefaultDeclarationNode.h"
 #include "ExportNamedDeclarationNode.h"
-#include "EmptyNode.h"
 #include "EmptyStatementNode.h"
 #include "ExpressionNode.h"
 #include "ExpressionStatementNode.h"

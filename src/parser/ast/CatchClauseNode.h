@@ -32,7 +32,6 @@ class FunctionDeclarationNode;
 // interface CatchClause <: Node {
 class CatchClauseNode : public Node {
 public:
-    friend class ScriptParser;
     CatchClauseNode(Node *param, Node *guard, Node *body, LexicalBlockIndex paramLexicalBlockIndex)
         : Node()
         , m_param(param)

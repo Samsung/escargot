@@ -30,8 +30,6 @@ namespace Escargot {
 
 class AssignmentPatternNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     AssignmentPatternNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)

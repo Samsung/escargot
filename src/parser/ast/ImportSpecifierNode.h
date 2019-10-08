@@ -57,8 +57,6 @@ private:
     RefPtr<Node> m_local;
     RefPtr<Node> m_imported;
 };
-
-typedef std::vector<RefPtr<Node>> ImportSpecifierNodeVector;
 }
 
 #endif

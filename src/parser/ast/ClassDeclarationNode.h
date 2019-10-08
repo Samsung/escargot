@@ -28,8 +28,6 @@ namespace Escargot {
 
 class ClassDeclarationNode : public StatementNode {
 public:
-    friend class ScriptParser;
-
     ClassDeclarationNode() {}
     ClassDeclarationNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : StatementNode()
