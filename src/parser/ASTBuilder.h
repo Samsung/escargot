@@ -212,6 +212,12 @@ public:
         return this;
     }
 
+    ALWAYS_INLINE SyntaxNode* asFunctionExpression()
+    {
+        ASSERT(m_nodeType == FunctionExpression);
+        return this;
+    }
+
     ALWAYS_INLINE SyntaxNode* asLiteral()
     {
         ASSERT(m_nodeType == Literal);

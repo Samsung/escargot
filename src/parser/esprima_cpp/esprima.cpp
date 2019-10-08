@@ -5086,12 +5086,12 @@ public:
             if (this->matchKeyword(KeywordKind::FunctionKeyword)) {
                 // export default function foo () {}
                 // export default function () {}
-                ASTNode declaration = this->parseFunctionDeclaration(builder);
+                ASTNode declaration = this->parseFunctionExpression(builder);
 
                 if (builder.isNodeGenerator()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = declaration->asFunctionDeclaration()->scopeContext()->m_functionName.string()->length() ? declaration->asFunctionDeclaration()->scopeContext()->m_functionName : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    entry.m_localName = declaration->asFunctionExpression()->scopeContext()->m_functionName.string()->length() ? declaration->asFunctionExpression()->scopeContext()->m_functionName : this->escargotContext->staticStrings().stringStarDefaultStar;
                     addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     addExportDeclarationEntry(entry);
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));
@@ -5103,7 +5103,7 @@ public:
                 if (builder.isNodeGenerator()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = classNode->asClassDeclaration()->classNode().id().get() ? classNode->asClassDeclaration()->classNode().id()->asIdentifier()->name() : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    entry.m_localName = classNode->asClassExpression()->classNode().id().get() ? classNode->asClassExpression()->classNode().id()->asIdentifier()->name() : this->escargotContext->staticStrings().stringStarDefaultStar;
                     addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     addExportDeclarationEntry(entry);
 

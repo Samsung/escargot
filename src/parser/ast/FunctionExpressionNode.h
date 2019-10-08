@@ -27,11 +27,13 @@ public:
     friend class ScriptParser;
     FunctionExpressionNode(ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t subCodeBlockIndex)
         : m_isGenerator(isGenerator)
+        , m_scopeContext(scopeContext)
         , m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::FunctionExpression; }
+    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[m_subCodeBlockIndex];
@@ -52,6 +54,7 @@ public:
 
 private:
     bool m_isGenerator;
+    ASTFunctionScopeContext* m_scopeContext;
     size_t m_subCodeBlockIndex;
     // defaults: [ Expression ];
     // rest: Identifier | null;

@@ -38,6 +38,11 @@ public:
     {
     }
 
+    const ClassNode& classNode()
+    {
+        return m_class;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::ClassExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {

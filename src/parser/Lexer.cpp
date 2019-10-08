@@ -1652,7 +1652,9 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     char16_t second;
     switch (first) {
     case 'a':
-        // TODO await
+        if (length == 5 && data.equalsSameLength("await", 1)) {
+            return AwaitKeyword;
+        }
         break;
     case 'b':
         if (length == 5 && data.equalsSameLength("break", 1)) {

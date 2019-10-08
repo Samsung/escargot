@@ -43,12 +43,12 @@ public:
     }
 
     struct StackTraceData : public gc {
-        String* fileName;
-        String* source;
+        String* src;
+        String* sourceCode;
         ExtendedNodeLOC loc;
         StackTraceData()
-            : fileName(String::emptyString)
-            , source(String::emptyString)
+            : src(String::emptyString)
+            , sourceCode(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         {
         }

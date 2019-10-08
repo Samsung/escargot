@@ -47,8 +47,8 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
                                                                                                              m_stackTraceData[i].second.loc.byteCodePosition, m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock);
             StackTraceData traceData;
             traceData.loc = loc;
-            traceData.fileName = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
-            traceData.source = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->source();
+            traceData.src = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
+            traceData.sourceCode = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->sourceCode();
             result.stackTraceData.pushBack(traceData);
         } else {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
@@ -125,8 +125,8 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                     }
                     SandBox::StackTraceData data;
                     data.loc = loc;
-                    data.fileName = cb->asInterpretedCodeBlock()->script()->src();
-                    data.source = cb->asInterpretedCodeBlock()->script()->source();
+                    data.src = cb->asInterpretedCodeBlock()->script()->src();
+                    data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
                     m_stackTraceData.pushBack(std::make_pair(es, data));
                 }
             } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
@@ -134,8 +134,8 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
                 SandBox::StackTraceData data;
                 data.loc = loc;
-                data.fileName = cb->asInterpretedCodeBlock()->script()->src();
-                data.source = String::emptyString;
+                data.src = cb->asInterpretedCodeBlock()->script()->src();
+                data.sourceCode = String::emptyString;
                 m_stackTraceData.pushBack(std::make_pair(es, data));
             } else if (callee) {
                 CodeBlock* cb = callee->codeBlock();
@@ -151,7 +151,7 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                 SandBox::StackTraceData data;
                 data.loc = loc;
                 if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
-                    data.fileName = cb->asInterpretedCodeBlock()->script()->src();
+                    data.src = cb->asInterpretedCodeBlock()->script()->src();
                 } else {
                     StringBuilder builder;
                     builder.appendString("function ");
@@ -159,9 +159,9 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                     builder.appendString("() { ");
                     builder.appendString("[native function]");
                     builder.appendString(" } ");
-                    data.fileName = builder.finalize();
+                    data.src = builder.finalize();
                 }
-                data.source = String::emptyString;
+                data.sourceCode = String::emptyString;
                 m_stackTraceData.pushBack(std::make_pair(es, data));
             }
         }
@@ -209,7 +209,7 @@ ErrorObject::StackTraceData* ErrorObject::StackTraceData::create(SandBox* sandBo
             data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceData[i].second.loc.actualCodeBlock;
             data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceData[i].second.loc.byteCodePosition;
         } else {
-            data->gcValues[i].infoString = sandBox->m_stackTraceData[i].second.fileName;
+            data->gcValues[i].infoString = sandBox->m_stackTraceData[i].second.src;
             data->nonGCValues[i].byteCodePosition = SIZE_MAX;
         }
     }
@@ -249,7 +249,7 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.column));
 
-            String* src = gcValues[i].byteCodeBlock->m_codeBlock->script()->source();
+            String* src = gcValues[i].byteCodeBlock->m_codeBlock->script()->sourceCode();
             if (src->length()) {
                 const size_t preLineMax = 40;
                 const size_t afterLineMax = 40;

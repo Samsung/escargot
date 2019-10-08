@@ -506,11 +506,6 @@ public:
         m_platform->didPromiseJobEnqueued(toRef(relatedContext), toRef(obj));
     }
 
-    virtual void willLoadModuleWhenScriptExecuted(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
-    {
-        m_platform->willLoadModuleWhenScriptExecuted(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
-    }
-
     virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
     {
         LoadModuleResult result;
@@ -536,8 +531,8 @@ public:
 };
 
 Evaluator::StackTraceData::StackTraceData()
-    : fileName(toRef(String::emptyString))
-    , source(toRef(String::emptyString))
+    : src(toRef(String::emptyString))
+    , sourceCode(toRef(String::emptyString))
     , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 {
 }
@@ -560,8 +555,8 @@ static Evaluator::EvaluatorResult toEvaluatorResultRef(SandBox::SandBoxResult& r
         new (&r.stackTraceData) GCManagedVector<Evaluator::StackTraceData>(result.stackTraceData.size());
         for (size_t i = 0; i < result.stackTraceData.size(); i++) {
             Evaluator::StackTraceData t;
-            t.fileName = toRef(result.stackTraceData[i].fileName);
-            t.source = toRef(result.stackTraceData[i].source);
+            t.src = toRef(result.stackTraceData[i].src);
+            t.sourceCode = toRef(result.stackTraceData[i].sourceCode);
             t.loc.index = result.stackTraceData[i].loc.index;
             t.loc.line = result.stackTraceData[i].loc.line;
             t.loc.column = result.stackTraceData[i].loc.column;
@@ -2263,19 +2258,29 @@ bool ScriptRef::isExecuted()
     return toImpl(this)->isExecuted();
 }
 
-StringRef* ScriptRef::source()
-{
-    return toRef(toImpl(this)->source());
-}
-
 StringRef* ScriptRef::src()
 {
     return toRef(toImpl(this)->src());
 }
 
+StringRef* ScriptRef::sourceCode()
+{
+    return toRef(toImpl(this)->sourceCode());
+}
+
 ValueRef* ScriptRef::execute(ExecutionStateRef* state)
 {
     return toRef(toImpl(this)->execute(*toImpl(state)));
+}
+
+size_t ScriptRef::moduleRequestsLength()
+{
+    return toImpl(this)->moduleRequestsLength();
+}
+
+StringRef* ScriptRef::moduleRequest(size_t i)
+{
+    return toRef(toImpl(this)->moduleRequest(i));
 }
 
 PlatformRef::LoadModuleResult::LoadModuleResult(ScriptRef* result)

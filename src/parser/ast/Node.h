@@ -234,6 +234,7 @@ class ClassDeclarationNode;
 class SequenceExpressionNode;
 class VariableDeclaratorNode;
 class FunctionDeclarationNode;
+class FunctionExpressionNode;
 class ImportSpecifierNode;
 class ExportSpecifierNode;
 
@@ -405,6 +406,12 @@ public:
     {
         ASSERT(type() == ASTNodeType::FunctionDeclaration);
         return (FunctionDeclarationNode *)this;
+    }
+
+    ALWAYS_INLINE FunctionExpressionNode *asFunctionExpression()
+    {
+        ASSERT(type() == ASTNodeType::FunctionExpression);
+        return (FunctionExpressionNode *)this;
     }
 
     ALWAYS_INLINE ImportSpecifierNode *asImportSpecifier()

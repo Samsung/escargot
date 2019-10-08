@@ -48,7 +48,7 @@ public:
         {
         }
     };
-    typedef Vector<ImportEntry, GCUtil::gc_malloc_atomic_allocator<ImportEntry>> ImportEntryVector;
+    typedef Vector<ImportEntry, GCUtil::gc_malloc_allocator<ImportEntry>> ImportEntryVector;
 
     // http://www.ecma-international.org/ecma-262/6.0/#table-41
     struct ExportEntry {
@@ -61,7 +61,7 @@ public:
         // [[LocalName]]   String | null   The name that is used to locally access the exported value from within the importing module. null if the exported value is not locally accessible from within the module.
         Optional<AtomicString> m_localName; // The name that is used to locally access the exported value from within the importing module. null if the exported value is not locally accessible from within the module.
     };
-    typedef Vector<ExportEntry, GCUtil::gc_malloc_atomic_allocator<ExportEntry>> ExportEntryVector;
+    typedef Vector<ExportEntry, GCUtil::gc_malloc_allocator<ExportEntry>> ExportEntryVector;
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-source-text-module-records
     struct ModuleData : public gc {
@@ -83,29 +83,15 @@ public:
         }
     };
 
-    struct ScriptSandboxExecuteResult {
-        MAKE_STACK_ALLOCATED();
-        Value result;
-        String* msgStr;
-        struct Error {
-            Value errorValue;
-            struct StackTrace {
-                String* fileName;
-                size_t line;
-                size_t column;
-            };
-            Vector<StackTrace, GCUtil::gc_malloc_allocator<StackTrace>> stackTrace;
-        } error;
-    };
     Value execute(ExecutionState& state, bool isExecuteOnEvalFunction = false, bool inStrictMode = false);
     String* src()
     {
-        return m_fileName;
+        return m_src;
     }
 
-    String* source()
+    String* sourceCode()
     {
-        return m_source;
+        return m_sourceCode;
     }
 
     InterpretedCodeBlock* topCodeBlock()
@@ -125,18 +111,22 @@ public:
         return m_moduleData;
     }
 
+    size_t moduleRequestsLength();
+    String* moduleRequest(size_t i);
+
     bool isExecuted();
 
 private:
-    Script(String* fileName, String* source, ModuleData* moduleData)
-        : m_fileName(fileName)
-        , m_source(source)
+    Script(String* src, String* sourceCode, ModuleData* moduleData)
+        : m_src(src)
+        , m_sourceCode(sourceCode)
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
     {
     }
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
     void loadModuleFromScript(ExecutionState& state, String* src);
+    void loadExternalModule(ExecutionState& state);
     Value executeModule(ExecutionState& state, Optional<Script*> referrer);
     struct ResolveExportResult {
         enum ResultType {
@@ -169,8 +159,8 @@ private:
     }
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getexportednames
     AtomicStringVector exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet);
-    String* m_fileName;
-    String* m_source;
+    String* m_src;
+    String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
 };

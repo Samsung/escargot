@@ -2,7 +2,7 @@ def isPr() {
     env.CHANGE_ID != null
 }
 
-timeout(60) {
+timeout(20) {
     node {
         try {
             stage("Get source") {

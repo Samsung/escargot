@@ -2,6 +2,9 @@
 whatwg/streams
 test/fixtures
 
+# test driver is weird. we run the script properly but test driver says fail
+non262/module/await-restricted-nested.js
+
 # Skip, These are dependent on implementation or not standard.
 non262/Array/from-iterator-close.js
 non262/Array/from_primitive.js
@@ -429,8 +432,6 @@ non262/Map/constructor-iterator-close.js
 non262/Math/Pow.js
 non262/misc/function-definition-evaluate.js
 non262/misc/future-reserved-words.js
-non262/module/await-restricted-nested.js
-non262/module/bug1488117.js
 non262/object/15.2.3.14-01.js
 non262/object/15.2.3.6-function-length.js
 non262/object/15.2.3.6-new-definition.js

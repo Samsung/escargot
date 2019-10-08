@@ -465,8 +465,8 @@ public:
     };
 
     struct StackTraceData {
-        StringRef* fileName;
-        StringRef* source;
+        StringRef* src;
+        StringRef* sourceCode;
         LOC loc;
         StackTraceData();
     };
@@ -1326,9 +1326,12 @@ class ESCARGOT_EXPORT ScriptRef {
 public:
     bool isModule();
     bool isExecuted();
-    StringRef* source();
     StringRef* src();
+    StringRef* sourceCode();
     ValueRef* execute(ExecutionStateRef* state);
+
+    size_t moduleRequestsLength();
+    StringRef* moduleRequest(size_t i);
 };
 
 class ESCARGOT_EXPORT PlatformRef {
@@ -1350,11 +1353,6 @@ public:
     virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) = 0;
 
     // Module
-    virtual void willLoadModuleWhenScriptExecuted(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc)
-    {
-        // This callback is may optional
-    }
-    // escargot request module load per every import statement
     // client needs cache module map<absolute_module_path, ScriptRef*>
     struct LoadModuleResult {
         LoadModuleResult(ScriptRef* result);
