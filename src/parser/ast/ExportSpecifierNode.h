@@ -27,10 +27,11 @@ namespace Escargot {
 class ExportSpecifierNode : public Node {
 public:
     friend class ScriptParser;
-    ExportSpecifierNode(RefPtr<IdentifierNode> local, RefPtr<IdentifierNode> exported)
+    ExportSpecifierNode(RefPtr<Node> local, RefPtr<Node> exported)
         : m_local(local)
         , m_exported(exported)
     {
+        ASSERT(local->isIdentifier() && exported->isIdentifier());
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ExportSpecifier; }
@@ -47,22 +48,20 @@ public:
         return m_local != m_exported;
     }
 
-    RefPtr<IdentifierNode> local()
+    IdentifierNode* local()
     {
-        return m_local;
+        return m_local->asIdentifier();
     }
 
-    RefPtr<IdentifierNode> exported()
+    IdentifierNode* exported()
     {
-        return m_exported;
+        return m_exported->asIdentifier();
     }
 
 private:
-    RefPtr<IdentifierNode> m_local;
-    RefPtr<IdentifierNode> m_exported;
+    RefPtr<Node> m_local;
+    RefPtr<Node> m_exported;
 };
-
-typedef std::vector<RefPtr<ExportSpecifierNode>> ExportSpecifierNodeVector;
 }
 
 #endif

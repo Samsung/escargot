@@ -27,10 +27,11 @@ namespace Escargot {
 class ImportSpecifierNode : public Node {
 public:
     friend class ScriptParser;
-    ImportSpecifierNode(RefPtr<IdentifierNode> local, RefPtr<IdentifierNode> imported)
+    ImportSpecifierNode(RefPtr<Node> local, RefPtr<Node> imported)
         : m_local(local)
         , m_imported(imported)
     {
+        ASSERT(local->isIdentifier() && imported->asIdentifier());
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ImportSpecifier; }
@@ -42,19 +43,19 @@ public:
         m_imported->iterateChildren(fn);
     }
 
-    RefPtr<IdentifierNode> local()
+    IdentifierNode* local()
     {
-        return m_local;
+        return m_local->asIdentifier();
     }
 
-    RefPtr<IdentifierNode> imported()
+    IdentifierNode* imported()
     {
-        return m_imported;
+        return m_imported->asIdentifier();
     }
 
 private:
-    RefPtr<IdentifierNode> m_local;
-    RefPtr<IdentifierNode> m_imported;
+    RefPtr<Node> m_local;
+    RefPtr<Node> m_imported;
 };
 
 typedef std::vector<RefPtr<Node>> ImportSpecifierNodeVector;

@@ -27,17 +27,17 @@
 namespace Escargot {
 
 // An assignment operator expression.
-class AssignmentExpressionUnsignedShiftNode : public ExpressionNode {
+class AssignmentExpressionUnsignedRightShiftNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    AssignmentExpressionUnsignedShiftNode(Node* left, Node* right)
+    AssignmentExpressionUnsignedRightShiftNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
         , m_right(right)
     {
     }
 
-    virtual ~AssignmentExpressionUnsignedShiftNode()
+    virtual ~AssignmentExpressionUnsignedRightShiftNode()
     {
     }
 

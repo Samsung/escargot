@@ -17,23 +17,23 @@
  *  USA
  */
 
-#ifndef ReturnStatmentNode_h
-#define ReturnStatmentNode_h
+#ifndef ReturnStatementNode_h
+#define ReturnStatementNode_h
 
 #include "StatementNode.h"
 
 namespace Escargot {
 
-class ReturnStatmentNode : public StatementNode {
+class ReturnStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    explicit ReturnStatmentNode(Node* argument)
+    explicit ReturnStatementNode(Node* argument)
         : StatementNode()
         , m_argument(argument)
     {
     }
 
-    virtual ~ReturnStatmentNode()
+    virtual ~ReturnStatementNode()
     {
     }
 

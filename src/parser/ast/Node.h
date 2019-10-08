@@ -92,7 +92,7 @@ enum ASTNodeType {
     BinaryExpressionBitwiseAnd,
     BinaryExpressionBitwiseOr,
     BinaryExpressionBitwiseXor,
-    BinaryExpressionDivison,
+    BinaryExpressionDivision,
     /* Note: These 8 types must be in this order */
     BinaryExpressionEqual,
     BinaryExpressionNotEqual,
@@ -114,7 +114,6 @@ enum ASTNodeType {
     BinaryExpressionPlus,
     BinaryExpressionSignedRightShift,
     BinaryExpressionUnsignedRightShift,
-    LogicalExpression,
     UpdateExpressionDecrementPostfix,
     UpdateExpressionDecrementPrefix,
     UpdateExpressionIncrementPostfix,
@@ -136,7 +135,6 @@ enum ASTNodeType {
     TaggedTemplateExpression,
     Directive,
     RegExpLiteral,
-    NativeFunction,
     TryStatement,
     CatchClause,
     ThrowStatement,
@@ -145,7 +143,6 @@ enum ASTNodeType {
     Class,
     ClassBody,
     ClassElement,
-    ClassMethod,
     SuperExpression,
     ImportSpecifier,
     ImportDefaultSpecifier,
@@ -160,7 +157,8 @@ enum ASTNodeType {
     ArrayPattern,
     ObjectPattern,
     RegisterReference,
-    ASTNodeTypeError,
+    ASTStatementContainer, // used only for SyntaxNode
+    ASTNodeTypeError, // used only for SyntaxNode
 };
 
 COMPILE_ASSERT((int)Program == 0, "");
@@ -229,6 +227,15 @@ class PropertyNode;
 class MemberExpressionNode;
 class ObjectExpressionNode;
 class StatementNode;
+class ClassBodyNode;
+class ClassElementNode;
+class ClassExpressionNode;
+class ClassDeclarationNode;
+class SequenceExpressionNode;
+class VariableDeclaratorNode;
+class FunctionDeclarationNode;
+class ImportSpecifierNode;
+class ExportSpecifierNode;
 
 class Node : public RefCounted<Node> {
 protected:
@@ -279,10 +286,16 @@ public:
         return type() == ASTNodeType::Identifier;
     }
 
-    IdentifierNode *asIdentifier()
+    ALWAYS_INLINE IdentifierNode *asIdentifier()
     {
         ASSERT(isIdentifier());
         return (IdentifierNode *)this;
+    }
+
+    ALWAYS_INLINE ClassExpressionNode *asClassExpression()
+    {
+        ASSERT(type() == ASTNodeType::ClassExpression);
+        return (ClassExpressionNode *)this;
     }
 
     bool isAssignmentPattern()
@@ -290,7 +303,7 @@ public:
         return type() == ASTNodeType::AssignmentPattern;
     }
 
-    AssignmentPatternNode *asAssignmentPattern()
+    ALWAYS_INLINE AssignmentPatternNode *asAssignmentPattern()
     {
         ASSERT(isAssignmentPattern());
         return (AssignmentPatternNode *)this;
@@ -301,7 +314,7 @@ public:
         return type() == ASTNodeType::ArrayExpression;
     }
 
-    ArrayExpressionNode *asArrayExpression()
+    ALWAYS_INLINE ArrayExpressionNode *asArrayExpression()
     {
         ASSERT(isArrayExpression());
         return (ArrayExpressionNode *)this;
@@ -312,7 +325,7 @@ public:
         return type() == ASTNodeType::ObjectExpression;
     }
 
-    ObjectExpressionNode *asObjectExpression()
+    ALWAYS_INLINE ObjectExpressionNode *asObjectExpression()
     {
         ASSERT(isObjectExpression());
         return (ObjectExpressionNode *)this;
@@ -323,7 +336,7 @@ public:
         return type() == ASTNodeType::Property;
     }
 
-    PropertyNode *asProperty()
+    ALWAYS_INLINE PropertyNode *asProperty()
     {
         ASSERT(isProperty());
         return (PropertyNode *)this;
@@ -334,28 +347,76 @@ public:
         return type() == ASTNodeType::AssignmentExpressionSimple;
     }
 
-    AssignmentExpressionSimpleNode *asAssignmentExpressionSimple()
+    ALWAYS_INLINE AssignmentExpressionSimpleNode *asAssignmentExpressionSimple()
     {
         ASSERT(isAssignmentExpressionSimple());
         return (AssignmentExpressionSimpleNode *)this;
     }
 
-    MemberExpressionNode *asMemberExpression()
+    ALWAYS_INLINE MemberExpressionNode *asMemberExpression()
     {
         ASSERT(isMemberExpression());
         return (MemberExpressionNode *)this;
     }
 
-    LiteralNode *asLiteral()
+    ALWAYS_INLINE LiteralNode *asLiteral()
     {
         ASSERT(isLiteral());
         return (LiteralNode *)this;
     }
 
-    StatementNode *asStatementNode()
+    ALWAYS_INLINE StatementNode *asStatement()
     {
-        ASSERT(isStatementNode());
+        ASSERT(isStatement());
         return (StatementNode *)this;
+    }
+
+    ALWAYS_INLINE SequenceExpressionNode *asSequenceExpression()
+    {
+        ASSERT(type() == ASTNodeType::SequenceExpression);
+        return (SequenceExpressionNode *)this;
+    }
+
+    ALWAYS_INLINE ClassBodyNode *asClassBody()
+    {
+        ASSERT(type() == ASTNodeType::ClassBody);
+        return (ClassBodyNode *)this;
+    }
+
+    ALWAYS_INLINE ClassElementNode *asClassElement()
+    {
+        ASSERT(type() == ASTNodeType::ClassElement);
+        return (ClassElementNode *)this;
+    }
+
+    ALWAYS_INLINE ClassDeclarationNode *asClassDeclaration()
+    {
+        ASSERT(type() == ASTNodeType::ClassDeclaration);
+        return (ClassDeclarationNode *)this;
+    }
+
+    ALWAYS_INLINE VariableDeclaratorNode *asVariableDeclarator()
+    {
+        ASSERT(type() == ASTNodeType::VariableDeclarator);
+        return (VariableDeclaratorNode *)this;
+    }
+
+    ALWAYS_INLINE FunctionDeclarationNode *asFunctionDeclaration()
+    {
+        ASSERT(type() == ASTNodeType::FunctionDeclaration);
+        return (FunctionDeclarationNode *)this;
+    }
+
+    ALWAYS_INLINE ImportSpecifierNode *asImportSpecifier()
+    {
+        ASSERT(type() == ASTNodeType::ImportSpecifier);
+        return (ImportSpecifierNode *)this;
+    }
+
+    ALWAYS_INLINE ExportSpecifierNode *asExportSpecifier()
+    {
+        ASSERT(type() == ASTNodeType::ExportSpecifier);
+        return (ExportSpecifierNode *)this;
     }
 
     bool isLiteral()
@@ -368,17 +429,17 @@ public:
         return type() == ASTNodeType::MemberExpression;
     }
 
-    bool isSuperNode()
+    bool isSuperExpression()
     {
         return type() == ASTNodeType::SuperExpression;
     }
 
-    virtual bool isExpressionNode()
+    virtual bool isExpression()
     {
         return false;
     }
 
-    virtual bool isStatementNode()
+    virtual bool isStatement()
     {
         return false;
     }
@@ -432,7 +493,7 @@ typedef std::vector<RefPtr<Node>> PatternNodeVector;
 class PropertyNode;
 typedef std::vector<RefPtr<Node>> PropertiesNodeVector;
 class VariableDeclaratorNode;
-typedef std::vector<RefPtr<VariableDeclaratorNode>> VariableDeclaratorVector;
+typedef std::vector<RefPtr<Node>> VariableDeclaratorVector;
 }
 
 #endif

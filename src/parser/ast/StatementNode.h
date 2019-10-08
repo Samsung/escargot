@@ -33,7 +33,7 @@ public:
     {
     }
 
-    virtual bool isStatementNode()
+    virtual bool isStatement()
     {
         return true;
     }
@@ -70,7 +70,7 @@ public:
 
     void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        StatementNode* nd = m_firstChild.get();
+        StatementNode* nd = firstChild();
         while (nd) {
             nd->generateStatementByteCode(codeBlock, context);
             nd = nd->nextSilbing();
@@ -79,46 +79,51 @@ public:
 
     void iterateChildren(const std::function<void(Node* node)>& fn)
     {
-        StatementNode* nd = m_firstChild.get();
+        StatementNode* nd = firstChild();
         while (nd) {
             nd->iterateChildren(fn);
             nd = nd->nextSilbing();
         }
     }
 
-    StatementNode* appendChild(RefPtr<StatementNode> c)
+    StatementNode* appendChild(RefPtr<Node> c)
     {
         return appendChild(c.get());
     }
 
-    StatementNode* appendChild(RefPtr<StatementNode> c, RefPtr<StatementNode> referNode)
+    StatementNode* appendChild(RefPtr<Node> c, RefPtr<Node> referNode)
     {
         return appendChild(c.get(), referNode.get());
     }
 
-    StatementNode* appendChild(StatementNode* c, StatementNode* referNode)
+    StatementNode* appendChild(Node* c, Node* referNode)
     {
+        ASSERT(c->isStatement());
+        StatementNode* child = c->asStatement();
         if (referNode == nullptr) {
-            appendChild(c);
+            appendChild(child);
         } else {
-            referNode->m_nextSilbing = c;
+            ASSERT(referNode->isStatement());
+            referNode->asStatement()->m_nextSilbing = child;
         }
-        return c;
+        return child;
     }
 
-    StatementNode* appendChild(StatementNode* c)
+    StatementNode* appendChild(Node* c)
     {
-        ASSERT(c->nextSilbing() == nullptr);
+        ASSERT(c->isStatement());
+        ASSERT(c->asStatement()->nextSilbing() == nullptr);
+        StatementNode* child = c->asStatement();
         if (m_firstChild == nullptr) {
-            m_firstChild = c;
+            m_firstChild = child;
         } else {
-            StatementNode* tail = m_firstChild.get();
+            StatementNode* tail = firstChild();
             while (tail->m_nextSilbing != nullptr) {
                 tail = tail->m_nextSilbing.get();
             }
-            tail->m_nextSilbing = c;
+            tail->m_nextSilbing = child;
         }
-        return c;
+        return child;
     };
 
     StatementNode* firstChild()

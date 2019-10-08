@@ -27,7 +27,7 @@ namespace Escargot {
 class LabeledStatementNode : public StatementNode {
 public:
     friend class ScriptParser;
-    LabeledStatementNode(StatementNode* statementNode, String* label)
+    LabeledStatementNode(Node* statementNode, String* label)
         : StatementNode()
         , m_statementNode(statementNode)
         , m_label(label)
@@ -57,7 +57,7 @@ public:
     }
 
 private:
-    RefPtr<StatementNode> m_statementNode;
+    RefPtr<Node> m_statementNode;
     String* m_label;
 };
 }

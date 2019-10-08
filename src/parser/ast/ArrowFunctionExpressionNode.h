@@ -59,9 +59,6 @@ public:
     ArrowFunctionExpressionNode(ASTFunctionScopeContext* scopeContext, size_t subCodeBlockIndex)
         : m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
-        scopeContext->m_isArrowFunctionExpression = true;
-        scopeContext->m_nodeType = this->type();
-        scopeContext->m_isGenerator = false;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ArrowFunctionExpression; }
