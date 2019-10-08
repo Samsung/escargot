@@ -296,7 +296,6 @@
   # Skip tests not suitable for MSAN.
   'big-array-literal': [SKIP],
   # ICU upstream issues.
-  'regress/regress-builtinbust-7': [SKIP],
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
@@ -550,11 +549,9 @@
   'es6/regress/regress-594084': [SKIP],
   'es6/regress/regress-666622': [SKIP],
   'es6/regress/regress-cr372788': [SKIP],
-  'es6/regress/regress-cr493566': [SKIP],
   'es6/regress/regress-crbug-448730': [SKIP],
   'es6/regress/regress-inlined-new-target': [SKIP],
   'es6/array-concat' : [SKIP],
-  'es6/array-concat-revoked-proxy-2' : [SKIP],
   'es6/array-from' : [SKIP],
   'es6/array-iterator-detached' : [SKIP],
   'es6/array-iterator' : [SKIP],
@@ -568,9 +565,6 @@
   'es6/array-species-modified' : [SKIP],
   'es6/array-species-parent-constructor' : [SKIP],
   'es6/array-species-proto' : [SKIP],
-  'es6/array-tostring' : [SKIP],
-  'es6/arrow-functions' : [SKIP],
-  'es6/arrow-functions-lexical-arguments' : [SKIP],
   'es6/block-conflicts' : [SKIP],
   'es6/block-conflicts-sloppy' : [SKIP],
   'es6/block-const-assign' : [SKIP],
@@ -588,8 +582,6 @@
   'es6/block-scope-class' : [SKIP],
   'es6/block-scoping' : [SKIP],
   'es6/block-scoping-sloppy' : [SKIP],
-  'es6/block-scoping-top-level' : [SKIP],
-  'es6/block-scoping-top-level-sloppy' : [SKIP],
   'es6/block-sloppy-function' : [SKIP],
   'es6/catch-parameter-redeclaration' : [SKIP],
   'es6/classes' : [SKIP],
@@ -597,7 +589,6 @@
   'es6/classes-proxy' : [SKIP],
   'es6/classes-subclass-builtins' : [SKIP],
   'es6/classof-proxy' : [SKIP],
-  'es6/class-property-name-eval-arguments' : [SKIP],
   'es6/collection-iterator' : [SKIP],
   'es6/collections' : [SKIP],
   'es6/completion' : [SKIP],
@@ -623,14 +614,12 @@
   'es6/instanceof-proxies' : [SKIP],
   'es6/iteration-semantics' : [SKIP],
   'es6/iterator-close' : [SKIP],
-  'es6/iterator-prototype' : [SKIP],
   'es6/math-clz32' : [SKIP],
   'es6/math-fround' : [SKIP],
   'es6/math-log2-log10' : [SKIP],
   'es6/math-trunc' : [SKIP],
   'es6/microtask-delivery' : [SKIP],
   'es6/new-target' : [SKIP],
-  'es6/numeric-literals' : [SKIP],
   'es6/object-literals-method' : [SKIP],
   'es6/object-literals-property-shorthand' : [SKIP],
   'es6/object-literals-super' : [SKIP],
@@ -708,7 +697,6 @@
   # object/class (FIXME: check after conversion to ES5)
   'regress/regress-5216': [SKIP],
   'regress/regress-5434': [SKIP],
-  'regress/regress-595319': [SKIP],
 
   # object pattern
   'regress/regress-crbug-669540': [SKIP],
@@ -736,7 +724,6 @@
   'regress/regress-3926': [SKIP],
 
   # builtins
-  'string-normalize': [SKIP],
   'asm/math-fround': [SKIP],
   'harmony/dataview-accessors': [SKIP],
   'regress/regress-349870': [SKIP],
@@ -748,7 +735,6 @@
   'regress/regress-r3391': [SKIP],
   'regress/regress-crbug-627934': [SKIP],
   'third_party/object-keys/object-keys': [SKIP],
-  'regress/regress-4654': [SKIP],
   'regress/regress-4815': [SKIP],
   'regress/regress-5036': [SKIP],
 
@@ -759,7 +745,6 @@
   'regress/regress-2470': [SKIP],
 
   # Proxy
-  'array-isarray': [SKIP],
   'regress/regress-578775': [SKIP],
   'regress/regress-crbug-599067': [SKIP],
   # Realm
