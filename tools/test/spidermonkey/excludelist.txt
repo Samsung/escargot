@@ -2,14 +2,12 @@
 whatwg/streams
 test/fixtures
 
-
-# TODO
-non262/Array/fill.js
-non262/Array/from_errors.js
+# Skip, These are dependent on implementation or not standard.
 non262/Array/from-iterator-close.js
 non262/Array/from_primitive.js
 non262/Array/generics.js
-non262/Array/indexOf-packed-array.js
+
+# TODO
 non262/Array/iterator_edge_cases.js
 non262/Array/pop-no-has-trap.js
 non262/Array/regress-304828.js
@@ -18,7 +16,6 @@ non262/Array/regress-387501.js
 non262/Array/regress-415540.js
 non262/Array/shift-no-has-trap.js
 non262/Array/slice-sparse-with-large-index.js
-non262/Array/sort_proxy.js
 non262/Array/sort_small.js
 non262/Array/sort-typedarray-with-own-length.js
 non262/Array/species.js
