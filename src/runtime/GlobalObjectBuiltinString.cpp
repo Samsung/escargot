@@ -671,6 +671,43 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
     return ret;
 }
 
+// https://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.codepointat
+static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, codePointAt);
+    int position = argv[0].toInteger(state);
+    Value ret;
+    const auto& data = str->bufferAccessData();
+    const int size = (int)data.length;
+    if (position < 0 || position >= size)
+        return Value();
+
+    char16_t first;
+    if (data.has8BitContent) {
+        first = ((LChar*)data.buffer)[position];
+    } else {
+        first = ((char16_t*)data.buffer)[position];
+    }
+
+    if (first < 0xD800 || first > 0xDBFF || (position + 1) == size) {
+        return Value(first);
+    }
+
+    char16_t second;
+    if (data.has8BitContent) {
+        second = ((LChar*)data.buffer)[position + 1];
+    } else {
+        second = ((char16_t*)data.buffer)[position + 1];
+    }
+
+    if (second < 0xDC00 || second > 0xDFFF) {
+        return Value(first);
+    }
+
+    int cp = ((first - 0xD800) * 1024) + (second - 0xDC00) + 0x10000;
+    return Value(cp);
+}
+
 static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charAt);
@@ -1282,6 +1319,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->charCodeAt),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->charCodeAt, builtinStringCharCodeAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->codePointAt),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->codePointAt, builtinStringCodePointAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->charAt),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->charAt, builtinStringCharAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
