@@ -156,7 +156,6 @@ struct ASTFunctionScopeContext : public gc {
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
     bool m_hasSuperOrNewTarget : 1;
-    bool m_hasManyNumeralLiteral : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_needsToComputeLexicalBlockStuffs : 1;
@@ -172,9 +171,6 @@ struct ASTFunctionScopeContext : public gc {
     ASTFunctionScopeContext *m_firstChild;
     ASTFunctionScopeContext *m_nextSibling;
     ASTBlockScopeContextVector m_childBlockScopes;
-
-    // we can use atomic allocator here because there is no pointer value on Vector<m_numeralLiteralData>
-    Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>> m_numeralLiteralData;
 
     ExtendedNodeLOC m_paramsStartLOC;
     ExtendedNodeLOC m_bodyStartLOC;
@@ -293,22 +289,6 @@ struct ASTFunctionScopeContext : public gc {
         }
     }
 
-    void insertNumeralLiteral(Value v)
-    {
-        ASSERT(!v.isPointerValue());
-        if (m_hasManyNumeralLiteral) {
-            return;
-        }
-        if (VectorUtil::findInVector(m_numeralLiteralData, v) == VectorUtil::invalidIndex) {
-            if (m_numeralLiteralData.size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT)
-                m_numeralLiteralData.push_back(v);
-            else {
-                m_numeralLiteralData.clear();
-                m_hasManyNumeralLiteral = true;
-            }
-        }
-    }
-
     void insertBlockScope(LexicalBlockIndex blockIndex, LexicalBlockIndex parentBlockIndex, ExtendedNodeLOC loc)
     {
 #ifndef NDEBUG
@@ -417,7 +397,6 @@ struct ASTFunctionScopeContext : public gc {
         , m_isClassStaticMethod(false)
         , m_isGenerator(false)
         , m_hasSuperOrNewTarget(false)
-        , m_hasManyNumeralLiteral(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
         , m_needsToComputeLexicalBlockStuffs(false)

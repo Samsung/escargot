@@ -126,6 +126,19 @@ public:
             Allocator().deallocate(m_buffer, m_capacity);
     }
 
+    void assign(T* start, T* end)
+    {
+        clear();
+
+        m_size = std::distance(start, end);
+
+        m_capacity = computeAllocateSize(m_size);
+        T* newBuffer = Allocator().allocate(m_capacity);
+        m_buffer = newBuffer;
+
+        VectorCopier<T>::copy(m_buffer, start, m_size);
+    }
+
     void pushBack(const T& val)
     {
         if (m_capacity <= (m_size + 1)) {
@@ -473,6 +486,134 @@ protected:
 private:
     T* m_buffer;
     size_t m_capacity;
+};
+
+// Vector for special purpose
+// It has InlineStorage, so push_back operation is fast with InlineStorage
+template <unsigned int InlineStorageSize, typename T,
+          typename ExternalStoreageAllocator>
+class VectorWithInlineStorage : public gc {
+public:
+    VectorWithInlineStorage()
+    {
+        m_size = 0;
+    }
+
+    VectorWithInlineStorage(VectorWithInlineStorage<InlineStorageSize, T,
+                                                    ExternalStoreageAllocator>&& src)
+    {
+        m_size = src.m_size;
+
+        if (LIKELY(m_size <= InlineStorageSize)) {
+            for (size_t i = 0; i < m_size; i++) {
+                m_inlineStorage[i] = std::move(src.m_inlineStorage[i]);
+            }
+        } else {
+            m_externalStorage = std::move(src.m_externalStorage);
+        }
+        src.m_size = 0;
+    }
+
+    VectorWithInlineStorage<InlineStorageSize, T, ExternalStoreageAllocator>&
+    operator=(VectorWithInlineStorage<InlineStorageSize, T,
+                                      ExternalStoreageAllocator>&& src)
+    {
+        m_size = src.m_size;
+
+        if (LIKELY(m_size <= InlineStorageSize)) {
+            for (size_t i = 0; i < m_size; i++) {
+                m_inlineStorage[i] = std::move(src.m_inlineStorage[i]);
+            }
+        } else {
+            m_externalStorage = std::move(src.m_externalStorage);
+        }
+        src.m_size = 0;
+        return *this;
+    }
+
+    VectorWithInlineStorage<InlineStorageSize, T, ExternalStoreageAllocator>&
+    operator=(const VectorWithInlineStorage<InlineStorageSize, T,
+                                            ExternalStoreageAllocator>& src)
+    {
+        m_size = src.m_size;
+        if (LIKELY(m_size <= InlineStorageSize)) {
+            for (size_t i = 0; i < m_size; i++) {
+                m_inlineStorage[i] = src.m_inlineStorage[i];
+            }
+        } else {
+            m_externalStorage = src.m_externalStorage;
+        }
+        return *this;
+    }
+
+    void push_back(const T& decl)
+    {
+        if (LIKELY(m_size < InlineStorageSize)) {
+            m_inlineStorage[m_size] = decl;
+        } else if (m_size == InlineStorageSize) {
+            m_externalStorage.assign(m_inlineStorage, m_inlineStorage + m_size);
+            m_externalStorage.push_back(decl);
+        } else {
+            m_externalStorage.push_back(decl);
+        }
+        m_size++;
+    }
+
+    void push_back(T&& decl)
+    {
+        if (LIKELY(m_size < InlineStorageSize)) {
+            m_inlineStorage[m_size] = std::move(decl);
+        } else if (m_size == InlineStorageSize) {
+            m_externalStorage.assign(m_inlineStorage, m_inlineStorage + m_size);
+            m_externalStorage.push_back(std::move(decl));
+        } else {
+            m_externalStorage.push_back(std::move(decl));
+        }
+        m_size++;
+    }
+
+    T& operator[](const size_t& idx)
+    {
+        if (LIKELY(m_size <= InlineStorageSize)) {
+            return m_inlineStorage[idx];
+        } else {
+            return m_externalStorage[idx];
+        }
+    }
+
+    const T& operator[](const size_t& idx) const
+    {
+        if (LIKELY(m_size <= InlineStorageSize)) {
+            return m_inlineStorage[idx];
+        } else {
+            return m_externalStorage[idx];
+        }
+    }
+
+    T* data()
+    {
+        if (LIKELY(m_size <= InlineStorageSize)) {
+            return m_inlineStorage;
+        } else {
+            return m_externalStorage.data();
+        }
+    }
+
+    size_t size() const
+    {
+        return m_size;
+    }
+
+    void clear()
+    {
+        m_size = 0;
+        m_externalStorage.clear();
+    }
+
+protected:
+    size_t m_size;
+    T m_inlineStorage[InlineStorageSize];
+    Vector<T, ExternalStoreageAllocator> m_externalStorage;
 };
 
 

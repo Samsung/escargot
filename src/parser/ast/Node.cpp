@@ -79,7 +79,6 @@ void* ASTFunctionScopeContext::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_firstChild));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_nextSibling));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_childBlockScopes));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_numeralLiteralData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASTFunctionScopeContext));
         typeInited = true;
     }

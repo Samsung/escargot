@@ -215,10 +215,6 @@ const size_t notFound = static_cast<size_t>(-1);
 #define HAVE_MMAP 1
 #endif
 
-#if !defined(FALLTHROUGH)
-#define FALLTHROUGH
-#endif
-
 #define WTFMove std::move
 
 // NOTE there is no make_unique in c++11

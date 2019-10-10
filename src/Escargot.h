@@ -289,6 +289,18 @@ typedef int32_t UChar32;
 #define UNUSED_PARAMETER(variable) (void)variable
 #endif
 
+#if !defined(FALLTHROUGH) && defined(COMPILER_GCC)
+#if __GNUC__ >= 7
+#define FALLTHROUGH __attribute__((fallthrough))
+#else
+#define FALLTHROUGH ((void)0)
+#endif
+#elif !defined(FALLTHROUGH) && defined(COMPILER_CLANG)
+#define FALLTHROUGH /* fall through */
+#else
+#define FALLTHROUGH
+#endif
+
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER == __LITTLE_ENDIAN || defined(__LITTLE_ENDIAN__) || defined(__i386) || defined(_M_IX86) || defined(__ia64) || defined(__ia64__) || defined(_M_IA64) || defined(__ARMEL__) || defined(__THUMBEL__) || defined(__AARCH64EL__) || defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) || defined(ANDROID)
 #define ESCARGOT_LITTLE_ENDIAN
 // #pragma message "little endian"

@@ -156,6 +156,8 @@ public:
     LexicalBlockIndex lexicalBlockIndex;
     LexicalBlockIndex lexicalBlockCount;
 
+    NumeralLiteralVector numeralLiteralVector;
+
     ASTFunctionScopeContext fakeContext;
 
     struct ParseFormalParametersResult {
@@ -265,6 +267,17 @@ public:
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
         this->lastMarker.lineStart = this->scanner->lineStart;
+    }
+
+    void insertNumeralLiteral(Value v)
+    {
+        ASSERT(!v.isPointerValue());
+
+        if (VectorUtil::findInVector(numeralLiteralVector, v) == VectorUtil::invalidIndex) {
+            if (numeralLiteralVector.size() < KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT) {
+                numeralLiteralVector.push_back(v);
+            }
+        }
     }
 
     ASTFunctionScopeContext* popScopeContext(ASTFunctionScopeContext* lastPushedScopeContext)
@@ -919,12 +932,18 @@ public:
                 ALLOC_TOKEN(token);
                 this->nextToken(token);
                 // raw = this->getTokenRaw(token);
-                if (token->type == Token::NumericLiteralToken) {
-                    if (this->context->inLoop || token->valueNumber == 0)
-                        this->currentScopeContext->insertNumeralLiteral(Value(token->valueNumber));
-                    return this->finalize(node, builder.createLiteralNode(Value(token->valueNumber)));
+                if (builder.isNodeGenerator()) {
+                    if (token->type == Token::NumericLiteralToken) {
+                        double d = token->valueNumberLiteral(this->scanner);
+                        if (this->context->inLoop || d == 0) {
+                            this->insertNumeralLiteral(Value(d));
+                        }
+                        return this->finalize(node, builder.createLiteralNode(Value(d)));
+                    } else {
+                        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST(this->scanner)));
+                    }
                 } else {
-                    return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST(this->scanner)));
+                    return this->finalize(node, builder.createLiteralNode(Value()));
                 }
             }
             break;
@@ -938,7 +957,9 @@ public:
             // raw = this->getTokenRaw(token);
             {
                 bool value = token->relatedSource(this->scanner->source) == "true";
-                this->currentScopeContext->insertNumeralLiteral(Value(value));
+                if (builder.isNodeGenerator()) {
+                    this->insertNumeralLiteral(Value(value));
+                }
                 return this->finalize(node, builder.createLiteralNode(Value(value)));
             }
             break;
@@ -951,7 +972,9 @@ public:
             this->nextToken(token);
             // token.value = null;
             // raw = this->getTokenRaw(token);
-            this->currentScopeContext->insertNumeralLiteral(Value(Value::Null));
+            if (builder.isNodeGenerator()) {
+                this->insertNumeralLiteral(Value(Value::Null));
+            }
             return this->finalize(node, builder.createLiteralNode(Value(Value::Null)));
         }
         case Token::TemplateToken:
@@ -1399,14 +1422,21 @@ public:
             // const raw = this->getTokenRaw(token);
             {
                 Value v;
-                if (token->type == Token::NumericLiteralToken) {
-                    if (this->context->inLoop || token->valueNumber == 0) {
-                        this->currentScopeContext->insertNumeralLiteral(Value(token->valueNumber));
+                if (builder.isNodeGenerator()) {
+                    if (token->type == Token::NumericLiteralToken) {
+                        double d = token->valueNumberLiteral(this->scanner);
+                        if (this->context->inLoop || d == 0) {
+                            this->insertNumeralLiteral(Value(d));
+                        }
+                        v = Value(d);
+                    } else {
+                        keyString = token->valueStringLiteral(this->scanner);
+                        v = Value(token->valueStringLiteralForAST(this->scanner));
                     }
-                    v = Value(token->valueNumber);
                 } else {
-                    keyString = token->valueStringLiteral(this->scanner);
-                    v = Value(token->valueStringLiteralForAST(this->scanner));
+                    if (token->type == Token::StringLiteralToken) {
+                        keyString = token->valueStringLiteral(this->scanner);
+                    }
                 }
                 key = this->finalize(node, builder.createLiteralNode(v));
             }
@@ -5144,7 +5174,7 @@ public:
         this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
         this->currentScopeContext->m_bodyEndLOC.index = endNode.index;
-        return this->finalize(startNode, new ProgramNode(container.get(), this->currentScopeContext, this->moduleData));
+        return this->finalize(startNode, new ProgramNode(container.get(), this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector)));
     }
 
     PassRefPtr<FunctionNode> parseScriptFunction(NodeGenerator& builder)
@@ -5155,7 +5185,7 @@ public:
         RefPtr<StatementContainer> params = this->parseFunctionParameters(builder);
         RefPtr<BlockStatementNode> body = this->parseFunctionBody(builder);
 
-        return this->finalize(node, new FunctionNode(params.get(), body.get()));
+        return this->finalize(node, new FunctionNode(params.get(), body.get(), std::move(this->numeralLiteralVector)));
     }
 
     PassRefPtr<FunctionNode> parseScriptArrowFunction(NodeGenerator& builder, bool hasArrowParameterPlaceHolder)
@@ -5225,7 +5255,7 @@ public:
             body = this->finalize(nodeStart, new BlockStatementNode(container.get()));
         }
 
-        return this->finalize(node, new FunctionNode(params.get(), body.get()));
+        return this->finalize(node, new FunctionNode(params.get(), body.get(), std::move(this->numeralLiteralVector)));
     }
 };
 

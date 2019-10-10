@@ -30,11 +30,12 @@ namespace Escargot {
 class ProgramNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData)
+    ProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
         : StatementNode()
         , m_container(body)
         , m_scopeContext(scopeContext)
         , m_moduleData(moduleData)
+        , m_numeralLiteralVector(std::move(numeralLiteralVector))
     {
     }
 
@@ -46,6 +47,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::Program; }
     ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
     Script::ModuleData* moduleData() { return m_moduleData; }
+    NumeralLiteralVector& numeralLiteralVector() { return m_numeralLiteralVector; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(0);
@@ -70,6 +72,7 @@ private:
     RefPtr<StatementContainer> m_container;
     ASTFunctionScopeContext* m_scopeContext;
     Script::ModuleData* m_moduleData;
+    NumeralLiteralVector m_numeralLiteralVector;
 };
 }
 

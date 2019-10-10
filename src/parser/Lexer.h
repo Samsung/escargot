@@ -243,6 +243,7 @@ public:
             , startWithZero(false)
             , octal(false)
             , hasAllocatedString(false)
+            , hasNonComputedNumberLiteral(false)
             , hasKeywordButUseString(false)
             , prec(0)
             , lineNumber(0)
@@ -260,6 +261,7 @@ public:
         bool startWithZero : 1;
         bool octal : 1;
         bool hasAllocatedString : 1;
+        bool hasNonComputedNumberLiteral : 1;
         bool hasKeywordButUseString : 1;
         unsigned char prec : 8; // max prec is 11
         // we don't needs init prec.
@@ -282,6 +284,7 @@ public:
         StringView relatedSource(const StringView& source);
         StringView valueStringLiteral(Scanner* scannerInstance);
         Value valueStringLiteralForAST(Scanner* scannerInstance);
+        double valueNumberLiteral(Scanner* scannerInstance);
 
         inline operator bool() const
         {
@@ -299,6 +302,7 @@ public:
             this->startWithZero = false;
             this->octal = false;
             this->hasAllocatedString = false;
+            this->hasNonComputedNumberLiteral = false;
             this->hasKeywordButUseString = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
@@ -307,12 +311,43 @@ public:
             this->valueNumber = 0;
         }
 
-        void setResult(Token type, String* s, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setPunctuatorResult(size_t lineNumber, size_t lineStart, size_t start, size_t end, PunctuatorKind p)
+        {
+            this->type = Token::PunctuatorToken;
+            this->startWithZero = false;
+            this->octal = false;
+            this->hasAllocatedString = false;
+            this->hasNonComputedNumberLiteral = false;
+            this->hasKeywordButUseString = false;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+            this->valuePunctuatorKind = p;
+        }
+
+        void setKeywordResult(size_t lineNumber, size_t lineStart, size_t start, size_t end, KeywordKind p)
+        {
+            this->type = Token::KeywordToken;
+            this->startWithZero = false;
+            this->octal = false;
+            this->hasAllocatedString = false;
+            this->hasNonComputedNumberLiteral = false;
+            this->hasKeywordButUseString = false;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+            this->valueKeywordKind = p;
+        }
+
+        void setResult(Token type, String* s, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool octal = false)
         {
             this->type = type;
             this->startWithZero = false;
-            this->octal = false;
+            this->octal = octal;
             this->hasKeywordButUseString = true;
+            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -322,12 +357,13 @@ public:
             this->valueStringLiteralData.m_stringIfNewlyAllocated = s;
         }
 
-        void setResult(Token type, size_t stringStart, size_t stringEnd, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setResult(Token type, size_t stringStart, size_t stringEnd, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool octal = false)
         {
             this->type = type;
             this->startWithZero = false;
-            this->octal = false;
+            this->octal = octal;
             this->hasKeywordButUseString = true;
+            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -339,13 +375,14 @@ public:
             ASSERT(this->valueStringLiteralData.m_start <= this->valueStringLiteralData.m_end);
         }
 
-        void setResult(Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setNumericLiteralResult(double value, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasNonComputedNumberLiteral)
         {
-            this->type = type;
+            this->type = Token::NumericLiteralToken;
             this->startWithZero = false;
             this->octal = false;
             this->hasAllocatedString = false;
             this->hasKeywordButUseString = true;
+            this->hasNonComputedNumberLiteral = hasNonComputedNumberLiteral;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -353,13 +390,14 @@ public:
             this->valueNumber = value;
         }
 
-        void setResult(Token type, ScanTemplateResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setTemplateTokenResult(ScanTemplateResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
-            this->type = type;
+            this->type = Token::TemplateToken;
             this->startWithZero = false;
             this->octal = false;
             this->hasAllocatedString = false;
             this->hasKeywordButUseString = true;
+            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
