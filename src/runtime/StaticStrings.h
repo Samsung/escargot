@@ -243,6 +243,7 @@ namespace Escargot {
     F(findIndex)                  \
     F(freeze)                     \
     F(fromCharCode)               \
+    F(fromCodePoint)              \
     F(getOwnPropertyDescriptor)   \
     F(getOwnPropertyNames)        \
     F(getOwnPropertySymbols)      \
