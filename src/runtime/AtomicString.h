@@ -62,7 +62,6 @@ public:
     AtomicString(Context* c, const char16_t* src, size_t len);
     AtomicString(Context* c, const char* src, size_t len);
     AtomicString(Context* c, const StringView& sv);
-    AtomicString(Context* c, const SourceStringView& sv);
     AtomicString(Context* c, String* name);
 
     inline String* string() const

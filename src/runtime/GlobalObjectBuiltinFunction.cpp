@@ -25,6 +25,7 @@
 #include "runtime/BoundFunctionObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
+#include "parser/Lexer.h"
 
 namespace Escargot {
 
@@ -72,7 +73,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
 
             if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
                 StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
-                while (src[src.length() - 1] != '}') {
+                while (src.length() && EscargotLexer::isWhiteSpaceOrLineTerminator(src[src.length() - 1])) {
                     src = StringView(src, 0, src.length() - 1);
                 }
                 builder.appendString(new StringView(src));

@@ -34,16 +34,4 @@ void* StringView::operator new(size_t size)
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
-
-void* SourceStringView::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(SourceStringView)] = { 0 };
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SourceStringView));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
 }

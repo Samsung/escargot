@@ -112,7 +112,6 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     try {
         srcToTest.appendString(") { }");
         String* cur = srcToTest.finalize(&state);
-        state.context()->vmInstance()->parsedSourceCodes().push_back(cur);
         esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, false, SIZE_MAX, false, false);
     } catch (esprima::Error& orgError) {
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");

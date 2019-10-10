@@ -61,30 +61,6 @@ AtomicString::AtomicString(ExecutionState& ec, String* name)
     init(ec.context()->m_atomicStringMap, name);
 }
 
-AtomicString::AtomicString(Context* c, const SourceStringView& sv)
-{
-    size_t v = sv.getTagInFirstDataArea();
-    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
-        m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
-        return;
-    }
-
-    AtomicStringMap* ec = c->atomicStringMap();
-    SourceStringView& str = const_cast<SourceStringView&>(sv);
-    String* name = &str;
-    auto iter = ec->find(name);
-    if (ec->end() == iter) {
-        SourceStringView* newSv = new SourceStringView(sv);
-        ec->insert(newSv);
-        ASSERT(ec->find(newSv) != ec->end());
-        m_string = newSv;
-        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
-    } else {
-        m_string = iter.operator*();
-        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
-    }
-}
-
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
     size_t v = sv.getTagInFirstDataArea();
@@ -94,18 +70,22 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
     }
 
     AtomicStringMap* ec = c->atomicStringMap();
-    StringView& str = const_cast<StringView&>(sv);
-    String* name = &str;
-    auto iter = ec->find(name);
+    auto iter = ec->find(&const_cast<StringView&>(sv));
     if (ec->end() == iter) {
-        StringView* newSv = new StringView(sv);
-        ec->insert(newSv);
-        ASSERT(ec->find(newSv) != ec->end());
-        m_string = newSv;
-        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        String* newString;
+        auto buffer = sv.bufferAccessData();
+        if (buffer.has8BitContent) {
+            newString = new Latin1String((const char*)buffer.buffer, buffer.length);
+        } else {
+            newString = new UTF16String((const char16_t*)buffer.buffer, buffer.length);
+        }
+        ec->insert(newString);
+        ASSERT(ec->find(newString) != ec->end());
+        m_string = newString;
+        const_cast<StringView&>(sv).m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
-        str.m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        const_cast<StringView&>(sv).m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
 }
 

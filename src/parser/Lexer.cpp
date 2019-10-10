@@ -481,24 +481,23 @@ StringView Scanner::ScannerResult::relatedSource()
 
 Value Scanner::ScannerResult::valueStringLiteralForAST()
 {
-    StringView* sv = valueStringLiteral();
-    if (this->plain) {
-        return new SourceStringView(*sv);
+    StringView sv = valueStringLiteral();
+    if (!this->hasAllocatedString) {
+        return new StringView(sv);
     }
-    RELEASE_ASSERT(sv->string() != nullptr);
-    return sv->string();
+    return sv.string();
 }
 
-StringView* Scanner::ScannerResult::valueStringLiteral()
+StringView Scanner::ScannerResult::valueStringLiteral()
 {
     if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
         AtomicString as = keywordToString(this->scanner->escargotContext, this->valueKeywordKind);
-        return new StringView(as.string(), 0, as.string()->length());
+        return StringView(as.string(), 0, as.string()->length());
     }
-    if (this->type == Token::StringLiteralToken && !plain && valueStringLiteralData->length() == 0) {
+    if (this->type == Token::StringLiteralToken && hasAllocatedString && valueStringLiteralData.length() == 0) {
         constructStringLiteral();
     }
-    ASSERT(valueStringLiteralData->getTagInFirstDataArea() == POINTER_VALUE_STRING_TAG_IN_DATA);
+    ASSERT(valueStringLiteralData.getTagInFirstDataArea() == POINTER_VALUE_STRING_TAG_IN_DATA);
     return valueStringLiteralData;
 }
 
@@ -610,7 +609,7 @@ void Scanner::ScannerResult::constructStringLiteral()
     } else {
         newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
     }
-    this->valueStringLiteralData = new StringView(newStr, 0, newStr->length());
+    this->valueStringLiteralData = StringView(newStr, 0, newStr->length());
 }
 
 Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, size_t startLine, size_t startColumn)
@@ -708,7 +707,7 @@ char32_t Scanner::scanUnicodeCodePointEscape()
     return code;
 }
 
-StringView* Scanner::getIdentifier()
+StringView Scanner::getIdentifier()
 {
     const size_t start = this->index;
     ++this->index;
@@ -730,10 +729,10 @@ StringView* Scanner::getIdentifier()
         }
     }
 
-    return new StringView(this->source, start, this->index);
+    return StringView(this->source, start, this->index);
 }
 
-StringView* Scanner::getComplexIdentifier()
+StringView Scanner::getComplexIdentifier()
 {
     char32_t cp = this->codePointAt(this->index);
     ParserCharPiece piece = ParserCharPiece(cp);
@@ -797,7 +796,7 @@ StringView* Scanner::getComplexIdentifier()
     }
 
     String* str = new UTF16String(id.data(), id.length());
-    return new StringView(str, 0, str->length());
+    return StringView(str, 0, str->length());
 }
 
 uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
@@ -1354,15 +1353,12 @@ void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
     }
 
     if (isPlainCase) {
-        StringView* str = new StringView(this->source, start + 1, this->index - 1);
-        token->setResult(this, Token::StringLiteralToken, str, this->lineNumber, this->lineStart, start, this->index, true);
+        token->setResult(this, Token::StringLiteralToken, StringView(this->source, start + 1, this->index - 1), this->lineNumber, this->lineStart, start, this->index, false);
         token->octal = octal;
-        token->plain = true;
     } else {
         // build string if needs
-        token->setResult(this, Token::StringLiteralToken, new StringView(), this->lineNumber, this->lineStart, start, this->index, false);
+        token->setResult(this, Token::StringLiteralToken, StringView(), this->lineNumber, this->lineStart, start, this->index, true);
         token->octal = octal;
-        token->plain = false;
     }
 }
 
@@ -1811,12 +1807,12 @@ ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16
     const size_t start = this->index;
 
     // Backslash (U+005C) starts an escaped character.
-    StringView* id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
+    StringView id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
 
     // There is no keyword or literal with only one character.
     // Thus, it must be an identifier.
     KeywordKind keywordKind;
-    auto data = id->StringView::bufferAccessData();
+    auto data = id.StringView::bufferAccessData();
     if (data.length == 1) {
         type = Token::IdentifierToken;
     } else if ((keywordKind = isKeyword(data))) {
@@ -1838,7 +1834,7 @@ ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16
         type = Token::IdentifierToken;
     }
 
-    token->setResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id->string() == this->source.string());
+    token->setResult(this, type, id, this->lineNumber, this->lineStart, start, this->index, id.string() != this->source.string());
 }
 
 void Scanner::lex(Scanner::ScannerResult* token)

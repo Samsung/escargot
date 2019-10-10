@@ -448,8 +448,11 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
 Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool inStrictMode)
 {
     if (UNLIKELY(isExecuted())) {
-        ESCARGOT_LOG_ERROR("You cannot re-execute Script object...");
-        RELEASE_ASSERT_NOT_REACHED();
+        if (!m_canExecuteAgain) {
+            ESCARGOT_LOG_ERROR("You cannot re-execute is type of Script object");
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+        m_topCodeBlock = state.context()->scriptParser().initializeScript(m_sourceCode, m_src, m_moduleData).script->m_topCodeBlock;
     }
 
     if (isModule()) {

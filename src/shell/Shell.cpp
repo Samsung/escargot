@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <vector>
+
 #include "api/EscargotPublic.h"
 
 #if defined(ESCARGOT_ENABLE_TEST)
@@ -230,6 +231,12 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
     }
 }
 
+static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    Memory::gc();
+    return ValueRef::createUndefined();
+}
+
 #if defined(ESCARGOT_ENABLE_TEST)
 static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
@@ -299,6 +306,12 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
             FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "run"), builtinRun, 1, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("run"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
         }
 
 #if defined(ESCARGOT_ENABLE_TEST)
@@ -435,6 +448,7 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
     if (stringEndsWith(fileName->toStdUTF8String(), "mjs")) {
         isModule = isModule || true;
     }
+
     auto scriptInitializeResult = context->scriptParser()->initializeScript(str, fileName, isModule);
     if (!scriptInitializeResult.script) {
         printf("Script parsing error: ");
