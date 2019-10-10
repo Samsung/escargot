@@ -1376,8 +1376,10 @@ static void markEvalToCodeblock(InterpretedCodeBlock* cb)
     cb->setHasEval();
     cb->computeVariables();
 
-    for (size_t i = 0; i < cb->childBlocks().size(); i++) {
-        markEvalToCodeblock(cb->childBlocks()[i]->asInterpretedCodeBlock());
+    InterpretedCodeBlock* child = cb->firstChild();
+    while (child) {
+        markEvalToCodeblock(child);
+        child = child->nextSibling();
     }
 }
 

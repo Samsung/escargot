@@ -166,9 +166,13 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         }
     }
 
-    codeBlock->m_childBlocks.resizeWithUninitializedValues(scopeCtx->m_childScopes.size());
-    for (size_t i = 0; i < scopeCtx->m_childScopes.size(); i++) {
-        codeBlock->m_childBlocks[i] = generateCodeBlockTreeFromASTWalker(ctx, source, script, scopeCtx->m_childScopes[i], codeBlock, isEvalCode, isEvalCodeInFunction);
+    ASTFunctionScopeContext* child = scopeCtx->firstChild();
+    InterpretedCodeBlock* refer = nullptr;
+    while (child) {
+        InterpretedCodeBlock* newBlock = generateCodeBlockTreeFromASTWalker(ctx, source, script, child, codeBlock, isEvalCode, isEvalCodeInFunction);
+        codeBlock->appendChild(newBlock, refer);
+        refer = newBlock;
+        child = child->nextSibling();
     }
 
     return codeBlock;
@@ -182,8 +186,10 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, S
 
 void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
 {
-    for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
-        generateCodeBlockTreeFromASTWalkerPostProcess(cb->m_childBlocks[i]);
+    InterpretedCodeBlock* child = cb->firstChild();
+    while (child) {
+        generateCodeBlockTreeFromASTWalkerPostProcess(child);
+        child = child->nextSibling();
     }
     cb->computeVariables();
     if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT || cb->m_lexicalBlockStackAllocatedIdentifierMaximumDepth > VARIABLE_LIMIT) {
@@ -341,8 +347,10 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
 
         puts("");
 
-        for (size_t i = 0; i < cb->m_childBlocks.size(); i++) {
-            fn(cb->m_childBlocks[i], depth + 1);
+        InterpretedCodeBlock* child = cb->firstChild();
+        while (child) {
+            fn(child, depth + 1);
+            child = child->nextSibling();
         }
 
     };

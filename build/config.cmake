@@ -50,7 +50,6 @@ SET (ESCARGOT_CXXFLAGS
     -Wno-unused-parameter
     -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
     -Wno-deprecated-declarations
-    -Wno-implicit-fallthrough
 )
 
 IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")

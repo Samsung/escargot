@@ -149,10 +149,10 @@ public:
         size_t exit1Pos, exit2Pos, exit3Pos, continuePosition;
         // for-of only
         TryStatementNode::TryStatementByteCodeContext forOfTryStatmentContext;
-        ByteCodeRegisterIndex finishCheckRegisterIndex, iteratorDataRegisterIndex;
-        size_t forOfEndCheckRegisterHeadStartPosition;
-        size_t forOfEndCheckRegisterHeadEndPosition;
-        size_t forOfEndCheckRegisterBodyEndPosition;
+        ByteCodeRegisterIndex finishCheckRegisterIndex = REGISTER_LIMIT, iteratorDataRegisterIndex = REGISTER_LIMIT;
+        size_t forOfEndCheckRegisterHeadStartPosition = SIZE_MAX;
+        size_t forOfEndCheckRegisterHeadEndPosition = SIZE_MAX;
+        size_t forOfEndCheckRegisterBodyEndPosition = SIZE_MAX;
 
         if (m_forIn) {
             // for-in statement

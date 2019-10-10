@@ -38,13 +38,13 @@ public:
         return true;
     }
 
-    StatementNode* nextSilbing()
+    StatementNode* nextSibling()
     {
-        return m_nextSilbing.get();
+        return m_nextSibling.get();
     }
 
 private:
-    RefPtr<StatementNode> m_nextSilbing;
+    RefPtr<StatementNode> m_nextSibling;
 };
 
 class StatementContainer : public RefCounted<StatementContainer> {
@@ -62,7 +62,7 @@ public:
         }
 
         do {
-            RefPtr<StatementNode> next = c->m_nextSilbing.release();
+            RefPtr<StatementNode> next = c->m_nextSibling.release();
             c.release();
             c = next;
         } while (c);
@@ -73,7 +73,7 @@ public:
         StatementNode* nd = firstChild();
         while (nd) {
             nd->generateStatementByteCode(codeBlock, context);
-            nd = nd->nextSilbing();
+            nd = nd->nextSibling();
         }
     }
 
@@ -82,7 +82,7 @@ public:
         StatementNode* nd = firstChild();
         while (nd) {
             nd->iterateChildren(fn);
-            nd = nd->nextSilbing();
+            nd = nd->nextSibling();
         }
     }
 
@@ -104,7 +104,7 @@ public:
             appendChild(child);
         } else {
             ASSERT(referNode->isStatement());
-            referNode->asStatement()->m_nextSilbing = child;
+            referNode->asStatement()->m_nextSibling = child;
         }
         return child;
     }
@@ -112,19 +112,19 @@ public:
     StatementNode* appendChild(Node* c)
     {
         ASSERT(c->isStatement());
-        ASSERT(c->asStatement()->nextSilbing() == nullptr);
+        ASSERT(c->asStatement()->nextSibling() == nullptr);
         StatementNode* child = c->asStatement();
         if (m_firstChild == nullptr) {
             m_firstChild = child;
         } else {
             StatementNode* tail = firstChild();
-            while (tail->m_nextSilbing != nullptr) {
-                tail = tail->m_nextSilbing.get();
+            while (tail->m_nextSibling != nullptr) {
+                tail = tail->m_nextSibling.get();
             }
-            tail->m_nextSilbing = child;
+            tail->m_nextSibling = child;
         }
         return child;
-    };
+    }
 
     StatementNode* firstChild()
     {

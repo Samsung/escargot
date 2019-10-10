@@ -36,7 +36,7 @@ public:
     ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlocks()[m_subCodeBlockIndex];
+        CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlockAt(m_subCodeBlockIndex);
         if (UNLIKELY(blk->isClassConstructor())) {
             codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, blk, context->m_classInfo.m_src), context, this);
         } else if (UNLIKELY(blk->isClassMethod() || blk->isClassStaticMethod())) {

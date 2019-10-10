@@ -35,8 +35,6 @@ class CodeBlock;
 class InterpretedCodeBlock;
 class Script;
 
-typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<InterpretedCodeBlock*>> CodeBlockVector;
-
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 
@@ -234,11 +232,6 @@ public:
         return m_functionName;
     }
 
-    bool needsComplexParameterCopy() const
-    {
-        return m_needsComplexParameterCopy;
-    }
-
     bool isFunctionNameSaveOnHeap() const
     {
         ASSERT(!m_hasCallNativeFunctionCode);
@@ -324,7 +317,6 @@ protected:
     bool m_canAllocateVariablesOnStack : 1;
     bool m_canAllocateEnvironmentOnStack : 1;
     bool m_hasDescendantUsesNonIndexedVariableStorage : 1;
-    bool m_needsComplexParameterCopy : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
     bool m_hasYield : 1;
@@ -367,10 +359,6 @@ class InterpretedCodeBlock : public CodeBlock {
 
 public:
     void computeVariables();
-    void appendChildBlock(InterpretedCodeBlock* cb)
-    {
-        m_childBlocks.push_back(cb);
-    }
     void captureArguments();
 
     /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */
@@ -554,9 +542,48 @@ public:
         return m_parentCodeBlock;
     }
 
-    const CodeBlockVector& childBlocks()
+    void appendChild(InterpretedCodeBlock* child)
     {
-        return m_childBlocks;
+        ASSERT(child->m_nextSibling == nullptr);
+        if (m_firstChild == nullptr) {
+            m_firstChild = child;
+        } else {
+            InterpretedCodeBlock* tail = firstChild();
+            while (tail->m_nextSibling != nullptr) {
+                tail = tail->m_nextSibling;
+            }
+            tail->m_nextSibling = child;
+        }
+    }
+
+    InterpretedCodeBlock* firstChild()
+    {
+        return m_firstChild;
+    }
+
+    InterpretedCodeBlock* nextSibling()
+    {
+        return m_nextSibling;
+    }
+
+    void appendChild(InterpretedCodeBlock* child, InterpretedCodeBlock* referNode)
+    {
+        if (referNode == nullptr) {
+            appendChild(child);
+        } else {
+            referNode->m_nextSibling = child;
+        }
+    }
+
+    InterpretedCodeBlock* childBlockAt(size_t idx)
+    {
+        InterpretedCodeBlock* c = m_firstChild;
+
+        for (size_t i = 0; i < idx; i++) {
+            c = c->nextSibling();
+        }
+
+        return c;
     }
 
     bool hasVarName(const AtomicString& name)
@@ -701,7 +728,8 @@ protected:
     BlockInfoVector m_blockInfos;
 
     InterpretedCodeBlock* m_parentCodeBlock;
-    CodeBlockVector m_childBlocks;
+    InterpretedCodeBlock* m_firstChild;
+    InterpretedCodeBlock* m_nextSibling;
 
 #ifndef NDEBUG
     ExtendedNodeLOC m_bodyStartLOC;
