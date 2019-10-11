@@ -21,6 +21,7 @@
 #include "RegExpObject.h"
 #include "Context.h"
 #include "ArrayObject.h"
+#include "VMInstance.h"
 
 #include "Yarr.h"
 #include "YarrPattern.h"
