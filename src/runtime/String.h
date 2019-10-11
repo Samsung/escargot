@@ -75,10 +75,16 @@ class RopeString;
 class StringView;
 
 struct StringBufferAccessData {
-    bool has8BitContent;
-    bool hasSpecialImpl;
-    size_t length;
+    bool has8BitContent : 1;
+    bool hasSpecialImpl : 1;
+#if defined(ESCARGOT_32)
+    size_t length : 30;
+#else
+    size_t length : 62;
+#endif
     const void* buffer;
+
+    COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() >> 2), "");
 
     char16_t uncheckedCharAtFor8Bit(size_t idx) const
     {

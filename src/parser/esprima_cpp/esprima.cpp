@@ -83,7 +83,7 @@ struct Context {
     bool inParameterParsing : 1;
     bool hasRestrictedWordInArrayOrObjectInitializer : 1;
     bool strict : 1;
-    Scanner::ScannerResult firstCoverInitializedNameError;
+    std::unique_ptr<Scanner::ScannerResult> firstCoverInitializedNameError;
     std::vector<AtomicString> catchClauseSimplyDeclaredVariableNames;
     std::vector<std::pair<AtomicString, bool>> labelSet; // <LabelString, continue accepted>
 };
@@ -225,7 +225,6 @@ public:
         this->context->inParameterParsing = false;
         this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         this->context->strict = this->sourceType == Module;
-        this->context->firstCoverInitializedNameError.reset();
         this->setMarkers(startLoc);
     }
 
@@ -647,7 +646,7 @@ public:
 
     bool matchContextualKeyword(const char* keyword)
     {
-        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteralData->equals(keyword);
+        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteralData.equals(keyword);
     }
 
     // Return true if the next token is an assignment operator
@@ -713,7 +712,7 @@ public:
         }
     }
 
-    bool isPropertyKey(Node* key, String* name, const char* value)
+    bool isPropertyKey(Node* key, const StringView& name, const char* value)
     {
         if (key->type() == Identifier) {
             return ((IdentifierNode*)key)->name() == value;
@@ -726,16 +725,17 @@ public:
         return false;
     }
 
-    bool isPropertyKey(SyntaxNode* key, String* name, const char* value)
+    bool isPropertyKey(SyntaxNode* key, const StringView& name, const char* value)
     {
         if (key->type() == Identifier) {
             return key->name() == value;
         } else if (key->type() == Literal) {
-            return name->equals(value);
+            return name.equals(value);
         }
 
         return false;
     }
+
 
     // Cover grammar support.
     //
@@ -774,7 +774,7 @@ public:
     struct IsolateCoverGrammarContext {
         bool previousIsBindingElement;
         bool previousIsAssignmentTarget;
-        Scanner::ScannerResult previousFirstCoverInitializedNameError;
+        std::unique_ptr<Scanner::ScannerResult> previousFirstCoverInitializedNameError;
     };
 
     void checkRecursiveLimit()
@@ -796,11 +796,10 @@ public:
 
         grammarContext->previousIsBindingElement = this->context->isBindingElement;
         grammarContext->previousIsAssignmentTarget = this->context->isAssignmentTarget;
-        grammarContext->previousFirstCoverInitializedNameError = this->context->firstCoverInitializedNameError;
+        grammarContext->previousFirstCoverInitializedNameError = std::move(this->context->firstCoverInitializedNameError);
 
         this->context->isBindingElement = true;
         this->context->isAssignmentTarget = true;
-        this->context->firstCoverInitializedNameError.reset();
 
         checkRecursiveLimit();
     }
@@ -809,13 +808,13 @@ public:
     {
         ASSERT(grammarContext != nullptr);
 
-        if (UNLIKELY(this->context->firstCoverInitializedNameError)) {
-            this->throwUnexpectedToken(&this->context->firstCoverInitializedNameError);
+        if (UNLIKELY((bool)this->context->firstCoverInitializedNameError)) {
+            this->throwUnexpectedToken(this->context->firstCoverInitializedNameError.get());
         }
 
         this->context->isBindingElement = grammarContext->previousIsBindingElement;
         this->context->isAssignmentTarget = grammarContext->previousIsAssignmentTarget;
-        this->context->firstCoverInitializedNameError = grammarContext->previousFirstCoverInitializedNameError;
+        this->context->firstCoverInitializedNameError = std::move(grammarContext->previousFirstCoverInitializedNameError);
     }
 
     void endInheritCoverGrammar(IsolateCoverGrammarContext* grammarContext)
@@ -824,8 +823,8 @@ public:
 
         this->context->isBindingElement = this->context->isBindingElement && grammarContext->previousIsBindingElement;
         this->context->isAssignmentTarget = this->context->isAssignmentTarget && grammarContext->previousIsAssignmentTarget;
-        if (UNLIKELY(grammarContext->previousFirstCoverInitializedNameError)) {
-            this->context->firstCoverInitializedNameError = grammarContext->previousFirstCoverInitializedNameError;
+        if (UNLIKELY((bool)grammarContext->previousFirstCoverInitializedNameError)) {
+            this->context->firstCoverInitializedNameError = std::move(grammarContext->previousFirstCoverInitializedNameError);
         }
     }
 
@@ -870,16 +869,16 @@ public:
     {
         ASSERT(token != nullptr);
         ASTIdentifierNode ret;
-        StringView* sv = token->valueStringLiteral();
-        const auto& a = sv->bufferAccessData();
+        StringView sv = token->valueStringLiteral();
+        const auto& a = sv.bufferAccessData();
         char16_t firstCh = a.charAt(0);
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
             ret = builder.createIdentifierNode(this->escargotContext->staticStrings().asciiTable[firstCh]);
         } else {
-            if (!token->plain) {
-                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, sv->string()));
+            if (token->hasAllocatedString) {
+                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, sv.string()));
             } else {
-                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, SourceStringView(*sv)));
+                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, sv));
             }
         }
 
@@ -1145,7 +1144,7 @@ public:
             }
         } else {
             computed = this->match(LeftSquareBracket);
-            String* keyString = String::emptyString;
+            StringView keyString;
             keyNode = this->parseObjectPropertyKey(builder, keyString);
             this->expect(Colon);
             valueNode = this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration);
@@ -1375,7 +1374,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseObjectPropertyKey(ASTBuilder& builder, String*& keyString)
+    ASTPassNode parseObjectPropertyKey(ASTBuilder& builder, StringView& keyString)
     {
         MetaNode node = this->createNode();
         ALLOC_TOKEN(token);
@@ -1413,7 +1412,7 @@ public:
             bool trackUsingNamesBefore = this->trackUsingNames;
             this->trackUsingNames = false;
             key = this->finalize(node, finishIdentifier(builder, token));
-            keyString = key->asIdentifier()->name().string();
+            keyString = StringView(key->asIdentifier()->name().string());
             this->trackUsingNames = trackUsingNamesBefore;
             break;
         }
@@ -1443,7 +1442,7 @@ public:
         PropertyNode::Kind kind;
         ASTNode keyNode; //'': Node.PropertyKey;
         ASTNode valueNode; //: Node.PropertyValue;
-        String* keyString = String::emptyString;
+        StringView keyString;
 
         bool computed = false;
         bool method = false;
@@ -1465,8 +1464,8 @@ public:
         bool isSet = false;
         bool needImplictName = false;
         if (token->type == Token::IdentifierToken && lookaheadPropertyKey) {
-            StringView* sv = token->valueStringLiteral();
-            const auto& d = sv->bufferAccessData();
+            StringView sv = token->valueStringLiteral();
+            const auto& d = sv.bufferAccessData();
             if (d.length == 3) {
                 if (d.equalsSameLength("get")) {
                     isGet = true;
@@ -1541,7 +1540,7 @@ public:
                 }
 
                 if (this->match(Substitution)) {
-                    this->context->firstCoverInitializedNameError = this->lookahead;
+                    this->context->firstCoverInitializedNameError.reset(new Scanner::ScannerResult(this->lookahead));
                     this->nextToken();
                     shorthand = true;
                     ASTNode init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
@@ -4271,7 +4270,7 @@ public:
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-        StringView* directiveValue;
+        StringView directiveValue;
         bool isLiteral = false;
 
         NodeGenerator newBuilder;
@@ -4284,7 +4283,7 @@ public:
         this->consumeSemicolon();
 
         if (isLiteral) {
-            return this->finalize(node, newBuilder.createDirectiveNode(expr.get(), *directiveValue));
+            return this->finalize(node, newBuilder.createDirectiveNode(expr.get(), directiveValue));
         } else {
             return this->finalize(node, newBuilder.createExpressionStatementNode(expr.get()));
         }
@@ -4311,7 +4310,7 @@ public:
             }
 
             DirectiveNode* directive = (DirectiveNode*)statement.get();
-            if (token->plain && directive->value().equals("use strict")) {
+            if (!token->hasAllocatedString && directive->value().equals("use strict")) {
                 this->scopeContexts.back()->m_isStrict = this->context->strict = true;
                 if (firstRestricted) {
                     this->throwUnexpectedToken(&firstRestricted, Messages::StrictOctalLiteral);
@@ -4527,7 +4526,7 @@ public:
 
         ASTNode keyNode;
         ASTNode value;
-        String* keyString = String::emptyString;
+        StringView keyString;
 
         bool computed = false;
         bool isStatic = false;
@@ -4539,7 +4538,7 @@ public:
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder, keyString);
 
-            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && *token->valueStringLiteral() == "static") {
+            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->valueStringLiteral() == "static") {
                 *token = this->lookahead;
                 isStatic = true;
                 computed = this->match(LeftSquareBracket);
@@ -4553,13 +4552,13 @@ public:
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
         if (token->type == Token::IdentifierToken) {
-            if (*token->valueStringLiteral() == "get" && lookaheadPropertyKey) {
+            if (token->valueStringLiteral() == "get" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Get;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder, keyString);
                 this->context->allowYield = false;
                 value = this->parseGetterMethod(builder);
-            } else if (*token->valueStringLiteral() == "set" && lookaheadPropertyKey) {
+            } else if (token->valueStringLiteral() == "set" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder, keyString);

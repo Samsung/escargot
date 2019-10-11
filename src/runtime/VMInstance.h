@@ -185,11 +185,6 @@ public:
     bool hasPendingPromiseJob();
     SandBox::SandBoxResult executePendingPromiseJob();
 
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>>& parsedSourceCodes()
-    {
-        return m_parsedSourceCodes;
-    }
-
     Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& compiledCodeBlocks()
     {
         return m_compiledCodeBlocks;

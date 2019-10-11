@@ -117,8 +117,9 @@ public:
     bool isExecuted();
 
 private:
-    Script(String* src, String* sourceCode, ModuleData* moduleData)
-        : m_src(src)
+    Script(String* src, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
+        : m_canExecuteAgain(canExecuteAgain && !moduleData)
+        , m_src(src)
         , m_sourceCode(sourceCode)
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
@@ -159,6 +160,7 @@ private:
     }
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getexportednames
     AtomicStringVector exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet);
+    bool m_canExecuteAgain;
     String* m_src;
     String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;

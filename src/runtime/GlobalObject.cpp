@@ -74,12 +74,6 @@ static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisVal
 
     return Value(result);
 }
-
-static Value builtinGc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    GC_gcollect_and_unmap();
-    return Value();
-}
 #endif
 
 class EvalFunctionObject : public NativeFunctionObject {
@@ -1071,11 +1065,6 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(isBlockAllocatedOnStackFunctionName),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                         NativeFunctionInfo(strings->run, builtinIsBlockAllocatedOnStack, 2, NativeFunctionInfo::Strict)),
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-
-    defineOwnProperty(state, ObjectPropertyName(strings->gc),
-                      ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                        NativeFunctionInfo(strings->gc, builtinGc, 0, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
 

@@ -206,11 +206,10 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 
     // Parsing
     try {
-        m_context->vmInstance()->m_parsedSourceCodes.push_back(scriptSource.string());
         InterpretedCodeBlock* topCodeBlock = nullptr;
         RefPtr<ProgramNode> programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
 
-        Script* script = new Script(fileName, new StringView(scriptSource), programNode->moduleData());
+        Script* script = new Script(fileName, new StringView(scriptSource), programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
@@ -249,7 +248,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         return result;
 
     } catch (esprima::Error& orgError) {
-        m_context->vmInstance()->m_parsedSourceCodes.pop_back();
         GC_enable();
 
         ScriptParser::InitializeScriptResult result;

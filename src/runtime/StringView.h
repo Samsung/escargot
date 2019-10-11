@@ -35,6 +35,13 @@ public:
         initBufferAccessData(str->bufferAccessData(), s, e);
     }
 
+    ALWAYS_INLINE explicit StringView(String* str)
+        : String()
+        , m_string(str)
+    {
+        initBufferAccessData(str->bufferAccessData(), 0, str->length());
+    }
+
     ALWAYS_INLINE StringView(const StringView& str, const size_t s, const size_t e)
         : String()
         , m_string(str.string())
@@ -133,6 +140,10 @@ public:
         }
     }
 
+    void* operator new(size_t size, void* ptr)
+    {
+        return ptr;
+    }
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -173,103 +184,6 @@ protected:
 
 private:
     String* m_string;
-};
-
-class SourceStringView : public String {
-public:
-    ALWAYS_INLINE explicit SourceStringView(const StringView& str)
-    {
-        m_bufferAccessData = str.bufferAccessData();
-    }
-
-    virtual char16_t charAt(const size_t idx) const
-    {
-        return bufferAccessData().charAt(idx);
-    }
-
-    virtual size_t length() const
-    {
-        return m_bufferAccessData.length;
-    }
-
-    bool operator==(const char* src) const
-    {
-        size_t srcLen = strlen(src);
-        if (srcLen != length()) {
-            return false;
-        }
-
-        const auto& data = bufferAccessData();
-        if (data.has8BitContent) {
-            for (size_t i = 0; i < srcLen; i++) {
-                if (src[i] != ((const LChar*)data.buffer)[i]) {
-                    return false;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < srcLen; i++) {
-                if (src[i] != ((const char16_t*)data.buffer)[i]) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    bool operator!=(const char* src) const
-    {
-        return !operator==(src);
-    }
-
-    virtual UTF16StringData toUTF16StringData() const
-    {
-        UTF16StringData ret;
-        size_t len = length();
-        ret.resizeWithUninitializedValues(len);
-
-        for (size_t i = 0; i < len; i++) {
-            ret[i] = charAt(i);
-        }
-
-        return ret;
-    }
-
-    virtual UTF8StringData toUTF8StringData() const
-    {
-        return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
-    }
-
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const
-    {
-        return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
-    }
-
-    virtual const LChar* characters8() const
-    {
-        ASSERT(has8BitContent());
-        return (LChar*)m_bufferAccessData.buffer;
-    }
-
-    virtual const char16_t* characters16() const
-    {
-        ASSERT(!has8BitContent());
-        return (const char16_t*)m_bufferAccessData.buffer;
-    }
-
-    char16_t bufferedCharAt(const size_t idx) const
-    {
-        if (m_bufferAccessData.has8BitContent) {
-            return ((const LChar*)m_bufferAccessData.buffer)[idx];
-        } else {
-            return ((const char16_t*)m_bufferAccessData.buffer)[idx];
-        }
-    }
-
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
-protected:
 };
 }
 
