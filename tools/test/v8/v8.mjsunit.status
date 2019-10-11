@@ -654,7 +654,6 @@
   'es6/regexp-tostring' : [SKIP],
   'es6/rest-params' : [SKIP],
   'es6/sloppy-restrictive-block-function' : [SKIP],
-  'es6/string-codepointat' : [SKIP],
   'es6/string-endswith' : [SKIP],
   'es6/string-fromcodepoint' : [SKIP],
   'es6/string-includes' : [SKIP],

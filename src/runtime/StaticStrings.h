@@ -225,6 +225,7 @@ namespace Escargot {
     F(charCodeAt)                 \
     F(clz32)                      \
     F(cosh)                       \
+    F(codePointAt)                \
     F(create)                     \
     F(dbgBreak)                   \
     F(decodeURI)                  \
