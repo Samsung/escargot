@@ -345,8 +345,12 @@ Object* ObjectPropertyDescriptor::fromObjectPropertyDescriptor(ExecutionState& s
         // 4.a Perform CreateDataProperty(obj, "value", Desc.[[Value]]).
         // 5. If Desc has a [[Writable]] field, then
         // 5.a Perform CreateDataProperty(obj, "writable", Desc.[[Writable]]).
-        obj->defineOwnProperty(state, ObjectPropertyName(state, strings->value.string()), ObjectPropertyDescriptor(desc.isValuePresent() ? desc.value() : Value(), ObjectPropertyDescriptor::AllPresent));
-        obj->defineOwnProperty(state, ObjectPropertyName(state, strings->writable.string()), ObjectPropertyDescriptor(Value(desc.isWritable()), ObjectPropertyDescriptor::AllPresent));
+        if (desc.isValuePresent()) {
+            obj->defineOwnProperty(state, ObjectPropertyName(state, strings->value.string()), ObjectPropertyDescriptor(desc.value(), ObjectPropertyDescriptor::AllPresent));
+        }
+        if (desc.isWritablePresent()) {
+            obj->defineOwnProperty(state, ObjectPropertyName(state, strings->writable.string()), ObjectPropertyDescriptor(Value(desc.isWritable()), ObjectPropertyDescriptor::AllPresent));
+        }
     } else {
         ASSERT(desc.hasJSGetter() || desc.hasJSSetter());
         // 6. If Desc has a [[Get]] field, then
@@ -362,10 +366,14 @@ Object* ObjectPropertyDescriptor::fromObjectPropertyDescriptor(ExecutionState& s
     }
     // 8. If Desc has an [[Enumerable]] field, then
     // 8.a. Perform CreateDataProperty(obj, "enumerable", Desc.[[Enumerable]]).
-    obj->defineOwnProperty(state, ObjectPropertyName(state, strings->enumerable.string()), ObjectPropertyDescriptor(Value(desc.isEnumerable()), ObjectPropertyDescriptor::AllPresent));
+    if (desc.isEnumerablePresent()) {
+        obj->defineOwnProperty(state, ObjectPropertyName(state, strings->enumerable.string()), ObjectPropertyDescriptor(Value(desc.isEnumerable()), ObjectPropertyDescriptor::AllPresent));
+    }
     // 9. If Desc has a [[Configurable]] field, then
     // 9.a. Perform CreateDataProperty(obj , "configurable", Desc.[[Configurable]]).
-    obj->defineOwnProperty(state, ObjectPropertyName(state, strings->configurable.string()), ObjectPropertyDescriptor(Value(desc.isConfigurable()), ObjectPropertyDescriptor::AllPresent));
+    if (desc.isConfigurablePresent()) {
+        obj->defineOwnProperty(state, ObjectPropertyName(state, strings->configurable.string()), ObjectPropertyDescriptor(Value(desc.isConfigurable()), ObjectPropertyDescriptor::AllPresent));
+    }
     // 10. Assert: all of the above CreateDataProperty operations return true.
     // 11. Return obj.
     return obj;

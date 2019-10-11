@@ -259,6 +259,11 @@ public:
         return false;
     }
 
+    virtual bool isArrayIteratorPrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isStringIteratorObject() const
     {
         return false;

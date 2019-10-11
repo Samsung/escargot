@@ -165,49 +165,55 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         }
         // Let iterator be ? GetIterator(items, usingIterator).
         Value iterator = getIterator(state, items, usingIterator);
-        try {
-            // Let k be 0.
-            int64_t k = 0;
-            // Repeat
-            while (true) {
-                // If k ≥ 2^53-1, then
-                if (k >= ((1LL << 53LL) - 1LL)) {
-                    // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
-                    // Return ? IteratorClose(iterator, error).
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
-                }
-                // Let Pk be ! ToString(k).
-                ObjectPropertyName pk(state, k);
-                // Let next be ? IteratorStep(iterator).
-                Value next = iteratorStep(state, iterator);
-                // If next is false, then
-                if (next.isFalse()) {
-                    // Perform ? Set(A, "length", k, true).
-                    A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
-                    // Return A.
-                    return A;
-                }
-                // Let nextValue be ? IteratorValue(next).
-                Value nextValue = iteratorValue(state, next);
-                Value mappedValue;
-                // If mapping is true, then
-                if (mapping) {
-                    // Let mappedValue be Call(mapfn, T, « nextValue, k »).
-                    // If mappedValue is an abrupt completion, return ? IteratorClose(iterator, mappedValue).
-                    // Let mappedValue be mappedValue.[[Value]].
-                    Value argv[] = { nextValue, Value(k) };
+
+        // Let k be 0.
+        int64_t k = 0;
+        // Repeat
+        while (true) {
+            // If k ≥ 2^53-1, then
+            if (k >= ((1LL << 53LL) - 1LL)) {
+                // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
+                // Return ? IteratorClose(iterator, error).
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
+            }
+            // Let Pk be ! ToString(k).
+            ObjectPropertyName pk(state, k);
+            // Let next be ? IteratorStep(iterator).
+            Value next = iteratorStep(state, iterator);
+            // If next is false, then
+            if (next.isFalse()) {
+                // Perform ? Set(A, "length", k, true).
+                A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
+                // Return A.
+                return A;
+            }
+            // Let nextValue be ? IteratorValue(next).
+            Value nextValue = iteratorValue(state, next);
+            Value mappedValue;
+            // If mapping is true, then
+            if (mapping) {
+                // Let mappedValue be Call(mapfn, T, « nextValue, k »).
+                // If mappedValue is an abrupt completion, return ? IteratorClose(iterator, mappedValue).
+                // Let mappedValue be mappedValue.[[Value]].
+                Value argv[] = { nextValue, Value(k) };
+                try {
                     mappedValue = Object::call(state, mapfn, T, 2, argv);
-                } else {
-                    mappedValue = nextValue;
+                } catch (const Value& v) {
+                    Value exceptionValue = v;
+                    return iteratorClose(state, iterator, exceptionValue, true);
                 }
+            } else {
+                mappedValue = nextValue;
+            }
+            try {
                 // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
                 A->defineOwnPropertyThrowsException(state, pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
-                // Increase k by 1.
-                k++;
+            } catch (const Value& v) {
+                Value exceptionValue = v;
+                return iteratorClose(state, iterator, exceptionValue, true);
             }
-        } catch (const Value& v) {
-            Value exceptionValue = v;
-            iteratorClose(state, iterator, exceptionValue, true);
+            // Increase k by 1.
+            k++;
         }
     }
     // NOTE: items is not an Iterable so assume it is an array-like object.
@@ -1770,12 +1776,25 @@ static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isArrayIteratorObject()) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isArrayIteratorObject() || thisValue.asObject()->asIteratorObject()->isArrayIteratorPrototypeObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
     }
     ArrayIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asArrayIteratorObject();
     return iter->next(state);
 }
+
+class ArrayIteratorPrototypeObject : public ArrayIteratorObject {
+public:
+    explicit ArrayIteratorPrototypeObject(ExecutionState& state, Object* array, ArrayIteratorObject::Type type)
+        : ArrayIteratorObject(state, array, type)
+    {
+    }
+
+    virtual bool isArrayIteratorPrototypeObject() const override
+    {
+        return true;
+    }
+};
 
 void GlobalObject::installArray(ExecutionState& state)
 {
@@ -1891,7 +1910,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 
     m_arrayIteratorPrototype = m_iteratorPrototype;
-    m_arrayIteratorPrototype = new ArrayIteratorObject(state, nullptr, ArrayIteratorObject::TypeKey);
+    m_arrayIteratorPrototype = new ArrayIteratorPrototypeObject(state, nullptr, ArrayIteratorObject::TypeKey);
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinArrayIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
