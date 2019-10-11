@@ -35,6 +35,9 @@
 
 namespace Escargot {
 
+COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS == (PROPERTY_NAME_ATOMIC_STRING_VIAS << 1), "");
+COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS <= (1 << 3), "");
+
 PropertyName::PropertyName(ExecutionState& state, const Value& valueIn)
 {
     Value value = valueIn.toPrimitive(state, Value::PreferString);
