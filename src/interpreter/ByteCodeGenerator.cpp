@@ -122,7 +122,13 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     }
     ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), inWithFromRuntime || codeBlock->inWith());
 
-    Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* nData = &scopeCtx->m_numeralLiteralData;
+    NumeralLiteralVector* nData = nullptr;
+
+    if (ast->type() == ASTNodeType::Program) {
+        nData = &((ProgramNode*)ast)->numeralLiteralVector();
+    } else {
+        nData = &((FunctionNode*)ast)->numeralLiteralVector();
+    }
 
     if (nData->size() == 0) {
         nData = nullptr;

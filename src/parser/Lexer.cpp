@@ -508,6 +508,37 @@ StringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
     return StringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
 }
 
+double Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
+{
+    if (this->hasNonComputedNumberLiteral) {
+        const auto& bd = scannerInstance->source.bufferAccessData();
+        char* buffer;
+        int length = this->end - this->start;
+
+        if (bd.has8BitContent) {
+            buffer = ((char*)bd.buffer) + this->start;
+        } else {
+            buffer = ALLOCA(this->end - this->start, char, ec);
+
+            for (int i = 0; i < length; i++) {
+                buffer[i] = bd.uncheckedCharAtFor16Bit(i + this->start);
+            }
+        }
+
+        int lengthDummy;
+        double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_HEX
+                                                                 | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
+                                                                 | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES,
+                                                             0.0, double_conversion::Double::NaN(),
+                                                             "Infinity", "NaN");
+        double ll = converter.StringToDouble(buffer, length, &lengthDummy);
+
+        this->valueNumber = ll;
+        this->hasNonComputedNumberLiteral = false;
+    }
+    return this->valueNumber;
+}
+
 void Scanner::ScannerResult::constructStringLiteralHelperAppendUTF16(Scanner* scannerInstance, char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1)
 {
     switch (ch) {
@@ -844,9 +875,7 @@ uint16_t Scanner::octalToDecimal(char16_t ch, bool octal)
 
 void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
 {
-    ASSERT(token != nullptr);
-    token->setResult(Token::PunctuatorToken, this->lineNumber, this->lineStart, this->index, this->index);
-
+    const size_t start = this->index;
     PunctuatorKind kind;
     // Check for most common single-character punctuators.
     ++this->index;
@@ -1068,8 +1097,7 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         break;
     }
 
-    token->valuePunctuatorKind = kind;
-    token->end = this->index;
+    token->setPunctuatorResult(this->lineNumber, this->lineStart, start, this->index, kind);
 }
 
 void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
@@ -1110,10 +1138,10 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
 
     if (shouldUseDouble) {
         ASSERT(number == 0);
-        token->setResult(Token::NumericLiteralToken, numberDouble, this->lineNumber, this->lineStart, start, this->index);
+        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, false);
     } else {
         ASSERT(numberDouble == 0.0);
-        token->setResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
+        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false);
     }
 }
 
@@ -1146,7 +1174,7 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
         }
     }
 
-    token->setResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false);
 }
 
 void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start)
@@ -1176,7 +1204,7 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
         throwUnexpectedToken();
     }
 
-    token->setResult(Token::NumericLiteralToken, number, this->lineNumber, this->lineStart, start, this->index);
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false);
     token->octal = octal;
 }
 
@@ -1205,13 +1233,10 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     ASSERT(isDecimalDigit(ch) || (ch == '.'));
     // 'Numeric literal must start with a decimal digit or a decimal point');
 
-    std::string number;
-    number.reserve(32);
-
     bool seenDotOrE = false;
 
     if (ch != '.') {
-        number = this->peekChar();
+        auto number = this->peekChar();
         ++this->index;
         ch = this->peekChar();
 
@@ -1219,7 +1244,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
         // Octal number starts with '0'.
         // Octal number in ES6 starts with '0o'.
         // Binary number in ES6 starts with '0b'.
-        if (number == "0") {
+        if (number == '0') {
             if (ch == 'x' || ch == 'X') {
                 ++this->index;
                 return this->scanHexLiteral(token, start);
@@ -1239,7 +1264,6 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
         }
 
         while (isDecimalDigit(this->peekChar())) {
-            number += this->peekChar();
             ++this->index;
         }
         ch = this->peekChar();
@@ -1247,10 +1271,8 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
 
     if (ch == '.') {
         seenDotOrE = true;
-        number += this->peekChar();
         ++this->index;
         while (isDecimalDigit(this->peekChar())) {
-            number += this->peekChar();
             ++this->index;
         }
         ch = this->peekChar();
@@ -1258,19 +1280,16 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
 
     if (ch == 'e' || ch == 'E') {
         seenDotOrE = true;
-        number += this->peekChar();
         ++this->index;
 
         ch = this->peekChar();
         if (ch == '+' || ch == '-') {
-            number += ch;
             ++this->index;
             ch = this->peekChar();
         }
 
         if (isDecimalDigit(ch)) {
             do {
-                number += ch;
                 ++this->index;
                 ch = this->peekChar();
             } while (isDecimalDigit(ch));
@@ -1283,17 +1302,8 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
         this->throwUnexpectedToken();
     }
 
-    int length = number.length();
-    int length_dummy;
-    double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_HEX
-                                                             | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
-                                                             | double_conversion::StringToDoubleConverter::ALLOW_TRAILING_SPACES,
-                                                         0.0, double_conversion::Double::NaN(),
-                                                         "Infinity", "NaN");
-    double ll = converter.StringToDouble(number.data(), length, &length_dummy);
-
-    token->setResult(Token::NumericLiteralToken, ll, this->lineNumber, this->lineStart, start, this->index);
-    if (startChar == '0' && !seenDotOrE && number.length() > 1) {
+    token->setNumericLiteralResult(0, this->lineNumber, this->lineStart, start, this->index, true);
+    if (startChar == '0' && !seenDotOrE && (this->index - start) > 1) {
         token->startWithZero = true;
     }
 }
@@ -1371,12 +1381,10 @@ void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
     }
 
     if (isPlainCase) {
-        token->setResult(Token::StringLiteralToken, start + 1, this->index - 1, this->lineNumber, this->lineStart, start, this->index);
-        token->octal = octal;
+        token->setResult(Token::StringLiteralToken, start + 1, this->index - 1, this->lineNumber, this->lineStart, start, this->index, octal);
     } else {
         // build string if needs
-        token->setResult(Token::StringLiteralToken, (String*)nullptr, this->lineNumber, this->lineStart, start, this->index);
-        token->octal = octal;
+        token->setResult(Token::StringLiteralToken, (String*)nullptr, this->lineNumber, this->lineStart, start, this->index, octal);
     }
 }
 
@@ -1534,7 +1542,7 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
         start--;
     }
 
-    token->setResult(Token::TemplateToken, result, this->lineNumber, this->lineStart, start, this->index);
+    token->setTemplateTokenResult(result, this->lineNumber, this->lineStart, start, this->index);
 }
 
 String* Scanner::scanRegExpBody()
@@ -1835,9 +1843,7 @@ ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16
     if (data.length == 1) {
         type = Token::IdentifierToken;
     } else if ((keywordKind = isKeyword(data))) {
-        token->setResult(Token::KeywordToken, this->lineNumber, this->lineStart, start, this->index);
-        token->valueKeywordKind = keywordKind;
-        token->hasKeywordButUseString = false;
+        token->setKeywordResult(this->lineNumber, this->lineStart, start, this->index, keywordKind);
         return;
     } else if (data.length == 4) {
         if (data.equalsSameLength("null")) {

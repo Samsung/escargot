@@ -109,6 +109,7 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
         m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
         return;
     }
+
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         ec->insert(name);

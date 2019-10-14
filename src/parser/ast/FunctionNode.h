@@ -28,10 +28,11 @@ namespace Escargot {
 
 class FunctionNode : public StatementNode {
 public:
-    FunctionNode(StatementContainer* params, BlockStatementNode* body)
+    FunctionNode(StatementContainer* params, BlockStatementNode* body, NumeralLiteralVector&& numeralLiteralVector)
         : StatementNode()
         , m_params(params)
         , m_body(body)
+        , m_numeralLiteralVector(std::move(numeralLiteralVector))
     {
     }
 
@@ -39,6 +40,7 @@ public:
     {
     }
 
+    NumeralLiteralVector& numeralLiteralVector() { return m_numeralLiteralVector; }
     virtual ASTNodeType type() override { return ASTNodeType::Function; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
@@ -55,6 +57,7 @@ public:
 private:
     RefPtr<StatementContainer> m_params;
     RefPtr<BlockStatementNode> m_body;
+    NumeralLiteralVector m_numeralLiteralVector;
 };
 }
 

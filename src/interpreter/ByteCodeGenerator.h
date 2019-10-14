@@ -70,7 +70,7 @@ struct ByteCodeGenerateError {
 };
 
 struct ByteCodeGenerateContext {
-    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* numeralLiteralData)
+    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, NumeralLiteralVector* numeralLiteralData)
         : m_baseRegisterCount(0)
         , m_codeBlock(codeBlock)
         , m_byteCodeBlock(byteCodeBlock)
@@ -344,7 +344,7 @@ struct ByteCodeGenerateContext {
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     size_t m_maxYieldStatementExtraDataLength;
-    Vector<Value, GCUtil::gc_malloc_atomic_allocator<Value>>* m_numeralLiteralData;
+    NumeralLiteralVector* m_numeralLiteralData;
 };
 
 class ByteCodeGenerator {
