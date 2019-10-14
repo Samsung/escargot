@@ -65,7 +65,7 @@ public:
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
-            nd = nd->nextSilbing();
+            nd = nd->nextSibling();
         }
 
         ASSERT(rIndex0 == newContext.getLastRegisterIndex());
@@ -80,7 +80,7 @@ public:
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
-            nd = nd->nextSilbing();
+            nd = nd->nextSibling();
         }
 
         newContext.giveUpRegister();
@@ -95,7 +95,7 @@ public:
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
             codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
-            nd = nd->nextSilbing();
+            nd = nd->nextSibling();
         }
         if (m_default) {
             codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();
@@ -106,7 +106,7 @@ public:
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
             codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
-            nd = nd->nextSilbing();
+            nd = nd->nextSibling();
         }
         size_t breakPos = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, breakPos, context->tryCatchWithBlockStatementCount());

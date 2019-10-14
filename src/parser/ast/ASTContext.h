@@ -169,8 +169,8 @@ struct ASTFunctionScopeContext : public gc {
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 
-    // TODO save these scopes as linked-list
-    Vector<ASTFunctionScopeContext *, GCUtil::gc_malloc_allocator<ASTFunctionScopeContext *>> m_childScopes;
+    ASTFunctionScopeContext *m_firstChild;
+    ASTFunctionScopeContext *m_nextSibling;
     ASTBlockScopeContextVector m_childBlockScopes;
 
     // we can use atomic allocator here because there is no pointer value on Vector<m_numeralLiteralData>
@@ -186,6 +186,30 @@ struct ASTFunctionScopeContext : public gc {
 
     void *operator new(size_t size);
     void *operator new[](size_t size) = delete;
+
+    void appendChild(ASTFunctionScopeContext *child)
+    {
+        ASSERT(child->m_nextSibling == nullptr);
+        if (m_firstChild == nullptr) {
+            m_firstChild = child;
+        } else {
+            ASTFunctionScopeContext *tail = firstChild();
+            while (tail->m_nextSibling != nullptr) {
+                tail = tail->m_nextSibling;
+            }
+            tail->m_nextSibling = child;
+        }
+    }
+
+    ASTFunctionScopeContext *firstChild()
+    {
+        return m_firstChild;
+    }
+
+    ASTFunctionScopeContext *nextSibling()
+    {
+        return m_nextSibling;
+    }
 
     bool hasVarName(AtomicString name)
     {
@@ -402,6 +426,8 @@ struct ASTFunctionScopeContext : public gc {
         , m_allowSuperProperty(false)
         , m_nodeType(ASTNodeType::Program)
         , m_lexicalBlockIndexFunctionLocatedIn(LEXICAL_BLOCK_INDEX_MAX)
+        , m_firstChild(nullptr)
+        , m_nextSibling(nullptr)
         , m_paramsStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG

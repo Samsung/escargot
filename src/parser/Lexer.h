@@ -228,11 +228,18 @@ extern const char* TemplateOctalLiteral;
 
 class Scanner {
 public:
+    struct ScannerSourceStringView {
+        union {
+            String* m_stringIfNewlyAllocated;
+            size_t m_start;
+        };
+        size_t m_end;
+    };
+
     class ScannerResult {
     public:
         ScannerResult()
-            : scanner(nullptr)
-            , type(InvalidToken)
+            : type(InvalidToken)
             , startWithZero(false)
             , octal(false)
             , hasAllocatedString(false)
@@ -246,25 +253,12 @@ public:
         {
         }
 
-        ~ScannerResult() {}
-        ScannerResult(const ScannerResult& src)
-        {
-            from(src);
-        }
-
-        const ScannerResult& operator=(const ScannerResult& src)
-        {
-            from(src);
-            return *this;
-        }
-
-        Scanner* scanner;
         unsigned char type : 4;
         bool startWithZero : 1;
         bool octal : 1;
         bool hasAllocatedString : 1;
         bool hasKeywordButUseString : 1;
-        char prec : 8; // max prec is 11
+        unsigned char prec : 8; // max prec is 11
         // we don't needs init prec.
         // prec is initialized by another function before use
 
@@ -275,16 +269,16 @@ public:
 
         union {
             PunctuatorKind valuePunctuatorKind;
-            StringView valueStringLiteralData;
+            ScannerSourceStringView valueStringLiteralData;
             double valueNumber;
             ScanTemplateResult* valueTemplate;
             ScanRegExpResult valueRegexp;
             KeywordKind valueKeywordKind;
         };
 
-        StringView relatedSource();
-        StringView valueStringLiteral();
-        Value valueStringLiteralForAST();
+        StringView relatedSource(const StringView& source);
+        StringView valueStringLiteral(Scanner* scannerInstance);
+        Value valueStringLiteralForAST(Scanner* scannerInstance);
 
         inline operator bool() const
         {
@@ -296,28 +290,8 @@ public:
             this->type = InvalidToken;
         }
 
-#if defined(COMPILER_GCC)
-#pragma GCC push_options
-#pragma GCC optimize("unroll-loops")
-#endif
-        inline void from(const ScannerResult& src)
+        void setResult(Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
-            size_t* d = (size_t*)this;
-            size_t* s = (size_t*)&src;
-#if defined(COMPILER_CLANG)
-#pragma unroll
-#endif
-            for (size_t i = 0; i < sizeof(ScannerResult) / sizeof(size_t); i++) {
-                d[i] = s[i];
-            }
-        }
-#if defined(COMPILER_GCC)
-#pragma GCC pop_options
-#endif
-
-        void setResult(Scanner* scanner, Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
-        {
-            this->scanner = scanner;
             this->type = type;
             this->startWithZero = false;
             this->octal = false;
@@ -330,28 +304,40 @@ public:
             this->valueNumber = 0;
         }
 
-        void setResult(Scanner* scanner, Token type, const StringView& valueString, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasAllocatedString)
+        void setResult(Token type, String* s, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
-            this->scanner = scanner;
             this->type = type;
             this->startWithZero = false;
             this->octal = false;
-            this->hasAllocatedString = hasAllocatedString;
             this->hasKeywordButUseString = true;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
             this->end = end;
-            // NOTE
-            // we can not use `=` operator like
-            // this->valueStringLiteralData = valueString;
-            // because operator= don't setup internal _vptr(gcc)
-            new (&this->valueStringLiteralData) StringView(valueString);
+
+            this->hasAllocatedString = true;
+            this->valueStringLiteralData.m_stringIfNewlyAllocated = s;
         }
 
-        void setResult(Scanner* scanner, Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setResult(Token type, size_t stringStart, size_t stringEnd, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
-            this->scanner = scanner;
+            this->type = type;
+            this->startWithZero = false;
+            this->octal = false;
+            this->hasKeywordButUseString = true;
+            this->lineNumber = lineNumber;
+            this->lineStart = lineStart;
+            this->start = start;
+            this->end = end;
+
+            this->hasAllocatedString = false;
+            this->valueStringLiteralData.m_start = stringStart;
+            this->valueStringLiteralData.m_end = stringEnd;
+            ASSERT(this->valueStringLiteralData.m_start <= this->valueStringLiteralData.m_end);
+        }
+
+        void setResult(Token type, double value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        {
             this->type = type;
             this->startWithZero = false;
             this->octal = false;
@@ -364,9 +350,8 @@ public:
             this->valueNumber = value;
         }
 
-        void setResult(Scanner* scanner, Token type, ScanTemplateResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
+        void setResult(Token type, ScanTemplateResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
-            this->scanner = scanner;
             this->type = type;
             this->startWithZero = false;
             this->octal = false;
@@ -380,8 +365,8 @@ public:
         }
 
     private:
-        void constructStringLiteral();
-        void constructStringLiteralHelperAppendUTF16(char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1);
+        void constructStringLiteral(Scanner* scannerInstance);
+        void constructStringLiteralHelperAppendUTF16(Scanner* scannerInstance, char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1);
     };
 
     // ScannerResult should be allocated on the stack by ALLOCA
@@ -548,8 +533,9 @@ private:
 
     uint16_t octalToDecimal(char16_t ch, bool octal);
 
-    StringView getIdentifier();
-    StringView getComplexIdentifier();
+    typedef std::tuple<StringBufferAccessData, String*> ScanIDResult;
+    ScanIDResult getIdentifier();
+    ScanIDResult getComplexIdentifier();
 
     // ECMA-262 11.7 Punctuators
     void scanPunctuator(Scanner::ScannerResult* token, char16_t ch0);

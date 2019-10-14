@@ -227,7 +227,6 @@ namespace Escargot {
     F(cosh)                       \
     F(codePointAt)                \
     F(create)                     \
-    F(dbgBreak)                   \
     F(decodeURI)                  \
     F(decodeURIComponent)         \
     F(defineProperties)           \

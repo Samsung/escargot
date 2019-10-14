@@ -146,7 +146,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         StringRef* src = StringRef::emptyString();
         std::string utf8Str;
         std::basic_string<unsigned char, std::char_traits<unsigned char>> str;
-        char buf[8];
+        char buf[512];
         bool hasNonLatin1Content = false;
         size_t readLen;
         while ((readLen = fread(buf, 1, sizeof buf, fp))) {

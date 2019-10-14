@@ -140,7 +140,7 @@ public:
     Marker startMarker;
     Marker lastMarker;
 
-    Vector<ASTFunctionScopeContext*, GCUtil::gc_malloc_allocator<ASTFunctionScopeContext*>> scopeContexts;
+    ASTFunctionScopeContext* currentScopeContext;
     ASTFunctionScopeContext* lastPoppedScopeContext;
 
     AtomicString lastUsingName;
@@ -193,6 +193,7 @@ public:
         this->lexicalBlockCount = 0;
         this->subCodeBlockIndex = 0;
         this->lastPoppedScopeContext = nullptr;
+        this->currentScopeContext = nullptr;
         this->trackUsingNames = true;
         this->isParsingSingleFunction = false;
         this->codeBlock = nullptr;
@@ -257,7 +258,7 @@ public:
             this->scanner->lex(next);
             this->hasLineTerminator = false;
 
-            if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource())) {
+            if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
                 next->type = Token::KeywordToken;
             }
         }
@@ -266,18 +267,18 @@ public:
         this->lastMarker.lineStart = this->scanner->lineStart;
     }
 
-    ASTFunctionScopeContext* popScopeContext(const MetaNode& node)
+    ASTFunctionScopeContext* popScopeContext(ASTFunctionScopeContext* lastPushedScopeContext)
     {
-        auto ret = scopeContexts.back();
-        scopeContexts.pop_back();
+        auto ret = this->currentScopeContext;
         this->lastUsingName = AtomicString();
         this->lastPoppedScopeContext = ret;
+        this->currentScopeContext = lastPushedScopeContext;
         return ret;
     }
 
     void pushScopeContext(ASTFunctionScopeContext* ctx)
     {
-        scopeContexts.push_back(ctx);
+        this->currentScopeContext = ctx;
         this->lastUsingName = AtomicString();
     }
 
@@ -286,7 +287,7 @@ public:
         if (this->lastUsingName == name) {
             return;
         }
-        scopeContexts.back()->insertUsingName(name, this->lexicalBlockIndex);
+        this->currentScopeContext->insertUsingName(name, this->lexicalBlockIndex);
         this->lastUsingName = name;
     }
 
@@ -302,11 +303,11 @@ public:
 #ifndef NDEBUG
         bool shouldHaveEqualNumberOfParameterListAndParameterName = true;
 #endif
-        scopeContexts.back()->m_parameters.resizeWithUninitializedValues(params.size());
+        this->currentScopeContext->m_parameters.resizeWithUninitializedValues(params.size());
         for (size_t i = 0; i < params.size(); i++) {
             switch (params[i]->type()) {
             case Identifier: {
-                scopeContexts.back()->m_parameters[i] = params[i]->asIdentifier()->name();
+                this->currentScopeContext->m_parameters[i] = params[i]->asIdentifier()->name();
                 break;
             }
             case AssignmentPattern: {
@@ -320,7 +321,7 @@ public:
                     shouldHaveEqualNumberOfParameterListAndParameterName = false;
                 }
 #endif
-                scopeContexts.back()->m_parameters[i] = id;
+                this->currentScopeContext->m_parameters[i] = id;
                 break;
             }
             case ArrayPattern:
@@ -329,7 +330,7 @@ public:
 #ifndef NDEBUG
                 shouldHaveEqualNumberOfParameterListAndParameterName = false;
 #endif
-                scopeContexts.back()->m_parameters[i] = AtomicString();
+                this->currentScopeContext->m_parameters[i] = AtomicString();
                 break;
             }
             case RestElement: {
@@ -337,7 +338,7 @@ public:
 #ifndef NDEBUG
                 shouldHaveEqualNumberOfParameterListAndParameterName = false;
 #endif
-                scopeContexts.back()->m_parameters.erase(i);
+                this->currentScopeContext->m_parameters.erase(i);
                 break;
             }
             default: {
@@ -350,9 +351,9 @@ public:
             ASSERT(params.size() == paramNames.size());
         }
 #endif
-        scopeContexts.back()->m_hasParameterOtherThanIdentifier = hasParameterOtherThanIdentifier;
+        this->currentScopeContext->m_hasParameterOtherThanIdentifier = hasParameterOtherThanIdentifier;
         for (size_t i = 0; i < paramNames.size(); i++) {
-            scopeContexts.back()->insertVarName(paramNames[i], 0, true);
+            this->currentScopeContext->insertVarName(paramNames[i], 0, true);
         }
 
         // Check if any identifier names are duplicated.
@@ -371,22 +372,24 @@ public:
         }
     }
 
-    void pushScopeContext(AtomicString functionName)
+    ASTFunctionScopeContext* pushScopeContext(AtomicString functionName)
     {
+        auto parentContext = this->currentScopeContext;
         this->subCodeBlockIndex++;
         if (this->isParsingSingleFunction) {
             fakeContext = ASTFunctionScopeContext();
             pushScopeContext(&fakeContext);
-            return;
+            return parentContext;
         }
-        auto parentContext = scopeContexts.back();
         pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
-        scopeContexts.back()->m_functionName = functionName;
-        scopeContexts.back()->m_inWith = this->context->inWith;
+        this->currentScopeContext->m_functionName = functionName;
+        this->currentScopeContext->m_inWith = this->context->inWith;
 
         if (parentContext) {
-            parentContext->m_childScopes.push_back(scopeContexts.back());
+            parentContext->appendChild(this->currentScopeContext);
         }
+
+        return parentContext;
     }
 
     void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
@@ -474,16 +477,16 @@ public:
                 msg = checkTokenIdentifier(token->type);
 
                 if (token->type == Token::KeywordToken) {
-                    if (this->scanner->isFutureReservedWord(token->relatedSource())) {
+                    if (this->scanner->isFutureReservedWord(token->relatedSource(this->scanner->source))) {
                         msg = Messages::UnexpectedReserved;
-                    } else if (this->context->strict && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
+                    } else if (this->context->strict && this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
                         msg = Messages::StrictReservedWord;
                     }
                 }
             } else if (token->type == Token::EOFToken) {
                 msg = Messages::UnexpectedEOS;
             }
-            value = (token->type == Token::TemplateToken) ? (String*)new UTF16String(std::move(token->valueTemplate->valueRaw)) : (String*)new StringView(token->relatedSource());
+            value = (token->type == Token::TemplateToken) ? (String*)new UTF16String(std::move(token->valueTemplate->valueRaw)) : (String*)new StringView(token->relatedSource(this->scanner->source));
         } else {
             value = new ASCIIString("ILLEGAL");
         }
@@ -534,7 +537,7 @@ public:
         this->scanner->lex(next);
         this->hasLineTerminator = tokenLineNumber != next->lineNumber;
 
-        if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource())) {
+        if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
             next->type = Token::KeywordToken;
         }
         //this->lookahead = *next;
@@ -580,16 +583,6 @@ public:
     template <typename T>
     ALWAYS_INLINE PassRefPtr<T> finalize(MetaNode meta, T* node)
     {
-        /*
-        auto type = node->type;
-        if (type == CallExpression) {
-            CallExpressionNode* c = (CallExpressionNode*)node;
-            if (c->callee() && c->callee()->isIdentifier() && ((IdentifierNode*)c->callee())->name() == this->escargotContext->staticStrings().eval) {
-                scopeContexts.back()->m_hasEval = true;
-            }
-        }
-        */
-
         node->m_loc = NodeLOC(meta.index);
         return adoptRef(node);
     }
@@ -646,7 +639,7 @@ public:
 
     bool matchContextualKeyword(const char* keyword)
     {
-        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteralData.equals(keyword);
+        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteral(this->scanner).equals(keyword);
     }
 
     // Return true if the next token is an assignment operator
@@ -869,7 +862,7 @@ public:
     {
         ASSERT(token != nullptr);
         ASTIdentifierNode ret;
-        StringView sv = token->valueStringLiteral();
+        StringView sv = token->valueStringLiteral(this->scanner);
         const auto& a = sv.bufferAccessData();
         char16_t firstCh = a.charAt(0);
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
@@ -920,10 +913,10 @@ public:
                 // raw = this->getTokenRaw(token);
                 if (token->type == Token::NumericLiteralToken) {
                     if (this->context->inLoop || token->valueNumber == 0)
-                        this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
+                        this->currentScopeContext->insertNumeralLiteral(Value(token->valueNumber));
                     return this->finalize(node, builder.createLiteralNode(Value(token->valueNumber)));
                 } else {
-                    return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST()));
+                    return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST(this->scanner)));
                 }
             }
             break;
@@ -936,8 +929,8 @@ public:
             // token.value = (token.value === 'true');
             // raw = this->getTokenRaw(token);
             {
-                bool value = token->relatedSource() == "true";
-                this->scopeContexts.back()->insertNumeralLiteral(Value(value));
+                bool value = token->relatedSource(this->scanner->source) == "true";
+                this->currentScopeContext->insertNumeralLiteral(Value(value));
                 return this->finalize(node, builder.createLiteralNode(Value(value)));
             }
             break;
@@ -950,7 +943,7 @@ public:
             this->nextToken(token);
             // token.value = null;
             // raw = this->getTokenRaw(token);
-            this->scopeContexts.back()->insertNumeralLiteral(Value(Value::Null));
+            this->currentScopeContext->insertNumeralLiteral(Value(Value::Null));
             return this->finalize(node, builder.createLiteralNode(Value(Value::Null)));
         }
         case Token::TemplateToken:
@@ -1223,7 +1216,7 @@ public:
             param = this->parsePatternWithDefault(builder, params);
         }
         for (size_t i = 0; i < params.size(); i++) {
-            AtomicString as(this->escargotContext, params[i].relatedSource());
+            AtomicString as(this->escargotContext, params[i].relatedSource(this->scanner->source));
             this->validateParam(options, &params[i], as);
         }
         options.params.push_back(param);
@@ -1351,7 +1344,8 @@ public:
 
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
-        pushScopeContext(AtomicString());
+
+        auto oldScopeContext = pushScopeContext(AtomicString());
         ParseFormalParametersResult params = this->parseFormalParameters();
         extractNamesFromFunctionParams(params);
         ASTNode method = this->parsePropertyMethod(builder, params);
@@ -1361,16 +1355,16 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->allowSuperCall = previousAllowSuperCall;
 
-        scopeContexts.back()->m_paramsStartLOC.index = node.index;
-        scopeContexts.back()->m_paramsStartLOC.column = node.column;
-        scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        scopeContexts.back()->m_allowSuperProperty = true;
+        this->currentScopeContext->m_paramsStartLOC.index = node.index;
+        this->currentScopeContext->m_paramsStartLOC.column = node.column;
+        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
         if (allowSuperCall) {
-            scopeContexts.back()->m_allowSuperCall = true;
+            this->currentScopeContext->m_allowSuperCall = true;
         }
-        scopeContexts.back()->m_nodeType = ASTNodeType::FunctionExpression;
-        scopeContexts.back()->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
     }
 
     template <class ASTBuilder>
@@ -1394,12 +1388,13 @@ public:
             {
                 Value v;
                 if (token->type == Token::NumericLiteralToken) {
-                    if (this->context->inLoop || token->valueNumber == 0)
-                        this->scopeContexts.back()->insertNumeralLiteral(Value(token->valueNumber));
+                    if (this->context->inLoop || token->valueNumber == 0) {
+                        this->currentScopeContext->insertNumeralLiteral(Value(token->valueNumber));
+                    }
                     v = Value(token->valueNumber);
                 } else {
-                    keyString = token->valueStringLiteral();
-                    v = Value(token->valueStringLiteralForAST());
+                    keyString = token->valueStringLiteral(this->scanner);
+                    v = Value(token->valueStringLiteralForAST(this->scanner));
                 }
                 key = this->finalize(node, builder.createLiteralNode(v));
             }
@@ -1464,7 +1459,7 @@ public:
         bool isSet = false;
         bool needImplictName = false;
         if (token->type == Token::IdentifierToken && lookaheadPropertyKey) {
-            StringView sv = token->valueStringLiteral();
+            StringView sv = token->valueStringLiteral(this->scanner);
             const auto& d = sv.bufferAccessData();
             if (d.length == 3) {
                 if (d.equalsSameLength("get")) {
@@ -1817,9 +1812,9 @@ public:
 
         if (this->match(Period)) {
             this->nextToken();
-            if (this->lookahead.type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead.relatedSource() == "target") {
+            if (this->lookahead.type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead.relatedSource(this->scanner->source) == "target") {
                 this->nextToken();
-                scopeContexts.back()->m_hasSuperOrNewTarget = true;
+                this->currentScopeContext->m_hasSuperOrNewTarget = true;
                 MetaNode node = this->createNode();
                 return this->finalize(node, builder.createMetaPropertyNode());
             } else {
@@ -1851,7 +1846,7 @@ public:
 
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             throwIfSuperOperationIsNotAllowed();
-            scopeContexts.back()->m_hasSuperOrNewTarget = true;
+            this->currentScopeContext->m_hasSuperOrNewTarget = true;
 
             exprNode = this->finalize(this->createNode(), builder.createSuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
         } else if (this->matchKeyword(NewKeyword)) {
@@ -1877,7 +1872,7 @@ public:
                     this->context->isAssignmentTarget = false;
                     // check callee of CallExpressionNode
                     if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
-                        scopeContexts.back()->m_hasEval = true;
+                        this->currentScopeContext->m_hasEval = true;
                     }
                     exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode.get(), this->parseArguments(builder)));
                 } else if (this->lookahead.valuePunctuatorKind == LeftSquareBracket) {
@@ -1893,7 +1888,7 @@ public:
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder);
                 // FIXME convertTaggedTemplateExpressionToCallExpression
-                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode.get(), quasi.get())), scopeContexts.back(), escargotContext->staticStrings().raw);
+                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode.get(), quasi.get())), this->currentScopeContext, escargotContext->staticStrings().raw);
             } else {
                 break;
             }
@@ -1913,7 +1908,7 @@ public:
             this->throwUnexpectedToken(&this->lookahead);
         }
 
-        scopeContexts.back()->m_hasSuperOrNewTarget = true;
+        this->currentScopeContext->m_hasSuperOrNewTarget = true;
 
         return this->finalize(node, builder.createSuperExpressionNode(false));
     }
@@ -1956,7 +1951,7 @@ public:
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder);
                 // FIXME convertTaggedTemplateExpressionToCallExpression
-                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode.get(), quasi.get())), scopeContexts.back(), escargotContext->staticStrings().raw);
+                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode.get(), quasi.get())), this->currentScopeContext, escargotContext->staticStrings().raw);
             } else {
                 break;
             }
@@ -2443,7 +2438,7 @@ public:
                 // FIXME remove repeated parseConditionalExpression call
                 RefPtr<Node> exprParamNode = reparseConditionalExpression(startMarker, exprNode);
 
-                pushScopeContext(AtomicString());
+                auto oldScopeContext = pushScopeContext(AtomicString());
 
                 ParseFormalParametersResult list;
 
@@ -2459,7 +2454,7 @@ public:
                     this->scanner->lineStart = startMarker.lineStart;
                     this->nextToken();
                     this->expect(LeftParenthesis);
-                    scopeContexts.back()->m_hasArrowParameterPlaceHolder = true;
+                    this->currentScopeContext->m_hasArrowParameterPlaceHolder = true;
 
                     list = this->parseFormalParameters();
                 }
@@ -2480,12 +2475,12 @@ public:
                     this->context->allowYield = true;
                     this->context->inArrowFunction = true;
 
-                    scopeContexts.back()->m_allowSuperCall = this->context->allowSuperCall;
-                    scopeContexts.back()->m_allowSuperProperty = this->context->allowSuperProperty;
+                    this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
+                    this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
 
-                    scopeContexts.back()->m_paramsStartLOC.index = startNode.index;
-                    scopeContexts.back()->m_paramsStartLOC.column = startNode.column;
-                    scopeContexts.back()->m_paramsStartLOC.line = startNode.line;
+                    this->currentScopeContext->m_paramsStartLOC.index = startNode.index;
+                    this->currentScopeContext->m_paramsStartLOC.column = startNode.column;
+                    this->currentScopeContext->m_paramsStartLOC.line = startNode.line;
 
                     extractNamesFromFunctionParams(list);
 
@@ -2507,11 +2502,12 @@ public:
                             InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
                             size_t orgIndex = this->lookahead.start;
 
-                            StringView src = currentTarget->childBlocks()[realIndex]->bodySrc();
+                            InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(realIndex);
+                            StringView src = childBlock->bodySrc();
                             this->scanner->index = src.length() + orgIndex;
 
-                            this->scanner->lineNumber = currentTarget->childBlocks()[realIndex]->sourceElementStart().line;
-                            this->scanner->lineStart = currentTarget->childBlocks()[realIndex]->sourceElementStart().index - currentTarget->childBlocks()[realIndex]->sourceElementStart().column;
+                            this->scanner->lineNumber = childBlock->sourceElementStart().line;
+                            this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
                             this->lookahead.lineNumber = this->scanner->lineNumber;
                             this->lookahead.lineStart = this->scanner->lineStart;
                             this->nextToken();
@@ -2540,18 +2536,18 @@ public:
                             this->lexicalBlockCount = lexicalBlockCountBefore;
                             this->nameDeclaredCallback = oldNameCallback;
 
-                            scopeContexts.back()->m_bodyStartLOC.line = bodyStart.line;
-                            scopeContexts.back()->m_bodyStartLOC.column = bodyStart.column;
-                            scopeContexts.back()->m_bodyStartLOC.index = bodyStart.index;
+                            this->currentScopeContext->m_bodyStartLOC.line = bodyStart.line;
+                            this->currentScopeContext->m_bodyStartLOC.column = bodyStart.column;
+                            this->currentScopeContext->m_bodyStartLOC.index = bodyStart.index;
 
-                            scopeContexts.back()->m_bodyEndLOC.index = this->lastMarker.index;
+                            this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
-                            scopeContexts.back()->m_bodyEndLOC.line = this->lastMarker.lineNumber;
-                            scopeContexts.back()->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+                            this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+                            this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
                         }
                     }
-                    this->scopeContexts.back()->m_lexicalBlockIndexFunctionLocatedIn = this->lexicalBlockIndex;
+                    this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = this->lexicalBlockIndex;
 
                     if (this->context->strict && list.firstRestricted) {
                         this->throwUnexpectedToken(&list.firstRestricted, list.message);
@@ -2560,10 +2556,10 @@ public:
                         this->throwUnexpectedToken(&list.stricted, list.message);
                     }
 
-                    this->scopeContexts.back()->m_isArrowFunctionExpression = true;
-                    this->scopeContexts.back()->m_nodeType = ASTNodeType::ArrowFunctionExpression;
-                    this->scopeContexts.back()->m_isGenerator = false;
-                    exprNode = this->finalize(node, builder.createArrowFunctionExpressionNode(popScopeContext(node), subCodeBlockIndex)); //TODO
+                    this->currentScopeContext->m_isArrowFunctionExpression = true;
+                    this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
+                    this->currentScopeContext->m_isGenerator = false;
+                    exprNode = this->finalize(node, builder.createArrowFunctionExpressionNode(popScopeContext(oldScopeContext), subCodeBlockIndex)); //TODO
 
                     this->context->strict = previousStrict;
                     this->context->allowYield = previousAllowYield;
@@ -2772,8 +2768,8 @@ public:
         ctx.lexicalBlockIndexBefore = this->lexicalBlockIndex;
         ctx.childLexicalBlockIndex = this->lexicalBlockCount;
 
-        this->scopeContexts.back()->insertBlockScope(ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
-                                                     ExtendedNodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart + 1, this->lastMarker.index));
+        this->currentScopeContext->insertBlockScope(ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
+                                                    ExtendedNodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart + 1, this->lastMarker.index));
         this->lexicalBlockIndex = ctx.childLexicalBlockIndex;
 
         return ctx;
@@ -2794,18 +2790,21 @@ public:
             }
         } else {
             // if there is no new variable in this block, merge this block into parent block
-            auto currentFunctionScope = this->scopeContexts.back();
+            auto currentFunctionScope = this->currentScopeContext;
             auto blockContext = currentFunctionScope->findBlockFromBackward(this->lexicalBlockIndex);
             if (this->lexicalBlockIndex != 0 && blockContext->m_names.size() == 0) {
                 const auto currentBlockIndex = this->lexicalBlockIndex;
                 LexicalBlockIndex parentBlockIndex = blockContext->m_parentBlockIndex;
 
                 bool isThereFunctionExists = false;
-                for (size_t i = 0; i < currentFunctionScope->m_childScopes.size(); i++) {
-                    if (currentFunctionScope->m_childScopes[i]->m_nodeType == ASTNodeType::FunctionDeclaration
-                        && currentFunctionScope->m_childScopes[i]->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
+
+                ASTFunctionScopeContext* child = currentFunctionScope->m_firstChild;
+                while (child) {
+                    if (child->m_nodeType == ASTNodeType::FunctionDeclaration
+                        && child->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
                         isThereFunctionExists = true;
                     }
+                    child = child->nextSibling();
                 }
 
                 if (!isThereFunctionExists) { // block collapse start
@@ -2815,10 +2814,12 @@ public:
                         }
                     }
 
-                    for (size_t i = 0; i < currentFunctionScope->m_childScopes.size(); i++) {
-                        if (currentFunctionScope->m_childScopes[i]->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
-                            currentFunctionScope->m_childScopes[i]->m_lexicalBlockIndexFunctionLocatedIn = parentBlockIndex;
+                    child = currentFunctionScope->m_firstChild;
+                    while (child) {
+                        if (child->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
+                            child->m_lexicalBlockIndexFunctionLocatedIn = parentBlockIndex;
                         }
+                        child = child->nextSibling();
                     }
 
                     auto parentBlockContext = currentFunctionScope->findBlockFromBackward(parentBlockIndex);
@@ -2968,14 +2969,14 @@ public:
                 this->throwUnexpectedToken(token);
             }
         } else if (token->type != Token::IdentifierToken) {
-            if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource())) {
+            if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
                 this->throwUnexpectedToken(token, Messages::StrictReservedWord);
             } else {
-                if (this->context->strict || token->relatedSource() != "let" || (kind != VarKeyword)) {
+                if (this->context->strict || token->relatedSource(this->scanner->source) != "let" || (kind != VarKeyword)) {
                     this->throwUnexpectedToken(token);
                 }
             }
-        } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->relatedSource() == "await") {
+        } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
             this->throwUnexpectedToken(token);
         }
 
@@ -3000,21 +3001,21 @@ public:
             if (this->context->inCatchClause && isExplicitVariableDeclaration && kind == KeywordKind::VarKeyword) {
                 for (size_t i = 0; i < this->context->catchClauseSimplyDeclaredVariableNames.size(); i++) {
                     if (this->context->catchClauseSimplyDeclaredVariableNames[i] == name) {
-                        this->scopeContexts.back()->insertVarName(name, blockIndex, true, kind == VarKeyword);
+                        this->currentScopeContext->insertVarName(name, blockIndex, true, kind == VarKeyword);
                         return;
                     }
                 }
             }
             /* code end */
 
-            if (!this->scopeContexts.back()->canDeclareName(name, blockIndex, kind == VarKeyword)) {
+            if (!this->currentScopeContext->canDeclareName(name, blockIndex, kind == VarKeyword)) {
                 this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
             }
             if (kind == VarKeyword) {
-                this->scopeContexts.back()->insertVarName(name, blockIndex, true, true);
+                this->currentScopeContext->insertVarName(name, blockIndex, true, true);
             } else {
-                this->scopeContexts.back()->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
-                this->scopeContexts.back()->m_needsToComputeLexicalBlockStuffs = true;
+                this->currentScopeContext->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
+                this->currentScopeContext->m_needsToComputeLexicalBlockStuffs = true;
             }
         }
 
@@ -3279,7 +3280,7 @@ public:
                     left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), VarKeyword));
                     this->nextToken();
                     type = statementTypeForIn;
-                } else if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
+                } else if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
                     left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), VarKeyword));
                     this->nextToken();
                     type = statementTypeForOf;
@@ -3298,7 +3299,7 @@ public:
 
                 if (!this->context->strict && this->matchKeyword(InKeyword)) {
                     this->nextToken();
-                    left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource())));
+                    left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource(this->scanner->source))));
                     init = nullptr;
                     type = statementTypeForIn;
                 } else {
@@ -3317,7 +3318,7 @@ public:
                         left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), kind));
                         this->nextToken();
                         type = statementTypeForIn;
-                    } else if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
+                    } else if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
                         left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), kind));
                         this->nextToken();
                         type = statementTypeForOf;
@@ -3347,7 +3348,7 @@ public:
                     left = init;
                     init = nullptr;
                     type = statementTypeForIn;
-                } else if (this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource() == "of") {
+                } else if (this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
                     if (!this->context->isAssignmentTarget || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple)) {
                         this->throwError(Messages::InvalidLHSInForLoop);
                     }
@@ -3397,11 +3398,11 @@ public:
 
         this->expect(RightParenthesis);
 
-        ASTBlockScopeContext* headBlockContextInstance = this->scopeContexts.back()->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
+        ASTBlockScopeContext* headBlockContextInstance = this->currentScopeContext->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
         if (headBlockContextInstance->m_names.size()) {
             // if there are names on headContext (let, const)
             // we should copy names into to iterationBlock
-            this->scopeContexts.back()->findBlockFromBackward(iterationBlockContext.childLexicalBlockIndex)->m_names = headBlockContextInstance->m_names;
+            this->currentScopeContext->findBlockFromBackward(iterationBlockContext.childLexicalBlockIndex)->m_names = headBlockContextInstance->m_names;
         }
 
         bool previousInIteration = this->context->inIteration;
@@ -3556,7 +3557,7 @@ public:
         ASTNode object = this->parseExpression(builder);
         this->expect(RightParenthesis);
 
-        scopeContexts.back()->m_hasWith = true;
+        this->currentScopeContext->m_hasWith = true;
 
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
@@ -4018,11 +4019,12 @@ public:
             size_t orgIndex = this->lookahead.start;
             this->expect(LeftBrace);
 
-            StringView src = currentTarget->childBlocks()[realIndex]->bodySrc();
+            InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(realIndex);
+            StringView src = childBlock->bodySrc();
             this->scanner->index = src.length() + orgIndex;
 
-            this->scanner->lineNumber = currentTarget->childBlocks()[realIndex]->sourceElementStart().line;
-            this->scanner->lineStart = currentTarget->childBlocks()[realIndex]->sourceElementStart().index - currentTarget->childBlocks()[realIndex]->sourceElementStart().column;
+            this->scanner->lineNumber = childBlock->sourceElementStart().line;
+            this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
             this->lookahead.lineNumber = this->scanner->lineNumber;
             this->lookahead.lineStart = this->scanner->lineStart;
             this->lookahead.type = Token::PunctuatorToken;
@@ -4091,15 +4093,15 @@ public:
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
 
-        scopeContexts.back()->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore;
-        scopeContexts.back()->m_bodyStartLOC.line = nodeStart.line;
-        scopeContexts.back()->m_bodyStartLOC.column = nodeStart.column;
-        scopeContexts.back()->m_bodyStartLOC.index = nodeStart.index;
+        this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore;
+        this->currentScopeContext->m_bodyStartLOC.line = nodeStart.line;
+        this->currentScopeContext->m_bodyStartLOC.column = nodeStart.column;
+        this->currentScopeContext->m_bodyStartLOC.index = nodeStart.index;
 
-        scopeContexts.back()->m_bodyEndLOC.index = this->lastMarker.index;
+        this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
-        scopeContexts.back()->m_bodyEndLOC.line = this->lastMarker.lineNumber;
-        scopeContexts.back()->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+        this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+        this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
 
         //return this->finalize(nodeStart, builder.createBlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
@@ -4127,14 +4129,14 @@ public:
             id = this->parseVariableIdentifier(builder);
 
             if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->relatedSource())) {
+                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
                     this->throwUnexpectedToken(token, Messages::StrictFunctionName);
                 }
             } else {
-                if (this->scanner->isRestrictedWord(token->relatedSource())) {
+                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource())) {
+                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictReservedWord;
                 }
@@ -4148,11 +4150,11 @@ public:
         ASSERT(id);
         addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
         insertUsingName(fnName);
-        pushScopeContext(fnName);
+        auto oldScopeContext = pushScopeContext(fnName);
 
-        scopeContexts.back()->m_paramsStartLOC.index = paramsStart.index;
-        scopeContexts.back()->m_paramsStartLOC.column = paramsStart.column;
-        scopeContexts.back()->m_paramsStartLOC.line = paramsStart.line;
+        this->currentScopeContext->m_paramsStartLOC.index = paramsStart.index;
+        this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
+        this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
 
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
@@ -4179,9 +4181,9 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        scopeContexts.back()->m_nodeType = ASTNodeType::FunctionDeclaration;
-        scopeContexts.back()->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionDeclarationNode(popScopeContext(node), isGenerator, subCodeBlockIndex));
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        return this->finalize(node, builder.createFunctionDeclarationNode(popScopeContext(oldScopeContext), isGenerator, subCodeBlockIndex));
     }
 
     template <class ASTBuilder>
@@ -4210,14 +4212,14 @@ public:
             id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName(builder) : this->parseVariableIdentifier(builder);
 
             if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->relatedSource())) {
+                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
                     this->throwUnexpectedToken(token, Messages::StrictFunctionName);
                 }
             } else {
-                if (this->scanner->isRestrictedWord(token->relatedSource())) {
+                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource())) {
+                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictReservedWord;
                 }
@@ -4228,15 +4230,15 @@ public:
         this->expect(LeftParenthesis);
         AtomicString fnName = id ? id->asIdentifier()->name() : AtomicString();
 
-        pushScopeContext(fnName);
+        auto oldScopeContext = pushScopeContext(fnName);
         if (id) {
-            scopeContexts.back()->insertVarName(fnName, 0, false);
-            scopeContexts.back()->insertUsingName(fnName, 0);
+            this->currentScopeContext->insertVarName(fnName, 0, false);
+            this->currentScopeContext->insertUsingName(fnName, 0);
         }
 
-        scopeContexts.back()->m_paramsStartLOC.index = paramsStart.index;
-        scopeContexts.back()->m_paramsStartLOC.column = paramsStart.column;
-        scopeContexts.back()->m_paramsStartLOC.line = paramsStart.line;
+        this->currentScopeContext->m_paramsStartLOC.index = paramsStart.index;
+        this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
+        this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
 
         ParseFormalParametersResult formalParameters = this->parseFormalParameters(&firstRestricted);
         Scanner::ScannerResult stricted = formalParameters.stricted;
@@ -4258,9 +4260,9 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        scopeContexts.back()->m_nodeType = ASTNodeType::FunctionExpression;
-        scopeContexts.back()->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(node), isGenerator, subCodeBlockIndex));
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, subCodeBlockIndex));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -4278,7 +4280,7 @@ public:
         RefPtr<Node> expr = this->parseExpression(newBuilder);
         if (expr->type() == Literal) {
             isLiteral = true;
-            directiveValue = token->valueStringLiteral();
+            directiveValue = token->valueStringLiteral(this->scanner);
         }
         this->consumeSemicolon();
 
@@ -4311,7 +4313,7 @@ public:
 
             DirectiveNode* directive = (DirectiveNode*)statement.get();
             if (!token->hasAllocatedString && directive->value().equals("use strict")) {
-                this->scopeContexts.back()->m_isStrict = this->context->strict = true;
+                this->currentScopeContext->m_isStrict = this->context->strict = true;
                 if (firstRestricted) {
                     this->throwUnexpectedToken(&firstRestricted, Messages::StrictOctalLiteral);
                 }
@@ -4342,7 +4344,7 @@ public:
         this->context->inArrowFunction = false;
         this->context->allowSuperProperty = true;
 
-        pushScopeContext(AtomicString());
+        auto oldScopeContext = pushScopeContext(AtomicString());
         extractNamesFromFunctionParams(params);
         ASTNode method = this->parsePropertyMethod(builder, params);
 
@@ -4350,14 +4352,14 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowSuperProperty = previousAllowSuperProperty;
 
-        scopeContexts.back()->m_paramsStartLOC.index = node.index;
-        scopeContexts.back()->m_paramsStartLOC.column = node.column;
-        scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        scopeContexts.back()->m_allowSuperProperty = true;
+        this->currentScopeContext->m_paramsStartLOC.index = node.index;
+        this->currentScopeContext->m_paramsStartLOC.column = node.column;
+        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
 
-        scopeContexts.back()->m_nodeType = ASTNodeType::FunctionExpression;
-        scopeContexts.back()->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
     }
 
     template <class ASTBuilder>
@@ -4375,7 +4377,7 @@ public:
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
-        pushScopeContext(AtomicString());
+        auto oldScopeContext = pushScopeContext(AtomicString());
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
         if (formalParameters.params.size() != 1) {
             this->throwError(Messages::BadSetterArity);
@@ -4389,14 +4391,14 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        scopeContexts.back()->m_paramsStartLOC.index = node.index;
-        scopeContexts.back()->m_paramsStartLOC.column = node.column;
-        scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        scopeContexts.back()->m_allowSuperProperty = true;
+        this->currentScopeContext->m_paramsStartLOC.index = node.index;
+        this->currentScopeContext->m_paramsStartLOC.column = node.column;
+        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
 
-        scopeContexts.back()->m_nodeType = ASTNodeType::FunctionExpression;
-        scopeContexts.back()->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
     }
 
     template <class ASTBuilder>
@@ -4414,7 +4416,7 @@ public:
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
-        pushScopeContext(AtomicString());
+        auto oldScopeContext = pushScopeContext(AtomicString());
         ParseFormalParametersResult formalParameters = this->parseFormalParameters();
         extractNamesFromFunctionParams(formalParameters);
         ASTNode method = this->parsePropertyMethod(builder, formalParameters);
@@ -4423,14 +4425,14 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        scopeContexts.back()->m_paramsStartLOC.index = node.index;
-        scopeContexts.back()->m_paramsStartLOC.column = node.column;
-        scopeContexts.back()->m_paramsStartLOC.line = node.line;
-        scopeContexts.back()->m_allowSuperProperty = true;
+        this->currentScopeContext->m_paramsStartLOC.index = node.index;
+        this->currentScopeContext->m_paramsStartLOC.column = node.column;
+        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
 
-        scopeContexts.back()->m_nodeType = ASTNodeType::FunctionExpression;
-        scopeContexts.back()->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(node), isGenerator, this->subCodeBlockIndex));
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
@@ -4508,7 +4510,7 @@ public:
             this->context->allowYield = previousAllowYield;
         }
 
-        scopeContexts.back()->m_hasYield = true;
+        this->currentScopeContext->m_hasYield = true;
 
         return this->finalize(node, builder.createYieldExpressionNode(exprNode, delegate));
     }
@@ -4538,7 +4540,7 @@ public:
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder, keyString);
 
-            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->valueStringLiteral() == "static") {
+            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->valueStringLiteral(this->scanner) == "static") {
                 *token = this->lookahead;
                 isStatic = true;
                 computed = this->match(LeftSquareBracket);
@@ -4552,13 +4554,13 @@ public:
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
         if (token->type == Token::IdentifierToken) {
-            if (token->valueStringLiteral() == "get" && lookaheadPropertyKey) {
+            if (token->valueStringLiteral(this->scanner) == "get" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Get;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder, keyString);
                 this->context->allowYield = false;
                 value = this->parseGetterMethod(builder);
-            } else if (token->valueStringLiteral() == "set" && lookaheadPropertyKey) {
+            } else if (token->valueStringLiteral(this->scanner) == "set" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder, keyString);
@@ -4719,17 +4721,17 @@ public:
         while (this->startMarker.index < this->scanner->length) {
             referNode = container->appendChild(this->parseStatementListItem(builder).get(), referNode);
         }
-        scopeContexts.back()->m_bodyStartLOC.line = startNode.line;
-        scopeContexts.back()->m_bodyStartLOC.column = startNode.column;
-        scopeContexts.back()->m_bodyStartLOC.index = startNode.index;
+        this->currentScopeContext->m_bodyStartLOC.line = startNode.line;
+        this->currentScopeContext->m_bodyStartLOC.column = startNode.column;
+        this->currentScopeContext->m_bodyStartLOC.index = startNode.index;
 
         MetaNode endNode = this->createNode();
 #ifndef NDEBUG
-        scopeContexts.back()->m_bodyEndLOC.line = endNode.line;
-        scopeContexts.back()->m_bodyEndLOC.column = endNode.column;
+        this->currentScopeContext->m_bodyEndLOC.line = endNode.line;
+        this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
-        scopeContexts.back()->m_bodyEndLOC.index = endNode.index;
-        return this->finalize(startNode, new ProgramNode(container.get(), scopeContexts.back(), this->moduleData));
+        this->currentScopeContext->m_bodyEndLOC.index = endNode.index;
+        return this->finalize(startNode, new ProgramNode(container.get(), this->currentScopeContext, this->moduleData));
     }
 
     PassRefPtr<FunctionNode> parseScriptFunction(NodeGenerator& builder)
@@ -4829,7 +4831,7 @@ public:
 
         // const raw = this->getTokenRaw(token);
         ASSERT(token->type == Token::StringLiteralToken);
-        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST()));
+        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST(this->scanner)));
     }
 
     // import {<foo as bar>} ...;

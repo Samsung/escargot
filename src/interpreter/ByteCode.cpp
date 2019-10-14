@@ -164,11 +164,11 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
 void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
 {
     InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
-    size_t len = codeBlock->childBlocks().size();
-    for (size_t i = 0; i < len; i++) {
-        CodeBlock* b = codeBlock->childBlocks()[i];
-        if (b->isFunctionDeclaration() && b->asInterpretedCodeBlock()->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
-            IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(b->functionName());
+
+    InterpretedCodeBlock* child = codeBlock->firstChild();
+    while (child) {
+        if (child->isFunctionDeclaration() && child->asInterpretedCodeBlock()->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
+            IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(child->functionName());
             id->m_loc = node->m_loc;
 
             // add useless register for don't ruin script result
@@ -177,13 +177,15 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
             context->getRegister();
 
             auto dstIndex = id->getRegister(this, context);
-            pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, SIZE_MAX, b), context, node);
+            pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, SIZE_MAX, child), context, node);
             context->m_isFunctionDeclarationBindingInitialization = true;
             id->generateStoreByteCode(this, context, dstIndex, true);
             context->giveUpRegister();
 
             context->giveUpRegister(); // give up useless register
         }
+
+        child = child->nextSibling();
     }
 }
 

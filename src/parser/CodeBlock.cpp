@@ -60,7 +60,8 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_childBlocks));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_firstChild));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_nextSibling));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
 #ifndef NDEBUG
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_scopeContext));
@@ -114,6 +115,8 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_hasImplictFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
     , m_hasParameterOtherThanIdentifier(false)
+    , m_allowSuperCall(false)
+    , m_allowSuperProperty(false)
     , m_parameterCount(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
@@ -152,6 +155,8 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_hasImplictFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
     , m_hasParameterOtherThanIdentifier(false)
+    , m_allowSuperCall(false)
+    , m_allowSuperProperty(false)
     , m_parameterCount(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
@@ -196,6 +201,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
     , m_lexicalBlockIndexFunctionLocatedIn(0)
     , m_parentCodeBlock(nullptr)
+    , m_firstChild(nullptr)
+    , m_nextSibling(nullptr)
 #ifndef NDEBUG
     , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -270,6 +277,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
     , m_lexicalBlockIndexFunctionLocatedIn(scopeCtx->m_lexicalBlockIndexFunctionLocatedIn)
     , m_parentCodeBlock(parentBlock)
+    , m_firstChild(nullptr)
+    , m_nextSibling(nullptr)
 #ifndef NDEBUG
     , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)

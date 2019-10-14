@@ -100,18 +100,20 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[3].to = (GC_word*)current->m_parameterNames.data();
     arr[4].from = (GC_word*)&current->m_parentCodeBlock;
     arr[4].to = (GC_word*)current->m_parentCodeBlock;
-    arr[5].from = (GC_word*)&current->m_childBlocks;
-    arr[5].to = (GC_word*)current->m_childBlocks.data();
-    arr[6].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[6].to = (GC_word*)current->m_byteCodeBlock;
-    arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos.data();
+    arr[5].from = (GC_word*)&current->m_nextSibling;
+    arr[5].to = (GC_word*)current->m_nextSibling;
+    arr[6].from = (GC_word*)&current->m_firstChild;
+    arr[6].to = (GC_word*)current->m_firstChild;
+    arr[7].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[7].to = (GC_word*)current->m_byteCodeBlock;
+    arr[8].from = (GC_word*)&current->m_blockInfos;
+    arr[8].to = (GC_word*)current->m_blockInfos.data();
 #ifdef NDEBUG
-    arr[8].from = (GC_word*)&current->m_context;
-    arr[8].to = (GC_word*)nullptr;
+    arr[9].from = (GC_word*)&current->m_context;
+    arr[9].to = (GC_word*)nullptr;
 #else
-    arr[8].from = (GC_word*)&current->m_scopeContext;
-    arr[8].to = (GC_word*)current->m_scopeContext;
+    arr[9].from = (GC_word*)&current->m_scopeContext;
+    arr[9].to = (GC_word*)current->m_scopeContext;
 #endif
     return 0;
 }
@@ -147,7 +149,7 @@ void initializeCustomAllocators()
                                                                       TRUE);
 
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 9>), 0),
+                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 10>), 0),
                                                                                  FALSE,
                                                                                  TRUE);
 }
