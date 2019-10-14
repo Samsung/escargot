@@ -41,6 +41,8 @@ class TypedArrayObject;
 
 extern size_t g_objectRareDataTag;
 
+#define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
+
 struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
@@ -63,10 +65,10 @@ public:
     ObjectPropertyName(ExecutionState& state, const Value& v)
     {
         if (v.isUInt32()) {
-            m_isUIntType = true;
-            m_value.m_uint = v.asUInt32();
+            setUIntType(true);
+            setUIntValue(v.asUInt32());
         } else {
-            m_isUIntType = false;
+            setUIntType(false);
             m_value.m_name = PropertyName(state, v);
         }
     }
@@ -74,10 +76,10 @@ public:
     ObjectPropertyName(ExecutionState& state, const int64_t& v)
     {
         if (v >= 0 && v <= std::numeric_limits<uint32_t>::max()) {
-            m_isUIntType = true;
-            m_value.m_uint = (uint32_t)v;
+            setUIntType(true);
+            setUIntValue((uint32_t)v);
         } else {
-            m_isUIntType = false;
+            setUIntType(false);
             m_value.m_name = PropertyName(state, Value(v));
         }
     }
@@ -86,32 +88,32 @@ public:
     ObjectPropertyName(ExecutionState& state, const uint64_t& v)
     {
         if (v <= std::numeric_limits<uint32_t>::max()) {
-            m_isUIntType = true;
-            m_value.m_uint = (uint32_t)v;
+            setUIntType(true);
+            setUIntValue((uint32_t)v);
         } else {
-            m_isUIntType = false;
+            setUIntType(false);
             m_value.m_name = PropertyName(state, Value(v));
         }
     }
 #else
     ObjectPropertyName(ExecutionState& state, const uint32_t& v)
     {
-        m_isUIntType = true;
-        m_value.m_uint = v;
+        setUIntType(true);
+        setUIntValue(v);
     }
 #endif
 
     ObjectPropertyName(ExecutionState& state, const size_t& v)
     {
 #ifdef ESCARGOT_32
-        m_isUIntType = true;
-        m_value.m_uint = (uint32_t)v;
+        setUIntType(true);
+        setUIntValue((uint32_t)v);
 #else
         if (v <= std::numeric_limits<uint32_t>::max()) {
-            m_isUIntType = true;
-            m_value.m_uint = (uint32_t)v;
+            setUIntType(true);
+            setUIntValue((uint32_t)v);
         } else {
-            m_isUIntType = false;
+            setUIntType(false);
             m_value.m_name = PropertyName(state, Value(v));
         }
 #endif
@@ -119,19 +121,45 @@ public:
 
     ObjectPropertyName(const AtomicString& v)
     {
-        m_isUIntType = false;
+        setUIntType(false);
         m_value.m_name = v;
     }
 
     ObjectPropertyName(ExecutionState&, const PropertyName& v)
     {
-        m_isUIntType = false;
+        setUIntType(false);
         m_value.m_name = v;
+    }
+
+    void setUIntType(bool isUint)
+    {
+#ifdef ESCARGOT_32
+        m_isUIntType = isUint;
+#else
+        if (isUint) {
+            m_value.m_uint.flags = OBJECT_PROPERTY_NAME_UINT32_VIAS;
+        } else {
+            m_value.m_uint.flags = 0;
+        }
+#endif
+    }
+
+    void setUIntValue(uint32_t u32)
+    {
+#ifdef ESCARGOT_32
+        m_value.m_uint = u32;
+#else
+        m_value.m_uint.u32 = u32;
+#endif
     }
 
     bool isUIntType() const
     {
+#ifdef ESCARGOT_32
         return m_isUIntType;
+#else
+        return m_value.m_uint.flags & OBJECT_PROPERTY_NAME_UINT32_VIAS;
+#endif
     }
 
     const PropertyName& propertyName() const
@@ -143,7 +171,11 @@ public:
     const uint32_t& uintValue() const
     {
         ASSERT(isUIntType());
+#ifdef ESCARGOT_32
         return m_value.m_uint;
+#else
+        return m_value.m_uint.u32;
+#endif
     }
 
     bool isIndexString() const
@@ -166,7 +198,7 @@ public:
     uint64_t tryToUseAsIndex() const
     {
         if (LIKELY(isUIntType())) {
-            return m_value.m_uint;
+            return uintValue();
         }
         return propertyName().tryToUseAsIndex();
     }
@@ -174,7 +206,7 @@ public:
     uint64_t tryToUseAsArrayIndex() const
     {
         if (LIKELY(isUIntType())) {
-            return m_value.m_uint;
+            return uintValue();
         }
         return propertyName().tryToUseAsArrayIndex();
     }
@@ -207,11 +239,29 @@ public:
     }
 
 private:
+#ifdef ESCARGOT_32
     bool m_isUIntType : 1;
+#endif
     union ObjectPropertyNameData {
-        ObjectPropertyNameData() { m_uint = 0; }
+        ObjectPropertyNameData()
+        {
+#ifdef ESCARGOT_32
+            m_uint = 0;
+#else
+            m_uint.u32 = 0;
+#endif
+        }
+
         PropertyName m_name;
+#ifdef ESCARGOT_32
         uint32_t m_uint;
+#else
+        struct ObjectUint32PropertyData {
+        public:
+            uint32_t flags;
+            uint32_t u32;
+        } m_uint;
+#endif
     } m_value;
 
     PropertyName toPropertyNameUintCase(ExecutionState& state) const;
