@@ -2264,16 +2264,16 @@ public:
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
 
-            SmallScannerResultVector markers;
-            markers.reserve(120);
+            typedef VectorWithInlineStorage<8, Scanner::SmallScannerResult, std::allocator<Scanner::SmallScannerResult>> SmallScannerResultVectorWithInlineStorage;
+
+            SmallScannerResultVectorWithInlineStorage markers;
             markers.push_back(*startToken);
             markers.push_back(this->lookahead);
             ASTNode left = expr;
             ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseExponentiationExpression<ASTBuilder>);
 
-            ASTNodeVector stack;
-            SmallScannerResultVector tokenStack;
-            tokenStack.reserve(120);
+            VectorWithInlineStorage<8, ASTNode, std::allocator<ASTNode>> stack;
+            SmallScannerResultVectorWithInlineStorage tokenStack;
 
             stack.push_back(left);
             stack.push_back(right);
@@ -2319,7 +2319,6 @@ public:
                 tokenStack.pop_back();
                 i--;
             }
-            RELEASE_ASSERT(i == 0);
         }
 
         return expr.release();

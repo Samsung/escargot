@@ -497,84 +497,81 @@ public:
     VectorWithInlineStorage()
     {
         m_size = 0;
+        m_useExternalStorage = false;
+    }
+
+    void clear()
+    {
+        if (m_useExternalStorage) {
+            m_externalStorage.clear();
+        }
+        m_size = 0;
+        m_useExternalStorage = false;
+    }
+
+    ~VectorWithInlineStorage()
+    {
+        clear();
     }
 
     VectorWithInlineStorage(VectorWithInlineStorage<InlineStorageSize, T,
                                                     ExternalStoreageAllocator>&& src)
     {
         m_size = src.m_size;
-
-        if (LIKELY(m_size <= InlineStorageSize)) {
-            for (size_t i = 0; i < m_size; i++) {
-                m_inlineStorage[i] = std::move(src.m_inlineStorage[i]);
-            }
-        } else {
+        if (src.m_useExternalStorage) {
             m_externalStorage = std::move(src.m_externalStorage);
-        }
-        src.m_size = 0;
-    }
-
-    VectorWithInlineStorage<InlineStorageSize, T, ExternalStoreageAllocator>&
-    operator=(VectorWithInlineStorage<InlineStorageSize, T,
-                                      ExternalStoreageAllocator>&& src)
-    {
-        m_size = src.m_size;
-
-        if (LIKELY(m_size <= InlineStorageSize)) {
-            for (size_t i = 0; i < m_size; i++) {
-                m_inlineStorage[i] = std::move(src.m_inlineStorage[i]);
-            }
+            m_useExternalStorage = true;
         } else {
-            m_externalStorage = std::move(src.m_externalStorage);
-        }
-        src.m_size = 0;
-        return *this;
-    }
-
-    VectorWithInlineStorage<InlineStorageSize, T, ExternalStoreageAllocator>&
-    operator=(const VectorWithInlineStorage<InlineStorageSize, T,
-                                            ExternalStoreageAllocator>& src)
-    {
-        m_size = src.m_size;
-        if (LIKELY(m_size <= InlineStorageSize)) {
             for (size_t i = 0; i < m_size; i++) {
                 m_inlineStorage[i] = src.m_inlineStorage[i];
             }
-        } else {
-            m_externalStorage = src.m_externalStorage;
+            m_useExternalStorage = false;
         }
-        return *this;
+
+        src.clear();
+    }
+
+    T* data()
+    {
+        if (LIKELY(!m_useExternalStorage)) {
+            return m_inlineStorage;
+        } else {
+            return m_externalStorage.data();
+        }
     }
 
     void push_back(const T& decl)
     {
-        if (LIKELY(m_size < InlineStorageSize)) {
-            m_inlineStorage[m_size] = decl;
-        } else if (m_size == InlineStorageSize) {
-            m_externalStorage.assign(m_inlineStorage, m_inlineStorage + m_size);
-            m_externalStorage.push_back(decl);
+        if (LIKELY(!m_useExternalStorage)) {
+            if (LIKELY(m_size < InlineStorageSize)) {
+                m_inlineStorage[m_size] = decl;
+            } else {
+                m_useExternalStorage = true;
+                m_externalStorage.reserve(m_size + 1);
+
+                for (size_t i = 0; i < m_size; i++) {
+                    m_externalStorage.push_back(m_inlineStorage[i]);
+                }
+
+                m_externalStorage.push_back(decl);
+            }
         } else {
             m_externalStorage.push_back(decl);
         }
         m_size++;
     }
 
-    void push_back(T&& decl)
+    void pop_back()
     {
-        if (LIKELY(m_size < InlineStorageSize)) {
-            m_inlineStorage[m_size] = std::move(decl);
-        } else if (m_size == InlineStorageSize) {
-            m_externalStorage.assign(m_inlineStorage, m_inlineStorage + m_size);
-            m_externalStorage.push_back(std::move(decl));
-        } else {
-            m_externalStorage.push_back(std::move(decl));
+        m_size--;
+        if (UNLIKELY(m_useExternalStorage)) {
+            m_externalStorage.pop_back();
         }
-        m_size++;
     }
 
     T& operator[](const size_t& idx)
     {
-        if (LIKELY(m_size <= InlineStorageSize)) {
+        if (LIKELY(!m_useExternalStorage)) {
             return m_inlineStorage[idx];
         } else {
             return m_externalStorage[idx];
@@ -583,20 +580,16 @@ public:
 
     const T& operator[](const size_t& idx) const
     {
-        if (LIKELY(m_size <= InlineStorageSize)) {
+        if (LIKELY(!m_useExternalStorage)) {
             return m_inlineStorage[idx];
         } else {
             return m_externalStorage[idx];
         }
     }
 
-    T* data()
+    T& back()
     {
-        if (LIKELY(m_size <= InlineStorageSize)) {
-            return m_inlineStorage;
-        } else {
-            return m_externalStorage.data();
-        }
+        return operator[](m_size - 1);
     }
 
     size_t size() const
@@ -604,16 +597,11 @@ public:
         return m_size;
     }
 
-    void clear()
-    {
-        m_size = 0;
-        m_externalStorage.clear();
-    }
-
 protected:
+    bool m_useExternalStorage;
     size_t m_size;
     T m_inlineStorage[InlineStorageSize];
-    Vector<T, ExternalStoreageAllocator> m_externalStorage;
+    std::vector<T, ExternalStoreageAllocator> m_externalStorage;
 };
 
 
