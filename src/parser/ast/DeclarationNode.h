@@ -32,6 +32,10 @@ public:
     {
     }
 
+    virtual ~DeclarationNode()
+    {
+    }
+
 protected:
 };
 }

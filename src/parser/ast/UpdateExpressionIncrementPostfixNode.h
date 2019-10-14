@@ -26,11 +26,9 @@ namespace Escargot {
 
 class UpdateExpressionIncrementPostfixNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     explicit UpdateExpressionIncrementPostfixNode(Node* argument)
         : ExpressionNode()
-        , m_argument((ExpressionNode*)argument)
+        , m_argument(argument)
     {
     }
     virtual ~UpdateExpressionIncrementPostfixNode()
@@ -81,7 +79,7 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_argument;
+    Node* m_argument;
 };
 }
 

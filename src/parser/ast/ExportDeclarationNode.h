@@ -27,13 +27,15 @@ namespace Escargot {
 
 class ExportDeclarationNode : public StatementNode {
 public:
-    friend class ScriptParser;
     ExportDeclarationNode()
     {
     }
 
+    virtual ~ExportDeclarationNode()
+    {
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::ExportDeclaration; }
-private:
 };
 }
 

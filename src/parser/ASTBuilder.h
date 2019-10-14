@@ -238,22 +238,34 @@ public:
         return this;
     }
 
+    ALWAYS_INLINE SyntaxNode* asImportDefaultSpecifier()
+    {
+        ASSERT(m_nodeType == ImportDefaultSpecifier);
+        return this;
+    }
+
+    ALWAYS_INLINE SyntaxNode* asImportNamespaceSpecifier()
+    {
+        ASSERT(m_nodeType == ImportNamespaceSpecifier);
+        return this;
+    }
+
     ALWAYS_INLINE SyntaxNode* asExportSpecifier()
     {
         ASSERT(m_nodeType == ExportSpecifier);
         return this;
     }
 
-    ALWAYS_INLINE SyntaxNode* appendChild(SyntaxNode* c)
+    ALWAYS_INLINE SyntaxNode appendChild(SyntaxNode c)
     {
         ASSERT(m_nodeType == ASTStatementContainer);
-        return nullptr;
+        return SyntaxNode();
     }
 
-    ALWAYS_INLINE SyntaxNode* appendChild(SyntaxNode* c, SyntaxNode* referNode)
+    ALWAYS_INLINE SyntaxNode appendChild(SyntaxNode c, SyntaxNode referNode)
     {
         ASSERT(m_nodeType == ASTStatementContainer);
-        return nullptr;
+        return SyntaxNode();
     }
 
     void tryToSetImplicitName(AtomicString s)
@@ -327,8 +339,6 @@ public:
     }
 
     ALWAYS_INLINE SyntaxNode* operator->() { return this; }
-    ALWAYS_INLINE SyntaxNode* get() { return this; }
-    ALWAYS_INLINE SyntaxNode release() { return *this; }
 private:
     ASTNodeType m_nodeType;
     AtomicString m_string;
@@ -338,17 +348,15 @@ typedef std::vector<SyntaxNode> SyntaxNodeVector;
 
 class SyntaxChecker {
 public:
-    MAKE_STACK_ALLOCATED();
-
-    SyntaxChecker() {}
     typedef SyntaxNode ASTNode;
-    typedef SyntaxNode ASTPassNode;
-    typedef SyntaxNode ASTNodePtr;
     typedef SyntaxNode ASTIdentifierNode;
     typedef SyntaxNode ASTStatementContainer;
     typedef SyntaxNode* ASTStatementNodePtr;
     typedef std::vector<SyntaxNode> ASTNodeVector;
 
+    MAKE_STACK_ALLOCATED();
+
+    SyntaxChecker() {}
     bool isNodeGenerator() { return false; }
     SyntaxNode createIdentifierNode(const AtomicString& name)
     {
@@ -358,14 +366,13 @@ public:
     template <class ClassType>
     SyntaxNode createClass(SyntaxNode id, SyntaxNode superClass, SyntaxNode classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
     {
-        ClassType* tempClass = new ClassType();
-        tempClass->relaxAdoptionRequirement();
-        ASTNodeType type = tempClass->type();
-        tempClass->deref();
+        // temporally generated Class to identify the type
+        ClassType tempClass;
+        ASTNodeType type = tempClass.type();
         return SyntaxNode(type);
     }
 
-    SyntaxNode createForInOfStatementNode(SyntaxNode* left, SyntaxNode* right, SyntaxNode* body, bool forIn, bool hasLexicalDeclarationOnInit, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
+    SyntaxNode createForInOfStatementNode(SyntaxNode left, SyntaxNode right, SyntaxNode body, bool forIn, bool hasLexicalDeclarationOnInit, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
     {
         if (forIn) {
             return SyntaxNode(ASTNodeType::ForInStatement);
@@ -394,7 +401,7 @@ public:
         return SyntaxNode(ASTNodeType::ObjectPattern);
     }
 
-    ALWAYS_INLINE SyntaxNode createCallExpressionNode(SyntaxNode* callee, ASTNodeVector&& arguments)
+    ALWAYS_INLINE SyntaxNode createCallExpressionNode(SyntaxNode callee, ASTNodeVector&& arguments)
     {
         return SyntaxNode(ASTNodeType::CallExpression);
     }
@@ -404,7 +411,7 @@ public:
         return SyntaxNode(ASTNodeType::ClassBody);
     }
 
-    ALWAYS_INLINE SyntaxNode createNewExpressionNode(SyntaxNode* callee, ASTNodeVector&& arguments)
+    ALWAYS_INLINE SyntaxNode createNewExpressionNode(SyntaxNode callee, ASTNodeVector&& arguments)
     {
         return SyntaxNode(ASTNodeType::NewExpression);
     }
@@ -419,7 +426,7 @@ public:
         return SyntaxNode(ASTNodeType::ArrowParameterPlaceHolder);
     }
 
-    ALWAYS_INLINE SyntaxNode createArrayExpressionNode(ASTNodeVector&& elements, AtomicString additionalPropertyName, SyntaxNode* additionalPropertyExpression, bool hasSpreadElement, bool isTaggedTemplateExpression)
+    ALWAYS_INLINE SyntaxNode createArrayExpressionNode(ASTNodeVector&& elements, AtomicString additionalPropertyName, SyntaxNode additionalPropertyExpression, bool hasSpreadElement, bool isTaggedTemplateExpression)
     {
         return SyntaxNode(ASTNodeType::ArrayExpression);
     }
@@ -439,10 +446,20 @@ public:
         return SyntaxNode(ASTNodeType::ImportDeclaration);
     }
 
-    ALWAYS_INLINE SyntaxNode createAssignmentPatternNode(SyntaxNode* left, SyntaxNode* right)
+    ALWAYS_INLINE SyntaxNode createFunctionNode(StatementContainer* params, BlockStatementNode* body, NumeralLiteralVector&& numeralLiteralVector)
+    {
+        return SyntaxNode(ASTNodeType::Function);
+    }
+
+    ALWAYS_INLINE SyntaxNode createProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
+    {
+        return SyntaxNode(ASTNodeType::Program);
+    }
+
+    ALWAYS_INLINE SyntaxNode createAssignmentPatternNode(SyntaxNode left, SyntaxNode right)
     {
         SyntaxNode assign(ASTNodeType::AssignmentPattern);
-        if (left->isIdentifier()) {
+        if (left.isIdentifier()) {
             assign.setString(left->name());
         }
 
@@ -463,10 +480,10 @@ public:
     FOR_EACH_TARGET_NODE(DECLARE_CREATE_FUNCTION)
 #undef DECLARE_CREATE_FUNCTION
 
-    SyntaxNode reinterpretExpressionAsPattern(SyntaxNode* expr)
+    SyntaxNode reinterpretExpressionAsPattern(SyntaxNode& expr)
     {
-        SyntaxNode result = *expr;
-        switch (expr->type()) {
+        SyntaxNode result = expr;
+        switch (expr.type()) {
         case Identifier:
         case MemberExpression:
         case RestElement:
@@ -505,121 +522,133 @@ public:
 
 class NodeGenerator {
 public:
+    typedef Node* ASTNode;
+    typedef IdentifierNode* ASTIdentifierNode;
+    typedef StatementContainer* ASTStatementContainer;
+    typedef StatementNode* ASTStatementNodePtr;
+    typedef std::vector<Node*> ASTNodeVector;
+
     MAKE_STACK_ALLOCATED();
 
-    NodeGenerator() {}
-    typedef RefPtr<Node> ASTNode;
-    typedef PassRefPtr<Node> ASTPassNode;
-    typedef Node* ASTNodePtr;
-    typedef IdentifierNode* ASTIdentifierNode;
-    typedef RefPtr<StatementContainer> ASTStatementContainer;
-    typedef StatementNode* ASTStatementNodePtr;
-    typedef std::vector<RefPtr<Node>> ASTNodeVector;
+    NodeGenerator(ASTAllocator& allocator)
+        : m_allocator(allocator)
+    {
+    }
 
     bool isNodeGenerator() { return true; }
     IdentifierNode* createIdentifierNode(const AtomicString& name)
     {
-        return new IdentifierNode(name);
+        return new (m_allocator) IdentifierNode(name);
     }
 
     template <class ClassType>
-    ClassType* createClass(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassType* createClass(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
     {
-        return new ClassType(id, superClass, classBody, classBodyLexicalBlockIndex, classSrc);
+        return new (m_allocator) ClassType(id, superClass, classBody, classBodyLexicalBlockIndex, classSrc);
     }
 
     ForInOfStatementNode* createForInOfStatementNode(Node* left, Node* right, Node* body, bool forIn, bool hasLexicalDeclarationOnInit, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
     {
-        return new ForInOfStatementNode(left, right, body, forIn, hasLexicalDeclarationOnInit, headLexicalBlockIndex, iterationLexicalBlockIndex);
+        return new (m_allocator) ForInOfStatementNode(left, right, body, forIn, hasLexicalDeclarationOnInit, headLexicalBlockIndex, iterationLexicalBlockIndex);
     }
 
     SequenceExpressionNode* createSequenceExpressionNode(ASTNodeVector&& expressions)
     {
-        return new SequenceExpressionNode(std::forward<ASTNodeVector>(expressions));
+        return new (m_allocator) SequenceExpressionNode(std::forward<ASTNodeVector>(expressions));
     }
 
     VariableDeclarationNode* createVariableDeclarationNode(ASTNodeVector&& decl, EscargotLexer::KeywordKind kind)
     {
-        return new VariableDeclarationNode(std::forward<ASTNodeVector>(decl), kind);
+        return new (m_allocator) VariableDeclarationNode(std::forward<ASTNodeVector>(decl), kind);
     }
 
     ArrayPatternNode* createArrayPatternNode(ASTNodeVector&& elements)
     {
-        return new ArrayPatternNode(std::forward<ASTNodeVector>(elements));
+        return new (m_allocator) ArrayPatternNode(std::forward<ASTNodeVector>(elements));
     }
 
     ObjectPatternNode* createObjectPatternNode(ASTNodeVector&& properties)
     {
-        return new ObjectPatternNode(std::forward<ASTNodeVector>(properties));
+        return new (m_allocator) ObjectPatternNode(std::forward<ASTNodeVector>(properties));
     }
 
     CallExpressionNode* createCallExpressionNode(Node* callee, ASTNodeVector&& arguments)
     {
-        return new CallExpressionNode(callee, std::forward<ASTNodeVector>(arguments));
+        return new (m_allocator) CallExpressionNode(callee, std::forward<ASTNodeVector>(arguments));
     }
 
     ClassBodyNode* createClassBodyNode(ASTNodeVector&& elementList, ASTNode constructor)
     {
-        return new ClassBodyNode(std::forward<ASTNodeVector>(elementList), constructor);
+        return new (m_allocator) ClassBodyNode(std::forward<ASTNodeVector>(elementList), constructor);
     }
 
     NewExpressionNode* createNewExpressionNode(Node* callee, ASTNodeVector&& arguments)
     {
-        return new NewExpressionNode(callee, std::forward<ASTNodeVector>(arguments));
+        return new (m_allocator) NewExpressionNode(callee, std::forward<ASTNodeVector>(arguments));
     }
 
     TemplateLiteralNode* createTemplateLiteralNode(TemplateElementVector* vector, ASTNodeVector&& expressions)
     {
-        return new TemplateLiteralNode(vector, std::forward<ASTNodeVector>(expressions));
+        return new (m_allocator) TemplateLiteralNode(vector, std::forward<ASTNodeVector>(expressions));
     }
 
     ArrowParameterPlaceHolderNode* createArrowParameterPlaceHolderNode(ASTNodeVector&& params)
     {
-        return new ArrowParameterPlaceHolderNode(std::forward<ASTNodeVector>(params));
+        return new (m_allocator) ArrowParameterPlaceHolderNode(std::forward<ASTNodeVector>(params));
     }
 
     ArrayExpressionNode* createArrayExpressionNode(ASTNodeVector&& elements, AtomicString additionalPropertyName, Node* additionalPropertyExpression, bool hasSpreadElement, bool isTaggedTemplateExpression)
     {
-        return new ArrayExpressionNode(std::forward<ASTNodeVector>(elements), additionalPropertyName, additionalPropertyExpression, hasSpreadElement, isTaggedTemplateExpression);
+        return new (m_allocator) ArrayExpressionNode(std::forward<ASTNodeVector>(elements), additionalPropertyName, additionalPropertyExpression, hasSpreadElement, isTaggedTemplateExpression);
     }
 
     ObjectExpressionNode* createObjectExpressionNode(ASTNodeVector&& properties)
     {
-        return new ObjectExpressionNode(std::forward<ASTNodeVector>(properties));
+        return new (m_allocator) ObjectExpressionNode(std::forward<ASTNodeVector>(properties));
     }
 
-    ExportNamedDeclarationNode* createExportNamedDeclarationNode(RefPtr<Node> declaration, ASTNodeVector&& specifiers, RefPtr<Node> source)
+    ExportNamedDeclarationNode* createExportNamedDeclarationNode(Node* declaration, ASTNodeVector&& specifiers, Node* source)
     {
-        return new ExportNamedDeclarationNode(declaration, std::forward<ASTNodeVector>(specifiers), source);
+        return new (m_allocator) ExportNamedDeclarationNode(declaration, std::forward<ASTNodeVector>(specifiers), source);
     }
 
-    ImportDeclarationNode* createImportDeclarationNode(ASTNodeVector&& specifiers, RefPtr<Node> src)
+    ImportDeclarationNode* createImportDeclarationNode(ASTNodeVector&& specifiers, Node* src)
     {
-        return new ImportDeclarationNode(std::forward<ASTNodeVector>(specifiers), src);
+        return new (m_allocator) ImportDeclarationNode(std::forward<ASTNodeVector>(specifiers), src);
+    }
+
+    FunctionNode* createFunctionNode(StatementContainer* params, BlockStatementNode* body, NumeralLiteralVector&& numeralLiteralVector)
+    {
+        return new (m_allocator) FunctionNode(params, body, std::forward<NumeralLiteralVector>(numeralLiteralVector));
+    }
+
+    ProgramNode* createProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
+    {
+        return new (m_allocator) ProgramNode(body, scopeContext, moduleData, std::forward<NumeralLiteralVector>(numeralLiteralVector));
     }
 
     AssignmentPatternNode* createAssignmentPatternNode(Node* left, Node* right)
     {
-        return new AssignmentPatternNode(left, right);
+        return new (m_allocator) AssignmentPatternNode(left, right);
     }
 
-    RefPtr<StatementContainer> createStatementContainer()
+    StatementContainer* createStatementContainer()
     {
-        return StatementContainer::create();
+        return StatementContainer::create(m_allocator);
     }
 
 #define DECLARE_CREATE_FUNCTION(name)                          \
     template <typename... Args>                                \
     ALWAYS_INLINE name##Node* create##name##Node(Args... args) \
     {                                                          \
-        return new name##Node(args...);                        \
+        return new (m_allocator) name##Node(args...);          \
     }
     FOR_EACH_TARGET_NODE(DECLARE_CREATE_FUNCTION)
 #undef DECLARE_CREATE_FUNCTION
 
-    RefPtr<Node> reinterpretExpressionAsPattern(Node* expr)
+    Node* reinterpretExpressionAsPattern(Node* expr)
     {
-        RefPtr<Node> result = expr;
+        Node* result = expr;
         switch (expr->type()) {
         case Identifier:
         case MemberExpression:
@@ -628,8 +657,8 @@ public:
             break;
         case SpreadElement: {
             SpreadElementNode* spread = (SpreadElementNode*)expr;
-            RefPtr<Node> arg = this->reinterpretExpressionAsPattern(spread->argument());
-            result = adoptRef(new RestElementNode(arg.get(), spread->m_loc));
+            Node* arg = this->reinterpretExpressionAsPattern(spread->argument());
+            result = new (m_allocator) RestElementNode(arg, spread->m_loc);
             break;
         }
         case ArrayExpression: {
@@ -637,10 +666,10 @@ public:
             NodeVector& elements = array->elements();
             for (size_t i = 0; i < elements.size(); i++) {
                 if (elements[i] != nullptr) {
-                    elements[i] = this->reinterpretExpressionAsPattern(elements[i].get());
+                    elements[i] = this->reinterpretExpressionAsPattern(elements[i]);
                 }
             }
-            result = adoptRef(new ArrayPatternNode(std::move(elements), array->m_loc));
+            result = new (m_allocator) ArrayPatternNode(std::move(elements), array->m_loc);
             break;
         }
         case ObjectExpression: {
@@ -648,16 +677,16 @@ public:
             NodeVector& properties = object->properties();
             for (size_t i = 0; i < properties.size(); i++) {
                 ASSERT(properties[i]->type() == Property);
-                RefPtr<Node> value = this->reinterpretExpressionAsPattern(properties[i]->asProperty()->value());
-                properties[i]->asProperty()->setValue(value.get());
+                Node* value = this->reinterpretExpressionAsPattern(properties[i]->asProperty()->value());
+                properties[i]->asProperty()->setValue(value);
             }
-            result = adoptRef(new ObjectPatternNode(std::move(properties), object->m_loc));
+            result = new (m_allocator) ObjectPatternNode(std::move(properties), object->m_loc);
             break;
         }
         case AssignmentExpressionSimple: {
             AssignmentExpressionSimpleNode* assign = expr->asAssignmentExpressionSimple();
-            RefPtr<Node> left = this->reinterpretExpressionAsPattern(assign->left());
-            result = adoptRef(new AssignmentPatternNode(left.get(), assign->right(), assign->m_loc));
+            Node* left = this->reinterpretExpressionAsPattern(assign->left());
+            result = new (m_allocator) AssignmentPatternNode(left, assign->right(), assign->m_loc);
             break;
         }
         default:
@@ -666,7 +695,7 @@ public:
         return result;
     }
 
-    SyntaxNode convertToParameterSyntaxNode(RefPtr<Node> node)
+    SyntaxNode convertToParameterSyntaxNode(Node* node)
     {
         SyntaxNode paramNode(node->type());
         if (node->isIdentifier()) {
@@ -681,7 +710,7 @@ public:
     }
 
     // FIXME MetaNode
-    PassRefPtr<Node> convertTaggedTemplateExpressionToCallExpression(RefPtr<TaggedTemplateExpressionNode> taggedTemplateExpression, ASTFunctionScopeContext* scopeContext, AtomicString raw)
+    Node* convertTaggedTemplateExpressionToCallExpression(TaggedTemplateExpressionNode* taggedTemplateExpression, ASTFunctionScopeContext* scopeContext, AtomicString raw)
     {
         TemplateLiteralNode* templateLiteral = (TemplateLiteralNode*)taggedTemplateExpression->quasi();
         NodeVector args;
@@ -689,22 +718,22 @@ public:
         for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
             UTF16StringData& sd = (*templateLiteral->quasis())[i]->value;
             String* str = new UTF16String(std::move(sd));
-            elements.push_back(adoptRef(new LiteralNode(Value(str))));
+            elements.push_back(new (m_allocator) LiteralNode(Value(str)));
         }
 
-        RefPtr<ArrayExpressionNode> arrayExpressionForRaw;
+        ArrayExpressionNode* arrayExpressionForRaw = nullptr;
         {
             NodeVector elements;
             for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
                 UTF16StringData& sd = (*templateLiteral->quasis())[i]->valueRaw;
                 String* str = new UTF16String(std::move(sd));
-                elements.push_back(adoptRef(new LiteralNode(Value(str))));
+                elements.push_back(new (m_allocator) LiteralNode(Value(str)));
             }
-            arrayExpressionForRaw = adoptRef(new ArrayExpressionNode(std::move(elements)));
+            arrayExpressionForRaw = new (m_allocator) ArrayExpressionNode(std::move(elements));
         }
 
-        RefPtr<ArrayExpressionNode> quasiVector = adoptRef(new ArrayExpressionNode(std::move(elements), raw, arrayExpressionForRaw.get(), false, true));
-        args.push_back(quasiVector.get());
+        ArrayExpressionNode* quasiVector = new (m_allocator) ArrayExpressionNode(std::move(elements), raw, arrayExpressionForRaw, false, true);
+        args.push_back(quasiVector);
         for (size_t i = 0; i < templateLiteral->expressions().size(); i++) {
             args.push_back(templateLiteral->expressions()[i]);
         }
@@ -712,9 +741,13 @@ public:
         if (taggedTemplateExpression->expr()->isIdentifier() && taggedTemplateExpression->expr()->asIdentifier()->name() == "eval") {
             scopeContext->m_hasEval = true;
         }
-        return adoptRef(new CallExpressionNode(taggedTemplateExpression->expr(), std::move(args)));
+        return new (m_allocator) CallExpressionNode(taggedTemplateExpression->expr(), std::move(args));
     }
+
+private:
+    ASTAllocator& m_allocator;
 };
+
 } // Escargot
 
 #endif

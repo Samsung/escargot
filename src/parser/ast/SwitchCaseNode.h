@@ -27,11 +27,9 @@ namespace Escargot {
 
 class SwitchCaseNode : public StatementNode {
 public:
-    friend class ScriptParser;
-    friend class SwitchStatementNode;
     SwitchCaseNode(Node* test, StatementContainer* consequent)
         : StatementNode()
-        , m_test((ExpressionNode*)test)
+        , m_test(test)
         , m_consequent(consequent)
     {
     }
@@ -44,6 +42,12 @@ public:
     bool isDefaultNode()
     {
         return !m_test;
+    }
+
+    Node* test()
+    {
+        ASSERT(!!m_test);
+        return m_test;
     }
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
@@ -62,8 +66,8 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<StatementContainer> m_consequent;
+    Node* m_test;
+    StatementContainer* m_consequent;
 };
 }
 

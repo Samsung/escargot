@@ -26,15 +26,16 @@
 
 namespace Escargot {
 
-class ArrayExpressionNode : public ExpressionNode {
+class ArrayExpressionNode : public ExpressionNode, public DestructibleNode {
 public:
-    ArrayExpressionNode(NodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTempleateExpression = false)
+    using DestructibleNode::operator new;
+    ArrayExpressionNode(NodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTemplateExpression = false)
         : ExpressionNode()
         , m_elements(elements)
         , m_additionalPropertyName(additionalPropertyName)
         , m_additionalPropertyExpression(additionalPropertyExpression)
         , m_hasSpreadElement(hasSpreadElement)
-        , m_isTaggedTempleateExpression(isTaggedTempleateExpression)
+        , m_isTaggedTemplateExpression(isTaggedTemplateExpression)
     {
     }
 
@@ -98,7 +99,7 @@ public:
             m_additionalPropertyExpression->generateExpressionByteCode(codeBlock, context, additionalPropertyExpressionRegsiter);
             codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, additionalPropertyExpressionRegsiter, ObjectPropertyDescriptor::NotPresent), context, this);
 
-            if (m_isTaggedTempleateExpression) {
+            if (m_isTaggedTemplateExpression) {
                 auto freezeFunctionRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this);
                 codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegsiter, freezeFunctionRegister, 1), context, this);
@@ -108,7 +109,7 @@ public:
             context->giveUpRegister();
         }
 
-        if (m_isTaggedTempleateExpression) {
+        if (m_isTaggedTemplateExpression) {
             auto freezeFunctionRegister = context->getRegister();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this);
             codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, dstRegister, freezeFunctionRegister, 1), context, this);
@@ -144,9 +145,9 @@ public:
 private:
     NodeVector m_elements;
     AtomicString m_additionalPropertyName;
-    RefPtr<Node> m_additionalPropertyExpression;
+    Node* m_additionalPropertyExpression;
     bool m_hasSpreadElement;
-    bool m_isTaggedTempleateExpression;
+    bool m_isTaggedTemplateExpression;
 };
 }
 

@@ -52,7 +52,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_expr;
+    Node* m_expr;
 };
 }
 

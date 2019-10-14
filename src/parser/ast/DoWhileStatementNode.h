@@ -27,11 +27,10 @@ namespace Escargot {
 
 class DoWhileStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
-    DoWhileStatementNode(Node *test, Node *body)
+    DoWhileStatementNode(Node* test, Node* body)
         : StatementNode()
-        , m_test((ExpressionNode *)test)
-        , m_body((StatementNode *)body)
+        , m_test(test)
+        , m_body(body)
     {
     }
 
@@ -40,7 +39,7 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::DoWhileStatement; }
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         ByteCodeGenerateContext newContext(*context);
 
@@ -63,7 +62,7 @@ public:
         newContext.propagateInformationTo(*context);
     }
 
-    virtual void iterateChildren(const std::function<void(Node *node)> &fn) override
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);
 
@@ -72,8 +71,8 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<StatementNode> m_body;
+    Node* m_test;
+    Node* m_body;
 };
 }
 

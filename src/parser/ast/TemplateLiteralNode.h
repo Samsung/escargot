@@ -32,12 +32,17 @@ struct TemplateElement : public gc {
 
 typedef Vector<TemplateElement*, GCUtil::gc_malloc_allocator<TemplateElement*>> TemplateElementVector;
 
-class TemplateLiteralNode : public ExpressionNode {
+class TemplateLiteralNode : public ExpressionNode, public DestructibleNode {
 public:
+    using DestructibleNode::operator new;
     TemplateLiteralNode(TemplateElementVector* vector, NodeVector&& expressions)
         : ExpressionNode()
         , m_quasis(vector)
         , m_expressions(std::move(expressions))
+    {
+    }
+
+    virtual ~TemplateLiteralNode()
     {
     }
 

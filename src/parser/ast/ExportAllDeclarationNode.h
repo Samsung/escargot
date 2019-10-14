@@ -27,8 +27,7 @@ namespace Escargot {
 
 class ExportAllDeclarationNode : public ExportDeclarationNode {
 public:
-    friend class ScriptParser;
-    ExportAllDeclarationNode(RefPtr<Node> src)
+    ExportAllDeclarationNode(Node* src)
         : m_src(src)
     {
         ASSERT(src->isLiteral());
@@ -47,7 +46,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_src;
+    Node* m_src;
 };
 }
 

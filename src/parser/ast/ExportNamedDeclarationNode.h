@@ -26,13 +26,17 @@
 
 namespace Escargot {
 
-class ExportNamedDeclarationNode : public ExportDeclarationNode {
+class ExportNamedDeclarationNode : public ExportDeclarationNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
-    ExportNamedDeclarationNode(RefPtr<Node> declaration, NodeVector&& specifiers, RefPtr<Node> source)
+    using DestructibleNode::operator new;
+    ExportNamedDeclarationNode(Node* declaration, NodeVector&& specifiers, Node* source)
         : m_declaration(declaration)
         , m_specifiers(std::move(specifiers))
         , m_source(source)
+    {
+    }
+
+    virtual ~ExportNamedDeclarationNode()
     {
     }
 
@@ -63,9 +67,9 @@ public:
 
 
 private:
-    RefPtr<Node> m_declaration;
+    Node* m_declaration;
     NodeVector m_specifiers;
-    RefPtr<Node> m_source;
+    Node* m_source;
 };
 }
 

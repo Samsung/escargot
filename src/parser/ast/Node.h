@@ -22,6 +22,7 @@
 
 #include "runtime/AtomicString.h"
 #include "runtime/Value.h"
+#include "parser/ASTAllocator.h"
 
 namespace Escargot {
 
@@ -204,7 +205,7 @@ struct ExtendedNodeLOC {
         size_t byteCodePosition;
     };
     union {
-        ByteCodeBlock *actualCodeBlock;
+        ByteCodeBlock* actualCodeBlock;
         size_t column;
     };
     size_t index;
@@ -235,9 +236,58 @@ class VariableDeclaratorNode;
 class FunctionDeclarationNode;
 class FunctionExpressionNode;
 class ImportSpecifierNode;
+class ImportDefaultSpecifierNode;
+class ImportNamespaceSpecifierNode;
 class ExportSpecifierNode;
 
-class Node : public RefCounted<Node> {
+class FreeableNode {
+public:
+    virtual ~FreeableNode() {}
+    // allocation by ASTAllocator
+    inline void* operator new(size_t size, ASTAllocator& allocator)
+    {
+        return allocator.allocate(size);
+    }
+
+    inline void* operator new(size_t size, void* p)
+    {
+        return p;
+    }
+
+    void* operator new(size_t)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    void* operator new[](size_t) = delete;
+    void operator delete(void*)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    void operator delete[](void*) = delete;
+};
+
+class DestructibleNode {
+public:
+    virtual ~DestructibleNode() {}
+    // Node which needs destructor call when freed
+    inline void* operator new(size_t size, ASTAllocator& allocator)
+    {
+        return allocator.allocateDestructible(size);
+    }
+
+    void* operator new(size_t) = delete;
+    void* operator new[](size_t) = delete;
+    /*
+    void operator delete(void *)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    */
+    void operator delete[](void*) = delete;
+};
+
+// Every Node is allocated by ASTAllocator (default: FreeableNode)
+class Node : public FreeableNode {
 protected:
     Node()
         : m_loc(SIZE_MAX)
@@ -250,21 +300,6 @@ public:
     }
 
     virtual ASTNodeType type() = 0;
-
-    inline void *operator new(size_t size)
-    {
-        return GC_MALLOC_UNCOLLECTABLE(size);
-    }
-
-    inline void operator delete(void *obj)
-    {
-        GC_FREE(obj);
-    }
-
-    inline void *operator new(size_t size, void *p)
-    {
-        return p;
-    }
 
     bool isAssignmentOperation()
     {
@@ -286,16 +321,16 @@ public:
         return type() == ASTNodeType::Identifier;
     }
 
-    ALWAYS_INLINE IdentifierNode *asIdentifier()
+    ALWAYS_INLINE IdentifierNode* asIdentifier()
     {
         ASSERT(isIdentifier());
-        return (IdentifierNode *)this;
+        return (IdentifierNode*)this;
     }
 
-    ALWAYS_INLINE ClassExpressionNode *asClassExpression()
+    ALWAYS_INLINE ClassExpressionNode* asClassExpression()
     {
         ASSERT(type() == ASTNodeType::ClassExpression);
-        return (ClassExpressionNode *)this;
+        return (ClassExpressionNode*)this;
     }
 
     bool isAssignmentPattern()
@@ -303,10 +338,10 @@ public:
         return type() == ASTNodeType::AssignmentPattern;
     }
 
-    ALWAYS_INLINE AssignmentPatternNode *asAssignmentPattern()
+    ALWAYS_INLINE AssignmentPatternNode* asAssignmentPattern()
     {
         ASSERT(isAssignmentPattern());
-        return (AssignmentPatternNode *)this;
+        return (AssignmentPatternNode*)this;
     }
 
     bool isArrayExpression()
@@ -314,10 +349,10 @@ public:
         return type() == ASTNodeType::ArrayExpression;
     }
 
-    ALWAYS_INLINE ArrayExpressionNode *asArrayExpression()
+    ALWAYS_INLINE ArrayExpressionNode* asArrayExpression()
     {
         ASSERT(isArrayExpression());
-        return (ArrayExpressionNode *)this;
+        return (ArrayExpressionNode*)this;
     }
 
     bool isObjectExpression()
@@ -325,10 +360,10 @@ public:
         return type() == ASTNodeType::ObjectExpression;
     }
 
-    ALWAYS_INLINE ObjectExpressionNode *asObjectExpression()
+    ALWAYS_INLINE ObjectExpressionNode* asObjectExpression()
     {
         ASSERT(isObjectExpression());
-        return (ObjectExpressionNode *)this;
+        return (ObjectExpressionNode*)this;
     }
 
     bool isProperty()
@@ -336,10 +371,10 @@ public:
         return type() == ASTNodeType::Property;
     }
 
-    ALWAYS_INLINE PropertyNode *asProperty()
+    ALWAYS_INLINE PropertyNode* asProperty()
     {
         ASSERT(isProperty());
-        return (PropertyNode *)this;
+        return (PropertyNode*)this;
     }
 
     bool isAssignmentExpressionSimple()
@@ -347,76 +382,88 @@ public:
         return type() == ASTNodeType::AssignmentExpressionSimple;
     }
 
-    ALWAYS_INLINE AssignmentExpressionSimpleNode *asAssignmentExpressionSimple()
+    ALWAYS_INLINE AssignmentExpressionSimpleNode* asAssignmentExpressionSimple()
     {
         ASSERT(isAssignmentExpressionSimple());
-        return (AssignmentExpressionSimpleNode *)this;
+        return (AssignmentExpressionSimpleNode*)this;
     }
 
-    ALWAYS_INLINE MemberExpressionNode *asMemberExpression()
+    ALWAYS_INLINE MemberExpressionNode* asMemberExpression()
     {
         ASSERT(isMemberExpression());
-        return (MemberExpressionNode *)this;
+        return (MemberExpressionNode*)this;
     }
 
-    ALWAYS_INLINE LiteralNode *asLiteral()
+    ALWAYS_INLINE LiteralNode* asLiteral()
     {
         ASSERT(isLiteral());
-        return (LiteralNode *)this;
+        return (LiteralNode*)this;
     }
 
-    ALWAYS_INLINE SequenceExpressionNode *asSequenceExpression()
+    ALWAYS_INLINE SequenceExpressionNode* asSequenceExpression()
     {
         ASSERT(type() == ASTNodeType::SequenceExpression);
-        return (SequenceExpressionNode *)this;
+        return (SequenceExpressionNode*)this;
     }
 
-    ALWAYS_INLINE ClassBodyNode *asClassBody()
+    ALWAYS_INLINE ClassBodyNode* asClassBody()
     {
         ASSERT(type() == ASTNodeType::ClassBody);
-        return (ClassBodyNode *)this;
+        return (ClassBodyNode*)this;
     }
 
-    ALWAYS_INLINE ClassElementNode *asClassElement()
+    ALWAYS_INLINE ClassElementNode* asClassElement()
     {
         ASSERT(type() == ASTNodeType::ClassElement);
-        return (ClassElementNode *)this;
+        return (ClassElementNode*)this;
     }
 
-    ALWAYS_INLINE ClassDeclarationNode *asClassDeclaration()
+    ALWAYS_INLINE ClassDeclarationNode* asClassDeclaration()
     {
         ASSERT(type() == ASTNodeType::ClassDeclaration);
-        return (ClassDeclarationNode *)this;
+        return (ClassDeclarationNode*)this;
     }
 
-    ALWAYS_INLINE VariableDeclaratorNode *asVariableDeclarator()
+    ALWAYS_INLINE VariableDeclaratorNode* asVariableDeclarator()
     {
         ASSERT(type() == ASTNodeType::VariableDeclarator);
-        return (VariableDeclaratorNode *)this;
+        return (VariableDeclaratorNode*)this;
     }
 
-    ALWAYS_INLINE FunctionDeclarationNode *asFunctionDeclaration()
+    ALWAYS_INLINE FunctionDeclarationNode* asFunctionDeclaration()
     {
         ASSERT(type() == ASTNodeType::FunctionDeclaration);
-        return (FunctionDeclarationNode *)this;
+        return (FunctionDeclarationNode*)this;
     }
 
-    ALWAYS_INLINE FunctionExpressionNode *asFunctionExpression()
+    ALWAYS_INLINE FunctionExpressionNode* asFunctionExpression()
     {
         ASSERT(type() == ASTNodeType::FunctionExpression);
-        return (FunctionExpressionNode *)this;
+        return (FunctionExpressionNode*)this;
     }
 
-    ALWAYS_INLINE ImportSpecifierNode *asImportSpecifier()
+    ALWAYS_INLINE ImportSpecifierNode* asImportSpecifier()
     {
         ASSERT(type() == ASTNodeType::ImportSpecifier);
-        return (ImportSpecifierNode *)this;
+        return (ImportSpecifierNode*)this;
     }
 
-    ALWAYS_INLINE ExportSpecifierNode *asExportSpecifier()
+    ALWAYS_INLINE ImportDefaultSpecifierNode* asImportDefaultSpecifier()
+    {
+        ASSERT(type() == ASTNodeType::ImportDefaultSpecifier);
+        return (ImportDefaultSpecifierNode*)this;
+    }
+
+    ALWAYS_INLINE ImportNamespaceSpecifierNode* asImportNamespaceSpecifier()
+    {
+        ASSERT(type() == ASTNodeType::ImportNamespaceSpecifier);
+        return (ImportNamespaceSpecifierNode*)this;
+    }
+
+    ALWAYS_INLINE ExportSpecifierNode* asExportSpecifier()
     {
         ASSERT(type() == ASTNodeType::ExportSpecifier);
-        return (ExportSpecifierNode *)this;
+        return (ExportSpecifierNode*)this;
     }
 
     bool isLiteral()
@@ -449,36 +496,36 @@ public:
         return m_loc;
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, ByteCodeRegisterIndex dstRegister)
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual void generateStoreByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf);
+    virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf);
 
-    virtual void generateResolveAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context)
+    virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
     }
 
-    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
+    virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context);
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context);
 
-    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context);
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context);
 
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)> &fn)
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
     }
 
-    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)> &fn)
+    virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn)
     {
     }
 
-    virtual void iterateChildren(const std::function<void(Node *node)> &fn)
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn)
     {
         fn(this);
     }
@@ -486,7 +533,7 @@ public:
     NodeLOC m_loc;
 };
 
-typedef std::vector<RefPtr<Node>> NodeVector;
+typedef std::vector<Node*> NodeVector;
 // we can use atomic allocator here because there is no pointer value on Vector
 typedef VectorWithInlineStorage<KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT, Value, GCUtil::gc_malloc_atomic_allocator<Value>> NumeralLiteralVector;
 }

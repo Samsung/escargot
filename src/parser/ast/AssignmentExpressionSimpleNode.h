@@ -39,23 +39,14 @@ public:
     {
     }
 
-    virtual ~AssignmentExpressionSimpleNode()
-    {
-    }
-
-    void giveupChildren()
-    {
-        m_left = m_right = nullptr;
-    }
-
     Node* left()
     {
-        return m_left.get();
+        return m_left;
     }
 
     Node* right()
     {
-        return m_right.get();
+        return m_right;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionSimple; }
@@ -107,11 +98,11 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(m_left.get(), m_right.get());
+        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
 
         if (codeBlock->m_codeBlock->hasEval()) {
             // x = (eval("var x;"), 1);
-            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression(m_left.get(), m_right.get());
+            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression(m_left, m_right);
         }
 
         bool isBase = context->m_registerStack->size() == 0;
@@ -122,7 +113,7 @@ public:
             context->m_canSkipCopyToRegister = false;
 
             bool oldIsLeftBindingAffectedByRightExpression = context->m_isLeftBindingAffectedByRightExpression;
-            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression(m_left.get(), m_right.get());
+            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression(m_left, m_right);
 
             m_left->generateResolveAddressByteCode(codeBlock, context);
             context->m_canSkipCopyToRegister = oldCanSkipCopyToRegister;
@@ -213,7 +204,7 @@ public:
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        generateResultNotRequiredAssignmentByteCode(this, m_left.get(), m_right.get(), codeBlock, context);
+        generateResultNotRequiredAssignmentByteCode(this, m_left, m_right, codeBlock, context);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
@@ -231,8 +222,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left; // left: Pattern;
-    RefPtr<Node> m_right; // right: Expression;
+    Node* m_left; // left: Pattern;
+    Node* m_right; // right: Expression;
 };
 }
 

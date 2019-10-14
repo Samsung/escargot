@@ -28,9 +28,10 @@
 namespace Escargot {
 
 
-class ClassBodyNode : public Node {
+class ClassBodyNode : public Node, public DestructibleNode {
 public:
-    ClassBodyNode(NodeVector&& elementList, RefPtr<Node> constructor)
+    using DestructibleNode::operator new;
+    ClassBodyNode(NodeVector&& elementList, Node* constructor)
         : Node()
         , m_elementList(elementList)
         , m_constructor(constructor)
@@ -44,7 +45,7 @@ public:
 
     Node* constructor()
     {
-        return m_constructor.get();
+        return m_constructor;
     }
 
     void generateClassInitializer(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex classIndex)
@@ -133,7 +134,7 @@ public:
 
 private:
     NodeVector m_elementList;
-    RefPtr<Node> m_constructor;
+    Node* m_constructor;
 };
 }
 

@@ -27,8 +27,6 @@ namespace Escargot {
 
 class InitializeParameterExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     InitializeParameterExpressionNode(Node* left, size_t index)
         : ExpressionNode()
         , m_left(left)
@@ -78,7 +76,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left;
+    Node* m_left;
     size_t m_paramIndex; // parameter index
 };
 }

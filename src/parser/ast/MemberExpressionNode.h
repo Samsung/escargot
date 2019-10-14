@@ -43,12 +43,12 @@ public:
 
     Node* object()
     {
-        return m_object.get();
+        return m_object;
     }
 
     Node* property()
     {
-        return m_property.get();
+        return m_property;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::MemberExpression; }
@@ -60,7 +60,7 @@ public:
     AtomicString propertyName()
     {
         ASSERT(isPreComputedCase());
-        return ((IdentifierNode*)m_property.get())->name();
+        return ((IdentifierNode*)m_property)->name();
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
@@ -87,7 +87,7 @@ public:
             ASSERT(m_property->isIdentifier());
             if (m_object->isSuperExpression()) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property.get());
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
                 codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
                 context->giveUpRegister();
             } else {
@@ -127,7 +127,7 @@ public:
 
             if (m_object->isSuperExpression()) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property.get());
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
                 codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
                 context->giveUpRegister();
                 context->giveUpRegister();
@@ -215,8 +215,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_object; // object: Expression;
-    RefPtr<Node> m_property; // property: Identifier | Expression;
+    Node* m_object; // object: Expression;
+    Node* m_property; // property: Identifier | Expression;
 
     bool m_computed : 1;
 };

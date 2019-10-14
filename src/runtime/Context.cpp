@@ -55,6 +55,7 @@ Context::Context(VMInstance* instance)
     , m_bumpPointerAllocator(instance->m_bumpPointerAllocator)
     , m_regexpCache(&instance->m_regexpCache)
     , m_toStringRecursionPreventer(&instance->m_toStringRecursionPreventer)
+    , m_astAllocator(*instance->m_astAllocator)
 {
     m_defaultStructureForObject = m_instance->m_defaultStructureForObject;
     m_defaultStructureForFunctionObject = m_instance->m_defaultStructureForFunctionObject;

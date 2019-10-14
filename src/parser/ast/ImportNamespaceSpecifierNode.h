@@ -26,8 +26,7 @@ namespace Escargot {
 
 class ImportNamespaceSpecifierNode : public Node {
 public:
-    friend class ScriptParser;
-    ImportNamespaceSpecifierNode(RefPtr<Node> local)
+    ImportNamespaceSpecifierNode(Node* local)
         : m_local(local)
     {
         ASSERT(local->isIdentifier());
@@ -47,7 +46,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_local;
+    Node* m_local;
 };
 }
 

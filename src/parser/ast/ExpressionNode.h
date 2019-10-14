@@ -34,6 +34,10 @@ public:
     {
     }
 
+    virtual ~ExpressionNode()
+    {
+    }
+
     virtual bool isExpression() override
     {
         return true;
@@ -86,9 +90,6 @@ public:
 
         return true;
     }
-
-
-protected:
 };
 }
 

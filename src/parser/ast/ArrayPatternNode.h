@@ -25,8 +25,9 @@
 
 namespace Escargot {
 
-class ArrayPatternNode : public Node {
+class ArrayPatternNode : public Node, public DestructibleNode {
 public:
+    using DestructibleNode::operator new;
     ArrayPatternNode(NodeVector&& elements)
         : m_elements(elements)
     {

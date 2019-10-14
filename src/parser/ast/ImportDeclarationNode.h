@@ -25,12 +25,16 @@
 
 namespace Escargot {
 
-class ImportDeclarationNode : public StatementNode {
+class ImportDeclarationNode : public StatementNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
-    ImportDeclarationNode(NodeVector&& specifiers, RefPtr<Node> src)
+    using DestructibleNode::operator new;
+    ImportDeclarationNode(NodeVector&& specifiers, Node* src)
         : m_specifiers(specifiers)
         , m_src(src)
+    {
+    }
+
+    virtual ~ImportDeclarationNode()
     {
     }
 
@@ -51,7 +55,7 @@ public:
 
 private:
     NodeVector m_specifiers;
-    RefPtr<Node> m_src;
+    Node* m_src;
 };
 }
 

@@ -28,8 +28,7 @@ namespace Escargot {
 
 class ExportDefaultDeclarationNode : public ExportDeclarationNode {
 public:
-    friend class ScriptParser;
-    ExportDefaultDeclarationNode(RefPtr<Node> declaration, AtomicString exportName, AtomicString localName)
+    ExportDefaultDeclarationNode(Node* declaration, AtomicString exportName, AtomicString localName)
         : m_declaration(declaration)
         , m_exportName(exportName)
         , m_localName(localName)
@@ -58,7 +57,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_declaration;
+    Node* m_declaration;
     AtomicString m_exportName;
     AtomicString m_localName;
 };

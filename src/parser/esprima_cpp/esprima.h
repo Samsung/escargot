@@ -61,8 +61,8 @@ struct Error : public gc {
 
 #define ESPRIMA_RECURSIVE_LIMIT 1024
 
-RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside);
-RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain);
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside);
+FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain);
 }
 }
 

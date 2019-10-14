@@ -25,9 +25,9 @@
 
 namespace Escargot {
 
-class ObjectPatternNode : public Node {
+class ObjectPatternNode : public Node, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
     ObjectPatternNode(NodeVector&& properties)
         : m_properties(properties)
     {
@@ -91,7 +91,7 @@ public:
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (size_t i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i].get()->asProperty();
+            PropertyNode* p = m_properties[i]->asProperty();
             if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }

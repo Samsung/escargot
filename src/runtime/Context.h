@@ -230,6 +230,11 @@ public:
         return m_loadedModules;
     }
 
+    ASTAllocator& astAllocator()
+    {
+        return m_astAllocator;
+    }
+
 private:
     VMInstance* m_instance;
 
@@ -264,6 +269,8 @@ private:
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
     VirtualIdentifierCallback m_virtualIdentifierCallback;
     SecurityPolicyCheckCallback m_securityPolicyCheckCallback;
+
+    ASTAllocator& m_astAllocator;
     // public helper variable
     void* m_virtualIdentifierCallbackPublic;
     void* m_securityPolicyCheckCallbackPublic;

@@ -109,11 +109,21 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
         }
     }
 
+    GC_disable();
+
     try {
         srcToTest.appendString(") { }");
         String* cur = srcToTest.finalize(&state);
         esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, false, SIZE_MAX, false, false);
+
+        // reset ASTAllocator
+        state.context()->astAllocator().reset();
+        GC_enable();
     } catch (esprima::Error& orgError) {
+        // reset ASTAllocator
+        state.context()->astAllocator().reset();
+        GC_enable();
+
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
     }
 

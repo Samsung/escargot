@@ -24,7 +24,6 @@ namespace Escargot {
 
 class FunctionDeclarationNode : public StatementNode {
 public:
-    friend class ScriptParser;
     FunctionDeclarationNode(ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t /*subCodeBlockIndex not used yet*/)
         : m_isGenerator(isGenerator)
         , m_scopeContext(scopeContext)

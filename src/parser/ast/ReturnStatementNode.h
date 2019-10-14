@@ -26,7 +26,6 @@ namespace Escargot {
 
 class ReturnStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     explicit ReturnStatementNode(Node* argument)
         : StatementNode()
         , m_argument(argument)
@@ -76,7 +75,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_argument;
+    Node* m_argument;
 };
 }
 

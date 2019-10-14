@@ -47,7 +47,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::RestElement; }
     Node* argument()
     {
-        return m_argument.get();
+        return m_argument;
     }
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
@@ -77,7 +77,7 @@ public:
     }
 
 protected:
-    RefPtr<Node> m_argument;
+    Node* m_argument;
 };
 }
 
