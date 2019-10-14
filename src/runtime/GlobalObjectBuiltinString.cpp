@@ -749,6 +749,34 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
     return Value();
 }
 
+static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    StringBuilder builder;
+    for (size_t nextIndex = 0; nextIndex < argc; nextIndex++) {
+        Value next = argv[nextIndex];
+        double nextCP = next.toNumber(state);
+        double toIntegerNexCP = next.toInteger(state);
+
+        if (nextCP != toIntegerNexCP || nextCP < 0 || nextCP > 0x10FFFF) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid code point");
+        }
+
+        uint32_t cp = (uint32_t)nextCP;
+
+        if (cp <= 65535) {
+            builder.appendChar((char16_t)cp);
+        } else {
+            char16_t cu1 = floor((cp - 65536) / 1024) + 0xD800;
+            char16_t cu2 = ((cp - 65536) % 1024) + 0xDC00;
+
+            builder.appendChar(cu1);
+            builder.appendChar(cu2);
+        }
+    }
+
+    return builder.finalize(&state);
+}
+
 static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
@@ -1392,6 +1420,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCharCode),
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fromCodePoint),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCodePoint, builtinStringFromCodePoint, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->raw),
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringRaw, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
