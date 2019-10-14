@@ -27,10 +27,9 @@ namespace Escargot {
 
 class DirectiveNode : public StatementNode {
 public:
-    DirectiveNode(Node* expr, StringView value)
+    DirectiveNode(Node* expr)
         : StatementNode()
         , m_expr(expr)
-        , m_value(value)
     {
     }
 
@@ -39,7 +38,6 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::Directive; }
-    StringView value() { return m_value; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         m_expr->generateExpressionByteCode(codeBlock, context, context->getRegister());
@@ -55,7 +53,6 @@ public:
 
 private:
     RefPtr<Node> m_expr;
-    StringView m_value;
 };
 }
 

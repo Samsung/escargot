@@ -29,8 +29,7 @@ namespace Escargot {
 
 class CallExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-    CallExpressionNode(Node* callee, ArgumentVector&& arguments)
+    CallExpressionNode(Node* callee, NodeVector&& arguments)
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(std::move(arguments))
@@ -95,7 +94,7 @@ public:
         return std::make_pair(REGISTER_LIMIT, false);
     }
 
-    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const ArgumentVector& args)
+    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const NodeVector& args)
     {
         if (!context->m_canSkipCopyToRegister) {
             return false;
@@ -240,7 +239,7 @@ public:
 
 private:
     RefPtr<Node> m_callee; // callee: Expression;
-    ArgumentVector m_arguments; // arguments: [ Expression ];
+    NodeVector m_arguments; // arguments: [ Expression ];
 };
 }
 

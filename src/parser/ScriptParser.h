@@ -32,7 +32,6 @@ class InterpretedCodeBlock;
 class Context;
 class ProgramNode;
 class Node;
-typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>, 150> LiteralValueRooterVector;
 
 class ScriptParser : public gc {
 public:

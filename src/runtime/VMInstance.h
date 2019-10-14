@@ -231,7 +231,6 @@ private:
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_parsedSourceCodes;
     Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>> m_compiledCodeBlocks;
     size_t m_compiledByteCodeSize;
 

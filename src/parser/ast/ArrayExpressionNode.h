@@ -28,8 +28,7 @@ namespace Escargot {
 
 class ArrayExpressionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-    ArrayExpressionNode(ExpressionNodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTempleateExpression = false)
+    ArrayExpressionNode(NodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTempleateExpression = false)
         : ExpressionNode()
         , m_elements(elements)
         , m_additionalPropertyName(additionalPropertyName)
@@ -43,7 +42,7 @@ public:
     {
     }
 
-    ExpressionNodeVector& elements()
+    NodeVector& elements()
     {
         return m_elements;
     }
@@ -143,7 +142,7 @@ public:
     }
 
 private:
-    ExpressionNodeVector m_elements;
+    NodeVector m_elements;
     AtomicString m_additionalPropertyName;
     RefPtr<Node> m_additionalPropertyExpression;
     bool m_hasSpreadElement;

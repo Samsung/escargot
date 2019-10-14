@@ -474,6 +474,11 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     throw * error;
 };
 
+StringView Scanner::SmallScannerResult::relatedSource(const StringView& source) const
+{
+    return StringView(source, this->start, this->end);
+}
+
 StringView Scanner::ScannerResult::relatedSource(const StringView& source)
 {
     return StringView(source, this->start, this->end);

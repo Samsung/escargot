@@ -28,7 +28,7 @@ namespace Escargot {
 class ObjectPatternNode : public Node {
 public:
     friend class ScriptParser;
-    ObjectPatternNode(PropertiesNodeVector&& properties)
+    ObjectPatternNode(NodeVector&& properties)
         : m_properties(properties)
     {
 #ifndef NDEBUG
@@ -38,7 +38,7 @@ public:
 #endif
     }
 
-    ObjectPatternNode(PropertiesNodeVector&& properties, NodeLOC& loc)
+    ObjectPatternNode(NodeVector&& properties, NodeLOC& loc)
         : m_properties(properties)
     {
         m_loc = loc;
@@ -108,7 +108,7 @@ public:
     }
 
 private:
-    PropertiesNodeVector m_properties;
+    NodeVector m_properties;
 };
 }
 

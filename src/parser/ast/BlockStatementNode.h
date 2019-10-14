@@ -27,7 +27,6 @@ namespace Escargot {
 // A block statement, i.e., a sequence of statements surrounded by braces.
 class BlockStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     explicit BlockStatementNode(StatementContainer* body, size_t lexicalBlockIndex = 0)
         : StatementNode()
         , m_container(body)

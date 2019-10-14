@@ -28,7 +28,7 @@ namespace Escargot {
 class ImportDeclarationNode : public StatementNode {
 public:
     friend class ScriptParser;
-    ImportDeclarationNode(ImportSpecifierNodeVector&& specifiers, RefPtr<Node> src)
+    ImportDeclarationNode(NodeVector&& specifiers, RefPtr<Node> src)
         : m_specifiers(specifiers)
         , m_src(src)
     {
@@ -50,7 +50,7 @@ public:
     }
 
 private:
-    ImportSpecifierNodeVector m_specifiers;
+    NodeVector m_specifiers;
     RefPtr<Node> m_src;
 };
 }

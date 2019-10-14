@@ -40,7 +40,7 @@ enum Token {
     InvalidToken
 };
 
-enum PunctuatorKind {
+enum PunctuatorKind : uint8_t {
     LeftParenthesis,
     RightParenthesis,
     LeftBrace,
@@ -100,7 +100,7 @@ enum PunctuatorKind {
     PunctuatorKindEnd,
 };
 
-enum KeywordKind {
+enum KeywordKind : uint8_t {
     NotKeyword,
     IfKeyword,
     InKeyword,
@@ -253,6 +253,9 @@ public:
         {
         }
 
+        // ScannerResult always allocated on the stack
+        MAKE_STACK_ALLOCATED();
+
         unsigned char type : 4;
         bool startWithZero : 1;
         bool octal : 1;
@@ -367,6 +370,59 @@ public:
     private:
         void constructStringLiteral(Scanner* scannerInstance);
         void constructStringLiteralHelperAppendUTF16(Scanner* scannerInstance, char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1);
+    };
+
+    class SmallScannerResult {
+    public:
+        SmallScannerResult()
+            : type(InvalidToken)
+            , prec(0)
+            , lineNumber(0)
+            , lineStart(0)
+            , start(0)
+            , end(0)
+        {
+        }
+
+        SmallScannerResult(const ScannerResult& scan)
+            : type(scan.type)
+            , prec(scan.prec)
+            , lineNumber(scan.lineNumber)
+            , lineStart(scan.lineStart)
+            , start(scan.start)
+            , end(scan.end)
+            , valueKeywordKind(scan.valueKeywordKind)
+        {
+        }
+
+        ~SmallScannerResult() {}
+        // SmallScannerResult always allocated on the stack
+        MAKE_STACK_ALLOCATED();
+
+        unsigned char type : 4;
+        char prec : 8; // max prec is 11
+
+        size_t lineNumber;
+        size_t lineStart;
+        size_t start;
+        size_t end;
+
+        union {
+            PunctuatorKind valuePunctuatorKind;
+            KeywordKind valueKeywordKind;
+        };
+
+        inline operator bool() const
+        {
+            return this->type != InvalidToken;
+        }
+
+        inline void reset()
+        {
+            this->type = InvalidToken;
+        }
+
+        StringView relatedSource(const StringView& source) const;
     };
 
     // ScannerResult should be allocated on the stack by ALLOCA

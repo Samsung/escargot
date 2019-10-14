@@ -27,13 +27,12 @@ namespace Escargot {
 
 class ArrayPatternNode : public Node {
 public:
-    friend class ScriptParser;
-    ArrayPatternNode(ExpressionNodeVector&& elements)
+    ArrayPatternNode(NodeVector&& elements)
         : m_elements(elements)
     {
     }
 
-    ArrayPatternNode(ExpressionNodeVector&& elements, NodeLOC& loc)
+    ArrayPatternNode(NodeVector&& elements, NodeLOC& loc)
         : m_elements(elements)
     {
         m_loc = loc;
@@ -91,7 +90,7 @@ public:
     }
 
 private:
-    ExpressionNodeVector m_elements;
+    NodeVector m_elements;
 };
 }
 

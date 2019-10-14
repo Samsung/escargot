@@ -30,7 +30,7 @@ namespace Escargot {
 class ObjectExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    explicit ObjectExpressionNode(PropertiesNodeVector&& properties)
+    explicit ObjectExpressionNode(NodeVector&& properties)
         : ExpressionNode()
         , m_properties(properties)
     {
@@ -40,7 +40,7 @@ public:
     {
     }
 
-    PropertiesNodeVector& properties()
+    NodeVector& properties()
     {
         return m_properties;
     }
@@ -127,7 +127,7 @@ public:
     }
 
 private:
-    PropertiesNodeVector m_properties;
+    NodeVector m_properties;
 };
 }
 

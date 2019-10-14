@@ -28,7 +28,7 @@ namespace Escargot {
 class SequenceExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    explicit SequenceExpressionNode(ExpressionNodeVector&& expressions)
+    explicit SequenceExpressionNode(NodeVector&& expressions)
         : ExpressionNode()
         , m_expressions(expressions)
     {
@@ -59,7 +59,7 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::SequenceExpression; }
-    ExpressionNodeVector& expressions() { return m_expressions; }
+    NodeVector& expressions() { return m_expressions; }
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);
@@ -70,7 +70,7 @@ public:
     }
 
 private:
-    ExpressionNodeVector m_expressions; // expression: Expression;
+    NodeVector m_expressions; // expression: Expression;
 };
 }
 

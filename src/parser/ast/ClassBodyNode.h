@@ -30,8 +30,7 @@ namespace Escargot {
 
 class ClassBodyNode : public Node {
 public:
-    friend class ScriptParser;
-    ClassBodyNode(ExpressionNodeVector&& elementList, RefPtr<Node> constructor)
+    ClassBodyNode(NodeVector&& elementList, RefPtr<Node> constructor)
         : Node()
         , m_elementList(elementList)
         , m_constructor(constructor)
@@ -133,7 +132,7 @@ public:
     }
 
 private:
-    ExpressionNodeVector m_elementList;
+    NodeVector m_elementList;
     RefPtr<Node> m_constructor;
 };
 }

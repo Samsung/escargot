@@ -34,7 +34,7 @@ typedef Vector<TemplateElement*, GCUtil::gc_malloc_allocator<TemplateElement*>> 
 
 class TemplateLiteralNode : public ExpressionNode {
 public:
-    TemplateLiteralNode(TemplateElementVector* vector, ExpressionNodeVector&& expressions)
+    TemplateLiteralNode(TemplateElementVector* vector, NodeVector&& expressions)
         : ExpressionNode()
         , m_quasis(vector)
         , m_expressions(std::move(expressions))
@@ -46,7 +46,7 @@ public:
         return m_quasis;
     }
 
-    const ExpressionNodeVector& expressions()
+    const NodeVector& expressions()
     {
         return m_expressions;
     }
@@ -94,7 +94,7 @@ public:
 
 private:
     TemplateElementVector* m_quasis;
-    ExpressionNodeVector m_expressions;
+    NodeVector m_expressions;
 };
 }
 

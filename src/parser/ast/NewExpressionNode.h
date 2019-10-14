@@ -28,7 +28,7 @@ namespace Escargot {
 class NewExpressionNode : public ExpressionNode {
 public:
     friend class ScriptParser;
-    NewExpressionNode(Node* callee, ArgumentVector&& arguments)
+    NewExpressionNode(Node* callee, NodeVector&& arguments)
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(arguments)
@@ -138,7 +138,7 @@ public:
 
 private:
     RefPtr<Node> m_callee;
-    ArgumentVector m_arguments;
+    NodeVector m_arguments;
     bool m_hasSpreadElement;
 };
 }

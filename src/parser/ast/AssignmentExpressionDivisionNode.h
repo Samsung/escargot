@@ -29,8 +29,6 @@ namespace Escargot {
 // An assignment operator expression.
 class AssignmentExpressionDivisionNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     AssignmentExpressionDivisionNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)

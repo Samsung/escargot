@@ -29,8 +29,6 @@ namespace Escargot {
 // An assignment operator expression.
 class AssignmentExpressionBitwiseOrNode : public ExpressionNode {
 public:
-    friend class ScriptParser;
-
     AssignmentExpressionBitwiseOrNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
