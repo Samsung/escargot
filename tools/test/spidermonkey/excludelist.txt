@@ -9,10 +9,9 @@ non262/module/await-restricted-nested.js
 non262/Array/from-iterator-close.js
 non262/Array/from_primitive.js
 non262/Array/generics.js
+non262/Array/iterator_edge_cases.js
 
 # TODO
-non262/Array/iterator_edge_cases.js
-non262/Array/pop-no-has-trap.js
 non262/Array/regress-304828.js
 non262/Array/regress-313153.js
 non262/Array/regress-387501.js
@@ -43,7 +42,6 @@ non262/class/newTargetDVG.js
 non262/class/newTargetEval.js
 non262/class/newTargetGenerators.js
 non262/class/outerBinding.js
-non262/class/parenExprToString.js
 non262/class/strictExecution.js
 non262/class/superCallBaseInvoked.js
 non262/class/superElemDelete.js
@@ -421,7 +419,6 @@ non262/lexical-environment/unscopables-const.js
 non262/lexical-environment/unscopables-delete.js
 non262/lexical-environment/unscopables-mutation.js
 non262/lexical-environment/unscopables-proto.js
-non262/lexical-environment/unscopables-proxy.js
 non262/lexical-environment/unscopables-strict.js
 non262/lexical-environment/var-in-catch-body-annex-b-eval-destructuring.js
 non262/lexical-environment/var-in-catch-body-annex-b-eval-for-of.js
@@ -443,8 +440,6 @@ non262/object/destructuring-shorthand-defaults.js
 non262/object/entries.js
 non262/object/freeze-global-eval-const.js
 non262/object/freeze-proxy.js
-non262/object/property-descriptor-order.js
-non262/object/propertyIsEnumerable-proxy.js
 non262/object/regress-444787.js
 non262/object/seal-proxy.js
 non262/object/setPrototypeOf-cycle.js
@@ -496,7 +491,6 @@ non262/reflect-parse/stackOverflow.js
 non262/reflect-parse/statements.js
 non262/reflect-parse/templateStrings.js
 non262/Reflect/set.js
-non262/Reflect/setPrototypeOf.js
 non262/RegExp/character-class-escape-s.js
 non262/RegExp/character-escape-class-s-mongolian-vowel-separator.js
 non262/RegExp/compile-lastIndex.js
