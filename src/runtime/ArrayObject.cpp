@@ -219,11 +219,11 @@ void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
-void ArrayObject::sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp)
+void ArrayObject::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     if (isFastModeArray()) {
-        if (getArrayLength(state)) {
-            size_t orgLength = getArrayLength(state);
+        if (length) {
+            size_t orgLength = length;
             Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * orgLength);
 
             for (size_t i = 0; i < orgLength; i++) {
@@ -253,7 +253,7 @@ void ArrayObject::sort(ExecutionState& state, const std::function<bool(const Val
         }
         return;
     }
-    Object::sort(state, comp);
+    Object::sort(state, length, comp);
 }
 
 void* ArrayObject::operator new(size_t size)

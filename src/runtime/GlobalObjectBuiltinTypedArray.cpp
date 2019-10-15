@@ -831,7 +831,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     ArrayBufferObject* buffer = validateTypedArray(state, O, state.context()->staticStrings().sort.string());
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    double len = O->asArrayBufferView()->arrayLength();
+    int64_t len = O->asArrayBufferView()->arrayLength();
 
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
@@ -840,7 +840,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
     // [defaultSort, &cmpfn, &state, &buffer]
-    O->sort(state, [&](const Value& x, const Value& y) -> bool {
+    O->sort(state, len, [&](const Value& x, const Value& y) -> bool {
         ASSERT(x.isNumber() && y.isNumber());
         if (!defaultSort) {
             Value args[] = { x, y };

@@ -159,7 +159,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // a. Let settingConfigFalse be true.
     // 18. Else let settingConfigFalse be false.
     bool settingConfigFalse = false;
-    if (!desc.isConfigurable()) {
+    if (desc.isConfigurablePresent() && !desc.isConfigurable()) {
         settingConfigFalse = true;
     }
 
@@ -447,7 +447,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     if (booleanTrapResult) {
         return ObjectHasPropertyResult([](ExecutionState& state, const ObjectPropertyName& P, void* handlerData) -> Value {
             ProxyObject* p = (ProxyObject*)handlerData;
-            return p->getOwnProperty(state, P).value(state, p);
+            return p->get(state, P).value(state, p);
         },
                                        this);
     }
