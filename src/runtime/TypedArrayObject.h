@@ -360,25 +360,24 @@ public:
         return true;
     }
 
-    virtual void sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp) override
+    virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override
     {
-        size_t arrayLen = arrayLength();
-        if (arrayLen) {
-            Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * arrayLen);
+        if (length) {
+            Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * length);
 
-            for (size_t i = 0; i < arrayLen; i++) {
+            for (int64_t i = 0; i < length; i++) {
                 unsigned idxPosition = i * typedArrayElementSize;
                 tempBuffer[i] = getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition);
             }
 
             TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
-            tempSpace.resizeWithUninitializedValues(arrayLen);
-            mergeSort(tempBuffer, arrayLen, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+            tempSpace.resizeWithUninitializedValues(length);
+            mergeSort(tempBuffer, length, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
                 *lessOrEqualp = comp(a, b);
                 return true;
             });
 
-            for (size_t i = 0; i < arrayLen; i++) {
+            for (int64_t i = 0; i < length; i++) {
                 unsigned idxPosition = i * typedArrayElementSize;
                 setValueInBuffer<TypeAdaptor>(state, idxPosition, tempBuffer[i]);
             }

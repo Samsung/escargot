@@ -10,16 +10,13 @@ non262/Array/from-iterator-close.js
 non262/Array/from_primitive.js
 non262/Array/generics.js
 non262/Array/iterator_edge_cases.js
-
-# TODO
 non262/Array/regress-304828.js
 non262/Array/regress-313153.js
 non262/Array/regress-387501.js
 non262/Array/regress-415540.js
-non262/Array/shift-no-has-trap.js
+
+# TODO
 non262/Array/slice-sparse-with-large-index.js
-non262/Array/sort_small.js
-non262/Array/sort-typedarray-with-own-length.js
 non262/Array/species.js
 non262/Array/to-length.js
 non262/Array/toLocaleString.js

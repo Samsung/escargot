@@ -1277,7 +1277,8 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
             Data* e = (Data*)data;
             int64_t* ret = e->ret;
             Value key = name.toPlainValue(state);
-            if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
+            index = key.toIndex(state);
+            if ((uint64_t)index != Value::InvalidIndexValue) {
                 if (index > *e->cur && *ret > index) {
                     *ret = std::min(index, *ret);
                     *e->exists = true;
@@ -1325,7 +1326,8 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
             Data* e = (Data*)data;
             int64_t* ret = e->ret;
             Value key = name.toPlainValue(state);
-            if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
+            index = key.toIndex(state);
+            if ((uint64_t)index != Value::InvalidIndexValue) {
                 if (index < *e->cur) {
                     *ret = std::max(index, *ret);
                     *e->exists = true;
@@ -1340,15 +1342,14 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
     return exists;
 }
 
-void Object::sort(ExecutionState& state, const std::function<bool(const Value& a, const Value& b)>& comp)
+void Object::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     std::vector<Value, GCUtil::gc_malloc_allocator<Value>> selected;
 
-    int64_t len = lengthES6(state);
     int64_t n = 0;
     int64_t k = 0;
 
-    while (k < len) {
+    while (k < length) {
         Value idx = Value(k);
         if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
             selected.push_back(getOwnProperty(state, ObjectPropertyName(state, idx)).value(state, this));
@@ -1356,7 +1357,7 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
             k++;
         } else {
             int64_t result;
-            nextIndexForward(state, this, k, len, result);
+            nextIndexForward(state, this, k, length, result);
             k = result;
         }
     }
@@ -1377,14 +1378,14 @@ void Object::sort(ExecutionState& state, const std::function<bool(const Value& a
         setThrowsException(state, ObjectPropertyName(state, Value(i)), selected[i], this);
     }
 
-    while (i < len) {
+    while (i < length) {
         Value idx = Value(i);
         if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
             deleteOwnProperty(state, ObjectPropertyName(state, Value(i)));
             i++;
         } else {
             int64_t result;
-            nextIndexForward(state, this, i, len, result);
+            nextIndexForward(state, this, i, length, result);
             i = result;
         }
     }

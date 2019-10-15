@@ -215,7 +215,7 @@ public:
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPropertyKey(ExecutionState& state) const;
 
-    enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
+    enum : uint64_t { InvalidIndexValue = std::numeric_limits<uint64_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
     inline ValueIndex tryToUseAsIndex(ExecutionState& ec) const;

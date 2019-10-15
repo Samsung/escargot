@@ -347,7 +347,8 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
                     Data* e = (Data*)data;
                     int64_t* ret = &e->ret;
                     Value key = name.toPlainValue(state);
-                    if ((index = key.toArrayIndex(state)) != Value::InvalidArrayIndexValue) {
+                    index = key.toIndex(state);
+                    if ((uint64_t)index != Value::InvalidIndexValue) {
                         if (self->get(state, name).value(state, self).isUndefined()) {
                             return true;
                         }
@@ -441,7 +442,9 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
-    thisObject->sort(state, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
+    int64_t len = thisObject->lengthES6(state);
+
+    thisObject->sort(state, len, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
         if (a.isEmpty() && b.isUndefined())
             return false;
         if (a.isUndefined() && b.isEmpty())
