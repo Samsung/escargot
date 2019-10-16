@@ -394,6 +394,11 @@ DEFINE_IS_AS_POINTERVALUE_XXX(ErrorObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferView)
 
+bool ValueRef::isArrayPrototypeObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArrayPrototypeObject();
+}
+
 bool ValueRef::isTypedArrayObject()
 {
     return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject();
@@ -1941,9 +1946,9 @@ uint8_t* ArrayBufferObjectRef::rawBuffer()
     return (uint8_t*)toImpl(this)->data();
 }
 
-unsigned ArrayBufferObjectRef::bytelength()
+unsigned ArrayBufferObjectRef::byteLength()
 {
-    return toImpl(this)->bytelength();
+    return toImpl(this)->byteLength();
 }
 
 bool ArrayBufferObjectRef::isDetachedBuffer()

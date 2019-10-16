@@ -2780,6 +2780,7 @@ public:
             this->throwError("too many lexical blocks in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
         }
 
+        this->lastUsingName = AtomicString();
         ParserBlockContext ctx;
         this->lexicalBlockCount++;
         ctx.lexicalBlockCountBefore = this->lexicalBlockCount;
@@ -2861,6 +2862,7 @@ public:
         }
 
         this->lexicalBlockIndex = ctx.lexicalBlockIndexBefore;
+        this->lastUsingName = AtomicString();
     }
 
     template <class ASTBuilder>

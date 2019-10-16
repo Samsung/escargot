@@ -61,7 +61,7 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
     }
 
-    double bufferByteLength = buffer->bytelength();
+    double bufferByteLength = buffer->byteLength();
 
     if (byteOffset > bufferByteLength) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
