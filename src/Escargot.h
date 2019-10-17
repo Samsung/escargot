@@ -293,7 +293,7 @@ typedef int32_t UChar32;
 #if __GNUC__ >= 7
 #define FALLTHROUGH __attribute__((fallthrough))
 #else
-#define FALLTHROUGH ((void)0)
+#define FALLTHROUGH /* fall through */
 #endif
 #elif !defined(FALLTHROUGH) && defined(COMPILER_CLANG)
 #define FALLTHROUGH /* fall through */

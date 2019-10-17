@@ -593,6 +593,10 @@ public:
     static ValueRef* create(unsigned long);
     static ValueRef* create(long long);
     static ValueRef* create(unsigned long long);
+    static ValueRef* create(ValueRef* src)
+    {
+        return src;
+    }
     static ValueRef* createNull();
     static ValueRef* createUndefined();
 
@@ -824,7 +828,7 @@ struct ESCARGOT_EXPORT ExposableObjectGetOwnPropertyCallbackResult {
 };
 
 struct ESCARGOT_EXPORT ExposableObjectEnumerationCallbackResult {
-    ExposableObjectEnumerationCallbackResult(ValueRef* name, bool isWritable, bool isEnumerable, bool isConfigurable)
+    ExposableObjectEnumerationCallbackResult(ValueRef* name = ValueRef::createUndefined(), bool isWritable = true, bool isEnumerable = true, bool isConfigurable = true)
         : m_name(name)
         , m_isWritable(isWritable)
         , m_isEnumerable(isEnumerable)
@@ -1177,7 +1181,7 @@ public:
     void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
     void detachArrayBuffer(ExecutionStateRef* state);
     uint8_t* rawBuffer();
-    unsigned bytelength();
+    unsigned byteLength();
     bool isDetachedBuffer();
 };
 

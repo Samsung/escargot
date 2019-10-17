@@ -1955,11 +1955,35 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(Ex
             target = target.asObject()->getPrototype(state);
         }
     } else {
-        ValueVector keys = target.asObject()->enumerableOwnProperties(state, target.asObject(), EnumerableOwnPropertiesType::Key);
-        size_t keysSize = keys.size();
-        data->m_keys.resizeWithUninitializedValues(keysSize);
-        for (uint32_t i = 0; i < keysSize; i++) {
-            data->m_keys[i] = SmallValue(keys[i]);
+        struct Params {
+            std::vector<Value::ValueIndex> indexes;
+            std::vector<Value, GCUtil::gc_malloc_allocator<Value>> strings;
+        } params;
+
+        obj->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+            auto params = (Params*)data;
+            auto value = name.toPlainValue(state);
+            if (desc.isEnumerable()) {
+                Value::ValueIndex index;
+                if (name.isIndexString() && (index = value.toIndex(state)) != Value::InvalidIndexValue) {
+                    params->indexes.push_back(index);
+                } else {
+                    params->strings.push_back(value);
+                }
+            }
+            return true;
+        },
+                         &params, true);
+
+        std::sort(params.indexes.begin(), params.indexes.end(), std::less<Value::ValueIndex>());
+
+        data->m_keys.resizeWithUninitializedValues(params.indexes.size() + params.strings.size());
+        size_t idx = 0;
+        for (auto& v : params.indexes) {
+            data->m_keys[idx++] = Value(v).toString(state);
+        }
+        for (auto& v : params.strings) {
+            data->m_keys[idx++] = v;
         }
     }
 

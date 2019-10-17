@@ -1,8 +1,6 @@
 def isPr() {
     env.CHANGE_ID != null
 }
-
-timeout(30) {
     node {
         try {
             stage("Get source") {
@@ -83,47 +81,49 @@ timeout(30) {
             }
 
             stage('Running test') {
-            parallel (
-                'release-32bit-jetstream-1' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-1'
-                },
-                'release-32bit-jetstream-2' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-2'
-                },
-                'release-32bit-jetstream-3' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-3'
-                },
-                'release-64bit-jetstream-1' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-1'
-                },
-                'release-64bit-jetstream-2' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-2'
-                },
-                'release-64bit-jetstream-3' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-3'
-                },
-                'release-octane' : {
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" octane'
-                    sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" octane'
-                },
-                'release-chakracore' : {
-                    sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" chakracore'
-                    sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" chakracore'
-                },
-                '32bit' : {
-                    sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" modifiedVendorTest regression-tests es2015 intl sunspider-js'
-                    sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" test262'
-                    sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
-                    sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" v8 spidermonkey regression-tests es2015 intl test262'
-                },
-                '64bit' : {
-                    sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" modifiedVendorTest regression-tests es2015 intl sunspider-js'
-                    sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-64.so tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" test262'
-                    sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
-                    sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" v8 spidermonkey regression-tests es2015 intl test262'
-                },
-            )
+                timeout(30) {
+                parallel (
+                    'release-32bit-jetstream-1' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-1'
+                    },
+                    'release-32bit-jetstream-2' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-2'
+                    },
+                    'release-32bit-jetstream-3' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-3'
+                    },
+                    'release-64bit-jetstream-1' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-1'
+                    },
+                    'release-64bit-jetstream-2' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-2'
+                    },
+                    'release-64bit-jetstream-3' : {
+                       sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-3'
+                    },
+                    'release-octane' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" octane'
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" octane'
+                    },
+                    'release-chakracore' : {
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" chakracore'
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" chakracore'
+                    },
+                    '32bit' : {
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" modifiedVendorTest regression-tests es2015 intl sunspider-js'
+                        sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" test262'
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" v8 spidermonkey regression-tests es2015 intl test262'
+                    },
+                    '64bit' : {
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" modifiedVendorTest regression-tests es2015 intl sunspider-js'
+                        sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-64.so tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" test262'
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" v8 spidermonkey regression-tests es2015 intl test262'
+                    },
+                )
             }
+        }
 
         } catch (e) {
             throw e
@@ -131,4 +131,3 @@ timeout(30) {
             cleanWs()
         }
     }
-}

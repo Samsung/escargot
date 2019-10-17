@@ -70,7 +70,7 @@ void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
 // http://www.ecma-international.org/ecma-262/6.0/#sec-clonearraybuffer
 bool ArrayBufferObject::cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset)
 {
-    unsigned srcLength = srcBuffer->bytelength();
+    unsigned srcLength = srcBuffer->byteLength();
     ASSERT(srcByteOffset <= srcLength);
     unsigned cloneLength = srcLength - srcByteOffset;
     return cloneBuffer(state, srcBuffer, srcByteOffset, cloneLength);

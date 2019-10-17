@@ -244,12 +244,15 @@ bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPrope
     return deleted;
 }
 
-// TODO
 void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
     for (size_t i = 0; i < m_parameterMap.size(); i++) {
-        if (isMatchedArgument(i) && !callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
-            return;
+        if (isMatchedArgument(i)) {
+            if (!isModifiedArgument(i)) {
+                if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
+                    return;
+                }
+            }
         }
     }
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);

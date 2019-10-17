@@ -62,7 +62,7 @@ public:
     }
 
     ALWAYS_INLINE const uint8_t* data() { return m_data; }
-    ALWAYS_INLINE unsigned bytelength() { return m_bytelength; }
+    ALWAYS_INLINE unsigned byteLength() { return m_bytelength; }
     // $24.1.1.5
     template <typename Type>
     Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
