@@ -36,7 +36,6 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
     // this is to avoid dereferencing of null pointer.
     result.result = Value();
     result.error = error;
-    result.resultOrErrorAsString = result.error.toStringWithoutException(state);
 
     fillStackDataIntoErrorObject(error);
 
@@ -62,7 +61,6 @@ SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*
     try {
         ExecutionState state(m_context);
         result.result = scriptRunner(state, data);
-        result.resultOrErrorAsString = result.result.toStringWithoutException(state);
     } catch (const Value& err) {
         processCatch(err, result);
     }
@@ -75,8 +73,6 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 
     try {
         result.result = scriptRunner();
-        ExecutionState state(m_context);
-        result.resultOrErrorAsString = result.result.toStringWithoutException(state);
     } catch (const Value& err) {
         processCatch(err, result);
     }

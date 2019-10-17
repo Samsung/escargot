@@ -473,14 +473,15 @@ public:
 
     struct EvaluatorResult {
         EvaluatorResult();
-        bool isSuccessful()
+        bool isSuccessful() const
         {
             return !error.hasValue();
         }
 
+        StringRef* resultOrErrorToString(ContextRef* ctx) const;
+
         ValueRef* result;
         OptionalRef<ValueRef> error;
-        StringRef* resultOrErrorAsString;
         GCManagedVector<StackTraceData> stackTraceData;
     };
 
@@ -665,7 +666,7 @@ public:
     uint32_t toUint32(ExecutionStateRef* state);
     StringRef* toString(ExecutionStateRef* state);
     // we never throw exception in this function but returns "Error while converting to string, but do not throw an exception" string
-    StringRef* toStringWithoutException(ExecutionStateRef* state);
+    StringRef* toStringWithoutException(ContextRef* ctx);
     ObjectRef* toObject(ExecutionStateRef* state);
 
     enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };

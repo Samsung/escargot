@@ -335,7 +335,6 @@ public:
         size_t len = arrayLength();
         for (size_t i = 0; i < len; i++) {
             unsigned idxPosition = i * typedArrayElementSize + byteOffset();
-            ArrayBufferObject* b = buffer();
             if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data)) {
                 return;
             }

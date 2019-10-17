@@ -222,7 +222,7 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, Object* this
 
     auto wrapper = thisObject->asArrayBufferView();
     ArrayBufferObject* buffer = wrapper->buffer();
-    if (buffer->isDetachedBuffer()) {
+    if (!buffer && buffer->isDetachedBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
     }
     return buffer;
@@ -341,7 +341,9 @@ static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValu
 static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->buffer());
+        if (thisValue.asObject()->asArrayBufferView()->buffer()) {
+            return Value(thisValue.asObject()->asArrayBufferView()->buffer());
+        }
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.buffer called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();

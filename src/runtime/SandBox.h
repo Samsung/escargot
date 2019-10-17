@@ -59,12 +59,10 @@ public:
     struct SandBoxResult {
         Value result;
         Value error;
-        String* resultOrErrorAsString;
         Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
         SandBoxResult()
             : result(Value::EmptyValue)
             , error(Value::EmptyValue)
-            , resultOrErrorAsString(String::emptyString)
         {
         }
     };

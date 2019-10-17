@@ -484,7 +484,7 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
                                          scriptInitializeResult.script.get());
 
     if (!evalResult.isSuccessful()) {
-        printf("Uncaught %s:\n", evalResult.resultOrErrorAsString->toStdUTF8String().data());
+        printf("Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
         for (size_t i = 0; i < evalResult.stackTraceData.size(); i++) {
             printf("%s (%d:%d)\n", evalResult.stackTraceData[i].src->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
         }
@@ -492,16 +492,16 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
     }
 
     if (shouldPrintScriptResult) {
-        puts(evalResult.resultOrErrorAsString->toStdUTF8String().data());
+        puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
     }
 
     while (context->vmInstance()->hasPendingPromiseJob()) {
         auto jobResult = context->vmInstance()->executePendingPromiseJob();
         if (shouldPrintScriptResult) {
             if (jobResult.error) {
-                printf("Uncaught %s:\n", jobResult.resultOrErrorAsString->toStdUTF8String().data());
+                printf("Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
             } else {
-                printf("%s\n", jobResult.resultOrErrorAsString->toStdUTF8String().data());
+                printf("%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
             }
         }
     }

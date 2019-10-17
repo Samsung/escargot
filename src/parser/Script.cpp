@@ -486,6 +486,17 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     }
 
     if (!isExecuteOnEvalFunction) {
+        InterpretedCodeBlock* child = m_topCodeBlock->firstChild();
+        while (child) {
+            if (child->isFunctionDeclaration()) {
+                if (!state.context()->globalObject()->defineOwnProperty(state, child->functionName(),
+                                                                        ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
+                }
+            }
+            child = child->nextSibling();
+        }
+
         const auto& globalLexicalVector = m_topCodeBlock->blockInfo(0)->m_identifiers;
         size_t len = globalLexicalVector.size();
         for (size_t i = 0; i < len; i++) {
