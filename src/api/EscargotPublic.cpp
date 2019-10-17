@@ -235,7 +235,7 @@ void Memory::setEventEventListener(OnGCEventListener l)
 }
 
 // I store ref count as SmallValue. this can prevent what bdwgc can see ref count as address (SmallValue store integer value as odd)
-using PersistentValueRefMapImpl = std::unordered_map<ValueRef*, SmallValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef*, SmallValue>>>;
+using PersistentValueRefMapImpl = std::unordered_map<ValueRef*, SmallValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef* const, SmallValue>>>;
 
 PersistentRefHolder<PersistentValueRefMap> PersistentValueRefMap::create()
 {
@@ -545,15 +545,22 @@ Evaluator::StackTraceData::StackTraceData()
 Evaluator::EvaluatorResult::EvaluatorResult()
     : result()
     , error()
-    , resultOrErrorAsString(toRef(String::emptyString))
 {
+}
+
+StringRef* Evaluator::EvaluatorResult::resultOrErrorToString(ContextRef* ctx) const
+{
+    if (isSuccessful()) {
+        return result->toStringWithoutException(ctx);
+    } else {
+        return ((ValueRef*)error.value())->toStringWithoutException(ctx);
+    }
 }
 
 static Evaluator::EvaluatorResult toEvaluatorResultRef(SandBox::SandBoxResult& result)
 {
     Evaluator::EvaluatorResult r;
     r.error = toOptionalValue(result.error);
-    r.resultOrErrorAsString = toRef(result.resultOrErrorAsString);
     r.result = toRef(result.result);
 
     if (!result.error.isEmpty()) {
@@ -1664,10 +1671,10 @@ StringRef* ValueRef::toString(ExecutionStateRef* es)
     return toRef(toImpl(this).toString(*esi));
 }
 
-StringRef* ValueRef::toStringWithoutException(ExecutionStateRef* es)
+StringRef* ValueRef::toStringWithoutException(ContextRef* ctx)
 {
-    ExecutionState* esi = toImpl(es);
-    return toRef(toImpl(this).toStringWithoutException(*esi));
+    ExecutionState state(toImpl(ctx));
+    return toRef(toImpl(this).toStringWithoutException(state));
 }
 
 ObjectRef* ValueRef::toObject(ExecutionStateRef* es)

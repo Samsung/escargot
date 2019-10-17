@@ -242,7 +242,7 @@ private:
     IdentifierRecordVector m_globalDeclarativeRecord;
     SmallValueVector m_globalDeclarativeStorage;
     std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
-                       GCUtil::gc_malloc_allocator<std::pair<AtomicString, GlobalVariableAccessCacheItem*>>>
+                       GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
         m_globalVariableAccessCache;
     LoadedModuleVector m_loadedModules;
     Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& m_compiledCodeBlocks;
