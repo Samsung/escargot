@@ -995,7 +995,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
     String* searchStr = searchString.toString(state);
     // If endPosition is undefined, let pos be len, else let pos be ? ToInteger(endPosition).
     double pos = 0;
-    if (argc >= 2) {
+    if (argc >= 2 && !argv[1].isUndefined()) {
         pos = argv[1].toInteger(state);
     } else {
         pos = len;
