@@ -109,8 +109,27 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
     return Value(false);
 }
 
+static ArrayBufferObject* validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+
+    auto wrapper = thisObject->asArrayBufferView();
+    ArrayBufferObject* buffer = wrapper->buffer();
+    if (!buffer && buffer->isDetachedBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
+    }
+    return buffer;
+}
+
 static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, const Value& items, const Value& mapfn, const Value& thisArg)
 {
+    if (!constructor.isObject() || !constructor.asObject()->subclasses(state, state.context()->globalObject()->typedArray())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().from.string(), errorMessage_GlobalObject_ThisNotTypedArrayObject);
+    }
+
     // Let C be constructor.
     Value C = constructor;
     // Assert: IsConstructor(C) is true.
@@ -211,21 +230,6 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
     }
     // Return targetObj.
     return targetObj;
-}
-
-static ArrayBufferObject* validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
-{
-    const StaticStrings* strings = &state.context()->staticStrings();
-    if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotTypedArrayObject);
-    }
-
-    auto wrapper = thisObject->asArrayBufferView();
-    ArrayBufferObject* buffer = wrapper->buffer();
-    if (!buffer && buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
-    }
-    return buffer;
 }
 
 static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedArrayType type)
@@ -1031,6 +1035,10 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // Let C be SpeciesConstructor(O, defaultConstructor).
     Value C = O->speciesConstructor(state, defaultConstructor);
 
+    if (!C.isObject() || !C.asObject()->subclasses(state, state.context()->globalObject()->typedArray())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().from.string(), errorMessage_GlobalObject_IllegalConstructor);
+    }
+
     // Let kept be a new empty List.
     ValueVector kept;
     // Let k be 0.
@@ -1270,7 +1278,10 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     // Let C be SpeciesConstructor(O, defaultConstructor).
     Value C = O->speciesConstructor(state, defaultConstructor);
 
-    // FIXME Let A be AllocateTypedArray(C, len).
+    if (!C.isObject() || !C.asObject()->subclasses(state, state.context()->globalObject()->typedArray())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().from.string(), errorMessage_GlobalObject_IllegalConstructor);
+    }
+
     Value arg[1] = { Value(len) };
     Value A = Object::construct(state, C, 1, arg);
 
@@ -1442,9 +1453,12 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
     Value C = O->speciesConstructor(state, defaultConstructor);
-    // FIXME Let A be AllocateTypedArray(C, count).
     Value arg[1] = { Value(count) };
     Value A = Object::construct(state, C, 1, arg);
+
+    if (!C.isObject() || !C.asObject()->subclasses(state, state.context()->globalObject()->typedArray())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().from.string(), errorMessage_GlobalObject_IllegalConstructor);
+    }
 
     // If SameValue(srcType, targetType) is false, then
     if (O->asArrayBufferView()->typedArrayType() != A.asObject()->asArrayBufferView()->typedArrayType()) {
@@ -1464,8 +1478,14 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
         if (srcBuffer->isDetachedBuffer()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
         }
+
         ArrayBufferObject* targetBuffer = targetWrapper->buffer();
         unsigned elementSize = ArrayBufferView::getElementSize(srcWrapper->typedArrayType());
+
+        if (targetBuffer->byteLength() < std::min(count * elementSize, (double)srcWrapper->buffer()->byteLength())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Derived TypedArray constructor created an array which was too small");
+        }
+
         unsigned srcByteOffset = srcWrapper->byteOffset();
         unsigned targetByteIndex = 0;
         unsigned srcByteIndex = k * elementSize + srcByteOffset;
@@ -1565,7 +1585,6 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
 static Value builtinTypedArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toString);
-    validateTypedArray(state, O, state.context()->staticStrings().toString.string());
 
     Value toString = O->get(state, state.context()->staticStrings().join).value(state, O);
     if (!toString.isCallable()) {

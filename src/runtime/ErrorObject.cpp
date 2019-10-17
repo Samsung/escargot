@@ -99,6 +99,7 @@ const char* errorMessage_GlobalObject_DetachedBuffer = "%s: Detached buffer cann
 const char* errorMessage_GlobalObject_ConstructorRequiresNew = "Constructor requires 'new'";
 const char* errorMessage_GlobalObject_CalledOnIncompatibleReceiver = "%s: called on incompatible receiver";
 const char* errorMessage_GlobalObject_IllegalFirstArgument = "%s: illegal first argument";
+const char* errorMessage_GlobalObject_IllegalConstructor = "illegal constructor";
 const char* errorMessage_String_InvalidStringLength = "Invalid string length";
 
 

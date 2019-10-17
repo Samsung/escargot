@@ -104,6 +104,7 @@ extern const char* errorMessage_GlobalObject_DetachedBuffer;
 extern const char* errorMessage_GlobalObject_ConstructorRequiresNew;
 extern const char* errorMessage_GlobalObject_CalledOnIncompatibleReceiver;
 extern const char* errorMessage_GlobalObject_IllegalFirstArgument;
+extern const char* errorMessage_GlobalObject_IllegalConstructor;
 extern const char* errorMessage_String_InvalidStringLength;
 
 class ErrorObject : public Object {

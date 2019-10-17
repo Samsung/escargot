@@ -677,12 +677,9 @@
   'es6/throw-type-error-function-restrictions' : [SKIP],
   'es6/typedarray-every' : [SKIP],
   'es6/typedarray-foreach' : [SKIP],
-  'es6/typedarray-from' : [SKIP],
   'es6/typedarray' : [SKIP],
   'es6/typedarray-neutered' : [SKIP],
-  'es6/typedarray-reduce' : [SKIP],
-  'es6/typedarray-species' : [SKIP],
-  'es6/typedarray-tostring' : [SKIP],
+
   'es6/unicode-character-ranges' : [SKIP],
   'es6/unicode-escapes-in-regexps' : [SKIP],
   'es6/unicode-regexp-backrefs' : [SKIP],
@@ -862,6 +859,7 @@
 
   ## 8. Error message differ
   'array-reduce': [SKIP],
+  'es6/typedarray-reduce' : [SKIP],
   'function-call': [SKIP],
   'object-create': [SKIP],
   'object-define-properties': [SKIP],

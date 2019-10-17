@@ -872,6 +872,21 @@ public:
         }
     }
 
+    bool subclasses(ExecutionState& state, const Object* O)
+    {
+        Object* iter = this;
+
+        do {
+            if (iter == O) {
+                return true;
+            }
+
+            iter = iter->getPrototypeObject(state);
+        } while (iter != nullptr);
+
+        return false;
+    }
+
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
     void setIndexedPropertyThrowsException(ExecutionState& state, const Value& property, const Value& value)
