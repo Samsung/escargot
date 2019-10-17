@@ -67,6 +67,7 @@ class VMInstance : public gc {
     friend class Context;
     friend class VMInstanceRef;
     friend class ScriptParser;
+    friend class SandBox;
 
 public:
     VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
@@ -205,12 +206,17 @@ public:
         return m_platform;
     }
 
+    SandBox* currentSandBox()
+    {
+        return m_currentSandBox;
+    }
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
     GlobalSymbols m_globalSymbols;
     GlobalSymbolRegistryVector m_globalSymbolRegistry;
-    Vector<SandBox*, GCUtil::gc_malloc_allocator<SandBox*>> m_sandBoxStack;
+    SandBox* m_currentSandBox;
 
     std::mt19937 m_randEngine;
 

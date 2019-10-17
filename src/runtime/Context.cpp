@@ -54,7 +54,6 @@ Context::Context(VMInstance* instance)
     , m_compiledCodeBlocks(instance->m_compiledCodeBlocks)
     , m_bumpPointerAllocator(instance->m_bumpPointerAllocator)
     , m_regexpCache(&instance->m_regexpCache)
-    , m_sandBoxStack(instance->m_sandBoxStack)
     , m_toStringRecursionPreventer(&instance->m_toStringRecursionPreventer)
 {
     m_defaultStructureForObject = m_instance->m_defaultStructureForObject;
@@ -86,8 +85,8 @@ Context::Context(VMInstance* instance)
 
 void Context::throwException(ExecutionState& state, const Value& exception)
 {
-    if (m_sandBoxStack.size()) {
-        m_sandBoxStack.back()->throwException(state, exception);
+    if (LIKELY(vmInstance()->currentSandBox() != nullptr)) {
+        vmInstance()->currentSandBox()->throwException(state, exception);
     } else {
         ESCARGOT_LOG_ERROR("there is no sandbox but exception occurred");
         RELEASE_ASSERT_NOT_REACHED();

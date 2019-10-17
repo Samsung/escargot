@@ -23,11 +23,25 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/VMInstance.h"
 #include "parser/Script.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
+
+SandBox::SandBox(Context* s)
+    : m_context(s)
+{
+    m_oldSandBox = m_context->vmInstance()->m_currentSandBox;
+    m_context->vmInstance()->m_currentSandBox = this;
+}
+
+SandBox::~SandBox()
+{
+    ASSERT(m_context->vmInstance()->m_currentSandBox == this);
+    m_context->vmInstance()->m_currentSandBox = m_oldSandBox;
+}
 
 void SandBox::processCatch(const Value& error, SandBoxResult& result)
 {
