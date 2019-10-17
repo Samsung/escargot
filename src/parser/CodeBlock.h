@@ -577,9 +577,11 @@ public:
 
     InterpretedCodeBlock* childBlockAt(size_t idx)
     {
+        ASSERT(!!m_firstChild);
         InterpretedCodeBlock* c = m_firstChild;
 
         for (size_t i = 0; i < idx; i++) {
+            ASSERT(c->nextSibling());
             c = c->nextSibling();
         }
 

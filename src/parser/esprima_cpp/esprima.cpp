@@ -1259,6 +1259,7 @@ public:
     template <class ASTBuilder>
     ParseFormalParametersResult parseFormalParameters(ASTBuilder& builder, Scanner::SmallScannerResult* firstRestricted = nullptr)
     {
+        const bool previousInParameterParsing = this->context->inParameterParsing;
         this->context->inParameterParsing = true;
         ParseFormalParametersResult options;
 
@@ -1283,7 +1284,7 @@ public:
 
         this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
-        this->context->inParameterParsing = false;
+        this->context->inParameterParsing = previousInParameterParsing;
         options.valid = true;
         return options;
     }
@@ -2510,9 +2511,9 @@ public:
                     if (this->match(LeftBrace)) {
                         this->parseFunctionSourceElements(builder);
                     } else {
-                        if (this->isParsingSingleFunction) {
-                            // when parsing for function call,
-                            // assignmentExpression should parse(scan) only child arrow functions
+                        if (this->isParsingSingleFunction && !this->context->inParameterParsing) {
+                            // when parsing for function call, assignmentExpression should parse(scan) only child arrow functions
+                            // Note: When scanning an arrow function body which is located in parameter list, we cannot skip it because function in parameter list is encountered before the function body. We scans this function to align the childFunctionIndex correctly.
                             ASSERT(this->childFunctionIndex > 0);
 
                             size_t realIndex = this->childFunctionIndex - 1;
@@ -2530,7 +2531,6 @@ public:
                             this->lookahead.lineStart = this->scanner->lineStart;
                             this->nextToken();
                         } else {
-                            ASSERT(!this->isParsingSingleFunction);
                             LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
                             LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
                             this->lexicalBlockIndex = 0;
@@ -2539,11 +2539,6 @@ public:
                             this->subCodeBlockIndex = 0;
 
                             auto oldNameCallback = this->nameDeclaredCallback;
-
-                            if (this->isParsingSingleFunction) {
-                                ASSERT(this->childFunctionIndex > 0);
-                                this->childFunctionIndex++;
-                            }
 
                             // parsing arrow function body by SyntaxChecker only at this point
                             SyntaxChecker newBuilder;
@@ -4027,9 +4022,10 @@ public:
     {
         // return empty node because the function body node is never used now
         ASTNode result;
-        if (this->isParsingSingleFunction) {
-            // when parsing for function call,
-            // parseFunctionSourceElements should parse only for child functions
+
+        if (this->isParsingSingleFunction && !this->context->inParameterParsing) {
+            // when parsing for function call, parseFunctionSourceElements should parse only for child functions
+            // Note: When scanning a function body which is located in parameter list, we cannot skip it because function in parameter list is encountered before the function body. We scans this function to align the childFunctionIndex correctly.
             ASSERT(this->childFunctionIndex > 0);
 
             size_t realIndex = this->childFunctionIndex - 1;
@@ -4053,8 +4049,6 @@ public:
             //return this->finalize(this->createNode(), builder.createBlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
             return result;
         }
-
-        ASSERT(!this->isParsingSingleFunction);
 
         LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
         LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
@@ -4502,7 +4496,6 @@ public:
 
         return start;
     }
-
 
     template <class ASTBuilder>
     ASTPassNode parseYieldExpression(ASTBuilder& builder)
