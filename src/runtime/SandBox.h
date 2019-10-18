@@ -30,17 +30,8 @@ class SandBox : public gc {
     friend class ErrorObject;
 
 public:
-    explicit SandBox(Context* s)
-        : m_context(s)
-    {
-        m_context->m_sandBoxStack.pushBack(this);
-    }
-
-    ~SandBox()
-    {
-        ASSERT(m_context->m_sandBoxStack.back() == this);
-        m_context->m_sandBoxStack.pop_back();
-    }
+    explicit SandBox(Context* s);
+    ~SandBox();
 
     struct StackTraceData : public gc {
         String* src;
@@ -82,6 +73,7 @@ protected:
 
 private:
     Context* m_context;
+    SandBox* m_oldSandBox;
     StackTraceDataVector m_stackTraceData;
     Value m_exception; // To avoid accidential GC of exception value
 };

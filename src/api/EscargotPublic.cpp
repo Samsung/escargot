@@ -1416,6 +1416,12 @@ VMInstanceRef* ContextRef::vmInstance()
     return toRef(ctx->vmInstance());
 }
 
+void ContextRef::throwException(ValueRef* exceptionValue)
+{
+    ExecutionState s(toImpl(this));
+    toImpl(this)->throwException(s, toImpl(exceptionValue));
+}
+
 void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
     Context* ctx = toImpl(this);

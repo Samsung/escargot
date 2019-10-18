@@ -130,7 +130,8 @@ VMInstance::~VMInstance()
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
-    : m_randEngine((unsigned int)time(NULL))
+    : m_currentSandBox(nullptr)
+    , m_randEngine((unsigned int)time(NULL))
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
     , m_cachedUTC(nullptr)

@@ -548,6 +548,8 @@ public:
     GlobalObjectRef* globalObject();
     VMInstanceRef* vmInstance();
 
+    void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
+
     typedef OptionalRef<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
     typedef OptionalRef<ValueRef> (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
 
@@ -669,7 +671,7 @@ public:
     StringRef* toStringWithoutException(ContextRef* ctx);
     ObjectRef* toObject(ExecutionStateRef* state);
 
-    enum : uint32_t { InvalidIndexValue = std::numeric_limits<uint32_t>::max() };
+    enum : uint64_t { InvalidIndexValue = std::numeric_limits<uint64_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionStateRef* state);
 

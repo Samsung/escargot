@@ -2248,11 +2248,12 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
             }
             newState->m_inTryStatement = oldInTryStatement;
-            newState->context()->m_sandBoxStack.back()->fillStackDataIntoErrorObject(val);
+
+            newState->context()->vmInstance()->currentSandBox()->fillStackDataIntoErrorObject(val);
 
 #ifndef NDEBUG
             if (getenv("DUMP_ERROR_IN_TRY_CATCH") && strlen(getenv("DUMP_ERROR_IN_TRY_CATCH"))) {
-                ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(newState->context()->m_sandBoxStack.back());
+                ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(newState->context()->vmInstance()->currentSandBox());
                 StringBuilder builder;
                 builder.appendString("Caught error in try-catch block\n");
                 data->buildStackTrace(newState->context(), builder);
@@ -2260,7 +2261,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             }
 #endif
 
-            newState->context()->m_sandBoxStack.back()->m_stackTraceData.clear();
+            newState->context()->vmInstance()->currentSandBox()->m_stackTraceData.clear();
             if (!code->m_hasCatch) {
                 newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             } else {
