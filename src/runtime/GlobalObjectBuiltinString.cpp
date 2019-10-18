@@ -1230,7 +1230,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
     Value searchString = argv[0];
-    if (searchString.isObject() && searchString.asObject()->isRegExpObject()) {
+    if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with includes");
     }
 

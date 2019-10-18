@@ -655,8 +655,6 @@
   'es6/rest-params' : [SKIP],
   'es6/sloppy-restrictive-block-function' : [SKIP],
   'es6/string-fromcodepoint' : [SKIP],
-  'es6/string-includes' : [SKIP],
-  'es6/string-startswith' : [SKIP],
   'es6/super' : [SKIP],
   'es6/symbols' : [SKIP],
   'es6/tail-call' : [SKIP],
