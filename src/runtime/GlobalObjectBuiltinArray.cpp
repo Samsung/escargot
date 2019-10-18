@@ -1244,7 +1244,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
         }
         // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-        R = Object::call(state, func, elementObj, 0, nullptr);
+        R = Object::call(state, func, elementObj, 0, nullptr).toString(state);
     }
 
     // Let k be 1.
