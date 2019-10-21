@@ -81,6 +81,8 @@ public:
         return "Proxy";
     }
 
+    virtual Context* getFunctionRealm(ExecutionState& state) override;
+
     static ProxyObject* createProxy(ExecutionState& state, const Value& target, const Value& handler);
 
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
