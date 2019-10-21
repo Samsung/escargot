@@ -47,12 +47,12 @@ public:
 
     Node* key()
     {
-        return m_key.get();
+        return m_key;
     }
 
     Node* value()
     {
-        return m_value.get();
+        return m_value;
     }
 
     Kind kind()
@@ -80,8 +80,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_key; // key: Literal | Identifier;
-    RefPtr<Node> m_value; // value: Expression;
+    Node* m_key; // key: Literal | Identifier;
+    Node* m_value; // value: Expression;
     Kind m_kind;
     bool m_isComputed : 1;
     bool m_isStatic : 1;

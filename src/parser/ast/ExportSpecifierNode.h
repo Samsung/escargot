@@ -26,8 +26,7 @@ namespace Escargot {
 
 class ExportSpecifierNode : public Node {
 public:
-    friend class ScriptParser;
-    ExportSpecifierNode(RefPtr<Node> local, RefPtr<Node> exported)
+    ExportSpecifierNode(Node* local, Node* exported)
         : m_local(local)
         , m_exported(exported)
     {
@@ -59,8 +58,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_local;
-    RefPtr<Node> m_exported;
+    Node* m_local;
+    Node* m_exported;
 };
 }
 

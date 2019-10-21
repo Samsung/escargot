@@ -28,9 +28,9 @@ class ConditionalExpressionNode : public ExpressionNode {
 public:
     ConditionalExpressionNode(Node* test, Node* consequente, Node* alternate)
         : ExpressionNode()
-        , m_test((ExpressionNode*)test)
-        , m_consequente((ExpressionNode*)consequente)
-        , m_alternate((ExpressionNode*)alternate)
+        , m_test(test)
+        , m_consequente(consequente)
+        , m_alternate(alternate)
     {
     }
     virtual ~ConditionalExpressionNode()
@@ -79,9 +79,9 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<ExpressionNode> m_consequente;
-    RefPtr<ExpressionNode> m_alternate;
+    Node* m_test;
+    Node* m_consequente;
+    Node* m_alternate;
 };
 }
 

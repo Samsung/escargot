@@ -27,15 +27,13 @@ namespace Escargot {
 
 class ForStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
-    ForStatementNode(Node *init, Node *test, Node *update, Node *body, bool hasLexicalDeclarationOnInit, LexicalBlockIndex headLexicalBlockIndex,
+    ForStatementNode(Node* init, Node* test, Node* update, Node* body, bool hasLexicalDeclarationOnInit, LexicalBlockIndex headLexicalBlockIndex,
                      LexicalBlockIndex iterationLexicalBlockIndex)
         : StatementNode()
-        , m_init((ExpressionNode *)init)
-        , m_test((ExpressionNode *)test)
-        , m_update((ExpressionNode *)update)
-        , m_body(
-              (StatementNode *)body)
+        , m_init(init)
+        , m_test(test)
+        , m_update(update)
+        , m_body(body)
         , m_hasLexicalDeclarationOnInit(hasLexicalDeclarationOnInit)
         , m_headLexicalBlockIndex(headLexicalBlockIndex)
         , m_iterationLexicalBlockIndex(
@@ -52,14 +50,14 @@ public:
         return ASTNodeType::ForStatement;
     }
 
-    virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
+    virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         // TODO remove iterationLexicalBlock if there is no capture from child blocks or self
         size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
         if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             context->m_lexicalBlockIndex = m_headLexicalBlockIndex;
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_headLexicalBlockIndex);
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_headLexicalBlockIndex);
             headBlockContext = codeBlock->pushLexicalBlock(context, bi, this);
         }
 
@@ -77,14 +75,14 @@ public:
         uint8_t tmpIdentifierNode[sizeof(IdentifierNode)];
 
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             std::vector<size_t> nameRegisters;
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
                 nameRegisters.push_back(newContext.getRegister());
             }
 
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
                 id->m_loc = m_loc;
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
@@ -98,7 +96,7 @@ public:
 
             size_t reverse = bi->m_identifiers.size() - 1;
             for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
@@ -137,7 +135,7 @@ public:
 
         // replace env if needed
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             if (bi->m_shouldAllocateEnvironment) {
                 newContext.getRegister();
 
@@ -147,7 +145,7 @@ public:
                 }
 
                 for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                    IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+                    IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
                     id->m_loc = m_loc;
                     id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
                 }
@@ -158,7 +156,7 @@ public:
 
                 size_t reverse = bi->m_identifiers.size() - 1;
                 for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                    IdentifierNode *id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                    IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                     id->m_loc = m_loc;
                     newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                     id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
@@ -188,7 +186,7 @@ public:
         }
 
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-            InterpretedCodeBlock::BlockInfo *bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
             if (bi->m_shouldAllocateEnvironment) {
@@ -207,7 +205,7 @@ public:
         }
     }
 
-    virtual void iterateChildren(const std::function<void(Node *node)> &fn) override
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);
 
@@ -229,10 +227,10 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_init;
-    RefPtr<ExpressionNode> m_test;
-    RefPtr<ExpressionNode> m_update;
-    RefPtr<StatementNode> m_body;
+    Node* m_init;
+    Node* m_test;
+    Node* m_update;
+    Node* m_body;
     bool m_hasLexicalDeclarationOnInit;
     LexicalBlockIndex m_headLexicalBlockIndex;
     LexicalBlockIndex m_iterationLexicalBlockIndex;

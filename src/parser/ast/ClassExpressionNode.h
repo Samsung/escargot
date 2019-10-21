@@ -30,7 +30,7 @@ namespace Escargot {
 class ClassExpressionNode : public ExpressionNode {
 public:
     ClassExpressionNode() {}
-    ClassExpressionNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassExpressionNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : ExpressionNode()
         // id can be nullptr
         , m_class(id, superClass, classBody->asClassBody(), classBodyLexicalBlockIndex, classSrc)
@@ -45,7 +45,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ClassExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        RefPtr<Node> classIdent = m_class.id();
+        Node* classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_constructorIndex = dstIndex;

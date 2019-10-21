@@ -39,7 +39,7 @@ public:
     virtual ASTNodeType type() override { return SpreadElement; }
     Node* argument()
     {
-        return m_argument.get();
+        return m_argument;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
@@ -58,7 +58,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_argument;
+    Node* m_argument;
 };
 }
 

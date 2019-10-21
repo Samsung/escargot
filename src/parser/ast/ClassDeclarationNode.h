@@ -29,7 +29,7 @@ namespace Escargot {
 class ClassDeclarationNode : public StatementNode {
 public:
     ClassDeclarationNode() {}
-    ClassDeclarationNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<Node> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassDeclarationNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : StatementNode()
         // id can be nullptr
         , m_class(id, superClass, classBody->asClassBody(), classBodyLexicalBlockIndex, classSrc)
@@ -46,7 +46,7 @@ public:
     {
         context->getRegister(); // To ensure that the result of the classDeclaration is undefined
         size_t classIndex = context->getRegister();
-        RefPtr<Node> classIdent = m_class.id();
+        Node* classIdent = m_class.id();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_constructorIndex = classIndex;

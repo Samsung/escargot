@@ -30,8 +30,6 @@ namespace Escargot {
 // interface Identifier <: Node, Expression, Pattern {
 class IdentifierNode : public Node {
 public:
-    friend class ScriptParser;
-
     IdentifierNode()
         : Node()
         , m_name()

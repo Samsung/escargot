@@ -36,14 +36,10 @@ public:
     {
     }
 
-    virtual ~AssignmentExpressionUnsignedRightShiftNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionUnsignedRightShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool slowMode = AssignmentExpressionSimpleNode::isLeftReferenceExpressionRelatedWithRightExpression(m_left.get(), m_right.get());
+        bool slowMode = AssignmentExpressionSimpleNode::isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
         bool flagBefore;
         if (slowMode) {
             flagBefore = context->m_canSkipCopyToRegister;
@@ -85,8 +81,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left; // left: Pattern;
-    RefPtr<Node> m_right; // right: Expression;
+    Node* m_left; // left: Pattern;
+    Node* m_right; // right: Expression;
 };
 }
 

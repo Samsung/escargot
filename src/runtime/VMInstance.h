@@ -36,6 +36,7 @@ class SandBox;
 class CodeBlock;
 class JobQueue;
 class Job;
+class ASTAllocator;
 
 #define DEFINE_GLOBAL_SYMBOLS(F) \
     F(hasInstance)               \
@@ -255,6 +256,7 @@ private:
     DateObject* m_cachedUTC;
 
     Platform* m_platform;
+    ASTAllocator* m_astAllocator;
 
     // promise job queue
     JobQueue* m_jobQueue;

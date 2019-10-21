@@ -118,7 +118,7 @@ private:
 
 typedef TightVector<ASTBlockScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContextNameInfo>> ASTBlockScopeContextNameInfoVector;
 // context for block in function or program
-struct ASTBlockScopeContext : public gc {
+struct ASTBlockScopeContext {
     LexicalBlockIndex m_blockIndex;
     LexicalBlockIndex m_parentBlockIndex;
     ASTBlockScopeContextNameInfoVector m_names;
@@ -127,8 +127,16 @@ struct ASTBlockScopeContext : public gc {
     ExtendedNodeLOC m_loc;
 #endif
 
-    void *operator new(size_t size);
+    // ASTBlockScopeContext is allocated by ASTAllocator
+    inline void *operator new(size_t size, ASTAllocator &allocator)
+    {
+        return allocator.allocate(size);
+    }
+
+    void *operator new(size_t size) = delete;
     void *operator new[](size_t size) = delete;
+    void operator delete(void *) = delete;
+    void operator delete[](void *) = delete;
 
     ASTBlockScopeContext()
         : m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
@@ -140,10 +148,10 @@ struct ASTBlockScopeContext : public gc {
     }
 };
 
-typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
+typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
 
 // context for function or program
-struct ASTFunctionScopeContext : public gc {
+struct ASTFunctionScopeContext {
     bool m_isStrict : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
@@ -180,8 +188,16 @@ struct ASTFunctionScopeContext : public gc {
     NodeLOC m_bodyEndLOC;
 #endif
 
-    void *operator new(size_t size);
+    // ASTFunctionScopeContext is allocated by ASTAllocator
+    inline void *operator new(size_t size, ASTAllocator &allocator)
+    {
+        return allocator.allocate(size);
+    }
+
+    void *operator new(size_t size) = delete;
     void *operator new[](size_t size) = delete;
+    void operator delete(void *) = delete;
+    void operator delete[](void *) = delete;
 
     void appendChild(ASTFunctionScopeContext *child)
     {
@@ -289,7 +305,7 @@ struct ASTFunctionScopeContext : public gc {
         }
     }
 
-    void insertBlockScope(LexicalBlockIndex blockIndex, LexicalBlockIndex parentBlockIndex, ExtendedNodeLOC loc)
+    void insertBlockScope(ASTAllocator &allocator, LexicalBlockIndex blockIndex, LexicalBlockIndex parentBlockIndex, ExtendedNodeLOC loc)
     {
 #ifndef NDEBUG
         size_t b = m_childBlockScopes.size();
@@ -300,7 +316,7 @@ struct ASTFunctionScopeContext : public gc {
         }
 #endif
 
-        ASTBlockScopeContext *newContext = new ASTBlockScopeContext();
+        ASTBlockScopeContext *newContext = new (allocator) ASTBlockScopeContext();
         newContext->m_blockIndex = blockIndex;
         newContext->m_parentBlockIndex = parentBlockIndex;
 #ifndef NDEBUG
@@ -384,7 +400,7 @@ struct ASTFunctionScopeContext : public gc {
         return true;
     }
 
-    explicit ASTFunctionScopeContext(bool isStrict = false)
+    explicit ASTFunctionScopeContext(ASTAllocator &allocator, bool isStrict = false)
         : m_isStrict(isStrict)
         , m_hasEval(false)
         , m_hasWith(false)
@@ -416,7 +432,7 @@ struct ASTFunctionScopeContext : public gc {
 #endif
     {
         // function is first block context
-        insertBlockScope(0, LEXICAL_BLOCK_INDEX_MAX, m_bodyStartLOC);
+        insertBlockScope(allocator, 0, LEXICAL_BLOCK_INDEX_MAX, m_bodyStartLOC);
     }
 };
 }

@@ -32,6 +32,10 @@ public:
     {
     }
 
+    virtual ~BreakLabelStatementNode()
+    {
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::BreakLabelStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

@@ -36,8 +36,6 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
     }
-
-protected:
 };
 }
 

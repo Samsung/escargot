@@ -28,7 +28,6 @@ namespace Escargot {
 
 class TryStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     TryStatementNode(Node *block, Node *handler, Node *finalizer)
         : StatementNode()
         , m_block((BlockStatementNode *)block)
@@ -84,15 +83,12 @@ public:
 
         auto catchedValueRegister = context->getRegister();
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_catchedValueRegisterIndex = catchedValueRegister;
-        RefPtr<RegisterReferenceNode> registerRef = adoptRef(new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister));
-        RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(handler->param(), registerRef.get()));
+        RegisterReferenceNode *registerRef = new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister);
+        AssignmentExpressionSimpleNode *assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(handler->param(), registerRef);
         assign->m_loc = handler->m_loc;
         context->m_isLexicallyDeclaredBindingInitialization = true;
         assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-        assign->giveupChildren();
-        assign.release().leakRef();
-        registerRef.release().leakRef();
 
         context->giveUpRegister();
 
@@ -145,16 +141,16 @@ public:
         generateTryStatementBodyEndByteCode(codeBlock, context, this, ctx);
 
         if (m_handler) {
-            generateTryHandlerStatementStartByteCode(codeBlock, context, this, ctx, m_handler.get());
+            generateTryHandlerStatementStartByteCode(codeBlock, context, this, ctx, m_handler);
         }
 
-        generateTryFinalizerStatementStartByteCode(codeBlock, context, this, ctx, m_finalizer);
+        generateTryFinalizerStatementStartByteCode(codeBlock, context, this, ctx, m_finalizer != nullptr);
 
         if (m_finalizer) {
             m_finalizer->generateStatementByteCode(codeBlock, context);
         }
 
-        generateTryFinalizerStatementEndByteCode(codeBlock, context, this, ctx, m_finalizer);
+        generateTryFinalizerStatementEndByteCode(codeBlock, context, this, ctx, m_finalizer != nullptr);
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::TryStatement; }
@@ -175,9 +171,9 @@ public:
     }
 
 private:
-    RefPtr<BlockStatementNode> m_block;
-    RefPtr<CatchClauseNode> m_handler;
-    RefPtr<BlockStatementNode> m_finalizer;
+    BlockStatementNode *m_block;
+    CatchClauseNode *m_handler;
+    BlockStatementNode *m_finalizer;
 };
 }
 

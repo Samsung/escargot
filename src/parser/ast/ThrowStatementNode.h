@@ -27,7 +27,6 @@ namespace Escargot {
 // interface ThrowStatement <: Statement {
 class ThrowStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     explicit ThrowStatementNode(Node* argument)
         : StatementNode()
         , m_argument(argument)
@@ -56,7 +55,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_argument;
+    Node* m_argument;
 };
 }
 

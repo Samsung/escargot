@@ -37,8 +37,6 @@ public:
     {
         codeBlock->pushCode(NewTargetOperation(ByteCodeLOC(m_loc.index), dstRegister), context, this);
     }
-
-private:
 };
 }
 

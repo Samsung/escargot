@@ -30,6 +30,11 @@ class StatementNode : public Node {
 public:
     StatementNode()
         : Node()
+        , m_nextSibling(nullptr)
+    {
+    }
+
+    virtual ~StatementNode()
     {
     }
 
@@ -40,33 +45,41 @@ public:
 
     StatementNode* nextSibling()
     {
-        return m_nextSibling.get();
+        return m_nextSibling;
     }
 
 private:
-    RefPtr<StatementNode> m_nextSibling;
+    StatementNode* m_nextSibling;
 };
 
-class StatementContainer : public RefCounted<StatementContainer> {
+class StatementContainer {
 public:
-    static RefPtr<StatementContainer> create()
+    static StatementContainer* create(ASTAllocator& allocator)
     {
-        return adoptRef(new StatementContainer());
+        return new (allocator) StatementContainer();
+    }
+
+    StatementContainer()
+        : m_firstChild(nullptr)
+    {
     }
 
     ~StatementContainer()
     {
-        RefPtr<StatementNode> c = m_firstChild.release();
-        if (!c) {
-            return;
-        }
-
-        do {
-            RefPtr<StatementNode> next = c->m_nextSibling.release();
-            c.release();
-            c = next;
-        } while (c);
     }
+
+    // StatementContainer is allocated by ASTAllocator
+    inline void* operator new(size_t size, ASTAllocator& allocator)
+    {
+        return allocator.allocate(size);
+    }
+    void* operator new(size_t)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    void* operator new[](size_t) = delete;
+    void operator delete(void*) = delete;
+    void operator delete[](void*) = delete;
 
     void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
@@ -84,16 +97,6 @@ public:
             nd->iterateChildren(fn);
             nd = nd->nextSibling();
         }
-    }
-
-    StatementNode* appendChild(RefPtr<Node> c)
-    {
-        return appendChild(c.get());
-    }
-
-    StatementNode* appendChild(RefPtr<Node> c, RefPtr<Node> referNode)
-    {
-        return appendChild(c.get(), referNode.get());
     }
 
     StatementNode* appendChild(Node* c, Node* referNode)
@@ -119,7 +122,7 @@ public:
         } else {
             StatementNode* tail = firstChild();
             while (tail->m_nextSibling != nullptr) {
-                tail = tail->m_nextSibling.get();
+                tail = tail->m_nextSibling;
             }
             tail->m_nextSibling = child;
         }
@@ -128,11 +131,11 @@ public:
 
     StatementNode* firstChild()
     {
-        return m_firstChild.get();
+        return m_firstChild;
     }
 
 private:
-    RefPtr<StatementNode> m_firstChild;
+    StatementNode* m_firstChild;
 };
 }
 

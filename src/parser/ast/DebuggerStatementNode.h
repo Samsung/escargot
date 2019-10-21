@@ -27,7 +27,6 @@ namespace Escargot {
 
 class DebuggerStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     DebuggerStatementNode()
         : StatementNode()
     {

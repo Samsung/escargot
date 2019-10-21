@@ -23,6 +23,7 @@
 #include "ArrayObject.h"
 #include "StringObject.h"
 #include "JobQueue.h"
+#include "parser/ASTAllocator.h"
 
 namespace Escargot {
 
@@ -127,6 +128,7 @@ VMInstance::~VMInstance()
 #ifdef ENABLE_ICU
     delete m_timezone;
 #endif
+    delete m_astAllocator;
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
@@ -136,6 +138,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_compiledByteCodeSize(0)
     , m_cachedUTC(nullptr)
     , m_platform(platform)
+    , m_astAllocator(new ASTAllocator())
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;

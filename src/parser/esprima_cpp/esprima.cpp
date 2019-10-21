@@ -50,8 +50,6 @@
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
 
 #define ASTNode typename ASTBuilder::ASTNode
-#define ASTPassNode typename ASTBuilder::ASTPassNode
-#define ASTNodePtr typename ASTBuilder::ASTNodePtr
 #define ASTIdentifierNode typename ASTBuilder::ASTIdentifierNode
 #define ASTStatementContainer typename ASTBuilder::ASTStatementContainer
 #define ASTStatementNodePtr typename ASTBuilder::ASTStatementNodePtr
@@ -122,6 +120,8 @@ public:
     Scanner* scanner;
     Scanner scannerInstance;
 
+    ASTAllocator& allocator;
+
     enum SourceType {
         Script,
         Module
@@ -161,7 +161,7 @@ public:
     ASTFunctionScopeContext fakeContext;
 
     struct ParseFormalParametersResult {
-        SyntaxNodeVector params;
+        ParameterNodeVector params;
         std::vector<AtomicString> paramSet;
         Scanner::SmallScannerResult stricted;
         Scanner::SmallScannerResult firstRestricted;
@@ -177,6 +177,8 @@ public:
 
     Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
         : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
+        , allocator(escargotContext->astAllocator())
+        , fakeContext(escargotContext->astAllocator())
     {
         ASSERT(escargotContext != nullptr);
 
@@ -310,7 +312,7 @@ public:
             return;
         }
 
-        SyntaxNodeVector& params = paramsResult.params;
+        ParameterNodeVector& params = paramsResult.params;
         const std::vector<AtomicString>& paramNames = paramsResult.paramSet;
         bool hasParameterOtherThanIdentifier = false;
 #ifndef NDEBUG
@@ -387,11 +389,11 @@ public:
         auto parentContext = this->currentScopeContext;
         this->subCodeBlockIndex++;
         if (this->isParsingSingleFunction) {
-            fakeContext = ASTFunctionScopeContext();
+            fakeContext = ASTFunctionScopeContext(this->allocator);
             pushScopeContext(&fakeContext);
             return parentContext;
         }
-        pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
+        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
         this->currentScopeContext->m_functionName = functionName;
         this->currentScopeContext->m_inWith = this->context->inWith;
 
@@ -600,11 +602,12 @@ public:
         return n;
     }
 
+    // FIXME remove finalize methods
     template <typename T>
-    ALWAYS_INLINE PassRefPtr<T> finalize(MetaNode meta, T* node)
+    ALWAYS_INLINE T* finalize(MetaNode meta, T* node)
     {
         node->m_loc = NodeLOC(meta.index);
-        return adoptRef(node);
+        return node;
     }
 
     ALWAYS_INLINE SyntaxNode finalize(MetaNode meta, SyntaxNode node)
@@ -738,11 +741,11 @@ public:
         return false;
     }
 
-    bool isPropertyKey(SyntaxNode* key, const StringView& name, const char* value)
+    bool isPropertyKey(SyntaxNode key, const StringView& name, const char* value)
     {
-        if (key->type() == Identifier) {
-            return key->name() == value;
-        } else if (key->type() == Literal) {
+        if (key.type() == Identifier) {
+            return key.name() == value;
+        } else if (key.type() == Literal) {
             return name.equals(value);
         }
 
@@ -843,36 +846,36 @@ public:
     }
 
     template <class ASTBuilder, typename T>
-    ALWAYS_INLINE ASTPassNode isolateCoverGrammar(ASTBuilder& builder, T parseFunction)
+    ALWAYS_INLINE ASTNode isolateCoverGrammar(ASTBuilder& builder, T parseFunction)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        ASTPassNode result = (this->*parseFunction)(builder);
+        ASTNode result = (this->*parseFunction)(builder);
         endIsolateCoverGrammar(&grammarContext);
 
         return result;
     }
 
     template <class ASTBuilder, typename T>
-    ALWAYS_INLINE ASTPassNode isolateCoverGrammarWithFunctor(ASTBuilder& builder, T parseFunction)
+    ALWAYS_INLINE ASTNode isolateCoverGrammarWithFunctor(ASTBuilder& builder, T parseFunction)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        ASTPassNode result = parseFunction();
+        ASTNode result = parseFunction();
         endIsolateCoverGrammar(&grammarContext);
 
         return result;
     }
 
     template <class ASTBuilder, typename T>
-    ALWAYS_INLINE ASTPassNode inheritCoverGrammar(ASTBuilder& builder, T parseFunction)
+    ALWAYS_INLINE ASTNode inheritCoverGrammar(ASTBuilder& builder, T parseFunction)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        ASTPassNode result = (this->*parseFunction)(builder);
+        ASTNode result = (this->*parseFunction)(builder);
         endInheritCoverGrammar(&grammarContext);
 
         return result;
@@ -905,7 +908,7 @@ public:
     // ECMA-262 12.2 Primary Expressions
 
     template <class ASTBuilder>
-    ASTPassNode parsePrimaryExpression(ASTBuilder& builder)
+    ASTNode parsePrimaryExpression(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -1044,7 +1047,7 @@ public:
         }
 
         ASSERT_NOT_REACHED();
-        return ASTPassNode();
+        return ASTNode();
     }
 
     void validateParam(ParseFormalParametersResult& options, const Scanner::SmallScannerResult& param, AtomicString name)
@@ -1076,7 +1079,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseRestElement(ASTBuilder& builder, SmallScannerResultVector& params)
+    ASTNode parseRestElement(ASTBuilder& builder, SmallScannerResultVector& params)
     {
         MetaNode node = this->createNode();
 
@@ -1088,22 +1091,22 @@ public:
         if (!this->match(RightParenthesis)) {
             this->throwError(Messages::ParameterAfterRestParameter);
         }
-        return this->finalize(node, builder.createRestElementNode(arg.get()));
+        return this->finalize(node, builder.createRestElementNode(arg));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseBindingRestElement(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parseBindingRestElement(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
         this->expect(PeriodPeriodPeriod);
         ASTNode arg = this->parsePattern(builder, params, kind, isExplicitVariableDeclaration);
-        return this->finalize(node, builder.createRestElementNode(arg.get()));
+        return this->finalize(node, builder.createRestElementNode(arg));
     }
 
     // ECMA-262 13.3.3 Destructuring Binding Patterns
 
     template <class ASTBuilder>
-    ASTPassNode parseArrayPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parseArrayPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
 
@@ -1131,7 +1134,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parsePropertyPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parsePropertyPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
 
@@ -1139,8 +1142,8 @@ public:
         bool shorthand = false;
         bool method = false;
 
-        ASTNode keyNode; //'': Node.PropertyKey;
-        ASTNode valueNode; //: Node.PropertyValue;
+        ASTNode keyNode = nullptr; //'': Node.PropertyKey;
+        ASTNode valueNode = nullptr; //: Node.PropertyValue;
 
         if (this->lookahead.type == Token::IdentifierToken) {
             ALLOC_TOKEN(keyToken);
@@ -1153,7 +1156,7 @@ public:
                 this->nextToken();
 
                 ASTNode expr = this->parseAssignmentExpression<ASTBuilder, false>(builder);
-                valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode.get(), expr.get()));
+                valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode, expr));
             } else if (!this->match(Colon)) {
                 params.push_back(*keyToken);
                 if (isExplicitVariableDeclaration) {
@@ -1174,11 +1177,11 @@ public:
             valueNode = this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration);
         }
 
-        return this->finalize(node, builder.createPropertyNode(keyNode.get(), valueNode.get(), PropertyNode::Kind::Init, computed, shorthand));
+        return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, PropertyNode::Kind::Init, computed, shorthand));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseObjectPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parseObjectPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
         ASTNodeVector properties;
@@ -1197,7 +1200,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parsePattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parsePattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         if (this->match(LeftSquareBracket)) {
             return this->parseArrayPattern(builder, params, kind, isExplicitVariableDeclaration);
@@ -1213,27 +1216,27 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parsePatternWithDefault(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parsePatternWithDefault(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
-        ASTPassNode pattern = this->parsePattern(builder, params, kind, isExplicitVariableDeclaration);
+        ASTNode pattern = this->parsePattern(builder, params, kind, isExplicitVariableDeclaration);
         if (this->match(PunctuatorKind::Substitution)) {
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
-            ASTPassNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
-            return this->finalize(this->startNode(startToken), builder.createAssignmentPatternNode(pattern.get(), right.get()));
+            return this->finalize(this->startNode(startToken), builder.createAssignmentPatternNode(pattern, right));
         }
 
         return pattern;
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseFormalParameter(ASTBuilder& builder, ParseFormalParametersResult& options, bool& end)
+    ASTNode parseFormalParameter(ASTBuilder& builder, ParseFormalParametersResult& options, bool& end)
     {
-        ASTNode param;
+        ASTNode param = nullptr;
         bool trackUsingNamesBefore = this->trackUsingNames;
         this->trackUsingNames = false;
         SmallScannerResultVector params;
@@ -1257,11 +1260,10 @@ public:
     }
 
     template <class ASTBuilder>
-    ParseFormalParametersResult parseFormalParameters(ASTBuilder& builder, Scanner::SmallScannerResult* firstRestricted = nullptr)
+    void parseFormalParameters(ASTBuilder& builder, ParseFormalParametersResult& options, Scanner::SmallScannerResult* firstRestricted = nullptr)
     {
         const bool previousInParameterParsing = this->context->inParameterParsing;
         this->context->inParameterParsing = true;
-        ParseFormalParametersResult options;
 
         if (firstRestricted) {
             options.firstRestricted = *firstRestricted;
@@ -1286,28 +1288,26 @@ public:
 
         this->context->inParameterParsing = previousInParameterParsing;
         options.valid = true;
-        return options;
     }
 
     // ECMA-262 12.2.5 Array Initializer
 
     template <class ASTBuilder, bool checkLeftHasRestrictedWord>
-    ASTPassNode parseSpreadElement(ASTBuilder& builder)
+    ASTNode parseSpreadElement(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         this->expect(PunctuatorKind::PeriodPeriodPeriod);
 
-        ASTNode arg;
-        arg = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, checkLeftHasRestrictedWord>);
+        ASTNode arg = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, checkLeftHasRestrictedWord>);
         if (arg->isAssignmentOperation()) {
             this->throwError(Messages::DefaultRestParameter);
         }
 
-        return this->finalize(node, builder.createSpreadElementNode(arg.get()));
+        return this->finalize(node, builder.createSpreadElementNode(arg));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseArrayInitializer(ASTBuilder& builder)
+    ASTNode parseArrayInitializer(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         ASTNodeVector elements;
@@ -1343,13 +1343,13 @@ public:
     // ECMA-262 12.2.6 Object Initializer
 
     template <class ASTBuilder>
-    ASTPassNode parsePropertyMethod(ASTBuilder& builder, ParseFormalParametersResult& params)
+    ASTNode parsePropertyMethod(ASTBuilder& builder, ParseFormalParametersResult& params)
     {
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
         const bool previousStrict = this->context->strict;
-        ASTPassNode body = this->isolateCoverGrammar(builder, &Parser::parseFunctionSourceElements<ASTBuilder>);
+        ASTNode body = this->isolateCoverGrammar(builder, &Parser::parseFunctionSourceElements<ASTBuilder>);
         if (this->context->strict && params.firstRestricted) {
             this->throwUnexpectedToken(params.firstRestricted, params.message);
         }
@@ -1362,7 +1362,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall)
+    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall)
     {
         const bool isGenerator = false;
         const bool previousAllowYield = this->context->allowYield;
@@ -1382,7 +1382,8 @@ public:
         this->expect(LeftParenthesis);
 
         auto oldScopeContext = pushScopeContext(AtomicString());
-        ParseFormalParametersResult params = this->parseFormalParameters(builder);
+        ParseFormalParametersResult params;
+        this->parseFormalParameters(builder, params);
         extractNamesFromFunctionParams(params);
         ASTNode method = this->parsePropertyMethod(builder, params);
 
@@ -1404,13 +1405,13 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseObjectPropertyKey(ASTBuilder& builder, StringView& keyString)
+    ASTNode parseObjectPropertyKey(ASTBuilder& builder, StringView& keyString)
     {
         MetaNode node = this->createNode();
         ALLOC_TOKEN(token);
         this->nextToken(token);
 
-        ASTNode key;
+        ASTNode key = nullptr;
         switch (token->type) {
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
@@ -1471,15 +1472,15 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseObjectProperty(ASTBuilder& builder, bool& hasProto) //: Node.Property
+    ASTNode parseObjectProperty(ASTBuilder& builder, bool& hasProto) //: Node.Property
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         MetaNode node = this->createNode();
 
         PropertyNode::Kind kind;
-        ASTNode keyNode; //'': Node.PropertyKey;
-        ASTNode valueNode; //: Node.PropertyValue;
+        ASTNode keyNode = nullptr; //'': Node.PropertyKey;
+        ASTNode valueNode = nullptr; //: Node.PropertyValue;
         StringView keyString;
 
         bool computed = false;
@@ -1537,7 +1538,7 @@ public:
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon)) {
                 // FIXME check !this->isParsingSingleFunction
-                isProto = !this->isParsingSingleFunction && this->isPropertyKey(keyNode.get(), keyString, "__proto__");
+                isProto = !this->isParsingSingleFunction && this->isPropertyKey(keyNode, keyString, "__proto__");
 
                 if (!computed && isProto) {
                     if (hasProto) {
@@ -1582,7 +1583,7 @@ public:
                     this->nextToken();
                     shorthand = true;
                     ASTNode init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-                    valueNode = this->finalize(node, builder.createAssignmentPatternNode(keyNode.get(), init.get()));
+                    valueNode = this->finalize(node, builder.createAssignmentPatternNode(keyNode, init));
                 } else {
                     shorthand = true;
                     valueNode = keyNode;
@@ -1611,11 +1612,11 @@ public:
                 this->lastPoppedScopeContext->m_isClassMethod = true;
             }
         }
-        return this->finalize(node, builder.createPropertyNode(keyNode.get(), valueNode.get(), kind, computed, shorthand));
+        return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, kind, computed, shorthand));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseObjectInitializer(ASTBuilder& builder)
+    ASTNode parseObjectInitializer(ASTBuilder& builder)
     {
         this->expect(LeftBrace);
         MetaNode node = this->createNode();
@@ -1671,7 +1672,7 @@ public:
 
 
     template <class ASTBuilder>
-    ASTPassNode parseTemplateLiteral(ASTBuilder& builder)
+    ASTNode parseTemplateLiteral(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -1687,9 +1688,9 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseGroupExpression(ASTBuilder& builder)
+    ASTNode parseGroupExpression(ASTBuilder& builder)
     {
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
 
         this->expect(LeftParenthesis);
         if (this->match(RightParenthesis)) {
@@ -1709,7 +1710,7 @@ public:
                 if (!this->match(Arrow)) {
                     this->expect(Arrow);
                 }
-                exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(exprNode.get()));
+                exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(exprNode));
             } else {
                 bool arrow = false;
                 this->context->isBindingElement = true;
@@ -1729,7 +1730,7 @@ public:
                         if (this->match(RightParenthesis)) {
                             this->nextToken();
                             for (size_t i = 0; i < expressions.size(); i++) {
-                                expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i].get());
+                                expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i]);
                             }
                             arrow = true;
                             exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(std::move(expressions)));
@@ -1744,7 +1745,7 @@ public:
                             }
                             this->context->isBindingElement = false;
                             for (size_t i = 0; i < expressions.size(); i++) {
-                                expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i].get());
+                                expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i]);
                             }
                             arrow = true;
                             exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(std::move(expressions)));
@@ -1765,7 +1766,7 @@ public:
                     if (this->match(Arrow)) {
                         if (exprNode->type() == Identifier && exprNode->asIdentifier()->name() == "yield") {
                             arrow = true;
-                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(exprNode.get()));
+                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(exprNode));
                         }
                         if (!arrow) {
                             if (!this->context->isBindingElement) {
@@ -1775,10 +1776,10 @@ public:
                             if (builder.isNodeGenerator() && (exprNode->type() == SequenceExpression)) {
                                 ASTNodeVector& expressions = exprNode->asSequenceExpression()->expressions();
                                 for (size_t i = 0; i < expressions.size(); i++) {
-                                    expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i].get());
+                                    expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i]);
                                 }
                             } else {
-                                exprNode = builder.reinterpretExpressionAsPattern(exprNode.get());
+                                exprNode = builder.reinterpretExpressionAsPattern(exprNode);
                             }
 
                             ASTNodeVector params;
@@ -1796,7 +1797,7 @@ public:
             }
         }
 
-        return exprNode.release();
+        return exprNode;
     }
 
     // ECMA-262 12.3 Left-Hand-Side Expressions
@@ -1808,7 +1809,7 @@ public:
         ASTNodeVector args;
         if (!this->match(RightParenthesis)) {
             while (true) {
-                ASTNode expr;
+                ASTNode expr = nullptr;
                 if (this->match(PeriodPeriodPeriod)) {
                     expr = this->parseSpreadElement<ASTBuilder, false>(builder);
                 } else {
@@ -1836,7 +1837,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseIdentifierName(ASTBuilder& builder)
+    ASTNode parseIdentifierName(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         ALLOC_TOKEN(token);
@@ -1848,7 +1849,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseNewExpression(ASTBuilder& builder)
+    ASTNode parseNewExpression(ASTBuilder& builder)
     {
         this->nextToken();
 
@@ -1873,18 +1874,18 @@ public:
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
-        return this->finalize(node, builder.createNewExpressionNode(callee.get(), std::move(args)));
+        return this->finalize(node, builder.createNewExpressionNode(callee, std::move(args)));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseLeftHandSideExpressionAllowCall(ASTBuilder& builder)
+    ASTNode parseLeftHandSideExpressionAllowCall(ASTBuilder& builder)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
 
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             throwIfSuperOperationIsNotAllowed();
@@ -1907,7 +1908,7 @@ public:
                     bool trackUsingNamesBefore = this->trackUsingNames;
                     this->trackUsingNames = false;
                     ASTNode property = this->parseIdentifierName(builder);
-                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode.get(), property.get(), true));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, true));
                     this->trackUsingNames = trackUsingNamesBefore;
                 } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
                     this->context->isBindingElement = false;
@@ -1916,13 +1917,13 @@ public:
                     if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
                         this->currentScopeContext->m_hasEval = true;
                     }
-                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode.get(), this->parseArguments(builder)));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, this->parseArguments(builder)));
                 } else if (this->lookahead.valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
                     ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode.get(), property.get(), false));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false));
                     this->expect(RightSquareBracket);
                 } else {
                     break;
@@ -1930,18 +1931,18 @@ public:
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder);
                 // FIXME convertTaggedTemplateExpressionToCallExpression
-                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode.get(), quasi.get())), this->currentScopeContext, escargotContext->staticStrings().raw);
+                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode, quasi)), this->currentScopeContext, escargotContext->staticStrings().raw);
             } else {
                 break;
             }
         }
         this->context->allowIn = previousAllowIn;
 
-        return exprNode.release();
+        return exprNode;
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseSuper(ASTBuilder& builder)
+    ASTNode parseSuper(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -1956,12 +1957,12 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseLeftHandSideExpression(ASTBuilder& builder)
+    ASTNode parseLeftHandSideExpression(ASTBuilder& builder)
     {
         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
         ASSERT(this->context->allowIn);
 
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
 
         if (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) {
             exprNode = this->parseSuper(builder);
@@ -1979,7 +1980,7 @@ public:
                 this->context->isAssignmentTarget = true;
                 this->expect(LeftSquareBracket);
                 ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode.get(), property.get(), false));
+                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false));
                 this->expect(RightSquareBracket);
             } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
@@ -1988,26 +1989,26 @@ public:
                 bool trackUsingNamesBefore = this->trackUsingNames;
                 this->trackUsingNames = false;
                 ASTNode property = this->parseIdentifierName(builder);
-                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode.get(), property.get(), true));
+                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true));
                 this->trackUsingNames = trackUsingNamesBefore;
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder);
                 // FIXME convertTaggedTemplateExpressionToCallExpression
-                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode.get(), quasi.get())), this->currentScopeContext, escargotContext->staticStrings().raw);
+                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode, quasi)), this->currentScopeContext, escargotContext->staticStrings().raw);
             } else {
                 break;
             }
         }
 
-        return exprNode.release();
+        return exprNode;
     }
 
     // ECMA-262 12.4 Update Expressions
 
     template <class ASTBuilder>
-    ASTPassNode parseUpdateExpression(ASTBuilder& builder)
+    ASTNode parseUpdateExpression(ASTBuilder& builder)
     {
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
 
@@ -2030,9 +2031,9 @@ public:
 
             MetaNode node = this->startNode(startToken);
             if (isPlus) {
-                exprNode = this->finalize(node, builder.createUpdateExpressionIncrementPrefixNode(exprNode.get()));
+                exprNode = this->finalize(node, builder.createUpdateExpressionIncrementPrefixNode(exprNode));
             } else {
-                exprNode = this->finalize(node, builder.createUpdateExpressionDecrementPrefixNode(exprNode.get()));
+                exprNode = this->finalize(node, builder.createUpdateExpressionDecrementPrefixNode(exprNode));
             }
 
             this->context->isAssignmentTarget = false;
@@ -2056,64 +2057,64 @@ public:
                 this->nextToken();
 
                 if (isPlus) {
-                    exprNode = this->finalize(this->startNode(startToken), builder.createUpdateExpressionIncrementPostfixNode(exprNode.get()));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createUpdateExpressionIncrementPostfixNode(exprNode));
                 } else {
-                    exprNode = this->finalize(this->startNode(startToken), builder.createUpdateExpressionDecrementPostfixNode(exprNode.get()));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createUpdateExpressionDecrementPostfixNode(exprNode));
                 }
             }
         }
 
-        return exprNode.release();
+        return exprNode;
     }
 
     // ECMA-262 12.5 Unary Operators
 
     template <class ASTBuilder>
-    ASTPassNode parseUnaryExpression(ASTBuilder& builder)
+    ASTNode parseUnaryExpression(ASTBuilder& builder)
     {
         if (this->lookahead.type == Token::PunctuatorToken) {
             auto punctuatorsKind = this->lookahead.valuePunctuatorKind;
-            ASTNode exprNode;
+            ASTNode exprNode = nullptr;
 
             if (punctuatorsKind == Plus) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionPlusNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionPlusNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return exprNode.release();
+                return exprNode;
             } else if (punctuatorsKind == Minus) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionMinusNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionMinusNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return exprNode.release();
+                return exprNode;
             } else if (punctuatorsKind == Wave) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionBitwiseNotNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionBitwiseNotNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return exprNode.release();
+                return exprNode;
             } else if (punctuatorsKind == ExclamationMark) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionLogicalNotNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionLogicalNotNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return exprNode.release();
+                return exprNode;
             }
         }
 
         bool isKeyword = this->lookahead.type == Token::KeywordToken;
 
         if (isKeyword) {
-            ASTNode exprNode;
+            ASTNode exprNode = nullptr;
 
             if (this->lookahead.valueKeywordKind == DeleteKeyword) {
                 this->nextToken();
@@ -2124,30 +2125,30 @@ public:
                     this->throwError(Messages::StrictDelete);
                 }
 
-                exprNode = this->finalize(node, builder.createUnaryExpressionDeleteNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionDeleteNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                return exprNode.release();
+                return exprNode;
             } else if (this->lookahead.valueKeywordKind == VoidKeyword) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionVoidNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionVoidNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                return exprNode.release();
+                return exprNode;
             } else if (this->lookahead.valueKeywordKind == TypeofKeyword) {
                 this->nextToken();
 
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionTypeOfNode(subExpr.get()));
+                exprNode = this->finalize(node, builder.createUnaryExpressionTypeOfNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                return exprNode.release();
+                return exprNode;
             }
         }
 
@@ -2155,7 +2156,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseExponentiationExpression(ASTBuilder& builder)
+    ASTNode parseExponentiationExpression(ASTBuilder& builder)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
@@ -2248,7 +2249,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseBinaryExpression(ASTBuilder& builder)
+    ASTNode parseBinaryExpression(ASTBuilder& builder)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
@@ -2296,7 +2297,7 @@ public:
                     stack.pop_back();
                     markers.pop_back();
                     MetaNode node = this->startNode(&markers.back());
-                    auto e = this->finalize(node, finishBinaryExpression(builder, left.get(), right.get(), &operator_));
+                    auto e = this->finalize(node, finishBinaryExpression(builder, left, right, &operator_));
                     stack.push_back(e);
                 }
 
@@ -2315,18 +2316,18 @@ public:
             markers.pop_back();
             while (i > 0) {
                 MetaNode node = this->startNode(&markers.back());
-                expr = this->finalize(node, finishBinaryExpression(builder, stack[i - 1].get(), expr.get(), &tokenStack.back()));
+                expr = this->finalize(node, finishBinaryExpression(builder, stack[i - 1], expr, &tokenStack.back()));
                 markers.pop_back();
                 tokenStack.pop_back();
                 i--;
             }
         }
 
-        return expr.release();
+        return expr;
     }
 
     template <class ASTBuilder>
-    ASTNodePtr finishBinaryExpression(ASTBuilder& builder, ASTNodePtr left, ASTNodePtr right, Scanner::SmallScannerResult* token)
+    ASTNode finishBinaryExpression(ASTBuilder& builder, ASTNode left, ASTNode right, Scanner::SmallScannerResult* token)
     {
         if (token->type == Token::PunctuatorToken) {
             PunctuatorKind oper = token->valuePunctuatorKind;
@@ -2393,16 +2394,16 @@ public:
     // ECMA-262 12.14 Conditional Operator
 
     template <class ASTBuilder>
-    ASTPassNode parseConditionalExpression(ASTBuilder& builder)
+    ASTNode parseConditionalExpression(ASTBuilder& builder)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
 
         exprNode = this->inheritCoverGrammar(builder, &Parser::parseBinaryExpression<ASTBuilder>);
 
         if (this->match(GuessMark)) {
-            ASTNode consequent;
+            ASTNode consequent = nullptr;
 
             this->nextToken();
 
@@ -2413,21 +2414,21 @@ public:
 
             this->expect(Colon);
             ASTNode alternate = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-            exprNode = this->finalize(this->startNode(startToken), builder.createConditionalExpressionNode(exprNode.get(), consequent.get(), alternate.get()));
+            exprNode = this->finalize(this->startNode(startToken), builder.createConditionalExpressionNode(exprNode, consequent, alternate));
 
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
         }
 
-        return exprNode.release();
+        return exprNode;
     }
 
     // ECMA-262 12.15 Assignment Operators
 
     template <class ASTBuilder, bool checkLeftHasRestrictedWord>
-    ASTPassNode parseAssignmentExpression(ASTBuilder& builder)
+    ASTNode parseAssignmentExpression(ASTBuilder& builder)
     {
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
 
         if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
             exprNode = this->parseYieldExpression(builder);
@@ -2475,10 +2476,8 @@ public:
                     this->expect(LeftParenthesis);
                     this->currentScopeContext->m_hasArrowParameterPlaceHolder = true;
 
-                    list = this->parseFormalParameters(builder);
+                    this->parseFormalParameters(builder, list);
                 }
-
-                exprNode.release();
 
                 // FIXME remove validity check?
                 if (list.valid) {
@@ -2619,7 +2618,7 @@ public:
                         this->context->isAssignmentTarget = false;
                         this->context->isBindingElement = false;
                     } else {
-                        exprNode = builder.reinterpretExpressionAsPattern(exprNode.get());
+                        exprNode = builder.reinterpretExpressionAsPattern(exprNode);
 
                         if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
                             this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
@@ -2627,47 +2626,47 @@ public:
                     }
 
                     this->nextToken(token);
-                    ASTNode rightNode;
-                    ASTNodePtr exprResult;
+                    ASTNode rightNode = nullptr;
+                    ASTNode exprResult = nullptr;
 
                     rightNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
                     switch (token->valuePunctuatorKind) {
                     case Substitution:
-                        exprResult = builder.createAssignmentExpressionSimpleNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionSimpleNode(exprNode, rightNode);
                         break;
                     case PlusEqual:
-                        exprResult = builder.createAssignmentExpressionPlusNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionPlusNode(exprNode, rightNode);
                         break;
                     case MinusEqual:
-                        exprResult = builder.createAssignmentExpressionMinusNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionMinusNode(exprNode, rightNode);
                         break;
                     case MultiplyEqual:
-                        exprResult = builder.createAssignmentExpressionMultiplyNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionMultiplyNode(exprNode, rightNode);
                         break;
                     case DivideEqual:
-                        exprResult = builder.createAssignmentExpressionDivisionNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionDivisionNode(exprNode, rightNode);
                         break;
                     case ModEqual:
-                        exprResult = builder.createAssignmentExpressionModNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionModNode(exprNode, rightNode);
                         break;
                     case LeftShiftEqual:
-                        exprResult = builder.createAssignmentExpressionLeftShiftNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionLeftShiftNode(exprNode, rightNode);
                         break;
                     case RightShiftEqual:
-                        exprResult = builder.createAssignmentExpressionSignedRightShiftNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionSignedRightShiftNode(exprNode, rightNode);
                         break;
                     case UnsignedRightShiftEqual:
-                        exprResult = builder.createAssignmentExpressionUnsignedRightShiftNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionUnsignedRightShiftNode(exprNode, rightNode);
                         break;
                     case BitwiseXorEqual:
-                        exprResult = builder.createAssignmentExpressionBitwiseXorNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionBitwiseXorNode(exprNode, rightNode);
                         break;
                     case BitwiseAndEqual:
-                        exprResult = builder.createAssignmentExpressionBitwiseAndNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionBitwiseAndNode(exprNode, rightNode);
                         break;
                     case BitwiseOrEqual:
-                        exprResult = builder.createAssignmentExpressionBitwiseOrNode(exprNode.get(), rightNode.get());
+                        exprResult = builder.createAssignmentExpressionBitwiseOrNode(exprNode, rightNode);
                         break;
                     default:
                         RELEASE_ASSERT_NOT_REACHED();
@@ -2679,17 +2678,17 @@ public:
             }
         }
 
-        return exprNode.release();
+        return exprNode;
     }
 
     // ECMA-262 12.16 Comma Operator
 
     template <class ASTBuilder>
-    ASTPassNode parseExpression(ASTBuilder& builder)
+    ASTNode parseExpression(ASTBuilder& builder)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
 
         exprNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
@@ -2707,15 +2706,15 @@ public:
             exprNode = this->finalize(this->startNode(startToken), builder.createSequenceExpressionNode(std::move(expressions)));
         }
 
-        return exprNode.release();
+        return exprNode;
     }
 
     // ECMA-262 13.2 Block
 
     template <class ASTBuilder>
-    ASTPassNode parseStatementListItem(ASTBuilder& builder)
+    ASTNode parseStatementListItem(ASTBuilder& builder)
     {
-        ASTNode statement;
+        ASTNode statement = nullptr;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
@@ -2753,7 +2752,7 @@ public:
             statement = this->parseStatement(builder);
         }
 
-        return statement.release();
+        return statement;
     }
 
     struct ParserBlockContext {
@@ -2782,7 +2781,7 @@ public:
         ctx.lexicalBlockIndexBefore = this->lexicalBlockIndex;
         ctx.childLexicalBlockIndex = this->lexicalBlockCount;
 
-        this->currentScopeContext->insertBlockScope(ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
+        this->currentScopeContext->insertBlockScope(this->allocator, ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
                                                     ExtendedNodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart + 1, this->lastMarker.index));
         this->lexicalBlockIndex = ctx.childLexicalBlockIndex;
 
@@ -2861,23 +2860,22 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseBlock(ASTBuilder& builder)
+    ASTNode parseBlock(ASTBuilder& builder)
     {
         this->expect(LeftBrace);
-        ASTStatementContainer block;
-        ASTStatementNodePtr referNode = nullptr;
+        ASTNode referNode = nullptr;
 
         ParserBlockContext blockContext = openBlock();
 
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
         this->context->allowLexicalDeclaration = true;
 
-        block = builder.createStatementContainer();
+        ASTStatementContainer block = builder.createStatementContainer();
         while (true) {
             if (this->match(RightBrace)) {
                 break;
             }
-            referNode = block->appendChild(this->parseStatementListItem(builder).get(), referNode);
+            referNode = block->appendChild(this->parseStatementListItem(builder), referNode);
         }
         this->expect(RightBrace);
 
@@ -2886,17 +2884,17 @@ public:
         closeBlock(blockContext);
 
         MetaNode node = this->createNode();
-        return this->finalize(node, builder.createBlockStatementNode(block.get(), blockContext.childLexicalBlockIndex));
+        return this->finalize(node, builder.createBlockStatementNode(block, blockContext.childLexicalBlockIndex));
     }
 
     // ECMA-262 13.3.1 Let and Const Declarations
 
     template <class ASTBuilder>
-    ASTPassNode parseLexicalBinding(ASTBuilder& builder, KeywordKind kind, bool inFor)
+    ASTNode parseLexicalBinding(ASTBuilder& builder, KeywordKind kind, bool inFor)
     {
         auto node = this->createNode();
         SmallScannerResultVector params;
-        ASTNode idNode;
+        ASTNode idNode = nullptr;
         bool isIdentifier;
         AtomicString name;
 
@@ -2911,7 +2909,7 @@ public:
             this->throwError(Messages::StrictVarName);
         }
 
-        ASTNode init;
+        ASTNode init = nullptr;
         if (kind == KeywordKind::ConstKeyword) {
             if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
                 this->expect(Substitution);
@@ -2922,7 +2920,7 @@ public:
             init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
         }
 
-        return this->finalize(node, builder.createVariableDeclaratorNode(kind, idNode.get(), init.get()));
+        return this->finalize(node, builder.createVariableDeclaratorNode(kind, idNode, init));
     }
 
     template <class ASTBuilder>
@@ -2938,7 +2936,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseLexicalDeclaration(ASTBuilder& builder, bool inFor)
+    ASTNode parseLexicalDeclaration(ASTBuilder& builder, bool inFor)
     {
         auto node = this->createNode();
         ALLOC_TOKEN(token);
@@ -2970,7 +2968,7 @@ public:
 
     // ECMA-262 13.3.2 Variable Statement
     template <class ASTBuilder>
-    ASTPassNode parseVariableIdentifier(ASTBuilder& builder, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parseVariableIdentifier(ASTBuilder& builder, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
 
@@ -3040,10 +3038,10 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseVariableDeclaration(ASTBuilder& builder, DeclarationOptions& options, bool& hasInit, ASTNodeType& leftSideType)
+    ASTNode parseVariableDeclaration(ASTBuilder& builder, DeclarationOptions& options, bool& hasInit, ASTNodeType& leftSideType)
     {
         SmallScannerResultVector params;
-        ASTNode idNode;
+        ASTNode idNode = nullptr;
         bool isIdentifier;
         AtomicString name;
 
@@ -3063,7 +3061,7 @@ public:
             this->throwError("Lexical declaration cannot appear in a single-statement context");
         }
 
-        ASTNode initNode;
+        ASTNode initNode = nullptr;
         hasInit = false;
         if (this->match(Substitution)) {
             hasInit = true;
@@ -3094,7 +3092,7 @@ public:
         }
 
         MetaNode node = this->createNode();
-        return this->finalize(node, builder.createVariableDeclaratorNode(options.kind, idNode.get(), initNode.get()));
+        return this->finalize(node, builder.createVariableDeclaratorNode(options.kind, idNode, initNode));
     }
 
     template <class ASTBuilder>
@@ -3120,7 +3118,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseVariableStatement(ASTBuilder& builder, KeywordKind kind = VarKeyword)
+    ASTNode parseVariableStatement(ASTBuilder& builder, KeywordKind kind = VarKeyword)
     {
         this->expectKeyword(kind);
         MetaNode node = this->createNode();
@@ -3137,7 +3135,7 @@ public:
     // ECMA-262 13.4 Empty Statement
 
     template <class ASTBuilder>
-    ASTPassNode parseEmptyStatement(ASTBuilder& builder)
+    ASTNode parseEmptyStatement(ASTBuilder& builder)
     {
         this->expect(SemiColon);
 
@@ -3148,22 +3146,22 @@ public:
     // ECMA-262 13.5 Expression Statement
 
     template <class ASTBuilder>
-    ASTPassNode parseExpressionStatement(ASTBuilder& builder)
+    ASTNode parseExpressionStatement(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         ASTNode expr = this->parseExpression(builder);
         this->consumeSemicolon();
-        return this->finalize(node, builder.createExpressionStatementNode(expr.get()));
+        return this->finalize(node, builder.createExpressionStatementNode(expr));
     }
 
     // ECMA-262 13.6 If statement
 
     template <class ASTBuilder>
-    ASTPassNode parseIfStatement(ASTBuilder& builder)
+    ASTNode parseIfStatement(ASTBuilder& builder)
     {
-        ASTNode test;
-        ASTNode consequent;
-        ASTNode alternate;
+        ASTNode test = nullptr;
+        ASTNode consequent = nullptr;
+        ASTNode alternate = nullptr;
         bool allowFunctionDeclaration = !this->context->strict;
 
         this->expectKeyword(IfKeyword);
@@ -3186,13 +3184,13 @@ public:
 
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
-        return this->finalize(this->createNode(), builder.createIfStatementNode(test.get(), consequent.get(), alternate.get()));
+        return this->finalize(this->createNode(), builder.createIfStatementNode(test, consequent, alternate));
     }
 
     // ECMA-262 13.7.2 The do-while Statement
 
     template <class ASTBuilder>
-    ASTPassNode parseDoWhileStatement(ASTBuilder& builder)
+    ASTNode parseDoWhileStatement(ASTBuilder& builder)
     {
         this->expectKeyword(DoKeyword);
 
@@ -3201,28 +3199,26 @@ public:
         this->context->allowLexicalDeclaration = false;
         this->context->inIteration = true;
 
-        ASTNode body;
-        body = this->parseStatement(builder, false);
+        ASTNode body = this->parseStatement(builder, false);
         this->context->inIteration = previousInIteration;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        ASTNode test;
-        test = this->parseExpression(builder);
+        ASTNode test = this->parseExpression(builder);
 
         this->expect(RightParenthesis);
         if (this->match(SemiColon)) {
             this->nextToken();
         }
 
-        return this->finalize(this->createNode(), builder.createDoWhileStatementNode(test.get(), body.get()));
+        return this->finalize(this->createNode(), builder.createDoWhileStatementNode(test, body));
     }
 
     // ECMA-262 13.7.3 The while Statement
 
     template <class ASTBuilder>
-    ASTPassNode parseWhileStatement(ASTBuilder& builder)
+    ASTNode parseWhileStatement(ASTBuilder& builder)
     {
         bool prevInLoop = this->context->inLoop;
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
@@ -3231,19 +3227,17 @@ public:
 
         this->expectKeyword(WhileKeyword);
         this->expect(LeftParenthesis);
-        ASTNode test;
-        test = this->parseExpression(builder);
+        ASTNode test = this->parseExpression(builder);
         this->expect(RightParenthesis);
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        ASTNode body;
-        body = this->parseStatement(builder, false);
+        ASTNode body = this->parseStatement(builder, false);
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
-        return this->finalize(this->createNode(), builder.createWhileStatementNode(test.get(), body.get()));
+        return this->finalize(this->createNode(), builder.createWhileStatementNode(test, body));
     }
 
     // ECMA-262 13.7.4 The for Statement
@@ -3256,13 +3250,13 @@ public:
     };
 
     template <class ASTBuilder>
-    ASTPassNode parseForStatement(ASTBuilder& builder)
+    ASTNode parseForStatement(ASTBuilder& builder)
     {
-        ASTNode init;
-        ASTNode test;
-        ASTNode update;
-        ASTNode left;
-        ASTNode right;
+        ASTNode init = nullptr;
+        ASTNode test = nullptr;
+        ASTNode update = nullptr;
+        ASTNode left = nullptr;
+        ASTNode right = nullptr;
         ForStatementType type = statementTypeFor;
         bool prevInLoop = this->context->inLoop;
         bool isLexicalDeclaration = false;
@@ -3359,7 +3353,7 @@ public:
                     }
 
                     this->nextToken();
-                    init = builder.reinterpretExpressionAsPattern(init.get());
+                    init = builder.reinterpretExpressionAsPattern(init);
                     left = init;
                     init = nullptr;
                     type = statementTypeForIn;
@@ -3369,7 +3363,7 @@ public:
                     }
 
                     this->nextToken();
-                    init = builder.reinterpretExpressionAsPattern(init.get());
+                    init = builder.reinterpretExpressionAsPattern(init);
                     left = init;
                     init = nullptr;
                     type = statementTypeForOf;
@@ -3424,7 +3418,7 @@ public:
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
         this->context->allowLexicalDeclaration = false;
         this->context->inIteration = true;
-        ASTNode body;
+        ASTNode body = nullptr;
         auto functor = std::bind(&Parser::parseStatement<ASTBuilder>, std::ref(*this), builder, false);
         body = this->isolateCoverGrammarWithFunctor(builder, functor);
 
@@ -3438,17 +3432,17 @@ public:
         MetaNode node = this->createNode();
 
         if (type == statementTypeFor) {
-            ASTNodePtr forNode = builder.createForStatementNode(init.get(), test.get(), update.get(), body.get(), isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+            ASTNode forNode = builder.createForStatementNode(init, test, update, body, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
             return this->finalize(node, forNode);
         }
 
         if (type == statementTypeForIn) {
-            ASTNodePtr forInNode = builder.createForInOfStatementNode(left.get(), right.get(), body.get(), true, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+            ASTNode forInNode = builder.createForInOfStatementNode(left, right, body, true, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
             return this->finalize(node, forInNode);
         }
 
         ASSERT(type == statementTypeForOf);
-        ASTNodePtr forOfNode = builder.createForInOfStatementNode(left.get(), right.get(), body.get(), false, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+        ASTNode forOfNode = builder.createForInOfStatementNode(left, right, body, false, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
         return this->finalize(node, forOfNode);
     }
 
@@ -3475,7 +3469,7 @@ public:
     // ECMA-262 13.8 The continue statement
 
     template <class ASTBuilder>
-    ASTPassNode parseContinueStatement(ASTBuilder& builder)
+    ASTNode parseContinueStatement(ASTBuilder& builder)
     {
         this->expectKeyword(ContinueKeyword);
 
@@ -3510,7 +3504,7 @@ public:
     // ECMA-262 13.9 The break statement
 
     template <class ASTBuilder>
-    ASTPassNode parseBreakStatement(ASTBuilder& builder)
+    ASTNode parseBreakStatement(ASTBuilder& builder)
     {
         this->expectKeyword(BreakKeyword);
 
@@ -3539,7 +3533,7 @@ public:
     // ECMA-262 13.10 The return statement
 
     template <class ASTBuilder>
-    ASTPassNode parseReturnStatement(ASTBuilder& builder)
+    ASTNode parseReturnStatement(ASTBuilder& builder)
     {
         if (!this->context->inFunctionBody) {
             this->throwError(Messages::IllegalReturn);
@@ -3548,19 +3542,19 @@ public:
         this->expectKeyword(ReturnKeyword);
 
         bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead.type != EOFToken;
-        ASTNode argument;
+        ASTNode argument = nullptr;
         if (hasArgument) {
             argument = this->parseExpression(builder);
         }
         this->consumeSemicolon();
 
-        return this->finalize(this->createNode(), builder.createReturnStatementNode(argument.get()));
+        return this->finalize(this->createNode(), builder.createReturnStatementNode(argument));
     }
 
     // ECMA-262 13.11 The with statement
 
     template <class ASTBuilder>
-    ASTPassNode parseWithStatement(ASTBuilder& builder)
+    ASTNode parseWithStatement(ASTBuilder& builder)
     {
         if (this->context->strict) {
             this->throwError(Messages::StrictModeWith);
@@ -3580,17 +3574,17 @@ public:
         ASTNode body = this->parseStatement(builder, false);
         this->context->inWith = prevInWith;
 
-        return this->finalize(node, builder.createWithStatementNode(object, body.get()));
+        return this->finalize(node, builder.createWithStatementNode(object, body));
     }
 
     // ECMA-262 13.12 The switch statement
 
     template <class ASTBuilder>
-    ASTPassNode parseSwitchCase(ASTBuilder& builder, bool& isDefaultNode)
+    ASTNode parseSwitchCase(ASTBuilder& builder, bool& isDefaultNode)
     {
         MetaNode node = this->createNode();
 
-        ASTNode test;
+        ASTNode test = nullptr;
         if (this->matchKeyword(DefaultKeyword)) {
             node = this->createNode();
             this->nextToken();
@@ -3608,27 +3602,26 @@ public:
             if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
             }
-            consequent->appendChild(this->parseStatementListItem(builder).get());
+            consequent->appendChild(this->parseStatementListItem(builder));
         }
 
-        return this->finalize(node, builder.createSwitchCaseNode(test.get(), consequent.get()));
+        return this->finalize(node, builder.createSwitchCaseNode(test, consequent));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseSwitchStatement(ASTBuilder& builder)
+    ASTNode parseSwitchStatement(ASTBuilder& builder)
     {
         this->expectKeyword(SwitchKeyword);
 
         this->expect(LeftParenthesis);
-        ASTNode discriminant;
-        discriminant = this->parseExpression(builder);
+        ASTNode discriminant = this->parseExpression(builder);
         this->expect(RightParenthesis);
 
         bool previousInSwitch = this->context->inSwitch;
         this->context->inSwitch = true;
 
         ASTStatementContainer casesA, casesB;
-        ASTNode deflt;
+        ASTNode deflt = nullptr;
         casesA = builder.createStatementContainer();
         casesB = builder.createStatementContainer();
 
@@ -3650,24 +3643,24 @@ public:
                 defaultFound = true;
             } else {
                 if (defaultFound) {
-                    casesA->appendChild(clause.get());
+                    casesA->appendChild(clause);
                 } else {
-                    casesB->appendChild(clause.get());
+                    casesB->appendChild(clause);
                 }
             }
         }
         this->expect(RightBrace);
 
         this->context->inSwitch = previousInSwitch;
-        return this->finalize(this->createNode(), builder.createSwitchStatementNode(discriminant.get(), casesA.get(), deflt.get(), casesB.get()));
+        return this->finalize(this->createNode(), builder.createSwitchStatementNode(discriminant, casesA, deflt, casesB));
     }
 
     // ECMA-262 13.13 Labelled Statements
 
     template <class ASTBuilder>
-    ASTPassNode parseLabelledStatement(ASTBuilder& builder, size_t multiLabelCount = 1)
+    ASTNode parseLabelledStatement(ASTBuilder& builder, size_t multiLabelCount = 1)
     {
-        ASTNode expr;
+        ASTNode expr = nullptr;
         AtomicString name;
         bool isIdentifier = false;
 
@@ -3677,7 +3670,7 @@ public:
             name = expr->asIdentifier()->name();
         }
 
-        ASTNodePtr statement;
+        ASTNode statement = nullptr;
         if (isIdentifier && this->match(Colon)) {
             this->nextToken();
 
@@ -3689,7 +3682,7 @@ public:
 
             if (this->lookahead.type == IdentifierToken) {
                 ASTNode labeledBody = this->parseLabelledStatement(builder, multiLabelCount + 1);
-                statement = builder.createLabeledStatementNode(labeledBody.get(), name.string());
+                statement = builder.createLabeledStatementNode(labeledBody, name.string());
             } else {
                 if (this->matchKeyword(DoKeyword) || this->matchKeyword(ForKeyword) || this->matchKeyword(WhileKeyword)) {
                     // Turn labels to accept continue references.
@@ -3702,12 +3695,12 @@ public:
                 }
 
                 ASTNode labeledBody = this->parseStatement(builder, !this->context->strict);
-                statement = builder.createLabeledStatementNode(labeledBody.get(), name.string());
+                statement = builder.createLabeledStatementNode(labeledBody, name.string());
             }
             removeLabel(name);
         } else {
             this->consumeSemicolon();
-            statement = builder.createExpressionStatementNode(expr.get());
+            statement = builder.createExpressionStatementNode(expr);
         }
 
         return this->finalize(this->createNode(), statement);
@@ -3716,7 +3709,7 @@ public:
     // ECMA-262 13.14 The throw statement
 
     template <class ASTBuilder>
-    ASTPassNode parseThrowStatement(ASTBuilder& builder)
+    ASTNode parseThrowStatement(ASTBuilder& builder)
     {
         auto metaNode = this->createNode();
         this->expectKeyword(ThrowKeyword);
@@ -3725,17 +3718,16 @@ public:
             this->throwError(Messages::NewlineAfterThrow);
         }
 
-        ASTNode argument;
-        argument = this->parseExpression(builder);
+        ASTNode argument = this->parseExpression(builder);
         this->consumeSemicolon();
 
-        return this->finalize(metaNode, builder.createThrowStatementNode(argument.get()));
+        return this->finalize(metaNode, builder.createThrowStatementNode(argument));
     }
 
     // ECMA-262 13.15 The try statement
 
     template <class ASTBuilder>
-    ASTPassNode parseCatchClause(ASTBuilder& builder)
+    ASTNode parseCatchClause(ASTBuilder& builder)
     {
         this->expectKeyword(CatchKeyword);
 
@@ -3766,8 +3758,7 @@ public:
             this->context->catchClauseSimplyDeclaredVariableNames.push_back(param->asIdentifier()->name());
         }
 
-        ASTNode body;
-        body = this->parseBlock(builder);
+        ASTNode body = this->parseBlock(builder);
 
         if (gotSimplyDeclaredVariableName) {
             this->context->catchClauseSimplyDeclaredVariableNames.pop_back();
@@ -3777,27 +3768,27 @@ public:
 
         closeBlock(catchBlockContext);
 
-        return this->finalize(this->createNode(), builder.createCatchClauseNode(param.get(), nullptr, body.get(), catchBlockContext.childLexicalBlockIndex));
+        return this->finalize(this->createNode(), builder.createCatchClauseNode(param, nullptr, body, catchBlockContext.childLexicalBlockIndex));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseFinallyClause(ASTBuilder& builder)
+    ASTNode parseFinallyClause(ASTBuilder& builder)
     {
         this->expectKeyword(FinallyKeyword);
         return this->parseBlock(builder);
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseTryStatement(ASTBuilder& builder)
+    ASTNode parseTryStatement(ASTBuilder& builder)
     {
         this->expectKeyword(TryKeyword);
 
         ASTNode block = this->parseBlock(builder);
-        ASTNode handler;
+        ASTNode handler = nullptr;
         if (this->matchKeyword(CatchKeyword)) {
             handler = this->parseCatchClause(builder);
         }
-        ASTNode finalizer;
+        ASTNode finalizer = nullptr;
         if (this->matchKeyword(FinallyKeyword)) {
             finalizer = this->parseFinallyClause(builder);
         }
@@ -3806,7 +3797,7 @@ public:
             this->throwError(Messages::NoCatchOrFinally);
         }
 
-        return this->finalize(this->createNode(), builder.createTryStatementNode(block.get(), handler.get(), finalizer.get()));
+        return this->finalize(this->createNode(), builder.createTryStatementNode(block, handler, finalizer));
     }
 
     // ECMA-262 13.16 The debugger statement
@@ -3822,10 +3813,10 @@ public:
 
     // ECMA-262 13 Statements
     template <class ASTBuilder>
-    ASTPassNode parseStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true)
+    ASTNode parseStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true)
     {
         checkRecursiveLimit();
-        ASTNode statement;
+        ASTNode statement = nullptr;
         switch (this->lookahead.type) {
         case Token::BooleanLiteralToken:
         case Token::NullLiteralToken:
@@ -3930,9 +3921,9 @@ public:
         return statement;
     }
 
-    PassRefPtr<StatementContainer> parseFunctionParameters(NodeGenerator& builder)
+    StatementContainer* parseFunctionParameters(NodeGenerator& builder)
     {
-        RefPtr<StatementContainer> container = StatementContainer::create();
+        StatementContainer* container = builder.createStatementContainer();
 
         this->expect(LeftParenthesis);
         ParseFormalParametersResult options;
@@ -3940,21 +3931,21 @@ public:
         size_t paramIndex = 0;
         MetaNode node = this->createNode();
         while (!this->match(RightParenthesis)) {
-            RefPtr<Node> param = this->parseFormalParameter(builder, options, end);
+            Node* param = this->parseFormalParameter(builder, options, end);
 
             switch (param->type()) {
             case Identifier:
             case AssignmentPattern:
             case ArrayPattern:
             case ObjectPattern: {
-                RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param.get(), paramIndex));
-                RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(init.get()));
-                container->appendChild(statement.get());
+                InitializeParameterExpressionNode* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
+                Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
+                container->appendChild(statement);
                 break;
             }
             case RestElement: {
-                RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(param.get()));
-                container->appendChild(statement.get());
+                Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
+                container->appendChild(statement);
                 break;
             }
             default: {
@@ -3975,7 +3966,7 @@ public:
     }
 
 
-    PassRefPtr<BlockStatementNode> parseFunctionBody(NodeGenerator& builder)
+    BlockStatementNode* parseFunctionBody(NodeGenerator& builder)
     {
         // only for parsing the body of callee function
         ASSERT(this->isParsingSingleFunction);
@@ -3988,10 +3979,10 @@ public:
         this->context->inCatchClause = false;
 
         MetaNode nodeStart = this->createNode();
-        RefPtr<StatementContainer> body = StatementContainer::create();
+        StatementContainer* body = builder.createStatementContainer();
 
         this->expect(LeftBrace);
-        this->parseDirectivePrologues(builder, body.get());
+        this->parseDirectivePrologues(builder, body);
 
         this->context->labelSet.clear();
         this->context->inIteration = false;
@@ -4003,25 +3994,25 @@ public:
             if (this->match(RightBrace)) {
                 break;
             }
-            referNode = body->appendChild(this->parseStatementListItem(builder).get(), referNode);
+            referNode = body->appendChild(this->parseStatementListItem(builder), referNode);
         }
 
         bool isEndedWithReturnNode = referNode && referNode->type() == ASTNodeType::ReturnStatement;
         if (!isEndedWithReturnNode) {
-            referNode = body->appendChild(adoptRef(builder.createReturnStatementNode(nullptr)));
+            referNode = body->appendChild(builder.createReturnStatementNode(nullptr));
         }
 
         this->expect(RightBrace);
 
-        return this->finalize(nodeStart, builder.createBlockStatementNode(body.get(), 0));
+        return this->finalize(nodeStart, builder.createBlockStatementNode(body, 0));
     }
 
     // ECMA-262 14.1 Function Definition
     template <class ASTBuilder>
-    ASTPassNode parseFunctionSourceElements(ASTBuilder& builder)
+    ASTNode parseFunctionSourceElements(ASTBuilder& builder)
     {
         // return empty node because the function body node is never used now
-        ASTNode result;
+        ASTNode result = nullptr;
 
         if (this->isParsingSingleFunction && !this->context->inParameterParsing) {
             // when parsing for function call, parseFunctionSourceElements should parse only for child functions
@@ -4046,7 +4037,7 @@ public:
             this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
             this->expect(RightBrace);
 
-            //return this->finalize(this->createNode(), builder.createBlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
+            //return this->finalize(this->createNode(), builder.createBlockStatementNode(StatementContainer::create(), this->lexicalBlockIndex));
             return result;
         }
 
@@ -4118,12 +4109,12 @@ public:
         this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
 
-        //return this->finalize(nodeStart, builder.createBlockStatementNode(StatementContainer::create().get(), this->lexicalBlockIndex));
+        //return this->finalize(nodeStart, builder.createBlockStatementNode(StatementContainer::create(), this->lexicalBlockIndex));
         return result;
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseFunctionDeclaration(ASTBuilder& builder)
+    ASTNode parseFunctionDeclaration(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         this->expectKeyword(FunctionKeyword);
@@ -4134,7 +4125,7 @@ public:
         }
 
         const char* message = nullptr;
-        ASTNode id;
+        ASTNode id = nullptr;
         Scanner::SmallScannerResult firstRestricted;
 
         {
@@ -4175,7 +4166,8 @@ public:
         this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
 
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder, &firstRestricted);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
         Scanner::SmallScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
@@ -4201,7 +4193,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseFunctionExpression(ASTBuilder& builder)
+    ASTNode parseFunctionExpression(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         this->expectKeyword(FunctionKeyword);
@@ -4212,7 +4204,7 @@ public:
         }
 
         const char* message = nullptr;
-        ASTNode id;
+        ASTNode id = nullptr;
         Scanner::SmallScannerResult firstRestricted;
 
         bool previousAllowYield = this->context->allowYield;
@@ -4254,7 +4246,8 @@ public:
         this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
         this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
 
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder, &firstRestricted);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
         Scanner::SmallScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
@@ -4282,7 +4275,7 @@ public:
     // ECMA-262 14.1.1 Directive Prologues
 
     template <class ASTBuilder>
-    ASTPassNode parseDirective(ASTBuilder& builder, bool& useStrict)
+    ASTNode parseDirective(ASTBuilder& builder, bool& useStrict)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -4300,9 +4293,9 @@ public:
         this->consumeSemicolon();
 
         if (isLiteral) {
-            return this->finalize(node, builder.createDirectiveNode(expr.get()));
+            return this->finalize(node, builder.createDirectiveNode(expr));
         } else {
-            return this->finalize(node, builder.createExpressionStatementNode(expr.get()));
+            return this->finalize(node, builder.createExpressionStatementNode(expr));
         }
     }
 
@@ -4321,7 +4314,7 @@ public:
             }
 
             ASTNode statement = this->parseDirective(builder, useStrict);
-            container->appendChild(statement.get());
+            container->appendChild(statement);
 
             if (statement->type() != Directive) {
                 break;
@@ -4343,7 +4336,7 @@ public:
     // ECMA-262 14.3 Method Definitions
 
     template <class ASTBuilder>
-    ASTPassNode parseGetterMethod(ASTBuilder& builder)
+    ASTNode parseGetterMethod(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
@@ -4378,7 +4371,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseSetterMethod(ASTBuilder& builder)
+    ASTNode parseSetterMethod(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -4393,7 +4386,8 @@ public:
 
         this->expect(LeftParenthesis);
         auto oldScopeContext = pushScopeContext(AtomicString());
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters);
         if (formalParameters.params.size() != 1) {
             this->throwError(Messages::BadSetterArity);
         } else if (formalParameters.params[0]->type() == ASTNodeType::RestElement) {
@@ -4417,7 +4411,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseGeneratorMethod(ASTBuilder& builder)
+    ASTNode parseGeneratorMethod(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -4432,7 +4426,8 @@ public:
 
         this->expect(LeftParenthesis);
         auto oldScopeContext = pushScopeContext(AtomicString());
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters);
         extractNamesFromFunctionParams(formalParameters);
         ASTNode method = this->parsePropertyMethod(builder, formalParameters);
 
@@ -4498,7 +4493,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseYieldExpression(ASTBuilder& builder)
+    ASTNode parseYieldExpression(ASTBuilder& builder)
     {
         if (this->context->inParameterParsing) {
             this->throwError("Cannot use yield expression within parameters");
@@ -4507,7 +4502,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(YieldKeyword);
 
-        ASTNode exprNode;
+        ASTNode exprNode = nullptr;
         bool delegate = false;
 
         if (!this->hasLineTerminator) {
@@ -4532,7 +4527,7 @@ public:
     // ECMA-262 14.5 Class Definitions
 
     template <class ASTBuilder>
-    ASTPassNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass)
+    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -4540,8 +4535,8 @@ public:
 
         ClassElementNode::Kind kind = ClassElementNode::Kind::None;
 
-        ASTNode keyNode;
-        ASTNode value;
+        ASTNode keyNode = nullptr;
+        ASTNode value = nullptr;
         StringView keyString;
 
         bool computed = false;
@@ -4592,7 +4587,7 @@ public:
             kind = ClassElementNode::Kind::Method;
             bool allowSuperCall = false;
             if (hasSuperClass) {
-                if (keyNode && this->isPropertyKey(keyNode.get(), keyString, "constructor")) {
+                if (keyNode && this->isPropertyKey(keyNode, keyString, "constructor")) {
                     allowSuperCall = true;
                 }
             }
@@ -4603,10 +4598,10 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
-        if (isStatic && !computed && this->isPropertyKey(keyNode.get(), keyString, "prototype")) {
+        if (isStatic && !computed && this->isPropertyKey(keyNode, keyString, "prototype")) {
             this->throwUnexpectedToken(*token, Messages::StaticPrototype);
         }
-        if (!isStatic && !computed && this->isPropertyKey(keyNode.get(), keyString, "constructor")) {
+        if (!isStatic && !computed && this->isPropertyKey(keyNode, keyString, "constructor")) {
             if (kind != ClassElementNode::Kind::Method) {
                 this->throwUnexpectedToken(*token, Messages::ConstructorSpecialMethod);
             }
@@ -4622,7 +4617,7 @@ public:
                     this->lastPoppedScopeContext->m_isDerivedClassConstructor = hasSuperClass;
                 }
                 constructor = value;
-                ASTNode empty;
+                ASTNode empty = nullptr;
                 return empty;
             }
         }
@@ -4638,16 +4633,16 @@ public:
             }
         }
 
-        return this->finalize(node, builder.createClassElementNode(keyNode.get(), value.get(), kind, computed, isStatic));
+        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic));
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, MetaNode& endNode)
+    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, MetaNode& endNode)
     {
         MetaNode node = this->createNode();
 
         ASTNodeVector body;
-        ASTNode constructor;
+        ASTNode constructor = nullptr;
 
         this->expect(LeftBrace);
         while (!this->match(RightBrace)) {
@@ -4668,14 +4663,14 @@ public:
     }
 
     template <class ASTBuilder, typename ClassType>
-    ASTPassNode classDeclaration(ASTBuilder& builder, bool identifierIsOptional)
+    ASTNode classDeclaration(ASTBuilder& builder, bool identifierIsOptional)
     {
         bool previousStrict = this->context->strict;
         this->context->strict = true;
         MetaNode startNode = this->createNode();
         this->expectKeyword(ClassKeyword);
 
-        ASTNode idNode;
+        ASTNode idNode = nullptr;
         AtomicString id;
 
         if (!identifierIsOptional || this->lookahead.type == Token::IdentifierToken) {
@@ -4688,7 +4683,7 @@ public:
         }
 
         bool hasSuperClass = false;
-        ASTNode superClass;
+        ASTNode superClass = nullptr;
         if (this->matchKeyword(ExtendsKeyword)) {
             hasSuperClass = true;
             this->nextToken();
@@ -4710,13 +4705,13 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseClassDeclaration(ASTBuilder& builder)
+    ASTNode parseClassDeclaration(ASTBuilder& builder)
     {
         return classDeclaration<ASTBuilder, ClassDeclarationNode>(builder, false);
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseClassExpression(ASTBuilder& builder)
+    ASTNode parseClassExpression(ASTBuilder& builder)
     {
         return classDeclaration<ASTBuilder, ClassExpressionNode>(builder, true);
     }
@@ -4725,7 +4720,7 @@ public:
     // ECMA-262 15.2.2 Imports
 
     template <class ASTBuilder>
-    ASTPassNode parseModuleSpecifier(ASTBuilder& builder)
+    ASTNode parseModuleSpecifier(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -4743,11 +4738,11 @@ public:
 
     // import {<foo as bar>} ...;
     template <class ASTBuilder>
-    ASTPassNode parseImportSpecifier(ASTBuilder& builder)
+    ASTNode parseImportSpecifier(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
-        ASTNode local;
+        ASTNode local = nullptr;
         ASTNode imported = this->parseIdentifierName(builder);
         if (this->matchContextualKeyword("as")) {
             this->nextToken();
@@ -4777,7 +4772,7 @@ public:
 
     // import <foo> ...;
     template <class ASTBuilder>
-    ASTPassNode parseImportDefaultSpecifier(ASTBuilder& builder)
+    ASTNode parseImportDefaultSpecifier(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         ASTNode local = this->parseIdentifierName(builder);
@@ -4786,7 +4781,7 @@ public:
 
     // import <* as foo> ...;
     template <class ASTBuilder>
-    ASTPassNode parseImportNamespaceSpecifier(ASTBuilder& builder)
+    ASTNode parseImportNamespaceSpecifier(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
@@ -4800,7 +4795,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseImportDeclaration(ASTBuilder& builder)
+    ASTNode parseImportDeclaration(ASTBuilder& builder)
     {
         if (this->context->inFunctionBody) {
             this->throwError(Messages::IllegalImportDeclaration);
@@ -4813,7 +4808,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(KeywordKind::ImportKeyword);
 
-        ASTNode src;
+        ASTNode src = nullptr;
 
         Script::ImportEntryVector importEntrys;
         ASTNodeVector specifiers;
@@ -4840,7 +4835,7 @@ public:
                 if (builder.isNodeGenerator()) {
                     Script::ImportEntry entry;
                     entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
-                    entry.m_localName = ((ImportNamespaceSpecifierNode*)specifiers.back().get())->local()->name();
+                    entry.m_localName = specifiers.back()->asImportNamespaceSpecifier()->local()->name();
                     importEntrys.push_back(entry);
                 }
             } else if (this->isIdentifierName(&this->lookahead) && !this->matchKeyword(KeywordKind::DefaultKeyword)) {
@@ -4850,7 +4845,7 @@ public:
                 if (builder.isNodeGenerator()) {
                     Script::ImportEntry entry;
                     entry.m_importName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = ((ImportDefaultSpecifierNode*)specifiers.back().get())->local()->name();
+                    entry.m_localName = specifiers.back()->asImportDefaultSpecifier()->local()->name();
                     importEntrys.push_back(entry);
                 }
 
@@ -4863,7 +4858,7 @@ public:
                         if (builder.isNodeGenerator()) {
                             Script::ImportEntry entry;
                             entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
-                            entry.m_localName = ((ImportNamespaceSpecifierNode*)specifiers.back().get())->local()->name();
+                            entry.m_localName = specifiers.back()->asImportNamespaceSpecifier()->local()->name();
                             importEntrys.push_back(entry);
                         }
                     } else if (this->match(PunctuatorKind::LeftBrace)) {
@@ -4873,8 +4868,8 @@ public:
                         if (builder.isNodeGenerator()) {
                             for (size_t i = 0; i < v.size(); i++) {
                                 Script::ImportEntry entry;
-                                entry.m_importName = ((ImportSpecifierNode*)v[i].get())->imported()->name();
-                                entry.m_localName = ((ImportSpecifierNode*)v[i].get())->local()->name();
+                                entry.m_importName = v[i]->asImportSpecifier()->imported()->name();
+                                entry.m_localName = v[i]->asImportSpecifier()->local()->name();
                                 importEntrys.push_back(entry);
                             }
 
@@ -4911,12 +4906,11 @@ public:
 
     // ECMA-262 15.2.3 Exports
     template <class ASTBuilder>
-    ASTPassNode parseExportSpecifier(ASTBuilder& builder)
+    ASTNode parseExportSpecifier(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
 
-        ASTNode local;
-        local = this->parseIdentifierName(builder);
+        ASTNode local = this->parseIdentifierName(builder);
 
         ASTNode exported = local;
         if (this->matchContextualKeyword("as")) {
@@ -4973,7 +4967,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTPassNode parseExportDeclaration(ASTBuilder& builder)
+    ASTNode parseExportDeclaration(ASTBuilder& builder)
     {
         if (this->context->inFunctionBody) {
             this->throwError(Messages::IllegalExportDeclaration);
@@ -4986,7 +4980,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(KeywordKind::ExportKeyword);
 
-        ASTNode exportDeclaration;
+        ASTNode exportDeclaration = nullptr;
         if (this->matchKeyword(KeywordKind::DefaultKeyword)) {
             // export default ...
 
@@ -5011,7 +5005,7 @@ public:
                 if (builder.isNodeGenerator()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = classNode->asClassExpression()->classNode().id().get() ? classNode->asClassExpression()->classNode().id()->asIdentifier()->name() : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    entry.m_localName = classNode->asClassExpression()->classNode().id() ? classNode->asClassExpression()->classNode().id()->asIdentifier()->name() : this->escargotContext->staticStrings().stringStarDefaultStar;
                     addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     addExportDeclarationEntry(entry);
 
@@ -5070,7 +5064,7 @@ public:
                 };
             }
             AtomicStringVector declaredName;
-            ASTNode declaration;
+            ASTNode declaration = nullptr;
             switch (this->lookahead.valueKeywordKind) {
             case KeywordKind::LetKeyword:
             case KeywordKind::ConstKeyword:
@@ -5096,7 +5090,7 @@ public:
             this->nameDeclaredCallback = oldNameCallback;
         } else {
             ASTNodeVector specifiers;
-            ASTNode source;
+            ASTNode source = nullptr;
             bool isExportFromIdentifier = false;
 
             this->expect(PunctuatorKind::LeftBrace);
@@ -5147,16 +5141,16 @@ public:
         return exportDeclaration;
     }
 
-    PassRefPtr<ProgramNode> parseProgram(NodeGenerator& builder)
+    ProgramNode* parseProgram(NodeGenerator& builder)
     {
         MetaNode startNode = this->createNode();
-        pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
+        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
         this->context->allowLexicalDeclaration = true;
-        RefPtr<StatementContainer> container = StatementContainer::create();
-        this->parseDirectivePrologues(builder, container.get());
+        StatementContainer* container = builder.createStatementContainer();
+        this->parseDirectivePrologues(builder, container);
         StatementNode* referNode = nullptr;
         while (this->startMarker.index < this->scanner->length) {
-            referNode = container->appendChild(this->parseStatementListItem(builder).get(), referNode);
+            referNode = container->appendChild(this->parseStatementListItem(builder), referNode);
         }
         this->currentScopeContext->m_bodyStartLOC.line = startNode.line;
         this->currentScopeContext->m_bodyStartLOC.column = startNode.column;
@@ -5168,38 +5162,38 @@ public:
         this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
         this->currentScopeContext->m_bodyEndLOC.index = endNode.index;
-        return this->finalize(startNode, new ProgramNode(container.get(), this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector)));
+        return this->finalize(startNode, builder.createProgramNode(container, this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector)));
     }
 
-    PassRefPtr<FunctionNode> parseScriptFunction(NodeGenerator& builder)
+    FunctionNode* parseScriptFunction(NodeGenerator& builder)
     {
         ASSERT(this->isParsingSingleFunction);
 
         MetaNode node = this->createNode();
-        RefPtr<StatementContainer> params = this->parseFunctionParameters(builder);
-        RefPtr<BlockStatementNode> body = this->parseFunctionBody(builder);
+        StatementContainer* params = this->parseFunctionParameters(builder);
+        BlockStatementNode* body = this->parseFunctionBody(builder);
 
-        return this->finalize(node, new FunctionNode(params.get(), body.get(), std::move(this->numeralLiteralVector)));
+        return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
     }
 
-    PassRefPtr<FunctionNode> parseScriptArrowFunction(NodeGenerator& builder, bool hasArrowParameterPlaceHolder)
+    FunctionNode* parseScriptArrowFunction(NodeGenerator& builder, bool hasArrowParameterPlaceHolder)
     {
         ASSERT(this->isParsingSingleFunction);
 
         MetaNode node = this->createNode();
-        RefPtr<StatementContainer> params;
-        RefPtr<BlockStatementNode> body;
+        StatementContainer* params;
+        BlockStatementNode* body;
 
         // generate parameter statements
         if (hasArrowParameterPlaceHolder) {
             params = parseFunctionParameters(builder);
         } else {
-            RefPtr<Node> param = this->parseConditionalExpression(builder);
+            Node* param = this->parseConditionalExpression(builder);
             ASSERT(param->type() == Identifier);
-            params = StatementContainer::create();
-            RefPtr<InitializeParameterExpressionNode> init = this->finalize(node, new InitializeParameterExpressionNode(param.get(), 0));
-            RefPtr<Node> statement = this->finalize(node, new ExpressionStatementNode(init.get()));
-            params->appendChild(statement.get());
+            params = builder.createStatementContainer();
+            InitializeParameterExpressionNode* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, 0));
+            Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
+            params->appendChild(statement);
         }
         this->expect(Arrow);
         this->context->inArrowFunction = true;
@@ -5209,7 +5203,7 @@ public:
             body = parseFunctionBody(builder);
         } else {
             MetaNode nodeStart = this->createNode();
-            RefPtr<StatementContainer> container = StatementContainer::create();
+            StatementContainer* container = builder.createStatementContainer();
 
             auto previousLabelSet = this->context->labelSet;
             bool previousInIteration = this->context->inIteration;
@@ -5225,9 +5219,9 @@ public:
             bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
 
-            RefPtr<Node> expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
+            Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
 
-            container->appendChild(this->finalize(nodeStart, new ReturnStatementNode(expr.get())), nullptr);
+            container->appendChild(this->finalize(nodeStart, builder.createReturnStatementNode(expr)), nullptr);
 
             /*
                if (this->context->strict && list.firstRestricted) {
@@ -5246,31 +5240,39 @@ public:
             this->context->inSwitch = previousInSwitch;
             this->context->inFunctionBody = previousInFunctionBody;
 
-            body = this->finalize(nodeStart, new BlockStatementNode(container.get()));
+            body = this->finalize(nodeStart, builder.createBlockStatementNode(container));
         }
 
-        return this->finalize(node, new FunctionNode(params.get(), body.get(), std::move(this->numeralLiteralVector)));
+        return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
     }
 };
 
-RefPtr<ProgramNode> parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside)
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside)
 {
+    // GC should be disabled during the parsing process
+    ASSERT(GC_is_disabled());
+    ASSERT(ctx->astAllocator().isInitialized());
+
     Parser parser(ctx, source, isModule, stackRemain);
-    NodeGenerator builder;
+    NodeGenerator builder(ctx->astAllocator());
 
     parser.context->strict = strictFromOutside;
     parser.context->inWith = inWith;
     parser.context->allowSuperCall = allowSuperCallOutside;
     parser.context->allowSuperProperty = allowSuperPropertyOutside;
 
-    RefPtr<ProgramNode> nd = parser.parseProgram(builder);
+    ProgramNode* nd = parser.parseProgram(builder);
     return nd;
 }
 
-RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
+FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
 {
+    // GC should be disabled during the parsing process
+    ASSERT(GC_is_disabled());
+    ASSERT(ctx->astAllocator().isInitialized());
+
     Parser parser(ctx, codeBlock->src(), false, stackRemain, codeBlock->sourceElementStart());
-    NodeGenerator builder;
+    NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;
     parser.context->allowLexicalDeclaration = true;
@@ -5282,7 +5284,7 @@ RefPtr<FunctionNode> parseSingleFunction(::Escargot::Context* ctx, InterpretedCo
     // when parsing for function call, childindex should be set to index 1
     parser.childFunctionIndex = 1;
 
-    scopeContext = new ASTFunctionScopeContext(codeBlock->isStrict());
+    scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
     parser.context->allowYield = !codeBlock->isGenerator();
 

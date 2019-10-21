@@ -45,23 +45,14 @@ public:
         m_loc = loc;
     }
 
-    virtual ~AssignmentPatternNode()
-    {
-    }
-
-    void giveupChildren()
-    {
-        m_left = m_right = nullptr;
-    }
-
     Node* left()
     {
-        return m_left.get();
+        return m_left;
     }
 
     Node* right()
     {
-        return m_right.get();
+        return m_right;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::AssignmentPattern; }
@@ -114,8 +105,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_left; // left: Pattern;
-    RefPtr<Node> m_right; // right: Expression;
+    Node* m_left; // left: Pattern;
+    Node* m_right; // right: Expression;
 };
 }
 

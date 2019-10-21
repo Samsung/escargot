@@ -30,7 +30,6 @@ namespace Escargot {
 
 class VariableDeclaratorNode : public Node {
 public:
-    friend class ScriptParser;
     VariableDeclaratorNode(EscargotLexer::KeywordKind kind, Node* id, Node* init = nullptr)
         : Node()
         , m_kind(kind)
@@ -44,15 +43,14 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::VariableDeclarator; }
-    Node* id() { return m_id.get(); }
-    Node* init() { return m_init.get(); }
+    Node* id() { return m_id; }
+    Node* init() { return m_init; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         bool addFakeUndefinedLiteralNode = false;
         if (m_kind != EscargotLexer::KeywordKind::VarKeyword && !m_init && !context->m_forInOfVarBinding) {
             addFakeUndefinedLiteralNode = true;
-            m_init = adoptRef(new (alloca(sizeof(LiteralNode))) LiteralNode(Value()));
-            m_init.get()->ref(); // add ref count for preventing to call operator delete
+            m_init = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
         }
 
         if (m_init) {
@@ -60,11 +58,9 @@ public:
             context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
             if (m_id->isIdentifier() && !m_id->asIdentifier()->name().string()->equals("arguments")) {
                 // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
-                RefPtr<AssignmentExpressionSimpleNode> assign = adoptRef(new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_id.get(), m_init.get()));
+                AssignmentExpressionSimpleNode* assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_id, m_init);
                 assign->m_loc = m_loc;
                 assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-                assign->giveupChildren();
-                assign.release().leakRef(); // leak reference for prevent calling operator delete by ~RefPtr
             } else {
                 auto r = m_init->getRegister(codeBlock, context);
                 m_init->generateExpressionByteCode(codeBlock, context, r);
@@ -76,14 +72,14 @@ public:
         }
 
         if (addFakeUndefinedLiteralNode) {
-            m_init.release().leakRef(); // leak reference for prevent calling operator delete by ~RefPtr
+            m_init = nullptr;
         }
     }
 
 private:
     EscargotLexer::KeywordKind m_kind;
-    RefPtr<Node> m_id; // id: Pattern;
-    RefPtr<Node> m_init; // init: Expression | null;
+    Node* m_id; // id: Pattern;
+    Node* m_init; // init: Expression | null;
 };
 }
 

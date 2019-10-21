@@ -51,8 +51,6 @@ public:
             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT, dstRegister), context, this);
         }
     }
-
-protected:
 };
 }
 

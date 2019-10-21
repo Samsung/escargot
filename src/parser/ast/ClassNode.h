@@ -36,7 +36,7 @@ public:
     {
     }
 
-    ClassNode(RefPtr<Node> id, RefPtr<Node> superClass, RefPtr<ClassBodyNode> classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
         : m_classBodyLexicalBlockIndex(classBodyLexicalBlockIndex)
         , m_id(id)
         , m_superClass(superClass)
@@ -45,16 +45,16 @@ public:
     {
     }
 
-    inline const RefPtr<Node>& id() const { return m_id; }
-    inline const RefPtr<Node>& superClass() const { return m_superClass; }
-    inline const RefPtr<ClassBodyNode>& classBody() const { return m_classBody; }
+    inline Node* id() const { return m_id; }
+    inline Node* superClass() const { return m_superClass; }
+    inline ClassBodyNode* classBody() const { return (ClassBodyNode*)m_classBody; }
     inline LexicalBlockIndex classBodyLexicalBlockIndex() const { return m_classBodyLexicalBlockIndex; }
     inline const StringView& classSrc() const { return m_classSrc; }
 private:
     LexicalBlockIndex m_classBodyLexicalBlockIndex;
-    RefPtr<Node> m_id; // Id
-    RefPtr<Node> m_superClass;
-    RefPtr<ClassBodyNode> m_classBody;
+    Node* m_id; // Id
+    Node* m_superClass;
+    Node* m_classBody;
     StringView m_classSrc;
 };
 }

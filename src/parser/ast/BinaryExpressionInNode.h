@@ -28,8 +28,8 @@ class BinaryExpressionInNode : public ExpressionNode {
 public:
     BinaryExpressionInNode(Node* left, Node* right)
         : ExpressionNode()
-        , m_left((ExpressionNode*)left)
-        , m_right((ExpressionNode*)right)
+        , m_left(left)
+        , m_right(right)
     {
     }
 
@@ -39,7 +39,7 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool isSlow = !canUseDirectRegister(context, m_left.get(), m_right.get());
+        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
         bool directBefore = context->m_canSkipCopyToRegister;
         if (isSlow) {
             context->m_canSkipCopyToRegister = false;
@@ -74,8 +74,8 @@ public:
 
 
 private:
-    RefPtr<ExpressionNode> m_left;
-    RefPtr<ExpressionNode> m_right;
+    Node* m_left;
+    Node* m_right;
 };
 }
 

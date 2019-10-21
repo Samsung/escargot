@@ -26,8 +26,7 @@ namespace Escargot {
 
 class ImportSpecifierNode : public Node {
 public:
-    friend class ScriptParser;
-    ImportSpecifierNode(RefPtr<Node> local, RefPtr<Node> imported)
+    ImportSpecifierNode(Node* local, Node* imported)
         : m_local(local)
         , m_imported(imported)
     {
@@ -54,8 +53,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_local;
-    RefPtr<Node> m_imported;
+    Node* m_local;
+    Node* m_imported;
 };
 }
 

@@ -32,11 +32,11 @@ class FunctionDeclarationNode;
 // interface CatchClause <: Node {
 class CatchClauseNode : public Node {
 public:
-    CatchClauseNode(Node *param, Node *guard, Node *body, LexicalBlockIndex paramLexicalBlockIndex)
+    CatchClauseNode(Node* param, Node* guard, Node* body, LexicalBlockIndex paramLexicalBlockIndex)
         : Node()
         , m_param(param)
-        , m_guard((ExpressionNode *)guard)
-        , m_body((BlockStatementNode *)body)
+        , m_guard(guard)
+        , m_body(body)
         , m_paramLexicalBlockIndex(paramLexicalBlockIndex)
     {
     }
@@ -45,14 +45,14 @@ public:
     {
     }
 
-    Node *param()
+    Node* param()
     {
-        return m_param.get();
+        return m_param;
     }
 
-    BlockStatementNode *body()
+    BlockStatementNode* body()
     {
-        return m_body.get();
+        return (BlockStatementNode*)m_body;
     }
 
     LexicalBlockIndex paramLexicalBlockIndex()
@@ -62,9 +62,9 @@ public:
 
     virtual ASTNodeType type() override { return ASTNodeType::CatchClause; }
 private:
-    RefPtr<Node> m_param;
-    RefPtr<ExpressionNode> m_guard;
-    RefPtr<BlockStatementNode> m_body;
+    Node* m_param;
+    Node* m_guard;
+    Node* m_body;
     LexicalBlockIndex m_paramLexicalBlockIndex;
 };
 }

@@ -26,8 +26,7 @@ namespace Escargot {
 
 class WithStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
-    WithStatementNode(RefPtr<Node> object, RefPtr<Node> body)
+    WithStatementNode(Node* object, Node* body)
         : StatementNode()
         , m_object(object)
         , m_body(body)
@@ -66,8 +65,8 @@ public:
     }
 
 private:
-    RefPtr<Node> m_object;
-    RefPtr<Node> m_body; // body: [ Statement ];
+    Node* m_object;
+    Node* m_body; // body: [ Statement ];
 };
 }
 

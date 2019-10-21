@@ -25,9 +25,9 @@
 
 namespace Escargot {
 
-class NewExpressionNode : public ExpressionNode {
+class NewExpressionNode : public ExpressionNode, public DestructibleNode {
 public:
-    friend class ScriptParser;
+    using DestructibleNode::operator new;
     NewExpressionNode(Node* callee, NodeVector&& arguments)
         : ExpressionNode()
         , m_callee(callee)
@@ -93,7 +93,7 @@ public:
     }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool isSlow = !CallExpressionNode::canUseDirectRegister(context, m_callee.get(), m_arguments);
+        bool isSlow = !CallExpressionNode::canUseDirectRegister(context, m_callee, m_arguments);
         bool directBefore = context->m_canSkipCopyToRegister;
         if (isSlow) {
             context->m_canSkipCopyToRegister = false;
@@ -137,7 +137,7 @@ public:
     }
 
 private:
-    RefPtr<Node> m_callee;
+    Node* m_callee;
     NodeVector m_arguments;
     bool m_hasSpreadElement;
 };

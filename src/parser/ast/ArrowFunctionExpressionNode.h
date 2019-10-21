@@ -24,8 +24,9 @@
 
 namespace Escargot {
 
-class ArrowParameterPlaceHolderNode : public Node {
+class ArrowParameterPlaceHolderNode : public Node, public DestructibleNode {
 public:
+    using DestructibleNode::operator new;
     ArrowParameterPlaceHolderNode()
         : Node()
     {

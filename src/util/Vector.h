@@ -491,7 +491,7 @@ private:
 // Vector for special purpose
 // It has InlineStorage, so push_back operation is fast with InlineStorage
 template <unsigned int InlineStorageSize, typename T,
-          typename ExternalStoreageAllocator>
+          typename ExternalStorageAllocator>
 class VectorWithInlineStorage : public gc {
 public:
     VectorWithInlineStorage()
@@ -515,7 +515,7 @@ public:
     }
 
     VectorWithInlineStorage(VectorWithInlineStorage<InlineStorageSize, T,
-                                                    ExternalStoreageAllocator>&& src)
+                                                    ExternalStorageAllocator>&& src)
     {
         m_size = src.m_size;
         if (src.m_useExternalStorage) {
@@ -601,7 +601,7 @@ protected:
     bool m_useExternalStorage;
     size_t m_size;
     T m_inlineStorage[InlineStorageSize];
-    std::vector<T, ExternalStoreageAllocator> m_externalStorage;
+    std::vector<T, ExternalStorageAllocator> m_externalStorage;
 };
 
 

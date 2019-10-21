@@ -213,7 +213,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
     // Parsing
     try {
         InterpretedCodeBlock* topCodeBlock = nullptr;
-        RefPtr<ProgramNode> programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
+        ProgramNode* programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
 
         Script* script = new Script(fileName, new StringView(scriptSource), programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
@@ -228,7 +228,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
             programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode.get(), isEvalMode, isEvalCodeInFunction);
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode, isEvalMode, isEvalCodeInFunction);
         }
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
@@ -241,19 +241,24 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         }
 #endif
 
-        GC_enable();
         ASSERT(script->m_topCodeBlock == topCodeBlock);
 
         // Generate ByteCode
         if (LIKELY(needByteCodeGeneration)) {
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode.get(), ((ProgramNode*)programNode.get())->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, programNode->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
         }
+
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
+        GC_enable();
 
         ScriptParser::InitializeScriptResult result;
         result.script = script;
         return result;
 
     } catch (esprima::Error& orgError) {
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
         GC_enable();
 
         ScriptParser::InitializeScriptResult result;
@@ -265,19 +270,29 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
-    RefPtr<FunctionNode> functionNode;
+    GC_disable();
+
+    FunctionNode* functionNode;
     ASTFunctionScopeContext* scopeContext = nullptr;
 
     // Parsing
     try {
         functionNode = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
     } catch (esprima::Error& orgError) {
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
+        GC_enable();
+
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 
     // Generate ByteCode
-    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode.get(), scopeContext, false, false, false, false);
+    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode, scopeContext, false, false, false, false);
+
+    // reset ASTAllocator
+    m_context->astAllocator().reset();
+    GC_enable();
 }
 
 #ifndef NDEBUG

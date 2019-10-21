@@ -51,12 +51,12 @@ public:
     BlockStatementNode* body()
     {
         ASSERT(!!m_body);
-        return m_body.get();
+        return m_body;
     }
 
 private:
-    RefPtr<StatementContainer> m_params;
-    RefPtr<BlockStatementNode> m_body;
+    StatementContainer* m_params;
+    BlockStatementNode* m_body;
     NumeralLiteralVector m_numeralLiteralVector;
 };
 }

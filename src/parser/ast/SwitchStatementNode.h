@@ -28,12 +28,11 @@ namespace Escargot {
 
 class SwitchStatementNode : public StatementNode {
 public:
-    friend class ScriptParser;
     SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB)
         : StatementNode()
-        , m_discriminant((ExpressionNode*)discriminant)
+        , m_discriminant(discriminant)
         , m_casesA(casesA)
-        , m_default((StatementNode*)deflt)
+        , m_default(deflt)
         , m_casesB(casesB)
     {
     }
@@ -57,8 +56,8 @@ public:
         StatementNode* nd = m_casesB->firstChild();
         while (nd) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
-            size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
-            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
+            size_t refIndex = caseNode->test()->getRegister(codeBlock, &newContext);
+            caseNode->test()->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
@@ -72,8 +71,8 @@ public:
         nd = m_casesA->firstChild();
         while (nd) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
-            size_t refIndex = caseNode->m_test->getRegister(codeBlock, &newContext);
-            caseNode->m_test->generateExpressionByteCode(codeBlock, &newContext, refIndex);
+            size_t refIndex = caseNode->test()->getRegister(codeBlock, &newContext);
+            caseNode->test()->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
@@ -132,10 +131,10 @@ public:
     }
 
 private:
-    RefPtr<ExpressionNode> m_discriminant;
-    RefPtr<StatementContainer> m_casesA;
-    RefPtr<StatementNode> m_default;
-    RefPtr<StatementContainer> m_casesB;
+    Node* m_discriminant;
+    StatementContainer* m_casesA;
+    Node* m_default;
+    StatementContainer* m_casesB;
 };
 }
 
