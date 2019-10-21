@@ -527,7 +527,8 @@ int main(int argc, char* argv[])
 
     Memory::setGCFrequency(24);
 
-    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create(new ShellPlatform());
+    ShellPlatform* platform = new ShellPlatform();
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create(platform);
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
     bool runShell = true;
@@ -599,6 +600,8 @@ int main(int argc, char* argv[])
     instance.release();
 
     Globals::finalize();
+
+    delete platform;
 
     return 0;
 }

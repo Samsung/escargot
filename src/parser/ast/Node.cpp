@@ -53,35 +53,4 @@ void Node::generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, By
     codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, "Invalid assignment left-hand side"), context, this);
     return;
 }
-
-void* ASTBlockScopeContext::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ASTBlockScopeContext)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTBlockScopeContext, m_names));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTBlockScopeContext, m_usingNames));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASTBlockScopeContext));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-void* ASTFunctionScopeContext::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ASTFunctionScopeContext)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_varNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_parameters));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_firstChild));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_nextSibling));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASTFunctionScopeContext, m_childBlockScopes));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASTFunctionScopeContext));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
 }

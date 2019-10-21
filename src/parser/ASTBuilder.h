@@ -116,6 +116,8 @@ namespace Escargot {
     F(WithStatement)                          \
     F(YieldExpression)
 
+class SyntaxNodeVector;
+
 class SyntaxNode {
 public:
     MAKE_STACK_ALLOCATED();
@@ -275,27 +277,28 @@ public:
         return;
     }
 
-    std::vector<SyntaxNode>& expressions()
+    SyntaxNodeVector& expressions()
     {
         // dummy function for expressions() of SequenceExpressionNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        std::vector<SyntaxNode>* tempVector = new std::vector<SyntaxNode>();
+        SyntaxNodeVector* tempVector;
         return *tempVector;
     }
 
     ASTFunctionScopeContext* scopeContext()
     {
         // dummy function for scopeContext() of FunctionDeclarationNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        return new ASTFunctionScopeContext();
+        ASTFunctionScopeContext* scopeContext;
+        return scopeContext;
     }
 
     ClassNode& classNode()
     {
         // dummy function for classNode() of ClassDeclarationNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
         ClassNode* tempClassNode = new ClassNode();
         return *tempClassNode;
@@ -304,7 +307,7 @@ public:
     Value value()
     {
         // dummy function for value() of LiteralNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
         return Value();
     }
@@ -312,7 +315,7 @@ public:
     IdentifierNode* imported()
     {
         // dummy function for imported() of ImportSpecifierNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
         return new IdentifierNode();
     }
@@ -320,7 +323,7 @@ public:
     IdentifierNode* exported()
     {
         // dummy function for imported() of ExportSpecifierNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
         return new IdentifierNode();
     }
@@ -328,7 +331,7 @@ public:
     IdentifierNode* local()
     {
         // dummy function for local() of Import/ExportSpecifierNode
-        // this function should never be invocked
+        // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
         return new IdentifierNode();
     }
@@ -344,7 +347,63 @@ private:
     AtomicString m_string;
 };
 
-typedef std::vector<SyntaxNode> SyntaxNodeVector;
+// Vector for SyntaxNode
+// SyntaxNodeVector allows insertion(push_back) operation only
+class SyntaxNodeVector {
+public:
+    SyntaxNodeVector()
+        : m_size(0)
+        , m_node()
+    {
+    }
+
+    size_t size() const
+    {
+        return m_size;
+    }
+
+    void push_back(const SyntaxNode& val)
+    {
+        m_size++;
+    }
+
+    void pop_back()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    SyntaxNode& operator[](size_t idx)
+    {
+        return m_node;
+    }
+
+    SyntaxNode& back()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        return m_node;
+    }
+
+    size_t begin()
+    {
+        return 0;
+    }
+
+    size_t end()
+    {
+        return m_size;
+    }
+
+    void insert(size_t pos, size_t first, size_t last)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+private:
+    size_t m_size;
+    SyntaxNode m_node;
+};
+
+typedef VectorWithInlineStorage<16, SyntaxNode, std::allocator<SyntaxNode>> ParameterNodeVector;
 
 class SyntaxChecker {
 public:
@@ -352,7 +411,7 @@ public:
     typedef SyntaxNode ASTIdentifierNode;
     typedef SyntaxNode ASTStatementContainer;
     typedef SyntaxNode* ASTStatementNodePtr;
-    typedef std::vector<SyntaxNode> ASTNodeVector;
+    typedef SyntaxNodeVector ASTNodeVector;
 
     MAKE_STACK_ALLOCATED();
 

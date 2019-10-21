@@ -31,18 +31,6 @@ ASTAllocator::ASTAllocator()
 
 ASTAllocator::~ASTAllocator()
 {
-    /*
-    for (size_t i = 0; i < m_astDestructibleNodes.size(); i++) {
-        m_astDestructibleNodes[i]->~DestructibleNode();
-    }
-    m_astDestructibleNodes.clear();
-
-    for (size_t i = 0; i < m_astPools.size(); i++) {
-        free(m_astPools[i]);
-    }
-    m_astPools.clear();
-    */
-
     ASSERT(m_astPools.size() == 0);
     ASSERT(m_astDestructibleNodes.size() == 0);
 

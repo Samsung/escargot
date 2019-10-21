@@ -277,12 +277,6 @@ public:
 
     void* operator new(size_t) = delete;
     void* operator new[](size_t) = delete;
-    /*
-    void operator delete(void *)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    */
     void operator delete[](void*) = delete;
 };
 

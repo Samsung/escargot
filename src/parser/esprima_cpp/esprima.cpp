@@ -120,6 +120,8 @@ public:
     Scanner* scanner;
     Scanner scannerInstance;
 
+    ASTAllocator& allocator;
+
     enum SourceType {
         Script,
         Module
@@ -159,7 +161,7 @@ public:
     ASTFunctionScopeContext fakeContext;
 
     struct ParseFormalParametersResult {
-        SyntaxNodeVector params;
+        ParameterNodeVector params;
         std::vector<AtomicString> paramSet;
         Scanner::SmallScannerResult stricted;
         Scanner::SmallScannerResult firstRestricted;
@@ -175,6 +177,8 @@ public:
 
     Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
         : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
+        , allocator(escargotContext->astAllocator())
+        , fakeContext(escargotContext->astAllocator())
     {
         ASSERT(escargotContext != nullptr);
 
@@ -308,7 +312,7 @@ public:
             return;
         }
 
-        SyntaxNodeVector& params = paramsResult.params;
+        ParameterNodeVector& params = paramsResult.params;
         const std::vector<AtomicString>& paramNames = paramsResult.paramSet;
         bool hasParameterOtherThanIdentifier = false;
 #ifndef NDEBUG
@@ -385,11 +389,11 @@ public:
         auto parentContext = this->currentScopeContext;
         this->subCodeBlockIndex++;
         if (this->isParsingSingleFunction) {
-            fakeContext = ASTFunctionScopeContext();
+            fakeContext = ASTFunctionScopeContext(this->allocator);
             pushScopeContext(&fakeContext);
             return parentContext;
         }
-        pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
+        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
         this->currentScopeContext->m_functionName = functionName;
         this->currentScopeContext->m_inWith = this->context->inWith;
 
@@ -1256,11 +1260,10 @@ public:
     }
 
     template <class ASTBuilder>
-    ParseFormalParametersResult parseFormalParameters(ASTBuilder& builder, Scanner::SmallScannerResult* firstRestricted = nullptr)
+    void parseFormalParameters(ASTBuilder& builder, ParseFormalParametersResult& options, Scanner::SmallScannerResult* firstRestricted = nullptr)
     {
         const bool previousInParameterParsing = this->context->inParameterParsing;
         this->context->inParameterParsing = true;
-        ParseFormalParametersResult options;
 
         if (firstRestricted) {
             options.firstRestricted = *firstRestricted;
@@ -1285,7 +1288,6 @@ public:
 
         this->context->inParameterParsing = previousInParameterParsing;
         options.valid = true;
-        return options;
     }
 
     // ECMA-262 12.2.5 Array Initializer
@@ -1380,7 +1382,8 @@ public:
         this->expect(LeftParenthesis);
 
         auto oldScopeContext = pushScopeContext(AtomicString());
-        ParseFormalParametersResult params = this->parseFormalParameters(builder);
+        ParseFormalParametersResult params;
+        this->parseFormalParameters(builder, params);
         extractNamesFromFunctionParams(params);
         ASTNode method = this->parsePropertyMethod(builder, params);
 
@@ -2473,7 +2476,7 @@ public:
                     this->expect(LeftParenthesis);
                     this->currentScopeContext->m_hasArrowParameterPlaceHolder = true;
 
-                    list = this->parseFormalParameters(builder);
+                    this->parseFormalParameters(builder, list);
                 }
 
                 // FIXME remove validity check?
@@ -2778,7 +2781,7 @@ public:
         ctx.lexicalBlockIndexBefore = this->lexicalBlockIndex;
         ctx.childLexicalBlockIndex = this->lexicalBlockCount;
 
-        this->currentScopeContext->insertBlockScope(ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
+        this->currentScopeContext->insertBlockScope(this->allocator, ctx.childLexicalBlockIndex, this->lexicalBlockIndex,
                                                     ExtendedNodeLOC(this->lastMarker.lineNumber, this->lastMarker.index - this->lastMarker.lineStart + 1, this->lastMarker.index));
         this->lexicalBlockIndex = ctx.childLexicalBlockIndex;
 
@@ -4163,7 +4166,8 @@ public:
         this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
 
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder, &firstRestricted);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
         Scanner::SmallScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
@@ -4242,7 +4246,8 @@ public:
         this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
         this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
 
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder, &firstRestricted);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
         Scanner::SmallScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
@@ -4381,7 +4386,8 @@ public:
 
         this->expect(LeftParenthesis);
         auto oldScopeContext = pushScopeContext(AtomicString());
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters);
         if (formalParameters.params.size() != 1) {
             this->throwError(Messages::BadSetterArity);
         } else if (formalParameters.params[0]->type() == ASTNodeType::RestElement) {
@@ -4420,7 +4426,8 @@ public:
 
         this->expect(LeftParenthesis);
         auto oldScopeContext = pushScopeContext(AtomicString());
-        ParseFormalParametersResult formalParameters = this->parseFormalParameters(builder);
+        ParseFormalParametersResult formalParameters;
+        this->parseFormalParameters(builder, formalParameters);
         extractNamesFromFunctionParams(formalParameters);
         ASTNode method = this->parsePropertyMethod(builder, formalParameters);
 
@@ -5137,7 +5144,7 @@ public:
     ProgramNode* parseProgram(NodeGenerator& builder)
     {
         MetaNode startNode = this->createNode();
-        pushScopeContext(new ASTFunctionScopeContext(this->context->strict));
+        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
         this->context->allowLexicalDeclaration = true;
         StatementContainer* container = builder.createStatementContainer();
         this->parseDirectivePrologues(builder, container);
@@ -5277,7 +5284,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     // when parsing for function call, childindex should be set to index 1
     parser.childFunctionIndex = 1;
 
-    scopeContext = new ASTFunctionScopeContext(codeBlock->isStrict());
+    scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
     parser.context->allowYield = !codeBlock->isGenerator();
 

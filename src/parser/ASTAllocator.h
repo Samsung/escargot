@@ -45,7 +45,7 @@ public:
     }
 
 private:
-    static const size_t initialASTPoolSize = 1024 * 1024;
+    static const size_t initialASTPoolSize = 1024 * 128;
 
     size_t alignSize(size_t size)
     {

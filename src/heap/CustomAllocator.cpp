@@ -108,13 +108,6 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[7].to = (GC_word*)current->m_byteCodeBlock;
     arr[8].from = (GC_word*)&current->m_blockInfos;
     arr[8].to = (GC_word*)current->m_blockInfos.data();
-#ifdef NDEBUG
-    arr[9].from = (GC_word*)&current->m_context;
-    arr[9].to = (GC_word*)nullptr;
-#else
-    arr[9].from = (GC_word*)&current->m_scopeContext;
-    arr[9].to = (GC_word*)current->m_scopeContext;
-#endif
     return 0;
 }
 
@@ -149,7 +142,7 @@ void initializeCustomAllocators()
                                                                       TRUE);
 
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 10>), 0),
+                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 9>), 0),
                                                                                  FALSE,
                                                                                  TRUE);
 }
