@@ -529,6 +529,9 @@ int main(int argc, char* argv[])
 
     ShellPlatform* platform = new ShellPlatform();
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create(platform);
+    instance->setOnVMInstanceDelete([](VMInstanceRef* instance) {
+        delete instance->platform();
+    });
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
     bool runShell = true;
@@ -600,8 +603,6 @@ int main(int argc, char* argv[])
     instance.release();
 
     Globals::finalize();
-
-    delete platform;
 
     return 0;
 }

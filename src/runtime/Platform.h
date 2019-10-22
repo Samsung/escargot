@@ -28,7 +28,7 @@ class ArrayBufferObject;
 class Context;
 class Job;
 
-class Platform {
+class Platform : public gc {
 public:
     virtual ~Platform() {}
     // ArrayBuffer

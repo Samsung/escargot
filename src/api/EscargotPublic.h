@@ -98,13 +98,16 @@ public:
     static void* gcMallocAtomicUncollectable(size_t siz); // allocate memory it can not hold gc-allocated pointer & it is never collect by gc
     static void gcFree(void* ptr);
     typedef void (*GCAllocatedMemoryFinalizer)(void* self);
-    // if you want to free memory explicitly, you must remove registered finalizer
+
+    // gcRegisterFinalizer
+    // 1. if you want to free memory explicitly, you must remove registered finalizer
     // if there was no finalizer, you can just free memory
     // ex) void* gcPointer;
     //     gcRegisterFinalizer(gcPointer, ....);
     //     ......
     //     gcRegisterFinalizer(gcPointer, nullptr);
     //     Memory::gcFree(gcPointer);
+    // 2. You cannot register finalizer to escargot's gc allocated memory eg) ObjectRef
     static void gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback);
 
     static void gc();
@@ -468,6 +471,11 @@ public:
         StringRef* src;
         StringRef* sourceCode;
         LOC loc;
+        StringRef* functionName;
+        bool isFunction;
+        bool isConstructor;
+        bool isAssociatedWithJavaScriptCode;
+        bool isEval;
         StackTraceData();
     };
 
@@ -517,6 +525,9 @@ private:
 class ESCARGOT_EXPORT VMInstanceRef {
 public:
     static PersistentRefHolder<VMInstanceRef> create(PlatformRef* platform, const char* locale = nullptr, const char* timezone = nullptr);
+
+    typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
+    void setOnVMInstanceDelete(OnVMInstanceDelete cb);
 
     void clearCachesRelatedWithContext();
 
@@ -943,6 +954,9 @@ public:
 
     bool deleteOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
     bool hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
+
+    bool deleteProperty(ExecutionStateRef* state, ValueRef* propertyName);
+    bool hasProperty(ExecutionStateRef* state, ValueRef* propertyName);
 
     ValueRef* getPrototype(ExecutionStateRef* state);
     OptionalRef<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.

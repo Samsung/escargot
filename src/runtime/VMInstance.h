@@ -212,6 +212,12 @@ public:
         return m_currentSandBox;
     }
 
+    void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
+    {
+        m_onVMInstanceDestroy = onVMInstanceDestroy;
+        m_onVMInstanceDestroyData = data;
+    }
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -240,6 +246,9 @@ private:
 
     Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>> m_compiledCodeBlocks;
     size_t m_compiledByteCodeSize;
+
+    void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
+    void* m_onVMInstanceDestroyData;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 

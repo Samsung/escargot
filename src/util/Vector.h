@@ -597,6 +597,24 @@ public:
         return m_size;
     }
 
+    T* begin()
+    {
+        if (LIKELY(!m_useExternalStorage)) {
+            return &m_inlineStorage[0];
+        } else {
+            return m_externalStorage.data();
+        }
+    }
+
+    T* end()
+    {
+        if (LIKELY(!m_useExternalStorage)) {
+            return &m_inlineStorage[m_size];
+        } else {
+            return m_externalStorage.data() + m_size;
+        }
+    }
+
 protected:
     bool m_useExternalStorage;
     size_t m_size;

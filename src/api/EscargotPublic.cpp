@@ -194,8 +194,8 @@ void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback)
 {
     if (callback) {
         GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj,
-                                               void*) {
-            ((GCAllocatedMemoryFinalizer)obj)(obj);
+                                               void* data) {
+            ((GCAllocatedMemoryFinalizer)data)(obj);
         },
                                        (void*)callback, nullptr, nullptr);
     } else {
@@ -539,6 +539,11 @@ Evaluator::StackTraceData::StackTraceData()
     : src(toRef(String::emptyString))
     , sourceCode(toRef(String::emptyString))
     , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , functionName(toRef(String::emptyString))
+    , isFunction(false)
+    , isConstructor(false)
+    , isAssociatedWithJavaScriptCode(false)
+    , isEval(false)
 {
 }
 
@@ -572,6 +577,11 @@ static Evaluator::EvaluatorResult toEvaluatorResultRef(SandBox::SandBoxResult& r
             t.loc.index = result.stackTraceData[i].loc.index;
             t.loc.line = result.stackTraceData[i].loc.line;
             t.loc.column = result.stackTraceData[i].loc.column;
+            t.functionName = toRef(result.stackTraceData[i].functionName);
+            t.isFunction = result.stackTraceData[i].isFunction;
+            t.isConstructor = result.stackTraceData[i].isConstructor;
+            t.isAssociatedWithJavaScriptCode = result.stackTraceData[i].isAssociatedWithJavaScriptCode;
+            t.isEval = result.stackTraceData[i].isEval;
             r.stackTraceData[i] = t;
         }
     }
@@ -631,6 +641,16 @@ PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, 
 PlatformRef* VMInstanceRef::platform()
 {
     return ((PlatformBridge*)toImpl(this))->m_platform;
+}
+
+void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
+{
+    toImpl(this)->setOnDestroyCallback([](VMInstance* instance, void* data) {
+        if (data) {
+            ((OnVMInstanceDelete)data)(toRef(instance));
+        }
+    },
+                                       (void*)cb);
 }
 
 void VMInstanceRef::clearCachesRelatedWithContext()
@@ -957,6 +977,30 @@ bool ObjectRef::deleteOwnProperty(ExecutionStateRef* state, ValueRef* propertyNa
 bool ObjectRef::hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName)
 {
     return toImpl(this)->hasOwnProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)));
+}
+
+static bool deletePropertyOperation(ExecutionState& state, Object* object, const ObjectPropertyName& objectPropertyName)
+{
+    auto hasOwn = object->hasOwnProperty(state, objectPropertyName);
+    if (hasOwn) {
+        return object->deleteOwnProperty(state, objectPropertyName);
+    }
+    auto parent = object->getPrototypeObject(state);
+    if (parent) {
+        return deletePropertyOperation(state, parent, objectPropertyName);
+    }
+    return false;
+}
+
+bool ObjectRef::deleteProperty(ExecutionStateRef* state, ValueRef* propertyName)
+{
+    ObjectPropertyName objectPropertyName(*toImpl(state), toImpl(propertyName));
+    return deletePropertyOperation(*toImpl(state), toImpl(this), objectPropertyName);
+}
+
+bool ObjectRef::hasProperty(ExecutionStateRef* state, ValueRef* propertyName)
+{
+    return toImpl(this)->hasProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)));
 }
 
 ValueRef* ObjectRef::getPrototype(ExecutionStateRef* state)
