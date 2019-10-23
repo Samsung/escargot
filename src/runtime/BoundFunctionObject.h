@@ -54,6 +54,11 @@ public:
         return "Function";
     }
 
+    virtual Context* getFunctionRealm(ExecutionState& state) override
+    {
+        return m_boundTargetFunction->getFunctionRealm(state);
+    }
+
 private:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv) override;
     virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget) override;

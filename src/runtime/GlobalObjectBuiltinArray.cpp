@@ -77,12 +77,11 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_InvalidArrayLength); \
     }
 
-static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, const size_t length)
+static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, const int64_t length)
 {
     ASSERT(originalArray != nullptr);
     // Assert: length is an integer Number >= 0.
-    ASSERT((int64_t)length >= 0);
-    Value originalArrayConstructor = originalArray->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, originalArray);
+    ASSERT(length >= 0);
 
     // Let C be undefined.
     Value C;
@@ -90,19 +89,36 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
     // If isArray is true, then
     if (originalArray->isArray(state)) {
         // Let C be Get(originalArray, "constructor").
-        C = originalArrayConstructor;
+        C = originalArray->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, originalArray);
 
-        // TODO 9.4.2.3. 6.c. (after Realm is implemented)
+        // If IsConstructor(C) is true, then
+        if (C.isConstructor()) {
+            // Let thisRealm be the running execution context’s Realm.
+            Context* thisRealm = state.context();
+            // Let realmC be GetFunctionRealm(C).
+            Context* realmC = C.asObject()->getFunctionRealm(state);
+
+            // ReturnIfAbrupt(realmC).
+            // If thisRealm and realmC are not the same Realm Record, then
+            // If SameValue(C, realmC.[[intrinsics]].[[%Array%]]) is true, let C be undefined.
+            if (thisRealm != realmC) {
+                if (C.asPointerValue() == realmC->globalObject()->array()) {
+                    C = Value();
+                }
+            }
+        }
         // If Type(C) is Object, then
         if (C.isObject()) {
-            // Let C be Get(C, @@species).
+            // a. Set C be Get(C, @@species).
             C = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+            if (C.isNull()) { // b. If C is null, set C to undefined.
+                C = Value();
+            }
         }
     }
 
-    // If C is null, let C be undefined.
     // If C is undefined, return ArrayCreate(length).
-    if (C.isUndefinedOrNull()) {
+    if (C.isUndefined()) {
         return new ArrayObject(state, static_cast<double>(length));
     }
     // If IsConstructor(C) is false, throw a TypeError exception.
@@ -542,6 +558,8 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             }
         }
     }
+    // Let setStatus be Set(A, "length", actualDeleteCount, true).
+    A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(actualDeleteCount), A);
 
     // Let items be an internal List whose elements are, in left to right order, the portion of the actual argument list starting with item1. The list will be empty if no such items are present.
     Value* items = nullptr;
@@ -955,7 +973,7 @@ static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t arg
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, fill);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
-    int64_t len = O->length(state);
+    int64_t len = O->lengthES6(state);
 
     // Let relativeStart be ToInteger(start).
     double relativeStart = 0;
@@ -1096,8 +1114,6 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
         }
         // Increase k by 1.
     }
-
-    A->setThrowsException(state, state.context()->staticStrings().length, Value(len), A);
 
     return A;
 }

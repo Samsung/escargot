@@ -166,6 +166,11 @@ public:
         return nullptr;
     }
 
+    virtual Context* getFunctionRealm(ExecutionState& state) override
+    {
+        return m_codeBlock->context();
+    }
+
     struct FunctionSource {
         Script* script;
         CodeBlock* codeBlock;

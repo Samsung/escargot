@@ -51,6 +51,17 @@ void* ProxyObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+Context* ProxyObject::getFunctionRealm(ExecutionState& state)
+{
+    if (m_handler == nullptr) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
+        return nullptr;
+    }
+
+    return m_target->getFunctionRealm(state);
+}
+
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxycreate
 ProxyObject* ProxyObject::createProxy(ExecutionState& state, const Value& target, const Value& handler)
 {
@@ -413,7 +424,16 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     // 8. If trap is undefined, then
     // a. Return target.[[HasProperty]](P).
     if (trap.isUndefined()) {
-        return target.asObject()->hasProperty(state, propertyName);
+        auto exist = target.asObject()->hasProperty(state, propertyName);
+        if (exist) {
+            return ObjectHasPropertyResult([](ExecutionState& state, const ObjectPropertyName& P, void* handlerData) -> Value {
+                ProxyObject* p = (ProxyObject*)handlerData;
+                return p->get(state, P).value(state, p);
+            },
+                                           this);
+        } else {
+            return ObjectHasPropertyResult();
+        }
     }
 
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P»)).
