@@ -73,10 +73,8 @@ public:
     {
         return allocator.allocate(size);
     }
-    void* operator new(size_t)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
+
+    void* operator new(size_t) = delete;
     void* operator new[](size_t) = delete;
     void operator delete(void*) = delete;
     void operator delete[](void*) = delete;

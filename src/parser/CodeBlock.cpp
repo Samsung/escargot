@@ -189,10 +189,9 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
     }
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC paramsStartLOC, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(src)
-    , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
@@ -200,8 +199,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_parentCodeBlock(nullptr)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
+    , m_sourceElementStart(paramsStartLOC)
 #ifndef NDEBUG
-    , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
 #endif
@@ -263,12 +262,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     initBlockScopeInformation(scopeCtx);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC paramsStartLOC, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(StringView(src, scopeCtx->m_paramsStartLOC.index, scopeCtx->m_bodyEndLOC.index))
-    // FIXME replace m_bodySrc by bodySrcLength
-    , m_bodySrc(StringView(src, scopeCtx->m_bodyStartLOC.index, scopeCtx->m_bodyEndLOC.index))
-    , m_sourceElementStart(sourceElementStart)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
@@ -276,8 +272,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_parentCodeBlock(parentBlock)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
+    , m_sourceElementStart(paramsStartLOC)
 #ifndef NDEBUG
-    , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
 #endif

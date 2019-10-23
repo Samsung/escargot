@@ -49,7 +49,6 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
     isEvalCodeInFunction = false;
 
 #ifndef NDEBUG
-    codeBlock->m_bodyStartLOC = scopeCtx->m_bodyStartLOC;
     codeBlock->m_bodyEndLOC = scopeCtx->m_bodyEndLOC;
     codeBlock->m_scopeContext = scopeCtx;
 #endif
@@ -314,8 +313,8 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         PRINT_TAB()
         printf("CodeBlock %p %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, Y:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
-               (int)cb->m_bodyStartLOC.line,
-               (int)cb->m_bodyStartLOC.column,
+               (int)cb->m_sourceElementStart.line,
+               (int)cb->m_sourceElementStart.column,
                (int)cb->m_bodyEndLOC.line,
                (int)cb->m_bodyEndLOC.column,
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),

@@ -24,14 +24,14 @@ namespace Escargot {
 
 class FunctionDeclarationNode : public StatementNode {
 public:
-    FunctionDeclarationNode(ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t /*subCodeBlockIndex not used yet*/)
+    FunctionDeclarationNode(bool isGenerator, size_t /*subCodeBlockIndex not used yet*/, const AtomicString& functionName)
         : m_isGenerator(isGenerator)
-        , m_scopeContext(scopeContext)
+        , m_functionName(functionName)
     {
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::FunctionDeclaration; }
-    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
+    AtomicString functionName() { return m_functionName; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         // do nothing
@@ -44,7 +44,7 @@ public:
 
 private:
     bool m_isGenerator;
-    ASTFunctionScopeContext* m_scopeContext;
+    AtomicString m_functionName;
 };
 }
 

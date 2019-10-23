@@ -181,7 +181,6 @@ struct ASTFunctionScopeContext {
     ASTBlockScopeContextVector m_childBlockScopes;
 
     ExtendedNodeLOC m_paramsStartLOC;
-    ExtendedNodeLOC m_bodyStartLOC;
 #ifndef NDEBUG
     ExtendedNodeLOC m_bodyEndLOC;
 #else
@@ -424,7 +423,6 @@ struct ASTFunctionScopeContext {
         , m_firstChild(nullptr)
         , m_nextSibling(nullptr)
         , m_paramsStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-        , m_bodyStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG
         , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else
@@ -432,7 +430,7 @@ struct ASTFunctionScopeContext {
 #endif
     {
         // function is first block context
-        insertBlockScope(allocator, 0, LEXICAL_BLOCK_INDEX_MAX, m_bodyStartLOC);
+        insertBlockScope(allocator, 0, LEXICAL_BLOCK_INDEX_MAX, m_paramsStartLOC);
     }
 };
 }

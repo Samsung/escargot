@@ -50,10 +50,17 @@
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
 
 #define ASTNode typename ASTBuilder::ASTNode
-#define ASTIdentifierNode typename ASTBuilder::ASTIdentifierNode
 #define ASTStatementContainer typename ASTBuilder::ASTStatementContainer
-#define ASTStatementNodePtr typename ASTBuilder::ASTStatementNodePtr
 #define ASTNodeVector typename ASTBuilder::ASTNodeVector
+
+#define BEGIN_FUNCTION_SCANNING(name)                      \
+    SyntaxChecker newBuilder;                              \
+    auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex; \
+    auto oldScopeContext = pushScopeContext(name);
+
+#define END_FUNCTION_SCANNING()       \
+    popScopeContext(oldScopeContext); \
+    this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
 using namespace Escargot::EscargotLexer;
 
@@ -149,7 +156,6 @@ public:
     bool trackUsingNames;
     bool hasLineTerminator;
     bool isParsingSingleFunction;
-    size_t childFunctionIndex;
     size_t stackLimit;
     size_t subCodeBlockIndex;
 
@@ -166,11 +172,9 @@ public:
         Scanner::SmallScannerResult stricted;
         Scanner::SmallScannerResult firstRestricted;
         const char* message;
-        bool valid;
 
         ParseFormalParametersResult()
             : message(nullptr)
-            , valid(false)
         {
         }
     };
@@ -196,12 +200,11 @@ public:
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
         this->subCodeBlockIndex = 0;
-        this->lastPoppedScopeContext = nullptr;
+        this->lastPoppedScopeContext = &fakeContext;
         this->currentScopeContext = nullptr;
         this->trackUsingNames = true;
         this->isParsingSingleFunction = false;
         this->codeBlock = nullptr;
-        this->childFunctionIndex = 0;
 
         this->scanner = &scannerInstance;
         if (stackRemain >= STACK_LIMIT_FROM_BASE) {
@@ -297,6 +300,27 @@ public:
         this->lastUsingName = AtomicString();
     }
 
+    ASTFunctionScopeContext* pushScopeContext(AtomicString functionName)
+    {
+        auto parentContext = this->currentScopeContext;
+        // initialize subCodeBlockIndex before parsing of an internal function
+        this->subCodeBlockIndex = 0;
+        if (this->isParsingSingleFunction) {
+            fakeContext = ASTFunctionScopeContext(this->allocator);
+            pushScopeContext(&fakeContext);
+            return parentContext;
+        }
+        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
+        this->currentScopeContext->m_functionName = functionName;
+        this->currentScopeContext->m_inWith = this->context->inWith;
+
+        if (parentContext) {
+            parentContext->appendChild(this->currentScopeContext);
+        }
+
+        return parentContext;
+    }
+
     ALWAYS_INLINE void insertUsingName(AtomicString name)
     {
         if (this->lastUsingName == name) {
@@ -384,24 +408,33 @@ public:
         }
     }
 
-    ASTFunctionScopeContext* pushScopeContext(AtomicString functionName)
+    bool tryToSkipFunctionParsing()
     {
-        auto parentContext = this->currentScopeContext;
+        // try to skip the function parsing during the parsing of function call only
+        if (!this->isParsingSingleFunction) {
+            return false;
+        }
+
+        InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
+        size_t orgIndex = this->lookahead.start;
+        this->expect(LeftParenthesis);
+
+        InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
+        StringView src = childBlock->src();
+        this->scanner->index = src.length() + orgIndex;
+
+        this->scanner->lineNumber = childBlock->sourceElementStart().line;
+        this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
+        this->lookahead.lineNumber = this->scanner->lineNumber;
+        this->lookahead.lineStart = this->scanner->lineStart;
+        this->lookahead.type = Token::PunctuatorToken;
+        this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
+        this->expect(RightBrace);
+
+        // increase subCodeBlockIndex because parsing of an internal function is skipped
         this->subCodeBlockIndex++;
-        if (this->isParsingSingleFunction) {
-            fakeContext = ASTFunctionScopeContext(this->allocator);
-            pushScopeContext(&fakeContext);
-            return parentContext;
-        }
-        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
-        this->currentScopeContext->m_functionName = functionName;
-        this->currentScopeContext->m_inWith = this->context->inWith;
 
-        if (parentContext) {
-            parentContext->appendChild(this->currentScopeContext);
-        }
-
-        return parentContext;
+        return true;
     }
 
     void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
@@ -882,10 +915,10 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTIdentifierNode finishIdentifier(ASTBuilder& builder, Scanner::ScannerResult* token)
+    ASTNode finishIdentifier(ASTBuilder& builder, Scanner::ScannerResult* token)
     {
         ASSERT(token != nullptr);
-        ASTIdentifierNode ret;
+        ASTNode ret;
         StringView sv = token->valueStringLiteral(this->scanner);
         const auto& a = sv.bufferAccessData();
         char16_t firstCh = a.charAt(0);
@@ -900,7 +933,7 @@ public:
         }
 
         if (this->trackUsingNames) {
-            insertUsingName(ret->name());
+            insertUsingName(ret->asIdentifier()->name());
         }
         return ret;
     }
@@ -1262,6 +1295,10 @@ public:
     template <class ASTBuilder>
     void parseFormalParameters(ASTBuilder& builder, ParseFormalParametersResult& options, Scanner::SmallScannerResult* firstRestricted = nullptr)
     {
+        // parseFormalParameters only scans the parameter list of function
+        // should be invoked only during the global parsing (program)
+        ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
+
         const bool previousInParameterParsing = this->context->inParameterParsing;
         this->context->inParameterParsing = true;
 
@@ -1269,7 +1306,6 @@ public:
             options.firstRestricted = *firstRestricted;
         }
 
-        size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
         bool end = false;
 
         if (!this->match(RightParenthesis)) {
@@ -1284,10 +1320,7 @@ public:
         }
         this->expect(RightParenthesis);
 
-        this->subCodeBlockIndex = oldSubCodeBlockIndex;
-
         this->context->inParameterParsing = previousInParameterParsing;
-        options.valid = true;
     }
 
     // ECMA-262 12.2.5 Array Initializer
@@ -1364,7 +1397,14 @@ public:
     template <class ASTBuilder>
     ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall)
     {
+        MetaNode node = this->createNode();
+
         const bool isGenerator = false;
+
+        if (tryToSkipFunctionParsing()) {
+            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        }
+
         const bool previousAllowYield = this->context->allowYield;
         const bool previousAllowSuperCall = this->context->allowSuperCall;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
@@ -1378,14 +1418,13 @@ public:
             this->context->allowSuperCall = true;
         }
 
-        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
+        BEGIN_FUNCTION_SCANNING(AtomicString());
 
-        auto oldScopeContext = pushScopeContext(AtomicString());
         ParseFormalParametersResult params;
-        this->parseFormalParameters(builder, params);
+        this->parseFormalParameters(newBuilder, params);
         extractNamesFromFunctionParams(params);
-        ASTNode method = this->parsePropertyMethod(builder, params);
+        this->parsePropertyMethod(newBuilder, params);
 
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
@@ -1401,7 +1440,9 @@ public:
         }
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -2459,7 +2500,32 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
 
-                auto oldScopeContext = pushScopeContext(AtomicString());
+                // try to skip the parsing of arrow function
+                if (this->isParsingSingleFunction) {
+                    this->scanner->index = startMarker.index;
+                    this->scanner->lineNumber = startMarker.lineNumber;
+                    this->scanner->lineStart = startMarker.lineStart;
+                    this->nextToken();
+
+                    InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
+                    size_t orgIndex = this->lookahead.start;
+
+                    InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
+                    StringView src = childBlock->src();
+                    this->scanner->index = src.length() + orgIndex;
+                    this->scanner->lineNumber = childBlock->sourceElementStart().line;
+                    this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
+                    this->lookahead.lineNumber = this->scanner->lineNumber;
+                    this->lookahead.lineStart = this->scanner->lineStart;
+                    this->nextToken();
+
+                    // increase subCodeBlockIndex because parsing of an internal function is skipped
+                    this->subCodeBlockIndex++;
+
+                    return this->finalize(this->startNode(startToken), builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+                }
+
+                BEGIN_FUNCTION_SCANNING(AtomicString());
 
                 ParseFormalParametersResult list;
                 // FIXME reinterpretAsCoverFormalsList
@@ -2467,7 +2533,6 @@ public:
                     ASSERT(exprNode->isIdentifier());
                     this->validateParam(list, this->lookahead, exprNode->asIdentifier()->name());
                     list.params.push_back(builder.convertToParameterSyntaxNode(exprNode));
-                    list.valid = true;
                 } else {
                     this->scanner->index = startMarker.index;
                     this->scanner->lineNumber = startMarker.lineNumber;
@@ -2476,107 +2541,77 @@ public:
                     this->expect(LeftParenthesis);
                     this->currentScopeContext->m_hasArrowParameterPlaceHolder = true;
 
-                    this->parseFormalParameters(builder, list);
+                    this->parseFormalParameters(newBuilder, list);
                 }
 
-                // FIXME remove validity check?
-                if (list.valid) {
-                    if (this->hasLineTerminator) {
-                        this->throwUnexpectedToken(this->lookahead);
-                    }
-                    this->context->firstCoverInitializedNameError.reset();
+                // validity check of ParseFormalParametersResult removed
+                if (this->hasLineTerminator) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+                this->context->firstCoverInitializedNameError.reset();
 
-                    bool previousStrict = this->context->strict;
-                    bool previousAllowYield = this->context->allowYield;
-                    bool previousInArrowFunction = this->context->inArrowFunction;
+                bool previousStrict = this->context->strict;
+                bool previousAllowYield = this->context->allowYield;
+                bool previousInArrowFunction = this->context->inArrowFunction;
 
-                    this->context->allowYield = true;
-                    this->context->inArrowFunction = true;
+                this->context->allowYield = true;
+                this->context->inArrowFunction = true;
 
-                    this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
-                    this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
+                this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
+                this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
 
-                    this->currentScopeContext->m_paramsStartLOC.index = startNode.index;
-                    this->currentScopeContext->m_paramsStartLOC.column = startNode.column;
-                    this->currentScopeContext->m_paramsStartLOC.line = startNode.line;
+                this->currentScopeContext->m_paramsStartLOC.index = startNode.index;
+                this->currentScopeContext->m_paramsStartLOC.column = startNode.column;
+                this->currentScopeContext->m_paramsStartLOC.line = startNode.line;
 
-                    extractNamesFromFunctionParams(list);
+                extractNamesFromFunctionParams(list);
 
-                    this->expect(Arrow);
+                this->expect(Arrow);
 
-                    MetaNode node = this->startNode(startToken);
-                    MetaNode bodyStart = this->createNode();
+                MetaNode node = this->startNode(startToken);
+                MetaNode bodyStart = this->createNode();
 
-                    if (this->match(LeftBrace)) {
-                        this->parseFunctionSourceElements(builder);
-                    } else {
-                        if (this->isParsingSingleFunction && !this->context->inParameterParsing) {
-                            // when parsing for function call, assignmentExpression should parse(scan) only child arrow functions
-                            // Note: When scanning an arrow function body which is located in parameter list, we cannot skip it because function in parameter list is encountered before the function body. We scans this function to align the childFunctionIndex correctly.
-                            ASSERT(this->childFunctionIndex > 0);
+                if (this->match(LeftBrace)) {
+                    this->parseFunctionSourceElements(newBuilder);
+                } else {
+                    LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
+                    LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
+                    this->lexicalBlockIndex = 0;
+                    this->lexicalBlockCount = 0;
 
-                            size_t realIndex = this->childFunctionIndex - 1;
-                            this->childFunctionIndex++;
-                            InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
-                            size_t orgIndex = this->lookahead.start;
+                    auto oldNameCallback = this->nameDeclaredCallback;
 
-                            InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(realIndex);
-                            StringView src = childBlock->bodySrc();
-                            this->scanner->index = src.length() + orgIndex;
+                    this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<SyntaxChecker, false>);
 
-                            this->scanner->lineNumber = childBlock->sourceElementStart().line;
-                            this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
-                            this->lookahead.lineNumber = this->scanner->lineNumber;
-                            this->lookahead.lineStart = this->scanner->lineStart;
-                            this->nextToken();
-                        } else {
-                            LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
-                            LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
-                            this->lexicalBlockIndex = 0;
-                            this->lexicalBlockCount = 0;
-                            size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
-                            this->subCodeBlockIndex = 0;
+                    this->lexicalBlockIndex = lexicalBlockIndexBefore;
+                    this->lexicalBlockCount = lexicalBlockCountBefore;
+                    this->nameDeclaredCallback = oldNameCallback;
 
-                            auto oldNameCallback = this->nameDeclaredCallback;
-
-                            // parsing arrow function body by SyntaxChecker only at this point
-                            SyntaxChecker newBuilder;
-                            this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<SyntaxChecker, false>);
-
-                            this->subCodeBlockIndex = oldSubCodeBlockIndex;
-                            this->lexicalBlockIndex = lexicalBlockIndexBefore;
-                            this->lexicalBlockCount = lexicalBlockCountBefore;
-                            this->nameDeclaredCallback = oldNameCallback;
-
-                            this->currentScopeContext->m_bodyStartLOC.line = bodyStart.line;
-                            this->currentScopeContext->m_bodyStartLOC.column = bodyStart.column;
-                            this->currentScopeContext->m_bodyStartLOC.index = bodyStart.index;
-
-                            this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
+                    this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
-                            this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
-                            this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+                    this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+                    this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
-                        }
-                    }
-                    this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = this->lexicalBlockIndex;
-
-                    if (this->context->strict && list.firstRestricted) {
-                        this->throwUnexpectedToken(list.firstRestricted, list.message);
-                    }
-                    if (this->context->strict && list.stricted) {
-                        this->throwUnexpectedToken(list.stricted, list.message);
-                    }
-
-                    this->currentScopeContext->m_isArrowFunctionExpression = true;
-                    this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
-                    this->currentScopeContext->m_isGenerator = false;
-                    exprNode = this->finalize(node, builder.createArrowFunctionExpressionNode(popScopeContext(oldScopeContext), subCodeBlockIndex)); //TODO
-
-                    this->context->strict = previousStrict;
-                    this->context->allowYield = previousAllowYield;
-                    this->context->inArrowFunction = previousInArrowFunction;
                 }
+                this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = this->lexicalBlockIndex;
+
+                if (this->context->strict && list.firstRestricted) {
+                    this->throwUnexpectedToken(list.firstRestricted, list.message);
+                }
+                if (this->context->strict && list.stricted) {
+                    this->throwUnexpectedToken(list.stricted, list.message);
+                }
+
+                this->currentScopeContext->m_isArrowFunctionExpression = true;
+                this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
+                this->currentScopeContext->m_isGenerator = false;
+
+                END_FUNCTION_SCANNING();
+                exprNode = this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+
+                this->context->strict = previousStrict;
+                this->context->allowYield = previousAllowYield;
+                this->context->inArrowFunction = previousInArrowFunction;
             } else {
                 // check if restricted words are used as target in array/object initializer
                 if (checkLeftHasRestrictedWord) {
@@ -2993,10 +3028,10 @@ public:
             this->throwUnexpectedToken(*token);
         }
 
-        ASTIdentifierNode id = finishIdentifier(builder, token);
+        ASTNode id = finishIdentifier(builder, token);
 
         if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
-            addDeclaredNameIntoContext(id->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
+            addDeclaredNameIntoContext(id->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
         }
 
         return this->finalize(node, id);
@@ -3974,8 +4009,6 @@ public:
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
 
-        this->subCodeBlockIndex = 0;
-
         this->context->inCatchClause = false;
 
         MetaNode nodeStart = this->createNode();
@@ -4011,35 +4044,12 @@ public:
     template <class ASTBuilder>
     ASTNode parseFunctionSourceElements(ASTBuilder& builder)
     {
+        // parseFunctionSourceElements only scans the body of function
+        // should be invoked only during the global parsing (program)
+        ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
+
         // return empty node because the function body node is never used now
         ASTNode result = nullptr;
-
-        if (this->isParsingSingleFunction && !this->context->inParameterParsing) {
-            // when parsing for function call, parseFunctionSourceElements should parse only for child functions
-            // Note: When scanning a function body which is located in parameter list, we cannot skip it because function in parameter list is encountered before the function body. We scans this function to align the childFunctionIndex correctly.
-            ASSERT(this->childFunctionIndex > 0);
-
-            size_t realIndex = this->childFunctionIndex - 1;
-            this->childFunctionIndex++;
-            InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
-            size_t orgIndex = this->lookahead.start;
-            this->expect(LeftBrace);
-
-            InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(realIndex);
-            StringView src = childBlock->bodySrc();
-            this->scanner->index = src.length() + orgIndex;
-
-            this->scanner->lineNumber = childBlock->sourceElementStart().line;
-            this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
-            this->lookahead.lineNumber = this->scanner->lineNumber;
-            this->lookahead.lineStart = this->scanner->lineStart;
-            this->lookahead.type = Token::PunctuatorToken;
-            this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
-            this->expect(RightBrace);
-
-            //return this->finalize(this->createNode(), builder.createBlockStatementNode(StatementContainer::create(), this->lexicalBlockIndex));
-            return result;
-        }
 
         LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
         LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
@@ -4048,22 +4058,16 @@ public:
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
 
-        size_t oldSubCodeBlockIndex = this->subCodeBlockIndex;
-        this->subCodeBlockIndex = 0;
-
         bool oldInCatchClause = this->context->inCatchClause;
         this->context->inCatchClause = false;
 
         auto oldCatchClauseSimplyDeclaredVariableNames = std::move(this->context->catchClauseSimplyDeclaredVariableNames);
 
-        // parseFunctionSourceElements only scans the function body
-        SyntaxChecker newBuilder;
         MetaNode nodeStart = this->createNode();
-
-        SyntaxNode body = newBuilder.createStatementContainer();
+        ASTStatementContainer body = builder.createStatementContainer();
 
         this->expect(LeftBrace);
-        this->parseDirectivePrologues(newBuilder, body);
+        this->parseDirectivePrologues(builder, body);
 
         auto previousLabelSet = this->context->labelSet;
         bool previousInIteration = this->context->inIteration;
@@ -4079,7 +4083,7 @@ public:
             if (this->match(RightBrace)) {
                 break;
             }
-            this->parseStatementListItem(newBuilder);
+            this->parseStatementListItem(builder);
         }
 
         this->expect(RightBrace);
@@ -4091,18 +4095,12 @@ public:
         this->lexicalBlockCount = lexicalBlockCountBefore;
         this->nameDeclaredCallback = oldNameCallback;
 
-        this->subCodeBlockIndex = oldSubCodeBlockIndex;
-
         this->context->labelSet = previousLabelSet;
         this->context->inIteration = previousInIteration;
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
 
         this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore;
-        this->currentScopeContext->m_bodyStartLOC.line = nodeStart.line;
-        this->currentScopeContext->m_bodyStartLOC.column = nodeStart.column;
-        this->currentScopeContext->m_bodyStartLOC.index = nodeStart.index;
-
         this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
         this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
@@ -4148,14 +4146,20 @@ public:
             }
         }
 
+        ASSERT(id);
+        AtomicString fnName = id->asIdentifier()->name();
+
+        if (tryToSkipFunctionParsing()) {
+            return this->finalize(node, builder.createFunctionDeclarationNode(isGenerator, subCodeBlockIndex, fnName));
+        }
+
         MetaNode paramsStart = this->createNode();
         this->expect(LeftParenthesis);
-        AtomicString fnName = id ? id->asIdentifier()->name() : AtomicString();
 
-        ASSERT(id);
         addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
         insertUsingName(fnName);
-        auto oldScopeContext = pushScopeContext(fnName);
+
+        BEGIN_FUNCTION_SCANNING(fnName);
 
         this->currentScopeContext->m_paramsStartLOC.index = paramsStart.index;
         this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
@@ -4167,7 +4171,7 @@ public:
         this->context->inArrowFunction = false;
 
         ParseFormalParametersResult formalParameters;
-        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
+        this->parseFormalParameters(newBuilder, formalParameters, &firstRestricted);
         Scanner::SmallScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
@@ -4176,7 +4180,7 @@ public:
 
         extractNamesFromFunctionParams(formalParameters);
         bool previousStrict = this->context->strict;
-        ASTNode body = this->parseFunctionSourceElements(builder);
+        this->parseFunctionSourceElements(newBuilder);
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(firstRestricted, message);
         }
@@ -4189,7 +4193,9 @@ public:
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
         this->currentScopeContext->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionDeclarationNode(popScopeContext(oldScopeContext), isGenerator, subCodeBlockIndex));
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createFunctionDeclarationNode(isGenerator, subCodeBlockIndex, fnName));
     }
 
     template <class ASTBuilder>
@@ -4232,11 +4238,18 @@ public:
             }
         }
 
-        MetaNode paramsStart = this->createNode();
-        this->expect(LeftParenthesis);
         AtomicString fnName = id ? id->asIdentifier()->name() : AtomicString();
 
-        auto oldScopeContext = pushScopeContext(fnName);
+        if (tryToSkipFunctionParsing()) {
+            this->context->allowYield = previousAllowYield;
+            this->context->inArrowFunction = previousInArrowFunction;
+            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, subCodeBlockIndex, fnName));
+        }
+
+        MetaNode paramsStart = this->createNode();
+        this->expect(LeftParenthesis);
+
+        BEGIN_FUNCTION_SCANNING(fnName);
         if (id) {
             this->currentScopeContext->insertVarName(fnName, 0, false);
             this->currentScopeContext->insertUsingName(fnName, 0);
@@ -4247,7 +4260,7 @@ public:
         this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
 
         ParseFormalParametersResult formalParameters;
-        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
+        this->parseFormalParameters(newBuilder, formalParameters, &firstRestricted);
         Scanner::SmallScannerResult stricted = formalParameters.stricted;
         firstRestricted = formalParameters.firstRestricted;
         if (formalParameters.message) {
@@ -4256,7 +4269,7 @@ public:
 
         extractNamesFromFunctionParams(formalParameters);
         bool previousStrict = this->context->strict;
-        ASTNode body = this->parseFunctionSourceElements(builder);
+        this->parseFunctionSourceElements(newBuilder);
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(firstRestricted, message);
         }
@@ -4269,7 +4282,9 @@ public:
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, subCodeBlockIndex));
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, subCodeBlockIndex, fnName));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -4339,11 +4354,13 @@ public:
     ASTNode parseGetterMethod(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
-        this->expect(LeftParenthesis);
-        this->expect(RightParenthesis);
 
         bool isGenerator = false;
-        ParseFormalParametersResult params;
+
+        if (tryToSkipFunctionParsing()) {
+            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        }
+
         const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
@@ -4352,9 +4369,14 @@ public:
         this->context->inArrowFunction = false;
         this->context->allowSuperProperty = true;
 
-        auto oldScopeContext = pushScopeContext(AtomicString());
+        this->expect(LeftParenthesis);
+        this->expect(RightParenthesis);
+
+        BEGIN_FUNCTION_SCANNING(AtomicString());
+
+        ParseFormalParametersResult params;
         extractNamesFromFunctionParams(params);
-        ASTNode method = this->parsePropertyMethod(builder, params);
+        this->parsePropertyMethod(newBuilder, params);
 
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
@@ -4367,7 +4389,9 @@ public:
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -4376,6 +4400,11 @@ public:
         MetaNode node = this->createNode();
 
         bool isGenerator = false;
+
+        if (tryToSkipFunctionParsing()) {
+            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        }
+
         const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
@@ -4385,16 +4414,18 @@ public:
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
-        auto oldScopeContext = pushScopeContext(AtomicString());
+
+        BEGIN_FUNCTION_SCANNING(AtomicString());
+
         ParseFormalParametersResult formalParameters;
-        this->parseFormalParameters(builder, formalParameters);
+        this->parseFormalParameters(newBuilder, formalParameters);
         if (formalParameters.params.size() != 1) {
             this->throwError(Messages::BadSetterArity);
         } else if (formalParameters.params[0]->type() == ASTNodeType::RestElement) {
             this->throwError(Messages::BadSetterRestParameter);
         }
         extractNamesFromFunctionParams(formalParameters);
-        ASTNode method = this->parsePropertyMethod(builder, formalParameters);
+        this->parsePropertyMethod(newBuilder, formalParameters);
 
         this->context->allowYield = previousAllowYield;
         this->context->allowSuperProperty = previousAllowSuperProperty;
@@ -4407,7 +4438,9 @@ public:
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -4416,6 +4449,11 @@ public:
         MetaNode node = this->createNode();
 
         bool isGenerator = true;
+
+        if (tryToSkipFunctionParsing()) {
+            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        }
+
         const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
@@ -4425,11 +4463,13 @@ public:
         this->context->inArrowFunction = false;
 
         this->expect(LeftParenthesis);
-        auto oldScopeContext = pushScopeContext(AtomicString());
+
+        BEGIN_FUNCTION_SCANNING(AtomicString());
+
         ParseFormalParametersResult formalParameters;
-        this->parseFormalParameters(builder, formalParameters);
+        this->parseFormalParameters(newBuilder, formalParameters);
         extractNamesFromFunctionParams(formalParameters);
-        ASTNode method = this->parsePropertyMethod(builder, formalParameters);
+        this->parsePropertyMethod(newBuilder, formalParameters);
 
         this->context->allowYield = previousAllowYield;
         this->context->allowSuperProperty = previousAllowSuperProperty;
@@ -4442,7 +4482,9 @@ public:
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
-        return this->finalize(node, builder.createFunctionExpressionNode(popScopeContext(oldScopeContext), isGenerator, this->subCodeBlockIndex));
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
@@ -4993,7 +5035,7 @@ public:
                 if (builder.isNodeGenerator()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = declaration->asFunctionExpression()->scopeContext()->m_functionName.string()->length() ? declaration->asFunctionExpression()->scopeContext()->m_functionName : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    entry.m_localName = declaration->asFunctionExpression()->functionName().string()->length() ? declaration->asFunctionExpression()->functionName() : this->escargotContext->staticStrings().stringStarDefaultStar;
                     addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     addExportDeclarationEntry(entry);
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));
@@ -5152,16 +5194,13 @@ public:
         while (this->startMarker.index < this->scanner->length) {
             referNode = container->appendChild(this->parseStatementListItem(builder), referNode);
         }
-        this->currentScopeContext->m_bodyStartLOC.line = startNode.line;
-        this->currentScopeContext->m_bodyStartLOC.column = startNode.column;
-        this->currentScopeContext->m_bodyStartLOC.index = startNode.index;
 
         MetaNode endNode = this->createNode();
+        this->currentScopeContext->m_bodyEndLOC.index = endNode.index;
 #ifndef NDEBUG
         this->currentScopeContext->m_bodyEndLOC.line = endNode.line;
         this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
-        this->currentScopeContext->m_bodyEndLOC.index = endNode.index;
         return this->finalize(startNode, builder.createProgramNode(container, this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector)));
     }
 
@@ -5281,8 +5320,6 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.isParsingSingleFunction = true;
 
     parser.codeBlock = codeBlock;
-    // when parsing for function call, childindex should be set to index 1
-    parser.childFunctionIndex = 1;
 
     scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
