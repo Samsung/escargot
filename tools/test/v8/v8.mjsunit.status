@@ -726,7 +726,6 @@
   'regress/regress-324028': [SKIP],
   'regress/regress-95920': [SKIP],
   'regress/regress-crbug-109362': [SKIP],
-  'regress/regress-r3391': [SKIP],
   'regress/regress-crbug-627934': [SKIP],
   'third_party/object-keys/object-keys': [SKIP],
   'regress/regress-4815': [SKIP],
