@@ -24,15 +24,15 @@ namespace Escargot {
 
 class FunctionExpressionNode : public ExpressionNode {
 public:
-    FunctionExpressionNode(ASTFunctionScopeContext* scopeContext, bool isGenerator, size_t subCodeBlockIndex)
+    FunctionExpressionNode(bool isGenerator, size_t subCodeBlockIndex, const AtomicString& functionName)
         : m_isGenerator(isGenerator)
-        , m_scopeContext(scopeContext)
         , m_subCodeBlockIndex(subCodeBlockIndex - 1)
+        , m_functionName(functionName)
     {
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::FunctionExpression; }
-    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
+    AtomicString functionName() { return m_functionName; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlockAt(m_subCodeBlockIndex);
@@ -53,8 +53,8 @@ public:
 
 private:
     bool m_isGenerator;
-    ASTFunctionScopeContext* m_scopeContext;
     size_t m_subCodeBlockIndex;
+    AtomicString m_functionName;
     // defaults: [ Expression ];
     // rest: Identifier | null;
 };

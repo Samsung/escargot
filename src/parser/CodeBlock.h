@@ -637,13 +637,9 @@ public:
         return m_src;
     }
 
-    const StringView& bodySrc()
-    {
-        return m_bodySrc;
-    }
-
     ExtendedNodeLOC sourceElementStart()
     {
+        // currently, sourceElementStart point to the start location of the parameter list
         return m_sourceElementStart;
     }
 
@@ -718,8 +714,6 @@ protected:
 
     Script* m_script;
     StringView m_src; // function source including parameters
-    StringView m_bodySrc; // function body source
-    ExtendedNodeLOC m_sourceElementStart;
 
     AtomicStringTightVector m_parameterNames;
     uint16_t m_identifierOnStackCount; // this member variable only count `var`
@@ -733,8 +727,8 @@ protected:
     InterpretedCodeBlock* m_firstChild;
     InterpretedCodeBlock* m_nextSibling;
 
+    ExtendedNodeLOC m_sourceElementStart; // point to the start position of the parameter list
 #ifndef NDEBUG
-    ExtendedNodeLOC m_bodyStartLOC;
     ExtendedNodeLOC m_bodyEndLOC;
     ASTFunctionScopeContext* m_scopeContext;
 #endif

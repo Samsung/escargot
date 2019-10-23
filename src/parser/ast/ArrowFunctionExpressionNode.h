@@ -56,7 +56,7 @@ private:
 
 class ArrowFunctionExpressionNode : public ExpressionNode {
 public:
-    ArrowFunctionExpressionNode(ASTFunctionScopeContext* scopeContext, size_t subCodeBlockIndex)
+    ArrowFunctionExpressionNode(size_t subCodeBlockIndex)
         : m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
     }

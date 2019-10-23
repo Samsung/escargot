@@ -161,6 +161,12 @@ public:
         return m_string;
     }
 
+    AtomicString& functionName()
+    {
+        ASSERT(m_nodeType == FunctionDeclaration || m_nodeType == FunctionExpression);
+        return m_string;
+    }
+
     AtomicString& assignmentPatternName()
     {
         ASSERT(m_nodeType == AssignmentPattern);
@@ -300,7 +306,7 @@ public:
         // dummy function for classNode() of ClassDeclarationNode
         // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        ClassNode* tempClassNode = new ClassNode();
+        ClassNode* tempClassNode;
         return *tempClassNode;
     }
 
@@ -317,7 +323,8 @@ public:
         // dummy function for imported() of ImportSpecifierNode
         // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        return new IdentifierNode();
+        IdentifierNode* identifier;
+        return identifier;
     }
 
     IdentifierNode* exported()
@@ -325,7 +332,8 @@ public:
         // dummy function for imported() of ExportSpecifierNode
         // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        return new IdentifierNode();
+        IdentifierNode* identifier;
+        return identifier;
     }
 
     IdentifierNode* local()
@@ -333,7 +341,8 @@ public:
         // dummy function for local() of Import/ExportSpecifierNode
         // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        return new IdentifierNode();
+        IdentifierNode* identifier;
+        return identifier;
     }
 
     ALWAYS_INLINE operator bool()
@@ -408,9 +417,7 @@ typedef VectorWithInlineStorage<16, SyntaxNode, std::allocator<SyntaxNode>> Para
 class SyntaxChecker {
 public:
     typedef SyntaxNode ASTNode;
-    typedef SyntaxNode ASTIdentifierNode;
     typedef SyntaxNode ASTStatementContainer;
-    typedef SyntaxNode* ASTStatementNodePtr;
     typedef SyntaxNodeVector ASTNodeVector;
 
     MAKE_STACK_ALLOCATED();
@@ -582,9 +589,7 @@ public:
 class NodeGenerator {
 public:
     typedef Node* ASTNode;
-    typedef IdentifierNode* ASTIdentifierNode;
     typedef StatementContainer* ASTStatementContainer;
-    typedef StatementNode* ASTStatementNodePtr;
     typedef std::vector<Node*> ASTNodeVector;
 
     MAKE_STACK_ALLOCATED();
