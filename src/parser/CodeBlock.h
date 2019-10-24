@@ -249,6 +249,11 @@ public:
         return m_isFunctionNameExplicitlyDeclared;
     }
 
+    bool isEvalCode() const
+    {
+        return m_isEvalCode;
+    }
+
     bool isEvalCodeInFunction() const
     {
         return m_isEvalCodeInFunction;
@@ -345,6 +350,7 @@ protected:
     union {
         ByteCodeBlock* m_byteCodeBlock;
         CallNativeFunctionData* m_nativeFunctionData;
+        ASTFunctionScopeContext* m_astContext;
     };
 };
 
@@ -358,9 +364,12 @@ class InterpretedCodeBlock : public CodeBlock {
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
 public:
+    // You can use this function on ScriptParser only
     void computeVariables();
+    // You can use this function on ScriptParser only
     void captureArguments();
 
+    // You can use this function on ScriptParser only
     /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */
     std::pair<bool, size_t> tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
@@ -588,6 +597,7 @@ public:
         return c;
     }
 
+    // You can use this function on ScriptParser only
     bool hasVarName(const AtomicString& name)
     {
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
@@ -598,17 +608,21 @@ public:
         return false;
     }
 
+    // You can use this function on ScriptParser only
     bool hasName(LexicalBlockIndex blockIndex, const AtomicString& name)
     {
         if (std::get<0>(findNameWithinBlock(blockIndex, name))) {
             return true;
         }
 
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == name) {
-                return true;
+        if (m_astContext->mayContainVarName(name)) {
+            for (size_t i = 0; i < m_identifierInfos.size(); i++) {
+                if (m_identifierInfos[i].m_name == name) {
+                    return true;
+                }
             }
         }
+
         return false;
     }
 

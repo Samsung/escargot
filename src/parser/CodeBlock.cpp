@@ -206,7 +206,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 #endif
 {
     m_context = ctx;
-    m_byteCodeBlock = nullptr;
+    m_astContext = scopeCtx;
 
     m_parameterCount = 0;
     m_hasCallNativeFunctionCode = false;
@@ -284,7 +284,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     const AtomicStringTightVector& parameterNames = scopeCtx->m_parameters;
 
     m_context = ctx;
-    m_byteCodeBlock = nullptr;
+    m_astContext = scopeCtx;
     m_functionName = scopeCtx->m_functionName;
     m_parameterCount = parameterNames.size();
     m_hasCallNativeFunctionCode = false;
@@ -360,6 +360,7 @@ void InterpretedCodeBlock::captureArguments()
         info.m_needToAllocateOnStack = true;
         info.m_isMutable = true;
         m_identifierInfos.pushBack(info);
+        m_astContext->m_varNamesFilter.add(arguments);
     }
     if (m_parameterCount) {
         bool isMapped = !hasParameterOtherThanIdentifier() && !isStrict();
@@ -389,10 +390,13 @@ std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCode
         return std::make_pair(true, std::get<1>(r));
     }
 
-    for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-        if (m_identifierInfos[i].m_name == name) {
-            m_identifierInfos[i].m_needToAllocateOnStack = false;
-            return std::make_pair(true, SIZE_MAX);
+    if (m_astContext->mayContainVarName(name)) {
+        size_t siz = m_identifierInfos.size();
+        for (size_t i = 0; i < siz; i++) {
+            if (m_identifierInfos[i].m_name == name) {
+                m_identifierInfos[i].m_needToAllocateOnStack = false;
+                return std::make_pair(true, SIZE_MAX);
+            }
         }
     }
     return std::make_pair(false, SIZE_MAX);

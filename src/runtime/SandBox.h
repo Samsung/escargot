@@ -37,10 +37,20 @@ public:
         String* src;
         String* sourceCode;
         ExtendedNodeLOC loc;
+        String* functionName;
+        bool isFunction;
+        bool isConstructor;
+        bool isAssociatedWithJavaScriptCode;
+        bool isEval;
         StackTraceData()
             : src(String::emptyString)
             , sourceCode(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+            , functionName(String::emptyString)
+            , isFunction(false)
+            , isConstructor(false)
+            , isAssociatedWithJavaScriptCode(false)
+            , isEval(false)
         {
         }
     };

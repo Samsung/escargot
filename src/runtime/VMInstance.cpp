@@ -124,6 +124,9 @@ static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
 
 VMInstance::~VMInstance()
 {
+    if (m_onVMInstanceDestroy) {
+        m_onVMInstanceDestroy(this, m_onVMInstanceDestroyData);
+    }
     clearCaches();
 #ifdef ENABLE_ICU
     delete m_timezone;
@@ -136,6 +139,8 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_randEngine((unsigned int)time(NULL))
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
+    , m_onVMInstanceDestroy(nullptr)
+    , m_onVMInstanceDestroyData(nullptr)
     , m_cachedUTC(nullptr)
     , m_platform(platform)
     , m_astAllocator(new ASTAllocator())

@@ -20,6 +20,8 @@
 #ifndef ASTContext_h
 #define ASTContext_h
 
+#include "util/BloomFilter.h"
+
 namespace Escargot {
 
 class ASTFunctionScopeContextNameInfo {
@@ -149,6 +151,8 @@ struct ASTBlockScopeContext {
 };
 
 typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
+typedef BloomFilter<6> ASTFunctionScopeContextVarNameBloomFilter;
+COMPILE_ASSERT(sizeof(ASTFunctionScopeContextVarNameBloomFilter) == 64, "");
 
 // context for function or program
 struct ASTFunctionScopeContext {
@@ -173,6 +177,7 @@ struct ASTFunctionScopeContext {
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression, FunctionDeclaration only
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTFunctionScopeContextNameInfoVector m_varNames;
+    ASTFunctionScopeContextVarNameBloomFilter m_varNamesFilter;
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 
@@ -224,13 +229,23 @@ struct ASTFunctionScopeContext {
 
     bool hasVarName(AtomicString name)
     {
-        for (size_t i = 0; i < m_varNames.size(); i++) {
+        if (!mayContainVarName(name)) {
+            return false;
+        }
+
+        size_t siz = m_varNames.size();
+        for (size_t i = 0; i < siz; i++) {
             if (m_varNames[i].name() == name) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    bool mayContainVarName(AtomicString name)
+    {
+        return m_varNamesFilter.mayContain(name);
     }
 
     ASTBlockScopeContext *findBlock(LexicalBlockIndex blockIndex)
@@ -248,13 +263,18 @@ struct ASTFunctionScopeContext {
     ASTBlockScopeContext *findBlockFromBackward(LexicalBlockIndex blockIndex)
     {
         int32_t b = (int32_t)m_childBlockScopes.size() - 1;
-        for (int32_t i = b; i >= 0; i--) {
+        return m_childBlockScopes[findBlockFromBackward(blockIndex, b)];
+    }
+
+    LexicalBlockIndex findBlockFromBackward(LexicalBlockIndex blockIndex, int32_t fromIndex)
+    {
+        for (int32_t i = fromIndex; i >= 0; i--) {
             if (m_childBlockScopes[(size_t)i]->m_blockIndex == blockIndex) {
-                return m_childBlockScopes[i];
+                return i;
             }
         }
         ASSERT_NOT_REACHED();
-        return nullptr;
+        return LEXICAL_BLOCK_INDEX_MAX;
     }
 
     bool hasName(AtomicString name, LexicalBlockIndex blockIndex)
@@ -279,12 +299,15 @@ struct ASTFunctionScopeContext {
 
     void insertVarName(AtomicString name, LexicalBlockIndex blockIndex, bool isExplicitlyDeclaredOrParameterName, bool isVarDeclaration = true)
     {
-        for (size_t i = 0; i < m_varNames.size(); i++) {
-            if (m_varNames[i].name() == name) {
-                if (isExplicitlyDeclaredOrParameterName) {
-                    m_varNames[i].setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
+        if (mayContainVarName(name)) {
+            size_t siz = m_varNames.size();
+            for (size_t i = 0; i < siz; i++) {
+                if (m_varNames[i].name() == name) {
+                    if (isExplicitlyDeclaredOrParameterName) {
+                        m_varNames[i].setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
+                    }
+                    return;
                 }
-                return;
             }
         }
 
@@ -294,6 +317,7 @@ struct ASTFunctionScopeContext {
         info.setIsVarDeclaration(isVarDeclaration);
         info.setLexicalBlockIndex(blockIndex);
         m_varNames.push_back(info);
+        m_varNamesFilter.add(name);
     }
 
     void insertUsingName(AtomicString name, LexicalBlockIndex blockIndex)
@@ -367,27 +391,34 @@ struct ASTFunctionScopeContext {
     bool canDeclareName(AtomicString name, LexicalBlockIndex blockIndex, bool isVarName)
     {
         if (isVarName) {
-            for (size_t i = 0; i < m_childBlockScopes.size(); i++) {
-                auto blockScopeContext = m_childBlockScopes[i];
-
-                // this means block was already closed
-                // { <block 1> { <block 2> } <block 1> }
-                if (blockIndex < blockScopeContext->m_blockIndex) {
-                    continue;
-                }
-
-                for (size_t j = 0; j < blockScopeContext->m_names.size(); j++) {
-                    if (name == blockScopeContext->m_names[j].name()) {
+            int32_t findBlockIndex = m_childBlockScopes.size() - 1;
+            findBlockIndex = findBlockFromBackward(blockIndex, findBlockIndex);
+            ASTBlockScopeContext *cb = m_childBlockScopes[findBlockIndex];
+            while (true) {
+                size_t siz = cb->m_names.size();
+                for (size_t i = 0; i < siz; i++) {
+                    if (cb->m_names[i].name() == name) {
                         return false;
                     }
                 }
+
+                if (cb->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                    break;
+                }
+                findBlockIndex = findBlockFromBackward(cb->m_parentBlockIndex, findBlockIndex - 1);
+                cb = m_childBlockScopes[findBlockIndex];
             }
         } else {
             if (blockHasName(name, blockIndex)) {
                 return false;
             }
 
-            for (size_t i = 0; i < m_varNames.size(); i++) {
+            if (!mayContainVarName(name)) {
+                return true;
+            }
+
+            size_t siz = m_varNames.size();
+            for (size_t i = 0; i < siz; i++) {
                 if (m_varNames[i].name() == name) {
                     if (m_varNames[i].lexicalBlockIndex() >= blockIndex) {
                         return false;
@@ -434,4 +465,12 @@ struct ASTFunctionScopeContext {
     }
 };
 }
+
+namespace std {
+
+template <>
+struct is_fundamental<Escargot::ASTFunctionScopeContextNameInfo> : public true_type {
+};
+}
+
 #endif

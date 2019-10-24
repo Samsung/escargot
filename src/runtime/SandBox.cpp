@@ -45,7 +45,6 @@ SandBox::~SandBox()
 
 void SandBox::processCatch(const Value& error, SandBoxResult& result)
 {
-    ExecutionState state(m_context);
     // when exception occurred, an undefined value is allocated for result value which will be never used.
     // this is to avoid dereferencing of null pointer.
     result.result = Value();
@@ -60,8 +59,15 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
                                                                                                              m_stackTraceData[i].second.loc.byteCodePosition, m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock);
             StackTraceData traceData;
             traceData.loc = loc;
-            traceData.src = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->src();
-            traceData.sourceCode = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock->script()->sourceCode();
+            InterpretedCodeBlock* cb = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock;
+            traceData.src = cb->script()->src();
+            traceData.sourceCode = cb->script()->sourceCode();
+            traceData.functionName = m_stackTraceData[i].second.functionName;
+            traceData.isFunction = m_stackTraceData[i].second.isFunction;
+            traceData.isConstructor = m_stackTraceData[i].second.isConstructor;
+            traceData.isAssociatedWithJavaScriptCode = m_stackTraceData[i].second.isAssociatedWithJavaScriptCode;
+            traceData.isEval = m_stackTraceData[i].second.isEval;
+
             result.stackTraceData.pushBack(traceData);
         } else {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
@@ -137,6 +143,11 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                     data.loc = loc;
                     data.src = cb->asInterpretedCodeBlock()->script()->src();
                     data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
+                    data.isEval = true;
+                    data.isFunction = false;
+                    data.isAssociatedWithJavaScriptCode = true;
+                    data.isConstructor = false;
+
                     m_stackTraceData.pushBack(std::make_pair(es, data));
                 }
             } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
@@ -146,6 +157,11 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                 data.loc = loc;
                 data.src = cb->asInterpretedCodeBlock()->script()->src();
                 data.sourceCode = String::emptyString;
+                data.isEval = true;
+                data.isFunction = false;
+                data.isAssociatedWithJavaScriptCode = true;
+                data.isConstructor = false;
+
                 m_stackTraceData.pushBack(std::make_pair(es, data));
             } else if (callee) {
                 CodeBlock* cb = callee->codeBlock();
@@ -171,6 +187,11 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                     builder.appendString(" } ");
                     data.src = builder.finalize();
                 }
+                data.functionName = cb->functionName().string();
+                data.isEval = false;
+                data.isFunction = true;
+                data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
+                data.isConstructor = callee->isConstructor();
                 data.sourceCode = String::emptyString;
                 m_stackTraceData.pushBack(std::make_pair(es, data));
             }

@@ -168,7 +168,7 @@ public:
 
     struct ParseFormalParametersResult {
         ParameterNodeVector params;
-        std::vector<AtomicString> paramSet;
+        VectorWithInlineStorage<8, AtomicString, std::allocator<AtomicString>> paramSet;
         Scanner::SmallScannerResult stricted;
         Scanner::SmallScannerResult firstRestricted;
         const char* message;
@@ -323,6 +323,9 @@ public:
 
     ALWAYS_INLINE void insertUsingName(AtomicString name)
     {
+        if (this->isParsingSingleFunction) {
+            return;
+        }
         if (this->lastUsingName == name) {
             return;
         }
@@ -337,7 +340,7 @@ public:
         }
 
         ParameterNodeVector& params = paramsResult.params;
-        const std::vector<AtomicString>& paramNames = paramsResult.paramSet;
+        const auto& paramNames = paramsResult.paramSet;
         bool hasParameterOtherThanIdentifier = false;
 #ifndef NDEBUG
         bool shouldHaveEqualNumberOfParameterListAndParameterName = true;
@@ -818,7 +821,7 @@ public:
     // the flags outside of the parser. This means the production the parser parses is used as a part of a potential
     // pattern. The CoverInitializedName check is deferred.
 
-    typedef std::vector<Scanner::SmallScannerResult> SmallScannerResultVector;
+    typedef VectorWithInlineStorage<8, Scanner::SmallScannerResult, std::allocator<Scanner::SmallScannerResult>> SmallScannerResultVector;
 
     struct IsolateCoverGrammarContext {
         bool previousIsBindingElement;
@@ -4051,10 +4054,12 @@ public:
         // return empty node because the function body node is never used now
         ASTNode result = nullptr;
 
+        bool oldAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
         LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
         LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
         auto oldNameCallback = this->nameDeclaredCallback;
 
+        this->context->allowLexicalDeclaration = true;
         this->lexicalBlockIndex = 0;
         this->lexicalBlockCount = 0;
 
@@ -4091,6 +4096,7 @@ public:
         this->context->inCatchClause = oldInCatchClause;
         this->context->catchClauseSimplyDeclaredVariableNames = std::move(oldCatchClauseSimplyDeclaredVariableNames);
 
+        this->context->allowLexicalDeclaration = oldAllowLexicalDeclaration;
         this->lexicalBlockIndex = lexicalBlockIndexBefore;
         this->lexicalBlockCount = lexicalBlockCountBefore;
         this->nameDeclaredCallback = oldNameCallback;
