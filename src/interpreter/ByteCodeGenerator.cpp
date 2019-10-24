@@ -142,6 +142,24 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
     // generate common codes
     try {
+        AtomicString name = codeBlock->functionName();
+        if (name.string()->length()) {
+            if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
+                if (codeBlock->canUseIndexedVariableStorage()) {
+                    if (!codeBlock->isFunctionNameSaveOnHeap()) {
+                        auto r = ctx.getRegister();
+                        block->pushCode(LoadLiteral(ByteCodeLOC(0), r, Value()), &ctx, nullptr);
+                        block->pushCode(Move(ByteCodeLOC(0), r, REGULAR_REGISTER_LIMIT + 1), &ctx, nullptr);
+                        ctx.giveUpRegister();
+                    }
+                }
+            } else if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap() && !name.string()->equals("arguments"))) {
+                ctx.m_isVarDeclaredBindingInitialization = true;
+                IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(codeBlock->functionName());
+                id->generateStoreByteCode(block, &ctx, REGULAR_REGISTER_LIMIT + 1, true);
+            }
+        }
+
         ast->generateStatementByteCode(block, &ctx);
     } catch (const ByteCodeGenerateError& err) {
         block->m_code.clear();

@@ -102,6 +102,15 @@
 #endif
 #endif
 
+/* PREFETCH_READ */
+#ifndef PREFETCH_READ
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#define PREFETCH_READ(x) __builtin_prefetch((x), 0, 0)
+#else
+#define PREFETCH_READ(x)
+#endif
+#endif
+
 #ifndef NULLABLE
 #define NULLABLE
 #endif

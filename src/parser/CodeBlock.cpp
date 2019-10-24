@@ -59,6 +59,7 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfoMap));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_firstChild));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_nextSibling));
@@ -196,6 +197,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
     , m_lexicalBlockIndexFunctionLocatedIn(0)
+    , m_identifierInfoMap(scopeCtx->m_varNamesMap)
     , m_parentCodeBlock(nullptr)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
@@ -206,7 +208,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 #endif
 {
     m_context = ctx;
-    m_astContext = scopeCtx;
 
     m_parameterCount = 0;
     m_hasCallNativeFunctionCode = false;
@@ -269,6 +270,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
     , m_lexicalBlockIndexFunctionLocatedIn(scopeCtx->m_lexicalBlockIndexFunctionLocatedIn)
+    , m_identifierInfoMap(scopeCtx->m_varNamesMap)
     , m_parentCodeBlock(parentBlock)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
@@ -284,7 +286,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     const AtomicStringTightVector& parameterNames = scopeCtx->m_parameters;
 
     m_context = ctx;
-    m_astContext = scopeCtx;
     m_functionName = scopeCtx->m_functionName;
     m_parameterCount = parameterNames.size();
     m_hasCallNativeFunctionCode = false;
@@ -353,14 +354,17 @@ void InterpretedCodeBlock::captureArguments()
     }
 
     m_usesArgumentsObject = true;
-    if (!hasVarName(arguments)) {
+    if (findVarName(arguments) == SIZE_MAX) {
         IdentifierInfo info;
         info.m_indexForIndexedStorage = SIZE_MAX;
         info.m_name = arguments;
         info.m_needToAllocateOnStack = true;
         info.m_isMutable = true;
         m_identifierInfos.pushBack(info);
-        m_astContext->m_varNamesFilter.add(arguments);
+
+        if (m_identifierInfoMap) {
+            m_identifierInfoMap->insert(std::make_pair(arguments, m_identifierInfos.size() - 1));
+        }
     }
     if (m_parameterCount) {
         bool isMapped = !hasParameterOtherThanIdentifier() && !isStrict();
@@ -390,14 +394,10 @@ std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCode
         return std::make_pair(true, std::get<1>(r));
     }
 
-    if (m_astContext->mayContainVarName(name)) {
-        size_t siz = m_identifierInfos.size();
-        for (size_t i = 0; i < siz; i++) {
-            if (m_identifierInfos[i].m_name == name) {
-                m_identifierInfos[i].m_needToAllocateOnStack = false;
-                return std::make_pair(true, SIZE_MAX);
-            }
-        }
+    size_t idx = findVarName(name);
+    if (idx != SIZE_MAX) {
+        m_identifierInfos[idx].m_needToAllocateOnStack = false;
+        return std::make_pair(true, SIZE_MAX);
     }
     return std::make_pair(false, SIZE_MAX);
 }

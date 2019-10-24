@@ -597,43 +597,70 @@ public:
         return c;
     }
 
-    // You can use this function on ScriptParser only
-    bool hasVarName(const AtomicString& name)
+    size_t findVarName(const AtomicString& name)
     {
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == name) {
-                return true;
+        if (UNLIKELY(m_identifierInfoMap != nullptr)) {
+            auto iter = m_identifierInfoMap->find(name);
+            if (iter == m_identifierInfoMap->end()) {
+                return SIZE_MAX;
+            } else {
+                return iter->second;
             }
         }
-        return false;
+
+        auto& v = this->m_identifierInfos;
+        size_t size = v.size();
+
+        if (LIKELY(size <= 12)) {
+            size_t idx = SIZE_MAX;
+            switch (size) {
+            case 12:
+                if (v[11].m_name == name) {
+                    idx = 11;
+                }
+                FALLTHROUGH;
+#define TEST_ONCE(n)                                      \
+    case n:                                               \
+        if (idx == SIZE_MAX && v[n - 1].m_name == name) { \
+            idx = n - 1;                                  \
+        }                                                 \
+        FALLTHROUGH;
+                TEST_ONCE(11)
+                TEST_ONCE(10)
+                TEST_ONCE(9)
+                TEST_ONCE(8)
+                TEST_ONCE(7)
+                TEST_ONCE(6)
+                TEST_ONCE(5)
+                TEST_ONCE(4)
+                TEST_ONCE(3)
+                TEST_ONCE(2)
+                TEST_ONCE(1)
+#undef TEST_ONCE
+            case 0:
+                break;
+            default:
+                ASSERT_NOT_REACHED();
+            }
+
+            return idx;
+        } else {
+            for (size_t i = 0; i < size; i++) {
+                if (v[i].m_name == name) {
+                    return i;
+                }
+            }
+            return SIZE_MAX;
+        }
     }
 
-    // You can use this function on ScriptParser only
     bool hasName(LexicalBlockIndex blockIndex, const AtomicString& name)
     {
         if (std::get<0>(findNameWithinBlock(blockIndex, name))) {
             return true;
         }
 
-        if (m_astContext->mayContainVarName(name)) {
-            for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-                if (m_identifierInfos[i].m_name == name) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    size_t findVarName(const AtomicString& name)
-    {
-        for (size_t i = 0; i < m_identifierInfos.size(); i++) {
-            if (m_identifierInfos[i].m_name == name) {
-                return i;
-            }
-        }
-        return SIZE_MAX;
+        return findVarName(name) != SIZE_MAX;
     }
 
     bool hasParameter(const AtomicString& name)
@@ -683,11 +710,13 @@ protected:
     void computeBlockVariables(LexicalBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
     void initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx);
 
+    // You can use this function on ScriptParser only
     std::tuple<bool, size_t, size_t> findNameWithinBlock(LexicalBlockIndex blockIndex, AtomicString name)
     {
         BlockInfo* b = nullptr;
         size_t blockVectorIndex = SIZE_MAX;
-        for (size_t i = 0; i < m_blockInfos.size(); i++) {
+        size_t blockInfoSize = m_blockInfos.size();
+        for (size_t i = 0; i < blockInfoSize; i++) {
             if (m_blockInfos[i]->m_blockIndex == blockIndex) {
                 b = m_blockInfos[i];
                 blockVectorIndex = i;
@@ -697,8 +726,10 @@ protected:
 
         ASSERT(b != nullptr);
         while (true) {
-            for (size_t i = 0; i < b->m_identifiers.size(); i++) {
-                if (b->m_identifiers[i].m_name == name) {
+            auto& v = b->m_identifiers;
+            size_t idSize = v.size();
+            for (size_t i = 0; i < idSize; i++) {
+                if (v[i].m_name == name) {
                     return std::make_tuple(true, blockVectorIndex, i);
                 }
             }
@@ -710,7 +741,7 @@ protected:
 #ifndef NDEBUG
             bool finded = false;
 #endif
-            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            for (size_t i = 0; i < blockInfoSize; i++) {
                 if (m_blockInfos[i]->m_blockIndex == b->m_parentBlockIndex) {
                     b = m_blockInfos[i];
                     blockVectorIndex = i;
@@ -735,6 +766,7 @@ protected:
     uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn;
     IdentifierInfoVector m_identifierInfos;
+    FunctionContextVarMap* m_identifierInfoMap;
     BlockInfoVector m_blockInfos;
 
     InterpretedCodeBlock* m_parentCodeBlock;

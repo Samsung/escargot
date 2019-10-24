@@ -113,8 +113,10 @@ public:
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         bool isFunctionDeclarationBindingInitialization = context->m_isFunctionDeclarationBindingInitialization;
+        bool isVarDeclaredBindingInitialization = context->m_isVarDeclaredBindingInitialization;
         context->m_isLexicallyDeclaredBindingInitialization = false;
         context->m_isFunctionDeclarationBindingInitialization = false;
+        context->m_isVarDeclaredBindingInitialization = false;
 
         if (isLexicallyDeclaredBindingInitialization) {
             context->addLexicallyDeclaredNames(m_name);
@@ -135,7 +137,7 @@ public:
                         addressRegisterIndex = context->getLastRegisterIndex();
                         context->giveUpRegister();
                     }
-                    if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
+                    if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization || isVarDeclaredBindingInitialization) {
                         codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
                     } else {
                         if (addressRegisterIndex != SIZE_MAX) {
@@ -152,7 +154,7 @@ public:
                     }
                 }
             } else {
-                if (info.m_type != InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
+                if (info.m_type != InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared && !isVarDeclaredBindingInitialization) {
                     if (!info.m_isMutable) {
                         if (codeBlock->m_codeBlock->isStrict())
                             codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, m_name), context, this);
@@ -172,7 +174,7 @@ public:
                             codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
                         }
                     } else {
-                        if (isLexicallyDeclaredBindingInitialization) {
+                        if (isLexicallyDeclaredBindingInitialization || isVarDeclaredBindingInitialization) {
                             ASSERT(info.m_upperIndex == 0);
                             codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
                         } else {
@@ -188,7 +190,7 @@ public:
                 addressRegisterIndex = context->getLastRegisterIndex();
                 context->giveUpRegister();
             }
-            if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization) {
+            if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization || isVarDeclaredBindingInitialization) {
                 codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
             } else {
                 if (addressRegisterIndex != SIZE_MAX) {

@@ -79,6 +79,7 @@ struct ByteCodeGenerateContext {
         , m_isOutermostContext(true)
         , m_isWithScope(parserContextInformation.m_isWithScope)
         , m_isFunctionDeclarationBindingInitialization(false)
+        , m_isVarDeclaredBindingInitialization(false)
         , m_isLexicallyDeclaredBindingInitialization(false)
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
@@ -111,6 +112,7 @@ struct ByteCodeGenerateContext {
         , m_isOutermostContext(false)
         , m_isWithScope(contextBefore.m_isWithScope)
         , m_isFunctionDeclarationBindingInitialization(contextBefore.m_isFunctionDeclarationBindingInitialization)
+        , m_isVarDeclaredBindingInitialization(contextBefore.m_isVarDeclaredBindingInitialization)
         , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
@@ -308,6 +310,7 @@ struct ByteCodeGenerateContext {
     bool m_isOutermostContext : 1;
     bool m_isWithScope : 1;
     bool m_isFunctionDeclarationBindingInitialization : 1;
+    bool m_isVarDeclaredBindingInitialization : 1;
     bool m_isLexicallyDeclaredBindingInitialization : 1;
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
