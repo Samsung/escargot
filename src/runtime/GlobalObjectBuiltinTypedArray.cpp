@@ -1640,7 +1640,7 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
         return Value();
     }
     if (O.asObject() && O.asObject()->isTypedArrayObject()) {
-        return Value(String::fromASCII(O.asObject()->internalClassProperty()));
+        return Value(String::fromASCII(O.asObject()->internalClassProperty(state)));
     }
     return Value();
 }

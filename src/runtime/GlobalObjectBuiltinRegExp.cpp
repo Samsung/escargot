@@ -602,7 +602,7 @@ public:
         return true;
     }
 
-    virtual const char* internalClassProperty() override
+    virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "Object";
     }

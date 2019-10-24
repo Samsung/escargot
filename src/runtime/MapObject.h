@@ -40,7 +40,7 @@ public:
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty() override
+    virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "Map";
     }
@@ -81,7 +81,7 @@ public:
     {
         return true;
     }
-    virtual const char* internalClassProperty() override
+    virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "Map Iterator";
     }
