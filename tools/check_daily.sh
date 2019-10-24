@@ -54,7 +54,7 @@ fi
 echo "======== Succeeded v8, spidermonkey, test262, octane, sunspider ========="
 cat $SUNSPIDER_RESULT
 cat $OCTANE_RESULT
-cat $TEST262_RESULT | grep -vE "^ch|^Excluded|^annexB"
+grep -vE "^ch|^Excluded|^annexB" $TEST262_RESULT
 cat $SPIDERMONKEY_RESULT
 cat $V8_RESULT
 echo "======================================================="

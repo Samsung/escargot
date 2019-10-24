@@ -61,7 +61,7 @@ if [[ $PATH_TO_ENGINE = *"escargot" ]]; then
                 continue
             fi
         fi
-        cat ./runOnePlan.js | sed -e 's/arguments\[0\]/'$i'/g' > runOnePlan_for_escargot_$$.js
+        sed -e 's/arguments\[0\]/'$i'/g' runOnePlan.js > runOnePlan_for_escargot_$$.js
         if [[ $i -lt 11 ]]; then
             k=0;
             while [ $k -lt 10 ]; do
