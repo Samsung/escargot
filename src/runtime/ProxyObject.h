@@ -24,6 +24,7 @@
 #include "runtime/Object.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -76,9 +77,12 @@ public:
     }
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty() override
+    virtual const char* internalClassProperty(ExecutionState& state) override
     {
-        return "Proxy";
+        if (!m_target) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy cannot be null");
+        }
+        return m_target->internalClassProperty(state);
     }
 
     virtual Context* getFunctionRealm(ExecutionState& state) override;

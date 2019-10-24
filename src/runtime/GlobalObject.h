@@ -240,7 +240,7 @@ public:
     Value eval(ExecutionState& state, const Value& arg);
     Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation); // we get isInWithOperation as parameter because this affects bytecode
 
-    virtual const char* internalClassProperty() override
+    virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "global";
     }

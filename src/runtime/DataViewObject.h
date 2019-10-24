@@ -45,7 +45,7 @@ public:
         return true;
     }
 
-    virtual const char* internalClassProperty()
+    virtual const char* internalClassProperty(ExecutionState& state)
     {
         return "DataView";
     }

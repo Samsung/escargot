@@ -95,7 +95,7 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
         if (toStringTag.isString()) {
             builder.appendString(toStringTag.asString());
         } else {
-            builder.appendString(thisObject->internalClassProperty());
+            builder.appendString(thisObject->internalClassProperty(state));
         }
     }
 

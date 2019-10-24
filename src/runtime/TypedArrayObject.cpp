@@ -31,7 +31,7 @@ namespace Escargot {
         setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->type##ArrayPrototype()); \
     }                                                                                                           \
     template <>                                                                                                 \
-    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty()                                   \
+    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty(ExecutionState& state)              \
     {                                                                                                           \
         return #Type "Array";                                                                                   \
     }
