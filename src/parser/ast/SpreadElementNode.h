@@ -32,10 +32,6 @@ public:
     {
     }
 
-    virtual ~SpreadElementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return SpreadElement; }
     Node* argument()
     {

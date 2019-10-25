@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~ExpressionStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::ExpressionStatement; }
     Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override

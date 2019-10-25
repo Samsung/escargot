@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~BlockStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::BlockStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

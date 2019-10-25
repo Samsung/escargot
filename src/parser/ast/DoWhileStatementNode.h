@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~DoWhileStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::DoWhileStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

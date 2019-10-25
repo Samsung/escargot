@@ -28,10 +28,9 @@
 namespace Escargot {
 
 
-class ClassBodyNode : public Node, public DestructibleNode {
+class ClassBodyNode : public Node {
 public:
-    using DestructibleNode::operator new;
-    ClassBodyNode(NodeVector&& elementList, Node* constructor)
+    ClassBodyNode(NodeList& elementList, Node* constructor)
         : Node()
         , m_elementList(elementList)
         , m_constructor(constructor)
@@ -52,8 +51,8 @@ public:
     {
         size_t objIndex = context->m_classInfo.m_prototypeIndex;
 
-        for (unsigned i = 0; i < m_elementList.size(); i++) {
-            ClassElementNode* p = m_elementList[i]->asClassElement();
+        for (SentinelNode* element = m_elementList.begin(); element != m_elementList.end(); element = element->next()) {
+            ClassElementNode* p = element->astNode()->asClassElement();
 
             size_t destIndex = p->isStatic() ? classIndex : objIndex;
 
@@ -126,14 +125,14 @@ public:
             m_constructor->iterateChildren(fn);
         }
 
-        for (unsigned i = 0; i < m_elementList.size(); i++) {
-            ClassElementNode* p = m_elementList[i]->asClassElement();
+        for (SentinelNode* element = m_elementList.begin(); element != m_elementList.end(); element = element->next()) {
+            ClassElementNode* p = element->astNode()->asClassElement();
             p->iterateChildren(fn);
         }
     }
 
 private:
-    NodeVector m_elementList;
+    NodeList m_elementList;
     Node* m_constructor;
 };
 }

@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~DirectiveNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::Directive; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

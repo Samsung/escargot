@@ -31,9 +31,6 @@ public:
         , m_argument(argument)
     {
     }
-    virtual ~UpdateExpressionDecrementPrefixNode()
-    {
-    }
 
     virtual ASTNodeType type() override { return ASTNodeType::UpdateExpressionDecrementPrefix; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override

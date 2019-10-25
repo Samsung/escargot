@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~BinaryExpressionBitwiseXorNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionBitwiseXor; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {

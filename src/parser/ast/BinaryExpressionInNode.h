@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~BinaryExpressionInNode()
-    {
-    }
-
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         bool isSlow = !canUseDirectRegister(context, m_left, m_right);

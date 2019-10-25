@@ -26,17 +26,12 @@
 
 namespace Escargot {
 
-class ExportNamedDeclarationNode : public ExportDeclarationNode, public DestructibleNode {
+class ExportNamedDeclarationNode : public ExportDeclarationNode {
 public:
-    using DestructibleNode::operator new;
-    ExportNamedDeclarationNode(Node* declaration, NodeVector&& specifiers, Node* source)
+    ExportNamedDeclarationNode(Node* declaration, NodeList& specifiers, Node* source)
         : m_declaration(declaration)
-        , m_specifiers(std::move(specifiers))
+        , m_specifiers(specifiers)
         , m_source(source)
-    {
-    }
-
-    virtual ~ExportNamedDeclarationNode()
     {
     }
 
@@ -49,8 +44,8 @@ public:
             m_declaration->iterateChildren(fn);
         }
 
-        for (size_t i = 0; i < m_specifiers.size(); i++) {
-            m_specifiers[i]->iterateChildren(fn);
+        for (SentinelNode* specifier = m_specifiers.begin(); specifier != m_specifiers.end(); specifier = specifier->next()) {
+            specifier->astNode()->iterateChildren(fn);
         }
 
         if (m_source) {
@@ -68,7 +63,7 @@ public:
 
 private:
     Node* m_declaration;
-    NodeVector m_specifiers;
+    NodeList m_specifiers;
     Node* m_source;
 };
 }

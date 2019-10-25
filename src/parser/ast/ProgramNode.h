@@ -38,10 +38,6 @@ public:
     {
     }
 
-    virtual ~ProgramNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::Program; }
     ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
     Script::ModuleData* moduleData() { return m_moduleData; }

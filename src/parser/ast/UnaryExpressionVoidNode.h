@@ -31,9 +31,6 @@ public:
         , m_argument(argument)
     {
     }
-    virtual ~UnaryExpressionVoidNode()
-    {
-    }
 
     virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionVoid; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override

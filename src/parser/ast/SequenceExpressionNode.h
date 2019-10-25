@@ -25,25 +25,20 @@
 namespace Escargot {
 
 // An sequence expression, i.e., a statement consisting of vector of expressions.
-class SequenceExpressionNode : public ExpressionNode, public DestructibleNode {
+class SequenceExpressionNode : public ExpressionNode {
 public:
-    using DestructibleNode::operator new;
-    explicit SequenceExpressionNode(NodeVector&& expressions)
+    explicit SequenceExpressionNode(NodeList& expressions)
         : ExpressionNode()
         , m_expressions(expressions)
-    {
-    }
-
-    virtual ~SequenceExpressionNode()
     {
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ByteCodeRegisterIndex r = 0;
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            r = m_expressions[i]->getRegister(codeBlock, context);
-            m_expressions[i]->generateExpressionByteCode(codeBlock, context, r);
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+            r = expression->astNode()->getRegister(codeBlock, context);
+            expression->astNode()->generateExpressionByteCode(codeBlock, context, r);
             context->giveUpRegister();
         }
         if (r != dstRegister) {
@@ -53,24 +48,24 @@ public:
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            m_expressions[i]->iterateChildrenIdentifier(fn);
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+            expression->astNode()->iterateChildrenIdentifier(fn);
         }
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::SequenceExpression; }
-    NodeVector& expressions() { return m_expressions; }
+    NodeList& expressions() { return m_expressions; }
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);
 
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            m_expressions[i]->iterateChildren(fn);
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+            expression->astNode()->iterateChildren(fn);
         }
     }
 
 private:
-    NodeVector m_expressions; // expression: Expression;
+    NodeList m_expressions; // expression: Expression;
 };
 }
 

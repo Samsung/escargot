@@ -31,10 +31,6 @@ public:
         , m_argument(argument)
     {
     }
-    virtual ~UnaryExpressionMinusNode()
-    {
-    }
-
 
     virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionMinus; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override

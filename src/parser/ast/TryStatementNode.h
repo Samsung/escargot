@@ -35,9 +35,6 @@ public:
         , m_finalizer((BlockStatementNode *)finalizer)
     {
     }
-    virtual ~TryStatementNode()
-    {
-    }
 
     struct TryStatementByteCodeContext {
         size_t tryStartPosition;

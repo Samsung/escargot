@@ -33,9 +33,6 @@ public:
         , m_alternate(alternate)
     {
     }
-    virtual ~ConditionalExpressionNode()
-    {
-    }
 
     virtual ASTNodeType type() override { return ASTNodeType::ConditionalExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override

@@ -37,10 +37,6 @@ public:
     {
     }
 
-    virtual ~SwitchStatementNode()
-    {
-    }
-
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         ByteCodeGenerateContext newContext(*context);

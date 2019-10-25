@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~ExpressionNode()
-    {
-    }
-
     virtual bool isExpression() override
     {
         return true;

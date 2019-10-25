@@ -38,10 +38,6 @@ public:
     {
     }
 
-    virtual ~VariableDeclaratorNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::VariableDeclarator; }
     Node* id() { return m_id; }
     Node* init() { return m_init; }

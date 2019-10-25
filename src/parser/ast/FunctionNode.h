@@ -36,10 +36,6 @@ public:
     {
     }
 
-    virtual ~FunctionNode()
-    {
-    }
-
     NumeralLiteralVector& numeralLiteralVector() { return m_numeralLiteralVector; }
     virtual ASTNodeType type() override { return ASTNodeType::Function; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override

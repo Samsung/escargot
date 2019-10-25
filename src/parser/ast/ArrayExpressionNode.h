@@ -26,10 +26,9 @@
 
 namespace Escargot {
 
-class ArrayExpressionNode : public ExpressionNode, public DestructibleNode {
+class ArrayExpressionNode : public ExpressionNode {
 public:
-    using DestructibleNode::operator new;
-    ArrayExpressionNode(NodeVector&& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTemplateExpression = false)
+    ArrayExpressionNode(NodeList& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTemplateExpression = false)
         : ExpressionNode()
         , m_elements(elements)
         , m_additionalPropertyName(additionalPropertyName)
@@ -39,11 +38,7 @@ public:
     {
     }
 
-    virtual ~ArrayExpressionNode()
-    {
-    }
-
-    NodeVector& elements()
+    NodeList& elements()
     {
         return m_elements;
     }
@@ -55,21 +50,26 @@ public:
         size_t arrLen = 0;
         codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
-        for (size_t i = 0; i < m_elements.size(); i += ARRAY_DEFINE_OPERATION_MERGE_COUNT) {
+
+        size_t baseIndex = 0;
+        SentinelNode* element = m_elements.begin();
+        while (element != m_elements.end()) {
             size_t fillCount = 0;
             size_t regCount = 0;
+            size_t regIndex = 0;
             ByteCodeRegisterIndex regs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
-            for (size_t j = 0; j < ARRAY_DEFINE_OPERATION_MERGE_COUNT && ((i + j) < m_elements.size()); j++) {
-                arrLen = j + i + 1;
-
+            while (regIndex < ARRAY_DEFINE_OPERATION_MERGE_COUNT && element != m_elements.end()) {
                 ByteCodeRegisterIndex valueIndex = REGISTER_LIMIT;
-                if (m_elements[i + j]) {
-                    valueIndex = m_elements[i + j]->getRegister(codeBlock, context);
-                    m_elements[i + j]->generateExpressionByteCode(codeBlock, context, valueIndex);
+                if (element->astNode()) {
+                    valueIndex = element->astNode()->getRegister(codeBlock, context);
+                    element->astNode()->generateExpressionByteCode(codeBlock, context, valueIndex);
                     regCount++;
                 }
+                regs[regIndex] = valueIndex;
+
                 fillCount++;
-                regs[j] = valueIndex;
+                regIndex++;
+                element = element->next();
             }
 
             if (m_hasSpreadElement) {
@@ -77,15 +77,18 @@ public:
                 memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyBySpreadElementOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyBySpreadElementOperation>())->m_loadRegisterIndexs,
                        regs, sizeof(regs));
             } else {
-                codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, i, fillCount), context, this);
+                codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, baseIndex, fillCount), context, this);
                 memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyOperation>())->m_loadRegisterIndexs,
                        regs, sizeof(regs));
             }
 
-            for (size_t j = 0; j < regCount; j++) {
+            for (size_t i = 0; i < regCount; i++) {
                 // drop value register
                 context->giveUpRegister();
             }
+
+            baseIndex += fillCount;
+            arrLen += fillCount;
         }
 
         if (!m_hasSpreadElement) {
@@ -119,9 +122,10 @@ public:
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        for (size_t i = 0; i < m_elements.size(); i++) {
-            if (m_elements[i])
-                m_elements[i]->iterateChildrenIdentifier(fn);
+        for (SentinelNode* element = m_elements.begin(); element != m_elements.end(); element = element->next()) {
+            if (element->astNode()) {
+                element->astNode()->iterateChildrenIdentifier(fn);
+            }
         }
         if (m_additionalPropertyExpression) {
             m_additionalPropertyExpression->iterateChildrenIdentifier(fn);
@@ -132,9 +136,10 @@ public:
     {
         fn(this);
 
-        for (size_t i = 0; i < m_elements.size(); i++) {
-            if (m_elements[i])
-                m_elements[i]->iterateChildren(fn);
+        for (SentinelNode* element = m_elements.begin(); element != m_elements.end(); element = element->next()) {
+            if (element->astNode()) {
+                element->astNode()->iterateChildren(fn);
+            }
         }
 
         if (m_additionalPropertyExpression) {
@@ -143,7 +148,7 @@ public:
     }
 
 private:
-    NodeVector m_elements;
+    NodeList m_elements;
     AtomicString m_additionalPropertyName;
     Node* m_additionalPropertyExpression;
     bool m_hasSpreadElement;

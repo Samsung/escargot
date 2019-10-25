@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~BinaryExpressionLessThanOrEqualNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionLessThanOrEqual; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {

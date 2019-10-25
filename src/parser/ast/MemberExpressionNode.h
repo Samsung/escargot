@@ -37,10 +37,6 @@ public:
     {
     }
 
-    virtual ~MemberExpressionNode()
-    {
-    }
-
     Node* object()
     {
         return m_object;

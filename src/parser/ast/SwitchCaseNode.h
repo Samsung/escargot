@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~SwitchCaseNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::SwitchCase; }
     bool isDefaultNode()
     {

@@ -27,20 +27,15 @@
 
 namespace Escargot {
 
-class ObjectExpressionNode : public ExpressionNode, public DestructibleNode {
+class ObjectExpressionNode : public ExpressionNode {
 public:
-    using DestructibleNode::operator new;
-    explicit ObjectExpressionNode(NodeVector&& properties)
+    explicit ObjectExpressionNode(NodeList& properties)
         : ExpressionNode()
         , m_properties(properties)
     {
     }
 
-    virtual ~ObjectExpressionNode()
-    {
-    }
-
-    NodeVector& properties()
+    NodeList& properties()
     {
         return m_properties;
     }
@@ -50,8 +45,8 @@ public:
     {
         codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
         size_t objIndex = dstRegister;
-        for (unsigned i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i]->asProperty();
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            PropertyNode* p = property->astNode()->asProperty();
             AtomicString propertyAtomicName;
             bool hasKey = false;
             size_t propertyIndex = SIZE_MAX;
@@ -109,8 +104,8 @@ public:
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i]->asProperty();
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            PropertyNode* p = property->astNode()->asProperty();
             if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }
@@ -121,13 +116,13 @@ public:
     {
         fn(this);
 
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            m_properties[i]->iterateChildren(fn);
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            property->astNode()->iterateChildren(fn);
         }
     }
 
 private:
-    NodeVector m_properties;
+    NodeList m_properties;
 };
 }
 

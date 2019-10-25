@@ -43,10 +43,6 @@ public:
     {
     }
 
-    virtual ~PropertyNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::Property; }
     Node* key()
     {

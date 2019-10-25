@@ -25,26 +25,25 @@
 
 namespace Escargot {
 
-class ObjectPatternNode : public Node, public DestructibleNode {
+class ObjectPatternNode : public Node {
 public:
-    using DestructibleNode::operator new;
-    ObjectPatternNode(NodeVector&& properties)
+    ObjectPatternNode(NodeList& properties)
         : m_properties(properties)
     {
 #ifndef NDEBUG
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            ASSERT(m_properties[i]->isProperty());
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            ASSERT(property->astNode()->isProperty());
         }
 #endif
     }
 
-    ObjectPatternNode(NodeVector&& properties, NodeLOC& loc)
+    ObjectPatternNode(NodeList& properties, NodeLOC& loc)
         : m_properties(properties)
     {
         m_loc = loc;
 #ifndef NDEBUG
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            ASSERT(m_properties[i]->isProperty());
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            ASSERT(property->astNode()->isProperty());
         }
 #endif
     }
@@ -54,9 +53,9 @@ public:
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         if (m_properties.size() > 0) {
-            for (size_t i = 0; i < m_properties.size(); i++) {
+            for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
                 context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-                m_properties[i]->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+                property->astNode()->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
             }
         } else {
             // ObjectAssignmentPattern without AssignmentPropertyList requires object-coercible
@@ -90,8 +89,8 @@ public:
     // FIXME implement iterateChildrenIdentifier in PropertyNode itself
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            PropertyNode* p = m_properties[i]->asProperty();
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            PropertyNode* p = property->astNode()->asProperty();
             if (!(p->key()->isIdentifier() && !p->computed())) {
                 p->key()->iterateChildrenIdentifier(fn);
             }
@@ -102,13 +101,13 @@ public:
     {
         fn(this);
 
-        for (size_t i = 0; i < m_properties.size(); i++) {
-            m_properties[i]->iterateChildren(fn);
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            property->astNode()->iterateChildren(fn);
         }
     }
 
 private:
-    NodeVector m_properties;
+    NodeList m_properties;
 };
 }
 
