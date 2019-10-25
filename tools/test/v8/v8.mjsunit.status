@@ -723,7 +723,6 @@
   'regress/regress-349870': [SKIP],
   'compiler/truncating-store': [SKIP],
   'regress/regress-3159': [SKIP],
-  'regress/regress-324028': [SKIP],
   'regress/regress-95920': [SKIP],
   'regress/regress-crbug-109362': [SKIP],
   'regress/regress-crbug-627934': [SKIP],

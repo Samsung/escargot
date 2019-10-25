@@ -471,7 +471,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         } else if (val.isObject()) {
             // TODO implement 22.2.1.4
             Object* inputObj = val.asObject();
-            uint64_t length = inputObj->length(state);
+            uint64_t length = inputObj->lengthES6(state);
             ASSERT(length >= 0);
             unsigned elementSize = obj->elementSize();
             uint64_t bufferSize = length * elementSize;
