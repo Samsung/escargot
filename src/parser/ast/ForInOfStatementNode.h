@@ -40,10 +40,6 @@ public:
     {
     }
 
-    virtual ~ForInOfStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override
     {
         if (m_forIn) {

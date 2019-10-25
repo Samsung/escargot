@@ -41,10 +41,6 @@ public:
     {
     }
 
-    virtual ~ForStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override
     {
         return ASTNodeType::ForStatement;

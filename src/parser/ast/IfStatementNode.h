@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~IfStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::IfStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

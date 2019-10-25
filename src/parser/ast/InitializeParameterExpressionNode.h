@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~InitializeParameterExpressionNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::InitializeParameterExpression; }
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

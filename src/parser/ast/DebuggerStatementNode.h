@@ -32,10 +32,6 @@ public:
     {
     }
 
-    virtual ~DebuggerStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::DebuggerStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {

@@ -31,9 +31,6 @@ public:
         , m_argument(argument)
     {
     }
-    virtual ~UnaryExpressionDeleteNode()
-    {
-    }
 
     virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionDelete; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override

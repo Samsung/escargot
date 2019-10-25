@@ -41,10 +41,6 @@ public:
     {
     }
 
-    virtual ~CatchClauseNode()
-    {
-    }
-
     Node* param()
     {
         return m_param;

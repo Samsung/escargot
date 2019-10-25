@@ -240,48 +240,7 @@ class ImportDefaultSpecifierNode;
 class ImportNamespaceSpecifierNode;
 class ExportSpecifierNode;
 
-class FreeableNode {
-public:
-    virtual ~FreeableNode() {}
-    // allocation by ASTAllocator
-    inline void* operator new(size_t size, ASTAllocator& allocator)
-    {
-        return allocator.allocate(size);
-    }
-
-    inline void* operator new(size_t size, void* p)
-    {
-        return p;
-    }
-
-    void* operator new(size_t)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    void* operator new[](size_t) = delete;
-    void operator delete(void*)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    void operator delete[](void*) = delete;
-};
-
-class DestructibleNode {
-public:
-    virtual ~DestructibleNode() {}
-    // Node which needs destructor call when freed
-    inline void* operator new(size_t size, ASTAllocator& allocator)
-    {
-        return allocator.allocateDestructible(size);
-    }
-
-    void* operator new(size_t) = delete;
-    void* operator new[](size_t) = delete;
-    void operator delete[](void*) = delete;
-};
-
-// Every Node is allocated by ASTAllocator (default: FreeableNode)
-class Node : public FreeableNode {
+class Node {
 protected:
     Node()
         : m_loc(SIZE_MAX)
@@ -289,6 +248,26 @@ protected:
     }
 
 public:
+    // Every Node is allocated by ASTAllocator (ASTPool memory)
+    inline void* operator new(size_t size, ASTAllocator& allocator)
+    {
+        return allocator.allocate(size);
+    }
+
+    // For temporal Node that is allocated in the stack
+    inline void* operator new(size_t size, void* p)
+    {
+        return p;
+    }
+
+    void* operator new(size_t) = delete;
+    void* operator new[](size_t) = delete;
+    void operator delete(void*)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    void operator delete[](void*) = delete;
+
     virtual ~Node()
     {
     }
@@ -527,7 +506,118 @@ public:
     NodeLOC m_loc;
 };
 
-typedef std::vector<Node*> NodeVector;
+class SentinelNode {
+public:
+    SentinelNode()
+        : m_astNode(nullptr)
+        , m_next(nullptr)
+    {
+    }
+
+    SentinelNode(Node* node)
+        : m_astNode(node)
+        , m_next(nullptr)
+    {
+    }
+
+    Node* astNode() const
+    {
+        return m_astNode;
+    }
+
+    SentinelNode* next() const
+    {
+        return m_next;
+    }
+
+    void setASTNode(Node* node)
+    {
+        m_astNode = node;
+    }
+
+    void setNext(SentinelNode* next)
+    {
+        m_next = next;
+    }
+
+    ALWAYS_INLINE void* operator new(size_t size, ASTAllocator& allocator)
+    {
+        return allocator.allocate(size);
+    }
+
+private:
+    Node* m_astNode;
+    SentinelNode* m_next;
+};
+
+class NodeList {
+public:
+    NodeList()
+        : m_size(0)
+        , m_headNode()
+        , m_lastNode(&m_headNode)
+    {
+        ASSERT(!m_headNode.next() && !m_lastNode->next());
+    }
+
+    NodeList(const NodeList& other)
+        : m_size(other.m_size)
+        , m_headNode(other.m_size > 0 ? other.m_headNode : nullptr)
+        , m_lastNode(other.m_size > 0 ? other.m_lastNode : &m_headNode)
+    {
+        ASSERT(!m_lastNode->next());
+    }
+
+    size_t size() const
+    {
+        return m_size;
+    }
+
+    void append(ASTAllocator& allocator, Node* node)
+    {
+        SentinelNode* newNode = new (allocator) SentinelNode(node);
+        m_lastNode->setNext(newNode);
+        m_lastNode = newNode;
+        m_size++;
+    }
+
+    SentinelNode* begin()
+    {
+        return m_headNode.next();
+    }
+
+    SentinelNode* end()
+    {
+        return nullptr;
+    }
+
+    SentinelNode* back()
+    {
+        return m_lastNode;
+    }
+
+    const NodeList& operator=(const NodeList& other)
+    {
+        if (&other == this) {
+            return *this;
+        }
+
+        m_size = other.size();
+        m_headNode = other.m_headNode;
+        if (other.size()) {
+            m_lastNode = other.m_lastNode;
+        } else {
+            m_lastNode = &m_headNode;
+        }
+        return *this;
+    }
+
+private:
+    size_t m_size;
+    SentinelNode m_headNode;
+    SentinelNode* m_lastNode;
+};
+
 // we can use atomic allocator here because there is no pointer value on Vector
 typedef VectorWithInlineStorage<KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT, Value, GCUtil::gc_malloc_atomic_allocator<Value>> NumeralLiteralVector;
 }

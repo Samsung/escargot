@@ -32,7 +32,6 @@ ASTAllocator::ASTAllocator()
 ASTAllocator::~ASTAllocator()
 {
     ASSERT(m_astPools.size() == 0);
-    ASSERT(m_astDestructibleNodes.size() == 0);
 
     free(currentPool());
 }
@@ -43,11 +42,6 @@ void ASTAllocator::reset()
     ASSERT(GC_is_disabled());
     ASSERT(m_astPoolMemory != nullptr && m_astPoolEnd != nullptr);
     ASSERT(static_cast<size_t>(m_astPoolEnd - m_astPoolMemory) >= 0);
-
-    for (size_t i = 0; i < m_astDestructibleNodes.size(); i++) {
-        m_astDestructibleNodes[i]->~DestructibleNode();
-    }
-    m_astDestructibleNodes.clear();
 
     for (size_t i = 0; i < m_astPools.size(); i++) {
         free(m_astPools[i]);
@@ -69,15 +63,6 @@ void* ASTAllocator::allocate(size_t size)
     void* block = m_astPoolMemory;
     m_astPoolMemory += alignedSize;
     return block;
-}
-
-void* ASTAllocator::allocateDestructible(size_t size)
-{
-    void* ptr = allocate(size);
-    DestructibleNode* destructible = static_cast<DestructibleNode*>(ptr);
-    m_astDestructibleNodes.push_back(destructible);
-
-    return ptr;
 }
 
 void ASTAllocator::allocatePool()

@@ -31,10 +31,6 @@ public:
     {
     }
 
-    virtual ~ExportDeclarationNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::ExportDeclaration; }
 };
 }

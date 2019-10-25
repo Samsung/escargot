@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~BinaryExpressionLogicalAndNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionLogicalAnd; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {

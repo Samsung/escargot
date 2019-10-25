@@ -32,17 +32,12 @@ struct TemplateElement : public gc {
 
 typedef Vector<TemplateElement*, GCUtil::gc_malloc_allocator<TemplateElement*>> TemplateElementVector;
 
-class TemplateLiteralNode : public ExpressionNode, public DestructibleNode {
+class TemplateLiteralNode : public ExpressionNode {
 public:
-    using DestructibleNode::operator new;
-    TemplateLiteralNode(TemplateElementVector* vector, NodeVector&& expressions)
+    TemplateLiteralNode(TemplateElementVector* vector, NodeList& expressions)
         : ExpressionNode()
         , m_quasis(vector)
-        , m_expressions(std::move(expressions))
-    {
-    }
-
-    virtual ~TemplateLiteralNode()
+        , m_expressions(expressions)
     {
     }
 
@@ -51,7 +46,7 @@ public:
         return m_quasis;
     }
 
-    const NodeVector& expressions()
+    NodeList& expressions()
     {
         return m_expressions;
     }
@@ -64,13 +59,14 @@ public:
         codeBlock->m_literalData.push_back(str);
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(str)), context, this);
 
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            size_t eSrc = m_expressions[i]->getRegister(codeBlock, context);
-            m_expressions[i]->generateExpressionByteCode(codeBlock, context, eSrc);
+        size_t index = 0;
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+            size_t eSrc = expression->astNode()->getRegister(codeBlock, context);
+            expression->astNode()->generateExpressionByteCode(codeBlock, context, eSrc);
             codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, eSrc, dstRegister), context, this);
             context->giveUpRegister();
 
-            String* str = new UTF16String(std::move((*m_quasis)[i + 1]->value));
+            String* str = new UTF16String(std::move((*m_quasis)[index + 1]->value));
             if (str->length()) {
                 codeBlock->m_literalData.push_back(str);
                 size_t reg = context->getRegister();
@@ -78,13 +74,14 @@ public:
                 codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this);
                 context->giveUpRegister();
             }
+            index++;
         }
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            m_expressions[i]->iterateChildrenIdentifier(fn);
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+            expression->astNode()->iterateChildrenIdentifier(fn);
         }
     }
 
@@ -92,14 +89,14 @@ public:
     {
         fn(this);
 
-        for (size_t i = 0; i < m_expressions.size(); i++) {
-            m_expressions[i]->iterateChildren(fn);
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+            expression->astNode()->iterateChildren(fn);
         }
     }
 
 private:
     TemplateElementVector* m_quasis;
-    NodeVector m_expressions;
+    NodeList m_expressions;
 };
 }
 

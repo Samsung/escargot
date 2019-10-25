@@ -34,10 +34,6 @@ public:
     {
     }
 
-    virtual ~StatementNode()
-    {
-    }
-
     virtual bool isStatement()
     {
         return true;

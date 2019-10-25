@@ -27,17 +27,12 @@
 
 namespace Escargot {
 
-class CallExpressionNode : public ExpressionNode, public DestructibleNode {
+class CallExpressionNode : public ExpressionNode {
 public:
-    using DestructibleNode::operator new;
-    CallExpressionNode(Node* callee, NodeVector&& arguments)
+    CallExpressionNode(Node* callee, NodeList& arguments)
         : ExpressionNode()
         , m_callee(callee)
-        , m_arguments(std::move(arguments))
-    {
-    }
-
-    virtual ~CallExpressionNode()
+        , m_arguments(arguments)
     {
     }
 
@@ -54,19 +49,23 @@ public:
             if (m_arguments.size() < smallAmountOfArguments) {
                 bool isSorted = true;
                 ByteCodeRegisterIndex regs[smallAmountOfArguments];
-                for (size_t i = 0; i < m_arguments.size(); i++) {
-                    regs[i] = m_arguments[i]->getRegister(codeBlock, context);
-                    if (regs[i] != regs[0] + i) {
+                size_t regIndex = 0;
+                for (SentinelNode* argument = m_arguments.begin(); argument != m_arguments.end(); argument = argument->next()) {
+                    regs[regIndex] = argument->astNode()->getRegister(codeBlock, context);
+                    if (regs[regIndex] != regs[0] + regIndex) {
                         isSorted = false;
                     }
-                    if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
+                    if (argument->astNode()->type() == ASTNodeType::SpreadElement) {
                         hasSpreadElement = true;
                     }
+                    regIndex++;
                 }
 
                 if (isSorted) {
-                    for (size_t i = 0; i < m_arguments.size(); i++) {
-                        m_arguments[i]->generateExpressionByteCode(codeBlock, context, regs[i]);
+                    regIndex = 0;
+                    for (SentinelNode* argument = m_arguments.begin(); argument != m_arguments.end(); argument = argument->next()) {
+                        argument->astNode()->generateExpressionByteCode(codeBlock, context, regs[regIndex]);
+                        regIndex++;
                     }
                 }
                 for (size_t i = 0; i < m_arguments.size(); i++) {
@@ -79,12 +78,12 @@ public:
 
             ByteCodeRegisterIndex argStartIndex = context->getRegister();
             context->giveUpRegister();
-            for (size_t i = 0; i < m_arguments.size(); i++) {
-                if (m_arguments[i]->type() == ASTNodeType::SpreadElement) {
+            for (SentinelNode* argument = m_arguments.begin(); argument != m_arguments.end(); argument = argument->next()) {
+                if (argument->astNode()->type() == ASTNodeType::SpreadElement) {
                     hasSpreadElement = true;
                 }
                 ByteCodeRegisterIndex argIndex = context->getRegister();
-                m_arguments[i]->generateExpressionByteCode(codeBlock, context, argIndex);
+                argument->astNode()->generateExpressionByteCode(codeBlock, context, argIndex);
             }
             for (size_t i = 0; i < m_arguments.size(); i++) {
                 context->giveUpRegister();
@@ -95,7 +94,7 @@ public:
         return std::make_pair(REGISTER_LIMIT, false);
     }
 
-    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const NodeVector& args)
+    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, NodeList& args)
     {
         if (!context->m_canSkipCopyToRegister) {
             return false;
@@ -123,8 +122,8 @@ public:
         };
 
         callee->iterateChildrenIdentifier(fn);
-        for (size_t i = 0; i < args.size(); i++) {
-            args[i]->iterateChildrenIdentifier(fn);
+        for (SentinelNode* argument = args.begin(); argument != args.end(); argument = argument->next()) {
+            argument->astNode()->iterateChildrenIdentifier(fn);
         }
 
         for (size_t i = 0; i < names.size(); i++) {
@@ -223,8 +222,8 @@ public:
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_callee->iterateChildrenIdentifier(fn);
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            m_arguments[i]->iterateChildrenIdentifier(fn);
+        for (SentinelNode* argument = m_arguments.begin(); argument != m_arguments.end(); argument = argument->next()) {
+            argument->astNode()->iterateChildrenIdentifier(fn);
         }
     }
 
@@ -233,14 +232,14 @@ public:
         fn(this);
 
         m_callee->iterateChildren(fn);
-        for (size_t i = 0; i < m_arguments.size(); i++) {
-            m_arguments[i]->iterateChildren(fn);
+        for (SentinelNode* argument = m_arguments.begin(); argument != m_arguments.end(); argument = argument->next()) {
+            argument->astNode()->iterateChildren(fn);
         }
     }
 
 private:
     Node* m_callee; // callee: Expression;
-    NodeVector m_arguments; // arguments: [ Expression ];
+    NodeList m_arguments; // arguments: [ Expression ];
 };
 }
 

@@ -40,10 +40,6 @@ public:
         m_loc = loc;
     }
 
-    virtual ~RestElementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::RestElement; }
     Node* argument()
     {

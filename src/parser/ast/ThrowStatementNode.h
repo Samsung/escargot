@@ -32,9 +32,6 @@ public:
         , m_argument(argument)
     {
     }
-    virtual ~ThrowStatementNode()
-    {
-    }
 
     virtual ASTNodeType type() override { return ASTNodeType::ThrowStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override

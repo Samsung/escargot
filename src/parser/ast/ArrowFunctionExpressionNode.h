@@ -24,34 +24,33 @@
 
 namespace Escargot {
 
-class ArrowParameterPlaceHolderNode : public Node, public DestructibleNode {
+class ArrowParameterPlaceHolderNode : public Node {
 public:
-    using DestructibleNode::operator new;
-    ArrowParameterPlaceHolderNode()
+    explicit ArrowParameterPlaceHolderNode()
         : Node()
     {
     }
 
-    explicit ArrowParameterPlaceHolderNode(Node* param)
+    explicit ArrowParameterPlaceHolderNode(ASTAllocator& allocator, Node* param)
         : Node()
     {
-        m_params.push_back(param);
+        m_params.append(allocator, param);
     }
 
-    explicit ArrowParameterPlaceHolderNode(NodeVector&& params)
+    explicit ArrowParameterPlaceHolderNode(NodeList& params)
         : Node()
-        , m_params(std::move(params))
+        , m_params(params)
     {
     }
 
-    NodeVector& params()
+    NodeList& params()
     {
         return m_params;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ArrowParameterPlaceHolder; }
 private:
-    NodeVector m_params;
+    NodeList m_params;
 };
 
 class ArrowFunctionExpressionNode : public ExpressionNode {

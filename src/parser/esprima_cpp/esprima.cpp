@@ -52,7 +52,8 @@
 
 #define ASTNode typename ASTBuilder::ASTNode
 #define ASTStatementContainer typename ASTBuilder::ASTStatementContainer
-#define ASTNodeVector typename ASTBuilder::ASTNodeVector
+#define ASTSentinelNode typename ASTBuilder::ASTSentinelNode
+#define ASTNodeList typename ASTBuilder::ASTNodeList
 
 #define BEGIN_FUNCTION_SCANNING(name)                      \
     SyntaxChecker newBuilder;                              \
@@ -174,7 +175,7 @@ public:
     AtomicString stringArguments;
 
     struct ParseFormalParametersResult {
-        ParameterNodeVector params;
+        VectorWithInlineStorage<8, SyntaxNode, std::allocator<SyntaxNode>> params;
         VectorWithInlineStorage<8, AtomicString, std::allocator<AtomicString>> paramSet;
         Scanner::SmallScannerResult stricted;
         Scanner::SmallScannerResult firstRestricted;
@@ -397,7 +398,7 @@ public:
             return;
         }
 
-        ParameterNodeVector& params = paramsResult.params;
+        VectorWithInlineStorage<8, SyntaxNode, std::allocator<SyntaxNode>>& params = paramsResult.params;
         const auto& paramNames = paramsResult.paramSet;
         bool hasParameterOtherThanIdentifier = false;
 #ifndef NDEBUG
@@ -1205,17 +1206,17 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(LeftSquareBracket);
-        ASTNodeVector elements;
+        ASTNodeList elements;
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
                 this->nextToken();
-                elements.push_back(nullptr);
+                elements.append(this->allocator, nullptr);
             } else {
                 if (this->match(PeriodPeriodPeriod)) {
-                    elements.push_back(this->parseBindingRestElement(builder, params, kind, isExplicitVariableDeclaration));
+                    elements.append(this->allocator, this->parseBindingRestElement(builder, params, kind, isExplicitVariableDeclaration));
                     break;
                 } else {
-                    elements.push_back(this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration));
+                    elements.append(this->allocator, this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration));
                 }
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
@@ -1224,7 +1225,7 @@ public:
         }
         this->expect(RightSquareBracket);
 
-        return this->finalize(node, builder.createArrayPatternNode(std::move(elements)));
+        return this->finalize(node, builder.createArrayPatternNode(elements));
     }
 
     template <class ASTBuilder>
@@ -1278,11 +1279,11 @@ public:
     ASTNode parseObjectPattern(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
-        ASTNodeVector properties;
+        ASTNodeList properties;
 
         this->expect(LeftBrace);
         while (!this->match(RightBrace)) {
-            properties.push_back(this->parsePropertyPattern(builder, params, kind, isExplicitVariableDeclaration));
+            properties.append(this->allocator, this->parsePropertyPattern(builder, params, kind, isExplicitVariableDeclaration));
 
             if (!this->match(RightBrace)) {
                 this->expect(Comma);
@@ -1290,7 +1291,7 @@ public:
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, builder.createObjectPatternNode(std::move(properties)));
+        return this->finalize(node, builder.createObjectPatternNode(properties));
     }
 
     template <class ASTBuilder>
@@ -1404,7 +1405,7 @@ public:
     ASTNode parseArrayInitializer(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
-        ASTNodeVector elements;
+        ASTNodeList elements;
 
         this->expect(LeftSquareBracket);
 
@@ -1413,9 +1414,9 @@ public:
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
                 this->nextToken();
-                elements.push_back(nullptr);
+                elements.append(this->allocator, nullptr);
             } else if (this->match(PeriodPeriodPeriod)) {
-                elements.push_back(this->parseSpreadElement<ASTBuilder, true>(builder));
+                elements.append(this->allocator, this->parseSpreadElement<ASTBuilder, true>(builder));
                 hasSpreadElement = true;
                 if (!this->match(RightSquareBracket)) {
                     this->context->isAssignmentTarget = false;
@@ -1423,7 +1424,7 @@ public:
                     this->expect(Comma);
                 }
             } else {
-                elements.push_back(this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, true>));
+                elements.append(this->allocator, this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, true>));
                 if (!this->match(RightSquareBracket)) {
                     this->expect(Comma);
                 }
@@ -1431,7 +1432,7 @@ public:
         }
         this->expect(RightSquareBracket);
 
-        return this->finalize(node, builder.createArrayExpressionNode(std::move(elements), AtomicString(), nullptr, hasSpreadElement, false));
+        return this->finalize(node, builder.createArrayExpressionNode(elements, AtomicString(), nullptr, hasSpreadElement, false));
     }
 
     // ECMA-262 12.2.6 Object Initializer
@@ -1726,18 +1727,18 @@ public:
     {
         this->expect(LeftBrace);
         MetaNode node = this->createNode();
-        ASTNodeVector properties;
+        ASTNodeList properties;
 
         bool hasProto = false;
         while (!this->match(RightBrace)) {
-            properties.push_back(this->parseObjectProperty(builder, hasProto));
+            properties.append(this->allocator, this->parseObjectProperty(builder, hasProto));
             if (!this->match(RightBrace)) {
                 this->expectCommaSeparator();
             }
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, builder.createObjectExpressionNode(std::move(properties)));
+        return this->finalize(node, builder.createObjectExpressionNode(properties));
     }
 
     // ECMA-262 12.2.9 Template Literals
@@ -1782,15 +1783,15 @@ public:
     {
         MetaNode node = this->createNode();
 
-        ASTNodeVector expressions;
+        ASTNodeList expressions;
         TemplateElementVector* quasis = new (GC) TemplateElementVector;
         quasis->push_back(this->parseTemplateHead());
         while (!quasis->back()->tail) {
-            expressions.push_back(this->parseExpression(builder));
+            expressions.append(this->allocator, this->parseExpression(builder));
             TemplateElement* quasi = this->parseTemplateElement();
             quasis->push_back(quasi);
         }
-        return this->finalize(node, builder.createTemplateLiteralNode(quasis, std::move(expressions)));
+        return this->finalize(node, builder.createTemplateLiteralNode(quasis, expressions));
     }
 
     template <class ASTBuilder>
@@ -1816,17 +1817,19 @@ public:
                 if (!this->match(Arrow)) {
                     this->expect(Arrow);
                 }
-                exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(exprNode));
+                ASTNodeList expressions;
+                expressions.append(this->allocator, exprNode);
+                exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(expressions));
             } else {
                 bool arrow = false;
                 this->context->isBindingElement = true;
                 exprNode = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
                 if (this->match(Comma)) {
-                    ASTNodeVector expressions;
+                    ASTNodeList expressions;
 
                     this->context->isAssignmentTarget = false;
-                    expressions.push_back(exprNode);
+                    expressions.append(this->allocator, exprNode);
                     while (this->startMarker.index < this->scanner->length) {
                         if (!this->match(Comma)) {
                             break;
@@ -1835,35 +1838,35 @@ public:
 
                         if (this->match(RightParenthesis)) {
                             this->nextToken();
-                            for (size_t i = 0; i < expressions.size(); i++) {
-                                expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i]);
+                            for (ASTSentinelNode expression = expressions.begin(); expression != expressions.end(); expression = expression->next()) {
+                                expression->setASTNode(builder.reinterpretExpressionAsPattern(expression->astNode()));
                             }
                             arrow = true;
-                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(std::move(expressions)));
+                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(expressions));
                         } else if (this->match(PeriodPeriodPeriod)) {
                             if (!this->context->isBindingElement) {
                                 this->throwUnexpectedToken(this->lookahead);
                             }
-                            expressions.push_back(this->parseRestElement(builder, params));
+                            expressions.append(this->allocator, this->parseRestElement(builder, params));
                             this->expect(RightParenthesis);
                             if (!this->match(Arrow)) {
                                 this->expect(Arrow);
                             }
                             this->context->isBindingElement = false;
-                            for (size_t i = 0; i < expressions.size(); i++) {
-                                expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i]);
+                            for (ASTSentinelNode expression = expressions.begin(); expression != expressions.end(); expression = expression->next()) {
+                                expression->setASTNode(builder.reinterpretExpressionAsPattern(expression->astNode()));
                             }
                             arrow = true;
-                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(std::move(expressions)));
+                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(expressions));
                         } else {
-                            expressions.push_back(this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
+                            expressions.append(this->allocator, this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
                         }
                         if (arrow) {
                             break;
                         }
                     }
                     if (!arrow) {
-                        exprNode = this->finalize(this->startNode(startToken), builder.createSequenceExpressionNode(std::move(expressions)));
+                        exprNode = this->finalize(this->startNode(startToken), builder.createSequenceExpressionNode(expressions));
                     }
                 }
 
@@ -1872,7 +1875,9 @@ public:
                     if (this->match(Arrow)) {
                         if (exprNode->type() == Identifier && exprNode->asIdentifier()->name() == "yield") {
                             arrow = true;
-                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(exprNode));
+                            ASTNodeList expressions;
+                            expressions.append(this->allocator, exprNode);
+                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(expressions));
                         }
                         if (!arrow) {
                             if (!this->context->isBindingElement) {
@@ -1880,22 +1885,22 @@ public:
                             }
 
                             if (builder.isNodeGenerator() && (exprNode->type() == SequenceExpression)) {
-                                ASTNodeVector& expressions = exprNode->asSequenceExpression()->expressions();
-                                for (size_t i = 0; i < expressions.size(); i++) {
-                                    expressions[i] = builder.reinterpretExpressionAsPattern(expressions[i]);
+                                ASTNodeList& expressions = exprNode->asSequenceExpression()->expressions();
+                                for (ASTSentinelNode expression = expressions.begin(); expression != expressions.end(); expression = expression->next()) {
+                                    expression->setASTNode(builder.reinterpretExpressionAsPattern(expression->astNode()));
                                 }
                             } else {
                                 exprNode = builder.reinterpretExpressionAsPattern(exprNode);
                             }
 
-                            ASTNodeVector params;
+                            ASTNodeList params;
                             if (builder.isNodeGenerator() && (exprNode->type() == SequenceExpression)) {
                                 params = exprNode->asSequenceExpression()->expressions();
                             } else {
-                                params.push_back(exprNode);
+                                params.append(this->allocator, exprNode);
                             }
 
-                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(std::move(params)));
+                            exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(params));
                         }
                     }
                     this->context->isBindingElement = false;
@@ -1909,10 +1914,10 @@ public:
     // ECMA-262 12.3 Left-Hand-Side Expressions
 
     template <class ASTBuilder>
-    ASTNodeVector parseArguments(ASTBuilder& builder)
+    ASTNodeList parseArguments(ASTBuilder& builder)
     {
         this->expect(LeftParenthesis);
-        ASTNodeVector args;
+        ASTNodeList args;
         if (!this->match(RightParenthesis)) {
             while (true) {
                 ASTNode expr = nullptr;
@@ -1921,7 +1926,7 @@ public:
                 } else {
                     expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
                 }
-                args.push_back(expr);
+                args.append(this->allocator, expr);
                 if (this->match(RightParenthesis)) {
                     break;
                 }
@@ -1973,14 +1978,14 @@ public:
 
         MetaNode node = this->createNode();
         ASTNode callee = this->isolateCoverGrammar(builder, &Parser::parseLeftHandSideExpression<ASTBuilder>);
-        ASTNodeVector args;
+        ASTNodeList args;
         if (this->match(LeftParenthesis)) {
             args = this->parseArguments(builder);
         }
         this->context->isAssignmentTarget = false;
         this->context->isBindingElement = false;
 
-        return this->finalize(node, builder.createNewExpressionNode(callee, std::move(args)));
+        return this->finalize(node, builder.createNewExpressionNode(callee, args));
     }
 
     template <class ASTBuilder>
@@ -2794,17 +2799,17 @@ public:
         exprNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
         if (this->match(Comma)) {
-            ASTNodeVector expressions;
-            expressions.push_back(exprNode);
+            ASTNodeList expressions;
+            expressions.append(this->allocator, exprNode);
             while (this->startMarker.index < this->scanner->length) {
                 if (!this->match(Comma)) {
                     break;
                 }
                 this->nextToken();
-                expressions.push_back(this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
+                expressions.append(this->allocator, this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
             }
 
-            exprNode = this->finalize(this->startNode(startToken), builder.createSequenceExpressionNode(std::move(expressions)));
+            exprNode = this->finalize(this->startNode(startToken), builder.createSequenceExpressionNode(expressions));
         }
 
         return exprNode;
@@ -3028,13 +3033,13 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNodeVector parseBindingList(ASTBuilder& builder, KeywordKind kind, bool inFor)
+    ASTNodeList parseBindingList(ASTBuilder& builder, KeywordKind kind, bool inFor)
     {
-        ASTNodeVector list;
-        list.push_back(this->parseLexicalBinding(builder, kind, inFor));
+        ASTNodeList list;
+        list.append(this->allocator, this->parseLexicalBinding(builder, kind, inFor));
         while (this->match(Comma)) {
             this->nextToken();
-            list.push_back(this->parseLexicalBinding(builder, kind, inFor));
+            list.append(this->allocator, this->parseLexicalBinding(builder, kind, inFor));
         }
         return list;
     }
@@ -3047,12 +3052,12 @@ public:
         this->nextToken(token);
         auto kind = token->valueKeywordKind;
 
-        ASTNodeVector declarations;
+        ASTNodeList declarations;
         declarations = this->parseBindingList(builder, kind, inFor);
 
         this->consumeSemicolon();
 
-        return this->finalize(node, builder.createVariableDeclarationNode(std::move(declarations), kind));
+        return this->finalize(node, builder.createVariableDeclarationNode(declarations, kind));
     }
 
     bool isLexicalDeclaration()
@@ -3209,21 +3214,21 @@ public:
     }
 
     template <class ASTBuilder>
-    std::tuple<bool, bool, ASTNodeVector> parseVariableDeclarationList(ASTBuilder& builder, DeclarationOptions& options)
+    std::tuple<bool, bool, ASTNodeList> parseVariableDeclarationList(ASTBuilder& builder, DeclarationOptions& options)
     {
         DeclarationOptions opt;
         opt.inFor = options.inFor;
         opt.kind = options.kind;
 
-        ASTNodeVector list;
+        ASTNodeList list;
         bool hasInit;
         ASTNodeType leftSideType;
-        list.push_back(this->parseVariableDeclaration(builder, opt, hasInit, leftSideType));
+        list.append(this->allocator, this->parseVariableDeclaration(builder, opt, hasInit, leftSideType));
         while (this->match(Comma)) {
             this->nextToken();
             bool ignored;
             ASTNodeType ignored2;
-            list.push_back(this->parseVariableDeclaration(builder, opt, ignored, ignored2));
+            list.append(this->allocator, this->parseVariableDeclaration(builder, opt, ignored, ignored2));
         }
 
         bool leftIsArrayOrObjectPattern = (leftSideType == ArrayPattern || leftSideType == ObjectPattern);
@@ -3239,10 +3244,10 @@ public:
         opt.inFor = false;
         opt.kind = kind;
         auto declarations = this->parseVariableDeclarationList(builder, opt);
-        ASTNodeVector declarationVector = std::get<2>(declarations);
+        ASTNodeList declarationList = std::get<2>(declarations);
         this->consumeSemicolon();
 
-        return this->finalize(node, builder.createVariableDeclarationNode(std::move(declarationVector), kind));
+        return this->finalize(node, builder.createVariableDeclarationNode(declarationList, kind));
     }
 
     // ECMA-262 13.4 Empty Statement
@@ -3393,22 +3398,22 @@ public:
                 opt.kind = VarKeyword;
 
                 auto declarations = this->parseVariableDeclarationList(builder, opt);
-                ASTNodeVector declarationVector = std::get<2>(declarations);
+                ASTNodeList declarationList = std::get<2>(declarations);
                 this->context->allowIn = previousAllowIn;
 
-                if (declarationVector.size() == 1 && this->matchKeyword(InKeyword)) {
+                if (declarationList.size() == 1 && this->matchKeyword(InKeyword)) {
                     if (std::get<0>(declarations) && (std::get<1>(declarations) || this->context->strict)) {
                         this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
-                    left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), VarKeyword));
+                    left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->nextToken();
                     type = statementTypeForIn;
-                } else if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
-                    left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), VarKeyword));
+                } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
+                    left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->nextToken();
                     type = statementTypeForOf;
                 } else {
-                    init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), VarKeyword));
+                    init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->expect(SemiColon);
                 }
             } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
@@ -3434,19 +3439,19 @@ public:
                     opt.kind = kind;
 
                     auto declarations = this->parseVariableDeclarationList(builder, opt);
-                    ASTNodeVector declarationVector = std::get<2>(declarations);
+                    ASTNodeList declarationList = std::get<2>(declarations);
                     this->context->allowIn = previousAllowIn;
 
-                    if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
-                        left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), kind));
+                    if (declarationList.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
+                        left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                         this->nextToken();
                         type = statementTypeForIn;
-                    } else if (declarationVector.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
-                        left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), kind));
+                    } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
+                        left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                         this->nextToken();
                         type = statementTypeForOf;
                     } else {
-                        init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(std::move(declarationVector), kind));
+                        init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                         this->expect(SemiColon);
                     }
                 }
@@ -3483,13 +3488,13 @@ public:
                     type = statementTypeForOf;
                 } else {
                     if (this->match(Comma)) {
-                        ASTNodeVector initSeq;
-                        initSeq.push_back(init);
+                        ASTNodeList initSeq;
+                        initSeq.append(this->allocator, init);
                         while (this->match(Comma)) {
                             this->nextToken();
-                            initSeq.push_back(this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
+                            initSeq.append(this->allocator, this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
                         }
-                        init = this->finalize(this->startNode(initStartToken), builder.createSequenceExpressionNode(std::move(initSeq)));
+                        init = this->finalize(this->startNode(initStartToken), builder.createSequenceExpressionNode(initSeq));
                     }
                     this->expect(SemiColon);
                 }
@@ -4786,7 +4791,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        ASTNodeVector body;
+        ASTNodeList body;
         ASTNode constructor = nullptr;
 
         this->expect(LeftBrace);
@@ -4796,7 +4801,7 @@ public:
             } else {
                 ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass);
                 if (classElement) {
-                    body.push_back(classElement);
+                    body.append(this->allocator, classElement);
                 }
             }
         }
@@ -4804,7 +4809,7 @@ public:
         endNode.index++; // advancing for '{'
         this->expect(RightBrace);
 
-        return this->finalize(node, builder.createClassBodyNode(std::move(body), constructor));
+        return this->finalize(node, builder.createClassBodyNode(body, constructor));
     }
 
     template <class ASTBuilder, typename ClassType>
@@ -4902,12 +4907,12 @@ public:
 
     // {foo, bar as bas}
     template <class ASTBuilder>
-    ASTNodeVector parseNamedImports(ASTBuilder& builder)
+    ASTNodeList parseNamedImports(ASTBuilder& builder)
     {
         this->expect(PunctuatorKind::LeftBrace);
-        ASTNodeVector specifiers;
+        ASTNodeList specifiers;
         while (!this->match(PunctuatorKind::RightBrace)) {
-            specifiers.push_back(this->parseImportSpecifier(builder));
+            specifiers.append(this->allocator, this->parseImportSpecifier(builder));
             if (!this->match(PunctuatorKind::RightBrace)) {
                 this->expect(PunctuatorKind::Comma);
             }
@@ -4957,7 +4962,7 @@ public:
         ASTNode src = nullptr;
 
         Script::ImportEntryVector importEntrys;
-        ASTNodeVector specifiers;
+        ASTNodeList specifiers;
         if (this->lookahead.type == Token::StringLiteralToken) {
             // import 'foo';
             src = this->parseModuleSpecifier(builder);
@@ -4967,31 +4972,31 @@ public:
                 specifiers = this->parseNamedImports(builder);
 
                 if (builder.isNodeGenerator()) {
-                    for (size_t i = 0; i < specifiers.size(); i++) {
+                    for (ASTSentinelNode specifier = specifiers.begin(); specifier != specifiers.end(); specifier = specifier->next()) {
                         Script::ImportEntry entry;
-                        entry.m_importName = specifiers[i]->asImportSpecifier()->imported()->name();
-                        entry.m_localName = specifiers[i]->asImportSpecifier()->local()->name();
+                        entry.m_importName = specifier->astNode()->asImportSpecifier()->imported()->name();
+                        entry.m_localName = specifier->astNode()->asImportSpecifier()->local()->name();
                         importEntrys.push_back(entry);
                     }
                 }
             } else if (this->match(PunctuatorKind::Multiply)) {
                 // import * as foo
-                specifiers.push_back(this->parseImportNamespaceSpecifier(builder));
+                specifiers.append(this->allocator, this->parseImportNamespaceSpecifier(builder));
 
                 if (builder.isNodeGenerator()) {
                     Script::ImportEntry entry;
                     entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
-                    entry.m_localName = specifiers.back()->asImportNamespaceSpecifier()->local()->name();
+                    entry.m_localName = specifiers.back()->astNode()->asImportNamespaceSpecifier()->local()->name();
                     importEntrys.push_back(entry);
                 }
             } else if (this->isIdentifierName(&this->lookahead) && !this->matchKeyword(KeywordKind::DefaultKeyword)) {
                 // import foo
-                specifiers.push_back(this->parseImportDefaultSpecifier(builder));
+                specifiers.append(this->allocator, this->parseImportDefaultSpecifier(builder));
 
                 if (builder.isNodeGenerator()) {
                     Script::ImportEntry entry;
                     entry.m_importName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = specifiers.back()->asImportDefaultSpecifier()->local()->name();
+                    entry.m_localName = specifiers.back()->astNode()->asImportDefaultSpecifier()->local()->name();
                     importEntrys.push_back(entry);
                 }
 
@@ -4999,12 +5004,12 @@ public:
                     this->nextToken();
                     if (this->match(PunctuatorKind::Multiply)) {
                         // import foo, * as foo
-                        specifiers.push_back(this->parseImportNamespaceSpecifier(builder));
+                        specifiers.append(this->allocator, this->parseImportNamespaceSpecifier(builder));
 
                         if (builder.isNodeGenerator()) {
                             Script::ImportEntry entry;
                             entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
-                            entry.m_localName = specifiers.back()->asImportNamespaceSpecifier()->local()->name();
+                            entry.m_localName = specifiers.back()->astNode()->asImportNamespaceSpecifier()->local()->name();
                             importEntrys.push_back(entry);
                         }
                     } else if (this->match(PunctuatorKind::LeftBrace)) {
@@ -5012,14 +5017,13 @@ public:
                         auto v = this->parseNamedImports(builder);
 
                         if (builder.isNodeGenerator()) {
-                            for (size_t i = 0; i < v.size(); i++) {
+                            for (ASTSentinelNode n = v.begin(); n != v.end(); n = n->next()) {
                                 Script::ImportEntry entry;
-                                entry.m_importName = v[i]->asImportSpecifier()->imported()->name();
-                                entry.m_localName = v[i]->asImportSpecifier()->local()->name();
+                                entry.m_importName = n->astNode()->asImportSpecifier()->imported()->name();
+                                entry.m_localName = n->astNode()->asImportSpecifier()->local()->name();
                                 importEntrys.push_back(entry);
+                                specifiers.append(this->allocator, n->astNode());
                             }
-
-                            specifiers.insert(specifiers.end(), v.begin(), v.end());
                         }
                     } else {
                         this->throwUnexpectedToken(this->lookahead);
@@ -5047,7 +5051,7 @@ public:
             }
         }
 
-        return this->finalize(node, builder.createImportDeclarationNode(std::move(specifiers), src));
+        return this->finalize(node, builder.createImportDeclarationNode(specifiers, src));
     }
 
     // ECMA-262 15.2.3 Exports
@@ -5232,17 +5236,17 @@ public:
                 entry.m_localName = declaredNames[i];
                 addExportDeclarationEntry(entry);
             }
-            exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeVector(), nullptr));
+            exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeList(), nullptr));
             this->nameDeclaredCallback = oldNameCallback;
         } else {
-            ASTNodeVector specifiers;
+            ASTNodeList specifiers;
             ASTNode source = nullptr;
             bool isExportFromIdentifier = false;
 
             this->expect(PunctuatorKind::LeftBrace);
             while (!this->match(PunctuatorKind::RightBrace)) {
                 isExportFromIdentifier = isExportFromIdentifier || this->matchKeyword(KeywordKind::DefaultKeyword);
-                specifiers.push_back(this->parseExportSpecifier(builder));
+                specifiers.append(this->allocator, this->parseExportSpecifier(builder));
                 if (!this->match(PunctuatorKind::RightBrace)) {
                     this->expect(PunctuatorKind::Comma);
                 }
@@ -5266,22 +5270,22 @@ public:
             }
 
             if (builder.isNodeGenerator()) {
-                for (size_t i = 0; i < specifiers.size(); i++) {
+                for (ASTSentinelNode specifier = specifiers.begin(); specifier != specifiers.end(); specifier = specifier->next()) {
                     Script::ExportEntry entry;
                     if (seenFrom) {
-                        entry.m_exportName = specifiers[i]->asExportSpecifier()->exported()->name();
-                        entry.m_importName = specifiers[i]->asExportSpecifier()->local()->name();
+                        entry.m_exportName = specifier->astNode()->asExportSpecifier()->exported()->name();
+                        entry.m_importName = specifier->astNode()->asExportSpecifier()->local()->name();
                         entry.m_moduleRequest = source->asLiteral()->value().asString();
                     } else {
-                        entry.m_exportName = specifiers[i]->asExportSpecifier()->exported()->name();
-                        entry.m_localName = specifiers[i]->asExportSpecifier()->local()->name();
+                        entry.m_exportName = specifier->astNode()->asExportSpecifier()->exported()->name();
+                        entry.m_localName = specifier->astNode()->asExportSpecifier()->local()->name();
                     }
 
                     addExportDeclarationEntry(entry);
                 }
             }
 
-            exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(nullptr, std::move(specifiers), source));
+            exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(nullptr, specifiers, source));
         }
 
         return exportDeclaration;

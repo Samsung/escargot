@@ -25,15 +25,14 @@
 
 namespace Escargot {
 
-class ArrayPatternNode : public Node, public DestructibleNode {
+class ArrayPatternNode : public Node {
 public:
-    using DestructibleNode::operator new;
-    ArrayPatternNode(NodeVector&& elements)
+    ArrayPatternNode(NodeList& elements)
         : m_elements(elements)
     {
     }
 
-    ArrayPatternNode(NodeVector&& elements, NodeLOC& loc)
+    ArrayPatternNode(NodeList& elements, NodeLOC& loc)
         : m_elements(elements)
     {
         m_loc = loc;
@@ -50,16 +49,15 @@ public:
 
         codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), srcRegister, iteratorIndex), context, this);
 
-        for (size_t i = 0; i < m_elements.size(); i++) {
+        for (SentinelNode* element = m_elements.begin(); element != m_elements.end(); element = element->next()) {
             context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-            if (m_elements[i]) {
-                if (LIKELY(m_elements[i]->type() != RestElement)) {
+            if (element->astNode()) {
+                if (LIKELY(element->astNode()->type() != RestElement)) {
                     codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
-                    m_elements[i]->generateResolveAddressByteCode(codeBlock, context);
-                    m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
+                    element->astNode()->generateResolveAddressByteCode(codeBlock, context);
+                    element->astNode()->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
                 } else {
-                    ASSERT(i == m_elements.size() - 1);
-                    m_elements[i]->generateStoreByteCode(codeBlock, context, iteratorIndex, true);
+                    element->astNode()->generateStoreByteCode(codeBlock, context, iteratorIndex, true);
                 }
             } else {
                 codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
@@ -73,9 +71,9 @@ public:
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        for (size_t i = 0; i < m_elements.size(); i++) {
-            if (m_elements[i]) {
-                m_elements[i]->iterateChildrenIdentifier(fn);
+        for (SentinelNode* element = m_elements.begin(); element != m_elements.end(); element = element->next()) {
+            if (element->astNode()) {
+                element->astNode()->iterateChildrenIdentifier(fn);
             }
         }
     }
@@ -84,14 +82,14 @@ public:
     {
         fn(this);
 
-        for (size_t i = 0; i < m_elements.size(); i++) {
-            if (m_elements[i])
-                m_elements[i]->iterateChildren(fn);
+        for (SentinelNode* element = m_elements.begin(); element != m_elements.end(); element = element->next()) {
+            if (element->astNode())
+                element->astNode()->iterateChildren(fn);
         }
     }
 
 private:
-    NodeVector m_elements;
+    NodeList m_elements;
 };
 }
 

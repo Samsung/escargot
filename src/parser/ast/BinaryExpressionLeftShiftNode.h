@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~BinaryExpressionLeftShiftNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionLeftShift; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {

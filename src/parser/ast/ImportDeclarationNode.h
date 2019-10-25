@@ -25,16 +25,11 @@
 
 namespace Escargot {
 
-class ImportDeclarationNode : public StatementNode, public DestructibleNode {
+class ImportDeclarationNode : public StatementNode {
 public:
-    using DestructibleNode::operator new;
-    ImportDeclarationNode(NodeVector&& specifiers, Node* src)
+    ImportDeclarationNode(NodeList& specifiers, Node* src)
         : m_specifiers(specifiers)
         , m_src(src)
-    {
-    }
-
-    virtual ~ImportDeclarationNode()
     {
     }
 
@@ -43,8 +38,8 @@ public:
     {
         fn(this);
 
-        for (size_t i = 0; i < m_specifiers.size(); i++) {
-            m_specifiers[i]->iterateChildren(fn);
+        for (SentinelNode* specifier = m_specifiers.begin(); specifier != m_specifiers.end(); specifier = specifier->next()) {
+            specifier->astNode()->iterateChildren(fn);
         }
         m_src->iterateChildren(fn);
     }
@@ -54,7 +49,7 @@ public:
     }
 
 private:
-    NodeVector m_specifiers;
+    NodeList m_specifiers;
     Node* m_src;
 };
 }

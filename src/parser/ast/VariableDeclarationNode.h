@@ -26,17 +26,12 @@
 
 namespace Escargot {
 
-class VariableDeclarationNode : public DeclarationNode, public DestructibleNode {
+class VariableDeclarationNode : public DeclarationNode {
 public:
-    using DestructibleNode::operator new;
-    explicit VariableDeclarationNode(NodeVector&& decl, EscargotLexer::KeywordKind kind)
+    explicit VariableDeclarationNode(NodeList& decl, EscargotLexer::KeywordKind kind)
         : DeclarationNode()
         , m_declarations(decl)
         , m_kind(kind)
-    {
-    }
-
-    virtual ~VariableDeclarationNode()
     {
     }
 
@@ -48,16 +43,15 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        size_t len = m_declarations.size();
-        for (size_t i = 0; i < len; i++) {
-            m_declarations[i]->generateStatementByteCode(codeBlock, context);
+        for (SentinelNode* declaration = m_declarations.begin(); declaration != m_declarations.end(); declaration = declaration->next()) {
+            declaration->astNode()->generateStatementByteCode(codeBlock, context);
         }
     }
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf) override
     {
         ASSERT(m_declarations.size() == 1);
-        m_declarations[0]->asVariableDeclarator()->id()->generateStoreByteCode(codeBlock, context, src, true);
+        m_declarations.begin()->astNode()->asVariableDeclarator()->id()->generateStoreByteCode(codeBlock, context, src, true);
     }
 
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
@@ -74,15 +68,14 @@ public:
     {
         fn(this);
 
-        size_t len = m_declarations.size();
-        for (size_t i = 0; i < len; i++) {
-            m_declarations[i]->asVariableDeclarator()->id()->iterateChildren(fn);
-            m_declarations[i]->asVariableDeclarator()->init()->iterateChildren(fn);
+        for (SentinelNode* declaration = m_declarations.begin(); declaration != m_declarations.end(); declaration = declaration->next()) {
+            declaration->astNode()->asVariableDeclarator()->id()->iterateChildren(fn);
+            declaration->astNode()->asVariableDeclarator()->init()->iterateChildren(fn);
         }
     }
 
 private:
-    NodeVector m_declarations; // declarations: [ VariableDeclarator ];
+    NodeList m_declarations; // declarations: [ VariableDeclarator ];
     EscargotLexer::KeywordKind m_kind;
 };
 }

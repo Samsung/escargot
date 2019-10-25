@@ -33,10 +33,6 @@ public:
     {
     }
 
-    virtual ~LabeledStatementNode()
-    {
-    }
-
     virtual ASTNodeType type() override { return ASTNodeType::LabeledStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {

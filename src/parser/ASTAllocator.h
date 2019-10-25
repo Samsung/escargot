@@ -23,28 +23,26 @@
 namespace Escargot {
 
 
-typedef intptr_t ASTAllocAlignment;
-
 class Node;
-class DestructibleNode;
 
 class ASTAllocator {
 public:
+    typedef intptr_t ASTAllocAlignment;
+
     ASTAllocator();
     ~ASTAllocator();
 
     void reset();
     void* allocate(size_t size);
-    void* allocateDestructible(size_t size);
 
     bool isInitialized()
     {
         ASSERT(m_astPools.size() == 0);
-        ASSERT(m_astDestructibleNodes.size() == 0);
         return (m_astPoolMemory == currentPool());
     }
 
 private:
+    // default pool size is set to 128 KB
     static const size_t initialASTPoolSize = 1024 * 128;
 
     size_t alignSize(size_t size)
@@ -64,7 +62,6 @@ private:
     char* m_astPoolEnd;
 
     std::vector<void*> m_astPools;
-    std::vector<DestructibleNode*> m_astDestructibleNodes;
 };
 }
 #endif
