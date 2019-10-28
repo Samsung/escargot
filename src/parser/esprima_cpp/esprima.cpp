@@ -242,36 +242,23 @@ public:
         this->baseMarker.lineNumber = this->scanner->lineNumber;
         this->baseMarker.lineStart = 0;
 
-        this->startMarker.index = 0;
-        this->startMarker.lineNumber = this->scanner->lineNumber;
-        this->startMarker.lineStart = 0;
-
-        this->lastMarker.index = 0;
-        this->lastMarker.lineNumber = this->scanner->lineNumber;
-        this->lastMarker.lineStart = 0;
-
-        {
-            this->lastMarker.index = this->scanner->index;
-            this->lastMarker.lineNumber = this->scanner->lineNumber;
-            this->lastMarker.lineStart = this->scanner->lineStart;
-
-            this->collectComments();
-
-            this->startMarker.index = this->scanner->index;
-            this->startMarker.lineNumber = this->scanner->lineNumber;
-            this->startMarker.lineStart = this->scanner->lineStart;
-
-            Scanner::ScannerResult* next = &this->lookahead;
-            this->scanner->lex(next);
-            this->hasLineTerminator = false;
-
-            if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
-                next->type = Token::KeywordToken;
-            }
-        }
         this->lastMarker.index = this->scanner->index;
         this->lastMarker.lineNumber = this->scanner->lineNumber;
         this->lastMarker.lineStart = this->scanner->lineStart;
+
+        this->collectComments();
+
+        this->startMarker.index = this->scanner->index;
+        this->startMarker.lineNumber = this->scanner->lineNumber;
+        this->startMarker.lineStart = this->scanner->lineStart;
+
+        Scanner::ScannerResult* next = &this->lookahead;
+        this->scanner->lex(next);
+        this->hasLineTerminator = false;
+
+        if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
+            next->type = Token::KeywordToken;
+        }
     }
 
     void insertNumeralLiteral(Value v)

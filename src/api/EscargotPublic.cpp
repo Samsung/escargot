@@ -1723,7 +1723,9 @@ StringRef* ValueRef::toString(ExecutionStateRef* es)
 
 StringRef* ValueRef::toStringWithoutException(ContextRef* ctx)
 {
+    // declare temporal ExecutionState and SandBox
     ExecutionState state(toImpl(ctx));
+    SandBox sb(toImpl(ctx));
     return toRef(toImpl(this).toStringWithoutException(state));
 }
 
