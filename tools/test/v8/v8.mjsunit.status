@@ -650,7 +650,6 @@
   'es6/reflect' : [SKIP],
   'es6/reflect-prevent-extensions' : [SKIP],
   'es6/regexp-constructor' : [SKIP],
-  'es6/regexp-tolength' : [SKIP],
   'es6/regexp-tostring' : [SKIP],
   'es6/rest-params' : [SKIP],
   'es6/sloppy-restrictive-block-function' : [SKIP],
