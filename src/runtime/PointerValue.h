@@ -104,6 +104,11 @@ public:
         return false;
     }
 
+    virtual bool isScriptClassConstructorPrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isArrayObject() const
     {
         return false;

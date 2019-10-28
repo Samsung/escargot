@@ -3924,9 +3924,6 @@ public:
             case YieldKeyword: {
                 // TODO consider case that class method is generator function
                 if (builder.isNodeGenerator()) {
-                    if (this->context->strict) {
-                        this->throwError("Cannot use yield as a label in strict mode");
-                    }
                     statement = this->parseLabelledStatement(builder);
                 } else {
                     statement = this->parseExpressionStatement(builder);

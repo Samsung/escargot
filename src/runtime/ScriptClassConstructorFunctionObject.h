@@ -24,6 +24,19 @@
 
 namespace Escargot {
 
+class ScriptClassConstructorPrototypeObject : public Object {
+public:
+    explicit ScriptClassConstructorPrototypeObject(ExecutionState& state)
+        : Object(state)
+    {
+    }
+
+    virtual bool isScriptClassConstructorPrototypeObject() const override
+    {
+        return true;
+    }
+};
+
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 public:
     ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode);

@@ -45,23 +45,20 @@ non262/TypedObject/structtypeindexedfields.js
 non262/TypedObject/structtypeprototype.js
 non262/TypedObject/structtypereflection.js
 non262/TypedObject/structtypestructuralassign.js
+non262/BigInt/decimal.js
+non262/BigInt/large-bit-length.js
+non262/BigInt/mod.js
+non262/BigInt/Number-conversion-rounding.js
 
 # These tests include features of ES7
 non262/Array/slice-sparse-with-large-index.js
 non262/Array/unscopables.js
 non262/Array/unshift-01.js
+non262/arrow-functions/arrow-not-as-end-of-statement.js
 
 # TODO
-non262/arrow-functions/arrow-not-as-end-of-statement.js
 non262/arrow-functions/yield-in-arrow.js
-non262/BigInt/decimal.js
-non262/BigInt/large-bit-length.js
-non262/BigInt/mod.js
-non262/BigInt/Number-conversion-rounding.js
 non262/class/className.js
-non262/class/methDefnGen.js
-non262/class/methodInstallation.js
-non262/class/methodName.js
 non262/class/newTargetArrow.js
 non262/class/newTargetDefaults.js
 non262/class/newTargetDVG.js
