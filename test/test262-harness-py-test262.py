@@ -17,14 +17,8 @@ import re
 import subprocess
 import sys
 import tempfile
-import time
 import xml.dom.minidom
-import datetime
-import shutil
-import json
-import stat
 import xml.etree.ElementTree as xmlj
-import unicodedata
 from collections import Counter
 
 
