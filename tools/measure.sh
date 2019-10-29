@@ -2,14 +2,14 @@
 
 #make full
 echo "======================================================="
-REPO_BASE=`pwd`
+REPO_BASE=$(pwd)
 if [[ -z "$TESTDIR_BASE" ]]; then
     TESTDIR_BASE="test/"
 fi
 if [[ -z "$MODE" ]]; then
     MODE="release"
 fi
-TESTDIR_BASE=`realpath $TESTDIR_BASE`
+TESTDIR_BASE=$(realpath $TESTDIR_BASE)
 TESTBIN="$TESTDIR_BASE/bin/"
 MEMPS="$TESTBIN/memps"
 OCTANE_BASE="test/octane"
@@ -91,8 +91,8 @@ function measure(){
   done ) >> $outfile &
   sleep 1s;
   echo $t >> $memresfile
-  MAXV=`cat $outfile | grep 'PSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}'`
-  MAXR=`cat $outfile | grep 'RSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}'`
+  MAXV=$(cat $outfile | grep 'PSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}')
+  MAXR=$(cat $outfile | grep 'RSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}')
   echo 'MaxPSS:'$MAXV', MaxRSS:'$MAXR >> $memresfile
   rm $outfile
   echo $MAXV
@@ -123,7 +123,7 @@ else
       echo "== Measure Sunspider Time =="
       cd $SUNSPIDER_BASE
       ./sunspider --shell=$cmd --suite=sunspider-1.0.2 --args="$args" | tee $timeresfile
-      tmpresult=`cat $timeresfile | grep "Results are located at" | cut -d' ' -f5`
+      tmpresult=$(cat $timeresfile | grep "Results are located at" | cut -d' ' -f5)
       cp $tmpresult $TEST_RESULT_PATH/sunspider_time.res
       cd -
     fi
