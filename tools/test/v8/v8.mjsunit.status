@@ -827,7 +827,6 @@
   'regress/regress-4255-2': [SKIP],
   'regress/regress-4255-3': [SKIP],
   'regress/regress-4665': [SKIP],
-  'regress/regress-crbug-100859': [SKIP],
   'regress/regress-crbug-352586': [SKIP],
   'regress/regress-crbug-422858': [SKIP],
   'regress/regress-v8-5009': [SKIP],

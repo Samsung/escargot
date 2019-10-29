@@ -368,7 +368,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             int numlen = val.toNumber(state);
             int elemlen = val.toLength(state);
             if (numlen != elemlen)
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
             obj->allocateTypedArray(state, elemlen);
         } else if (val.isPointerValue() && val.asPointerValue()->isArrayBufferObject()) {
             // $22.2.1.5 %TypedArray%(buffer [, byteOffset [, length] ] )
