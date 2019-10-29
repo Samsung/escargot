@@ -91,8 +91,8 @@ function measure(){
   done ) >> $outfile &
   sleep 1s;
   echo $t >> $memresfile
-  MAXV=$(cat $outfile | grep 'PSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}')
-  MAXR=$(cat $outfile | grep 'RSS:' | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}')
+  MAXV=$(grep 'PSS:' $outfile | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}')
+  MAXR=$(grep 'RSS:' $outfile | sed -e 's/,//g' | awk '{ if(max < $2) max=$2} END { print max}')
   echo 'MaxPSS:'$MAXV', MaxRSS:'$MAXR >> $memresfile
   rm $outfile
   echo $MAXV
@@ -106,8 +106,8 @@ if [[ $2 == octane ]]; then
     outfile=$(echo $TEST_RESULT_PATH$1"_octane_memory.out")
     cd $OCTANE_BASE
     /usr/bin/time -v $cmd $args run.js &> $outfile
-    cat $outfile | grep "^\s" > $TEST_RESULT_PATH/octane_mem.res
-    cat $outfile | grep "Maximum resident set size" | sed -e 's/^[[:space:]]*//'
+    grep "^\s" $outfile > $TEST_RESULT_PATH/octane_mem.res
+    grep "Maximum resident set size" $outfile | sed -e 's/^[[:space:]]*//'
     cd -
   fi
 
@@ -123,7 +123,7 @@ else
       echo "== Measure Sunspider Time =="
       cd $SUNSPIDER_BASE
       ./sunspider --shell=$cmd --suite=sunspider-1.0.2 --args="$args" | tee $timeresfile
-      tmpresult=$(cat $timeresfile | grep "Results are located at" | cut -d' ' -f5)
+      tmpresult=$(grep "Results are located at" $timeresfile | cut -d' ' -f5)
       cp $tmpresult $TEST_RESULT_PATH/sunspider_time.res
       cd -
     fi
@@ -148,7 +148,7 @@ else
         echo $(echo -e $summem | awk '{s+=$1;if(NR==1||max<$1){max=$1};if(NR==1||($1!="" && $1<min)){min=$1}} END {printf("Avg. MaxPSS: %.4f", (s-max-min)/3)}')
         echo $t $(echo -e $summem | awk '{s+=$1;if(NR==1||max<$1){max=$1};if(NR==1||($1!="" && $1<min)){min=$1}} END {printf(": %.4f", (s-max-min)/3)}') >> tmp
       done
-      cat tmp | awk '{s+=$3} END {print s/26}' >> tmp
+      awk '{s+=$3} END {print s/26}' tmp >> tmp
       cat tmp
       cat tmp > $TEST_RESULT_PATH/memory.res
       rm tmp
