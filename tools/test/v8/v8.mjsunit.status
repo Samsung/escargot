@@ -552,11 +552,9 @@
   'es6/regress/regress-crbug-448730': [SKIP],
   'es6/regress/regress-inlined-new-target': [SKIP],
   'es6/array-concat' : [SKIP],
-  'es6/array-from' : [SKIP],
   'es6/array-iterator-detached' : [SKIP],
   'es6/array-iterator' : [SKIP],
   'es6/array-iterator-turbo' : [SKIP],
-  'es6/array-length' : [SKIP],
   'es6/array-species-constructor-accessor' : [SKIP],
   'es6/array-species-constructor-delete' : [SKIP],
   'es6/array-species-constructor' : [SKIP],
@@ -621,7 +619,6 @@
   'es6/microtask-delivery' : [SKIP],
   'es6/new-target' : [SKIP],
   'es6/object-literals-method' : [SKIP],
-  'es6/object-literals-property-shorthand' : [SKIP],
   'es6/object-literals-super' : [SKIP],
   'es6/object-tostring' : [SKIP],
   'es6/pattern-brand-check' : [SKIP],
@@ -694,7 +691,6 @@
   # object pattern
   'regress/regress-crbug-669540': [SKIP],
   # array
-  'array-join': [SKIP], #Proxy
   'array-length': [SKIP], #arrow function
   # const
   'const*': [SKIP],
@@ -772,6 +768,8 @@
   # enumeration order
   'enumeration-order': [SKIP],
   'for-in': [SKIP],
+  # object
+  'es6/object-literals-property-shorthand' : [SKIP],
 
   ## Limit of string length differ
   'string-oom-array-join': [SKIP],
@@ -862,6 +860,7 @@
   'regress/regress-136048': [SKIP],
   'regress/regress-1980': [SKIP],
   'regress/regress-633998': [SKIP],
+  'es6/regexp-tostring' : [SKIP],
 
   ## 9. asm.js
   'asm-directive': [SKIP],
