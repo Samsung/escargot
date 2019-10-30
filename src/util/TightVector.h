@@ -353,6 +353,101 @@ public:
 private:
     T* m_buffer;
 };
+
+template <typename T>
+class TightVectorWithNoSizeUseGCRealloc : public gc {
+public:
+    TightVectorWithNoSizeUseGCRealloc()
+    {
+        m_buffer = nullptr;
+    }
+
+    TightVectorWithNoSizeUseGCRealloc(TightVectorWithNoSizeUseGCRealloc<T>&& other)
+    {
+        m_buffer = other.m_buffer;
+        other.m_buffer = nullptr;
+    }
+
+    TightVectorWithNoSizeUseGCRealloc(const TightVectorWithNoSizeUseGCRealloc<T>& other) = delete;
+
+    const TightVectorWithNoSizeUseGCRealloc<T>& operator=(const TightVectorWithNoSizeUseGCRealloc<T>& other) = delete;
+
+    ~TightVectorWithNoSizeUseGCRealloc()
+    {
+        if (m_buffer) {
+            GC_FREE(m_buffer);
+        }
+    }
+
+    void pushBack(const T& val, size_t newSize)
+    {
+        T* newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+        newBuffer[newSize - 1] = val;
+        m_buffer = newBuffer;
+    }
+
+    void push_back(const T& val, size_t newSize)
+    {
+        pushBack(val, newSize);
+    }
+
+    T& operator[](const size_t idx)
+    {
+        return m_buffer[idx];
+    }
+
+    const T& operator[](const size_t idx) const
+    {
+        return m_buffer[idx];
+    }
+
+    void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
+    {
+        if (newSize) {
+            m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+        } else {
+            GC_FREE(m_buffer);
+            m_buffer = nullptr;
+        }
+    }
+
+    void erase(size_t pos, size_t currentSize)
+    {
+        erase(pos, pos + 1, currentSize);
+    }
+
+    void erase(size_t start, size_t end, size_t currentSize)
+    {
+        ASSERT(start < end);
+        ASSERT(start >= 0);
+        ASSERT(end <= currentSize);
+
+        size_t c = end - start;
+        if (currentSize - c) {
+            T* newBuffer = (T*)GC_MALLOC((currentSize - c) * sizeof(T));
+            VectorCopier<T>::copy(newBuffer, m_buffer, start);
+            VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], currentSize - end);
+
+            if (m_buffer) {
+                GC_FREE(m_buffer);
+            }
+            m_buffer = newBuffer;
+        } else {
+            if (m_buffer) {
+                GC_FREE(m_buffer);
+            }
+            m_buffer = nullptr;
+        }
+    }
+
+    T* data()
+    {
+        return m_buffer;
+    }
+
+private:
+    T* m_buffer;
+};
 }
 
 #endif

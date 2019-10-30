@@ -35,10 +35,8 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
 
     ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
     ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
-    auto prototype = new Object(state);
-    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->parameterCount()));
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(Object::createFunctionPrototypeObject(state, this)));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = SmallValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
 }
 
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
