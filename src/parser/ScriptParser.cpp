@@ -26,6 +26,8 @@
 #include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
+#include "runtime/Environment.h"
+#include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
 
@@ -202,7 +204,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     cb->m_astContext = nullptr;
 }
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
     GC_disable();
 
@@ -213,7 +215,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
     // Parsing
     try {
         InterpretedCodeBlock* topCodeBlock = nullptr;
-        ProgramNode* programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP);
+        ProgramNode* programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget);
 
         Script* script = new Script(fileName, new StringView(scriptSource), programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {

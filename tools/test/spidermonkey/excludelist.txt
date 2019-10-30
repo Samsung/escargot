@@ -49,6 +49,7 @@ non262/BigInt/decimal.js
 non262/BigInt/large-bit-length.js
 non262/BigInt/mod.js
 non262/BigInt/Number-conversion-rounding.js
+non262/class/newTargetDVG.js
 
 # These tests include features of ES7
 non262/Array/slice-sparse-with-large-index.js
@@ -59,11 +60,6 @@ non262/arrow-functions/arrow-not-as-end-of-statement.js
 # TODO
 non262/arrow-functions/yield-in-arrow.js
 non262/class/className.js
-non262/class/newTargetArrow.js
-non262/class/newTargetDefaults.js
-non262/class/newTargetDVG.js
-non262/class/newTargetEval.js
-non262/class/newTargetGenerators.js
 non262/class/outerBinding.js
 non262/class/strictExecution.js
 non262/class/superCallBaseInvoked.js
