@@ -161,27 +161,6 @@ public:
 
         // binding function name
         stackStorage[1] = self;
-        if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
-            if (codeBlock->canUseIndexedVariableStorage()) {
-                ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                ((FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>*)record)->heapStorage()[0] = self;
-            } else {
-                record->initializeBinding(state, codeBlock->functionName(), self);
-            }
-        }
-
-        if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
-            if (codeBlock->canUseIndexedVariableStorage()) {
-                if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap())) {
-                    ASSERT(record->isFunctionEnvironmentRecordOnHeap());
-                    ((FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>*)record)->heapStorage()[0] = Value();
-                } else {
-                    stackStorage[1] = Value();
-                }
-            } else {
-                record->initializeBinding(state, codeBlock->functionName(), Value());
-            }
-        }
 
         // initialize identifiers by undefined value
         for (size_t i = 2; i < identifierOnStackCount; i++) {

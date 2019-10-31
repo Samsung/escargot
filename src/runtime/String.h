@@ -82,7 +82,11 @@ struct StringBufferAccessData {
 #else
     size_t length : 62;
 #endif
-    const void* buffer;
+    union {
+        const void* buffer;
+        const char* bufferAs8Bit;
+        const char16_t* bufferAs16Bit;
+    };
 
     COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() >> 2), "");
 

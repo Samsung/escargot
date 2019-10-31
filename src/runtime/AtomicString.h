@@ -206,6 +206,7 @@ template <>
 struct hash<Escargot::AtomicString> {
     size_t operator()(Escargot::AtomicString const& x) const
     {
+        // return x.string()->hashValue();
         return std::hash<size_t*>{}((size_t*)x.string());
     }
 };
