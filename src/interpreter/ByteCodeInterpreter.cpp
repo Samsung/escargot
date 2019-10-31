@@ -2413,7 +2413,7 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
         }
     }
 
-    Object* proto = new Object(state);
+    ScriptClassConstructorPrototypeObject* proto = new ScriptClassConstructorPrototypeObject(state);
     proto->setPrototype(state, protoParent);
 
     ScriptClassConstructorFunctionObject* constructor;
@@ -3045,7 +3045,7 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(Executio
 
     ObjectPropertyName objPropName = ObjectPropertyName(state, propertyStringOrSymbol);
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-    if (propertyStringOrSymbol.isString() && propertyStringOrSymbol.asString()->equals("__proto__")) {
+    if (!willBeObject.asObject()->isScriptClassConstructorPrototypeObject() && (propertyStringOrSymbol.isString() && propertyStringOrSymbol.asString()->equals("__proto__"))) {
         willBeObject.asObject()->setPrototype(state, value);
     } else {
         willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(value, code->m_presentAttribute));
@@ -3056,7 +3056,7 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(
 {
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-    if (code->m_propertyName == state.context()->staticStrings().__proto__) {
+    if (!willBeObject.asObject()->isScriptClassConstructorPrototypeObject() && (code->m_propertyName == state.context()->staticStrings().__proto__)) {
         willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
     } else {
         willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
@@ -3183,7 +3183,7 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& 
     if (code->m_isGetter) {
         fnName = createObjectPropertyFunctionName(state, pName, "get ");
     } else {
-        Value fnName = createObjectPropertyFunctionName(state, pName, "set ");
+        fnName = createObjectPropertyFunctionName(state, pName, "set ");
     }
     fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     JSGetterSetter* gs;
