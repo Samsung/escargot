@@ -76,6 +76,7 @@ struct Context {
     bool allowLexicalDeclaration : 1;
     bool allowSuperCall : 1;
     bool allowSuperProperty : 1;
+    bool allowNewTarget : 1;
     bool isAssignmentTarget : 1;
     bool isBindingElement : 1;
     bool inFunctionBody : 1;
@@ -221,6 +222,7 @@ public:
         this->context->allowLexicalDeclaration = false;
         this->context->allowSuperCall = false;
         this->context->allowSuperProperty = false;
+        this->context->allowNewTarget = false;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         this->context->inFunctionBody = false;
@@ -1398,11 +1400,13 @@ public:
         const bool previousAllowYield = this->context->allowYield;
         const bool previousAllowSuperCall = this->context->allowSuperCall;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+        const bool previousAllowNewTarget = this->context->allowNewTarget;
         const bool previousInArrowFunction = this->context->inArrowFunction;
 
         this->context->allowYield = true;
         this->context->inArrowFunction = false;
         this->context->allowSuperProperty = true;
+        this->context->allowNewTarget = true;
 
         if (allowSuperCall) {
             this->context->allowSuperCall = true;
@@ -1419,6 +1423,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowSuperProperty = previousAllowSuperProperty;
+        this->context->allowNewTarget = previousAllowNewTarget;
         this->context->allowSuperCall = previousAllowSuperCall;
 
         this->currentScopeContext->m_paramsStartLOC.index = node.index;
@@ -1886,7 +1891,7 @@ public:
 
         if (this->match(Period)) {
             this->nextToken();
-            if (this->lookahead.type == Token::IdentifierToken && this->context->inFunctionBody && this->lookahead.relatedSource(this->scanner->source) == "target") {
+            if (this->lookahead.type == Token::IdentifierToken && this->context->allowNewTarget && this->lookahead.relatedSource(this->scanner->source) == "target") {
                 this->nextToken();
                 this->currentScopeContext->m_hasSuperOrNewTarget = true;
                 MetaNode node = this->createNode();
@@ -4157,8 +4162,11 @@ public:
 
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
+        bool previousAllowNewTarget = this->context->allowNewTarget;
+
         this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
+        this->context->allowNewTarget = true;
 
         ParseFormalParametersResult formalParameters;
         this->parseFormalParameters(newBuilder, formalParameters, &firstRestricted);
@@ -4180,6 +4188,7 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
+        this->context->allowNewTarget = previousAllowNewTarget;
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
         this->currentScopeContext->m_isGenerator = isGenerator;
@@ -4205,8 +4214,11 @@ public:
 
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
+        bool previousAllowNewTarget = this->context->allowNewTarget;
+
         this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
+        this->context->allowNewTarget = true;
 
         if (!this->match(LeftParenthesis)) {
             ALLOC_TOKEN(token);
@@ -4269,6 +4281,7 @@ public:
         this->context->strict = previousStrict;
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
+        this->context->allowNewTarget = previousAllowNewTarget;
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
@@ -4354,10 +4367,12 @@ public:
         const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+        const bool previousAllowNewTarget = this->context->allowNewTarget;
 
         this->context->allowYield = true;
         this->context->inArrowFunction = false;
         this->context->allowSuperProperty = true;
+        this->context->allowNewTarget = true;
 
         this->expect(LeftParenthesis);
         this->expect(RightParenthesis);
@@ -4371,6 +4386,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowSuperProperty = previousAllowSuperProperty;
+        this->context->allowNewTarget = previousAllowNewTarget;
 
         this->currentScopeContext->m_paramsStartLOC.index = node.index;
         this->currentScopeContext->m_paramsStartLOC.column = node.column;
@@ -4398,10 +4414,12 @@ public:
         const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+        const bool previousAllowNewTarget = this->context->allowNewTarget;
 
         this->context->allowYield = true;
         this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
+        this->context->allowNewTarget = true;
 
         this->expect(LeftParenthesis);
 
@@ -4420,6 +4438,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
+        this->context->allowNewTarget = previousAllowNewTarget;
 
         this->currentScopeContext->m_paramsStartLOC.index = node.index;
         this->currentScopeContext->m_paramsStartLOC.column = node.column;
@@ -4447,10 +4466,12 @@ public:
         const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+        const bool previousAllowNewTarget = this->context->allowNewTarget;
 
         this->context->allowYield = false;
         this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
+        this->context->allowNewTarget = true;
 
         this->expect(LeftParenthesis);
 
@@ -4464,6 +4485,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
+        this->context->allowNewTarget = previousAllowNewTarget;
 
         this->currentScopeContext->m_paramsStartLOC.index = node.index;
         this->currentScopeContext->m_paramsStartLOC.column = node.column;
@@ -5198,9 +5220,14 @@ public:
     {
         ASSERT(this->isParsingSingleFunction);
 
+        const bool previousAllowNewTarget = context->allowNewTarget;
+
+        context->allowNewTarget = true;
         MetaNode node = this->createNode();
         StatementContainer* params = this->parseFunctionParameters(builder);
         BlockStatementNode* body = this->parseFunctionBody(builder);
+
+        context->allowNewTarget = previousAllowNewTarget;
 
         return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
     }
@@ -5276,7 +5303,7 @@ public:
     }
 };
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallOutside, bool allowSuperPropertyOutside)
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
@@ -5287,8 +5314,9 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isMo
 
     parser.context->strict = strictFromOutside;
     parser.context->inWith = inWith;
-    parser.context->allowSuperCall = allowSuperCallOutside;
-    parser.context->allowSuperProperty = allowSuperPropertyOutside;
+    parser.context->allowSuperCall = allowSuperCallFromOutside;
+    parser.context->allowSuperProperty = allowSuperPropertyFromOutside;
+    parser.context->allowNewTarget = allowNewTargetFromOutside;
 
     ProgramNode* nd = parser.parseProgram(builder);
     return nd;
@@ -5307,8 +5335,8 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.context->allowLexicalDeclaration = true;
     parser.context->allowSuperCall = true;
     parser.context->allowSuperProperty = true;
+    parser.context->allowNewTarget = true;
     parser.isParsingSingleFunction = true;
-
     parser.codeBlock = codeBlock;
 
     scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
