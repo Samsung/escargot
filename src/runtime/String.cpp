@@ -311,6 +311,32 @@ size_t utf32ToUtf8(char32_t uc, char* UTF8)
     return tRequiredSize;
 }
 
+size_t utf32ToUtf16(char32_t i, char16_t* u)
+{
+    if (i <= 0xffff) {
+        if (i >= 0xd800 && i <= 0xdfff) {
+            // illegal conversion
+            *u = 0xFFFD;
+        } else {
+            // normal case
+            *u = (char16_t)(i & 0xffff);
+        }
+        return 1;
+    } else if (i <= 0x10ffff) {
+        // surrogate pair can encode to 0x10ffff
+        // https://en.wikipedia.org/wiki/UTF-16
+        i -= 0x10000;
+        *u++ = 0xd800 | (i >> 10);
+        *u = 0xdc00 | (i & 0x3ff);
+        return 2;
+    } else {
+        // produce error char
+        // U+FFFD
+        *u = 0xFFFD;
+        return 1;
+    }
+}
+
 bool StringBufferAccessData::equals16Bit(const char16_t* c1, const char* c2, size_t len)
 {
     while (len > 0) {

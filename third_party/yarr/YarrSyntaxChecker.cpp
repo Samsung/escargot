@@ -23,7 +23,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#include "Escargot.h"
 #include "WTFBridge.h"
 #include "YarrSyntaxChecker.h"
 
@@ -43,18 +42,19 @@ public:
     void atomCharacterClassRange(UChar, UChar) {}
     void atomCharacterClassBuiltIn(BuiltInCharacterClassID, bool) {}
     void atomCharacterClassEnd() {}
-    void atomParenthesesSubpatternBegin(bool = true) {}
+    void atomParenthesesSubpatternBegin(bool = true, Optional<String> = nullptr) {}
     void atomParentheticalAssertionBegin(bool = false) {}
     void atomParenthesesEnd() {}
     void atomBackReference(unsigned) {}
+    void atomNamedBackReference(String) {}
     void quantifyAtom(unsigned, unsigned, bool) {}
     void disjunction() {}
 };
 
-const char* checkSyntax(const String& pattern, bool hasUnicodeOption)
+ErrorCode checkSyntax(const String& pattern, const String& flags)
 {
     SyntaxChecker syntaxChecker;
-    return parse(syntaxChecker, pattern, hasUnicodeOption);
+    return parse(syntaxChecker, pattern, flags.contains('u'));
 }
 
 }} // JSC::Yarr
