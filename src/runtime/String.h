@@ -60,6 +60,8 @@ UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t len);
 ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t len);
 ASCIIStringData dtoa(double number);
 size_t utf32ToUtf8(char32_t uc, char* UTF8);
+size_t utf32ToUtf16(char32_t i, char16_t* u);
+
 // these functions only care ascii range(0~127)
 bool islower(char32_t ch);
 bool isupper(char32_t ch);
@@ -239,6 +241,58 @@ public:
     }
     String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, String* replacement);
     size_t find(String* str, size_t pos = 0);
+
+    template <size_t N>
+    size_t find(const char (&str)[N], size_t pos = 0) const
+    {
+        const size_t srcStrLen = N - 1;
+        const size_t size = length();
+
+        if (srcStrLen == 0)
+            return pos <= size ? pos : SIZE_MAX;
+
+        if (srcStrLen <= size) {
+            char32_t src0 = str[0];
+            const auto& data = bufferAccessData();
+            if (data.has8BitContent) {
+                for (; pos <= size - srcStrLen; ++pos) {
+                    if (((const LChar*)data.buffer)[pos] == src0) {
+                        bool same = true;
+                        for (size_t k = 1; k < srcStrLen; k++) {
+                            if (((const LChar*)data.buffer)[pos + k] != str[k]) {
+                                same = false;
+                                break;
+                            }
+                        }
+                        if (same)
+                            return pos;
+                    }
+                }
+            } else {
+                for (; pos <= size - srcStrLen; ++pos) {
+                    if (((const char16_t*)data.buffer)[pos] == src0) {
+                        bool same = true;
+                        for (size_t k = 1; k < srcStrLen; k++) {
+                            if (((const char16_t*)data.buffer)[pos + k] != str[k]) {
+                                same = false;
+                                break;
+                            }
+                        }
+                        if (same)
+                            return pos;
+                    }
+                }
+            }
+        }
+        return SIZE_MAX;
+    }
+
+    template <size_t N>
+    bool contains(const char (&str)[N]) const
+    {
+        return find(str) != SIZE_MAX;
+    }
+
     size_t rfind(String* str, size_t pos);
 
     String* substring(size_t from, size_t to);

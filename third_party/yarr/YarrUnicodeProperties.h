@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,10 +25,15 @@
 
 #pragma once
 
-#include "YarrErrorCode.h"
+#include "Yarr.h"
 
 namespace JSC { namespace Yarr {
 
-ErrorCode checkSyntax(const String& pattern, const String& flags);
+struct CharacterClass;
 
-}} // JSC::Yarr
+JS_EXPORT_PRIVATE Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String, WTF::String);
+JS_EXPORT_PRIVATE Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String);
+
+std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterClassID);
+
+} } // namespace JSC::Yarr

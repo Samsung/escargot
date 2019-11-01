@@ -69,6 +69,16 @@ public:
         appendPiece(ch);
     }
 
+    void appendChar(char32_t ch)
+    {
+        char16_t buf[2];
+        auto c = utf32ToUtf16(ch, buf);
+        appendPiece(buf[0]);
+        if (c == 2) {
+            appendPiece(buf[1]);
+        }
+    }
+
     void appendChar(char ch)
     {
         appendPiece(ch);

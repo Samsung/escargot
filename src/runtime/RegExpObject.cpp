@@ -23,6 +23,7 @@
 #include "ArrayObject.h"
 #include "VMInstance.h"
 
+#include "WTFBridge.h"
 #include "Yarr.h"
 #include "YarrPattern.h"
 #include "YarrInterpreter.h"
@@ -280,7 +281,9 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         const char* yarrError = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
         try {
-            yarrPattern = new (PointerFreeGC) JSC::Yarr::YarrPattern(*source, (JSC::Yarr::RegExpFlags)option, &yarrError);
+            JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
+            yarrPattern = new (PointerFreeGC) JSC::Yarr::YarrPattern(source, (JSC::Yarr::RegExpFlags)option, errorCode);
+            yarrError = JSC::Yarr::errorMessage(errorCode);
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "got too complicated RegExp pattern to process");
         }

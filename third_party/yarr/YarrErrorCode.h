@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2017 Yusuke Suzuki <utatane.tea@gmail.com>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,15 +20,40 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
 
-#include "YarrErrorCode.h"
-
 namespace JSC { namespace Yarr {
 
-ErrorCode checkSyntax(const String& pattern, const String& flags);
+enum class ErrorCode : unsigned {
+    NoError = 0,
+    PatternTooLarge,
+    QuantifierOutOfOrder,
+    QuantifierWithoutAtom,
+    QuantifierTooLarge,
+    MissingParentheses,
+    ParenthesesUnmatched,
+    ParenthesesTypeInvalid,
+    InvalidGroupName,
+    DuplicateGroupName,
+    CharacterClassUnmatched,
+    CharacterClassOutOfOrder,
+    EscapeUnterminated,
+    InvalidUnicodeEscape,
+    InvalidBackreference,
+    InvalidIdentityEscape,
+    InvalidUnicodePropertyExpression,
+    TooManyDisjunctions,
+    OffsetTooLarge,
+    InvalidRegularExpressionFlags,
+};
 
-}} // JSC::Yarr
+JS_EXPORT_PRIVATE const char* errorMessage(ErrorCode);
+inline bool hasError(ErrorCode errorCode)
+{
+    return errorCode != ErrorCode::NoError;
+}
+
+} } // namespace JSC::Yarr
