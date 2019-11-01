@@ -218,7 +218,7 @@ private:
     // For non-unicode patterns, most any character can be escaped.
     bool isIdentityEscapeAnError(int ch)
     {
-        if (m_isUnicode && !strchr("^$\\.*+?()[]{}|/", ch)) {
+        if (m_isUnicode && (ch == 0 || !strchr("^$\\.*+?()[]{}|/", ch))) {
             m_errorCode = ErrorCode::InvalidIdentityEscape;
             return true;
         }
@@ -287,26 +287,50 @@ private:
 
         // CharacterClassEscape
         case 'd':
+            if (m_isUnicode) {
+                m_errorCode = ErrorCode::CharacterClassInvalid;
+                return false;
+            }
             consume();
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::DigitClassID, false);
             break;
         case 's':
+            if (m_isUnicode) {
+                m_errorCode = ErrorCode::CharacterClassInvalid;
+                return false;
+            }
             consume();
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::SpaceClassID, false);
             break;
         case 'w':
+            if (m_isUnicode) {
+                m_errorCode = ErrorCode::CharacterClassInvalid;
+                return false;
+            }
             consume();
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::WordClassID, false);
             break;
         case 'D':
+            if (m_isUnicode) {
+                m_errorCode = ErrorCode::CharacterClassInvalid;
+                return false;
+            }
             consume();
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::DigitClassID, true);
             break;
         case 'S':
+            if (m_isUnicode) {
+                m_errorCode = ErrorCode::CharacterClassInvalid;
+                return false;
+            }
             consume();
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::SpaceClassID, true);
             break;
         case 'W':
+            if (m_isUnicode) {
+                m_errorCode = ErrorCode::CharacterClassInvalid;
+                return false;
+            }
             consume();
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::WordClassID, true);
             break;
@@ -338,6 +362,11 @@ private:
                     m_errorCode = ErrorCode::InvalidBackreference;
                     return false;
                 }
+            } else {
+                if (m_isUnicode) {
+                    m_errorCode = ErrorCode::InvalidClassEscape;
+                    return false;
+                }
             }
 
             // Not a backreference, and not octal. Just a number.
@@ -352,6 +381,13 @@ private:
 
         // Octal escape
         case '0':
+            if (m_isUnicode) {
+                if (m_index + 1 < m_size && WTF::isASCIIDigit(m_data[m_index + 1])) {
+                    m_errorCode = ErrorCode::InvalidDecimalEscape;
+                    return false;
+                }
+            }
+
             delegate.atomPatternCharacter(consumeOctal());
             break;
 
@@ -379,17 +415,33 @@ private:
 
         // ControlLetter
         case 'c': {
+            bool usedAsControlLetter = false;
             ParseState state = saveState();
             consume();
             if (!atEndOfPattern()) {
                 int control = consume();
 
                 // To match Firefox, inside a character class, we also accept numbers and '_' as control characters.
-                if (inCharacterClass ? WTF::isASCIIAlphanumeric(control) || (control == '_') : WTF::isASCIIAlpha(control)) {
-                    delegate.atomPatternCharacter(control & 0x1f);
-                    break;
+                if (m_isUnicode) {
+                    if (WTF::isASCIIAlpha(control)) {
+                        usedAsControlLetter = true;
+                        delegate.atomPatternCharacter(control & 0x1f);
+                        break;
+                    }
+                } else {
+                    if (inCharacterClass ? WTF::isASCIIAlphanumeric(control) || (control == '_') : WTF::isASCIIAlpha(control)) {
+                        usedAsControlLetter = true;
+                        delegate.atomPatternCharacter(control & 0x1f);
+                        break;
+                    }
                 }
             }
+
+            if (m_isUnicode && !usedAsControlLetter) {
+                m_errorCode = ErrorCode::InvalidUnicodeEscape;
+                return false;
+            }
+
             restoreState(state);
             delegate.atomPatternCharacter('\\');
             break;
@@ -424,6 +476,11 @@ private:
                         m_errorCode = ErrorCode::InvalidBackreference;
                         break;
                     }
+                }
+            } else {
+                if (m_isUnicode) {
+                    m_errorCode = ErrorCode::InvalidBackreference;
+                    break;
                 }
             }
             restoreState(state);
@@ -618,6 +675,7 @@ private:
         ASSERT(peek() == '(');
         consume();
 
+        bool isLookhead = false;
         if (tryConsume('?')) {
             if (atEndOfPattern()) {
                 m_errorCode = ErrorCode::ParenthesesTypeInvalid;
@@ -631,10 +689,12 @@ private:
             
             case '=':
                 m_delegate.atomParentheticalAssertionBegin();
+                isLookhead = true;
                 break;
 
             case '!':
                 m_delegate.atomParentheticalAssertionBegin(true);
+                isLookhead = true;
                 break;
 
             case '<': {
@@ -658,6 +718,11 @@ private:
             m_delegate.atomParenthesesSubpatternBegin();
 
         ++m_parenthesesNestingDepth;
+
+        if (m_isUnicode) {
+            m_isLookaheadExistOnParentheses.push_back(isLookhead);
+        }
+
     }
 
     /*
@@ -665,7 +730,7 @@ private:
      *
      * Helper for parseTokens(); checks for parse errors (due to unmatched parentheses).
      */
-    void parseParenthesesEnd()
+    bool parseParenthesesEnd()
     {
         ASSERT(!hasError(m_errorCode));
         ASSERT(peek() == ')');
@@ -677,6 +742,14 @@ private:
             m_errorCode = ErrorCode::ParenthesesUnmatched;
 
         --m_parenthesesNestingDepth;
+
+        if (m_isUnicode && !hasError(m_errorCode)) {
+            bool ret = m_isLookaheadExistOnParentheses.back();
+            m_isLookaheadExistOnParentheses.pop_back();
+            return ret;
+        } else {
+            return false;
+        }
     }
 
     /*
@@ -727,10 +800,18 @@ private:
                 break;
 
             case ')':
-                parseParenthesesEnd();
+            {
+                bool isLookahead = parseParenthesesEnd();
                 lastTokenWasAnAtom = true;
-                break;
 
+                if (m_isUnicode && isLookahead && !atEndOfPattern()) {
+                    int ch = peek();
+                    if (ch == '*' || ch == '+' || ch == '?' || ch == '{') {
+                        m_errorCode = ErrorCode::InvalidQuantifier;
+                    }
+                }
+                break;
+            }
             case '^':
                 consume();
                 m_delegate.assertionBOL();
@@ -754,6 +835,13 @@ private:
                 lastTokenWasAnAtom = true;
                 break;
 
+            case ']':
+                if (m_isUnicode) {
+                    m_errorCode = ErrorCode::CharacterClassUnmatched;
+                    break;
+                }
+                goto defaultCase;
+
             case '\\':
                 lastTokenWasAnAtom = parseAtomEscape();
                 break;
@@ -776,6 +864,13 @@ private:
                 lastTokenWasAnAtom = false;
                 break;
 
+            case '}':
+                if (m_isUnicode) {
+                    m_errorCode = ErrorCode::QuantifierUnmatched;
+                    break;
+                }
+                goto defaultCase;
+
             case '{': {
                 ParseState state = saveState();
 
@@ -797,11 +892,17 @@ private:
                     }
                 }
 
+                if (m_isUnicode) {
+                    m_errorCode = ErrorCode::QuantifierUnmatched;
+                    break;
+                }
+
                 restoreState(state);
             }
             // if we did not find a complete quantifer, fall through to the default case.
             FALLTHROUGH;
 
+            defaultCase:
             default:
                 m_delegate.atomPatternCharacter(consumePossibleSurrogatePair());
                 lastTokenWasAnAtom = true;
@@ -1103,6 +1204,7 @@ private:
     unsigned m_index { 0 };
     bool m_isUnicode;
     unsigned m_parenthesesNestingDepth { 0 };
+    std::vector<bool> m_isLookaheadExistOnParentheses; // this is used only unicode flag is true
     HashSet<String> m_captureGroupNames;
 
     // Derived by empirical testing of compile time in PCRE and WREC.
