@@ -20,6 +20,8 @@
 #ifndef ASTContext_h
 #define ASTContext_h
 
+#include "util/Util.h"
+
 namespace Escargot {
 
 class ASTFunctionScopeContextNameInfo {
@@ -149,26 +151,8 @@ struct ASTBlockScopeContext {
 };
 
 typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
-
-class IndexAsOdd {
-public:
-    IndexAsOdd(const size_t &src)
-    {
-        ASSERT(src < std::numeric_limits<size_t>::max() / 2);
-        m_data = (src << 1) | 0x1;
-    }
-
-    operator size_t() const
-    {
-        return m_data >> 1;
-    }
-
-private:
-    size_t m_data;
-};
-
-typedef std::unordered_map<AtomicString, IndexAsOdd, std::hash<AtomicString>, std::equal_to<AtomicString>,
-                           GCUtil::gc_malloc_allocator<std::pair<AtomicString const, IndexAsOdd>>>
+typedef std::unordered_map<AtomicString, StorePositiveIntergerAsOdd, std::hash<AtomicString>, std::equal_to<AtomicString>,
+                           GCUtil::gc_malloc_allocator<std::pair<AtomicString const, StorePositiveIntergerAsOdd>>>
     FunctionContextVarMap;
 
 

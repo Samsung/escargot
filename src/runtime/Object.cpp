@@ -773,10 +773,10 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
 void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    ObjectStructure structure(*m_structure);
-    size_t cnt = structure.propertyCount();
+    ObjectStructure* structure = m_structure;
+    size_t cnt = structure->propertyCount();
     for (size_t i = 0; i < cnt; i++) {
-        const ObjectStructureItem& item = structure.readProperty(state, i);
+        const ObjectStructureItem& item = structure->readProperty(state, i);
         if (shouldSkipSymbolKey && item.m_propertyName.isSymbol()) {
             continue;
         }
@@ -818,18 +818,18 @@ ValueVector Object::ownPropertyKeys(ExecutionState& state)
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Params {
         std::vector<Value::ValueIndex> indexes;
-        std::vector<Value, GCUtil::gc_malloc_allocator<Value>> strings;
-        std::vector<Value, GCUtil::gc_malloc_allocator<Value>> symbols;
+        VectorWithInlineStorage<32, Value, GCUtil::gc_malloc_allocator<Value>> strings;
+        VectorWithInlineStorage<4, SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> symbols;
     } params;
 
     enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         auto params = (Params*)data;
         auto value = name.toPlainValue(state);
-
+        Value::ValueIndex nameAsIndexValue;
         if (value.isSymbol()) {
             params->symbols.push_back(value);
-        } else if (name.isIndexString() && value.toIndex(state) != Value::InvalidIndexValue) {
-            params->indexes.push_back(value.toIndex(state));
+        } else if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
+            params->indexes.push_back(nameAsIndexValue);
         } else {
             params->strings.push_back(value);
         }
@@ -838,15 +838,26 @@ ValueVector Object::ownPropertyKeys(ExecutionState& state)
                 &params, false);
 
     std::sort(params.indexes.begin(), params.indexes.end(), std::less<Value::ValueIndex>());
-    std::move(params.symbols.begin(), params.symbols.end(), std::back_inserter(params.strings));
 
     ValueVector result;
-    for (auto& v : params.indexes) {
-        result.pushBack(Value(v).toString(state));
+    result.resizeWithUninitializedValues(params.indexes.size() + params.strings.size() + params.symbols.size());
+    size_t subSize = params.indexes.size();
+    for (size_t i = 0; i < subSize; i++) {
+        result[i] = Value(params.indexes[i]).toString(state);
     }
-    for (auto& v : params.strings) {
-        result.pushBack(v);
+    size_t base = subSize;
+
+    subSize = params.strings.size();
+    for (size_t i = 0; i < subSize; i++) {
+        result[base + i] = params.strings[i];
     }
+    base += subSize;
+
+    subSize = params.symbols.size();
+    for (size_t i = 0; i < subSize; i++) {
+        result[base + i] = params.symbols[i];
+    }
+
     return result;
 }
 

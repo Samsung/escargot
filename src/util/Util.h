@@ -46,6 +46,22 @@ inline void clearStack()
 #error
 #endif
 
+class StorePositiveIntergerAsOdd {
+public:
+    StorePositiveIntergerAsOdd(const size_t& src)
+    {
+        ASSERT(src < std::numeric_limits<size_t>::max() / 2);
+        m_data = (src << 1) | 0x1;
+    }
+
+    operator size_t() const
+    {
+        return m_data >> 1;
+    }
+
+private:
+    size_t m_data;
+};
 
 uint64_t tickCount(); // increase 1000 by 1 second
 uint64_t longTickCount(); // increase 1000000 by 1 second

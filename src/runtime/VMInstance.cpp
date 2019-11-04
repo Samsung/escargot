@@ -39,7 +39,11 @@ bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, Smal
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
-    return privateDataFromObjectPrivateArea;
+    if (privateDataFromObjectPrivateArea.isEmpty()) {
+        return self->asFunctionObject()->getFunctionPrototype(state);
+    } else {
+        return privateDataFromObjectPrivateArea;
+    }
 }
 
 bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)

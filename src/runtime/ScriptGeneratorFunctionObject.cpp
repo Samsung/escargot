@@ -19,10 +19,17 @@
 
 #include "Escargot.h"
 #include "ScriptGeneratorFunctionObject.h"
-
-#include "FunctionObjectInlines.h"
+#include "runtime/Context.h"
+#include "runtime/FunctionObjectInlines.h"
 
 namespace Escargot {
+
+Object* ScriptGeneratorFunctionObject::createFunctionPrototypeObject(ExecutionState& state)
+{
+    Object* prototype = new Object(state);
+    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
+    return prototype;
+}
 
 class ScriptGeneratorFunctionObjectThisValueBinder {
 public:

@@ -22,6 +22,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
+#include "util/Util.h"
 
 namespace Escargot {
 
@@ -68,9 +69,39 @@ public:
 private:
     FunctionEnvironmentRecord* m_targetRecord;
     ScriptFunctionObject* m_sourceFunctionObject;
-    TightVector<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
-    size_t m_argc;
-    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>> m_modifiedArguments;
+    TightVectorWithNoSize<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
+
+    struct ModifiedArguments : public gc {
+        StorePositiveIntergerAsOdd m_argc;
+        bool* m_modified;
+
+        ModifiedArguments(size_t s)
+            : m_argc(s)
+        {
+            m_modified = new (PointerFreeGC) bool[s];
+            memset(m_modified, 0, s * sizeof(bool));
+        }
+    };
+    union {
+        size_t m_argc;
+        ModifiedArguments* m_modifiedArguments;
+    };
+
+    size_t argc()
+    {
+        if ((m_argc & 1) == 0) {
+            return m_modifiedArguments->m_argc;
+        }
+        return m_argc >> 1;
+    }
+
+    ModifiedArguments* modifiedArguments()
+    {
+        if ((m_argc & 1) == 0) {
+            return m_modifiedArguments;
+        }
+        return nullptr;
+    }
 
     Value getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index);
     void setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value);

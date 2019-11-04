@@ -50,6 +50,8 @@ public:
         return m_homeObject;
     }
 
+    virtual Object* createFunctionPrototypeObject(ExecutionState& state) override;
+
     friend class FunctionObjectProcessCallGenerator;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;

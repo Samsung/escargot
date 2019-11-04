@@ -71,11 +71,11 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
     : Object(state, isMapped ? ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3 : ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4, true)
     , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)
     , m_sourceFunctionObject(sourceFunctionObject)
-    , m_argc(argc)
+    , m_argc((argc << 1) | 1)
 {
     // Let len be the number of elements in argumentsList.
     int len = argc;
-    m_parameterMap.resizeWithUninitializedValues(len);
+    m_parameterMap.resizeWithUninitializedValues(0, len);
 
     if (isMapped) {
         m_structure = state.context()->defaultStructureForMappedArgumentsObject();
@@ -246,7 +246,7 @@ bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPrope
 
 void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
-    for (size_t i = 0; i < m_parameterMap.size(); i++) {
+    for (size_t i = 0; i < argc(); i++) {
         if (isMatchedArgument(i)) {
             if (!isModifiedArgument(i)) {
                 if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent), data)) {
@@ -317,7 +317,7 @@ bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& pro
 
 Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index)
 {
-    ASSERT((index != Value::InvalidIndexValue) && (index < m_parameterMap.size()));
+    ASSERT((index != Value::InvalidIndexValue) && (index < argc()));
     ASSERT(!m_parameterMap[index].first.isEmpty());
 
     if (m_parameterMap[index].second.string()->length()) {
@@ -332,7 +332,7 @@ Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uin
 
 void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value)
 {
-    ASSERT((index != Value::InvalidIndexValue) && (index < m_parameterMap.size()));
+    ASSERT((index != Value::InvalidIndexValue) && (index < argc()));
     ASSERT(!m_parameterMap[index].first.isEmpty());
 
     if (m_parameterMap[index].second.string()->length()) {
@@ -347,11 +347,11 @@ void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint
 
 bool ArgumentsObject::isModifiedArgument(uint64_t index)
 {
-    if (m_modifiedArguments.size() == 0) {
+    if (!modifiedArguments()) {
         return false;
     }
-    if (LIKELY(index != Value::InvalidIndexValue) && index < m_argc) {
-        return m_modifiedArguments[index];
+    if (LIKELY(index != Value::InvalidIndexValue) && index < argc()) {
+        return m_modifiedArguments->m_modified[index];
     }
     return false;
 }
@@ -359,18 +359,19 @@ bool ArgumentsObject::isModifiedArgument(uint64_t index)
 void ArgumentsObject::setModifiedArgument(uint64_t index)
 {
     if (LIKELY(index != Value::InvalidIndexValue)) {
-        if (m_modifiedArguments.size() == 0) {
-            m_modifiedArguments.resize(m_argc, false);
+        if (modifiedArguments() == nullptr) {
+            size_t c = argc();
+            m_modifiedArguments = new ModifiedArguments(c);
         }
-        if (index < m_argc) {
-            m_modifiedArguments[index] = true;
+        if (index < argc()) {
+            m_modifiedArguments->m_modified[index] = true;
         }
     }
 }
 
 bool ArgumentsObject::isMatchedArgument(uint64_t index)
 {
-    if (LIKELY(index != Value::InvalidIndexValue) && index < m_parameterMap.size()) {
+    if (LIKELY(index != Value::InvalidIndexValue) && index < argc()) {
         return !m_parameterMap[index].first.isEmpty();
     }
     return false;

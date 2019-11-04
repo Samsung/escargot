@@ -488,6 +488,107 @@ private:
     size_t m_capacity;
 };
 
+template <typename T, int const glowFactor = 120>
+class VectorWithNoSizeUseGCRealloc : public gc {
+public:
+    VectorWithNoSizeUseGCRealloc()
+    {
+        m_buffer = nullptr;
+        m_capacity = 0;
+    }
+
+    const VectorWithNoSizeUseGCRealloc<T, glowFactor>& operator=(const VectorWithNoSizeUseGCRealloc<T, glowFactor>& other) = delete;
+    VectorWithNoSizeUseGCRealloc(const VectorWithNoSizeUseGCRealloc<T, glowFactor>& other, const T& newItem) = delete;
+    ~VectorWithNoSizeUseGCRealloc()
+    {
+        if (m_buffer) {
+            GC_FREE(m_buffer);
+        }
+    }
+
+    void pushBack(const T& val, size_t newSize)
+    {
+        if (m_capacity <= (newSize)) {
+            size_t oldc = m_capacity;
+            m_capacity = computeAllocateSize(newSize);
+            m_buffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * m_capacity);
+        }
+        m_buffer[newSize - 1] = val;
+    }
+
+    size_t capacity() const
+    {
+        return m_capacity;
+    }
+
+    T& operator[](const size_t idx)
+    {
+        return m_buffer[idx];
+    }
+
+    const T& operator[](const size_t idx) const
+    {
+        return m_buffer[idx];
+    }
+
+    T* data()
+    {
+        return m_buffer;
+    }
+
+    const T* data() const
+    {
+        return m_buffer;
+    }
+
+    void clear()
+    {
+        if (m_buffer) {
+            GC_FREE(m_buffer);
+        }
+        m_buffer = nullptr;
+        m_capacity = 0;
+    }
+
+    void resize(size_t oldSize, size_t newSize, const T& val = T())
+    {
+        if (newSize) {
+            if (newSize > m_capacity) {
+                size_t newCapacity = computeAllocateSize(newSize);
+                T* newBuffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * newCapacity);
+
+                for (size_t i = oldSize; i < newSize; i++) {
+                    newBuffer[i] = val;
+                }
+
+                m_capacity = newCapacity;
+                m_buffer = newBuffer;
+            } else {
+                for (size_t i = oldSize; i < newSize; i++) {
+                    m_buffer[i] = val;
+                }
+            }
+        } else {
+            clear();
+        }
+    }
+
+protected:
+    size_t computeAllocateSize(size_t siz)
+    {
+        if (siz == 0) {
+            return 1;
+        }
+        size_t base = log2l(siz);
+        size_t capacity = 1 << (base + 1);
+        return capacity * glowFactor / 100.f;
+    }
+
+private:
+    T* m_buffer;
+    size_t m_capacity;
+};
+
 // Vector for special purpose
 // It has InlineStorage, so push_back operation is fast with InlineStorage
 template <unsigned int InlineStorageSize, typename T,

@@ -39,9 +39,7 @@ void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstr
         ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
         ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
         ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 < m_structure->propertyCount());
-        auto prototype = new Object(state);
-        prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(prototype));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = SmallValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
     } else {
@@ -50,7 +48,7 @@ void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstr
             ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
             ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
             ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 < m_structure->propertyCount());
-            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(Object::createFunctionPrototypeObject(state, this)));
+            m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = SmallValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
             m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
             m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = (Value(m_codeBlock->parameterCount()));
         } else {

@@ -55,8 +55,10 @@ public:
     // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     Value getFunctionPrototype(ExecutionState& state)
     {
-        if (LIKELY(isConstructor())) {
-            return m_values[functionPrototypeIndex()];
+        if (LIKELY(isConstructor() || isGenerator())) {
+            auto idx = functionPrototypeIndex();
+            ensureFunctionPrototype(state, idx);
+            return m_values[idx];
         } else {
             return Value();
         }
@@ -66,7 +68,7 @@ public:
     // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     bool setFunctionPrototype(ExecutionState& state, const Value& v)
     {
-        if (LIKELY(isConstructor())) {
+        if (LIKELY(isConstructor() || isGenerator())) {
             m_values[functionPrototypeIndex()] = v;
             return true;
         } else {
@@ -184,22 +186,22 @@ protected:
     void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator);
     virtual size_t functionPrototypeIndex()
     {
-        ASSERT(isConstructor());
+        ASSERT(isConstructor() || isGenerator());
         return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER;
     }
 
-    Value getFunctionPrototypeKnownAsConstructor(ExecutionState& state)
+    void ensureFunctionPrototype(ExecutionState& state, const size_t& prototypeIndex)
     {
-        ASSERT(isConstructor());
-        return m_values[functionPrototypeIndex()];
+        if (m_values[prototypeIndex].isEmpty()) {
+            m_values[prototypeIndex] = createFunctionPrototypeObject(state);
+        }
     }
 
-    bool setFunctionPrototypeKnownAsConstructor(ExecutionState& state, const Value& v)
+    virtual Object* createFunctionPrototypeObject(ExecutionState& state)
     {
-        ASSERT(isConstructor());
-        m_values[functionPrototypeIndex()] = v;
-        return true;
+        return Object::createFunctionPrototypeObject(state, this);
     }
+
     CodeBlock* m_codeBlock;
 };
 }
