@@ -63,9 +63,7 @@ non262/class/className.js
 non262/class/outerBinding.js
 non262/class/strictExecution.js
 non262/class/superCallBaseInvoked.js
-non262/class/superElemDelete.js
 non262/class/superPropBasicCalls.js
-non262/class/superPropDelete.js
 non262/class/superPropDerivedCalls.js
 non262/class/superPropDVG.js
 non262/class/superPropNoOverwriting.js

@@ -1141,7 +1141,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             UnaryDelete* code = (UnaryDelete*)programCounter;
-            deleteOperation(*state, state->lexicalEnvironment(), code, registerFile);
+            deleteOperation(*state, state->lexicalEnvironment(), code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(UnaryDelete);
             NEXT_INSTRUCTION();
         }
@@ -1556,7 +1556,7 @@ NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, 
     registerFile[code->m_dstIndex] = Value(builder.finalize(&state));
 }
 
-NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     if (code->m_id.string()->length()) {
         bool result;
@@ -1571,11 +1571,26 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
             result = env->deleteBinding(state, code->m_id);
         }
         registerFile[code->m_dstIndex] = Value(result);
+    } else if (code->m_hasSuperExpression) {
+        if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+            EnvironmentRecord* envRec = state.getThisEnvironment();
+            ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+            envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state); // check thisbinding
+        }
+        const Value& p = registerFile[code->m_srcIndex1];
+        auto name = ObjectPropertyName(state, p);
+
+        const Value& o = state.makeSuperPropertyReference();
+        Object* obj = o.toObject(state);
+
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.toPropertyName(state).toExceptionString(), false, String::emptyString, "ReferenceError: Unsupported reference to 'super'");
     } else {
         const Value& o = registerFile[code->m_srcIndex0];
         const Value& p = registerFile[code->m_srcIndex1];
-        Object* obj = o.toObject(state);
+
         auto name = ObjectPropertyName(state, p);
+        Object* obj = o.toObject(state);
+
         bool result = obj->deleteOwnProperty(state, name);
         if (!result && state.inStrictMode())
             Object::throwCannotDeleteError(state, name.toPropertyName(state));

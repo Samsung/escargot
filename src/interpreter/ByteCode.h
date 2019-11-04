@@ -1259,15 +1259,16 @@ public:
 
 class UnaryDelete : public ByteCode {
 public:
-    UnaryDelete(const ByteCodeLOC& loc, const size_t srcIndex0, const size_t srcIndex1, const size_t dstIndex, AtomicString name)
+    UnaryDelete(const ByteCodeLOC& loc, const size_t srcIndex0, const size_t srcIndex1, const size_t dstIndex, AtomicString name, bool hasSuperExpression)
         : ByteCode(Opcode::UnaryDeleteOpcode, loc)
+        , m_hasSuperExpression(hasSuperExpression)
         , m_srcIndex0(srcIndex0)
         , m_srcIndex1(srcIndex1)
         , m_dstIndex(dstIndex)
         , m_id(name)
     {
     }
-
+    bool m_hasSuperExpression;
     ByteCodeRegisterIndex m_srcIndex0;
     ByteCodeRegisterIndex m_srcIndex1;
     ByteCodeRegisterIndex m_dstIndex;
