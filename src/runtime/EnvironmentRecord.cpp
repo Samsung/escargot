@@ -134,7 +134,7 @@ void GlobalEnvironmentRecord::initializeBinding(ExecutionState& state, const Ato
     if (t == SIZE_MAX) {
         m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
     } else {
-        auto desc = m_globalObject->structure()->readProperty(state, t).m_descriptor;
+        auto desc = m_globalObject->structure()->readProperty(t).m_descriptor;
         if (desc.isDataProperty()) {
             if (desc.isConfigurable() || !desc.isEnumerable()) {
                 m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));

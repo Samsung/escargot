@@ -95,7 +95,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     }
 
     uint64_t idx = P.tryToUseAsArrayIndex();
-    auto oldLenDesc = structure()->readProperty(state, (size_t)0);
+    auto oldLenDesc = structure()->readProperty((size_t)0);
     uint32_t oldLen = getArrayLength(state);
 
     if (idx != Value::InvalidArrayIndexValue) {
@@ -271,9 +271,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
     if (!isFastModeArray())
         return;
 
-    if (!structure()->isStructureWithFastAccess()) {
-        m_structure = structure()->convertToWithFastAccess(state);
-    }
+    m_structure = structure()->convertToNonTransitionStructure();
 
     ensureObjectRareData()->m_isFastModeArrayObject = false;
 
@@ -298,7 +296,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength
 
     if (LIKELY(isFastModeArray())) {
         auto oldSize = getArrayLength(state);
-        auto oldLenDesc = structure()->readProperty(state, (size_t)0);
+        auto oldLenDesc = structure()->readProperty((size_t)0);
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
         m_fastModeData.resize(oldSize, newLength, Value(Value::EmptyValue));
 
@@ -308,7 +306,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength
         return true;
     } else {
         if (!isInArrayObjectDefineOwnProperty()) {
-            auto oldLenDesc = structure()->readProperty(state, (size_t)0);
+            auto oldLenDesc = structure()->readProperty((size_t)0);
 
             int64_t oldLen = length(state);
             int64_t newLen = newLength;

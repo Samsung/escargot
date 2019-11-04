@@ -1024,6 +1024,32 @@ bool ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
     return toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
 }
 
+OptionalRef<ContextRef> ObjectRef::creationContext()
+{
+    Optional<Object*> o = toImpl(this);
+
+    while (true) {
+        if (!o) {
+            break;
+        }
+
+        if (o->isFunctionObject()) {
+            return toRef(o->asFunctionObject()->codeBlock()->context());
+        }
+
+        auto ctor = o->readConstructorSlotWithoutState();
+        if (ctor) {
+            if (ctor.value().isFunction()) {
+                return toRef(ctor.value().asFunction()->codeBlock()->context());
+            }
+        }
+
+        o = o->rawInternalPrototypeObject();
+    }
+
+    return OptionalRef<ContextRef>();
+}
+
 ValueVectorRef* ObjectRef::ownPropertyKeys(ExecutionStateRef* state)
 {
     ValueVector v = toImpl(this)->ownPropertyKeys(*toImpl(state));

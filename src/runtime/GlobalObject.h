@@ -154,7 +154,7 @@ public:
         m_objectPrototype->markThisObjectDontNeedStructureTransitionTable(state);
         Object::setPrototype(state, m_objectPrototype);
 
-        m_structure = m_structure->convertToWithFastAccess(state);
+        m_structure = m_structure->convertToNonTransitionStructure();
     }
 
     virtual bool isGlobalObject() const

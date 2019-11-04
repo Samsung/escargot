@@ -111,6 +111,15 @@
 #endif
 #endif
 
+/* LOG2 */
+#ifndef FAST_LOG2_UINT
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#define FAST_LOG2_UINT(x) ((unsigned)(8 * sizeof(unsigned long long) - __builtin_clzll((x)) - 1))
+#else
+#define FAST_LOG2_UINT(x) log2l(x)
+#endif
+#endif
+
 #ifndef NULLABLE
 #define NULLABLE
 #endif
