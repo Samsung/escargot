@@ -22,33 +22,333 @@
 
 namespace Escargot {
 
-void* ObjectStructure::operator new(size_t size)
+void* ObjectStructureItemVector::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructure)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructure, m_properties));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructure, m_transitionTable));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructure));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureItemVector)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureItemVector, m_buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructureItemVector));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void* ObjectStructureWithFastAccess::operator new(size_t size)
+void* ObjectStructureWithoutTransition::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        const size_t len = GC_BITMAP_SIZE(ObjectStructureWithFastAccess);
-        GC_word obj_bitmap[len] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithFastAccess, m_properties));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithFastAccess, m_transitionTable));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithFastAccess, m_propertyNameMap));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructureWithFastAccess));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithoutTransition)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithoutTransition, m_properties));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructureWithoutTransition));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+size_t ObjectStructureWithoutTransition::findProperty(const PropertyName& s)
+{
+    size_t size = m_properties->size();
+    for (size_t i = 0; i < size; i++) {
+        if ((*m_properties)[i].m_propertyName == s) {
+            return i;
+        }
+    }
+    return SIZE_MAX;
+}
+
+const ObjectStructureItem& ObjectStructureWithoutTransition::readProperty(size_t idx)
+{
+    return m_properties->at(idx);
+}
+
+const ObjectStructureItem* ObjectStructureWithoutTransition::properties() const
+{
+    return m_properties->data();
+}
+
+size_t ObjectStructureWithoutTransition::propertyCount() const
+{
+    return m_properties->size();
+}
+
+ObjectStructure* ObjectStructureWithoutTransition::addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
+{
+    ObjectStructureItem newItem(name, desc);
+    bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    ObjectStructure* newStructure;
+    m_properties->push_back(newItem);
+
+    if (m_properties->size() + 1 > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), m_hasIndexPropertyName | nameIsIndexString);
+    } else {
+        newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName | nameIsIndexString);
+    }
+
+    m_properties = nullptr;
+    return newStructure;
+}
+
+ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
+{
+    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
+    size_t ps = m_properties->size();
+    newProperties->resizeWithUninitializedValues(ps - 1);
+
+    size_t newIdx = 0;
+    bool hasIndexString = false;
+    for (size_t i = 0; i < ps; i++) {
+        if (i == pIndex)
+            continue;
+        hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
+        (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
+        (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
+        newIdx++;
+    }
+
+    auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString);
+    m_properties = nullptr;
+    return newStructure;
+}
+
+ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
+{
+    m_properties->at(idx).m_descriptor = newDesc;
+    auto newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName);
+    m_properties = nullptr;
+    return newStructure;
+}
+
+ObjectStructure* ObjectStructureWithoutTransition::convertToNonTransitionStructure()
+{
+    return this;
+}
+
+void* ObjectStructureWithTransition::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithTransition)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithTransition, m_properties));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithTransition, m_transitionTableVectorBuffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructureWithTransition));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+size_t ObjectStructureWithTransition::findProperty(const PropertyName& s)
+{
+    size_t siz = m_properties.size();
+    for (size_t i = 0; i < siz; i++) {
+        if (m_properties[i].m_propertyName == s) {
+            return i;
+        }
+    }
+    return SIZE_MAX;
+}
+
+const ObjectStructureItem& ObjectStructureWithTransition::readProperty(size_t idx)
+{
+    return m_properties[idx];
+}
+
+const ObjectStructureItem* ObjectStructureWithTransition::properties() const
+{
+    return m_properties.data();
+}
+
+size_t ObjectStructureWithTransition::propertyCount() const
+{
+    return m_properties.size();
+}
+
+ObjectStructure* ObjectStructureWithTransition::addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
+{
+    if (m_doesTransitionTableUseMap) {
+        auto iter = m_transitionTableMap->find(ObjectStructureTransitionMapItem(name, desc));
+        if (iter != m_transitionTableMap->end()) {
+            return iter->second;
+        }
+    } else {
+        size_t len = m_transitionTableVectorBufferSize;
+        for (size_t i = 0; i < len; i++) {
+            const auto& item = m_transitionTableVectorBuffer[i];
+            if (item.m_descriptor == desc && item.m_propertyName == name) {
+                return item.m_structure;
+            }
+        }
+    }
+
+    ObjectStructureItem newItem(name, desc);
+    bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    ObjectStructure* newObjectStructure;
+
+    size_t nextSize = m_properties.size() + 1;
+    if (nextSize > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        newObjectStructure = new ObjectStructureWithMap(nameIsIndexString, m_properties, newItem);
+    } else if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
+        ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties, newItem);
+        newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString);
+    } else {
+        ObjectStructureItemTightVector newProperties(m_properties, newItem);
+        newObjectStructure = new ObjectStructureWithTransition(std::move(newProperties), nameIsIndexString);
+        ObjectStructureTransitionVectorItem newTransitionItem(name, desc, newObjectStructure);
+
+        if (m_doesTransitionTableUseMap) {
+            m_transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
+                                                        newTransitionItem.m_structure));
+        } else {
+            if (m_transitionTableVectorBufferSize + 1 > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE) {
+                ObjectStructureTransitionTableMap* transitionTableMap = new (GC) ObjectStructureTransitionTableMap();
+                for (size_t i = 0; i < m_transitionTableVectorBufferSize; i++) {
+                    transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(m_transitionTableVectorBuffer[i].m_propertyName, m_transitionTableVectorBuffer[i].m_descriptor),
+                                                              m_transitionTableVectorBuffer[i].m_structure));
+                }
+                transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
+                                                          newTransitionItem.m_structure));
+
+                m_doesTransitionTableUseMap = true;
+                m_transitionTableMap = transitionTableMap;
+                m_transitionTableVectorBufferCapacity = 0;
+                m_transitionTableVectorBufferSize = 0;
+            } else {
+                if (m_transitionTableVectorBufferCapacity <= (size_t)(m_transitionTableVectorBufferSize + 1)) {
+                    size_t oldc = m_transitionTableVectorBufferCapacity;
+                    m_transitionTableVectorBufferCapacity = computeVectorAllocateSize(m_transitionTableVectorBufferSize + 1);
+                    m_transitionTableVectorBuffer = (ObjectStructureTransitionVectorItem*)GC_REALLOC(m_transitionTableVectorBuffer, sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity);
+                }
+                m_transitionTableVectorBuffer[m_transitionTableVectorBufferSize] = newTransitionItem;
+                m_transitionTableVectorBufferSize++;
+            }
+        }
+    }
+
+    return newObjectStructure;
+}
+
+ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
+{
+    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
+    newProperties->resizeWithUninitializedValues(m_properties.size() - 1);
+    size_t pc = m_properties.size();
+
+    size_t newIdx = 0;
+    bool hasIndexString = false;
+    for (size_t i = 0; i < pc; i++) {
+        if (i == pIndex)
+            continue;
+        hasIndexString = hasIndexString | m_properties[i].m_propertyName.isIndexString();
+        (*newProperties)[newIdx].m_propertyName = m_properties[i].m_propertyName;
+        (*newProperties)[newIdx].m_descriptor = m_properties[i].m_descriptor;
+        newIdx++;
+    }
+
+    return new ObjectStructureWithoutTransition(newProperties, hasIndexString);
+}
+
+ObjectStructure* ObjectStructureWithTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
+{
+    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
+    newProperties->at(idx).m_descriptor = newDesc;
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName);
+}
+
+ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure()
+{
+    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName);
+}
+
+void* ObjectStructureWithMap::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithMap)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithMap, m_properties));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithMap, m_propertyNameMap));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructureWithMap));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+
+size_t ObjectStructureWithMap::findProperty(const PropertyName& s)
+{
+    auto iter = m_propertyNameMap->find(s);
+    if (iter == m_propertyNameMap->end()) {
+        return SIZE_MAX;
+    }
+    return iter->second;
+}
+
+const ObjectStructureItem& ObjectStructureWithMap::readProperty(size_t idx)
+{
+    return m_properties->at(idx);
+}
+
+const ObjectStructureItem* ObjectStructureWithMap::properties() const
+{
+    return m_properties->data();
+}
+
+size_t ObjectStructureWithMap::propertyCount() const
+{
+    return m_properties->size();
+}
+
+ObjectStructure* ObjectStructureWithMap::addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
+{
+    ObjectStructureItem newItem(name, desc);
+    bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+
+    m_propertyNameMap->insert(std::make_pair(name, m_properties->size()));
+    m_properties->push_back(newItem);
+    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, nameIsIndexString);
+    m_properties = nullptr;
+    m_propertyNameMap = nullptr;
+    return newStructure;
+}
+
+ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
+{
+    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
+    size_t ps = m_properties->size();
+    newProperties->resizeWithUninitializedValues(ps - 1);
+
+    size_t newIdx = 0;
+    bool hasIndexString = false;
+    for (size_t i = 0; i < ps; i++) {
+        if (i == pIndex)
+            continue;
+        hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
+        (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
+        (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
+        newIdx++;
+    }
+
+    ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString);
+    m_properties = nullptr;
+    m_propertyNameMap = nullptr;
+    return newStructure;
+}
+
+ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
+{
+    m_properties->at(idx).m_descriptor = newDesc;
+    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, m_hasIndexPropertyName);
+    m_properties = nullptr;
+    m_propertyNameMap = nullptr;
+    return newStructure;
+}
+
+ObjectStructure* ObjectStructureWithMap::convertToNonTransitionStructure()
+{
+    return this;
 }
 }

@@ -1744,9 +1744,9 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         newItem.m_objectStructure = obj->structure();
 
         cachedHiddenClassChain->push_back(newItem);
-        size_t idx = obj->structure()->findProperty(state, name);
+        size_t idx = obj->structure()->findProperty(name);
 
-        if (!obj->structure()->isProtectedByTransitionTable()) {
+        if (!obj->structure()->inTransitionMode()) {
             block->m_objectStructuresInUse->insert(obj->structure());
         }
 
@@ -1809,7 +1809,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         if (LIKELY(!miss) && inlineCache.m_cachedhiddenClassChain[cSiz - 1].m_objectStructure == obj->structure()) {
             // cache hit!
             obj = originalObject;
-            ASSERT(!obj->structure()->isStructureWithFastAccess());
+            ASSERT(obj->structure()->inTransitionMode());
             obj->m_values.push_back(value, inlineCache.m_hiddenClassWillBe->propertyCount());
             obj->m_structure = inlineCache.m_hiddenClassWillBe;
             return;
@@ -1838,7 +1838,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 
     Object* obj = originalObject;
 
-    size_t idx = obj->structure()->findProperty(state, name);
+    size_t idx = obj->structure()->findProperty(name);
     if (idx != SIZE_MAX) {
         // own property
         ObjectStructureChainItem newItem;
@@ -1854,7 +1854,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
             return;
         }
 
-        const auto& propertyData = obj->structure()->readProperty(state, idx);
+        const auto& propertyData = obj->structure()->readProperty(idx);
         const auto& desc = propertyData.m_descriptor;
         if (propertyData.m_propertyName == name && desc.isPlainDataProperty() && desc.isWritable()) {
             inlineCache.m_cachedIndex = idx;
@@ -1862,7 +1862,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         }
     } else {
         Object* orgObject = obj;
-        if (UNLIKELY(obj->structure()->isStructureWithFastAccess())) {
+        if (UNLIKELY(!obj->structure()->inTransitionMode())) {
             inlineCache.invalidateCache();
             orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, name), value, willBeObject);
             return;
@@ -1886,7 +1886,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
             inlineCache.invalidateCache();
             return;
         }
-        if (orgObject->structure()->isStructureWithFastAccess()) {
+        if (!orgObject->structure()->inTransitionMode()) {
             inlineCache.invalidateCache();
             return;
         }
@@ -2069,7 +2069,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
         }
     }
 
-    size_t idx = go->structure()->findProperty(state, slot->m_propertyName);
+    size_t idx = go->structure()->findProperty(slot->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
         ObjectGetResult res = go->get(state, ObjectPropertyName(state, slot->m_propertyName));
         if (res.hasValue()) {
@@ -2084,7 +2084,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
             ASSERT_NOT_REACHED();
         }
     } else {
-        const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
+        const ObjectStructureItem& item = go->structure()->readProperty(idx);
         if (!item.m_descriptor.isPlainDataProperty() || !item.m_descriptor.isWritable()) {
             slot->m_cachedStructure = nullptr;
             slot->m_cachedAddress = nullptr;
@@ -2137,7 +2137,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
     }
 
 
-    size_t idx = go->structure()->findProperty(state, slot->m_propertyName);
+    size_t idx = go->structure()->findProperty(slot->m_propertyName);
     if (UNLIKELY(idx == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
@@ -2145,7 +2145,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
     } else {
-        const ObjectStructureItem& item = go->structure()->readProperty(state, idx);
+        const ObjectStructureItem& item = go->structure()->readProperty(idx);
         if (!item.m_descriptor.isPlainDataProperty() || !item.m_descriptor.isWritable()) {
             slot->m_cachedStructure = nullptr;
             slot->m_cachedAddress = nullptr;

@@ -41,8 +41,9 @@ public:
     PropertyName(ExecutionState& state, const Value& value);
     size_t hashValue() const
     {
-        if (hasAtomicString()) {
-            return ((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS))->hashValue();
+        if (LIKELY(hasAtomicString())) {
+            std::hash<Escargot::AtomicString> hasher;
+            return hasher(asAtomicString());
         } else if (hasSymbol()) {
             return m_data;
         }
@@ -168,7 +169,7 @@ ALWAYS_INLINE bool operator==(const PropertyName& a, const PropertyName& b)
     } else {
         bool sa = !aa && a.hasSymbol();
         bool sb = !ab && b.hasSymbol();
-        if (sa && sb) { // a, b both are symbol
+        if (UNLIKELY(sa && sb)) { // a, b both are symbol
             return a.m_data == b.m_data;
         } else if (!sa && !sb) { // a, b both are string
             return a.plainString()->equals(b.plainString());
@@ -183,7 +184,7 @@ ALWAYS_INLINE bool operator!=(const PropertyName& a, const PropertyName& b)
     return !operator==(a, b);
 }
 
-typedef std::unordered_map<PropertyName, size_t, std::hash<PropertyName>, std::equal_to<PropertyName>, gc_allocator<std::pair<const PropertyName, size_t>>> PropertyNameMap;
+typedef std::unordered_map<PropertyName, size_t, std::hash<PropertyName>, std::equal_to<PropertyName>, GCUtil::gc_malloc_allocator<std::pair<const PropertyName, size_t>>> PropertyNameMap;
 }
 
 namespace std {

@@ -286,7 +286,6 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     }
 
     Object* O = argv[0].asObject();
-    //O->markThisObjectDontNeedStructureTransitionTable(state);
 
     // For each named own property name P of O,
     std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>> descriptors;

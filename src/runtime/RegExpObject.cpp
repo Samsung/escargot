@@ -206,7 +206,7 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
 {
     bool returnValue = Object::defineOwnProperty(state, P, desc);
     if (!P.isUIntType() && returnValue && P.propertyName() == PropertyName(state.context()->staticStrings().lastIndex)) {
-        if (!structure()->readProperty(state, (size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
+        if (!structure()->readProperty((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
             ensureObjectRareData()->m_hasNonWritableLastIndexRegexpObject = true;
         } else {
             ensureObjectRareData()->m_hasNonWritableLastIndexRegexpObject = false;

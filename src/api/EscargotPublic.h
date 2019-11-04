@@ -962,6 +962,8 @@ public:
     OptionalRef<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     bool setPrototype(ExecutionStateRef* state, ValueRef* value);
 
+    OptionalRef<ContextRef> creationContext();
+
     ValueVectorRef* ownPropertyKeys(ExecutionStateRef* state);
 
     void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);

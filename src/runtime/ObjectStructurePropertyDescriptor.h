@@ -152,6 +152,11 @@ public:
         return m_descriptorData.nativeGetterSetterData();
     }
 
+    size_t rawValue() const
+    {
+        return m_descriptorData.m_data;
+    }
+
 protected:
     enum ObjectStructurePropertyDescriptorMode {
         PlainDataMode,

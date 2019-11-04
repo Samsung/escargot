@@ -113,8 +113,8 @@ public:
     Vector(const Vector<T, Allocator, glowFactor>& other, const T& newItem)
     {
         m_size = other.size() + 1;
-        m_capacity = other.m_capacity + 1;
-        m_buffer = Allocator().allocate(m_size);
+        m_capacity = computeAllocateSize(m_size);
+        m_buffer = Allocator().allocate(m_capacity);
         VectorCopier<T>::copy(m_buffer, other.data(), other.size());
 
         m_buffer[other.size()] = newItem;
@@ -126,7 +126,7 @@ public:
             Allocator().deallocate(m_buffer, m_capacity);
     }
 
-    void assign(T* start, T* end)
+    void assign(const T* start, const T* end)
     {
         clear();
 
@@ -369,12 +369,11 @@ protected:
         if (newSize == 0) {
             return 1;
         }
-        size_t base = log2l(newSize);
+        size_t base = FAST_LOG2_UINT(newSize);
         size_t capacity = 1 << (base + 1);
         return capacity * glowFactor / 100.f;
     }
 
-private:
     T* m_buffer;
     size_t m_capacity;
     size_t m_size;
@@ -478,12 +477,11 @@ protected:
         if (siz == 0) {
             return 1;
         }
-        size_t base = log2l(siz);
+        size_t base = FAST_LOG2_UINT(siz);
         size_t capacity = 1 << (base + 1);
         return capacity * glowFactor / 100.f;
     }
 
-private:
     T* m_buffer;
     size_t m_capacity;
 };
@@ -579,12 +577,11 @@ protected:
         if (siz == 0) {
             return 1;
         }
-        size_t base = log2l(siz);
+        size_t base = FAST_LOG2_UINT(siz);
         size_t capacity = 1 << (base + 1);
         return capacity * glowFactor / 100.f;
     }
 
-private:
     T* m_buffer;
     size_t m_capacity;
 };

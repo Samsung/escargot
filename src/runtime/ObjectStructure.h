@@ -40,12 +40,12 @@ struct ObjectStructureItem : public gc {
     ObjectStructurePropertyDescriptor m_descriptor;
 };
 
-struct ObjectStructureTransitionItem : public gc {
+struct ObjectStructureTransitionVectorItem : public gc {
     PropertyName m_propertyName;
     ObjectStructurePropertyDescriptor m_descriptor;
     ObjectStructure* m_structure;
 
-    ObjectStructureTransitionItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc, ObjectStructure* structure)
+    ObjectStructureTransitionVectorItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc, ObjectStructure* structure)
         : m_propertyName(as)
         , m_descriptor(desc)
         , m_structure(structure)
@@ -53,280 +53,248 @@ struct ObjectStructureTransitionItem : public gc {
     }
 };
 
-typedef Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemVector;
-typedef Vector<ObjectStructureTransitionItem, GCUtil::gc_malloc_allocator<ObjectStructureTransitionItem>> ObjectStructureTransitionTableVector;
+struct ObjectStructureTransitionMapItem : public gc {
+    PropertyName m_propertyName;
+    ObjectStructurePropertyDescriptor m_descriptor;
 
-#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 96
+    ObjectStructureTransitionMapItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc)
+        : m_propertyName(as)
+        , m_descriptor(desc)
+    {
+    }
+};
 
-class ObjectStructure : public gc {
-    friend class Object;
-    friend class ArrayObject;
+typedef std::unordered_map<ObjectStructureTransitionMapItem, ObjectStructure*, std::hash<ObjectStructureTransitionMapItem>,
+                           std::equal_to<ObjectStructureTransitionMapItem>, GCUtil::gc_malloc_allocator<std::pair<ObjectStructureTransitionMapItem const, ObjectStructure*>>>
+    ObjectStructureTransitionTableMap;
+
+typedef TightVector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemTightVector;
+
+class ObjectStructureItemVector : public Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> {
+    typedef Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemVectorType;
 
 public:
-    ObjectStructure(ExecutionState&, bool needsTransitionTable = true)
-        : m_isProtectedByTransitionTable(false)
-        , m_hasIndexPropertyName(false)
-        , m_needsTransitionTable(needsTransitionTable)
-        , m_isStructureWithFastAccess(false)
+    ObjectStructureItemVector()
     {
     }
 
-    ObjectStructure(ExecutionState&, ObjectStructureItemVector&& properties, bool needsTransitionTable, bool hasIndexPropertyName)
-        : m_isProtectedByTransitionTable(false)
-        , m_hasIndexPropertyName(hasIndexPropertyName)
-        , m_needsTransitionTable(needsTransitionTable)
-        , m_isStructureWithFastAccess(false)
-        , m_properties(std::move(properties))
+    ObjectStructureItemVector(const ObjectStructureItemTightVector& other)
+    {
+        m_buffer = nullptr;
+        m_capacity = 0;
+        m_size = 0;
+        assign(other.data(), other.data() + other.size());
+    }
+
+    ObjectStructureItemVector(const ObjectStructureItemVector& other)
+        : ObjectStructureItemVectorType(other)
     {
     }
 
+    ObjectStructureItemVector(const ObjectStructureItemVector& other, const ObjectStructureItem& newItem)
+        : ObjectStructureItemVectorType(other, newItem)
+    {
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+};
+
+#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 96
+#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 48
+#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE 32
+
+class ObjectStructure : public gc {
+public:
+    virtual ~ObjectStructure() {}
     size_t findProperty(ExecutionState& state, String* propertyName)
     {
         PropertyName name(state, propertyName);
         return findProperty(name);
     }
 
-    size_t findProperty(ExecutionState&, const PropertyName& name)
-    {
-        return findProperty(name);
-    }
-
-    size_t findProperty(const PropertyName& s)
-    {
-        if (UNLIKELY(m_isStructureWithFastAccess)) {
-            return findPropertyWithMap(s);
-        }
-
-        size_t siz = m_properties.size();
-        for (size_t i = 0; i < siz; i++) {
-            if (m_properties[i].m_propertyName == s) {
-                return i;
-            }
-        }
-        return SIZE_MAX;
-    }
-
-    ObjectStructureItem readProperty(ExecutionState& state, String* propertyName)
-    {
-        return readProperty(state, findProperty(state, propertyName));
-    }
-
-    const ObjectStructureItem& readProperty(ExecutionState&, size_t idx)
-    {
-        return m_properties[idx];
-    }
-
     ObjectStructure* addProperty(ExecutionState& state, String* propertyName, const ObjectStructurePropertyDescriptor& desc)
     {
         PropertyName name(state, propertyName);
-        return addProperty(state, name, desc);
+        return addProperty(name, desc);
     }
 
-    ObjectStructure* addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc);
-    ObjectStructure* removeProperty(ExecutionState& state, size_t pIndex);
-    ObjectStructure* escapeTransitionMode(ExecutionState& state);
-    ObjectStructure* convertToWithFastAccess(ExecutionState& state);
+    virtual size_t findProperty(const PropertyName& s) = 0;
+    virtual const ObjectStructureItem& readProperty(size_t idx) = 0;
+    virtual const ObjectStructureItem* properties() const = 0;
+    virtual size_t propertyCount() const = 0;
+    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) = 0;
+    virtual ObjectStructure* removeProperty(size_t pIndex) = 0;
+    virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) = 0;
 
-    bool inTransitionMode()
+    virtual ObjectStructure* convertToNonTransitionStructure() = 0;
+
+    virtual bool inTransitionMode() = 0;
+    virtual bool hasIndexPropertyName() = 0;
+};
+
+class ObjectStructureWithoutTransition : public ObjectStructure {
+public:
+    ObjectStructureWithoutTransition(ObjectStructureItemVector* properties, bool hasIndexPropertyName)
+        : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_properties(properties)
     {
-        return m_needsTransitionTable;
     }
 
-    bool hasIndexPropertyName()
+    virtual size_t findProperty(const PropertyName& s) override;
+    virtual const ObjectStructureItem& readProperty(size_t idx) override;
+    virtual const ObjectStructureItem* properties() const override;
+    virtual size_t propertyCount() const override;
+    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
+    virtual ObjectStructure* removeProperty(size_t pIndex) override;
+    virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
+    virtual ObjectStructure* convertToNonTransitionStructure() override;
+
+    virtual bool inTransitionMode() override
+    {
+        return false;
+    }
+
+    virtual bool hasIndexPropertyName() override
     {
         return m_hasIndexPropertyName;
-    }
-
-    bool isStructureWithFastAccess()
-    {
-        return m_isStructureWithFastAccess;
-    }
-
-    bool isProtectedByTransitionTable()
-    {
-        return m_isProtectedByTransitionTable;
-    }
-
-    size_t propertyCount() const
-    {
-        return m_properties.size();
     }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
-    bool m_isProtectedByTransitionTable : 1;
-
-protected:
-    bool m_hasIndexPropertyName : 1;
-    bool m_needsTransitionTable : 1;
-    bool m_isStructureWithFastAccess : 1;
-    ObjectStructureItemVector m_properties;
-    ObjectStructureTransitionTableVector m_transitionTable;
-
-    size_t searchTransitionTable(const PropertyName& s, const ObjectStructurePropertyDescriptor& desc)
-    {
-        ASSERT(m_needsTransitionTable);
-        size_t len = m_transitionTable.size();
-        for (size_t i = 0; i < len; i++) {
-            if (m_transitionTable[i].m_descriptor == desc && m_transitionTable[i].m_propertyName == s) {
-                return i;
-            }
-        }
-        return SIZE_MAX;
-    }
-
-    size_t findPropertyWithMap(const PropertyName& s)
-    {
-        const PropertyNameMap& map = propertyNameMap();
-        auto iter = map.find(s);
-        if (map.end() == iter) {
-            return SIZE_MAX;
-        } else {
-            return iter->second;
-        }
-    }
-
-    PropertyNameMap& propertyNameMap();
+    bool m_hasIndexPropertyName;
+    ObjectStructureItemVector* m_properties;
 };
 
-class ObjectStructureWithFastAccess : public ObjectStructure {
-    friend class ByteCodeInterpreter;
-    friend class ObjectStructure;
-
+class ObjectStructureWithTransition : public ObjectStructure {
 public:
-    explicit ObjectStructureWithFastAccess(ExecutionState& state)
-        : ObjectStructure(state, false)
-        , m_propertyNameMap(new (GC) PropertyNameMap())
+    ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName)
+        : m_properties(std::move(properties))
+        , m_doesTransitionTableUseMap(false)
+        , m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_transitionTableVectorBufferSize(0)
+        , m_transitionTableVectorBufferCapacity(0)
+        , m_transitionTableVectorBuffer(nullptr)
     {
-        m_isStructureWithFastAccess = true;
-        buildPropertyNameMap();
     }
 
-    ObjectStructureWithFastAccess(ExecutionState& state, ObjectStructureItemVector&& properties, bool hasIndexPropertyName)
-        : ObjectStructure(state, std::move(properties), false, hasIndexPropertyName)
-        , m_propertyNameMap(new (GC) PropertyNameMap())
+    virtual size_t findProperty(const PropertyName& s) override;
+    virtual const ObjectStructureItem& readProperty(size_t idx) override;
+    virtual const ObjectStructureItem* properties() const override;
+    virtual size_t propertyCount() const override;
+    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
+    virtual ObjectStructure* removeProperty(size_t pIndex) override;
+    virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
+    virtual ObjectStructure* convertToNonTransitionStructure() override;
+
+    virtual bool inTransitionMode() override
     {
-        m_isStructureWithFastAccess = true;
-        buildPropertyNameMap();
+        return true;
     }
 
-    ObjectStructureWithFastAccess(ExecutionState& state, ObjectStructureWithFastAccess& old)
-        : ObjectStructure(state, std::move(old.m_properties), old.m_needsTransitionTable, old.m_hasIndexPropertyName)
-        , m_propertyNameMap(old.m_propertyNameMap)
+    virtual bool hasIndexPropertyName() override
     {
-        m_isStructureWithFastAccess = true;
-        old.m_propertyNameMap = nullptr;
-    }
-
-    void buildPropertyNameMap()
-    {
-        m_propertyNameMap->clear();
-        size_t len = m_properties.size();
-        for (size_t i = 0; i < len; i++) {
-            m_propertyNameMap->insert(std::make_pair(m_properties[i].m_propertyName, i));
-        }
+        return m_hasIndexPropertyName;
     }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    PropertyNameMap* m_propertyNameMap;
+private:
+    size_t computeVectorAllocateSize(size_t newSize)
+    {
+        if (newSize == 0) {
+            return 1;
+        }
+        size_t base = FAST_LOG2_UINT(newSize);
+        return 1 << (base + 1);
+    }
+
+    ObjectStructureItemTightVector m_properties;
+
+    bool m_doesTransitionTableUseMap : 1;
+    bool m_hasIndexPropertyName : 1;
+    size_t m_transitionTableVectorBufferSize : 15;
+    size_t m_transitionTableVectorBufferCapacity : 15;
+    union {
+        ObjectStructureTransitionVectorItem* m_transitionTableVectorBuffer;
+        ObjectStructureTransitionTableMap* m_transitionTableMap;
+    };
 };
 
-inline PropertyNameMap& ObjectStructure::propertyNameMap()
-{
-    ASSERT(m_isStructureWithFastAccess);
-    ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
-    return *self->m_propertyNameMap;
-}
-
-inline ObjectStructure* ObjectStructure::addProperty(ExecutionState& state, const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
-{
-    ObjectStructureItem newItem(name, desc);
-    if (m_isStructureWithFastAccess) {
-        m_properties.pushBack(newItem);
-        bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
-        m_hasIndexPropertyName = m_hasIndexPropertyName | nameIsIndexString;
-        propertyNameMap().insert(std::make_pair(name, m_properties.size() - 1));
-        ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
-        ObjectStructureWithFastAccess* newSelf = new ObjectStructureWithFastAccess(state, *self);
-        return newSelf;
+class ObjectStructureWithMap : public ObjectStructure {
+public:
+    ObjectStructureWithMap(ObjectStructureItemVector* properties, PropertyNameMap* map, bool hasIndexPropertyName)
+        : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_properties(properties)
+        , m_propertyNameMap(map)
+    {
     }
 
-    if (m_needsTransitionTable) {
-        size_t r = searchTransitionTable(name, desc);
-        if (r != SIZE_MAX) {
-            return m_transitionTable[r].m_structure;
+    template <typename SourceProperties>
+    ObjectStructureWithMap(bool hasIndexPropertyName, const SourceProperties& properties, const ObjectStructureItem& newItem)
+        : m_hasIndexPropertyName(hasIndexPropertyName)
+    {
+        ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
+        newProperties->resizeWithUninitializedValues(properties.size() + 1);
+        memcpy(newProperties->data(), properties.data(), properties.size() * sizeof(ObjectStructureItem));
+        newProperties->at(properties.size()) = newItem;
+
+        m_properties = newProperties;
+        m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
+    }
+
+    ObjectStructureWithMap(bool hasIndexPropertyName, const ObjectStructureItemTightVector& properties)
+        : m_hasIndexPropertyName(hasIndexPropertyName)
+    {
+        ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
+        newProperties->resizeWithUninitializedValues(properties.size());
+        memcpy(newProperties->data(), properties.data(), properties.size() * sizeof(ObjectStructureItem));
+
+        m_properties = newProperties;
+        m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
+    }
+
+    virtual size_t findProperty(const PropertyName& s) override;
+    virtual const ObjectStructureItem& readProperty(size_t idx) override;
+    virtual const ObjectStructureItem* properties() const override;
+    virtual size_t propertyCount() const override;
+    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
+    virtual ObjectStructure* removeProperty(size_t pIndex) override;
+    virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
+    virtual ObjectStructure* convertToNonTransitionStructure() override;
+
+    virtual bool inTransitionMode() override
+    {
+        return false;
+    }
+    virtual bool hasIndexPropertyName() override
+    {
+        return m_hasIndexPropertyName;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    template <typename SourceVectorType>
+    static PropertyNameMap* createPropertyNameMap(SourceVectorType* from)
+    {
+        PropertyNameMap* map = new (GC) PropertyNameMap();
+
+        for (size_t i = 0; i < from->size(); i++) {
+            map->insert(std::make_pair((*from)[i].m_propertyName, i));
         }
-    } else {
-        ASSERT(m_transitionTable.size() == 0);
+
+        return map;
     }
 
-    bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
-    ObjectStructureItemVector newProperties(m_properties, newItem);
-    ObjectStructure* newObjectStructure;
-
-    if (newProperties.size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE)
-        newObjectStructure = new ObjectStructureWithFastAccess(state, std::move(newProperties), m_hasIndexPropertyName | nameIsIndexString);
-    else
-        newObjectStructure = new ObjectStructure(state, std::move(newProperties), m_needsTransitionTable, m_hasIndexPropertyName | nameIsIndexString);
-
-    if (m_needsTransitionTable && !newObjectStructure->isStructureWithFastAccess()) {
-        ObjectStructureTransitionItem newTransitionItem(name, desc, newObjectStructure);
-        newObjectStructure->m_isProtectedByTransitionTable = true;
-        m_transitionTable.pushBack(newTransitionItem);
-    }
-
-    return newObjectStructure;
-}
-
-inline ObjectStructure* ObjectStructure::removeProperty(ExecutionState& state, size_t pIndex)
-{
-    if (m_isStructureWithFastAccess) {
-        m_properties.erase(pIndex);
-        propertyNameMap().clear();
-        ObjectStructureWithFastAccess* self = (ObjectStructureWithFastAccess*)this;
-        self->buildPropertyNameMap();
-        ObjectStructureWithFastAccess* newSelf = new ObjectStructureWithFastAccess(state, *self);
-        return newSelf;
-    }
-
-    ObjectStructureItemVector newProperties;
-    newProperties.resizeWithUninitializedValues(m_properties.size() - 1);
-
-    size_t newIdx = 0;
-    bool hasIndexString = false;
-    for (size_t i = 0; i < m_properties.size(); i++) {
-        if (i == pIndex)
-            continue;
-        hasIndexString = hasIndexString | m_properties[i].m_propertyName.isIndexString();
-        newProperties[newIdx].m_propertyName = m_properties[i].m_propertyName;
-        newProperties[newIdx].m_descriptor = m_properties[i].m_descriptor;
-        newIdx++;
-    }
-
-    return new ObjectStructure(state, std::move(newProperties), false, hasIndexString);
-}
-
-inline ObjectStructure* ObjectStructure::escapeTransitionMode(ExecutionState& state)
-{
-    if (m_isStructureWithFastAccess) {
-        return this;
-    }
-
-    ASSERT(inTransitionMode());
-    ObjectStructureItemVector newItem(m_properties);
-    return new ObjectStructure(state, std::move(newItem), false, m_hasIndexPropertyName);
-}
-
-inline ObjectStructure* ObjectStructure::convertToWithFastAccess(ExecutionState& state)
-{
-    ASSERT(!m_isStructureWithFastAccess);
-    ObjectStructureItemVector v = m_properties;
-    return new ObjectStructureWithFastAccess(state, std::move(v), m_hasIndexPropertyName);
-}
+private:
+    bool m_hasIndexPropertyName;
+    ObjectStructureItemVector* m_properties;
+    PropertyNameMap* m_propertyNameMap;
+};
 }
 
 namespace std {
@@ -336,7 +304,23 @@ struct is_fundamental<Escargot::ObjectStructureItem> : public true_type {
 };
 
 template <>
-struct is_fundamental<Escargot::ObjectStructureTransitionItem> : public true_type {
+struct is_fundamental<Escargot::ObjectStructureTransitionVectorItem> : public true_type {
+};
+
+template <>
+struct hash<Escargot::ObjectStructureTransitionMapItem> {
+    size_t operator()(Escargot::ObjectStructureTransitionMapItem const& x) const
+    {
+        return x.m_propertyName.hashValue() + x.m_descriptor.rawValue();
+    }
+};
+
+template <>
+struct equal_to<Escargot::ObjectStructureTransitionMapItem> {
+    bool operator()(Escargot::ObjectStructureTransitionMapItem const& a, Escargot::ObjectStructureTransitionMapItem const& b) const
+    {
+        return a.m_descriptor == b.m_descriptor && a.m_propertyName == b.m_propertyName;
+    }
 };
 }
 #endif

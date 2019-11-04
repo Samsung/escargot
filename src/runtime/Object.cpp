@@ -553,9 +553,9 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
         return ObjectGetResult();
     }
     PropertyName P = propertyName.toPropertyName(state);
-    size_t idx = m_structure->findProperty(state, P);
+    size_t idx = m_structure->findProperty(P);
     if (LIKELY(idx != SIZE_MAX)) {
-        const ObjectStructureItem& item = m_structure->readProperty(state, idx);
+        const ObjectStructureItem& item = m_structure->readProperty(idx);
         if (item.m_descriptor.isDataProperty()) {
             if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
                 return ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
@@ -582,7 +582,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     // TODO Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value as the corresponding field in current when compared using the SameValue algorithm (9.12).
 
     PropertyName propertyName = P.toPropertyName(state);
-    size_t oldIdx = m_structure->findProperty(state, propertyName);
+    size_t oldIdx = m_structure->findProperty(propertyName);
     if (oldIdx == SIZE_MAX) {
         // 3. If current is undefined and extensible is false, then Reject.
         if (UNLIKELY(!isExtensible(state))) {
@@ -590,7 +590,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         }
 
         auto structureBefore = m_structure;
-        m_structure = m_structure->addProperty(state, propertyName, desc.toObjectStructurePropertyDescriptor());
+        m_structure = m_structure->addProperty(propertyName, desc.toObjectStructurePropertyDescriptor());
         ASSERT(structureBefore != m_structure);
         if (LIKELY(desc.isDataProperty())) {
             const Value& val = desc.isValuePresent() ? desc.value() : Value();
@@ -603,7 +603,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         return true;
     } else {
         size_t idx = oldIdx;
-        const ObjectStructureItem& item = m_structure->readProperty(state, idx);
+        const ObjectStructureItem& item = m_structure->readProperty(idx);
         auto current = item.m_descriptor;
 
         // If the [[Configurable]] field of current is false then
@@ -732,24 +732,17 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
         } else {
-            auto structureBefore = m_structure;
-            if (!structure()->isStructureWithFastAccess()) {
-                m_structure = structure()->convertToWithFastAccess(state);
-            }
-
-            if (newDesc.isDataDescriptor() && m_structure->m_properties[idx].m_descriptor.isNativeAccessorProperty()) {
+            auto oldDesc = m_structure->readProperty(idx);
+            if (newDesc.isDataDescriptor() && oldDesc.m_descriptor.isNativeAccessorProperty()) {
                 auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
-                                                                          m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_getter, m_structure->m_properties[idx].m_descriptor.nativeGetterSetterData()->m_setter);
-                m_structure->m_properties[idx].m_descriptor = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative);
+                                                                          oldDesc.m_descriptor.nativeGetterSetterData()->m_getter, oldDesc.m_descriptor.nativeGetterSetterData()->m_setter);
+                m_structure = m_structure->replacePropertyDescriptor(idx, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative));
             } else {
-                m_structure->m_properties[idx].m_descriptor = newDesc.toObjectStructurePropertyDescriptor();
+                m_structure = m_structure->replacePropertyDescriptor(idx, newDesc.toObjectStructurePropertyDescriptor());
             }
 
-            m_structure = new ObjectStructureWithFastAccess(state, *((ObjectStructureWithFastAccess*)m_structure));
-
-            ASSERT(structureBefore != m_structure);
             if (newDesc.isDataDescriptor()) {
-                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->m_properties[idx], newDesc.value());
+                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->readProperty(idx), newDesc.value());
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
@@ -763,7 +756,7 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 {
     auto result = getOwnProperty(state, P);
     if (result.hasValue() && result.isConfigurable()) {
-        deleteOwnProperty(state, m_structure->findProperty(state, P.toPropertyName(state)));
+        deleteOwnProperty(state, m_structure->findProperty(P.toPropertyName(state)));
         return true;
     } else if (result.hasValue() && !result.isConfigurable()) {
         return false;
@@ -773,10 +766,17 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
 void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    ObjectStructure* structure = m_structure;
-    size_t cnt = structure->propertyCount();
+    const ObjectStructureItem* propertiesVector;
+    propertiesVector = m_structure->properties();
+    size_t cnt = m_structure->propertyCount();
+    bool inTransitionMode = m_structure->inTransitionMode();
+    if (!inTransitionMode) {
+        auto newData = ALLOCA(sizeof(ObjectStructureItem) * cnt, ObjectStructureItem, state);
+        memcpy(newData, propertiesVector, sizeof(ObjectStructureItem) * cnt);
+        propertiesVector = newData;
+    }
     for (size_t i = 0; i < cnt; i++) {
-        const ObjectStructureItem& item = structure->readProperty(state, i);
+        const ObjectStructureItem& item = propertiesVector[i];
         if (shouldSkipSymbolKey && item.m_propertyName.isSymbol()) {
             continue;
         }
@@ -1238,7 +1238,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
 
 void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 {
-    m_structure = m_structure->removeProperty(state, idx);
+    m_structure = m_structure->removeProperty(idx);
     m_values.erase(idx, m_structure->propertyCount() + 1);
 
     // ASSERT(m_values.size() == m_structure->propertyCount());
@@ -1442,7 +1442,7 @@ bool Object::defineNativeDataAccessorProperty(ExecutionState& state, const Objec
     ASSERT(!hasOwnProperty(state, P));
     ASSERT(isExtensible(state));
 
-    m_structure = m_structure->addProperty(state, P.toPropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
+    m_structure = m_structure->addProperty(P.toPropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
     m_values.pushBack(objectInternalData, m_structure->propertyCount());
 
     return true;
