@@ -65,23 +65,21 @@ public:
             LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
             size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
             undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this);
-            codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
+            codeBlock->pushCode<JumpIfEqual>(JumpIfEqual(ByteCodeLOC(m_loc.index), undefinedIndex, cmpIndex, false, false), context, this);
+            size_t pos1 = codeBlock->lastCodePosition<JumpIfEqual>();
             context->giveUpRegister(); // for drop undefinedIndex
 
             LiteralNode* nullNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value(Value::Null));
             size_t nullIndex = nullNode->getRegister(codeBlock, context);
             nullNode->generateExpressionByteCode(codeBlock, context, nullIndex);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), srcRegister, nullIndex, cmpIndex), context, this);
-            codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos2 = codeBlock->lastCodePosition<JumpIfFalse>();
+            codeBlock->pushCode<JumpIfEqual>(JumpIfEqual(ByteCodeLOC(m_loc.index), nullIndex, cmpIndex, true, false), context, this);
+            size_t pos2 = codeBlock->lastCodePosition<JumpIfEqual>();
             context->giveUpRegister(); // for drop nullIndex
             context->giveUpRegister(); // for drop cmpIndex
 
-            codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfEqual>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_Can_Not_Be_Destructed), context, this);
-            codeBlock->peekCode<JumpIfTrue>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfEqual>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
         }
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
     }
