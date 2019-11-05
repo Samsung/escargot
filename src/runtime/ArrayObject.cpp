@@ -84,6 +84,12 @@ ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectP
     if (LIKELY(v.hasValue())) {
         return v;
     } else {
+        if (P.toPropertyName(state).equals(state.context()->staticStrings().length.string())) {
+            const size_t lengthIdx = ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER;
+            const ObjectStructureItem& item = m_structure->readProperty(state, lengthIdx);
+            ASSERT(item.m_descriptor.isDataProperty());
+            return ObjectGetResult(m_values[lengthIdx], item.m_descriptor.isWritable(), false, false);
+        }
         return Object::getOwnProperty(state, P);
     }
 }
