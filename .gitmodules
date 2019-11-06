@@ -2,18 +2,6 @@
     path = third_party/GCutil
     url = https://github.com/Samsung/gcutil.git
     ignore = untracked
-[submodule "third_party/checked_arithmetic"]
-    path = third_party/checked_arithmetic
-    url = https://github.com/Samsung/checked_arithmetic.git
-    ignore = untracked
-[submodule "third_party/double_conversion"]
-    path = third_party/double_conversion
-    url = https://github.com/Samsung/double_conversion.git
-    ignore = untracked
-[submodule "third_party/rapidjson"]
-    path = third_party/rapidjson
-    url = https://github.com/Samsung/rapidjson.git
-    ignore = untracked
 [submodule "third_party/windows/icu"]
     path = third_party/windows/icu
     url = https://github.com/Samsung/icu.git

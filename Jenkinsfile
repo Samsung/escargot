@@ -42,9 +42,6 @@ def isPr() {
             stage('Submodule update') {
                 sh 'git submodule init test/'
                 sh 'git submodule init third_party/GCutil'
-                sh 'git submodule init third_party/checked_arithmetic'
-                sh 'git submodule init third_party/double_conversion'
-                sh 'git submodule init third_party/rapidjson'
                 sh 'git submodule update'
             }
 
