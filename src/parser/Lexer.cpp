@@ -373,8 +373,6 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
         return ctx->staticStrings().stringWith;
     case EnumKeyword:
         return ctx->staticStrings().stringEnum;
-    case AwaitKeyword:
-        return ctx->staticStrings().stringAwait;
     case WhileKeyword:
         return ctx->staticStrings().stringWhile;
     case BreakKeyword:
@@ -1673,11 +1671,6 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     char16_t first = data.charAt(0);
     char16_t second;
     switch (first) {
-    case 'a':
-        if (length == 5 && data.equalsSameLength("await", 1)) {
-            return AwaitKeyword;
-        }
-        break;
     case 'b':
         if (length == 5 && data.equalsSameLength("break", 1)) {
             return BreakKeyword;

@@ -81,6 +81,7 @@ struct Context {
     bool allowSuperCall : 1;
     bool allowSuperProperty : 1;
     bool allowNewTarget : 1;
+    bool await : 1;
     bool isAssignmentTarget : 1;
     bool isBindingElement : 1;
     bool inFunctionBody : 1;
@@ -232,6 +233,7 @@ public:
         this->context->allowSuperCall = false;
         this->context->allowSuperProperty = false;
         this->context->allowNewTarget = false;
+        this->context->await = false;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
         this->context->inFunctionBody = false;
@@ -1009,8 +1011,11 @@ public:
 
         switch (this->lookahead.type) {
         case Token::IdentifierToken: {
-            if (this->sourceType == SourceType::Module && this->lookahead.valueKeywordKind == AwaitKeyword) {
+            if ((this->sourceType == SourceType::Module || this->context->await) && this->lookahead.relatedSource(this->scanner->source) == "await") {
                 this->throwUnexpectedToken(this->lookahead);
+            }
+            if (this->matchAsyncFunction()) {
+                return this->parseFunctionExpression(builder);
             }
             ALLOC_TOKEN(token);
             this->nextToken(token);
@@ -1385,6 +1390,26 @@ public:
         this->context->inParameterParsing = previousInParameterParsing;
     }
 
+    bool matchAsyncFunction()
+    {
+        bool match = this->matchContextualKeyword("async");
+        if (match) {
+            auto previousIndex = this->scanner->index;
+            auto previousLineNumber = this->scanner->lineNumber;
+            auto previousLineStart = this->scanner->lineStart;
+            this->collectComments();
+            ALLOC_TOKEN(next);
+            this->scanner->lex(next);
+            this->scanner->index = previousIndex;
+            this->scanner->lineNumber = previousLineNumber;
+            this->scanner->lineStart = previousLineStart;
+
+            match = (previousLineNumber == next->lineNumber) && (next->type == Token::KeywordToken) && (next->valueKeywordKind == KeywordKind::FunctionKeyword);
+        }
+
+        return match;
+    }
+
     // ECMA-262 12.2.5 Array Initializer
 
     template <class ASTBuilder, bool checkLeftHasRestrictedWord>
@@ -1467,16 +1492,16 @@ public:
             return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
         }
 
-        const bool previousAllowYield = this->context->allowYield;
+        const bool previousAllowNewTarget = this->context->allowNewTarget;
         const bool previousAllowSuperCall = this->context->allowSuperCall;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
-        const bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowYield = this->context->allowYield;
         const bool previousInArrowFunction = this->context->inArrowFunction;
 
+        this->context->allowNewTarget = true;
+        this->context->allowSuperProperty = true;
         this->context->allowYield = true;
         this->context->inArrowFunction = false;
-        this->context->allowSuperProperty = true;
-        this->context->allowNewTarget = true;
 
         if (allowSuperCall) {
             this->context->allowSuperCall = true;
@@ -1490,11 +1515,11 @@ public:
         extractNamesFromFunctionParams(params);
         this->parsePropertyMethod(newBuilder, params);
 
-        this->context->allowYield = previousAllowYield;
-        this->context->inArrowFunction = previousInArrowFunction;
-        this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->allowNewTarget = previousAllowNewTarget;
         this->context->allowSuperCall = previousAllowSuperCall;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
+        this->context->allowYield = previousAllowYield;
+        this->context->inArrowFunction = previousInArrowFunction;
 
         this->currentScopeContext->m_paramsStartLOC.index = node.index;
         this->currentScopeContext->m_paramsStartLOC.column = node.column;
@@ -1508,6 +1533,61 @@ public:
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+    }
+
+    template <class ASTBuilder>
+    ASTNode parsePropertyMethodAsyncFunction(ASTBuilder& builder, bool allowSuperCall)
+    {
+        MetaNode node = this->createNode();
+
+        if (tryToSkipFunctionParsing()) {
+            return this->finalize(node, builder.createAsyncFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
+        }
+
+        const bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowSuperCall = this->context->allowSuperCall;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+        const bool previousAllowYield = this->context->allowYield;
+        const bool previousAwait = this->context->await;
+        const bool previousInArrowFunction = this->context->inArrowFunction;
+
+        this->context->allowNewTarget = true;
+        this->context->allowSuperProperty = true;
+        this->context->allowYield = false;
+        this->context->await = true;
+        this->context->inArrowFunction = false;
+
+        if (allowSuperCall) {
+            this->context->allowSuperCall = true;
+        }
+
+        this->expect(LeftParenthesis);
+        BEGIN_FUNCTION_SCANNING(AtomicString());
+
+        ParseFormalParametersResult params;
+        this->parseFormalParameters(newBuilder, params);
+        extractNamesFromFunctionParams(params);
+        this->parsePropertyMethod(newBuilder, params);
+
+        this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowSuperCall = previousAllowSuperCall;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
+        this->context->allowYield = previousAllowYield;
+        this->context->await = previousAwait;
+        this->context->inArrowFunction = previousInArrowFunction;
+
+        this->currentScopeContext->m_paramsStartLOC.index = node.index;
+        this->currentScopeContext->m_paramsStartLOC.column = node.column;
+        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
+        if (allowSuperCall) {
+            this->currentScopeContext->m_allowSuperCall = true;
+        }
+        this->currentScopeContext->m_nodeType = ASTNodeType::AsyncFunctionExpression;
+        this->currentScopeContext->m_isGenerator = false;
+
+        END_FUNCTION_SCANNING();
+        return this->finalize(node, builder.createAsyncFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -1593,10 +1673,14 @@ public:
         bool method = false;
         bool shorthand = false;
         bool isProto = false;
+        bool isAsync = false;
 
         if (token->type == Token::IdentifierToken) {
             TrackUsingNameBlocker blocker(this);
             this->nextToken();
+            computed = this->match(LeftSquareBracket);
+            isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Multiply) && !this->match(Comma);
+            keyNode = isAsync ? this->parseObjectPropertyKey(builder, keyString) : this->finalize(node, finishIdentifier(builder, token));
             keyNode = this->finalize(node, finishIdentifier(builder, token));
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
@@ -1609,7 +1693,7 @@ public:
         bool isGet = false;
         bool isSet = false;
         bool needImplictName = false;
-        if (token->type == Token::IdentifierToken && lookaheadPropertyKey) {
+        if (token->type == Token::IdentifierToken && !isAsync && lookaheadPropertyKey) {
             StringView sv = token->valueStringLiteral(this->scanner);
             const auto& d = sv.bufferAccessData();
             if (d.length == 3) {
@@ -1643,7 +1727,7 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
             kind = PropertyNode::Kind::Init;
-            if (this->match(PunctuatorKind::Colon)) {
+            if (this->match(PunctuatorKind::Colon) && !isAsync) {
                 // FIXME check !this->isParsingSingleFunction
                 isProto = !this->isParsingSingleFunction && this->isPropertyKey(keyNode, keyString, "__proto__");
 
@@ -1664,7 +1748,7 @@ public:
                     needImplictName = true;
                 }
             } else if (this->match(LeftParenthesis)) {
-                valueNode = this->parsePropertyMethodFunction(builder, false);
+                valueNode = isAsync ? this->parsePropertyMethodAsyncFunction(builder, false) : this->parsePropertyMethodFunction(builder, false);
                 method = true;
             } else {
                 if (token->type != Token::IdentifierToken) {
@@ -1989,10 +2073,46 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode parseAsyncArgument(ASTBuilder& builder)
+    {
+        ASTNode arg = this->parseAssignmentExpression<ASTBuilder, false>(builder);
+        this->context->firstCoverInitializedNameError.reset();
+        return arg;
+    }
+
+    template <class ASTBuilder>
+    ASTNodeList parseAsyncArguments(ASTBuilder& builder)
+    {
+        this->expect(LeftParenthesis);
+        ASTNodeList args;
+
+        if (!this->match(RightParenthesis)) {
+            while (true) {
+                ASTNode expr = this->match(PeriodPeriodPeriod) ? this->parseSpreadElement<ASTBuilder, false>(builder) : this->isolateCoverGrammar(builder, &Parser::parseAsyncArgument<ASTBuilder>);
+                args.append(this->allocator, expr);
+                if (this->match(RightParenthesis)) {
+                    break;
+                }
+                this->expectCommaSeparator();
+                if (this->match(RightParenthesis)) {
+                    break;
+                }
+            }
+        }
+        this->expect(RightParenthesis);
+        if (UNLIKELY(args.size() > 65535)) {
+            this->throwError("too many arguments in call");
+        }
+
+        return args;
+    }
+
+    template <class ASTBuilder>
     ASTNode parseLeftHandSideExpressionAllowCall(ASTBuilder& builder)
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
+        bool maybeAsync = this->matchContextualKeyword("async");
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
@@ -2020,13 +2140,21 @@ public:
                     ASTNode property = this->parseIdentifierName(builder);
                     exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, true));
                 } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
+                    bool asyncArrow = maybeAsync && (startToken->lineNumber == this->lookahead.lineNumber);
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = false;
+                    ASTNodeList args = asyncArrow ? this->parseAsyncArguments(builder) : this->parseArguments(builder);
                     // check callee of CallExpressionNode
                     if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
                         this->currentScopeContext->m_hasEval = true;
                     }
-                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, this->parseArguments(builder)));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args));
+                    if (asyncArrow && this->match(Arrow)) {
+                        for (ASTSentinelNode arg = args.begin(); arg != args.end(); arg = arg->next()) {
+                            arg->setASTNode(builder.reinterpretExpressionAsPattern(arg->astNode()));
+                        }
+                        exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(args, true));
+                    }
                 } else if (this->lookahead.valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
@@ -2174,6 +2302,15 @@ public:
         return exprNode;
     }
 
+    template <class ASTBuilder>
+    ASTNode parseAwaitExpression(ASTBuilder& builder)
+    {
+        MetaNode node = this->createNode();
+        this->nextToken();
+        ASTNode argument = this->parseUnaryExpression(builder);
+        return this->finalize(node, builder.createAwaitExpressionNode(argument));
+    }
+
     // ECMA-262 12.5 Unary Operators
 
     template <class ASTBuilder>
@@ -2216,11 +2353,7 @@ public:
                 this->context->isBindingElement = false;
                 return exprNode;
             }
-        }
-
-        bool isKeyword = this->lookahead.type == Token::KeywordToken;
-
-        if (isKeyword) {
+        } else if (this->lookahead.type == Token::KeywordToken) {
             ASTNode exprNode = nullptr;
 
             if (this->lookahead.valueKeywordKind == DeleteKeyword) {
@@ -2257,6 +2390,9 @@ public:
 
                 return exprNode;
             }
+        } else if (this->context->await && this->matchContextualKeyword("await")) {
+            ASTNode exprNode = this->parseAwaitExpression(builder);
+            return exprNode;
         }
 
         return this->parseUpdateExpression(builder);
@@ -2548,19 +2684,21 @@ public:
             MetaNode startNode = this->createNode();
             Marker startMarker = this->lastMarker;
 
+            bool isAsync = false;
             exprNode = this->parseConditionalExpression(builder);
+
+            if (token->type == Token::IdentifierToken && (token->lineNumber == this->lookahead.lineNumber) && token->relatedSource(this->scanner->source) == "async") {
+                if (this->lookahead.type == Token::IdentifierToken || this->matchKeyword(YieldKeyword)) {
+                    ASTNode arg = this->parsePrimaryExpression(builder);
+                    arg = builder.reinterpretExpressionAsPattern(arg);
+                    ASTNodeList args;
+                    args.append(this->allocator, arg);
+                    exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(args, true));
+                    isAsync = true;
+                }
+            }
+
             type = exprNode->type();
-
-            /*
-            if (token.type === Token.Identifier && (token.lineNumber === this.lookahead.lineNumber) && token.value === 'async' && (this.lookahead.type === Token.Identifier)) {
-                const arg = this.primaryExpression<Parse>();
-                expr = {
-                    type: ArrowParameterPlaceHolder,
-                    params: [arg],
-                    async: true
-                };
-            } */
-
             if (type == ArrowParameterPlaceHolder || this->match(Arrow)) {
                 // ECMA-262 14.2 Arrow Function Definitions
                 this->context->isAssignmentTarget = false;
@@ -2618,9 +2756,11 @@ public:
 
                 bool previousStrict = this->context->strict;
                 bool previousAllowYield = this->context->allowYield;
+                bool previousAwait = this->context->await;
                 bool previousInArrowFunction = this->context->inArrowFunction;
 
                 this->context->allowYield = true;
+                this->context->await = isAsync;
                 this->context->inArrowFunction = true;
 
                 this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
@@ -2674,14 +2814,15 @@ public:
                 }
 
                 this->currentScopeContext->m_isArrowFunctionExpression = true;
-                this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
+                this->currentScopeContext->m_nodeType = isAsync ? ASTNodeType::AsyncArrowFunctionExpression : ASTNodeType::ArrowFunctionExpression;
                 this->currentScopeContext->m_isGenerator = false;
 
                 END_FUNCTION_SCANNING();
-                exprNode = this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+                exprNode = isAsync ? static_cast<ASTNode>(this->finalize(node, builder.createAsyncArrowFunctionExpressionNode(subCodeBlockIndex))) : static_cast<ASTNode>(this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex)));
 
                 this->context->strict = previousStrict;
                 this->context->allowYield = previousAllowYield;
+                this->context->await = previousAwait;
                 this->context->inArrowFunction = previousInArrowFunction;
             } else {
                 // check if restricted words are used as target in array/object initializer
@@ -3098,7 +3239,7 @@ public:
                     this->throwUnexpectedToken(*token);
                 }
             }
-        } else if (this->sourceType == Module && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
+        } else if ((this->sourceType == Module || this->context->await) && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
             this->throwUnexpectedToken(*token);
         }
 
@@ -3962,7 +4103,7 @@ public:
             break;
         }
         case Token::IdentifierToken:
-            statement = this->parseLabelledStatement(builder);
+            statement = this->matchAsyncFunction() ? this->parseFunctionDeclaration(builder) : this->parseLabelledStatement(builder);
             break;
 
         case Token::KeywordToken:
@@ -4056,7 +4197,7 @@ public:
             case AssignmentPattern:
             case ArrayPattern:
             case ObjectPattern: {
-                InitializeParameterExpressionNode* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
+                Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
                 Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
                 container->appendChild(statement);
                 break;
@@ -4204,9 +4345,14 @@ public:
     ASTNode parseFunctionDeclaration(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
+        bool isAsync = this->matchContextualKeyword("async");
+        if (isAsync) {
+            this->nextToken();
+        }
+
         this->expectKeyword(FunctionKeyword);
 
-        bool isGenerator = this->match(Multiply);
+        bool isGenerator = isAsync ? false : this->match(Multiply);
         if (isGenerator) {
             this->nextToken();
         }
@@ -4255,10 +4401,12 @@ public:
         this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
         this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
 
+        bool previousAwait = this->context->await;
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
         bool previousAllowNewTarget = this->context->allowNewTarget;
 
+        this->context->await = isAsync;
         this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
@@ -4281,24 +4429,31 @@ public:
             this->throwUnexpectedToken(stricted, message);
         }
         this->context->strict = previousStrict;
+        this->context->await = previousAwait;
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
+        this->currentScopeContext->m_nodeType = isAsync ? ASTNodeType::AsyncFunctionDeclaration : ASTNodeType::FunctionDeclaration;
         this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createFunctionDeclarationNode(isGenerator, subCodeBlockIndex, fnName));
+        return isAsync ? static_cast<ASTNode>(this->finalize(node, builder.createAsyncFunctionDeclarationNode(subCodeBlockIndex, fnName))) : static_cast<ASTNode>(this->finalize(node, builder.createFunctionDeclarationNode(isGenerator, subCodeBlockIndex, fnName)));
     }
 
     template <class ASTBuilder>
     ASTNode parseFunctionExpression(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
+
+        bool isAsync = this->matchContextualKeyword("async");
+        if (isAsync) {
+            this->nextToken();
+        }
+
         this->expectKeyword(FunctionKeyword);
 
-        bool isGenerator = this->match(Multiply);
+        bool isGenerator = isAsync ? false : this->match(Multiply);
         if (isGenerator) {
             this->nextToken();
         }
@@ -4307,10 +4462,12 @@ public:
         ASTNode id = nullptr;
         Scanner::SmallScannerResult firstRestricted;
 
+        bool previousAwait = this->context->await;
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
         bool previousAllowNewTarget = this->context->allowNewTarget;
 
+        this->context->await = isAsync;
         this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
@@ -4375,15 +4532,16 @@ public:
             this->throwUnexpectedToken(stricted, message);
         }
         this->context->strict = previousStrict;
+        this->context->await = previousAwait;
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_nodeType = isAsync ? ASTNodeType::AsyncFunctionExpression : ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, subCodeBlockIndex, fnName));
+        return isAsync ? static_cast<ASTNode>(this->finalize(node, builder.createAsyncFunctionExpressionNode(subCodeBlockIndex, fnName))) : static_cast<ASTNode>(this->finalize(node, builder.createFunctionExpressionNode(isGenerator, subCodeBlockIndex, fnName)));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -4692,6 +4850,7 @@ public:
         bool computed = false;
         bool isStatic = false;
         bool isGenerator = false;
+        bool isAsync = false;
 
         if (this->match(Multiply)) {
             this->nextToken();
@@ -4707,6 +4866,18 @@ public:
                     this->nextToken();
                 } else {
                     keyNode = this->parseObjectPropertyKey(builder, keyString);
+                }
+            }
+            if ((token->type == Token::IdentifierToken) && !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async")) {
+                bool isPunctuator = this->lookahead.type == Token::PunctuatorToken;
+                PunctuatorKind punctuator = this->lookahead.valuePunctuatorKind;
+                if (!isPunctuator || (punctuator != Colon && punctuator != LeftParenthesis && punctuator != Multiply)) {
+                    isAsync = true;
+                    *token = this->lookahead;
+                    keyNode = this->parseObjectPropertyKey(builder, keyString);
+                    if (token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "constructor") {
+                        this->throwUnexpectedToken(*token);
+                    }
                 }
             }
         }
@@ -4741,7 +4912,7 @@ public:
                     allowSuperCall = true;
                 }
             }
-            value = this->parsePropertyMethodFunction(builder, allowSuperCall);
+            value = isAsync ? this->parsePropertyMethodAsyncFunction(builder, allowSuperCall) : this->parsePropertyMethodFunction(builder, allowSuperCall);
         }
 
         if (kind == ClassElementNode::Kind::None) {
@@ -5161,6 +5332,10 @@ public:
 
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(classNode, entry.m_exportName.value(), entry.m_localName.value()));
                 }
+            } else if (this->matchContextualKeyword("async")) {
+                // TODO
+                RELEASE_ASSERT_NOT_REACHED();
+
             } else {
                 if (this->matchContextualKeyword("from")) {
                     this->throwUnexpectedToken(this->lookahead);
@@ -5238,6 +5413,9 @@ public:
             }
             exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeList(), nullptr));
             this->nameDeclaredCallback = oldNameCallback;
+        } else if (this->matchAsyncFunction()) {
+            ASTNode declaration = this->parseFunctionDeclaration(builder);
+            exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeList(), nullptr));
         } else {
             ASTNodeList specifiers;
             ASTNode source = nullptr;

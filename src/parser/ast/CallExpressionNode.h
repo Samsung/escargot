@@ -29,7 +29,7 @@ namespace Escargot {
 
 class CallExpressionNode : public ExpressionNode {
 public:
-    CallExpressionNode(Node* callee, NodeList& arguments)
+    CallExpressionNode(Node* callee, const NodeList& arguments)
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(arguments)
@@ -94,7 +94,7 @@ public:
         return std::make_pair(REGISTER_LIMIT, false);
     }
 
-    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, NodeList& args)
+    static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const NodeList& args)
     {
         if (!context->m_canSkipCopyToRegister) {
             return false;

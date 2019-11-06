@@ -176,7 +176,7 @@ struct ASTFunctionScopeContext {
     bool m_hasImplictFunctionName : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
-    unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression, FunctionDeclaration only
+    unsigned int m_nodeType : 3; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression, FunctionDeclaration, AsyncArrowFunctionExpression, AsyncFunctionDeclaration and AsyncFunctionExpression only
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTFunctionScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;

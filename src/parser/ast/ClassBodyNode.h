@@ -30,7 +30,7 @@ namespace Escargot {
 
 class ClassBodyNode : public Node {
 public:
-    ClassBodyNode(NodeList& elementList, Node* constructor)
+    ClassBodyNode(const NodeList& elementList, Node* constructor)
         : Node()
         , m_elementList(elementList)
         , m_constructor(constructor)

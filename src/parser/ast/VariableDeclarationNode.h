@@ -28,7 +28,7 @@ namespace Escargot {
 
 class VariableDeclarationNode : public DeclarationNode {
 public:
-    explicit VariableDeclarationNode(NodeList& decl, EscargotLexer::KeywordKind kind)
+    explicit VariableDeclarationNode(const NodeList& decl, EscargotLexer::KeywordKind kind)
         : DeclarationNode()
         , m_declarations(decl)
         , m_kind(kind)

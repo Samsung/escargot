@@ -27,7 +27,7 @@ namespace Escargot {
 // An sequence expression, i.e., a statement consisting of vector of expressions.
 class SequenceExpressionNode : public ExpressionNode {
 public:
-    explicit SequenceExpressionNode(NodeList& expressions)
+    explicit SequenceExpressionNode(const NodeList& expressions)
         : ExpressionNode()
         , m_expressions(expressions)
     {

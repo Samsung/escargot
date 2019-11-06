@@ -57,7 +57,6 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(stringVoid, "void");
     INIT_STATIC_STRING(stringWith, "with");
     INIT_STATIC_STRING(stringEnum, "enum");
-    INIT_STATIC_STRING(stringAwait, "await");
     INIT_STATIC_STRING(stringWhile, "while");
     INIT_STATIC_STRING(stringBreak, "break");
     INIT_STATIC_STRING(stringThrow, "throw");

@@ -17,40 +17,29 @@
  *  USA
  */
 
-#ifndef ImportDeclarationNode_h
-#define ImportDeclarationNode_h
-
-#include "StatementNode.h"
-#include "ImportSpecifierNode.h"
+#ifndef AsyncFunctionDeclarationNode_h
+#define AsyncFunctionDeclarationNode_h
 
 namespace Escargot {
 
-class ImportDeclarationNode : public StatementNode {
+class AsyncFunctionDeclarationNode : public StatementNode {
 public:
-    ImportDeclarationNode(const NodeList& specifiers, Node* src)
-        : m_specifiers(specifiers)
-        , m_src(src)
+    AsyncFunctionDeclarationNode(size_t /*subCodeBlockIndex not used yet*/, const AtomicString& functionName)
+        : m_functionName(functionName)
     {
+        // async feature is not yet supported
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual ASTNodeType type() override { return ASTNodeType::ImportDeclaration; }
-    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
-    {
-        fn(this);
-
-        for (SentinelNode* specifier = m_specifiers.begin(); specifier != m_specifiers.end(); specifier = specifier->next()) {
-            specifier->astNode()->iterateChildren(fn);
-        }
-        m_src->iterateChildren(fn);
-    }
-
+    virtual ASTNodeType type() override { return ASTNodeType::AsyncFunctionDeclaration; }
+    AtomicString functionName() { return m_functionName; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+        // do nothing
     }
 
 private:
-    NodeList m_specifiers;
-    Node* m_src;
+    AtomicString m_functionName;
 };
 }
 

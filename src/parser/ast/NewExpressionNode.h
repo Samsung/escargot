@@ -27,7 +27,7 @@ namespace Escargot {
 
 class NewExpressionNode : public ExpressionNode {
 public:
-    NewExpressionNode(Node* callee, NodeList& arguments)
+    NewExpressionNode(Node* callee, const NodeList& arguments)
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(arguments)

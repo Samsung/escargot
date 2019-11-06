@@ -27,12 +27,12 @@ namespace Escargot {
 
 class ArrayPatternNode : public Node {
 public:
-    ArrayPatternNode(NodeList& elements)
+    ArrayPatternNode(const NodeList& elements)
         : m_elements(elements)
     {
     }
 
-    ArrayPatternNode(NodeList& elements, NodeLOC& loc)
+    ArrayPatternNode(const NodeList& elements, NodeLOC& loc)
         : m_elements(elements)
     {
         m_loc = loc;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2019-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,66 +17,32 @@
  *  USA
  */
 
-#ifndef ArrowFunctionExpressionNode_h
-#define ArrowFunctionExpressionNode_h
+#ifndef AsyncArrowFunctionExpressionNode_h
+#define AsyncArrowFunctionExpressionNode_h
 
 #include "FunctionNode.h"
 
 namespace Escargot {
 
-class ArrowParameterPlaceHolderNode : public Node {
+class AsyncArrowFunctionExpressionNode : public ExpressionNode {
 public:
-    ArrowParameterPlaceHolderNode()
-        : Node()
-        , m_async(false)
-    {
-    }
-
-    explicit ArrowParameterPlaceHolderNode(const NodeList& params)
-        : Node()
-        , m_params(params)
-        , m_async(false)
-    {
-    }
-
-    explicit ArrowParameterPlaceHolderNode(const NodeList& params, bool async)
-        : Node()
-        , m_params(params)
-        , m_async(async)
-    {
-    }
-
-    NodeList& params()
-    {
-        return m_params;
-    }
-
-    bool async()
-    {
-        return m_async;
-    }
-
-    virtual ASTNodeType type() override { return ASTNodeType::ArrowParameterPlaceHolder; }
-private:
-    NodeList m_params;
-    bool m_async;
-};
-
-class ArrowFunctionExpressionNode : public ExpressionNode {
-public:
-    ArrowFunctionExpressionNode(size_t subCodeBlockIndex)
+    AsyncArrowFunctionExpressionNode(size_t subCodeBlockIndex)
         : m_subCodeBlockIndex(subCodeBlockIndex - 1)
     {
+        // async feature is not yet supported
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual ASTNodeType type() override { return ASTNodeType::ArrowFunctionExpression; }
+    virtual ASTNodeType type() override { return ASTNodeType::AsyncArrowFunctionExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
+        /*
         CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlockAt(m_subCodeBlockIndex);
         if (blk->usesArgumentsObject() && !codeBlock->m_codeBlock->isArrowFunctionExpression()) {
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
         }
         codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, SIZE_MAX, blk), context, this);
+        */
     }
 
 private:

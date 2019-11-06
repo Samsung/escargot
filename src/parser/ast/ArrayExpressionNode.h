@@ -28,7 +28,7 @@ namespace Escargot {
 
 class ArrayExpressionNode : public ExpressionNode {
 public:
-    ArrayExpressionNode(NodeList& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTemplateExpression = false)
+    ArrayExpressionNode(const NodeList& elements, AtomicString additionalPropertyName = AtomicString(), Node* additionalPropertyExpression = nullptr, bool hasSpreadElement = false, bool isTaggedTemplateExpression = false)
         : ExpressionNode()
         , m_elements(elements)
         , m_additionalPropertyName(additionalPropertyName)

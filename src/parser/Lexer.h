@@ -115,7 +115,6 @@ enum KeywordKind : uint8_t {
     VoidKeyword,
     WithKeyword,
     EnumKeyword,
-    AwaitKeyword,
     WhileKeyword,
     BreakKeyword,
     CatchKeyword,
