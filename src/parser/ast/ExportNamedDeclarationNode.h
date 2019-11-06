@@ -28,7 +28,7 @@ namespace Escargot {
 
 class ExportNamedDeclarationNode : public ExportDeclarationNode {
 public:
-    ExportNamedDeclarationNode(Node* declaration, NodeList& specifiers, Node* source)
+    ExportNamedDeclarationNode(Node* declaration, const NodeList& specifiers, Node* source)
         : m_declaration(declaration)
         , m_specifiers(specifiers)
         , m_source(source)

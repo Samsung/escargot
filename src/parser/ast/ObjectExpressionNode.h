@@ -29,7 +29,7 @@ namespace Escargot {
 
 class ObjectExpressionNode : public ExpressionNode {
 public:
-    explicit ObjectExpressionNode(NodeList& properties)
+    explicit ObjectExpressionNode(const NodeList& properties)
         : ExpressionNode()
         , m_properties(properties)
     {

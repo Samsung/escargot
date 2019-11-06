@@ -569,7 +569,6 @@ public:
     AtomicString stringVoid;
     AtomicString stringWith;
     AtomicString stringEnum;
-    AtomicString stringAwait;
     AtomicString stringWhile;
     AtomicString stringBreak;
     AtomicString stringThrow;

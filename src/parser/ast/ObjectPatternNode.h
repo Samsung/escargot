@@ -27,7 +27,7 @@ namespace Escargot {
 
 class ObjectPatternNode : public Node {
 public:
-    ObjectPatternNode(NodeList& properties)
+    ObjectPatternNode(const NodeList& properties)
         : m_properties(properties)
     {
 #ifndef NDEBUG
@@ -37,7 +37,7 @@ public:
 #endif
     }
 
-    ObjectPatternNode(NodeList& properties, NodeLOC& loc)
+    ObjectPatternNode(const NodeList& properties, NodeLOC& loc)
         : m_properties(properties)
     {
         m_loc = loc;

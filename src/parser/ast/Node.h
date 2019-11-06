@@ -33,8 +33,11 @@ struct ByteCodeGenerateContext;
 enum ASTNodeType {
     /* Note: These 4 types must be in this order */
     Program,
-    FunctionExpression,
     ArrowFunctionExpression,
+    AsyncArrowFunctionExpression,
+    AsyncFunctionDeclaration,
+    AsyncFunctionExpression,
+    FunctionExpression,
     FunctionDeclaration,
     /* End */
     /* Note: These 13 types must be in this order */
@@ -66,6 +69,7 @@ enum ASTNodeType {
     ArrayPattern,
     ArrowParameterPlaceHolder,
     AssignmentPattern,
+    AwaitExpression,
     BinaryExpression,
     BinaryExpressionBitwiseAnd,
     BinaryExpressionBitwiseOr,
@@ -162,9 +166,12 @@ enum ASTNodeType {
 };
 
 COMPILE_ASSERT((int)Program == 0, "");
-COMPILE_ASSERT((int)FunctionExpression == 1, "");
-COMPILE_ASSERT((int)ArrowFunctionExpression == 2, "");
-COMPILE_ASSERT((int)FunctionDeclaration == 3, "");
+COMPILE_ASSERT((int)ArrowFunctionExpression == 1, "");
+COMPILE_ASSERT((int)AsyncArrowFunctionExpression == 2, "");
+COMPILE_ASSERT((int)AsyncFunctionDeclaration == 3, "");
+COMPILE_ASSERT((int)AsyncFunctionExpression == 4, "");
+COMPILE_ASSERT((int)FunctionExpression == 5, "");
+COMPILE_ASSERT((int)FunctionDeclaration == 6, "");
 
 COMPILE_ASSERT(((int)AssignmentExpression + 1) == (int)AssignmentExpressionBitwiseAnd, "");
 COMPILE_ASSERT(((int)AssignmentExpressionBitwiseAnd + 1) == (int)AssignmentExpressionBitwiseOr, "");
@@ -581,12 +588,12 @@ public:
         m_size++;
     }
 
-    SentinelNode* begin()
+    SentinelNode* begin() const
     {
         return m_headNode.next();
     }
 
-    SentinelNode* end()
+    SentinelNode* end() const
     {
         return nullptr;
     }
