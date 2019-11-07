@@ -1681,7 +1681,6 @@ public:
             computed = this->match(LeftSquareBracket);
             isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Multiply) && !this->match(Comma);
             keyNode = isAsync ? this->parseObjectPropertyKey(builder, keyString) : this->finalize(node, finishIdentifier(builder, token));
-            keyNode = this->finalize(node, finishIdentifier(builder, token));
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
         } else {
