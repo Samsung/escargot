@@ -767,6 +767,11 @@ public:
     static StringRef* createFromUTF8(const char* s, size_t len);
     static StringRef* createFromUTF16(const char16_t* s, size_t len);
     static StringRef* createFromLatin1(const unsigned char* s, size_t len);
+
+    static StringRef* createExternalFromASCII(const char* s, size_t len);
+    static StringRef* createExternalFromLatin1(const unsigned char* s, size_t len);
+    static StringRef* createExternalFromUTF16(const char16_t* s, size_t len);
+
     static StringRef* emptyString();
 
     char16_t charAt(size_t idx);
@@ -974,6 +979,9 @@ public:
     void* extraData();
     void setExtraData(void* e);
 
+    void removeFromHiddenClassChain();
+
+    // DEPRECATED! this function will be removed
     void removeFromHiddenClassChain(ExecutionStateRef* state);
 };
 

@@ -71,7 +71,7 @@ public:
 
 Value ScriptGeneratorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
-    return FunctionObjectProcessCallGenerator::processCall<ScriptGeneratorFunctionObject, true, false, false, false, ScriptGeneratorFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
+    return FunctionObjectProcessCallGenerator::processCall<ScriptGeneratorFunctionObject, false, false, false, ScriptGeneratorFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 
 Object* ScriptGeneratorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)

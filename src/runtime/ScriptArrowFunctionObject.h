@@ -32,6 +32,11 @@ public:
     {
     }
 
+    virtual bool isScriptArrowFunctionObject() const override
+    {
+        return true;
+    }
+
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;

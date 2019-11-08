@@ -62,11 +62,11 @@ void GlobalObject::installBoolean(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_boolean = new NativeFunctionObject(state, NativeFunctionInfo(strings->Boolean, builtinBooleanConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_boolean->markThisObjectDontNeedStructureTransitionTable(state);
+    m_boolean->markThisObjectDontNeedStructureTransitionTable();
     m_boolean->setPrototype(state, m_functionPrototype);
     m_booleanPrototype = m_objectPrototype;
     m_booleanPrototype = new BooleanObject(state, false);
-    m_booleanPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_booleanPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_booleanPrototype->setPrototype(state, m_objectPrototype);
     m_booleanPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

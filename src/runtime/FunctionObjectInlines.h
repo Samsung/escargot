@@ -29,9 +29,13 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/GeneratorObject.h"
+#include "runtime/ExecutionPauser.h"
 #include "util/Util.h"
 
 namespace Escargot {
+
+class ScriptGeneratorFunctionObject;
+class ScriptAsyncFunctionObject;
 
 // this is default version of ThisValueBinder
 class FunctionObjectThisValueBinder {
@@ -83,7 +87,7 @@ public:
 
 class FunctionObjectProcessCallGenerator {
 public:
-    template <typename FunctionObjectType, bool isGenerator, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
+    template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
     static ALWAYS_INLINE Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
     {
         volatile int sp;
@@ -144,7 +148,7 @@ public:
 
         Value* registerFile;
 
-        if (isGenerator) {
+        if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
             registerFile = (Value*)CustomAllocator<Value>().allocate(registerSize + stackStorageSize + literalStorageSize);
         } else {
             registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
@@ -168,7 +172,7 @@ public:
         }
 
         ThisValueBinder thisValueBinder;
-        if (isGenerator) {
+        if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
             Value* arguments = CustomAllocator<Value>().allocate(argc);
             memcpy(arguments, argv, sizeof(Value) * argc);
 
@@ -187,26 +191,36 @@ public:
 
             GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk);
             gen->setPrototype(state, self->get(state, state.context()->staticStrings().prototype).value(state, self));
-            newState->setGeneratorTarget(gen);
+            newState->setPauseSource(gen->executionPauser());
             return gen;
         }
 
-        ExecutionState newState(ctx, &state, lexEnv, argc, argv, isStrict);
+        ExecutionState* newState;
+
+        if (std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
+            newState = new ExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
+            newState->setPauseSource(new ExecutionPauser(state, self, newState, registerFile, blk));
+        } else {
+            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
+        }
 
         // prepare receiver(this variable)
         // we should use newState because
         // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
         // NOTE ToObject produces wrapper objects using calleeRealm. <<----
-        stackStorage[0] = thisValueBinder(newState, self, thisArgument, isStrict);
+        stackStorage[0] = thisValueBinder(*newState, self, thisArgument, isStrict);
 
         if (isConstructCall) {
             NewTargetBinder newTargetBinder;
-            newTargetBinder(newState, self, newTarget, record);
+            newTargetBinder(*newState, self, newTarget, record);
         }
 
         // run function
         ReturnValueBinder returnValueBinder;
-        const Value returnValue = returnValueBinder(newState, self, ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile), thisArgument, record);
+        const Value returnValue = returnValueBinder(*newState, self,
+                                                    std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value ? ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async)
+                                                                                                                       : ByteCodeInterpreter::interpret(newState, blk, 0, registerFile),
+                                                    thisArgument, record);
 
         if (UNLIKELY(blk->m_shouldClearStack))
             clearStack<512>();

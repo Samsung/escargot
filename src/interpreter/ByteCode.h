@@ -26,6 +26,7 @@
 #include "runtime/SmallValue.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
+#include "runtime/ExecutionPauser.h"
 
 namespace Escargot {
 class ObjectStructure;
@@ -125,9 +126,8 @@ struct GlobalVariableAccessCacheItem;
     F(CallEvalFunction, 0, 0)                               \
     F(CallFunctionInWithScope, 0, 0)                        \
     F(BindingRestElement, 1, 0)                             \
-    F(GeneratorResume, 0, 0)                                \
-    F(Yield, 0, 0)                                          \
-    F(YieldDelegate, 1, 0)                                  \
+    F(ExecutionResume, 0, 0)                                \
+    F(ExecutionPause, 0, 0)                                 \
     F(NewTargetOperation, 1, 0)                             \
     F(BlockOperation, 0, 0)                                 \
     F(ReplaceBlockLexicalEnvironmentOperation, 0, 0)        \
@@ -1682,74 +1682,88 @@ public:
 #endif
 };
 
-class GeneratorResume : public ByteCode {
+class ExecutionResume : public ByteCode {
 public:
-    GeneratorResume(const ByteCodeLOC& loc, GeneratorObject* generatorObject)
-        : ByteCode(Opcode::GeneratorResumeOpcode, loc)
+    ExecutionResume(const ByteCodeLOC& loc, ExecutionPauser* pauser)
+        : ByteCode(Opcode::ExecutionResumeOpcode, loc)
         , m_needsReturn(false)
         , m_needsThrow(false)
-        , m_generatorObject(generatorObject)
+        , m_pauser(pauser)
     {
     }
 
     bool m_needsReturn;
     bool m_needsThrow;
-    GeneratorObject* m_generatorObject;
+    ExecutionPauser* m_pauser;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("generator resume");
+        printf("execution resume");
     }
 #endif
 };
 
-class Yield : public ByteCode {
+class ExecutionPause : public ByteCode {
 public:
-    Yield(const ByteCodeLOC& loc, const size_t yieldIdx, const size_t dstIdx, const size_t tailDataLength)
-        : ByteCode(Opcode::YieldOpcode, loc)
-        , m_yieldIdx(yieldIdx)
-        , m_dstIdx(dstIdx)
-        , m_tailDataLength(tailDataLength)
+    enum Reason {
+        Yield,
+        YieldDelegate,
+        Await,
+    };
+
+    struct ExecutionPauseYieldData {
+        ByteCodeRegisterIndex m_yieldIndex;
+        ByteCodeRegisterIndex m_dstIndex;
+        size_t m_tailDataLength;
+    };
+
+    struct ExecutionPauseYieldDelegateData {
+        ByteCodeRegisterIndex m_iterIntex;
+        ByteCodeRegisterIndex m_valueIndex;
+        ByteCodeRegisterIndex m_dstIndex;
+        size_t m_endPosition;
+        size_t m_tailDataLength;
+    };
+
+    struct ExecutionPauseAwaitData {
+        ByteCodeRegisterIndex m_awaitIndex;
+        ByteCodeRegisterIndex m_dstIndex;
+        size_t m_tailDataLength;
+    };
+
+    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseYieldData yieldData)
+        : ByteCode(Opcode::ExecutionPauseOpcode, loc)
+        , m_reason(Reason::Yield)
+        , m_yieldData(yieldData)
     {
     }
 
-    ByteCodeRegisterIndex m_yieldIdx;
-    ByteCodeRegisterIndex m_dstIdx;
-    size_t m_tailDataLength;
+    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseYieldDelegateData yieldDelegateData)
+        : ByteCode(Opcode::ExecutionPauseOpcode, loc)
+        , m_reason(Reason::YieldDelegate)
+        , m_yieldDelegateData(yieldDelegateData)
+    {
+    }
+
+    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseAwaitData awaitData)
+        : ByteCode(Opcode::ExecutionPauseOpcode, loc)
+        , m_reason(Reason::Await)
+        , m_awaitData(awaitData)
+    {
+    }
+
+    Reason m_reason;
+    union {
+        ExecutionPauseYieldData m_yieldData;
+        ExecutionPauseYieldDelegateData m_yieldDelegateData;
+        ExecutionPauseAwaitData m_awaitData;
+    };
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("r%d <- yield r%d(tail data %d)", m_dstIdx, m_yieldIdx,
-               (int)m_tailDataLength);
-    }
-#endif
-};
-
-class YieldDelegate : public ByteCode {
-public:
-    YieldDelegate(const ByteCodeLOC& loc, const size_t iterIdx, const size_t valueIdx, const size_t dstIdx, const size_t tailDataLength)
-        : ByteCode(Opcode::YieldDelegateOpcode, loc)
-        , m_iterIdx(iterIdx)
-        , m_valueIdx(valueIdx)
-        , m_dstIdx(dstIdx)
-        , m_endPosition(SIZE_MAX)
-        , m_tailDataLength(tailDataLength)
-    {
-    }
-
-    ByteCodeRegisterIndex m_iterIdx;
-    ByteCodeRegisterIndex m_valueIdx;
-    ByteCodeRegisterIndex m_dstIdx;
-    size_t m_endPosition;
-    size_t m_tailDataLength;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("r%d r%d <- yield* r%d(tail data %d)", m_valueIdx, m_dstIdx, m_iterIdx,
-               (int)m_tailDataLength);
+        printf("execution pause");
     }
 #endif
 };
@@ -2359,6 +2373,9 @@ public:
     ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
     void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
+
+    void updateMaxPauseStatementExtraDataLength(ByteCodeGenerateContext* context);
+    void pushPauseStatementExtraData(ByteCodeGenerateContext* context);
 
     template <typename CodeType>
     CodeType* peekCode(size_t position)

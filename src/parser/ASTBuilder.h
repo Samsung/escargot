@@ -39,9 +39,6 @@ namespace Escargot {
     F(AssignmentExpressionSignedRightShift)   \
     F(AssignmentExpressionSimple)             \
     F(AssignmentExpressionUnsignedRightShift) \
-    F(AsyncArrowFunctionExpression)           \
-    F(AsyncFunctionDeclaration)               \
-    F(AsyncFunctionExpression)                \
     F(AwaitExpression)                        \
     F(BinaryExpressionBitwiseAnd)             \
     F(BinaryExpressionBitwiseOr)              \

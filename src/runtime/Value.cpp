@@ -213,7 +213,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
     Object* input = asObject();
 
     // Let exoticToPrim be GetMethod(input, @@toPrimitive).
-    Value exoticToPrim = Object::getMethod(state, input, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toPrimitive));
+    Value exoticToPrim = Object::getMethod(state, input, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toPrimitive));
     // If exoticToPrim is not undefined, then
     if (!exoticToPrim.isUndefined()) {
         Value hint;
@@ -462,7 +462,7 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
     }
     Object* C = other.asObject();
     // Let instOfHandler be GetMethod(C,@@hasInstance).
-    Value instOfHandler = Object::getMethod(state, other, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().hasInstance));
+    Value instOfHandler = Object::getMethod(state, other, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().hasInstance));
     // If instOfHandler is not undefined, then
     if (!instOfHandler.isUndefined()) {
         // Return ToBoolean(Call(instOfHandler, C, «O»)).

@@ -124,8 +124,8 @@ public:
 
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
-    static void yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, bool isDelegateOperation);
-    static Value generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
+    static Value executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
+    static Value executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
     static void newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile);
 

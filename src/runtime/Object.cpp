@@ -447,7 +447,7 @@ bool Object::isConcatSpreadable(ExecutionState& state)
         return false;
     }
     // Let spreadable be Get(O, @@isConcatSpreadable).
-    Value spreadable = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().isConcatSpreadable)).value(state, this);
+    Value spreadable = get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().isConcatSpreadable)).value(state, this);
     // If spreadable is not undefined, return ToBoolean(spreadable).
     if (!spreadable.isUndefined()) {
         return spreadable.toBoolean(state);
@@ -1540,7 +1540,7 @@ Value Object::speciesConstructor(ExecutionState& state, const Value& defaultCons
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "constructor is not an object");
     }
 
-    Value S = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+    Value S = C.asObject()->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species)).value(state, C);
 
     if (S.isUndefinedOrNull()) {
         return defaultConstructor;
@@ -1584,7 +1584,7 @@ String* Object::optionString(ExecutionState& state)
 
 bool Object::isRegExp(ExecutionState& state)
 {
-    Value symbol = get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match)).value(state, this);
+    Value symbol = get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, this);
     if (!symbol.isUndefined()) {
         return symbol.toBoolean(state);
     }

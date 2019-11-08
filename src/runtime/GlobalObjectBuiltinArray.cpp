@@ -110,7 +110,7 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
         // If Type(C) is Object, then
         if (C.isObject()) {
             // a. Set C be Get(C, @@species).
-            C = C.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+            C = C.asObject()->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species)).value(state, C);
             if (C.isNull()) { // b. If C is null, set C to undefined.
                 C = Value();
             }
@@ -167,7 +167,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
 
     // Let usingIterator be ? GetMethod(items, @@iterator).
     items = items.toObject(state);
-    Value usingIterator = items.asObject()->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator)).value(state, items);
+    Value usingIterator = items.asObject()->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator)).value(state, items);
     // If usingIterator is not undefined, then
     if (!usingIterator.isUndefinedOrNull()) {
         Object* A;
@@ -1818,19 +1818,19 @@ public:
 void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_array->markThisObjectDontNeedStructureTransitionTable(state);
+    m_array->markThisObjectDontNeedStructureTransitionTable();
     m_array->setPrototype(state, m_functionPrototype);
 
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_array->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+        m_array->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
     m_arrayPrototype = m_objectPrototype;
     m_arrayPrototype = new ArrayObjectPrototype(state);
-    m_arrayPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_arrayPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_arrayPrototype->setPrototype(state, m_objectPrototype);
     m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1916,14 +1916,14 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().values),
                                                        ObjectPropertyDescriptor(values, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                        ObjectPropertyDescriptor(values,
                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().entries),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinArrayEntries, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().unscopables),
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables),
                                                        ObjectPropertyDescriptor(blackList, ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
@@ -1933,7 +1933,7 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinArrayIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+    m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                ObjectPropertyDescriptor(Value(String::fromASCII("Array Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Array),

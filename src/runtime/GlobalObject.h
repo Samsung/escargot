@@ -149,9 +149,11 @@ public:
         , m_generatorFunction(nullptr)
         , m_generator(nullptr)
         , m_generatorPrototype(nullptr)
+        , m_asyncFunction(nullptr)
+        , m_asyncFunctionPrototype(nullptr)
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
-        m_objectPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+        m_objectPrototype->markThisObjectDontNeedStructureTransitionTable();
         Object::setPrototype(state, m_objectPrototype);
 
         m_structure = m_structure->convertToNonTransitionStructure();
@@ -190,6 +192,7 @@ public:
         installWeakMap(state);
         installWeakSet(state);
         installGenerator(state);
+        installAsyncFunction(state);
         installOthers(state);
     }
 
@@ -221,6 +224,7 @@ public:
     void installWeakMap(ExecutionState& state);
     void installWeakSet(ExecutionState& state);
     void installGenerator(ExecutionState& state);
+    void installAsyncFunction(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
@@ -623,6 +627,16 @@ public:
         return m_generatorPrototype;
     }
 
+    FunctionObject* asyncFunction()
+    {
+        return m_asyncFunction;
+    }
+
+    Object* asyncPrototype()
+    {
+        return m_asyncFunctionPrototype;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -761,8 +775,11 @@ private:
 
     FunctionObject* m_promise;
     Object* m_promisePrototype;
+
     FunctionObject* m_proxy;
+
     Object* m_reflect;
+
     FunctionObject* m_arrayBuffer;
     Object* m_arrayBufferPrototype;
     FunctionObject* m_dataView;
@@ -798,9 +815,13 @@ private:
     Object* m_weakMapPrototype;
     FunctionObject* m_weakSet;
     Object* m_weakSetPrototype;
+
     FunctionObject* m_generatorFunction; // %GeneratorFunction%
     FunctionObject* m_generator; // %Generator%
     Object* m_generatorPrototype; // %GeneratorPrototype%
+
+    FunctionObject* m_asyncFunction; // %AsyncFunction%
+    Object* m_asyncFunctionPrototype; // %AsyncFunctionPrototype%
 };
 }
 

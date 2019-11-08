@@ -151,11 +151,11 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 void GlobalObject::installWeakMap(ExecutionState& state)
 {
     m_weakMap = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_weakMap->markThisObjectDontNeedStructureTransitionTable(state);
+    m_weakMap->markThisObjectDontNeedStructureTransitionTable();
     m_weakMap->setPrototype(state, m_functionPrototype);
     m_weakMapPrototype = m_objectPrototype;
     m_weakMapPrototype = new WeakMapObject(state);
-    m_weakMapPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_weakMapPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_weakMapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakMapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),

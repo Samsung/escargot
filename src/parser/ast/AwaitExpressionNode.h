@@ -22,7 +22,6 @@
 
 #include "ExpressionNode.h"
 
-
 namespace Escargot {
 
 class AwaitExpressionNode : public ExpressionNode {
@@ -31,11 +30,36 @@ public:
         : ExpressionNode()
         , m_argument(argument)
     {
-        // async feature is not yet supported
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::AwaitExpression; }
+    virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
+    {
+        m_argument->generateExpressionByteCode(codeBlock, context, dstRegister);
+
+        codeBlock->updateMaxPauseStatementExtraDataLength(context);
+        size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
+
+        ExecutionPause::ExecutionPauseAwaitData data;
+        data.m_awaitIndex = dstRegister;
+        data.m_dstIndex = dstRegister;
+        data.m_tailDataLength = tailDataLength;
+        codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
+        codeBlock->pushPauseStatementExtraData(context);
+    }
+
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
+    {
+        m_argument->iterateChildrenIdentifier(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_argument->iterateChildren(fn);
+    }
+
 private:
     Node* m_argument;
 };

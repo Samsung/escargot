@@ -96,39 +96,6 @@ public:
         return true;
     }
 
-    virtual bool isNativeFunctionObject() const
-    {
-        return false;
-    }
-
-    NativeFunctionObject* asNativeFunctionObject()
-    {
-        ASSERT(isNativeFunctionObject());
-        return (NativeFunctionObject*)this;
-    }
-
-    virtual bool isScriptFunctionObject() const
-    {
-        return false;
-    }
-
-    virtual bool isScriptClassConstructorFunctionObject() const
-    {
-        return false;
-    }
-
-    ScriptFunctionObject* asScriptFunctionObject()
-    {
-        ASSERT(isScriptFunctionObject());
-        return (ScriptFunctionObject*)this;
-    }
-
-    ScriptClassConstructorFunctionObject* asScriptClassConstructorFunctionObject()
-    {
-        ASSERT(isScriptClassConstructorFunctionObject());
-        return (ScriptClassConstructorFunctionObject*)this;
-    }
-
     virtual bool isCallable() const override
     {
         return true;
@@ -178,7 +145,7 @@ public:
         CodeBlock* codeBlock;
         LexicalEnvironment* outerEnvironment;
     };
-    static FunctionSource createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool allowSuperCall);
+    static FunctionSource createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall);
 
 protected:
     FunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
@@ -200,6 +167,13 @@ protected:
     virtual Object* createFunctionPrototypeObject(ExecutionState& state)
     {
         return Object::createFunctionPrototypeObject(state, this);
+    }
+
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        Object::fillGCDescriptor(desc);
+
+        GC_set_bit(desc, GC_WORD_OFFSET(FunctionObject, m_codeBlock));
     }
 
     CodeBlock* m_codeBlock;

@@ -146,8 +146,8 @@ Value ExecutionState::getSuperConstructor()
     return superConstructor;
 }
 
-// callee is generator && isNotInEvalCode
-bool ExecutionState::inGeneratorScope()
+// callee is (generator || async) && isNotInEvalCode
+bool ExecutionState::inPauserScope()
 {
     ExecutionState* state = this;
 
@@ -162,7 +162,7 @@ bool ExecutionState::inGeneratorScope()
                 return false;
             }
             if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isGenerator();
+                return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptGeneratorFunctionObject() || record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptAsyncFunctionObject();
             }
         }
         state = state->parent();

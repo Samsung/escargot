@@ -1482,66 +1482,14 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall)
+    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall, bool isAsyncFunction)
     {
         MetaNode node = this->createNode();
 
         const bool isGenerator = false;
 
         if (tryToSkipFunctionParsing()) {
-            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
-        }
-
-        const bool previousAllowNewTarget = this->context->allowNewTarget;
-        const bool previousAllowSuperCall = this->context->allowSuperCall;
-        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
-        const bool previousAllowYield = this->context->allowYield;
-        const bool previousInArrowFunction = this->context->inArrowFunction;
-
-        this->context->allowNewTarget = true;
-        this->context->allowSuperProperty = true;
-        this->context->allowYield = true;
-        this->context->inArrowFunction = false;
-
-        if (allowSuperCall) {
-            this->context->allowSuperCall = true;
-        }
-
-        this->expect(LeftParenthesis);
-        BEGIN_FUNCTION_SCANNING(AtomicString());
-
-        ParseFormalParametersResult params;
-        this->parseFormalParameters(newBuilder, params);
-        extractNamesFromFunctionParams(params);
-        this->parsePropertyMethod(newBuilder, params);
-
-        this->context->allowNewTarget = previousAllowNewTarget;
-        this->context->allowSuperCall = previousAllowSuperCall;
-        this->context->allowSuperProperty = previousAllowSuperProperty;
-        this->context->allowYield = previousAllowYield;
-        this->context->inArrowFunction = previousInArrowFunction;
-
-        this->currentScopeContext->m_paramsStartLOC.index = node.index;
-        this->currentScopeContext->m_paramsStartLOC.column = node.column;
-        this->currentScopeContext->m_paramsStartLOC.line = node.line;
-        this->currentScopeContext->m_allowSuperProperty = true;
-        if (allowSuperCall) {
-            this->currentScopeContext->m_allowSuperCall = true;
-        }
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
-        this->currentScopeContext->m_isGenerator = isGenerator;
-
-        END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
-    }
-
-    template <class ASTBuilder>
-    ASTNode parsePropertyMethodAsyncFunction(ASTBuilder& builder, bool allowSuperCall)
-    {
-        MetaNode node = this->createNode();
-
-        if (tryToSkipFunctionParsing()) {
-            return this->finalize(node, builder.createAsyncFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
+            return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
         }
 
         const bool previousAllowNewTarget = this->context->allowNewTarget;
@@ -1553,9 +1501,9 @@ public:
 
         this->context->allowNewTarget = true;
         this->context->allowSuperProperty = true;
-        this->context->allowYield = false;
-        this->context->await = true;
+        this->context->allowYield = true;
         this->context->inArrowFunction = false;
+        this->context->await = isAsyncFunction;
 
         if (allowSuperCall) {
             this->context->allowSuperCall = true;
@@ -1583,11 +1531,12 @@ public:
         if (allowSuperCall) {
             this->currentScopeContext->m_allowSuperCall = true;
         }
-        this->currentScopeContext->m_nodeType = ASTNodeType::AsyncFunctionExpression;
-        this->currentScopeContext->m_isGenerator = false;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        this->currentScopeContext->m_isAsync = isAsyncFunction;
 
         END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createAsyncFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
+        return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -1747,7 +1696,7 @@ public:
                     needImplictName = true;
                 }
             } else if (this->match(LeftParenthesis)) {
-                valueNode = isAsync ? this->parsePropertyMethodAsyncFunction(builder, false) : this->parsePropertyMethodFunction(builder, false);
+                valueNode = this->parsePropertyMethodFunction(builder, false, isAsync);
                 method = true;
             } else {
                 if (token->type != Token::IdentifierToken) {
@@ -2813,11 +2762,12 @@ public:
                 }
 
                 this->currentScopeContext->m_isArrowFunctionExpression = true;
-                this->currentScopeContext->m_nodeType = isAsync ? ASTNodeType::AsyncArrowFunctionExpression : ASTNodeType::ArrowFunctionExpression;
+                this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
                 this->currentScopeContext->m_isGenerator = false;
+                this->currentScopeContext->m_isAsync = isAsync;
 
                 END_FUNCTION_SCANNING();
-                exprNode = isAsync ? static_cast<ASTNode>(this->finalize(node, builder.createAsyncArrowFunctionExpressionNode(subCodeBlockIndex))) : static_cast<ASTNode>(this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex)));
+                exprNode = static_cast<ASTNode>(this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex)));
 
                 this->context->strict = previousStrict;
                 this->context->allowYield = previousAllowYield;
@@ -4385,7 +4335,7 @@ public:
         AtomicString fnName = id->asIdentifier()->name();
 
         if (tryToSkipFunctionParsing()) {
-            return this->finalize(node, builder.createFunctionDeclarationNode(isGenerator, subCodeBlockIndex, fnName));
+            return this->finalize(node, builder.createFunctionDeclarationNode(subCodeBlockIndex, fnName));
         }
 
         MetaNode paramsStart = this->createNode();
@@ -4433,11 +4383,12 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_nodeType = isAsync ? ASTNodeType::AsyncFunctionDeclaration : ASTNodeType::FunctionDeclaration;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
+        this->currentScopeContext->m_isAsync = isAsync;
         this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
-        return isAsync ? static_cast<ASTNode>(this->finalize(node, builder.createAsyncFunctionDeclarationNode(subCodeBlockIndex, fnName))) : static_cast<ASTNode>(this->finalize(node, builder.createFunctionDeclarationNode(isGenerator, subCodeBlockIndex, fnName)));
+        return static_cast<ASTNode>(this->finalize(node, builder.createFunctionDeclarationNode(subCodeBlockIndex, fnName)));
     }
 
     template <class ASTBuilder>
@@ -4497,7 +4448,7 @@ public:
         if (tryToSkipFunctionParsing()) {
             this->context->allowYield = previousAllowYield;
             this->context->inArrowFunction = previousInArrowFunction;
-            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, subCodeBlockIndex, fnName));
+            return this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName));
         }
 
         MetaNode paramsStart = this->createNode();
@@ -4536,11 +4487,12 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_nodeType = isAsync ? ASTNodeType::AsyncFunctionExpression : ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
+        this->currentScopeContext->m_isAsync = isAsync;
 
         END_FUNCTION_SCANNING();
-        return isAsync ? static_cast<ASTNode>(this->finalize(node, builder.createAsyncFunctionExpressionNode(subCodeBlockIndex, fnName))) : static_cast<ASTNode>(this->finalize(node, builder.createFunctionExpressionNode(isGenerator, subCodeBlockIndex, fnName)));
+        return static_cast<ASTNode>(this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName)));
     }
 
     // ECMA-262 14.1.1 Directive Prologues
@@ -4614,7 +4566,7 @@ public:
         bool isGenerator = false;
 
         if (tryToSkipFunctionParsing()) {
-            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+            return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
         }
 
         const bool previousAllowYield = this->context->allowYield;
@@ -4650,7 +4602,7 @@ public:
         this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -4661,7 +4613,7 @@ public:
         bool isGenerator = false;
 
         if (tryToSkipFunctionParsing()) {
-            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+            return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
         }
 
         const bool previousAllowYield = this->context->allowYield;
@@ -4702,7 +4654,7 @@ public:
         this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
     }
 
     template <class ASTBuilder>
@@ -4713,7 +4665,7 @@ public:
         bool isGenerator = true;
 
         if (tryToSkipFunctionParsing()) {
-            return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+            return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
         }
 
         const bool previousAllowYield = this->context->allowYield;
@@ -4749,7 +4701,7 @@ public:
         this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
-        return this->finalize(node, builder.createFunctionExpressionNode(isGenerator, this->subCodeBlockIndex, AtomicString()));
+        return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
     }
 
     // ECMA-262 14.4 Generator Function Definitions
@@ -4825,8 +4777,6 @@ public:
             }
             this->context->allowYield = previousAllowYield;
         }
-
-        this->currentScopeContext->m_hasYield = true;
 
         return this->finalize(node, builder.createYieldExpressionNode(exprNode, delegate));
     }
@@ -4911,7 +4861,7 @@ public:
                     allowSuperCall = true;
                 }
             }
-            value = isAsync ? this->parsePropertyMethodAsyncFunction(builder, allowSuperCall) : this->parsePropertyMethodFunction(builder, allowSuperCall);
+            value = this->parsePropertyMethodFunction(builder, allowSuperCall, isAsync);
         }
 
         if (kind == ClassElementNode::Kind::None) {
@@ -5615,6 +5565,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.context->allowSuperCall = true;
     parser.context->allowSuperProperty = true;
     parser.context->allowNewTarget = true;
+    parser.context->await = codeBlock->isAsync();
     parser.isParsingSingleFunction = true;
     parser.codeBlock = codeBlock;
 

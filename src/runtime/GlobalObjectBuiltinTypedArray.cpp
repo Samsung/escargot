@@ -129,7 +129,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
         mapping = true;
     }
     // Let usingIterator be GetMethod(items, @@iterator).
-    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
+    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
 
     // If usingIterator is not undefined, then
     if (!usingIterator.isUndefined()) {
@@ -1579,11 +1579,11 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     NativeFunctionObject* taConstructor = new NativeFunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA, elementSize, TypeAdaptor>, 3), NativeFunctionObject::__ForBuiltinConstructor__);
-    taConstructor->markThisObjectDontNeedStructureTransitionTable(state);
+    taConstructor->markThisObjectDontNeedStructureTransitionTable();
 
     *proto = m_objectPrototype;
     Object* taPrototype = new TypedArrayObjectPrototype(state);
-    taPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    taPrototype->markThisObjectDontNeedStructureTransitionTable();
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 
     taConstructor->setPrototype(state, typedArrayFunction); // %TypedArray%
@@ -1640,7 +1640,7 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
 void GlobalObject::installTypedArray(ExecutionState& state)
 {
     m_arrayBuffer = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ArrayBuffer, builtinArrayBufferConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_arrayBuffer->markThisObjectDontNeedStructureTransitionTable(state);
+    m_arrayBuffer->markThisObjectDontNeedStructureTransitionTable();
     m_arrayBuffer->setPrototype(state, m_functionPrototype);
     m_arrayBuffer->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isView),
                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isView, builtinArrayBufferIsView, 1, NativeFunctionInfo::Strict)),
@@ -1650,7 +1650,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     m_arrayBufferPrototype = new ArrayBufferObject(state);
     m_arrayBufferPrototype->setPrototype(state, m_objectPrototype);
     m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag),
+    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -1659,7 +1659,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
     JSGetterSetter gs(
@@ -1686,7 +1686,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        typedArrayFunction->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+        typedArrayFunction->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
 
@@ -1743,7 +1743,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->values),
                                                           ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                           ObjectPropertyDescriptor(valuesFn,
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     {
@@ -1751,7 +1751,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
             new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolToStringTag, builtinTypedArrayToStringTagGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag), desc);
+        typedArrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag), desc);
     }
     {
         JSGetterSetter gs(

@@ -94,7 +94,7 @@ struct ByteCodeGenerateContext {
         , m_complexJumpLabeledBreakIgnoreCount(0)
         , m_complexJumpLabeledContinueIgnoreCount(0)
         , m_lexicalBlockIndex(0)
-        , m_maxYieldStatementExtraDataLength(0)
+        , m_maxPauseStatementExtraDataLength(0)
         , m_numeralLiteralData(numeralLiteralData)
     {
         m_inCallingExpressionScope = false;
@@ -131,7 +131,7 @@ struct ByteCodeGenerateContext {
         , m_complexJumpLabeledContinueIgnoreCount(contextBefore.m_complexJumpLabeledContinueIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
-        , m_maxYieldStatementExtraDataLength(contextBefore.m_maxYieldStatementExtraDataLength)
+        , m_maxPauseStatementExtraDataLength(contextBefore.m_maxPauseStatementExtraDataLength)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
     {
         m_isHeadOfMemberExpression = false;
@@ -153,7 +153,7 @@ struct ByteCodeGenerateContext {
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
-        ctx.m_maxYieldStatementExtraDataLength = std::max(m_maxYieldStatementExtraDataLength, ctx.m_maxYieldStatementExtraDataLength);
+        ctx.m_maxPauseStatementExtraDataLength = std::max(m_maxPauseStatementExtraDataLength, ctx.m_maxPauseStatementExtraDataLength);
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();
@@ -346,7 +346,7 @@ struct ByteCodeGenerateContext {
     size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
-    size_t m_maxYieldStatementExtraDataLength;
+    size_t m_maxPauseStatementExtraDataLength;
     NumeralLiteralVector* m_numeralLiteralData;
 };
 

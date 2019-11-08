@@ -33,11 +33,13 @@
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorOperations.h"
 #include "runtime/GeneratorObject.h"
+#include "runtime/PromiseObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptArrowFunctionObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
 #include "runtime/ScriptClassMethodFunctionObject.h"
 #include "runtime/ScriptGeneratorFunctionObject.h"
+#include "runtime/ScriptAsyncFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -1278,33 +1280,30 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(GeneratorResume)
+        DEFINE_OPCODE(ExecutionResume)
             :
         {
-            Value v = ByteCodeInterpreter::generatorResumeOperation(state, programCounter, byteCodeBlock);
+            Value v = ByteCodeInterpreter::executionResumeOperation(state, programCounter, byteCodeBlock);
             if (!v.isEmpty()) {
                 return v;
             }
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(Yield)
+        DEFINE_OPCODE(ExecutionPause)
             :
         {
-            yieldOperation(*state, registerFile, programCounter, codeBuffer);
-            ASSERT_NOT_REACHED();
-        }
-
-        DEFINE_OPCODE(YieldDelegate)
-            :
-        {
-            Value result = yieldDelegateOperation(*state, registerFile, programCounter, codeBuffer);
-
-            if (result.isEmpty()) {
-                NEXT_INSTRUCTION();
+            ExecutionPause* code = (ExecutionPause*)programCounter;
+            if (code->m_reason == ExecutionPause::Reason::Yield || code->m_reason == ExecutionPause::Reason::Await) {
+                executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
+            } else if (code->m_reason == ExecutionPause::Reason::YieldDelegate) {
+                Value result = executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
+                if (result.isEmpty()) {
+                    NEXT_INSTRUCTION();
+                }
+                return result;
             }
-
-            return result;
+            ASSERT_NOT_REACHED();
         }
 
         DEFINE_OPCODE(BlockOperation)
@@ -2181,10 +2180,14 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
 
     LexicalEnvironment* outerLexicalEnvironment = state.mostNearestHeapAllocatedLexicalEnvironment();
 
-    if (cb->isGenerator()) {
+    if (UNLIKELY(cb->isGenerator())) {
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+    } else if (UNLIKELY(cb->isAsync())) {
+        Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
+        Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
+        registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (cb->isArrowFunctionExpression()) {
         registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
     } else if (cb->isClassMethod() || cb->isClassStaticMethod()) {
@@ -2222,9 +2225,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     TryOperation* code = (TryOperation*)programCounter;
     bool oldInTryStatement = state->m_inTryStatement;
 
-    bool inGeneratorScope = state->inGeneratorScope();
-    bool inGeneratorResumeProcess = code->m_isTryResumeProcess || code->m_isCatchResumeProcess || code->m_isFinallyResumeProcess;
-    bool shouldUseHeapAllocatedState = inGeneratorScope && !inGeneratorResumeProcess;
+    bool inPauserScope = state->inPauserScope();
+    bool inPauserResumeProcess = code->m_isTryResumeProcess || code->m_isCatchResumeProcess || code->m_isFinallyResumeProcess;
+    bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
     ExecutionState* newState;
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
@@ -2234,7 +2237,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
     }
 
-    if (!LIKELY(inGeneratorResumeProcess)) {
+    if (!LIKELY(inPauserResumeProcess)) {
         if (!state->ensureRareData()->m_controlFlowRecord) {
             state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
         }
@@ -2438,12 +2441,12 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
-            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false);
+            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
             functionSource.codeBlock->setAsClassConstructor();
             constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
         } else {
             Value argv[] = { new ASCIIString("...args"), new ASCIIString("super(...args)") };
-            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, true);
+            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
             functionSource.codeBlock->setAsClassConstructor();
             functionSource.codeBlock->setAsDerivedClassConstructor();
             constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
@@ -2545,11 +2548,11 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
 {
     WithOperation* code = (WithOperation*)programCounter;
 
-    bool inGeneratorScope = state->inGeneratorScope();
-    bool inGeneratorResumeProcess = code->m_registerIndex == REGISTER_LIMIT;
+    bool inPauserScope = state->inPauserScope();
+    bool inPauserResumeProcess = code->m_registerIndex == REGISTER_LIMIT;
 
     LexicalEnvironment* newEnv;
-    if (!LIKELY(inGeneratorResumeProcess)) {
+    if (!LIKELY(inPauserResumeProcess)) {
         LexicalEnvironment* env = state->lexicalEnvironment();
         if (!state->ensureRareData()->m_controlFlowRecord) {
             state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -2565,7 +2568,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
         newEnv = nullptr;
     }
 
-    bool shouldUseHeapAllocatedState = inGeneratorScope && !inGeneratorResumeProcess;
+    bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
     ExecutionState* newState;
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
@@ -2575,7 +2578,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, newEnv, state->inStrictMode());
     }
 
-    if (!LIKELY(inGeneratorResumeProcess)) {
+    if (!LIKELY(inPauserResumeProcess)) {
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
@@ -2583,7 +2586,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
     char* codeBuffer = byteCodeBlock->m_code.data();
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
 
-    if (UNLIKELY(inGeneratorResumeProcess)) {
+    if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
         code = (WithOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
@@ -2654,11 +2657,11 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
     // setup new env
     EnvironmentRecord* newRecord;
     LexicalEnvironment* newEnv;
-    bool inGeneratorResumeProcess = code->m_blockInfo == nullptr;
+    bool inPauserResumeProcess = code->m_blockInfo == nullptr;
     bool shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
-    bool inGeneratorScope = state->inGeneratorScope();
+    bool inPauserScope = state->inPauserScope();
 
-    if (LIKELY(!inGeneratorResumeProcess)) {
+    if (LIKELY(!inPauserResumeProcess)) {
         ASSERT(code->m_blockInfo->m_shouldAllocateEnvironment);
         if (LIKELY(shouldUseIndexedStorage)) {
             newRecord = new DeclarativeEnvironmentRecordIndexed(*state, code->m_blockInfo);
@@ -2678,7 +2681,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         newEnv = nullptr;
     }
 
-    bool shouldUseHeapAllocatedState = inGeneratorScope && !inGeneratorResumeProcess;
+    bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
     ExecutionState* newState;
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExecutionState(state, newEnv, state->inStrictMode());
@@ -2687,13 +2690,13 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, newEnv, state->inStrictMode());
     }
 
-    if (!LIKELY(inGeneratorResumeProcess)) {
+    if (!LIKELY(inPauserResumeProcess)) {
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
 
-    if (UNLIKELY(inGeneratorResumeProcess)) {
+    if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
         code = (BlockOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
@@ -2780,204 +2783,146 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::yieldOperationImplementation(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, bool isDelegateOperation)
+NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
 {
-    ASSERT(state.inGeneratorScope());
+    ExecutionPause* code = (ExecutionPause*)programCounter;
+    if (code->m_reason == ExecutionPause::Yield) {
+        // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
+        auto yieldIndex = code->m_yieldData.m_yieldIndex;
+        Value ret = yieldIndex == REGISTER_LIMIT ? Value() : registerFile[yieldIndex];
+        auto dstIdx = code->m_yieldData.m_dstIndex;
 
-    ExecutionState* generatorOriginalState = &state;
-    GeneratorObject* gen = nullptr;
-    while (true) {
-        gen = generatorOriginalState->generatorTarget();
-        if (gen) {
-            generatorOriginalState->rareData()->m_parent = nullptr;
-            break;
-        }
-        generatorOriginalState = generatorOriginalState->parent();
-    }
-    gen->m_executionState = &state;
-    gen->m_generatorState = GeneratorState::SuspendedYield;
-    gen->m_byteCodePosition = nextProgramCounter;
-    gen->m_resumeValueIdx = dstRegisterIndex;
+        size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldData.m_tailDataLength;
 
-    // read & fill recursive statement data
-    char* start = (char*)(tailDataPosition);
-    char* end = (char*)(start + tailDataLength);
-
-    size_t startupDataPosition = gen->m_byteCodeBlock->m_code.size();
-    gen->m_extraDataByteCodePosition = startupDataPosition;
-    std::vector<size_t> codeStartPositions;
-    size_t codePos = startupDataPosition;
-    while (start != end) {
-        size_t e = *((size_t*)start);
-        start += sizeof(ByteCodeGenerateContext::RecursiveStatementKind);
-        size_t startPos = *((size_t*)start);
-        codeStartPositions.push_back(startPos);
-        if (e == ByteCodeGenerateContext::Block) {
-            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(BlockOperation));
-            BlockOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) BlockOperation(ByteCodeLOC(SIZE_MAX), nullptr);
-            code->assignOpcodeInAddress();
-
-            codePos += sizeof(BlockOperation);
-        } else if (e == ByteCodeGenerateContext::With) {
-            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(WithOperation));
-            WithOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) WithOperation(ByteCodeLOC(SIZE_MAX), REGISTER_LIMIT);
-            code->assignOpcodeInAddress();
-
-            codePos += sizeof(WithOperation);
-        } else if (e == ByteCodeGenerateContext::Try) {
-            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
-            TryOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
-            code->assignOpcodeInAddress();
-            code->m_isTryResumeProcess = true;
-
-            codePos += sizeof(TryOperation);
-        } else if (e == ByteCodeGenerateContext::Catch) {
-            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
-            TryOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
-            code->assignOpcodeInAddress();
-            code->m_isCatchResumeProcess = true;
-
-            codePos += sizeof(TryOperation);
-        } else {
-            ASSERT(e == ByteCodeGenerateContext::Finally);
-            gen->m_byteCodeBlock->m_code.resize(gen->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
-            TryOperation* code = new (gen->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
-            code->assignOpcodeInAddress();
-            code->m_isFinallyResumeProcess = true;
-
-            codePos += sizeof(TryOperation);
-        }
-        start += sizeof(size_t); // start pos
-    }
-
-    size_t resumeCodePos = gen->m_byteCodeBlock->m_code.size();
-    gen->m_generatorResumeByteCodePosition = resumeCodePos;
-    gen->m_byteCodeBlock->m_code.resizeWithUninitializedValues(resumeCodePos + sizeof(GeneratorResume));
-    auto resumeCode = new (gen->m_byteCodeBlock->m_code.data() + resumeCodePos) GeneratorResume(ByteCodeLOC(SIZE_MAX), gen);
-    resumeCode->assignOpcodeInAddress();
-
-    size_t stackSizePos = gen->m_byteCodeBlock->m_code.size();
-    gen->m_byteCodeBlock->m_code.resizeWithUninitializedValues(stackSizePos + sizeof(size_t));
-    new (gen->m_byteCodeBlock->m_code.data() + stackSizePos) size_t(codeStartPositions.size());
-
-    // add ByteCodePositions
-    for (size_t i = 0; i < codeStartPositions.size(); i++) {
-        size_t pos = gen->m_byteCodeBlock->m_code.size();
-        gen->m_byteCodeBlock->m_code.resizeWithUninitializedValues(pos + sizeof(size_t));
-        new (gen->m_byteCodeBlock->m_code.data() + pos) size_t(codeStartPositions[i]);
-    }
-
-    GeneratorObject::GeneratorExitValue* exitValue = new GeneratorObject::GeneratorExitValue();
-    exitValue->m_value = returnValue;
-    exitValue->m_isDelegateOperation = isDelegateOperation;
-    throw exitValue;
-}
-
-// http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
-NEVER_INLINE void ByteCodeInterpreter::yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer)
-{
-    ASSERT(state.inGeneratorScope());
-
-    Yield* code = (Yield*)programCounter;
-    auto yieldIndex = code->m_yieldIdx;
-    Value ret = yieldIndex == REGISTER_LIMIT ? Value() : registerFile[yieldIndex];
-    auto dstIdx = code->m_dstIdx;
-
-    size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(Yield) + code->m_tailDataLength;
-    yieldOperationImplementation(state, ret, programCounter + sizeof(Yield), code->m_tailDataLength, nextProgramCounter, dstIdx, false);
-}
-
-// http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
-NEVER_INLINE Value ByteCodeInterpreter::yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
-{
-    YieldDelegate* code = (YieldDelegate*)programCounter;
-    const Value iterator = registerFile[code->m_iterIdx].toObject(state);
-    GeneratorState resultState = GeneratorState::SuspendedYield;
-    Value nextResult;
-    bool done = true;
-    Value nextValue;
-    try {
-        nextResult = iteratorNext(state, iterator);
-        if (iterator.asObject()->isGeneratorObject()) {
-            resultState = iterator.asObject()->asGeneratorObject()->m_generatorState;
-        }
-    } catch (const Value& v) {
-        resultState = GeneratorState::CompletedThrow;
-        nextValue = v;
-    }
-
-    switch (resultState) {
-    case GeneratorState::CompletedReturn: {
-        Value ret = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
-
-        nextValue = iteratorValue(state, nextResult);
-
-        if (ret.isUndefined()) {
-            return nextValue;
+        ExecutionPauser::pause(state, ret, programCounter + sizeof(ExecutionPause), code->m_yieldData.m_tailDataLength, nextProgramCounter, dstIdx, ExecutionPauser::PauseReason::Yield);
+    } else if (code->m_reason == ExecutionPause::YieldDelegate) {
+        // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
+        const Value iterator = registerFile[code->m_yieldDelegateData.m_iterIntex].toObject(state);
+        GeneratorState resultState = GeneratorState::SuspendedYield;
+        Value nextResult;
+        bool done = true;
+        Value nextValue;
+        try {
+            nextResult = iteratorNext(state, iterator);
+            if (iterator.asObject()->isGeneratorObject()) {
+                resultState = iterator.asObject()->asGeneratorObject()->m_generatorState;
+            }
+        } catch (const Value& v) {
+            resultState = GeneratorState::CompletedThrow;
+            nextValue = v;
         }
 
-        Value innerResult = Object::call(state, ret, iterator, 1, &nextValue);
+        switch (resultState) {
+        case GeneratorState::CompletedReturn: {
+            Value ret = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
 
-        if (!innerResult.isObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
-        }
+            nextValue = iteratorValue(state, nextResult);
 
-        nextValue = iteratorValue(state, innerResult);
-        done = iteratorComplete(state, innerResult);
-        break;
-    }
-    case GeneratorState::SuspendedYield: {
-        done = iteratorComplete(state, nextResult);
-        nextValue = iteratorValue(state, nextResult);
-        break;
-    }
-    default: {
-        ASSERT(resultState == GeneratorState::CompletedThrow);
-        Value throwMethod = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringThrow)).value(state, iterator);
+            if (ret.isUndefined()) {
+                return nextValue;
+            }
 
-        if (!throwMethod.isUndefined()) {
-            Value innerResult;
-            innerResult = Object::call(state, throwMethod, iterator, 1, &nextValue);
+            Value innerResult = Object::call(state, ret, iterator, 1, &nextValue);
+
             if (!innerResult.isObject()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
             }
+
             nextValue = iteratorValue(state, innerResult);
             done = iteratorComplete(state, innerResult);
-        } else {
-            iteratorClose(state, iterator, Value(), false);
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "yield* violation");
+            break;
         }
-    }
-    }
+        case GeneratorState::SuspendedYield: {
+            done = iteratorComplete(state, nextResult);
+            nextValue = iteratorValue(state, nextResult);
+            break;
+        }
+        default: {
+            ASSERT(resultState == GeneratorState::CompletedThrow);
+            Value throwMethod = iterator.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().stringThrow)).value(state, iterator);
 
-    // yield
-    registerFile[code->m_dstIdx] = nextValue;
-    if (done) {
-        programCounter = jumpTo(codeBuffer, code->m_endPosition);
-        return Value(Value::EmptyValue);
+            if (!throwMethod.isUndefined()) {
+                Value innerResult;
+                innerResult = Object::call(state, throwMethod, iterator, 1, &nextValue);
+                if (!innerResult.isObject()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
+                }
+                nextValue = iteratorValue(state, innerResult);
+                done = iteratorComplete(state, innerResult);
+            } else {
+                iteratorClose(state, iterator, Value(), false);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "yield* violation");
+            }
+        }
+        }
+
+        // yield
+        registerFile[code->m_yieldDelegateData.m_dstIndex] = nextValue;
+        if (done) {
+            programCounter = jumpTo(codeBuffer, code->m_yieldDelegateData.m_endPosition);
+            return Value(Value::EmptyValue);
+        }
+
+        registerFile[code->m_yieldDelegateData.m_valueIndex] = nextValue;
+
+        size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldDelegateData.m_tailDataLength;
+        ExecutionPauser::pause(state, nextResult, programCounter + sizeof(ExecutionPause), code->m_yieldDelegateData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::YieldDelegate);
+    } else if (code->m_reason == ExecutionPause::Await) {
+        // http://www.ecma-international.org/ecma-262/10.0/#await
+        ScriptAsyncFunctionObject* self = state.resolveCallee()->asScriptAsyncFunctionObject();
+
+        ExecutionState* p = &state;
+        ExecutionPauser* executionPauser;
+        while (true) {
+            executionPauser = p->pauseSource();
+            if (executionPauser) {
+                break;
+            }
+            p = p->parent();
+        }
+
+        const Value& awaitValue = registerFile[code->m_awaitData.m_awaitIndex];
+
+        // Let asyncContext be the running execution context.
+        // Let promise be ? PromiseResolve(%Promise%, « value »).
+        PromiseObject* promise = promiseResolve(state, state.context()->globalObject()->promise(), awaitValue).asObject()->asPromiseObject();
+        // Let stepsFulfilled be the algorithm steps defined in Await Fulfilled Functions.
+        // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[AsyncContext]] »).
+        // Set onFulfilled.[[AsyncContext]] to asyncContext.
+        FunctionObject* onFulfilled = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitFulfilledFunction, 1), executionPauser, self);
+
+        // Let stepsRejected be the algorithm steps defined in Await Rejected Functions.
+        // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[AsyncContext]] »).
+        // Set onRejected.[[AsyncContext]] to asyncContext.
+        FunctionObject* onRejected = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitRejectedFunction, 1), executionPauser, self);
+
+        // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
+        promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
+        // Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
+        // Set the code evaluation state of asyncContext such that when evaluation is resumed with a Completion completion, the following steps of the algorithm that invoked Await will be performed, with completion available.
+        // Return.
+        // NOTE: This returns to the evaluation of the operation that had most previously resumed evaluation of asyncContext.
+
+        size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_awaitData.m_tailDataLength;
+        ExecutionPauser::pause(state, registerFile[code->m_awaitData.m_awaitIndex], programCounter + sizeof(ExecutionPause), code->m_awaitData.m_tailDataLength, nextProgramCounter, code->m_awaitData.m_dstIndex, ExecutionPauser::PauseReason::Await);
     }
-
-    registerFile[code->m_valueIdx] = nextValue;
-
-    size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(YieldDelegate) + code->m_tailDataLength;
-    yieldOperationImplementation(state, nextResult, programCounter + sizeof(YieldDelegate), code->m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, true);
 
     ASSERT_NOT_REACHED();
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::generatorResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
 {
-    GeneratorResume* code = (GeneratorResume*)programCounter;
+    ExecutionResume* code = (ExecutionResume*)programCounter;
 
     bool needsReturn = code->m_needsReturn;
     bool needsThrow = code->m_needsThrow;
 
-    GeneratorObject* gen = code->m_generatorObject;
     // update old parent
-    ExecutionState* orgTreePointer = gen->m_executionState;
+    auto data = code->m_pauser;
+    ExecutionState* orgTreePointer = data->m_executionState;
     ExecutionState* tmpTreePointer = state;
 
-    size_t pos = programCounter + sizeof(GeneratorResume);
+    size_t pos = programCounter + sizeof(ExecutionResume);
     size_t recursiveStatementCodeStackSize = *((size_t*)pos);
     pos += sizeof(size_t) + sizeof(size_t) * recursiveStatementCodeStackSize;
 
@@ -2986,7 +2931,7 @@ NEVER_INLINE Value ByteCodeInterpreter::generatorResumeOperation(ExecutionState*
         size_t codePos = *((size_t*)pos);
 
 #ifndef NDEBUG
-        if (orgTreePointer->hasRareData() && orgTreePointer->generatorTarget()) {
+        if (orgTreePointer->hasRareData() && orgTreePointer->pauseSource()) {
             // this ExecutuionState must be allocated by generatorResume function;
             ASSERT(tmpTreePointer->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->isGenerator());
         }
@@ -3000,21 +2945,21 @@ NEVER_INLINE Value ByteCodeInterpreter::generatorResumeOperation(ExecutionState*
         tmpTreePointerSave->ensureRareData()->m_programCounterWhenItStoppedByYield = codePos;
     }
 
-    state = code->m_generatorObject->m_executionState;
+    state = data->m_executionState;
 
     // remove extra code
-    byteCodeBlock->m_code.resize(code->m_generatorObject->m_extraDataByteCodePosition);
+    byteCodeBlock->m_code.resize(data->m_extraDataByteCodePosition);
 
     // update program counter
-    programCounter = code->m_generatorObject->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
+    programCounter = data->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
 
     if (needsReturn) {
         if (state->rareData() && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size()) {
-            state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, gen->m_resumeValue, state->rareData()->m_controlFlowRecord->size());
+            state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->m_controlFlowRecord->size());
         }
-        return gen->m_resumeValue;
+        return data->m_resumeValue;
     } else if (needsThrow) {
-        state->throwException(gen->m_resumeValue);
+        state->throwException(data->m_resumeValue);
     }
 
     return Value(Value::EmptyValue);
