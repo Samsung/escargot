@@ -96,7 +96,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_hasDescendantUsesNonIndexedVariableStorage(false)
     , m_hasEval(false)
     , m_hasWith(false)
-    , m_hasYield(false)
     , m_inWith(false)
     , m_isEvalCode(false)
     , m_isEvalCodeInFunction(false)
@@ -109,6 +108,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isClassMethod(false)
     , m_isClassStaticMethod(false)
     , m_isGenerator(false)
+    , m_isAsync(false)
     , m_needsVirtualIDOperation(false)
     , m_hasImplictFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
@@ -136,7 +136,6 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_hasDescendantUsesNonIndexedVariableStorage(false)
     , m_hasEval(false)
     , m_hasWith(false)
-    , m_hasYield(false)
     , m_inWith(false)
     , m_isEvalCode(false)
     , m_isEvalCodeInFunction(false)
@@ -149,6 +148,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isClassMethod(false)
     , m_isClassStaticMethod(false)
     , m_isGenerator(false)
+    , m_isAsync(false)
     , m_needsVirtualIDOperation(false)
     , m_hasImplictFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
@@ -220,10 +220,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isClassMethod = scopeCtx->m_isClassMethod;
     m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;
+    m_isAsync = scopeCtx->m_isAsync;
 
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
-    m_hasYield = scopeCtx->m_hasYield;
     m_inWith = scopeCtx->m_inWith;
 
     m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
@@ -292,7 +292,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
-    m_hasYield = scopeCtx->m_hasYield;
     m_inWith = scopeCtx->m_inWith;
     m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
     m_hasArrowParameterPlaceHolder = scopeCtx->m_hasArrowParameterPlaceHolder;
@@ -310,6 +309,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isClassMethod = scopeCtx->m_isClassMethod;
     m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;
+    m_isAsync = scopeCtx->m_isAsync;
+
     m_isFunctionNameExplicitlyDeclared = false;
     m_isFunctionNameSaveOnHeap = false;
     m_needsVirtualIDOperation = false;
@@ -323,7 +324,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     }
 
     m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
-    m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage && !m_isGenerator;
+    m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage && !m_isGenerator && !m_isAsync;
     m_canAllocateVariablesOnStack = true;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
 
@@ -497,7 +498,7 @@ void InterpretedCodeBlock::computeVariables()
 {
     // we should check m_inWith
     // because CallFunctionInWithScope needs LoadByName
-    m_canAllocateVariablesOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith && !m_isGenerator;
+    m_canAllocateVariablesOnStack = !m_isEvalCode && !hasDescendantUsesNonIndexedVariableStorage() && m_canUseIndexedVariableStorage && !m_inWith;
 
     if (m_canAllocateEnvironmentOnStack) {
         // we should check m_inWith

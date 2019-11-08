@@ -231,6 +231,29 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
     context->m_recursiveStatementStack.pop_back();
 }
 
+void ByteCodeBlock::updateMaxPauseStatementExtraDataLength(ByteCodeGenerateContext* context)
+{
+    static_assert(sizeof(ByteCodeGenerateContext::RecursiveStatementKind) == sizeof(size_t), "");
+    size_t mostBigCode = std::max({ sizeof(WithOperation), sizeof(BlockOperation), sizeof(TryOperation) + sizeof(TryOperation) });
+    context->m_maxPauseStatementExtraDataLength = std::max(context->m_maxPauseStatementExtraDataLength,
+                                                           sizeof(size_t) + (mostBigCode * context->m_recursiveStatementStack.size()) + sizeof(ExecutionResume) + sizeof(size_t) /* stack size */ + context->m_recursiveStatementStack.size() * sizeof(size_t) /* code start position data size */
+                                                           );
+}
+
+void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context)
+{
+    auto iter = context->m_recursiveStatementStack.begin();
+    while (iter != context->m_recursiveStatementStack.end()) {
+        size_t pos = m_code.size();
+        m_code.resizeWithUninitializedValues(pos + sizeof(ByteCodeGenerateContext::RecursiveStatementKind));
+        new (m_code.data() + pos) size_t(iter->first);
+        pos = m_code.size();
+        m_code.resizeWithUninitializedValues(pos + sizeof(size_t));
+        new (m_code.data() + pos) size_t(iter->second);
+        iter++;
+    }
+}
+
 void* SetObjectInlineCache::operator new(size_t size)
 {
     static bool typeInited = false;

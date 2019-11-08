@@ -172,12 +172,17 @@ struct StringBufferAccessData {
 class String : public PointerValue {
     friend class AtomicString;
 
-public:
+protected:
     String()
     {
         m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
         m_bufferAccessData.hasSpecialImpl = false;
     }
+
+public:
+    enum FromExternalMemoryTag {
+        FromExternalMemory
+    };
 
     virtual bool isStringByVTable() const override
     {
@@ -472,6 +477,15 @@ public:
         initBufferAccessData(stringData);
     }
 
+    ASCIIString(const char* str, size_t len, FromExternalMemoryTag)
+        : String()
+    {
+        m_bufferAccessData.bufferAs8Bit = str;
+        m_bufferAccessData.length = len;
+        m_bufferAccessData.hasSpecialImpl = false;
+        m_bufferAccessData.has8BitContent = true;
+    }
+
     virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
@@ -537,6 +551,15 @@ public:
         Latin1StringData data;
         data.append((const LChar*)str, len);
         initBufferAccessData(data);
+    }
+
+    Latin1String(const LChar* str, size_t len, FromExternalMemoryTag)
+        : String()
+    {
+        m_bufferAccessData.buffer = str;
+        m_bufferAccessData.length = len;
+        m_bufferAccessData.hasSpecialImpl = false;
+        m_bufferAccessData.has8BitContent = true;
     }
 
     Latin1String(const LChar* str, size_t len)
@@ -618,6 +641,16 @@ public:
         data.append(str, len);
         initBufferAccessData(data);
     }
+
+    UTF16String(const char16_t* str, size_t len, FromExternalMemoryTag)
+        : String()
+    {
+        m_bufferAccessData.bufferAs16Bit = str;
+        m_bufferAccessData.length = len;
+        m_bufferAccessData.hasSpecialImpl = false;
+        m_bufferAccessData.has8BitContent = false;
+    }
+
 #ifdef ENABLE_ICU
     explicit UTF16String(icu::UnicodeString& src)
         : String()

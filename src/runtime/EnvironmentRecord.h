@@ -238,7 +238,7 @@ public:
         auto result = m_bindingObject->hasProperty(state, propertyName);
 
         if (result) {
-            Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
+            Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
 
             if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, ObjectPropertyName(state, name)).value(state, unscopables).toBoolean(state))) {
                 return GetBindingValueResult();

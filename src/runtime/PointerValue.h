@@ -27,6 +27,12 @@ class String;
 class Symbol;
 class Object;
 class FunctionObject;
+class NativeFunctionObject;
+class ScriptFunctionObject;
+class ScriptArrowFunctionObject;
+class ScriptGeneratorFunctionObject;
+class ScriptAsyncFunctionObject;
+class ScriptClassConstructorFunctionObject;
 class ArrayObject;
 class StringObject;
 class SymbolObject;
@@ -105,6 +111,36 @@ public:
     }
 
     virtual bool isScriptClassConstructorPrototypeObject() const
+    {
+        return false;
+    }
+
+    virtual bool isNativeFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptArrowFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptGeneratorFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptAsyncFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptClassConstructorFunctionObject() const
     {
         return false;
     }
@@ -332,6 +368,42 @@ public:
     {
         ASSERT(isFunctionObject());
         return (FunctionObject*)this;
+    }
+
+    NativeFunctionObject* asNativeFunctionObject()
+    {
+        ASSERT(isNativeFunctionObject());
+        return (NativeFunctionObject*)this;
+    }
+
+    ScriptFunctionObject* asScriptFunctionObject()
+    {
+        ASSERT(isScriptFunctionObject());
+        return (ScriptFunctionObject*)this;
+    }
+
+    ScriptArrowFunctionObject* asScriptArrowFunctionObject()
+    {
+        ASSERT(isScriptArrowFunctionObject());
+        return (ScriptArrowFunctionObject*)this;
+    }
+
+    ScriptGeneratorFunctionObject* asScriptGeneratorFunctionObject()
+    {
+        ASSERT(isScriptGeneratorFunctionObject());
+        return (ScriptGeneratorFunctionObject*)this;
+    }
+
+    ScriptAsyncFunctionObject* asScriptAsyncFunctionObject()
+    {
+        ASSERT(isScriptAsyncFunctionObject());
+        return (ScriptAsyncFunctionObject*)this;
+    }
+
+    ScriptClassConstructorFunctionObject* asScriptClassConstructorFunctionObject()
+    {
+        ASSERT(isScriptClassConstructorFunctionObject());
+        return (ScriptClassConstructorFunctionObject*)this;
     }
 
     StringObject* asStringObject()

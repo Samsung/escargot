@@ -34,14 +34,8 @@ GeneratorObject::GeneratorObject(ExecutionState& state)
 
 GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
     : Object(state)
-    , m_executionState(executionState)
-    , m_registerFile(registerFile)
-    , m_byteCodeBlock(blk)
-    , m_byteCodePosition(SIZE_MAX)
-    , m_extraDataByteCodePosition(0)
-    , m_generatorResumeByteCodePosition(SIZE_MAX)
     , m_generatorState(GeneratorState::SuspendedStart)
-    , m_resumeValueIdx(REGISTER_LIMIT)
+    , m_executionPauser(state, this, executionState, registerFile, blk)
 {
     Object* prototype = new Object(state);
     prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
@@ -83,95 +77,6 @@ GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator
     return gen;
 }
 
-class GeneratorExecutionStateParentBinder {
-public:
-    GeneratorExecutionStateParentBinder(ExecutionState& state, ExecutionState* generatorOriginalState)
-        : m_generatorOriginalState(generatorOriginalState)
-    {
-        generatorOriginalState->setParent(&state);
-    }
-
-    ~GeneratorExecutionStateParentBinder()
-    {
-        m_generatorOriginalState->setParent(nullptr);
-    }
-
-    ExecutionState* m_generatorOriginalState;
-};
-
-Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow)
-{
-    ExecutionState* generatorOriginalState = gen->m_executionState;
-    while (generatorOriginalState->parent()) {
-        generatorOriginalState = generatorOriginalState->parent();
-    }
-
-    GeneratorExecutionStateParentBinder parentBinder(state, generatorOriginalState);
-
-    gen->m_generatorState = GeneratorState::Executing;
-    if (gen->m_resumeValueIdx != REGISTER_LIMIT) {
-        gen->m_registerFile[gen->m_resumeValueIdx] = resumeValue;
-    }
-
-    gen->m_resumeValue = resumeValue;
-    if (gen->m_generatorResumeByteCodePosition != SIZE_MAX) {
-        GeneratorResume* gr = (GeneratorResume*)(gen->m_byteCodeBlock->m_code.data() + gen->m_generatorResumeByteCodePosition);
-        gr->m_needsReturn = isAbruptReturn;
-        gr->m_needsThrow = isAbruptThrow;
-    }
-
-
-    Value result;
-    try {
-        ExecutionState* es;
-        size_t startPos = gen->m_byteCodePosition;
-        if (startPos == SIZE_MAX) {
-            // need to fresh start
-            startPos = 0;
-            es = gen->m_executionState;
-        } else {
-            // resume
-            startPos = gen->m_extraDataByteCodePosition;
-            LexicalEnvironment* env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(generatorOriginalState->resolveCallee()), nullptr
-#ifndef NDEBUG
-                                                             ,
-                                                             true
-#endif
-                                                             );
-            es = new ExecutionState(&state, env, false);
-        }
-        result = ByteCodeInterpreter::interpret(es, gen->m_byteCodeBlock, startPos, gen->m_registerFile);
-        // normal return means generator end
-        gen->m_generatorState = GeneratorState::CompletedReturn;
-        gen->releaseExecutionVariables();
-
-        result = createIterResultObject(state, result, true);
-    } catch (GeneratorObject::GeneratorExitValue* exitValue) {
-        result = exitValue->m_value;
-        auto isDelegateOperation = exitValue->m_isDelegateOperation;
-        delete exitValue;
-
-        if (isDelegateOperation) {
-            return result;
-        }
-
-        if (gen->m_generatorState >= GeneratorState::CompletedReturn) {
-            return createIterResultObject(state, result, true);
-        }
-
-        return createIterResultObject(state, result, false);
-
-    } catch (const Value& thrownValue) {
-        gen->m_generatorState = GeneratorState::CompletedThrow;
-        gen->releaseExecutionVariables();
-        throw thrownValue;
-    }
-
-    generatorOriginalState->setParent(nullptr);
-
-    return result;
-}
-
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresume
 Value generatorResume(ExecutionState& state, const Value& generator, const Value& value)
 {
@@ -183,7 +88,7 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
 
     ASSERT(gen->m_generatorState == GeneratorState::SuspendedStart || gen->m_generatorState == SuspendedYield);
 
-    return generatorExecute(state, gen, value, false, false);
+    return ExecutionPauser::start(state, gen->executionPauser(), gen, value, false, false, ExecutionPauser::Generator);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresumeabrupt
@@ -204,6 +109,6 @@ Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const
 
     ASSERT(gen->generatorState() == GeneratorState::SuspendedYield);
 
-    return generatorExecute(state, gen, value, type == GeneratorAbruptType::Return, type == GeneratorAbruptType::Throw);
+    return ExecutionPauser::start(state, gen->executionPauser(), gen, value, type == GeneratorAbruptType::Return, type == GeneratorAbruptType::Throw, ExecutionPauser::Generator);
 }
 }

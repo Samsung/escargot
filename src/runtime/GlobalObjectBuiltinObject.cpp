@@ -87,7 +87,7 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     if (thisObject->isArray(state)) {
         builder.appendString("Array");
     } else {
-        Value toStringTag = thisObject->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
+        Value toStringTag = thisObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
         if (toStringTag.isString()) {
             builder.appendString(toStringTag.asString());
         } else {
@@ -595,7 +595,7 @@ void GlobalObject::installObject(ExecutionState& state)
 
     FunctionObject* emptyFunction = m_functionPrototype;
     m_object = new NativeFunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_object->markThisObjectDontNeedStructureTransitionTable(state);
+    m_object->markThisObjectDontNeedStructureTransitionTable();
     m_object->setPrototype(state, emptyFunction);
     m_object->setFunctionPrototype(state, m_objectPrototype);
     // $19.1.2.2 Object.create (O [,Properties])

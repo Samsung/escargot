@@ -24,9 +24,8 @@ namespace Escargot {
 
 class FunctionExpressionNode : public ExpressionNode {
 public:
-    FunctionExpressionNode(bool isGenerator, size_t subCodeBlockIndex, const AtomicString& functionName)
-        : m_isGenerator(isGenerator)
-        , m_subCodeBlockIndex(subCodeBlockIndex - 1)
+    FunctionExpressionNode(size_t subCodeBlockIndex, const AtomicString& functionName)
+        : m_subCodeBlockIndex(subCodeBlockIndex - 1)
         , m_functionName(functionName)
     {
     }
@@ -46,13 +45,7 @@ public:
         }
     }
 
-    bool isGenerator() const
-    {
-        return m_isGenerator;
-    }
-
 private:
-    bool m_isGenerator;
     size_t m_subCodeBlockIndex;
     AtomicString m_functionName;
     // defaults: [ Expression ];

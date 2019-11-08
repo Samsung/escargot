@@ -17,25 +17,22 @@
  *  USA
  */
 
-#ifndef __EscargotScriptGeneratorFunctionObject__
-#define __EscargotScriptGeneratorFunctionObject__
+#ifndef __EscargotScriptAsyncFunctionObject__
+#define __EscargotScriptAsyncFunctionObject__
 
 #include "runtime/ScriptFunctionObject.h"
+#include "runtime/NativeFunctionObject.h"
+#include "runtime/ExecutionPauser.h"
 
 namespace Escargot {
 
-// every generator(normal, arrow function, class...) uses this class
-class ScriptGeneratorFunctionObject : public ScriptFunctionObject {
+// every async function(normal, arrow function, class...) uses this class
+class ScriptAsyncFunctionObject : public ScriptFunctionObject {
 public:
     // both thisValue, homeObject are optional
-    ScriptGeneratorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue = SmallValue(SmallValue::EmptyValue), Object* homeObject = nullptr)
-        : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, true)
-        , m_thisValue(thisValue)
-        , m_homeObject(homeObject)
-    {
-    }
+    ScriptAsyncFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue = SmallValue(SmallValue::EmptyValue), Object* homeObject = nullptr);
 
-    virtual bool isScriptGeneratorFunctionObject() const override
+    virtual bool isScriptAsyncFunctionObject() const override
     {
         return true;
     }
@@ -55,8 +52,6 @@ public:
         return m_homeObject;
     }
 
-    virtual Object* createFunctionPrototypeObject(ExecutionState& state) override;
-
     friend class FunctionObjectProcessCallGenerator;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
@@ -67,6 +62,22 @@ private:
     SmallValue m_thisValue;
     Object* m_homeObject;
 };
+
+class ScriptAsyncFunctionHelperFunctionObject : public NativeFunctionObject {
+public:
+    ScriptAsyncFunctionHelperFunctionObject(ExecutionState& state, NativeFunctionInfo info, ExecutionPauser* executionPauser, ScriptAsyncFunctionObject* sourceFunction)
+        : NativeFunctionObject(state, info)
+        , m_executionPauser(executionPauser)
+        , m_sourceFunction(sourceFunction)
+    {
+    }
+
+    ExecutionPauser* m_executionPauser;
+    ScriptAsyncFunctionObject* m_sourceFunction;
+};
+
+Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 }
 
 #endif

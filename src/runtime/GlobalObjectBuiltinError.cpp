@@ -123,13 +123,13 @@ public:
 void GlobalObject::installError(ExecutionState& state)
 {
     m_error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_error->markThisObjectDontNeedStructureTransitionTable(state);
+    m_error->markThisObjectDontNeedStructureTransitionTable();
 
     m_error->setPrototype(state, m_functionPrototype);
 
     m_errorPrototype = m_objectPrototype;
     m_errorPrototype = new GlobalErrorObjectPrototype(state);
-    m_errorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_errorPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_error->setFunctionPrototype(state, m_errorPrototype);
     m_errorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

@@ -24,9 +24,8 @@ namespace Escargot {
 
 class FunctionDeclarationNode : public StatementNode {
 public:
-    FunctionDeclarationNode(bool isGenerator, size_t /*subCodeBlockIndex not used yet*/, const AtomicString& functionName)
-        : m_isGenerator(isGenerator)
-        , m_functionName(functionName)
+    FunctionDeclarationNode(size_t /*subCodeBlockIndex not used yet*/, const AtomicString& functionName)
+        : m_functionName(functionName)
     {
     }
 
@@ -37,13 +36,7 @@ public:
         // do nothing
     }
 
-    bool isGenerator() const
-    {
-        return m_isGenerator;
-    }
-
 private:
-    bool m_isGenerator;
     AtomicString m_functionName;
 };
 }

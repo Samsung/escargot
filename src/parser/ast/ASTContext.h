@@ -161,7 +161,6 @@ struct ASTFunctionScopeContext {
     bool m_isStrict : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
-    bool m_hasYield : 1;
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
@@ -169,6 +168,7 @@ struct ASTFunctionScopeContext {
     bool m_isClassMethod : 1;
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
+    bool m_isAsync : 1;
     bool m_hasSuperOrNewTarget : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
@@ -176,7 +176,7 @@ struct ASTFunctionScopeContext {
     bool m_hasImplictFunctionName : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
-    unsigned int m_nodeType : 3; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression, FunctionDeclaration, AsyncArrowFunctionExpression, AsyncFunctionDeclaration and AsyncFunctionExpression only
+    unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTFunctionScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;
@@ -472,7 +472,6 @@ struct ASTFunctionScopeContext {
         : m_isStrict(isStrict)
         , m_hasEval(false)
         , m_hasWith(false)
-        , m_hasYield(false)
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
         , m_isClassConstructor(false)
@@ -480,6 +479,7 @@ struct ASTFunctionScopeContext {
         , m_isClassMethod(false)
         , m_isClassStaticMethod(false)
         , m_isGenerator(false)
+        , m_isAsync(false)
         , m_hasSuperOrNewTarget(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)

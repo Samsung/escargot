@@ -48,7 +48,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
-    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false);
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
 
     return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 }
@@ -64,7 +64,10 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
             return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->classSourceCode();
         } else {
             StringBuilder builder;
-            if (!fn->codeBlock()->isArrowFunctionExpression()) {
+            if (!fn->isScriptArrowFunctionObject()) {
+                if (fn->isScriptAsyncFunctionObject()) {
+                    builder.appendString("async ");
+                }
                 builder.appendString("function ");
                 if (!fn->codeBlock()->hasImplictFunctionName()) {
                     builder.appendString(fn->codeBlock()->functionName().string());
@@ -210,10 +213,10 @@ void GlobalObject::installFunction(ExecutionState& state)
 
     m_functionPrototype = emptyFunction;
     m_functionPrototype->setPrototype(state, m_objectPrototype);
-    m_functionPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_functionPrototype->markThisObjectDontNeedStructureTransitionTable();
 
     m_function = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_function->markThisObjectDontNeedStructureTransitionTable(state);
+    m_function->markThisObjectDontNeedStructureTransitionTable();
 
     m_function->setPrototype(state, emptyFunction);
     m_function->setFunctionPrototype(state, emptyFunction);

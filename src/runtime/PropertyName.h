@@ -38,6 +38,11 @@ public:
         ASSERT(m_data);
     }
 
+    PropertyName(Symbol* symbol)
+    {
+        m_data = (size_t)symbol;
+    }
+
     PropertyName(ExecutionState& state, const Value& value);
     size_t hashValue() const
     {

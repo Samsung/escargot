@@ -106,16 +106,6 @@ public:
         return m_hasWith;
     }
 
-    bool hasYield() const
-    {
-        return m_hasYield;
-    }
-
-    bool hasEvalWithYield() const
-    {
-        return m_hasEval || m_hasWith || m_hasYield;
-    }
-
     bool isStrict() const
     {
         return m_isStrict;
@@ -190,6 +180,11 @@ public:
     bool isGenerator() const
     {
         return m_isGenerator;
+    }
+
+    bool isAsync() const
+    {
+        return m_isAsync;
     }
 
     bool hasCallNativeFunctionCode() const
@@ -324,7 +319,6 @@ protected:
     bool m_hasDescendantUsesNonIndexedVariableStorage : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
-    bool m_hasYield : 1;
     bool m_inWith : 1;
     bool m_isEvalCode : 1;
     bool m_isEvalCodeInFunction : 1;
@@ -337,6 +331,7 @@ protected:
     bool m_isClassMethod : 1;
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
+    bool m_isAsync : 1;
     bool m_needsVirtualIDOperation : 1;
     bool m_hasImplictFunctionName : 1;
     bool m_hasArrowParameterPlaceHolder : 1;

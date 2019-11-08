@@ -104,7 +104,7 @@ Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, V
 void GlobalObject::installSymbol(ExecutionState& state)
 {
     m_symbol = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Symbol, builtinSymbolConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_symbol->markThisObjectDontNeedStructureTransitionTable(state);
+    m_symbol->markThisObjectDontNeedStructureTransitionTable();
     m_symbol->setPrototype(state, m_functionPrototype);
 
     m_symbol->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringFor),
@@ -117,7 +117,7 @@ void GlobalObject::installSymbol(ExecutionState& state)
 
     m_symbolPrototype = m_objectPrototype;
     m_symbolPrototype = new Object(state);
-    m_symbolPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_symbolPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_symbolPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_symbol, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_symbolPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),

@@ -387,11 +387,11 @@ void GlobalObject::installNumber(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_number = new NativeFunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_number->markThisObjectDontNeedStructureTransitionTable(state);
+    m_number->markThisObjectDontNeedStructureTransitionTable();
     m_number->setPrototype(state, m_functionPrototype);
     m_numberPrototype = m_objectPrototype;
     m_numberPrototype = new NumberObject(state, 0);
-    m_numberPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_numberPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_numberPrototype->setPrototype(state, m_objectPrototype);
     m_number->setFunctionPrototype(state, m_numberPrototype);
     m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

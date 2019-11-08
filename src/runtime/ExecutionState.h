@@ -30,6 +30,7 @@ class Value;
 class CodeBlock;
 class NativeFunctionObject;
 class GeneratorObject;
+class ExecutionPauser;
 
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
@@ -37,14 +38,14 @@ struct ExecutionStateRareData : public gc {
     ControlFlowRecordVector* m_controlFlowRecord;
     ExecutionState* m_parent;
     CodeBlock* m_codeBlock;
-    GeneratorObject* m_generatorTarget;
+    ExecutionPauser* m_pauseSource;
     size_t m_programCounterWhenItStoppedByYield;
 
     ExecutionStateRareData()
     {
         m_codeBlock = nullptr;
         m_controlFlowRecord = nullptr;
-        m_generatorTarget = nullptr;
+        m_pauseSource = nullptr;
         m_parent = nullptr;
         m_programCounterWhenItStoppedByYield = SIZE_MAX;
     }
@@ -192,14 +193,14 @@ public:
         return rareData()->m_parent;
     }
 
-    GeneratorObject* generatorTarget()
+    ExecutionPauser* pauseSource()
     {
-        return rareData()->m_generatorTarget;
+        return rareData()->m_pauseSource;
     }
 
-    void setGeneratorTarget(GeneratorObject* target)
+    void setPauseSource(ExecutionPauser* pauseSource)
     {
-        ensureRareData()->m_generatorTarget = target;
+        ensureRareData()->m_pauseSource = pauseSource;
     }
 
     void setParent(ExecutionState* parent)
@@ -220,8 +221,8 @@ public:
         return m_inStrictMode;
     }
 
-    // callee is generator && isNotInEvalCode
-    bool inGeneratorScope();
+    // callee is pauser && isNotInEvalCode
+    bool inPauserScope();
 
     FunctionObject* resolveCallee();
 

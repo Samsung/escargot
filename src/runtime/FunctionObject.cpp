@@ -70,7 +70,7 @@ FunctionObject::FunctionObject(ExecutionState& state, size_t defaultSpace)
 {
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool allowSuperCall)
+FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall)
 {
     StringBuilder src, srcToTest;
     if (useStrict) {
@@ -78,8 +78,13 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     }
 
     if (isGenerator) {
+        ASSERT(!isAsync);
         src.appendString("function* ");
         srcToTest.appendString("function* ");
+    } else if (isAsync) {
+        ASSERT(!isGenerator);
+        src.appendString("async function ");
+        srcToTest.appendString("async function ");
     } else {
         src.appendString("function ");
         srcToTest.appendString("function ");

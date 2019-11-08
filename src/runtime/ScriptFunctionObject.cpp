@@ -76,7 +76,6 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     if (currentCodeSizeTotal > FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
         currentCodeSizeTotal = 0;
         std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
-        std::vector<CodeBlock*, gc_allocator<CodeBlock*>> generatorCodeBlocks;
 
         ExecutionState* es = &state;
         while (es) {
@@ -91,24 +90,17 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
         }
 
         for (size_t i = 0; i < v.size(); i++) {
-            if (v[i]->isGenerator()) {
-                generatorCodeBlocks.push_back(v[i]);
-            } else if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
+            if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
                 v[i]->m_byteCodeBlock = nullptr;
             }
         }
 
         v.clear();
-        v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size() + generatorCodeBlocks.size());
+        v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size());
 
         size_t stackCodeBlocksSize = codeBlocksInCurrentStack.size();
         for (size_t i = 0; i < stackCodeBlocksSize; i++) {
             v[i] = codeBlocksInCurrentStack[i];
-            currentCodeSizeTotal += v[i]->m_byteCodeBlock->memoryAllocatedSize();
-        }
-
-        for (size_t i = stackCodeBlocksSize; i < stackCodeBlocksSize + generatorCodeBlocks.size(); i++) {
-            v[i] = generatorCodeBlocks[i - stackCodeBlocksSize];
             currentCodeSizeTotal += v[i]->m_byteCodeBlock->memoryAllocatedSize();
         }
     }
@@ -132,7 +124,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 
 Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, false, false, false, FunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, false, false, FunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 
 class ScriptFunctionObjectObjectThisValueBinderWithConstruct {
@@ -200,7 +192,7 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
     thisArgument->setPrototype(state, proto);
     // ReturnIfAbrupt(thisArgument).
 
-    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, false, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
+    return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)

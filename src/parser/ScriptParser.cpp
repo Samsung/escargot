@@ -220,7 +220,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
-            programNode->scopeContext()->m_hasYield = parentCodeBlock->hasYield();
             programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
             programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
             programNode->scopeContext()->m_isClassMethod = parentCodeBlock->isClassMethod();
@@ -313,7 +312,7 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
     printf(" ");
 
         PRINT_TAB()
-        printf("CodeBlock %p %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, Y:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
+        printf("CodeBlock %p %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
                (int)cb->m_sourceElementStart.line,
                (int)cb->m_sourceElementStart.column,
@@ -322,7 +321,7 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),
                cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
-               (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_hasYield, (int)cb->m_usesArgumentsObject);
+               (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_usesArgumentsObject);
 
         PRINT_TAB()
         printf("Names(var): ");

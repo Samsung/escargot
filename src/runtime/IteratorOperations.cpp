@@ -32,7 +32,7 @@ Value getIterator(ExecutionState& state, const Value& obj, const Value& method)
 {
     Value func = method;
     if (method.isEmpty()) {
-        func = Object::getMethod(state, obj, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator));
+        func = Object::getMethod(state, obj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
     }
 
     Value iterator = Object::call(state, func, obj, 0, nullptr);

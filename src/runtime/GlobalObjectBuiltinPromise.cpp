@@ -74,7 +74,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
     Value iterableValue = argv[0];
 
     // Let S be Get(C, @@S).
-    Value S = C->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+    Value S = C->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species)).value(state, C);
 
     // If S is neither undefined nor null, let C be S.
     if (!S.isUndefinedOrNull()) {
@@ -228,7 +228,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     Object* C = thisValue.asObject();
 
     // Let S be Get(C, @@species).
-    Value S = C->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species)).value(state, C);
+    Value S = C->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species)).value(state, C);
     // ReturnIfAbrupt(S).
     // If S is neither undefined nor null, let C be S.
     if (!S.isUndefinedOrNull()) {
@@ -333,19 +333,17 @@ static Value builtinPromiseReject(ExecutionState& state, Value thisValue, size_t
     return capability.m_promise;
 }
 
+// http://www.ecma-international.org/ecma-262/10.0/#sec-promise.resolve
 static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    auto strings = &state.context()->staticStrings();
-    Object* thisObject = thisValue.toObject(state);
-    Value x = argv[0];
-    if (x.isObject() && x.asObject()->isPromiseObject() && x.asObject()->get(state, strings->constructor).value(state, x.asObject()) == Value(thisObject)) {
-        return x;
+    // Let C be the this value.
+    const Value& C = thisValue;
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!C.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Promise.string(), false, state.context()->staticStrings().resolve.string(), "%s: PromiseResolve called on non-object");
     }
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, thisObject);
-
-    Value arguments[] = { x };
-    Object::call(state, capability.m_resolveFunction, Value(), 1, arguments);
-    return capability.m_promise;
+    // Return ? PromiseResolve(C, x).
+    return promiseResolve(state, C.asObject(), argv[0]);
 }
 
 static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -365,142 +363,29 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
     if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
     PromiseObject* promise = thisValue.asPointerValue()->asPromiseObject();
-    return promise->then(state, argv[0], argv[1]);
-}
-
-// $25.4.1.5.1 Internal GetCapabilitiesExecutor Function
-Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto strings = &state.context()->staticStrings();
-    Object* executor = state.resolveCallee();
-    executor->deleteOwnProperty(state, strings->name);
-    Object* executorInternalSlot = executor->ensureInternalSlot(state);
-    if (!executorInternalSlot->getOwnProperty(state, strings->resolve).value(state, executorInternalSlot).isUndefined()
-        || !executorInternalSlot->getOwnProperty(state, strings->reject).value(state, executorInternalSlot).isUndefined())
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Executor function has already called")));
-
-    Value resolve = argv[0];
-    Value reject = argv[1];
-
-    executorInternalSlot->defineOwnProperty(state, strings->resolve, ObjectPropertyDescriptor(resolve, ObjectPropertyDescriptor::AllPresent));
-    executorInternalSlot->defineOwnProperty(state, strings->reject, ObjectPropertyDescriptor(reject, ObjectPropertyDescriptor::AllPresent));
-
-    return Value();
-}
-
-// $25.4.1.3.2 Internal Promise Resolve Function
-Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
-    Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, callee);
-    Object* internalSlot = callee->internalSlot();
-    PromiseObject* promise = internalSlot->getOwnProperty(state, strings->Promise).value(state, internalSlot).asObject()->asPromiseObject();
-    if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).asBoolean())
-        return Value();
-    alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
-
-    Value resolutionValue = argv[0];
-    if (resolutionValue == Value(promise)) {
-        promise->reject(state, new TypeErrorObject(state, new ASCIIString("Self resolution error")));
-        return Value();
-    }
-
-    if (!resolutionValue.isObject()) {
-        promise->fulfill(state, resolutionValue);
-        return Value();
-    }
-    Object* resolution = resolutionValue.asObject();
-
-    SandBox sb(state.context());
-    auto res = sb.run([&]() -> Value {
-        return resolution->get(state, strings->then).value(state, resolution);
-    });
-    if (!res.error.isEmpty()) {
-        promise->reject(state, res.error);
-        return Value();
-    }
-    Value then = res.result;
-
-    if (then.isCallable()) {
-        state.context()->vmInstance()->enqueuePromiseJob(promise, new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
-    } else {
-        promise->fulfill(state, resolution);
-        return Value();
-    }
-
-    return Value();
-}
-
-// $25.4.1.3.1 Internal Promise Reject Function
-Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
-    Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, callee);
-    Object* internalSlot = callee->internalSlot();
-    PromiseObject* promise = internalSlot->getOwnProperty(state, strings->Promise).value(state, internalSlot).asObject()->asPromiseObject();
-    if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).asBoolean())
-        return Value();
-    alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
-
-    promise->reject(state, argv[0]);
-    return Value();
-}
-
-// $25.4.4.1.2 Internal Promise.all Resolve Element Function
-Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
-    Value x = argv[0];
-    Object* internalSlot = callee->internalSlot();
-
-    Object* alreadyCalled = internalSlot->getOwnProperty(state, strings->alreadyCalled).value(state, internalSlot).asObject();
-    if (alreadyCalled->getOwnProperty(state, strings->value).value(state, alreadyCalled).asBoolean())
-        return Value();
-    alreadyCalled->setThrowsException(state, strings->value, Value(true), alreadyCalled);
-
-    uint32_t index = internalSlot->getOwnProperty(state, strings->index).value(state, internalSlot).asUInt32();
-    ArrayObject* values = internalSlot->getOwnProperty(state, strings->values).value(state, internalSlot).asObject()->asArrayObject();
-    Object* resolveFunction = internalSlot->getOwnProperty(state, strings->resolve).value(state, internalSlot).asObject();
-    Object* remainingElementsCount = internalSlot->getOwnProperty(state, strings->remainingElements).value(state, internalSlot).asObject();
-
-    values->setThrowsException(state, ObjectPropertyName(state, Value(index)), x, values);
-    uint32_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asUInt32();
-    remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
-    if (remainingElements == 1) {
-        Value arguments[] = { values };
-        Object::call(state, resolveFunction, Value(), 1, arguments);
-    }
-    return Value();
-}
-
-static Value builtinPromiseToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
-{
-    return Value(state.context()->staticStrings().Promise.string());
+    return promise->then(state, argv[0], argv[1], promise->newPromiseResultCapability(state)).value();
 }
 
 void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_promise = new NativeFunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_promise->markThisObjectDontNeedStructureTransitionTable(state);
+    m_promise->markThisObjectDontNeedStructureTransitionTable();
     m_promise->setPrototype(state, m_functionPrototype);
 
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_promise->defineOwnProperty(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().species), desc);
+        m_promise->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
     m_promisePrototype = m_objectPrototype;
     m_promisePrototype = new PromiseObject(state);
-    m_promisePrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_promisePrototype->markThisObjectDontNeedStructureTransitionTable();
     m_promisePrototype->setPrototype(state, m_objectPrototype);
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $25.4.4.1 Promise.all(iterable);
@@ -528,10 +413,9 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->then),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    // $25.4.5.4 Promise.prototype.toString
-    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinPromiseToString, 1, NativeFunctionInfo::Strict)),
-                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $25.4.5.4 Promise.prototype [ @@toStringTag ]
+    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_promise->setFunctionPrototype(state, m_promisePrototype);
 

@@ -58,6 +58,13 @@ protected:
     void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped);
     void generateByteCodeBlock(ExecutionState& state);
 
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        FunctionObject::fillGCDescriptor(desc);
+
+        GC_set_bit(desc, GC_WORD_OFFSET(ScriptFunctionObject, m_outerEnvironment));
+    }
+
     LexicalEnvironment* m_outerEnvironment;
 };
 }

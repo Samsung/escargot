@@ -185,7 +185,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     Value matcher;
 
     if (!argument.isUndefinedOrNull()) {
-        Value matcher = argument.toObject(state)->getMethod(state, argument, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match));
+        Value matcher = argument.toObject(state)->getMethod(state, argument, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
         if (!matcher.isUndefined()) {
             return Object::call(state, matcher, argument, 1, &thisValue);
         }
@@ -194,7 +194,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     String* S = thisValue.toString(state);
 
     rx = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
-    Value match = rx->get(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
+    Value match = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
     Value parameter[1] = { Value(S) };
     return Object::call(state, match, rx, 1, parameter);
 }
@@ -311,7 +311,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     bool isReplaceRegExp = searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject();
 
     if (!searchValue.isUndefinedOrNull()) {
-        Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().replace));
+        Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
         if (isReplaceRegExp && replacer.isPointerValue() && replacer.asPointerValue() == state.context()->globalObject()->regexpReplaceMethod()) {
         } else {
             if (!replacer.isUndefined()) {
@@ -489,7 +489,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     //http://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.search
     RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, search);
     if (!(regexp.isUndefinedOrNull())) {
-        Value searcher = obj->getMethod(state, regexp, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search));
+        Value searcher = obj->getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
 
         if (!searcher.isUndefined()) {
             Value parameter[1] = { obj };
@@ -497,7 +497,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
         }
     }
     rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
-    Value func = rx->getMethod(state, rx, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().search));
+    Value func = rx->getMethod(state, rx, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
     Value parameter[1] = { Value(string) };
     return Object::call(state, func, rx, 1, parameter);
 }
@@ -512,7 +512,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     // If separator is neither undefined nor null, then
     if (!separator.isUndefinedOrNull()) {
         // Let splitter be GetMethod(separator, @@split).
-        Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().split));
+        Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().split));
 
         // --- Optmize path
         // if splitter is builtin RegExp.prototype.split and separator is RegExpObject
@@ -1280,11 +1280,11 @@ void GlobalObject::installString(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_string = new NativeFunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_string->markThisObjectDontNeedStructureTransitionTable(state);
+    m_string->markThisObjectDontNeedStructureTransitionTable();
     m_string->setPrototype(state, m_functionPrototype);
     m_stringPrototype = m_objectPrototype;
     m_stringPrototype = new StringObject(state, String::emptyString);
-    m_stringPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_stringPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_stringPrototype->setPrototype(state, m_objectPrototype);
     m_string->setFunctionPrototype(state, m_stringPrototype);
     m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1380,7 +1380,7 @@ void GlobalObject::installString(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinStringIncludes, 1, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->vmInstance()->globalSymbols().iterator),
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinStringIterator, 0, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
@@ -1435,7 +1435,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinStringIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+    m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                 ObjectPropertyDescriptor(Value(String::fromASCII("String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->String),

@@ -185,9 +185,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
 
-    if (ctx.m_maxYieldStatementExtraDataLength) {
+    if (ctx.m_maxPauseStatementExtraDataLength) {
         // yield delegate + .next call can use yield * 2 at once
-        block->m_code.reserve(block->m_code.size() + ctx.m_maxYieldStatementExtraDataLength * 2);
+        block->m_code.reserve(block->m_code.size() + ctx.m_maxPauseStatementExtraDataLength * 2);
     } else {
         block->m_code.shrinkToFit();
     }
@@ -600,19 +600,22 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case YieldOpcode: {
-                Yield* cd = (Yield*)currentCode;
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                code += cd->m_tailDataLength;
-                break;
-            }
-            case YieldDelegateOpcode: {
-                YieldDelegate* cd = (YieldDelegate*)currentCode;
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIdx, stackBase, stackBaseWillBe, stackVariableSize);
-                code += cd->m_tailDataLength;
+            case ExecutionPauseOpcode: {
+                ExecutionPause* cd = (ExecutionPause*)currentCode;
+                if (cd->m_reason == ExecutionPause::Reason::Yield) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldData.m_yieldIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    code += cd->m_yieldData.m_tailDataLength;
+                } else if (cd->m_reason == ExecutionPause::Reason::YieldDelegate) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldDelegateData.m_iterIntex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldDelegateData.m_valueIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldDelegateData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    code += cd->m_yieldDelegateData.m_tailDataLength;
+                } else if (cd->m_reason == ExecutionPause::Reason::Await) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_awaitIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    code += cd->m_awaitData.m_tailDataLength;
+                }
                 break;
             }
             case TryOperationOpcode: {
@@ -681,8 +684,16 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
             currentCode->dumpCode(idx, (const char*)code);
 
-            if (currentCode->m_orgOpcode == YieldOpcode) {
-                idx += ((Yield*)currentCode)->m_tailDataLength;
+            if (currentCode->m_orgOpcode == ExecutionPauseOpcode) {
+                if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Yield) {
+                    idx += ((ExecutionPause*)currentCode)->m_yieldData.m_tailDataLength;
+                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::YieldDelegate) {
+                    idx += ((ExecutionPause*)currentCode)->m_yieldDelegateData.m_tailDataLength;
+                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Await) {
+                    idx += ((ExecutionPause*)currentCode)->m_awaitData.m_tailDataLength;
+                } else {
+                    ASSERT_NOT_REACHED();
+                }
             }
 
             idx += byteCodeLengths[currentCode->m_orgOpcode];

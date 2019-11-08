@@ -34,9 +34,6 @@ enum ASTNodeType {
     /* Note: These 4 types must be in this order */
     Program,
     ArrowFunctionExpression,
-    AsyncArrowFunctionExpression,
-    AsyncFunctionDeclaration,
-    AsyncFunctionExpression,
     FunctionExpression,
     FunctionDeclaration,
     /* End */
@@ -167,11 +164,8 @@ enum ASTNodeType {
 
 COMPILE_ASSERT((int)Program == 0, "");
 COMPILE_ASSERT((int)ArrowFunctionExpression == 1, "");
-COMPILE_ASSERT((int)AsyncArrowFunctionExpression == 2, "");
-COMPILE_ASSERT((int)AsyncFunctionDeclaration == 3, "");
-COMPILE_ASSERT((int)AsyncFunctionExpression == 4, "");
-COMPILE_ASSERT((int)FunctionExpression == 5, "");
-COMPILE_ASSERT((int)FunctionDeclaration == 6, "");
+COMPILE_ASSERT((int)FunctionExpression == 2, "");
+COMPILE_ASSERT((int)FunctionDeclaration == 3, "");
 
 COMPILE_ASSERT(((int)AssignmentExpression + 1) == (int)AssignmentExpressionBitwiseAnd, "");
 COMPILE_ASSERT(((int)AssignmentExpressionBitwiseAnd + 1) == (int)AssignmentExpressionBitwiseOr, "");

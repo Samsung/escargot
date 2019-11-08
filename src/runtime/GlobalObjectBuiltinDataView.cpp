@@ -153,12 +153,12 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
 void GlobalObject::installDataView(ExecutionState& state)
 {
     m_dataView = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_dataView->markThisObjectDontNeedStructureTransitionTable(state);
+    m_dataView->markThisObjectDontNeedStructureTransitionTable();
     m_dataView->setPrototype(state, m_functionPrototype);
 
     m_dataViewPrototype = m_objectPrototype;
     m_dataViewPrototype = new DataViewObject(state);
-    m_dataViewPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_dataViewPrototype->markThisObjectDontNeedStructureTransitionTable();
     m_dataViewPrototype->setPrototype(state, m_objectPrototype);
     m_dataView->setFunctionPrototype(state, m_dataViewPrototype);
     m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

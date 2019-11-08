@@ -308,6 +308,21 @@ StringRef* StringRef::createFromLatin1(const unsigned char* s, size_t len)
     return toRef(new Latin1String(s, len));
 }
 
+StringRef* StringRef::createExternalFromASCII(const char* s, size_t len)
+{
+    return toRef(new ASCIIString(s, len, String::FromExternalMemory));
+}
+
+StringRef* StringRef::createExternalFromLatin1(const unsigned char* s, size_t len)
+{
+    return toRef(new Latin1String(s, len, String::FromExternalMemory));
+}
+
+StringRef* StringRef::createExternalFromUTF16(const char16_t* s, size_t len)
+{
+    return toRef(new UTF16String(s, len, String::FromExternalMemory));
+}
+
 StringRef* StringRef::emptyString()
 {
     return toRef(String::emptyString);
@@ -1082,9 +1097,15 @@ void ObjectRef::setExtraData(void* e)
     toImpl(this)->setExtraData(e);
 }
 
+void ObjectRef::removeFromHiddenClassChain()
+{
+    toImpl(this)->markThisObjectDontNeedStructureTransitionTable();
+}
+
+// DEPRECATED
 void ObjectRef::removeFromHiddenClassChain(ExecutionStateRef* state)
 {
-    toImpl(this)->markThisObjectDontNeedStructureTransitionTable(*toImpl(state));
+    toImpl(this)->markThisObjectDontNeedStructureTransitionTable();
 }
 
 void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb)
@@ -2161,7 +2182,7 @@ PromiseObjectRef* PromiseObjectRef::catchOperation(ExecutionStateRef* state, Val
 
 PromiseObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected)
 {
-    return toRef(toImpl(this)->then(*toImpl(state), toImpl(onFulfilled), toImpl(onRejected)));
+    return toRef(toImpl(this)->then(*toImpl(state), toImpl(onFulfilled), toImpl(onRejected), toImpl(this)->newPromiseResultCapability(*toImpl(state))).value());
 }
 
 void PromiseObjectRef::fulfill(ExecutionStateRef* state, ValueRef* value)

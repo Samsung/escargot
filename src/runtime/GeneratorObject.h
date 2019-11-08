@@ -21,6 +21,8 @@
 #define __EscargotGeneratorObject__
 
 #include "runtime/Object.h"
+#include "runtime/ScriptFunctionObject.h"
+#include "runtime/ExecutionPauser.h"
 #include "interpreter/ByteCode.h"
 
 namespace Escargot {
@@ -41,6 +43,7 @@ enum GeneratorAbruptType {
 
 class GeneratorObject : public Object {
     friend class ByteCodeInterpreter;
+    friend class ExecutionPauser;
     friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow);
     friend Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
     friend Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type);
@@ -67,46 +70,25 @@ public:
         return m_generatorState;
     }
 
+    ExecutionPauser* executionPauser()
+    {
+        return &m_executionPauser;
+    }
+
 private:
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
 
-        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionState));
-        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_registerFile));
-        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_byteCodeBlock));
-        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_resumeValue));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_executionState));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_sourceObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_registerFile));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_byteCodeBlock));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_resumeValue));
     }
 
-    // yield is implemented throw this type of by this class
-    // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
-    struct GeneratorExitValue : public gc {
-        bool m_isDelegateOperation;
-        Value m_value;
-
-        void* operator new(size_t size)
-        {
-            // we MUST use uncollectable malloc. bdwgc cannot track thrown value
-            return GC_MALLOC_UNCOLLECTABLE(size);
-        }
-    };
-
-    void releaseExecutionVariables()
-    {
-        m_executionState = nullptr;
-        m_registerFile = nullptr;
-        m_byteCodeBlock = nullptr;
-    }
-
-    ExecutionState* m_executionState;
-    Value* m_registerFile;
-    ByteCodeBlock* m_byteCodeBlock;
-    size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
-    size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
-    size_t m_generatorResumeByteCodePosition; // this indicates where GeneratorResumeLocatedIn
     GeneratorState m_generatorState;
-    SmallValue m_resumeValue;
-    uint16_t m_resumeValueIdx;
+    ExecutionPauser m_executionPauser;
 };
 
 GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator);

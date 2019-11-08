@@ -313,7 +313,7 @@ void GlobalObject::installReflect(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_reflect = new Object(state);
-    m_reflect->markThisObjectDontNeedStructureTransitionTable(state);
+    m_reflect->markThisObjectDontNeedStructureTransitionTable();
 
     m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().apply),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinReflectApply, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

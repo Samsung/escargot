@@ -106,6 +106,7 @@ public:
 
     PromiseReaction::Capability createResolvingFunctions(ExecutionState& state);
     static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
+    PromiseReaction::Capability newPromiseResultCapability(ExecutionState& state);
 
     static Object* resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee);
 
@@ -117,7 +118,9 @@ public:
 
     PromiseObject* then(ExecutionState& state, Value handler);
     PromiseObject* catchOperation(ExecutionState& state, Value handler);
-    PromiseObject* then(ExecutionState& state, Value onFulfilled, Value onRejected);
+    // http://www.ecma-international.org/ecma-262/10.0/#sec-performpromisethen
+    // You can get return value when you give resultCapability
+    Optional<PromiseObject*> then(ExecutionState& state, Value onFulfilled, Value onRejected, Optional<PromiseReaction::Capability> resultCapability);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -132,7 +135,11 @@ protected:
 };
 
 Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-Value promiseResolveFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+// http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
+// The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
+Value promiseResolve(ExecutionState& state, Object* C, const Value& x);
+// http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
+Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 }

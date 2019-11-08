@@ -31,7 +31,7 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
-    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, false);
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, false, false);
 
     return new ScriptGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
 }
@@ -55,7 +55,7 @@ void GlobalObject::installGenerator(ExecutionState& state)
 {
     // %GeneratorFunction% : The constructor of generator objects
     m_generatorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, builtinGeneratorFunction, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_generatorFunction->markThisObjectDontNeedStructureTransitionTable(state);
+    m_generatorFunction->markThisObjectDontNeedStructureTransitionTable();
     m_generatorFunction->setPrototype(state, m_functionPrototype);
 
     // %Generator% : The initial value of the prototype property of %GeneratorFunction%
@@ -79,7 +79,7 @@ void GlobalObject::installGenerator(ExecutionState& state)
                                                   ObjectPropertyDescriptor(Value(state.context()->staticStrings().GeneratorFunction.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_generatorPrototype->setPrototype(state, m_iteratorPrototype);
-    m_generatorPrototype->markThisObjectDontNeedStructureTransitionTable(state);
+    m_generatorPrototype->markThisObjectDontNeedStructureTransitionTable();
     // The initial value of Generator.prototype.constructor is the intrinsic object %Generator%.
     m_generatorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generator, ObjectPropertyDescriptor::ConfigurablePresent));
 
