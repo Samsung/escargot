@@ -1765,7 +1765,11 @@ public:
 
         bool hasProto = false;
         while (!this->match(RightBrace)) {
-            properties.append(this->allocator, this->parseObjectProperty(builder, hasProto));
+            if (this->match(PeriodPeriodPeriod)) {
+                properties.append(this->allocator, this->parseSpreadElement<ASTBuilder, true>(builder));
+            } else {
+                properties.append(this->allocator, this->parseObjectProperty(builder, hasProto));
+            }
             if (!this->match(RightBrace)) {
                 this->expectCommaSeparator();
             }

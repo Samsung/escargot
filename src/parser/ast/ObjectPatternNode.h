@@ -84,6 +84,8 @@ public:
             codeBlock->peekCode<JumpIfTrue>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
         }
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+
+        codeBlock->m_shouldClearStack = true;
     }
 
     // FIXME implement iterateChildrenIdentifier in PropertyNode itself

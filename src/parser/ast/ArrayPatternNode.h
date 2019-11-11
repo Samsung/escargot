@@ -67,6 +67,8 @@ public:
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
         context->giveUpRegister(); // for drop iteratorValueIndex
         context->giveUpRegister(); // for drop iteratorIndex
+
+        codeBlock->m_shouldClearStack = true;
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override

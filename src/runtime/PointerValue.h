@@ -295,6 +295,11 @@ public:
         return false;
     }
 
+    virtual bool isEnumerateObject() const
+    {
+        return false;
+    }
+
     virtual bool isArrayIteratorObject() const
     {
         return false;

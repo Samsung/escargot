@@ -265,6 +265,11 @@ public:
         m_data.payload = (intptr_t)from;
     }
 
+    bool operator==(const SmallValue& other) const
+    {
+        return m_data.payload == other.payload();
+    }
+
     ALWAYS_INLINE void operator=(const Value& from)
     {
         if (from.isPointerValue()) {

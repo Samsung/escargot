@@ -233,6 +233,7 @@ class ClassElementNode;
 class ClassExpressionNode;
 class ClassDeclarationNode;
 class SequenceExpressionNode;
+class SpreadElementNode;
 class VariableDeclaratorNode;
 class FunctionDeclarationNode;
 class FunctionExpressionNode;
@@ -414,6 +415,12 @@ public:
     {
         ASSERT(type() == ASTNodeType::FunctionExpression);
         return (FunctionExpressionNode*)this;
+    }
+
+    ALWAYS_INLINE SpreadElementNode* asSpreadElement()
+    {
+        ASSERT(type() == ASTNodeType::SpreadElement);
+        return (SpreadElementNode*)this;
     }
 
     ALWAYS_INLINE ImportSpecifierNode* asImportSpecifier()

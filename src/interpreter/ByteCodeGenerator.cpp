@@ -484,8 +484,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case EnumerateObjectOpcode: {
-                EnumerateObject* cd = (EnumerateObject*)currentCode;
+            case CreateEnumerateObjectOpcode: {
+                CreateEnumerateObject* cd = (CreateEnumerateObject*)currentCode;
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }

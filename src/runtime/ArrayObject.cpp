@@ -195,7 +195,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
             uint64_t len = getArrayLength(state);
             if (idx < len) {
                 m_fastModeData[idx] = Value(Value::EmptyValue);
-                ensureObjectRareData()->m_shouldUpdateEnumerateObjectData = true;
+                ensureObjectRareData()->m_shouldUpdateEnumerateObject = true;
                 return true;
             }
         }

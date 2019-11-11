@@ -92,7 +92,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_isEverSetAsPrototypeObject = false;
     m_isFastModeArrayObject = true;
     m_isSpreadArrayObject = false;
-    m_shouldUpdateEnumerateObjectData = false;
+    m_shouldUpdateEnumerateObject = false;
     m_isInArrayObjectDefineOwnProperty = false;
     m_hasNonWritableLastIndexRegexpObject = false;
     m_extraData = nullptr;
@@ -816,46 +816,40 @@ ObjectHasPropertyResult Object::hasIndexedProperty(ExecutionState& state, const 
 ValueVector Object::ownPropertyKeys(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
-    struct Params {
+    struct Properties {
         std::vector<Value::ValueIndex> indexes;
         VectorWithInlineStorage<32, Value, GCUtil::gc_malloc_allocator<Value>> strings;
         VectorWithInlineStorage<4, SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> symbols;
-    } params;
+    } properties;
 
     enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        auto params = (Params*)data;
+        auto properties = (Properties*)data;
         auto value = name.toPlainValue(state);
         Value::ValueIndex nameAsIndexValue;
         if (value.isSymbol()) {
-            params->symbols.push_back(value);
+            properties->symbols.push_back(value);
         } else if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
-            params->indexes.push_back(nameAsIndexValue);
+            properties->indexes.push_back(nameAsIndexValue);
         } else {
-            params->strings.push_back(value);
+            properties->strings.push_back(value);
         }
         return true;
     },
-                &params, false);
+                &properties, false);
 
-    std::sort(params.indexes.begin(), params.indexes.end(), std::less<Value::ValueIndex>());
+    std::sort(properties.indexes.begin(), properties.indexes.end(), std::less<Value::ValueIndex>());
 
     ValueVector result;
-    result.resizeWithUninitializedValues(params.indexes.size() + params.strings.size() + params.symbols.size());
-    size_t subSize = params.indexes.size();
-    for (size_t i = 0; i < subSize; i++) {
-        result[i] = Value(params.indexes[i]).toString(state);
+    result.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
+    size_t idx = 0;
+    for (auto& v : properties.indexes) {
+        result[idx++] = Value(v).toString(state);
     }
-    size_t base = subSize;
-
-    subSize = params.strings.size();
-    for (size_t i = 0; i < subSize; i++) {
-        result[base + i] = params.strings[i];
+    for (auto& v : properties.strings) {
+        result[idx++] = v;
     }
-    base += subSize;
-
-    subSize = params.symbols.size();
-    for (size_t i = 0; i < subSize; i++) {
-        result[base + i] = params.symbols[i];
+    for (auto& v : properties.symbols) {
+        result[idx++] = v;
     }
 
     return result;
