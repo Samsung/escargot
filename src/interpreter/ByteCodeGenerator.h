@@ -99,7 +99,6 @@ struct ByteCodeGenerateContext {
     {
         m_inCallingExpressionScope = false;
         m_isHeadOfMemberExpression = false;
-        m_shouldGenerateByteCodeInstantly = true;
         m_classInfo = ClassContextInformation();
     }
 
@@ -116,7 +115,6 @@ struct ByteCodeGenerateContext {
         , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
-        , m_shouldGenerateByteCodeInstantly(contextBefore.m_shouldGenerateByteCodeInstantly)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
@@ -314,7 +312,6 @@ struct ByteCodeGenerateContext {
     bool m_isLexicallyDeclaredBindingInitialization : 1;
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
-    bool m_shouldGenerateByteCodeInstantly : 1;
     bool m_inCallingExpressionScope : 1;
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;

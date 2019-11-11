@@ -32,7 +32,6 @@ class ByteCodeBlock;
 class LexicalEnvironment;
 struct GetObjectInlineCache;
 struct SetObjectInlineCache;
-class EnumerateObjectData;
 struct GlobalVariableAccessCacheItem;
 class InitializeGlobalVariable;
 class CallFunctionInWithScope;
@@ -64,10 +63,11 @@ class GlobalObject;
 class UnaryTypeof;
 class GetObject;
 class SetObjectOperation;
-class CheckIfKeyIsLast;
 class GetIterator;
 class IteratorStep;
 class IteratorClose;
+class EnumerateObject;
+class CheckLastEnumerateKey;
 
 class ByteCodeInterpreter {
 public:
@@ -96,9 +96,6 @@ public:
     static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block);
 
-    static EnumerateObjectData* executeEnumerateObject(ExecutionState& state, Object* obj);
-    static EnumerateObjectData* updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data);
-
     static Object* fastToObject(ExecutionState& state, const Value& obj);
 
     static Value getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block);
@@ -122,6 +119,9 @@ public:
     static void callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, Value* registerFile);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
 
+    static EnumerateObject* createEnumerateObject(ExecutionState& state, Object* obj, bool isDestruction);
+    static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
+
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
     static Value executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
@@ -143,7 +143,6 @@ public:
 
     static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
 
-    static void checkIfKeyIsLast(ExecutionState& state, CheckIfKeyIsLast* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
     static void getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile);
     static void iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
     static void iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile);

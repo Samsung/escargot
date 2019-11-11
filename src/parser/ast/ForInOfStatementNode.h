@@ -171,20 +171,20 @@ public:
             exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
 
             size_t ePosition = codeBlock->currentCodeSize();
-            codeBlock->pushCode(EnumerateObject(ByteCodeLOC(m_loc.index)), &newContext, this);
-            codeBlock->peekCode<EnumerateObject>(ePosition)->m_objectRegisterIndex = rightIdx;
+            codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index)), &newContext, this);
+            codeBlock->peekCode<CreateEnumerateObject>(ePosition)->m_objectRegisterIndex = rightIdx;
             // drop rightIdx
             newContext.giveUpRegister();
 
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             continuePosition = codeBlock->currentCodeSize();
-            codeBlock->pushCode(CheckIfKeyIsLast(ByteCodeLOC(m_loc.index)), &newContext, this);
+            codeBlock->pushCode(CheckLastEnumerateKey(ByteCodeLOC(m_loc.index)), &newContext, this);
 
-            size_t checkPos = exit3Pos = codeBlock->lastCodePosition<CheckIfKeyIsLast>();
-            codeBlock->pushCode(EnumerateObjectKey(ByteCodeLOC(m_loc.index)), &newContext, this);
-            size_t enumerateObjectKeyPos = codeBlock->lastCodePosition<EnumerateObjectKey>();
+            size_t checkPos = exit3Pos = codeBlock->lastCodePosition<CheckLastEnumerateKey>();
+            codeBlock->pushCode(GetEnumerateKey(ByteCodeLOC(m_loc.index)), &newContext, this);
+            size_t enumerateObjectKeyPos = codeBlock->lastCodePosition<GetEnumerateKey>();
 
-            codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_registerIndex = newContext.getRegister();
+            codeBlock->peekCode<GetEnumerateKey>(enumerateObjectKeyPos)->m_registerIndex = newContext.getRegister();
 
             newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
             m_left->generateStoreByteCode(codeBlock, &newContext, newContext.getLastRegisterIndex(), true);
@@ -207,9 +207,9 @@ public:
 
             codeBlock->m_requiredRegisterFileSizeInValueSize = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredRegisterFileSizeInValueSize, (ByteCodeRegisterIndex)(dataRegisterIndex + 1) });
 
-            codeBlock->peekCode<EnumerateObject>(ePosition)->m_dataRegisterIndex = dataRegisterIndex;
-            codeBlock->peekCode<CheckIfKeyIsLast>(checkPos)->m_registerIndex = dataRegisterIndex;
-            codeBlock->peekCode<EnumerateObjectKey>(enumerateObjectKeyPos)->m_dataRegisterIndex = dataRegisterIndex;
+            codeBlock->peekCode<CreateEnumerateObject>(ePosition)->m_dataRegisterIndex = dataRegisterIndex;
+            codeBlock->peekCode<CheckLastEnumerateKey>(checkPos)->m_registerIndex = dataRegisterIndex;
+            codeBlock->peekCode<GetEnumerateKey>(enumerateObjectKeyPos)->m_dataRegisterIndex = dataRegisterIndex;
         } else {
             // for-of statement
             TryStatementNode::generateTryStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatmentContext);
@@ -288,7 +288,7 @@ public:
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this);
         size_t exitPos = codeBlock->currentCodeSize();
-        ASSERT(codeBlock->peekCode<CheckIfKeyIsLast>(continuePosition)->m_orgOpcode == CheckIfKeyIsLastOpcode || codeBlock->peekCode<IteratorStep>(continuePosition)->m_orgOpcode == IteratorStepOpcode);
+        ASSERT(codeBlock->peekCode<CheckLastEnumerateKey>(continuePosition)->m_orgOpcode == CheckLastEnumerateKeyOpcode || codeBlock->peekCode<IteratorStep>(continuePosition)->m_orgOpcode == IteratorStepOpcode);
 
         // we need to add 1 on third parameter because we add try operation manually
         newContext.consumeBreakPositions(codeBlock, exitPos, context->tryCatchWithBlockStatementCount() + (m_forIn ? 0 : 1));
@@ -314,7 +314,7 @@ public:
         codeBlock->peekCode<JumpIfTrue>(exit1Pos)->m_jumpPosition = exitPos;
         codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;
         if (m_forIn) {
-            codeBlock->peekCode<CheckIfKeyIsLast>(exit3Pos)->m_forInEndPosition = exitPos;
+            codeBlock->peekCode<CheckLastEnumerateKey>(exit3Pos)->m_exitPosition = exitPos;
         } else {
             codeBlock->peekCode<IteratorStep>(exit3Pos)->m_forOfEndPosition = exitPos;
         }

@@ -114,9 +114,9 @@ struct GlobalVariableAccessCacheItem;
     F(TryCatchFinallyWithBlockBodyEnd, 0, 0)                \
     F(ThrowOperation, 0, 0)                                 \
     F(ThrowStaticErrorOperation, 0, 0)                      \
-    F(EnumerateObject, 1, 0)                                \
-    F(EnumerateObjectKey, 1, 0)                             \
-    F(CheckIfKeyIsLast, 0, 0)                               \
+    F(CreateEnumerateObject, 1, 0)                          \
+    F(GetEnumerateKey, 1, 0)                                \
+    F(CheckLastEnumerateKey, 0, 0)                          \
     F(GetIterator, 1, 0)                                    \
     F(IteratorStep, 1, 0)                                   \
     F(IteratorClose, 1, 0)                                  \
@@ -867,7 +867,18 @@ public:
 
 class ObjectStructureChainItem : public gc {
 public:
+    ObjectStructureChainItem()
+        : m_objectStructure(nullptr)
+    {
+    }
+
+    ObjectStructureChainItem(ObjectStructure* structure)
+        : m_objectStructure(structure)
+    {
+    }
+
     ObjectStructure* m_objectStructure;
+
     bool operator==(const ObjectStructureChainItem& item) const
     {
         return m_objectStructure == item.m_objectStructure;
@@ -881,7 +892,6 @@ public:
 
 typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
 typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_atomic_allocator<ObjectStructureChainItem>> ObjectStructureChainGC;
-typedef Vector<ObjectStructureChainItem, GCUtil::gc_malloc_allocator<ObjectStructureChainItem>, 200> ObjectStructureChainWithGC;
 
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
@@ -1930,72 +1940,70 @@ public:
 #endif
 };
 
-class EnumerateObjectData : public PointerValue {
+class CreateEnumerateObject : public ByteCode {
 public:
-    EnumerateObjectData()
+    explicit CreateEnumerateObject(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::CreateEnumerateObjectOpcode, loc)
+        , m_objectRegisterIndex(REGISTER_LIMIT)
+        , m_dataRegisterIndex(REGISTER_LIMIT)
+        , m_isDestruction(false)
     {
-        m_object = nullptr;
-        m_originalLength = 0;
-        m_idx = 0;
     }
 
-    ObjectStructureChainWithGC m_hiddenClassChain;
-    Object* m_object;
-    uint64_t m_originalLength;
-    size_t m_idx;
-    SmallValueVector m_keys;
-
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-};
-
-
-class EnumerateObject : public ByteCode {
-public:
-    explicit EnumerateObject(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::EnumerateObjectOpcode, loc)
+    explicit CreateEnumerateObject(const ByteCodeLOC& loc, size_t objIndex, size_t dataIndex, bool isDestruction)
+        : ByteCode(Opcode::CreateEnumerateObjectOpcode, loc)
+        , m_objectRegisterIndex(objIndex)
+        , m_dataRegisterIndex(dataIndex)
+        , m_isDestruction(isDestruction)
     {
-        m_objectRegisterIndex = m_dataRegisterIndex = REGISTER_LIMIT;
     }
+
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_dataRegisterIndex;
+    bool m_isDestruction : 1;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("enumerate object r%d <- r%d", (int)m_dataRegisterIndex, (int)m_objectRegisterIndex);
+        printf("create enumerate object r%d <- r%d", (int)m_dataRegisterIndex, (int)m_objectRegisterIndex);
     }
 #endif
 };
 
-class EnumerateObjectKey : public ByteCode {
+class GetEnumerateKey : public ByteCode {
 public:
-    explicit EnumerateObjectKey(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::EnumerateObjectKeyOpcode, loc)
+    explicit GetEnumerateKey(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::GetEnumerateKeyOpcode, loc)
     {
         m_dataRegisterIndex = m_registerIndex = REGISTER_LIMIT;
     }
+    explicit GetEnumerateKey(const ByteCodeLOC& loc, size_t dstIndex, size_t dataIndex)
+        : ByteCode(Opcode::GetEnumerateKeyOpcode, loc)
+        , m_registerIndex(dstIndex)
+        , m_dataRegisterIndex(dataIndex)
+    {
+    }
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_dataRegisterIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("enumerate object key r%d r%d", (int)m_registerIndex, (int)m_dataRegisterIndex);
+        printf("get enumerate key r%d r%d", (int)m_registerIndex, (int)m_dataRegisterIndex);
     }
 #endif
 };
 
-class CheckIfKeyIsLast : public ByteCode {
+class CheckLastEnumerateKey : public ByteCode {
 public:
-    explicit CheckIfKeyIsLast(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::CheckIfKeyIsLastOpcode, loc)
+    explicit CheckLastEnumerateKey(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::CheckLastEnumerateKeyOpcode, loc)
+        , m_registerIndex(REGISTER_LIMIT)
+        , m_exitPosition(SIZE_MAX)
     {
-        m_forInEndPosition = SIZE_MAX;
-        m_registerIndex = REGISTER_LIMIT;
     }
     ByteCodeRegisterIndex m_registerIndex;
-    size_t m_forInEndPosition;
+    size_t m_exitPosition;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {

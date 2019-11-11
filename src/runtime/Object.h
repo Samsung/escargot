@@ -49,7 +49,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isEverSetAsPrototypeObject : 1;
     bool m_isFastModeArrayObject : 1;
     bool m_isSpreadArrayObject : 1;
-    bool m_shouldUpdateEnumerateObjectData : 1;
+    bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
     bool m_isInArrayObjectDefineOwnProperty : 1;
     bool m_hasNonWritableLastIndexRegexpObject : 1;
     void* m_extraData;
@@ -708,6 +708,8 @@ class Object : public PointerValue {
     friend class VMInstance;
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
+    friend class EnumerateObjectWithDestruction;
+    friend class EnumerateObjectWithIteration;
     friend struct ObjectRareData;
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
 

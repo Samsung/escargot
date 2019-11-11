@@ -28,6 +28,7 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/NumberObject.h"
+#include "runtime/EnumerateObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/VMInstance.h"
@@ -1074,32 +1075,31 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             return Value();
         }
 
-        DEFINE_OPCODE(EnumerateObject)
+        DEFINE_OPCODE(CreateEnumerateObject)
             :
         {
-            EnumerateObject* code = (EnumerateObject*)programCounter;
-            auto data = executeEnumerateObject(*state, registerFile[code->m_objectRegisterIndex].toObject(*state));
+            CreateEnumerateObject* code = (CreateEnumerateObject*)programCounter;
+            auto data = createEnumerateObject(*state, registerFile[code->m_objectRegisterIndex].toObject(*state), code->m_isDestruction);
             registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)data);
-            ADD_PROGRAM_COUNTER(EnumerateObject);
+            ADD_PROGRAM_COUNTER(CreateEnumerateObject);
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(CheckIfKeyIsLast)
+        DEFINE_OPCODE(CheckLastEnumerateKey)
             :
         {
-            CheckIfKeyIsLast* code = (CheckIfKeyIsLast*)programCounter;
-            checkIfKeyIsLast(*state, code, codeBuffer, programCounter, registerFile);
+            CheckLastEnumerateKey* code = (CheckLastEnumerateKey*)programCounter;
+            checkLastEnumerateKey(*state, code, codeBuffer, programCounter, registerFile);
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(EnumerateObjectKey)
+        DEFINE_OPCODE(GetEnumerateKey)
             :
         {
-            EnumerateObjectKey* code = (EnumerateObjectKey*)programCounter;
-            EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_dataRegisterIndex].asPointerValue();
-            data->m_idx++;
-            registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_idx - 1]).toString(*state);
-            ADD_PROGRAM_COUNTER(EnumerateObjectKey);
+            GetEnumerateKey* code = (GetEnumerateKey*)programCounter;
+            EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
+            registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_index++]);
+            ADD_PROGRAM_COUNTER(GetEnumerateKey);
             NEXT_INSTRUCTION();
         }
 
@@ -1900,117 +1900,10 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
     }
 }
 
-NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::executeEnumerateObject(ExecutionState& state, Object* obj)
+/*
+NEVER_INLINE EnumerateObject* ByteCodeInterpreter::updateEnumerateObject(ExecutionState& state, EnumerateObject* data)
 {
-    EnumerateObjectData* data = new EnumerateObjectData();
-    data->m_object = obj;
-    data->m_originalLength = 0;
-    if (obj->isArrayObject())
-        data->m_originalLength = obj->length(state);
-    Value target = data->m_object;
-    bool shouldSearchProto = false;
-    ObjectStructureChainItem newItem;
-    newItem.m_objectStructure = target.asObject()->structure();
-
-    data->m_hiddenClassChain.push_back(newItem);
-
-    std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>> keyStringSet;
-
-    target = target.asObject()->getPrototype(state);
-    while (target.isObject()) {
-        if (!shouldSearchProto) {
-            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                if (desc.isEnumerable()) {
-                    bool* shouldSearchProto = (bool*)data;
-                    *shouldSearchProto = true;
-                    return false;
-                }
-                return true;
-            },
-                                           &shouldSearchProto);
-        }
-        newItem.m_objectStructure = target.asObject()->structure();
-        data->m_hiddenClassChain.push_back(newItem);
-        target = target.asObject()->getPrototype(state);
-    }
-
-    target = obj;
-
-    if (shouldSearchProto) {
-        struct EData {
-            std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>>* keyStringSet;
-            EnumerateObjectData* data;
-            Object* obj;
-        } eData;
-
-        eData.data = data;
-        eData.keyStringSet = &keyStringSet;
-        eData.obj = obj;
-        while (target.isObject()) {
-            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                EData* eData = (EData*)data;
-                if (desc.isEnumerable()) {
-                    String* key = name.toPlainValue(state).toString(state);
-                    auto iter = eData->keyStringSet->find(key);
-                    if (iter == eData->keyStringSet->end()) {
-                        eData->keyStringSet->insert(key);
-                        eData->data->m_keys.pushBack(name.toPlainValue(state));
-                    }
-                } else if (self == eData->obj) {
-                    // 12.6.4 The values of [[Enumerable]] attributes are not considered
-                    // when determining if a property of a prototype object is shadowed by a previous object on the prototype chain.
-                    String* key = name.toPlainValue(state).toString(state);
-                    ASSERT(eData->keyStringSet->find(key) == eData->keyStringSet->end());
-                    eData->keyStringSet->insert(key);
-                }
-                return true;
-            },
-                                           &eData);
-            target = target.asObject()->getPrototype(state);
-        }
-    } else {
-        struct Params {
-            std::vector<Value::ValueIndex> indexes;
-            std::vector<Value, GCUtil::gc_malloc_allocator<Value>> strings;
-        } params;
-
-        obj->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-            auto params = (Params*)data;
-            auto value = name.toPlainValue(state);
-            if (desc.isEnumerable()) {
-                Value::ValueIndex index;
-                if (name.isIndexString() && (index = value.toIndex(state)) != Value::InvalidIndexValue) {
-                    params->indexes.push_back(index);
-                } else {
-                    params->strings.push_back(value);
-                }
-            }
-            return true;
-        },
-                         &params, true);
-
-        std::sort(params.indexes.begin(), params.indexes.end(), std::less<Value::ValueIndex>());
-
-        data->m_keys.resizeWithUninitializedValues(params.indexes.size() + params.strings.size());
-        size_t idx = 0;
-        for (auto& v : params.indexes) {
-            data->m_keys[idx++] = Value(v).toString(state);
-        }
-        for (auto& v : params.strings) {
-            data->m_keys[idx++] = v;
-        }
-    }
-
-
-    if (obj->rareData()) {
-        obj->rareData()->m_shouldUpdateEnumerateObjectData = false;
-    }
-    return data;
-}
-
-NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData(ExecutionState& state, EnumerateObjectData* data)
-{
-    EnumerateObjectData* newData = executeEnumerateObject(state, data->m_object);
+    EnumerateObject* newData = executeEnumerateObject(state, data->m_object);
     std::vector<Value, GCUtil::gc_malloc_allocator<Value>> oldKeys;
     if (data->m_keys.size()) {
         oldKeys.insert(oldKeys.end(), &data->m_keys[0], &data->m_keys[data->m_keys.size() - 1] + 1);
@@ -2033,6 +1926,7 @@ NEVER_INLINE EnumerateObjectData* ByteCodeInterpreter::updateEnumerateObjectData
     }
     return data;
 }
+*/
 
 ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, const Value& obj)
 {
@@ -2783,6 +2677,28 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
     }
 }
 
+NEVER_INLINE EnumerateObject* ByteCodeInterpreter::createEnumerateObject(ExecutionState& state, Object* obj, bool isDestruction)
+{
+    EnumerateObject* enumObj;
+    if (isDestruction) {
+        enumObj = new EnumerateObjectWithDestruction(state, obj);
+    } else {
+        enumObj = new EnumerateObjectWithIteration(state, obj);
+    }
+
+    return enumObj;
+}
+
+NEVER_INLINE void ByteCodeInterpreter::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
+{
+    EnumerateObject* data = (EnumerateObject*)registerFile[code->m_registerIndex].asPointerValue();
+    if (data->checkLastEnumerateKey(state)) {
+        programCounter = jumpTo(codeBuffer, code->m_exitPosition);
+    } else {
+        ADD_PROGRAM_COUNTER(CheckLastEnumerateKey);
+    }
+}
+
 NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
 {
     ExecutionPause* code = (ExecutionPause*)programCounter;
@@ -3222,46 +3138,6 @@ NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryT
     }
 
     registerFile[code->m_dstIndex] = val;
-}
-
-NEVER_INLINE void ByteCodeInterpreter::checkIfKeyIsLast(ExecutionState& state, CheckIfKeyIsLast* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
-{
-    EnumerateObjectData* data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
-    bool shouldUpdateEnumerateObjectData = false;
-    Object* obj = data->m_object;
-    for (size_t i = 0; i < data->m_hiddenClassChain.size(); i++) {
-        auto hc = data->m_hiddenClassChain[i];
-        ObjectStructureChainItem testItem;
-        testItem.m_objectStructure = obj->structure();
-        if (hc != testItem) {
-            shouldUpdateEnumerateObjectData = true;
-            break;
-        }
-        Value val = obj->getPrototype(state);
-        if (val.isObject()) {
-            obj = val.asObject();
-        } else {
-            break;
-        }
-    }
-
-    if (!shouldUpdateEnumerateObjectData && data->m_object->isArrayObject() && data->m_object->length(state) != data->m_originalLength) {
-        shouldUpdateEnumerateObjectData = true;
-    }
-    if (!shouldUpdateEnumerateObjectData && data->m_object->rareData() && data->m_object->rareData()->m_shouldUpdateEnumerateObjectData) {
-        shouldUpdateEnumerateObjectData = true;
-    }
-
-    if (shouldUpdateEnumerateObjectData) {
-        registerFile[code->m_registerIndex] = Value((PointerValue*)updateEnumerateObjectData(state, data));
-        data = (EnumerateObjectData*)registerFile[code->m_registerIndex].asPointerValue();
-    }
-
-    if (data->m_keys.size() <= data->m_idx) {
-        programCounter = jumpTo(codeBuffer, code->m_forInEndPosition);
-    } else {
-        ADD_PROGRAM_COUNTER(CheckIfKeyIsLast);
-    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile)
