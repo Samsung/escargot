@@ -58,6 +58,8 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::AssignmentPattern; }
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
+        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
+
         LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
         size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
         undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
@@ -80,10 +82,15 @@ public:
         codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
         size_t rightIndex = m_right->getRegister(codeBlock, context);
         m_right->generateExpressionByteCode(codeBlock, context, rightIndex);
+
+        // set m_isLexicallyDeclaredBindingInitialization for second m_left generateStoreByteCode
+        context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
         m_left->generateStoreByteCode(codeBlock, context, rightIndex, needToReferenceSelf);
         context->giveUpRegister(); // for drop rightIndex
 
         codeBlock->peekCode<Jump>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
+
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override

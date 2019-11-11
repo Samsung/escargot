@@ -1252,6 +1252,9 @@ public:
 
             if (this->match(Substitution)) {
                 params.push_back(*keyToken);
+                if (isExplicitVariableDeclaration) {
+                    addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
+                }
                 shorthand = true;
                 this->nextToken();
 
@@ -1260,7 +1263,6 @@ public:
             } else if (!this->match(Colon)) {
                 params.push_back(*keyToken);
                 if (isExplicitVariableDeclaration) {
-                    ASSERT(kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword);
                     addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;
