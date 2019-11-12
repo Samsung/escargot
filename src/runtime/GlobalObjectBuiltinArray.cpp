@@ -130,6 +130,45 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
     return Object::construct(state, C, 1, argv);
 }
 
+// http://ecma-international.org/ecma-262/10.0/#sec-flattenintoarray
+// FlattenIntoArray(target, source, sourceLen, start, depth [ , mapperFunction, thisArg ])
+static int64_t flattenIntoArray(ExecutionState& state, Value target, Value source, int64_t sourceLen, int64_t start, double depth, Value mappedValue = Value(Value::EmptyValue), Value thisArg = Value(Value::EmptyValue))
+{
+    ASSERT(target.isObject());
+    ASSERT(source.isObject());
+    ASSERT(sourceLen >= 0);
+
+    int64_t targetIndex = start;
+    int64_t sourceIndex = 0;
+
+    while (sourceIndex < sourceLen) {
+        String* p = Value(sourceIndex).toString(state);
+        ObjectHasPropertyResult exists = source.asObject()->hasIndexedProperty(state, p);
+        if (exists) {
+            Value element = exists.value(state, ObjectPropertyName(state, p), source);
+            if (!mappedValue.isEmpty()) {
+                Value args[] = { element, Value(sourceIndex), source };
+                ASSERT(!thisArg.isEmpty() && depth == 1);
+                element = Object::call(state, mappedValue, thisArg, 3, args);
+            }
+            if (depth > 0 && element.isObject() && element.asObject()->isArray(state)) {
+                int64_t elementLen = element.asObject()->lengthES6(state);
+                targetIndex = flattenIntoArray(state, target, element, elementLen, targetIndex, depth - 1);
+
+            } else {
+                if (targetIndex >= std::numeric_limits<int64_t>::max()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid index");
+                }
+                target.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, targetIndex),
+                                                                    ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+                targetIndex++;
+            }
+        }
+        sourceIndex++;
+    }
+    return targetIndex;
+}
+
 static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     ASSERT(argv != nullptr);
@@ -1497,6 +1536,40 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     return Value(n);
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-array.prototype.flat
+// Array.prototype.flat( [ depth ] )
+static Value builtinArrayFlat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, flat);
+    int64_t sourceLen = O->lengthES6(state);
+    double depthNum = 1;
+    if (argc > 0 && !argv[0].isUndefined()) {
+        depthNum = argv[0].toInteger(state);
+    }
+    Object* A = arraySpeciesCreate(state, O, 0);
+    flattenIntoArray(state, A, O, sourceLen, 0, depthNum);
+
+    return A;
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-array.prototype.flatmap
+// Array.prototype.flatMap ( mapperFunction [ , thisArg ] )
+static Value builtinArrayFlatMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, flatMap);
+    int64_t sourceLen = O->lengthES6(state);
+    if (!argv[0].isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().flatMap.string(), errorMessage_GlobalObject_FirstArgumentNotCallable);
+    }
+    Value t;
+    if (argc > 1) {
+        t = argv[1];
+    }
+    Object* A = arraySpeciesCreate(state, O, 0);
+    flattenIntoArray(state, A, O, sourceLen, 0, 1, argv[0], t);
+    return A;
+}
+
 static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -1896,6 +1969,11 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findIndex, builtinArrayFindIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().copyWithin),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().copyWithin, builtinArrayCopyWithin, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().flat),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().flat, builtinArrayFlat, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().flatMap),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().flatMap, builtinArrayFlatMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     Object* blackList = new Object(state);
     blackList->setPrototype(state, Value(Value::Null));
@@ -1907,7 +1985,8 @@ void GlobalObject::installArray(ExecutionState& state)
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().includes), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
-
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().flat), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().flatMap), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
 
     FunctionObject* values = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, NativeFunctionInfo::Strict));
     // Well-Known Intrinsic Objects : %ArrayProto_values%
