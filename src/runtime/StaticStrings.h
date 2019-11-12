@@ -74,6 +74,8 @@ namespace Escargot {
     F(of)                         \
     F(from)                       \
     F(concat)                     \
+    F(flat)                       \
+    F(flatMap)                    \
     F(forEach)                    \
     F(indexOf)                    \
     F(lastIndexOf)                \
