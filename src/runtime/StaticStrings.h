@@ -402,6 +402,8 @@ namespace Escargot {
     F(small)                      \
     F(strike)                     \
     F(sub)                        \
+    F(padStart)                   \
+    F(padEnd)                     \
     F(sup)
 
 

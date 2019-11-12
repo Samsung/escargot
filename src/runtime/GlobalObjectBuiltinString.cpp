@@ -1081,6 +1081,114 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     }
 }
 
+// https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padstart
+// 21.1.3.14String.prototype.padStart( maxLength [ , fillString ] )
+static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, padStart);
+
+    // Let intMaxLength be ? ToLength(maxLength).
+    // Let stringLength be the number of elements in S.
+    uint64_t intMaxLength = 0;
+    if (argc >= 1) {
+        intMaxLength = argv[0].toLength(state);
+    }
+    uint64_t stringLength = S->length();
+
+    // If intMaxLength is not greater than stringLength, return S.
+    if (intMaxLength <= stringLength) {
+        return S;
+    }
+
+    // If fillString is undefined, let filler be a String consisting solely of the code unit 0x0020 (SPACE).
+    // Else, let filler be ? ToString(fillString).
+    String* filler;
+    if (argc >= 2) {
+        filler = argv[1].toString(state);
+    } else {
+        filler = state.context()->staticStrings().asciiTable[0x20].string();
+    }
+
+    // If filler is the empty String, return S.
+    if (filler->length() == 0) {
+        return S;
+    }
+
+    // Let fillLen be intMaxLength - stringLength.
+    uint64_t fillLen = intMaxLength - stringLength;
+
+    // Let truncatedStringFiller be a new String value consisting of repeated concatenations of filler truncated to length fillLen.
+    StringBuilder sb;
+    while (sb.contentLength() < fillLen) {
+        sb.appendString(filler);
+    }
+
+    // Build the string, than truncate the characters over fillLen
+    String* truncatedStringFiller = sb.finalize(&state);
+    truncatedStringFiller = truncatedStringFiller->substring(0, fillLen);
+
+    // Return a new String value computed by the concatenation of truncatedStringFiller and S.
+    sb.appendString(truncatedStringFiller);
+    sb.appendString(S);
+    return sb.finalize(&state);
+}
+
+// https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padend
+// 21.1.3.13String.prototype.padEnd( maxLength [ , fillString ] )
+static Value builtinStringPadEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, padStart);
+
+    // Let intMaxLength be ? ToLength(maxLength).
+    // Let stringLength be the number of elements in S.
+    uint64_t intMaxLength = 0;
+    if (argc >= 1) {
+        intMaxLength = argv[0].toLength(state);
+    }
+    uint64_t stringLength = S->length();
+
+    // If intMaxLength is not greater than stringLength, return S.
+    if (intMaxLength <= stringLength) {
+        return S;
+    }
+
+    // If fillString is undefined, let filler be a String consisting solely of the code unit 0x0020 (SPACE).
+    // Else, let filler be ? ToString(fillString).
+    String* filler;
+    if (argc >= 2) {
+        filler = argv[1].toString(state);
+    } else {
+        filler = state.context()->staticStrings().asciiTable[0x20].string();
+    }
+
+    // If filler is the empty String, return S.
+    if (filler->length() == 0) {
+        return S;
+    }
+
+    // Let fillLen be intMaxLength - stringLength.
+    uint64_t fillLen = intMaxLength - stringLength;
+
+    // Let truncatedStringFiller be a new String value consisting of repeated concatenations of filler truncated to length fillLen.
+    StringBuilder sb;
+    while (sb.contentLength() < fillLen) {
+        sb.appendString(filler);
+    }
+
+    // Build the string, than truncate the characters over fillLen
+    String* truncatedStringFiller = sb.finalize(&state);
+    truncatedStringFiller = truncatedStringFiller->substring(0, fillLen);
+
+    // Return a new String value computed by the concatenation of S and truncatedStringFiller.
+    sb.appendString(S);
+    sb.appendString(truncatedStringFiller);
+    return sb.finalize(&state);
+}
+
 // http://www.ecma-international.org/ecma-262/6.0/#sec-createhtml
 // Runtime Semantics: CreateHTML ( string, tag, attribute, value )
 static String* createHTML(ExecutionState& state, Value string, String* tag, String* attribute, Value value, AtomicString methodName)
@@ -1361,6 +1469,12 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->trim),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringTrim, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->padStart),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringPadStart, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->padEnd),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringPadEnd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.26 String.prototype.valueOf
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
