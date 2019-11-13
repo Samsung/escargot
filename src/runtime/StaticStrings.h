@@ -404,9 +404,13 @@ namespace Escargot {
     F(small)                      \
     F(strike)                     \
     F(sub)                        \
+    F(sup)                        \
     F(padStart)                   \
     F(padEnd)                     \
-    F(sup)
+    F(trimStart)                  \
+    F(trimEnd)                    \
+    F(trimRight)                  \
+    F(trimLeft)
 
 
 #define FOR_EACH_STATIC_NUMBER(F) \
