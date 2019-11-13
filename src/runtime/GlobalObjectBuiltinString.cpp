@@ -907,19 +907,66 @@ static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisVal
     return builtinStringToUpperCase(state, thisValue, argc, argv, isNewExpression);
 }
 
+enum StringTrimWhere : unsigned {
+    START,
+    END,
+    STARTEND
+};
+
+static Value builtinStringTrimString(ExecutionState& state, Value thisValue, StringTrimWhere where)
+{
+    // Let str be ? RequireObjectCoercible(string).
+    // Let S be ? ToString(str).
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
+
+    int64_t s, e;
+    if (where == START)
+        e = str->length() - 1;
+    if (where == END)
+        s = 0;
+
+    // If where is "start", let T be the String value that is a copy of S with leading white space removed.
+    // Trim beginning if start, or start+end
+    if (where == START || where == STARTEND) {
+        for (s = 0; s < (int64_t)str->length(); s++) {
+            if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[s]))
+                break;
+        }
+    }
+    // Else if where is "end", let T be the String value that is a copy of S with trailing white space removed.
+    // Trim ending if end or start+end
+    if (where == END || where == STARTEND) {
+        for (e = ((int64_t)str->length()) - 1; e >= s; e--) {
+            if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[e]))
+                break;
+        }
+    }
+    // Return T.
+    return new StringView(str, s, e + 1);
+}
+
 static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
-    int64_t s, e;
-    for (s = 0; s < (int64_t)str->length(); s++) {
-        if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[s]))
-            break;
-    }
-    for (e = ((int64_t)str->length()) - 1; e >= s; e--) {
-        if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[e]))
-            break;
-    }
-    return new StringView(str, s, e + 1);
+    // Let S be this value.
+    // Return ? TrimString(S, "start+end").
+    RESOLVE_THIS_BINDING_TO_OBJECT(S, String, trim);
+    return builtinStringTrimString(state, thisValue, STARTEND);
+}
+
+static Value builtinStringTrimStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let S be this value.
+    // Return ? TrimString(S, "start").
+    RESOLVE_THIS_BINDING_TO_OBJECT(S, String, trimStart);
+    return builtinStringTrimString(state, thisValue, START);
+}
+
+static Value builtinStringTrimEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let S be this value.
+    // Return ? TrimString(S, "end").
+    RESOLVE_THIS_BINDING_TO_OBJECT(S, String, trimEnd);
+    return builtinStringTrimString(state, thisValue, END);
 }
 
 static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -1475,6 +1522,18 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->padEnd),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringPadEnd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->trimStart),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trimStart, builtinStringTrimStart, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->trimEnd),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trimEnd, builtinStringTrimEnd, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->trimRight),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trimRight, builtinStringTrimEnd, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->trimLeft),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trimLeft, builtinStringTrimStart, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.26 String.prototype.valueOf
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
