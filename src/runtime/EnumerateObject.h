@@ -31,7 +31,12 @@ public:
         return true;
     }
 
-    virtual bool checkLastEnumerateKey(ExecutionState& state) = 0;
+    bool checkLastEnumerateKey(ExecutionState& state);
+
+    virtual void fillRestElement(ExecutionState& state, Object* result)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     size_t m_index;
     SmallValueVector m_keys;
@@ -48,6 +53,7 @@ protected:
     void update(ExecutionState& state);
 
     virtual void executeEnumeration(ExecutionState& state, SmallValueVector& keys) = 0;
+    virtual bool checkIfModified(ExecutionState& state) = 0;
 
     Object* m_object;
     uint64_t m_arrayLength;
@@ -64,13 +70,14 @@ public:
         executeEnumeration(state, m_keys);
     }
 
-    virtual bool checkLastEnumerateKey(ExecutionState& state) override;
+    virtual void fillRestElement(ExecutionState& state, Object* result) override;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
     virtual void executeEnumeration(ExecutionState& state, SmallValueVector& keys) override;
+    virtual bool checkIfModified(ExecutionState& state) override;
 
     ObjectStructure* m_hiddenClass;
 };
@@ -85,13 +92,12 @@ public:
         executeEnumeration(state, m_keys);
     }
 
-    virtual bool checkLastEnumerateKey(ExecutionState& state) override;
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
     virtual void executeEnumeration(ExecutionState& state, SmallValueVector& keys) override;
+    virtual bool checkIfModified(ExecutionState& state) override;
 
     Vector<ObjectStructure*, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_hiddenClassChain;
 };

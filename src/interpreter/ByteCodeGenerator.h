@@ -83,6 +83,7 @@ struct ByteCodeGenerateContext {
         , m_isLexicallyDeclaredBindingInitialization(false)
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
+        , m_inObjectDestruction(false)
         , m_shouldGenerateLOCData(false)
         , m_forInOfVarBinding(false)
         , m_isLeftBindingAffectedByRightExpression(false)
@@ -116,6 +117,7 @@ struct ByteCodeGenerateContext {
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
+        , m_inObjectDestruction(contextBefore.m_inObjectDestruction)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
         , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
@@ -313,6 +315,7 @@ struct ByteCodeGenerateContext {
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
     bool m_inCallingExpressionScope : 1;
+    bool m_inObjectDestruction : 1;
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;
     bool m_forInOfVarBinding : 1;

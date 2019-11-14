@@ -77,21 +77,40 @@ public:
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         ASSERT(m_kind == Init);
-        size_t valueIndex = context->getRegister();
+
+        size_t enumDataIndex = context->m_inObjectDestruction ? context->getLastRegisterIndex() : REGISTER_LIMIT;
+
         if (m_key->isIdentifier() && !m_computed) {
             AtomicString propertyAtomicName = m_key->asIdentifier()->name();
+            size_t valueIndex = context->getRegister();
             codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), srcRegister, valueIndex, propertyAtomicName), context, this);
             m_value->generateResolveAddressByteCode(codeBlock, context);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+            context->giveUpRegister(); // for drop valueIndex
+
+            if (enumDataIndex != REGISTER_LIMIT) {
+                // we can use LoadLiteral here
+                // because, propertyAtomicName.string()
+                // is protected by AtomicString (IdentifierNode always has AtomicString)
+                size_t propertyIndex = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(propertyAtomicName.string())), context, this);
+                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this);
+                context->giveUpRegister(); // for drop propertyIndex
+            }
         } else {
+            size_t valueIndex = context->getRegister();
             size_t propertyIndex = m_key->getRegister(codeBlock, context);
             m_key->generateExpressionByteCode(codeBlock, context, propertyIndex);
             codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this);
             m_value->generateResolveAddressByteCode(codeBlock, context);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+
+            if (enumDataIndex != REGISTER_LIMIT) {
+                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this);
+            }
             context->giveUpRegister(); // for drop propertyIndex
+            context->giveUpRegister(); // for drop valueIndex
         }
-        context->giveUpRegister(); // for drop valueIndex
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
