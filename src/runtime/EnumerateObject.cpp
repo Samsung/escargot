@@ -23,6 +23,18 @@
 
 namespace Escargot {
 
+bool EnumerateObject::checkLastEnumerateKey(ExecutionState& state)
+{
+    if (UNLIKELY(checkIfModified(state))) {
+        update(state);
+    }
+
+    if (m_index < m_keys.size()) {
+        return false;
+    }
+    return true;
+}
+
 void EnumerateObject::update(ExecutionState& state)
 {
     SmallValueVector newKeys;
@@ -77,30 +89,23 @@ void* EnumerateObjectWithIteration::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-bool EnumerateObjectWithDestruction::checkLastEnumerateKey(ExecutionState& state)
+void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Object* result)
 {
-    bool shouldUpdate = false;
-    if (UNLIKELY(m_hiddenClass != m_object->structure())) {
-        shouldUpdate = true;
-    }
+    ASSERT(m_index == 0);
 
-    if (UNLIKELY(m_object->isArrayObject() && !shouldUpdate)) {
-        if (m_object->length(state) != m_arrayLength) {
-            shouldUpdate = true;
+    Value key, value;
+    while (m_index < m_keys.size()) {
+        if (UNLIKELY(checkIfModified(state))) {
+            update(state);
+        } else {
+            key = m_keys[m_index++];
+            // check unmarked key and put rest properties
+            if (!key.isEmpty()) {
+                value = m_object->getIndexedProperty(state, key).value(state, m_object);
+                result->setIndexedProperty(state, key, value);
+            }
         }
-        if (m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject) {
-            shouldUpdate = true;
-        }
     }
-
-    if (UNLIKELY(shouldUpdate)) {
-        update(state);
-    }
-
-    if (m_keys.size() <= m_index) {
-        return true;
-    }
-    return false;
 }
 
 void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, SmallValueVector& keys)
@@ -152,41 +157,21 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, S
     }
 }
 
-bool EnumerateObjectWithIteration::checkLastEnumerateKey(ExecutionState& state)
+bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
 {
-    bool shouldUpdate = false;
-    Object* obj = m_object;
-    for (size_t i = 0; i < m_hiddenClassChain.size(); i++) {
-        auto hc = m_hiddenClassChain[i];
-        ObjectStructure* structure = obj->structure();
-        if (UNLIKELY(hc != structure)) {
-            shouldUpdate = true;
-            break;
-        }
-        Value val = obj->getPrototype(state);
-        if (val.isObject()) {
-            obj = val.asObject();
-        } else {
-            break;
-        }
-    }
-
-    if (UNLIKELY(m_object->isArrayObject() && !shouldUpdate)) {
-        if (m_object->length(state) != m_arrayLength) {
-            shouldUpdate = true;
-        }
-        if (m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject) {
-            shouldUpdate = true;
-        }
-    }
-
-    if (UNLIKELY(shouldUpdate)) {
-        update(state);
-    }
-
-    if (m_keys.size() <= m_index) {
+    if (UNLIKELY(m_hiddenClass != m_object->structure())) {
         return true;
     }
+
+    if (m_object->isArrayObject()) {
+        if (UNLIKELY(m_object->length(state) != m_arrayLength)) {
+            return true;
+        }
+        if (UNLIKELY(m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -294,5 +279,34 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Sma
     if (m_object->rareData()) {
         m_object->rareData()->m_shouldUpdateEnumerateObject = false;
     }
+}
+
+bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
+{
+    Object* obj = m_object;
+    for (size_t i = 0; i < m_hiddenClassChain.size(); i++) {
+        auto hc = m_hiddenClassChain[i];
+        ObjectStructure* structure = obj->structure();
+        if (UNLIKELY(hc != structure)) {
+            return true;
+        }
+        Value val = obj->getPrototype(state);
+        if (val.isObject()) {
+            obj = val.asObject();
+        } else {
+            break;
+        }
+    }
+
+    if (m_object->isArrayObject()) {
+        if (UNLIKELY(m_object->length(state) != m_arrayLength)) {
+            return true;
+        }
+        if (UNLIKELY(m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 }

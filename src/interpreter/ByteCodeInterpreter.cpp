@@ -1103,6 +1103,22 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(MarkEnumerateKey)
+            :
+        {
+            MarkEnumerateKey* code = (MarkEnumerateKey*)programCounter;
+            EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
+            SmallValue key = registerFile[code->m_keyRegisterIndex];
+            for (size_t i = 0; i < data->m_keys.size(); i++) {
+                if (data->m_keys[i] == key) {
+                    data->m_keys[i] = Value(Value::EmptyValue);
+                }
+            }
+
+            ADD_PROGRAM_COUNTER(MarkEnumerateKey);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(GetIterator)
             :
         {
@@ -1261,21 +1277,27 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             BindingRestElement* code = (BindingRestElement*)programCounter;
 
-            ArrayObject* array = new ArrayObject(*state);
-            const Value& iterator = registerFile[code->m_iterIndex];
+            Object* result;
+            Value& iterOrEnum = registerFile[code->m_iterOrEnumIndex];
 
-            size_t i = 0;
-            while (true) {
-                Value next = iteratorStep(*state, iterator);
-                if (next.isFalse()) {
-                    break;
+            if (UNLIKELY(iterOrEnum.asPointerValue()->isEnumerateObject())) {
+                ASSERT(iterOrEnum.asPointerValue()->isEnumerateObject());
+                EnumerateObject* enumObj = (EnumerateObject*)iterOrEnum.asPointerValue();
+                result = new Object(*state);
+                enumObj->fillRestElement(*state, result);
+            } else {
+                result = new ArrayObject(*state);
+                size_t i = 0;
+                while (true) {
+                    Value next = iteratorStep(*state, iterOrEnum);
+                    if (next.isFalse()) {
+                        break;
+                    }
+                    result->setIndexedProperty(*state, Value(i++), iteratorValue(*state, next));
                 }
-
-                array->setIndexedProperty(*state, Value(i++), iteratorValue(*state, next));
             }
 
-            registerFile[code->m_dstIndex] = array;
-
+            registerFile[code->m_dstIndex] = result;
             ADD_PROGRAM_COUNTER(BindingRestElement);
             NEXT_INSTRUCTION();
         }
@@ -1899,34 +1921,6 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         inlineCache.m_hiddenClassWillBe = orgObject->structure();
     }
 }
-
-/*
-NEVER_INLINE EnumerateObject* ByteCodeInterpreter::updateEnumerateObject(ExecutionState& state, EnumerateObject* data)
-{
-    EnumerateObject* newData = executeEnumerateObject(state, data->m_object);
-    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> oldKeys;
-    if (data->m_keys.size()) {
-        oldKeys.insert(oldKeys.end(), &data->m_keys[0], &data->m_keys[data->m_keys.size() - 1] + 1);
-    }
-    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> differenceKeys;
-    for (size_t i = 0; i < newData->m_keys.size(); i++) {
-        const Value& key = newData->m_keys[i];
-        // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
-        if (std::find(oldKeys.begin(), oldKeys.begin() + data->m_idx, key) == oldKeys.begin() + data->m_idx && std::find(oldKeys.begin() + data->m_idx, oldKeys.end(), key) != oldKeys.end()) {
-            // If new properties are added to the object being enumerated during enumeration,
-            // the newly added properties are not guaranteed to be visited in the active enumeration.
-            differenceKeys.push_back(key);
-        }
-    }
-    data = newData;
-    data->m_keys.clear();
-    data->m_keys.resizeWithUninitializedValues(differenceKeys.size());
-    for (size_t i = 0; i < differenceKeys.size(); i++) {
-        data->m_keys[i] = differenceKeys[i];
-    }
-    return data;
-}
-*/
 
 ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, const Value& obj)
 {

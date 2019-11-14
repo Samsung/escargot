@@ -117,6 +117,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateEnumerateObject, 1, 0)                          \
     F(GetEnumerateKey, 1, 0)                                \
     F(CheckLastEnumerateKey, 0, 0)                          \
+    F(MarkEnumerateKey, 2, 0)                               \
     F(GetIterator, 1, 0)                                    \
     F(IteratorStep, 1, 0)                                   \
     F(IteratorClose, 1, 0)                                  \
@@ -2012,6 +2013,24 @@ public:
 #endif
 };
 
+class MarkEnumerateKey : public ByteCode {
+public:
+    explicit MarkEnumerateKey(const ByteCodeLOC& loc, size_t dataIndex, size_t keyIndex)
+        : ByteCode(Opcode::MarkEnumerateKeyOpcode, loc)
+        , m_dataRegisterIndex(dataIndex)
+        , m_keyRegisterIndex(keyIndex)
+    {
+    }
+    ByteCodeRegisterIndex m_dataRegisterIndex;
+    ByteCodeRegisterIndex m_keyRegisterIndex;
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("mark enumerate key r%d to enumerate object r%d", (int)m_keyRegisterIndex, (int)m_dataRegisterIndex);
+    }
+#endif
+};
+
 class GetIterator : public ByteCode {
 public:
     explicit GetIterator(const ByteCodeLOC& loc)
@@ -2159,19 +2178,19 @@ BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineGetterSetter, sizeof(size_t) * 3);
 
 class BindingRestElement : public ByteCode {
 public:
-    BindingRestElement(const ByteCodeLOC& loc, size_t iterIndex, size_t dstIndex)
+    BindingRestElement(const ByteCodeLOC& loc, size_t iterOrEnumIndex, size_t dstIndex)
         : ByteCode(Opcode::BindingRestElementOpcode, loc)
-        , m_iterIndex(iterIndex)
+        , m_iterOrEnumIndex(iterOrEnumIndex)
         , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_iterIndex;
+    ByteCodeRegisterIndex m_iterOrEnumIndex;
     ByteCodeRegisterIndex m_dstIndex;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("binding rest element(r%d) -> r%d", (int)m_iterIndex, (int)m_dstIndex);
+        printf("binding rest element(r%d) -> r%d", (int)m_iterOrEnumIndex, (int)m_dstIndex);
     }
 #endif
 };

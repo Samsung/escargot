@@ -48,7 +48,7 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
-        // srcRegister indicates iteratorRegister
+        // srcRegister indicates iterator or EnumerateObject
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
         m_argument->generateResolveAddressByteCode(codeBlock, context);

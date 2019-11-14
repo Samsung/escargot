@@ -1287,10 +1287,17 @@ public:
     {
         MetaNode node = this->createNode();
         ASTNodeList properties;
+        bool hasRestElement = false;
 
         this->expect(LeftBrace);
         while (!this->match(RightBrace)) {
-            properties.append(this->allocator, this->parsePropertyPattern(builder, params, kind, isExplicitVariableDeclaration));
+            if (this->match(PeriodPeriodPeriod)) {
+                hasRestElement = true;
+                properties.append(this->allocator, this->parseBindingRestElement(builder, params, kind, isExplicitVariableDeclaration));
+                break;
+            } else {
+                properties.append(this->allocator, this->parsePropertyPattern(builder, params, kind, isExplicitVariableDeclaration));
+            }
 
             if (!this->match(RightBrace)) {
                 this->expect(Comma);
@@ -1298,7 +1305,7 @@ public:
         }
         this->expect(RightBrace);
 
-        return this->finalize(node, builder.createObjectPatternNode(properties));
+        return this->finalize(node, builder.createObjectPatternNode(properties, hasRestElement));
     }
 
     template <class ASTBuilder>

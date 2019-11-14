@@ -27,18 +27,24 @@ namespace Escargot {
 
 class ObjectPatternNode : public Node {
 public:
-    ObjectPatternNode(const NodeList& properties)
+    ObjectPatternNode(const NodeList& properties, bool hasRestElement)
         : m_properties(properties)
+        , m_hasRestElement(hasRestElement)
     {
 #ifndef NDEBUG
         for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
-            ASSERT(property->astNode()->isProperty());
+            if (m_hasRestElement) {
+                ASSERT(property->astNode()->isProperty() || property->astNode()->type() == ASTNodeType::RestElement);
+            } else {
+                ASSERT(property->astNode()->isProperty());
+            }
         }
 #endif
     }
 
     ObjectPatternNode(const NodeList& properties, NodeLOC& loc)
         : m_properties(properties)
+        , m_hasRestElement(false)
     {
         m_loc = loc;
 #ifndef NDEBUG
@@ -53,9 +59,29 @@ public:
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
         if (m_properties.size() > 0) {
-            for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
-                context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-                property->astNode()->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+            if (m_hasRestElement) {
+                context->m_inObjectDestruction = true;
+                ByteCodeRegisterIndex enumDataIndex = context->getRegister();
+                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), srcRegister, enumDataIndex, true), context, this);
+
+                for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
+                    if (LIKELY(property->astNode()->isProperty())) {
+                        property->astNode()->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+                    } else {
+                        ASSERT(property->astNode()->type() == ASTNodeType::RestElement);
+                        property->astNode()->generateStoreByteCode(codeBlock, context, enumDataIndex, needToReferenceSelf);
+                    }
+                }
+
+                context->giveUpRegister(); // for drop enumDataIndex
+                context->m_inObjectDestruction = false;
+            } else {
+                for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+                    ASSERT(property->astNode()->isProperty());
+                    context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
+                    property->astNode()->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+                }
             }
         } else {
             // ObjectAssignmentPattern without AssignmentPropertyList requires object-coercible
@@ -110,6 +136,7 @@ public:
 
 private:
     NodeList m_properties;
+    bool m_hasRestElement : 1;
 };
 }
 
