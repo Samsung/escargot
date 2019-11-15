@@ -23,6 +23,7 @@
 #include "VMInstance.h"
 #include "ArrayObject.h"
 #include "NativeFunctionObject.h"
+#include "IteratorOperations.h"
 
 namespace Escargot {
 
@@ -325,6 +326,50 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     O->preventExtensions(state);
     // Return O.
     return O;
+}
+
+static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (argv[0].isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+    }
+    Value iterable = argv[0];
+    Object* obj = new Object(state);
+
+    Value iterableRecord = getIterator(state, iterable);
+    while (true) {
+        Value next = iteratorStep(state, iterableRecord);
+        if (next.isFalse()) {
+            return obj;
+        }
+
+        Value nextItem = iteratorValue(state, next);
+        try {
+            if (!nextItem.isObject()) {
+                TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
+                return iteratorClose(state, iterableRecord, errorobj, true);
+            }
+
+            // Let k be Get(nextItem, "0").
+            // If k is an abrupt completion, return ? IteratorClose(iter, k).
+            Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
+            // Let v be Get(nextItem, "1").
+            // If v is an abrupt completion, return ? IteratorClose(iter, v).
+            Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
+
+            ObjectPropertyName key(state, k);
+            obj->defineOwnPropertyThrowsException(state, key,
+                                                  ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        } catch (const Value& v) {
+            // we should save thrown value bdwgc cannot track thrown value
+            Value exceptionValue = v;
+            // If status is an abrupt completion, return ? IteratorClose(iter, status).
+            iteratorClose(state, iterableRecord, exceptionValue, true);
+        }
+    }
+
+
+    return obj;
 }
 
 static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -636,6 +681,10 @@ void GlobalObject::installObject(ExecutionState& state)
     m_objectFreeze = new NativeFunctionObject(state, NativeFunctionInfo(strings.freeze, builtinObjectFreeze, 1, NativeFunctionInfo::Strict));
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.freeze),
                                 ObjectPropertyDescriptor(m_objectFreeze,
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // 19.1.2.7 Object.fromEntries ( iterable )
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.fromEntries),
+                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.fromEntries, builtinObjectFromEntries, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
