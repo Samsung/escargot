@@ -457,17 +457,17 @@ def run_v8(engine, arch):
     if '=== All tests succeeded' not in stdout:
         raise Exception('Not all tests succeeded')
 
-@runner('es2015', default=True)
-def run_es2015(engine, arch):
-    ES2015_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'es2015')
-    ES2015_ASSERT_JS = join(ES2015_DIR, 'assert.js')
+@runner('new-es', default=True)
+def run_new_es(engine, arch):
+    NEW_ES_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'new-es')
+    NEW_ES_ASSERT_JS = join(NEW_ES_DIR, 'assert.js')
 
-    print('Running es2015 test:')
-    files = glob(join(ES2015_DIR, '*.js'))
-    files.remove(ES2015_ASSERT_JS)
+    print('Running new-es test:')
+    files = glob(join(NEW_ES_DIR, '*.js'))
+    files.remove(NEW_ES_ASSERT_JS)
     fail_total = 0
     for file in files:
-        proc = Popen([engine, ES2015_ASSERT_JS, file], stdout=PIPE)
+        proc = Popen([engine, NEW_ES_ASSERT_JS, file], stdout=PIPE)
         out, _ = proc.communicate()
 
         if not proc.returncode:
@@ -483,7 +483,7 @@ def run_es2015(engine, arch):
     print('%sFAIL : %d%s' % (COLOR_RED, fail_total, COLOR_RESET))
 
     if fail_total > 0:
-        raise Exception('ES2015 tests failed')
+        raise Exception('new-es tests failed')
 
 @runner('intl', default=True)
 def run_intl(engine, arch):
