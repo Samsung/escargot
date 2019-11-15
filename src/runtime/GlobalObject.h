@@ -255,7 +255,6 @@ public:
     {
         return m_objectFreeze;
     }
-
     FunctionObject* function()
     {
         return m_function;
