@@ -997,7 +997,7 @@ public:
         }
 
         if (this->trackUsingNames) {
-            insertUsingName(ret->asIdentifier()->name());
+            this->insertUsingName(ret->asIdentifier()->name());
         }
         return ret;
     }
@@ -1612,6 +1612,7 @@ public:
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         MetaNode node = this->createNode();
+        Marker startMarker = this->lastMarker;
 
         PropertyNode::Kind kind;
         ASTNode keyNode = nullptr; //'': Node.PropertyKey;
@@ -1625,11 +1626,15 @@ public:
         bool isAsync = false;
 
         if (token->type == Token::IdentifierToken) {
-            TrackUsingNameBlocker blocker(this);
             this->nextToken();
             computed = this->match(LeftSquareBracket);
             isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Multiply) && !this->match(Comma);
-            keyNode = isAsync ? this->parseObjectPropertyKey(builder, keyString) : this->finalize(node, finishIdentifier(builder, token));
+            if (isAsync) {
+                keyNode = this->parseObjectPropertyKey(builder, keyString);
+            } else {
+                TrackUsingNameBlocker blocker(this);
+                keyNode = this->finalize(node, finishIdentifier(builder, token));
+            }
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
         } else {
@@ -1726,6 +1731,10 @@ public:
                 } else {
                     shorthand = true;
                     valueNode = keyNode;
+                    // we should insert the name of valueNode here because the keyNode is blocked by TrackUsingNameBlocker above.
+                    if (keyNode->isIdentifier()) {
+                        this->insertUsingName(keyNode->asIdentifier()->name());
+                    }
                 }
             }
         }
@@ -3201,7 +3210,7 @@ public:
 
             addDeclaredNameIntoContext(declName, this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
             if (UNLIKELY(declName == stringArguments && !this->isParsingSingleFunction)) {
-                insertUsingName(stringArguments);
+                this->insertUsingName(stringArguments);
             }
         } else {
             id = finishIdentifier(builder, token);
@@ -4342,7 +4351,7 @@ public:
         this->expect(LeftParenthesis);
 
         addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
-        insertUsingName(fnName);
+        this->insertUsingName(fnName);
 
         BEGIN_FUNCTION_SCANNING(fnName);
 
