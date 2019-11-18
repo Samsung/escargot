@@ -277,7 +277,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         // Let mnsd be the result of calling the GetNumberOption abstract operation with arguments options, "minimumSignificantDigits", 1, 21, and 1.
         mnsd = Value(getNumberOption(state, options.asObject(), String::fromASCII("minimumSignificantDigits"), 1, 21, 1));
         // Let mxsd be the result of calling the GetNumberOption abstract operation with arguments options, "maximumSignificantDigits", mnsd, 21, and 21.
-        mxsd = Value(getNumberOption(state, options.asObject(), String::fromASCII("maximumSignificantDigits"), mnsd, 21, 21));
+        mxsd = Value(getNumberOption(state, options.asObject(), String::fromASCII("maximumSignificantDigits"), mnsd.asNumber(), 21, 21));
         // Set the [[minimumSignificantDigits]] internal property of numberFormat to mnsd,
         // and the [[maximumSignificantDigits]] internal property of numberFormat to mxsd.
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minimumSignificantDigits")), mnsd, numberFormat->internalSlot());

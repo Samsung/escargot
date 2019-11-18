@@ -71,7 +71,7 @@ GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
     *next_ptr = ptr + 1;
 #endif
     GC_word* ret = NULL;
-    if (*current && current->isPointerValue()) {
+    if (current->isPointerValue()) {
         ret = (GC_word*)current->asPointerValue();
     }
     return ret;
