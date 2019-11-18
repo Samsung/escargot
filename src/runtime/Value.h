@@ -149,7 +149,6 @@ public:
     explicit Value(long long);
     explicit Value(unsigned long long);
 
-    inline operator bool() const;
     inline bool operator==(const Value& other) const;
     inline bool operator!=(const Value& other) const;
 

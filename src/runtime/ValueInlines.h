@@ -178,11 +178,6 @@ inline Value::Value(int i)
     u.asBits.payload = i;
 }
 
-inline Value::operator bool() const
-{
-    return u.asInt64;
-}
-
 inline bool Value::operator==(const Value& other) const
 {
     return u.asInt64 == other.u.asInt64;
@@ -401,11 +396,6 @@ inline Value::Value(EncodeAsDoubleTag, double d)
 inline Value::Value(int i)
 {
     u.asInt64 = TagTypeNumber | static_cast<uint32_t>(i);
-}
-
-inline Value::operator bool() const
-{
-    return u.asInt64 != ValueEmpty;
 }
 
 inline bool Value::operator==(const Value& other) const
