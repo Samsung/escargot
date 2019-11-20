@@ -164,8 +164,11 @@ def run_test262(engine, arch):
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
 
     copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
-    copy(join(TEST262_OVERRIDE_DIR, 'testIntl.js'), join(TEST262_DIR, 'harness', 'testIntl.js')) # The original was written incorrectly(test262 Head : d1f718f806)
+    copy(join(TEST262_OVERRIDE_DIR, 'cth.js'), join(TEST262_DIR, 'harness', 'cth.js'))
+    copy(join(TEST262_OVERRIDE_DIR, 'monkeyYaml.py'), join(TEST262_DIR, 'tools', 'packaging', 'monkeyYaml.py'))
+    copy(join(TEST262_OVERRIDE_DIR, 'parseTestRecord.py'), join(TEST262_DIR, 'tools', 'packaging', 'parseTestRecord.py'))
     copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
+    #copy(join(TEST262_OVERRIDE_DIR, 'testIntl.js'), join(TEST262_DIR, 'harness', 'testIntl.js')) # The original was written incorrectly(test262 Head : d1f718f806)
 
     out = open('test262_out', 'w')
 
@@ -174,16 +177,15 @@ def run_test262(engine, arch):
          '--full-summary'],
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
-        stdout=out,
-        report=True)
+        stdout=out)
 
     out.close()
 
     with open('test262_out', 'r') as out:
         full = out.read()
         summary = full.split('=== Summary ===')[1]
+        print(summary)
         if summary.find('- All tests succeeded') < 0:
-            print(summary)
             raise Exception('test262 failed')
         print('test262: All tests passed')
 
