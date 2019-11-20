@@ -245,6 +245,7 @@ namespace Escargot {
     F(fromCharCode)               \
     F(fromCodePoint)              \
     F(getOwnPropertyDescriptor)   \
+    F(getOwnPropertyDescriptors)  \
     F(getOwnPropertyNames)        \
     F(getOwnPropertySymbols)      \
     F(hasOwnProperty)             \

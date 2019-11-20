@@ -343,6 +343,23 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
     // Return the result of calling FromPropertyDescriptor(desc) (8.10.4).
     return desc.toPropertyDescriptor(state, O);
 }
+// 19.1.2.9Object.getOwnPropertyDescriptors ( O )
+//https://www.ecma-international.org/ecma-262/8.0/#sec-object.getownpropertydescriptors
+static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Object* obj = argv[0].toObject(state);
+    ValueVector ownKeys = obj->ownPropertyKeys(state);
+    Object* descriptors = new Object(state);
+
+    for (uint64_t i = 0; i < ownKeys.size(); i++) {
+        ObjectGetResult desc = obj->getOwnProperty(state, ObjectPropertyName(state, ownKeys[i]));
+        Value descriptor = desc.toPropertyDescriptor(state, obj);
+        if (!descriptor.isUndefined()) {
+            descriptors->defineOwnProperty(state, ObjectPropertyName(state, ownKeys[i]), ObjectPropertyDescriptor(descriptor, ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+    return descriptors;
+}
 
 enum class GetOwnPropertyKeysType {
     String,
@@ -633,6 +650,10 @@ void GlobalObject::installObject(ExecutionState& state)
 
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertySymbols),
                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.getOwnPropertySymbols, builtinObjectGetOwnPropertySymbols, 1, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.getOwnPropertyDescriptors),
+                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.getOwnPropertyDescriptors, builtinObjectGetOwnPropertyDescriptors, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // 19.1.2.9 Object.getPrototypeOf ( O )
