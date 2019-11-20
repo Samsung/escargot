@@ -412,9 +412,9 @@ def PercentFormat(partial, total):
                                  ((100.0 * partial)/total,))
 
 def CaseRunner(case):
-    print(case.GetName())
-    result = case.Run(case.command_template)
-    return [case.index, result]
+  #print(case.GetName())
+  result = case.Run(case.command_template)
+  return [case.index, result]
 
 class TestSuite(object):
 
@@ -480,9 +480,14 @@ class TestSuite(object):
             basename = path.basename(full_path)[:-3]
             name = rel_path.split(path.sep)[:-1] + [basename]
             if rel_path[0:rel_path.rindex('.')] in EXCLUDE_LIST :
-              print 'Excluded: ' + rel_path
+              #print 'Excluded: ' + rel_path
+              continue
+            elif rel_path[0:rel_path.rindex('/')] in EXCLUDE_LIST :
+              #print 'Excluded Dir: ' + rel_path
+              continue
             elif EXCLUDE_LIST.count(basename) >= 1:
-              print 'Excluded: ' + basename
+              #print 'Excluded: ' + basename
+              continue
             else:
               if not self.non_strict_only:
                 strict_case = TestCase(self, name, full_path, True)
@@ -515,6 +520,7 @@ class TestSuite(object):
     write(" - Ran %i test%s" % MakePlural(count))
     if progress.failed == 0:
       write(" - All tests succeeded")
+      write(" - Total Passed " + PercentFormat(count, 73255))
     else:
       write(" - Passed " + PercentFormat(succeeded, count))
       write(" - Failed " + PercentFormat(failed, count))
@@ -619,9 +625,9 @@ class TestSuite(object):
           result.WriteOutput(self.logf)
       self.logf.write("===\n")
     elif result.case.IsNegative():
-       self.logf.write("%s failed in %s as expected \n" % (name, mode))
+      self.logf.write("%s failed in %s as expected \n" % (name, mode))
     else:
-       self.logf.write("%s passed in %s \n" % (name, mode))
+      self.logf.write("%s passed in %s \n" % (name, mode))
 
   def Print(self, tests):
     cases = self.EnumerateTests(tests)
