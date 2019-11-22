@@ -644,9 +644,13 @@ public:
             ObjectExpressionNode* object = expr->asObjectExpression();
             NodeList& properties = object->properties();
             for (SentinelNode* property = properties.begin(); property != properties.end(); property = property->next()) {
-                ASSERT(property->astNode()->type() == Property);
-                Node* value = this->reinterpretExpressionAsPattern(property->astNode()->asProperty()->value());
-                property->astNode()->asProperty()->setValue(value);
+                if (property->astNode()->type() == Property) {
+                    Node* value = this->reinterpretExpressionAsPattern(property->astNode()->asProperty()->value());
+                    property->astNode()->asProperty()->setValue(value);
+                } else {
+                    ASSERT(property->astNode()->type() == SpreadElement);
+                    property->setASTNode(this->reinterpretExpressionAsPattern(property->astNode()));
+                }
             }
             result = new (m_allocator) ObjectPatternNode(properties, object->m_loc);
             break;

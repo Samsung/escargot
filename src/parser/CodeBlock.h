@@ -217,9 +217,9 @@ public:
         return m_allowSuperProperty;
     }
 
-    bool hasImplictFunctionName()
+    bool hasImplicitFunctionName()
     {
-        return m_hasImplictFunctionName;
+        return m_hasImplicitFunctionName;
     }
 
     AtomicString functionName() const
@@ -333,7 +333,7 @@ protected:
     bool m_isGenerator : 1;
     bool m_isAsync : 1;
     bool m_needsVirtualIDOperation : 1;
-    bool m_hasImplictFunctionName : 1;
+    bool m_hasImplicitFunctionName : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_allowSuperCall : 1;
