@@ -4359,7 +4359,6 @@
     <test id="language/expressions/array/spread-sngl-expr"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dflt-params-trailing-comma"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/ary-ptrn-elem-id-init-fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
@@ -4372,25 +4371,9 @@
     <test id="language/expressions/arrow-function/dstr/dflt-ary-ptrn-elem-id-init-fn-name-cover"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/dflt-ary-ptrn-elem-id-init-fn-name-fn"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/dflt-ary-ptrn-elem-id-init-fn-name-gen"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-id-init-fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-id-init-fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-id-init-fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-id-init-fn-name-gen"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-rest-getter"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-rest-skip-non-enumerable"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-rest-val-obj"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-id-init-fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-id-init-fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-id-init-fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-id-init-fn-name-gen"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-rest-getter"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-rest-skip-non-enumerable"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-rest-val-obj"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/length-dflt"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/params-trailing-comma-multiple"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/params-trailing-comma-single"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -8198,7 +8181,6 @@
     <test id="language/expressions/exponentiation/order-of-evaluation"><reason>TODO</reason></test>
     <test id="language/expressions/function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/function/dflt-params-trailing-comma"><reason>TODO</reason></test>
     <test id="language/expressions/function/dstr/ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/expressions/function/dstr/ary-ptrn-elem-id-init-fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/expressions/function/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
@@ -8223,8 +8205,6 @@
     <test id="language/expressions/function/dstr/obj-ptrn-id-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/expressions/function/length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/function/params-dflt-ref-arguments"><reason>TODO</reason></test>
-    <test id="language/expressions/function/params-trailing-comma-multiple"><reason>TODO</reason></test>
-    <test id="language/expressions/function/params-trailing-comma-single"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -13710,7 +13690,6 @@
     <test id="language/statements/for/tco-var-body"><reason>TODO</reason></test>
     <test id="language/statements/function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/statements/function/dflt-params-trailing-comma"><reason>TODO</reason></test>
     <test id="language/statements/function/dstr/ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/statements/function/dstr/ary-ptrn-elem-id-init-fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/statements/function/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
@@ -13735,8 +13714,6 @@
     <test id="language/statements/function/dstr/obj-ptrn-id-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/statements/function/length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/function/params-dflt-ref-arguments"><reason>TODO</reason></test>
-    <test id="language/statements/function/params-trailing-comma-multiple"><reason>TODO</reason></test>
-    <test id="language/statements/function/params-trailing-comma-single"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-rest-elem-var-close"><reason>TODO</reason></test>

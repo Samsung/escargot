@@ -411,6 +411,7 @@ public:
             switch (params[i]->type()) {
             case Identifier: {
                 this->currentScopeContext->m_parameters[i] = params[i]->name();
+                this->currentScopeContext->m_parameterCount++;
                 break;
             }
             case AssignmentPattern: {
@@ -1240,7 +1241,7 @@ public:
 
         bool computed = false;
         bool shorthand = false;
-        bool method = false;
+        bool needImplicitName = false;
 
         ASTNode keyNode = nullptr; //'': Node.PropertyKey;
         ASTNode valueNode = nullptr; //: Node.PropertyValue;
@@ -1259,6 +1260,12 @@ public:
                 this->nextToken();
 
                 ASTNode expr = this->parseAssignmentExpression<ASTBuilder, false>(builder);
+
+                ASTNodeType type = expr->type();
+                if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                    needImplicitName = true;
+                }
+
                 valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode, expr));
             } else if (!this->match(Colon)) {
                 params.push_back(*keyToken);
@@ -1277,6 +1284,12 @@ public:
             keyNode = this->parseObjectPropertyKey(builder, keyString);
             this->expect(Colon);
             valueNode = this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration);
+        }
+
+        if (!this->isParsingSingleFunction && needImplicitName) {
+            AtomicString as = keyNode->isIdentifier() ? keyNode->asIdentifier()->name() : AtomicString();
+            this->lastPoppedScopeContext->m_functionName = as;
+            this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
         }
 
         return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, PropertyNode::Kind::Init, computed, shorthand));
@@ -1336,6 +1349,14 @@ public:
             const bool previousAllowYield = this->context->allowYield;
             ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
+            AtomicString name = pattern->isIdentifier() ? pattern->asIdentifier()->name() : AtomicString();
+            ASTNodeType type = right->type();
+            if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
+                if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                    this->lastPoppedScopeContext->m_functionName = name;
+                    this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
+                }
+            }
             return this->finalize(this->startNode(startToken), builder.createAssignmentPatternNode(pattern, right));
         }
 
@@ -1343,7 +1364,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseFormalParameter(ASTBuilder& builder, ParseFormalParametersResult& options, bool& end)
+    ASTNode parseFormalParameter(ASTBuilder& builder, ParseFormalParametersResult& options)
     {
         ASTNode param = nullptr;
         bool trackUsingNamesBefore = this->trackUsingNames;
@@ -1363,40 +1384,42 @@ public:
         }
         options.params.push_back(builder.convertToParameterSyntaxNode(param));
         this->trackUsingNames = trackUsingNamesBefore;
-        end = this->match(PunctuatorKind::RightParenthesis);
 
         return param;
     }
 
     template <class ASTBuilder>
-    void parseFormalParameters(ASTBuilder& builder, ParseFormalParametersResult& options, Scanner::SmallScannerResult* firstRestricted = nullptr)
+    void parseFormalParameters(ASTBuilder& builder, ParseFormalParametersResult& options, Scanner::SmallScannerResult* firstRestricted = nullptr, bool allowTrailingComma = true)
     {
         // parseFormalParameters only scans the parameter list of function
         // should be invoked only during the global parsing (program)
         ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
 
-        const bool previousInParameterParsing = this->context->inParameterParsing;
         this->context->inParameterParsing = true;
 
         if (firstRestricted) {
             options.firstRestricted = *firstRestricted;
         }
 
-        bool end = false;
-
         if (!this->match(RightParenthesis)) {
             options.paramSet.clear();
             while (this->startMarker.index < this->scanner->length) {
-                this->parseFormalParameter(builder, options, end);
-                if (end) {
+                this->parseFormalParameter(builder, options);
+                if (this->match(RightParenthesis)) {
                     break;
                 }
                 this->expect(Comma);
+                if (allowTrailingComma && this->match(RightParenthesis)) {
+                    break;
+                }
             }
         }
         this->expect(RightParenthesis);
+        if (UNLIKELY(options.params.size() > 65535)) {
+            this->throwError("too many parameters in function");
+        }
 
-        this->context->inParameterParsing = previousInParameterParsing;
+        this->context->inParameterParsing = false;
     }
 
     bool matchAsyncFunction()
@@ -1654,7 +1677,7 @@ public:
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
         bool isGet = false;
         bool isSet = false;
-        bool needImplictName = false;
+        bool needImplicitName = false;
         if (token->type == Token::IdentifierToken && !isAsync && lookaheadPropertyKey) {
             StringView sv = token->valueStringLiteral(this->scanner);
             const auto& d = sv.bufferAccessData();
@@ -1707,7 +1730,7 @@ public:
                 }
 
                 if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                    needImplictName = true;
+                    needImplicitName = true;
                 }
             } else if (this->match(LeftParenthesis)) {
                 valueNode = this->parsePropertyMethodFunction(builder, false, isAsync);
@@ -1757,14 +1780,14 @@ public:
             }
         }
 
-        if (!this->isParsingSingleFunction && (method || isGet || isSet || needImplictName)) {
+        if (!this->isParsingSingleFunction && (method || isGet || isSet || needImplicitName)) {
             AtomicString as;
             if (!computed && keyNode->isIdentifier()) {
                 as = keyNode->asIdentifier()->name();
             }
             this->lastPoppedScopeContext->m_functionName = as;
-            if (needImplictName) {
-                this->lastPoppedScopeContext->m_hasImplictFunctionName = true;
+            if (needImplicitName) {
+                this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
             } else {
                 this->lastPoppedScopeContext->m_isClassMethod = true;
             }
@@ -1985,6 +2008,9 @@ public:
                     break;
                 }
                 this->expectCommaSeparator();
+                if (this->match(RightParenthesis)) {
+                    break;
+                }
             }
         }
         this->expect(RightParenthesis);
@@ -3301,14 +3327,14 @@ public:
             if (initNode) {
                 type = initNode->type();
             }
-            if (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) {
+            if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
                 if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
                     this->lastPoppedScopeContext->m_functionName = name;
-                    this->lastPoppedScopeContext->m_hasImplictFunctionName = true;
+                    this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
                 }
             }
 
-            if (initNode->type() == ASTNodeType::ClassExpression) {
+            if (type == ASTNodeType::ClassExpression) {
                 initNode->asClassExpression()->tryToSetImplicitName(name);
             }
         } else if (!isIdentifier && !options.inFor) {
@@ -4153,42 +4179,49 @@ public:
 
     StatementContainer* parseFunctionParameters(NodeGenerator& builder)
     {
+        ASSERT(this->isParsingSingleFunction);
         StatementContainer* container = builder.createStatementContainer();
 
         this->expect(LeftParenthesis);
         ParseFormalParametersResult options;
-        bool end = false;
         size_t paramIndex = 0;
         MetaNode node = this->createNode();
-        while (!this->match(RightParenthesis)) {
-            Node* param = this->parseFormalParameter(builder, options, end);
 
-            switch (param->type()) {
-            case Identifier:
-            case AssignmentPattern:
-            case ArrayPattern:
-            case ObjectPattern: {
-                Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
-                Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
-                container->appendChild(statement);
-                break;
-            }
-            case RestElement: {
-                Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
-                container->appendChild(statement);
-                break;
-            }
-            default: {
-                ASSERT_NOT_REACHED();
-                break;
-            }
-            }
+        if (!this->match(RightParenthesis)) {
+            while (this->startMarker.index < this->scanner->length) {
+                Node* param = this->parseFormalParameter(builder, options);
 
-            if (end) {
-                break;
+                switch (param->type()) {
+                case Identifier:
+                case AssignmentPattern:
+                case ArrayPattern:
+                case ObjectPattern: {
+                    Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
+                    Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
+                    container->appendChild(statement);
+                    break;
+                }
+                case RestElement: {
+                    Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
+                    container->appendChild(statement);
+                    break;
+                }
+                default: {
+                    ASSERT_NOT_REACHED();
+                    break;
+                }
+                }
+
+                if (this->match(RightParenthesis)) {
+                    break;
+                }
+                this->expect(Comma);
+                if (this->match(RightParenthesis)) {
+                    break;
+                }
+
+                paramIndex++;
             }
-            paramIndex++;
-            this->expect(Comma);
         }
         this->expect(RightParenthesis);
 
@@ -4653,7 +4686,7 @@ public:
         BEGIN_FUNCTION_SCANNING(AtomicString());
 
         ParseFormalParametersResult formalParameters;
-        this->parseFormalParameters(newBuilder, formalParameters);
+        this->parseFormalParameters(newBuilder, formalParameters, nullptr, false);
         if (formalParameters.params.size() != 1) {
             this->throwError(Messages::BadSetterArity);
         } else if (formalParameters.params[0]->type() == ASTNodeType::RestElement) {

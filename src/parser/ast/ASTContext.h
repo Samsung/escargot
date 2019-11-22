@@ -173,10 +173,11 @@ struct ASTFunctionScopeContext {
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_needsToComputeLexicalBlockStuffs : 1;
-    bool m_hasImplictFunctionName : 1;
+    bool m_hasImplicitFunctionName : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
+    unsigned int m_parameterCount : 16;
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTFunctionScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;
@@ -484,10 +485,11 @@ struct ASTFunctionScopeContext {
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
         , m_needsToComputeLexicalBlockStuffs(false)
-        , m_hasImplictFunctionName(false)
+        , m_hasImplicitFunctionName(false)
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
         , m_nodeType(ASTNodeType::Program)
+        , m_parameterCount(0)
         , m_lexicalBlockIndexFunctionLocatedIn(LEXICAL_BLOCK_INDEX_MAX)
         , m_varNamesMap(nullptr)
         , m_firstChild(nullptr)

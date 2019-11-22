@@ -110,7 +110,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isGenerator(false)
     , m_isAsync(false)
     , m_needsVirtualIDOperation(false)
-    , m_hasImplictFunctionName(false)
+    , m_hasImplicitFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
@@ -150,7 +150,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isGenerator(false)
     , m_isAsync(false)
     , m_needsVirtualIDOperation(false)
-    , m_hasImplictFunctionName(false)
+    , m_hasImplicitFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
@@ -226,7 +226,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasWith = scopeCtx->m_hasWith;
     m_inWith = scopeCtx->m_inWith;
 
-    m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
+    m_hasImplicitFunctionName = scopeCtx->m_hasImplicitFunctionName;
 
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;
@@ -287,13 +287,13 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
     m_context = ctx;
     m_functionName = scopeCtx->m_functionName;
-    m_parameterCount = parameterNames.size();
+    m_parameterCount = scopeCtx->m_parameterCount;
     m_hasCallNativeFunctionCode = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
     m_inWith = scopeCtx->m_inWith;
-    m_hasImplictFunctionName = scopeCtx->m_hasImplictFunctionName;
+    m_hasImplicitFunctionName = scopeCtx->m_hasImplicitFunctionName;
     m_hasArrowParameterPlaceHolder = scopeCtx->m_hasArrowParameterPlaceHolder;
     m_hasParameterOtherThanIdentifier = scopeCtx->m_hasParameterOtherThanIdentifier;
 

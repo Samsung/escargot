@@ -69,7 +69,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
                     builder.appendString("async ");
                 }
                 builder.appendString("function ");
-                if (!fn->codeBlock()->hasImplictFunctionName()) {
+                if (!fn->codeBlock()->hasImplicitFunctionName()) {
                     builder.appendString(fn->codeBlock()->functionName().string());
                 }
             }

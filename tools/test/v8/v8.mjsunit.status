@@ -730,6 +730,7 @@
   'strict-mode': [SKIP],
   'regress/regress-1530': [SKIP],
   'regress/regress-2470': [SKIP],
+  'extra-commas': [SKIP],
 
   # Proxy
   'regress/regress-578775': [SKIP],

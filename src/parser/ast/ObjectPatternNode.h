@@ -47,11 +47,12 @@ public:
         , m_hasRestElement(false)
     {
         m_loc = loc;
-#ifndef NDEBUG
         for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
-            ASSERT(property->astNode()->isProperty());
+            ASSERT(property->astNode()->isProperty() || property->astNode()->type() == ASTNodeType::RestElement);
+            if (property->astNode()->type() == ASTNodeType::RestElement) {
+                m_hasRestElement = true;
+            }
         }
-#endif
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ObjectPattern; }
