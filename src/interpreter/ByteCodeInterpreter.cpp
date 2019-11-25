@@ -763,6 +763,17 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(BinaryExponentiation)
+            :
+        {
+            BinaryExponentiation* code = (BinaryExponentiation*)programCounter;
+            const Value& left = registerFile[code->m_srcIndex0];
+            const Value& right = registerFile[code->m_srcIndex1];
+            registerFile[code->m_dstIndex] = exponentialOperation(*state, left, right);
+            ADD_PROGRAM_COUNTER(BinaryExponentiation);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(UnaryBitwiseNot)
             :
         {
@@ -1559,6 +1570,21 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
     }
 
     return ret;
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::exponentialOperation(ExecutionState& state, const Value& left, const Value& right)
+{
+    Value ret(Value::ForceUninitialized);
+
+    double base = left.toNumber(state);
+    double exp = right.toNumber(state);
+
+    // The result of base ** exponent when base is 1 or -1 and exponent is +Infinity or -Infinity differs from IEEE 754-2008. The first edition of ECMAScript specified a result of NaN for this operation, whereas later versions of IEEE 754-2008 specified 1. The historical ECMAScript behaviour is preserved for compatibility reasons.
+    if ((base == -1 || base == 1) && (exp == std::numeric_limits<double>::infinity() || exp == -std::numeric_limits<double>::infinity())) {
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
+
+    return Value(pow(base, exp));
 }
 
 NEVER_INLINE void ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile)
