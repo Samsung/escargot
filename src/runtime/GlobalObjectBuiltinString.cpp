@@ -1149,7 +1149,7 @@ static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_
     // If fillString is undefined, let filler be a String consisting solely of the code unit 0x0020 (SPACE).
     // Else, let filler be ? ToString(fillString).
     String* filler;
-    if (argc >= 2) {
+    if (argc >= 2 && (!argv[1].isUndefined())) {
         filler = argv[1].toString(state);
     } else {
         filler = state.context()->staticStrings().asciiTable[0x20].string();
@@ -1203,7 +1203,7 @@ static Value builtinStringPadEnd(ExecutionState& state, Value thisValue, size_t 
     // If fillString is undefined, let filler be a String consisting solely of the code unit 0x0020 (SPACE).
     // Else, let filler be ? ToString(fillString).
     String* filler;
-    if (argc >= 2) {
+    if (argc >= 2 && (!argv[1].isUndefined())) {
         filler = argv[1].toString(state);
     } else {
         filler = state.context()->staticStrings().asciiTable[0x20].string();
@@ -1515,10 +1515,10 @@ void GlobalObject::installString(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringTrim, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->padStart),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringPadStart, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->padStart, builtinStringPadStart, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->padEnd),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringPadEnd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->padEnd, builtinStringPadEnd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FunctionObject* trimStart = new NativeFunctionObject(state, NativeFunctionInfo(strings->trimStart, builtinStringTrimStart, 0, NativeFunctionInfo::Strict));
     FunctionObject* trimEnd = new NativeFunctionObject(state, NativeFunctionInfo(strings->trimEnd, builtinStringTrimEnd, 0, NativeFunctionInfo::Strict));

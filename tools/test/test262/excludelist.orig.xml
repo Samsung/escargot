@@ -2413,10 +2413,6 @@
     <test id="built-ins/String/prototype/matchAll/regexp-prototype-matchAll-throws"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/matchAll/this-val-non-obj-coercible"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/matchAll/toString-this-val"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/padEnd/fill-string-omitted"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/padEnd/function-name"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/padStart/fill-string-omitted"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/padStart/function-name"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/search/cstm-search-invocation"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/split/cstm-split-invocation"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/Symbol.iterator/prop-desc"><reason>TODO</reason></test>
