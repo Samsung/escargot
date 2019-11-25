@@ -1063,11 +1063,20 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         break;
 
     case '*':
+        ch = this->peekChar();
         kind = Multiply;
 
-        if (this->peekChar() == '=') {
+        if (ch == '=') {
             kind = MultiplyEqual;
             ++this->index;
+        } else if (ch == '*') {
+            kind = Exponentiation;
+            ++this->index;
+
+            if (this->peekChar() == '=') {
+                kind = ExponentiationEqual;
+                ++this->index;
+            }
         }
         break;
 

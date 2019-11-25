@@ -48,6 +48,7 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryMinus, 1, 2)                                    \
     F(BinaryMultiply, 1, 2)                                 \
     F(BinaryDivision, 1, 2)                                 \
+    F(BinaryExponentiation, 1, 2)                           \
     F(BinaryMod, 1, 2)                                      \
     F(BinaryEqual, 1, 2)                                    \
     F(BinaryLessThan, 1, 2)                                 \
@@ -627,27 +628,28 @@ public:
         DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                                                           \
     };
 
-DEFINE_BINARY_OPERATION(Plus, "plus");
-DEFINE_BINARY_OPERATION(Minus, "minus");
-DEFINE_BINARY_OPERATION(Multiply, "multiply");
-DEFINE_BINARY_OPERATION(Division, "division");
-DEFINE_BINARY_OPERATION(Mod, "mod");
-DEFINE_BINARY_OPERATION(Equal, "equal");
-DEFINE_BINARY_OPERATION(NotEqual, "notequal");
-DEFINE_BINARY_OPERATION(LessThan, "lessthan");
-DEFINE_BINARY_OPERATION(LessThanOrEqual, "lessthan or equal");
-DEFINE_BINARY_OPERATION(GreaterThan, "greaterthan");
-DEFINE_BINARY_OPERATION(GreaterThanOrEqual, "greaterthan or equal");
-DEFINE_BINARY_OPERATION(StrictEqual, "strict equal");
-DEFINE_BINARY_OPERATION(NotStrictEqual, "not strict equal");
 DEFINE_BINARY_OPERATION(BitwiseAnd, "bitwise and");
 DEFINE_BINARY_OPERATION(BitwiseOr, "bitwise or");
 DEFINE_BINARY_OPERATION(BitwiseXor, "bitwise Xor");
-DEFINE_BINARY_OPERATION(LeftShift, "left shift");
-DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
-DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
+DEFINE_BINARY_OPERATION(Division, "division");
+DEFINE_BINARY_OPERATION(Equal, "equal");
+DEFINE_BINARY_OPERATION(Exponentiation, "exponentiation operation");
+DEFINE_BINARY_OPERATION(GreaterThan, "greaterthan");
+DEFINE_BINARY_OPERATION(GreaterThanOrEqual, "greaterthan or equal");
 DEFINE_BINARY_OPERATION(InOperation, "in operation");
 DEFINE_BINARY_OPERATION(InstanceOfOperation, "instance of");
+DEFINE_BINARY_OPERATION(LeftShift, "left shift");
+DEFINE_BINARY_OPERATION(LessThan, "lessthan");
+DEFINE_BINARY_OPERATION(LessThanOrEqual, "lessthan or equal");
+DEFINE_BINARY_OPERATION(Minus, "minus");
+DEFINE_BINARY_OPERATION(Mod, "mod");
+DEFINE_BINARY_OPERATION(Multiply, "multiply");
+DEFINE_BINARY_OPERATION(NotEqual, "notequal");
+DEFINE_BINARY_OPERATION(NotStrictEqual, "not strict equal");
+DEFINE_BINARY_OPERATION(Plus, "plus");
+DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
+DEFINE_BINARY_OPERATION(StrictEqual, "strict equal");
+DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
 
 
 class CreateObject : public ByteCode {

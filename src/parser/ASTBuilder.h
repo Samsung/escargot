@@ -31,6 +31,7 @@ namespace Escargot {
     F(AssignmentExpressionBitwiseOr)          \
     F(AssignmentExpressionBitwiseXor)         \
     F(AssignmentExpressionDivision)           \
+    F(AssignmentExpressionExponentiation)     \
     F(AssignmentExpressionLeftShift)          \
     F(AssignmentExpressionMinus)              \
     F(AssignmentExpressionMod)                \
@@ -45,6 +46,7 @@ namespace Escargot {
     F(BinaryExpressionBitwiseXor)             \
     F(BinaryExpressionDivision)               \
     F(BinaryExpressionEqual)                  \
+    F(BinaryExpressionExponentiation)         \
     F(BinaryExpressionGreaterThan)            \
     F(BinaryExpressionGreaterThanOrEqual)     \
     F(BinaryExpressionIn)                     \
@@ -199,6 +201,11 @@ public:
     ALWAYS_INLINE bool isAssignmentOperation()
     {
         return m_nodeType >= ASTNodeType::AssignmentExpression && m_nodeType <= ASTNodeType::AssignmentExpressionSimple;
+    }
+
+    ALWAYS_INLINE bool isUnaryOperation()
+    {
+        return m_nodeType >= ASTNodeType::UnaryExpressionBitwiseNot && m_nodeType <= ASTNodeType::UnaryExpressionVoid;
     }
 
     ALWAYS_INLINE bool isIdentifier()

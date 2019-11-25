@@ -2400,16 +2400,15 @@ public:
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
         ASTNode expr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-        // TODO
-        /*
-         if (expr->type != Syntax.UnaryExpression && this->match('**')) {
-             this->nextToken();
-             this->context->isAssignmentTarget = false;
-             this->context->isBindingElement = false;
-             const left = expr;
-             const right = this->isolateCoverGrammar(this->parseExponentiationExpression);
-             expr = this->finalize(this->startNode(startToken), new Node.BinaryExpression('**', left, right));
-         }*/
+
+        if (!expr->isUnaryOperation() && this->match(Exponentiation)) {
+            this->nextToken();
+            this->context->isAssignmentTarget = false;
+            this->context->isBindingElement = false;
+            ASTNode left = expr;
+            ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseExponentiationExpression<ASTBuilder>);
+            expr = this->finalize(this->startNode(startToken), builder.createBinaryExpressionExponentiationNode(left, right));
+        }
 
         return expr;
     }
@@ -2911,6 +2910,9 @@ public:
                         break;
                     case BitwiseOrEqual:
                         exprResult = builder.createAssignmentExpressionBitwiseOrNode(exprNode, rightNode);
+                        break;
+                    case ExponentiationEqual:
+                        exprResult = builder.createAssignmentExpressionExponentiationNode(exprNode, rightNode);
                         break;
                     default:
                         RELEASE_ASSERT_NOT_REACHED();

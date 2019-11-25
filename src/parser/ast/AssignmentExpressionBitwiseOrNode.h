@@ -21,7 +21,6 @@
 #define AssignmentExpressionBitwiseOrNode_h
 
 #include "ExpressionNode.h"
-#include "IdentifierNode.h"
 #include "AssignmentExpressionSimpleNode.h"
 
 namespace Escargot {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2019-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
  *  USA
  */
 
-#ifndef AssignmentExpressionMinusNode_h
-#define AssignmentExpressionMinusNode_h
+#ifndef AssignmentExpressionExponentiationNode_h
+#define AssignmentExpressionExponentiationNode_h
 
 #include "ExpressionNode.h"
 #include "AssignmentExpressionSimpleNode.h"
@@ -26,16 +26,16 @@
 namespace Escargot {
 
 // An assignment operator expression.
-class AssignmentExpressionMinusNode : public ExpressionNode {
+class AssignmentExpressionExponentiationNode : public ExpressionNode {
 public:
-    AssignmentExpressionMinusNode(Node* left, Node* right)
+    AssignmentExpressionExponentiationNode(Node* left, Node* right)
         : ExpressionNode()
         , m_left(left)
         , m_right(right)
     {
     }
 
-    virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionMinus; }
+    virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionExponentiation; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         bool slowMode = AssignmentExpressionSimpleNode::isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
@@ -52,7 +52,7 @@ public:
         m_right->generateExpressionByteCode(codeBlock, context, src1);
         context->giveUpRegister();
         context->giveUpRegister();
-        codeBlock->pushCode(BinaryMinus(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+        codeBlock->pushCode(BinaryExponentiation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
         m_left->generateStoreByteCode(codeBlock, context, dstRegister, false);
 
         if (slowMode) {

@@ -81,6 +81,7 @@ public:
 
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
+    static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right);
     static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);

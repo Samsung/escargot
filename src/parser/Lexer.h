@@ -60,6 +60,7 @@ enum PunctuatorKind : uint8_t {
     Plus,
     Minus,
     Multiply,
+    Exponentiation,
     Divide,
     Mod,
     ExclamationMark,
@@ -94,6 +95,7 @@ enum PunctuatorKind : uint8_t {
     BitwiseXorEqual,
     LeftInequalityEqual,
     RightInequalityEqual,
+    ExponentiationEqual,
     SubstitutionEnd,
 
     Arrow,
