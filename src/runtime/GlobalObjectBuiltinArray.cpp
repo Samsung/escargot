@@ -1203,18 +1203,17 @@ static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t
     }
 
     ASSERT(doubleK >= 0);
-    int64_t k = doubleK;
 
     // Repeat, while k < len
-    while (k < len) {
+    while (doubleK < len) {
         // Let elementK be the result of ? Get(O, ! ToString(k)).
-        Value elementK = O->get(state, ObjectPropertyName(state, Value(k))).value(state, O);
+        Value elementK = O->get(state, ObjectPropertyName(state, Value(doubleK))).value(state, O);
         // If SameValueZero(searchElement, elementK) is true, return true.
         if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
             return Value(true);
         }
         // Increase k by 1.
-        k++;
+        doubleK++;
     }
 
     // Return false.
@@ -1864,7 +1863,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fill),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayFill, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().includes),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().includes, builtinArrayIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().filter),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().filter, builtinArrayFilter, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reduce),
@@ -1907,6 +1906,7 @@ void GlobalObject::installArray(ExecutionState& state)
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().findIndex), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().includes), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
 
 
     FunctionObject* values = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, NativeFunctionInfo::Strict));
