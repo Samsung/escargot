@@ -112,6 +112,26 @@ public:
 
                 element->generateExpressionByteCode(codeBlock, context, elementIndex);
 
+
+                size_t cmpIndex = context->getRegister();
+                LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
+                size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
+                undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
+                codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), elementIndex, undefinedIndex, cmpIndex), context, this);
+                codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
+                size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
+                context->giveUpRegister(); // for drop undefinedIndex
+
+                LiteralNode* nullNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value(Value::Null));
+                size_t nullIndex = nullNode->getRegister(codeBlock, context);
+                nullNode->generateExpressionByteCode(codeBlock, context, nullIndex);
+                codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), elementIndex, nullIndex, cmpIndex), context, this);
+                codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
+                size_t pos2 = codeBlock->lastCodePosition<JumpIfFalse>();
+                context->giveUpRegister(); // for drop nullIndex
+                context->giveUpRegister(); // for drop cmpIndex
+
+
                 codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), elementIndex, dataIndex, true), context, this);
 
                 size_t checkPos = codeBlock->currentCodeSize();
@@ -131,6 +151,9 @@ public:
                 context->giveUpRegister();
                 context->giveUpRegister();
                 context->giveUpRegister();
+
+                codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
+                codeBlock->peekCode<JumpIfTrue>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
             }
 
             codeBlock->m_shouldClearStack = true;

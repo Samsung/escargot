@@ -10,9 +10,6 @@ output.js
 *.d
 *.js
 *.swp
-!test/es2015/*.js
-!test/regression-tests/*.js
-!test/regression-tests/xfail/*.js
 *.pyc
 tags
 cscope.out
@@ -26,7 +23,6 @@ build.ninja
 rules.ninja
 .ninja_deps
 .ninja_log
-#test/test262/test/config/excludelist.xml
 android/obj
 android/libs
 tools/vendortest/chakracore/chakracorelog.verbose.txt
