@@ -1449,12 +1449,7 @@ public:
     {
         MetaNode node = this->createNode();
         this->expect(PunctuatorKind::PeriodPeriodPeriod);
-
         ASTNode arg = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, checkLeftHasRestrictedWord>);
-        if (arg->isAssignmentOperation()) {
-            this->throwError(Messages::DefaultRestParameter);
-        }
-
         return this->finalize(node, builder.createSpreadElementNode(arg));
     }
 
