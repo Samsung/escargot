@@ -22,7 +22,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "MapObject.h"
-#include "IteratorOperations.h"
+#include "IteratorObject.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
@@ -39,47 +39,37 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
     MapObject* map = new MapObject(state);
     // If iterable is not present, let iterable be undefined.
     Value iterable;
-    if (argc >= 1) {
+    if (argc > 0) {
         iterable = argv[0];
     }
-    // If iterable is either undefined or null, let iter be undefined.
-    Value adder;
-    Value iter;
-    if (!iterable.isUndefinedOrNull()) {
-        // Else,
-        // Let adder be ? Get(map, "set").
-        adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
-        // If IsCallable(adder) is false, throw a TypeError exception.
-        if (!adder.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
-        }
-        // Let iter be ? GetIterator(iterable).
-        iter = getIterator(state, iterable);
-    }
-    // If iter is undefined, return map.
-    if (iter.isUndefined()) {
+
+    // If iterable is not present, or is either undefined or null, return map.
+    if (iterable.isUndefinedOrNull()) {
         return map;
     }
 
-    // Repeat
+    // Let adder be ? Get(map, "set").
+    Value adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
+    // If IsCallable(adder) is false, throw a TypeError exception.
+    if (!adder.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+    }
+
+    // Let iteratorRecord be ? GetIterator(iterable).
+    Value iteratorRecord = IteratorObject::getIterator(state, iterable);
     while (true) {
-        // Let next be ? IteratorStep(iter).
-        Value next = iteratorStep(state, iter);
-        // If next is false(done is true), return map.
+        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
         if (next.isFalse()) {
             return map;
         }
-        // Let nextItem be ? IteratorValue(next).
-        Value nextItem = iteratorValue(state, next);
+
+        Value nextItem = IteratorObject::iteratorValue(state, next);
+        if (!nextItem.isObject()) {
+            TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
+            return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
+        }
 
         try {
-            // If Type(nextItem) is not Object, then
-            if (!nextItem.isObject()) {
-                // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
-                // Return ? IteratorClose(iter, error).
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator value a is not an entry object");
-            }
-
             // Let k be Get(nextItem, "0").
             // If k is an abrupt completion, return ? IteratorClose(iter, k).
             Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
@@ -93,10 +83,11 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
         } catch (const Value& v) {
             // we should save thrown value bdwgc cannot track thrown value
             Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iter, status).
-            iteratorClose(state, iter, exceptionValue, true);
+            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
+            return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
         }
     }
+
     return map;
 }
 

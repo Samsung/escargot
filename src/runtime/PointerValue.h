@@ -56,6 +56,7 @@ class SetObject;
 class WeakMapObject;
 class WeakSetObject;
 class GeneratorObject;
+class IteratorRecord;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
@@ -325,6 +326,11 @@ public:
         return false;
     }
 
+    virtual bool isIteratorRecord() const
+    {
+        return false;
+    }
+
     virtual bool isGeneratorObject() const
     {
         return false;
@@ -541,6 +547,12 @@ public:
     {
         ASSERT(isGeneratorObject());
         return (GeneratorObject*)this;
+    }
+
+    IteratorRecord* asIteratorRecord()
+    {
+        ASSERT(isIteratorRecord());
+        return (IteratorRecord*)this;
     }
 
     bool hasTag(const size_t tag) const

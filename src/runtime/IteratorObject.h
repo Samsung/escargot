@@ -28,6 +28,44 @@ class ArrayIteratorObject;
 class StringIteratorObject;
 class MapIteratorObject;
 class SetIteratorObject;
+class IteratorObject;
+
+class IteratorRecord : public PointerValue {
+    friend class IteratorObject;
+
+public:
+    explicit IteratorRecord(const Value& iterator, const Value& nextMethod, const bool done)
+        : m_iterator(iterator)
+        , m_nextMethod(nextMethod)
+        , m_done(done)
+    {
+    }
+
+    virtual bool isIteratorRecord() const
+    {
+        return true;
+    }
+
+    bool done() const
+    {
+        return m_done;
+    }
+
+    Value iterator() const
+    {
+        return m_iterator;
+    }
+
+    void setDone(bool done)
+    {
+        m_done = done;
+    }
+
+private:
+    SmallValue m_iterator;
+    SmallValue m_nextMethod;
+    bool m_done;
+};
 
 class IteratorObject : public Object {
 public:
@@ -73,6 +111,18 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
+
+    static Value getIterator(ExecutionState& state, const Value& obj, const bool sync = true, const Value& func = Value(Value::EmptyValue));
+    static Value iteratorNext(ExecutionState& state, const Value& iteratorRecord, const Value& value = Value(Value::EmptyValue));
+    static bool iteratorComplete(ExecutionState& state, const Value& iterResult);
+    static Value iteratorValue(ExecutionState& state, const Value& iterResult);
+    static Value iteratorStep(ExecutionState& state, const Value& iteratorRecord);
+    static Value iteratorClose(ExecutionState& state, const Value& iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
+    static Value createIterResultObject(ExecutionState& state, const Value& value, bool done);
+
+    // TODO
+    static Value createListIteratorRecord(ExecutionState& state, const Value& list);
+    // static Value asyncIteratorClose(ExecutionState& state, const Value& iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
 
 protected:
 };

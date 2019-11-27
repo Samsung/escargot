@@ -22,7 +22,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "ArrayObject.h"
-#include "IteratorOperations.h"
+#include "IteratorObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "ToStringRecursionPreventer.h"
 #include "ErrorObject.h"
@@ -205,10 +205,9 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     }
 
     // Let usingIterator be ? GetMethod(items, @@iterator).
-    items = items.toObject(state);
-    Value usingIterator = items.asObject()->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator)).value(state, items);
+    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
     // If usingIterator is not undefined, then
-    if (!usingIterator.isUndefinedOrNull()) {
+    if (!usingIterator.isUndefined()) {
         Object* A;
         // If IsConstructor(C) is true, then
         if (C.isConstructor()) {
@@ -218,8 +217,8 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             // Let A be ArrayCreate(0).
             A = new ArrayObject(state);
         }
-        // Let iterator be ? GetIterator(items, usingIterator).
-        Value iterator = getIterator(state, items, usingIterator);
+        // Let iteratorRecord be ? GetIterator(items, sync, usingIterator).
+        Value iteratorRecord = IteratorObject::getIterator(state, items, true, usingIterator);
 
         // Let k be 0.
         int64_t k = 0;
@@ -227,14 +226,15 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         while (true) {
             // If k ≥ 2^53-1, then
             if (k >= ((1LL << 53LL) - 1LL)) {
-                // Let error be Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}.
-                // Return ? IteratorClose(iterator, error).
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Got invalid index");
+                // Let error be ThrowCompletion(a newly created TypeError object).
+                // Return ? IteratorClose(iteratorRecord, error).
+                Value throwCompletion = new TypeErrorObject(state, new ASCIIString("Got invalid index"));
+                return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
             }
             // Let Pk be ! ToString(k).
             ObjectPropertyName pk(state, k);
-            // Let next be ? IteratorStep(iterator).
-            Value next = iteratorStep(state, iterator);
+            // Let next be ? IteratorStep(iteratorRecord).
+            Value next = IteratorObject::iteratorStep(state, iteratorRecord);
             // If next is false, then
             if (next.isFalse()) {
                 // Perform ? Set(A, "length", k, true).
@@ -243,29 +243,31 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
                 return A;
             }
             // Let nextValue be ? IteratorValue(next).
-            Value nextValue = iteratorValue(state, next);
+            Value nextValue = IteratorObject::iteratorValue(state, next);
             Value mappedValue;
             // If mapping is true, then
             if (mapping) {
                 // Let mappedValue be Call(mapfn, T, « nextValue, k »).
-                // If mappedValue is an abrupt completion, return ? IteratorClose(iterator, mappedValue).
-                // Let mappedValue be mappedValue.[[Value]].
+                // If mappedValue is an abrupt completion, return ? IteratorClose(iteratorRecord, mappedValue).
+                // Set mappedValue to mappedValue.[[Value]].
                 Value argv[] = { nextValue, Value(k) };
                 try {
                     mappedValue = Object::call(state, mapfn, T, 2, argv);
                 } catch (const Value& v) {
                     Value exceptionValue = v;
-                    return iteratorClose(state, iterator, exceptionValue, true);
+                    return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
                 }
             } else {
                 mappedValue = nextValue;
             }
+
             try {
                 // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
                 A->defineOwnPropertyThrowsException(state, pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
             } catch (const Value& v) {
+                // If defineStatus is an abrupt completion, return ? IteratorClose(iteratorRecord, defineStatus).
                 Value exceptionValue = v;
-                return iteratorClose(state, iterator, exceptionValue, true);
+                return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
             }
             // Increase k by 1.
             k++;
@@ -295,7 +297,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         // Let Pk be ! ToString(k).
         ObjectPropertyName Pk(state, k);
         // Let kValue be ? Get(arrayLike, Pk).
-        Value kValue = arrayLike->get(state, Pk).value(state, arrayLike);
+        Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
         // If mapping is true, then
         Value mappedValue;
         if (mapping) {

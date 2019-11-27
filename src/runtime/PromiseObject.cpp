@@ -27,7 +27,6 @@
 #include "runtime/JobQueue.h"
 #include "runtime/SandBox.h"
 #include "runtime/NativeFunctionObject.h"
-#include "runtime/IteratorOperations.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {

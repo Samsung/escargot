@@ -23,12 +23,12 @@
 #include "VMInstance.h"
 #include "WeakSetObject.h"
 #include "IteratorObject.h"
-#include "IteratorOperations.h"
 #include "NativeFunctionObject.h"
 #include "ToStringRecursionPreventer.h"
 
 namespace Escargot {
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-weakset-constructor
 Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -42,48 +42,45 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
 
     // If iterable is not present, let iterable be undefined.
     Value iterable;
-    if (argc >= 1) {
+    if (argc > 0) {
         iterable = argv[0];
     }
-    // If iterable is either undefined or null, let iter be undefined.
-    Value adder;
-    Value iter;
-    if (!iterable.isUndefinedOrNull()) {
-        // Else,
-        // Let adder be ? Get(set, "add").
-        adder = set->Object::get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
-        // If IsCallable(adder) is false, throw a TypeError exception.
-        if (!adder.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
-        }
-        // Let iter be ? GetIterator(iterable).
-        iter = getIterator(state, iterable);
-    }
-    // If iter is undefined, return Set.
-    if (iter.isUndefined()) {
+
+    // If iterable is either undefined or null, return set.
+    if (iterable.isUndefinedOrNull()) {
         return set;
     }
 
+    // Let adder be ? Get(set, "add").
+    Value adder = set->get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
+    // If IsCallable(adder) is false, throw a TypeError exception.
+    if (!adder.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+    }
+
+    // Let iteratorRecord be ? GetIterator(iterable).
+    Value iteratorRecord = IteratorObject::getIterator(state, iterable);
+
     // Repeat
     while (true) {
-        // Let next be ? IteratorStep(iter).
-        Value next = iteratorStep(state, iter);
+        // Let next be ? IteratorStep(iteratorRecord).
+        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
         // If next is false, return set.
         if (next.isFalse()) {
             return set;
         }
         // Let nextValue be ? IteratorValue(next).
-        Value nextValue = iteratorValue(state, next);
+        Value nextValue = IteratorObject::iteratorValue(state, next);
 
-        // Let status be Call(adder, set, « nextValue.[[Value]] »).
+        // Let status be Call(adder, set, « nextValue »).
         try {
             Value argv[1] = { nextValue };
             Object::call(state, adder, set, 1, argv);
         } catch (const Value& v) {
             // we should save thrown value bdwgc cannot track thrown value
             Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iter, status).
-            iteratorClose(state, iter, exceptionValue, true);
+            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
+            return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
         }
     }
     return set;
