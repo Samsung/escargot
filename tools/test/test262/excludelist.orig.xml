@@ -674,8 +674,6 @@
     <test id="built-ins/Array/prototype/flat/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/flat/proxy-access-count"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/flat/symbol-object-create-null-depth-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/includes/fromIndex-infinity"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/includes/name"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/map/create-proto-from-ctor-realm-array"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/map/create-proto-from-ctor-realm-non-array"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/pop/clamps-to-integer-limit"><reason>TODO</reason></test>
