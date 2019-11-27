@@ -23,7 +23,7 @@
 #include "VMInstance.h"
 #include "ArrayObject.h"
 #include "NativeFunctionObject.h"
-#include "IteratorOperations.h"
+#include "IteratorObject.h"
 
 namespace Escargot {
 
@@ -336,20 +336,20 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
     Value iterable = argv[0];
     Object* obj = new Object(state);
 
-    Value iterableRecord = getIterator(state, iterable);
+    Value iteratorRecord = IteratorObject::getIterator(state, iterable);
     while (true) {
-        Value next = iteratorStep(state, iterableRecord);
+        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
         if (next.isFalse()) {
             return obj;
         }
 
-        Value nextItem = iteratorValue(state, next);
-        try {
-            if (!nextItem.isObject()) {
-                TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
-                return iteratorClose(state, iterableRecord, errorobj, true);
-            }
+        Value nextItem = IteratorObject::iteratorValue(state, next);
+        if (!nextItem.isObject()) {
+            TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
+            return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
+        }
 
+        try {
             // Let k be Get(nextItem, "0").
             // If k is an abrupt completion, return ? IteratorClose(iter, k).
             Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
@@ -363,11 +363,10 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
         } catch (const Value& v) {
             // we should save thrown value bdwgc cannot track thrown value
             Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iter, status).
-            iteratorClose(state, iterableRecord, exceptionValue, true);
+            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
+            return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
         }
     }
-
 
     return obj;
 }

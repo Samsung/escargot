@@ -23,7 +23,6 @@
 #include "VMInstance.h"
 #include "TypedArrayObject.h"
 #include "IteratorObject.h"
-#include "IteratorOperations.h"
 #include "NativeFunctionObject.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
@@ -109,113 +108,13 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
     return Value(false);
 }
 
-static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, const Value& items, const Value& mapfn, const Value& thisArg)
+static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value& O, String* func)
 {
-    // Let C be constructor.
-    Value C = constructor;
-    // Assert: IsConstructor(C) is true.
-    ASSERT(C.isConstructor());
-    // Assert: mapfn is either a callable Object or undefined.
-    ASSERT(mapfn.isUndefined() || mapfn.isCallable());
-
-    // If mapfn is undefined, let mapping be false.
-    bool mapping = false;
-    // Else
-    // Let T be thisArg.
-    // Let mapping be true
-    Value T;
-    if (!mapfn.isUndefined()) {
-        T = thisArg;
-        mapping = true;
-    }
-    // Let usingIterator be GetMethod(items, @@iterator).
-    Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
-
-    // If usingIterator is not undefined, then
-    if (!usingIterator.isUndefined()) {
-        // Let iterator be GetIterator(items, usingIterator).
-        Value iterator = getIterator(state, items, usingIterator);
-        // Let values be a new empty List.
-        ValueVectorWithInlineStorage values;
-        // Let next be true.
-        Value next(Value::True);
-        // Repeat, while next is not false
-        while (!next.isFalse()) {
-            // Let next be IteratorStep(iterator).
-            next = iteratorStep(state, iterator);
-            // If next is not false, then
-            if (!next.isFalse()) {
-                // Let nextValue be IteratorValue(next).
-                Value nextValue = iteratorValue(state, next);
-                // Append nextValue to the end of the List values.
-                values.push_back(nextValue);
-            }
-        }
-        // Let len be the number of elements in values.
-        size_t len = values.size();
-
-        // FIXME Let targetObj be AllocateTypedArray(C, len).
-        Value arg[1] = { Value(len) };
-        Value targetObj = Object::construct(state, C, 1, arg);
-
-        // Let k be 0.
-        size_t k = 0;
-        // Repeat, while k < len
-        while (k < len) {
-            // Let Pk be ToString(k).
-            // Let kValue be the first element of values and remove that element from values.
-            Value kValue = values[k];
-            Value mappedValue = kValue;
-            // If mapping is true, then
-            if (mapping) {
-                // Let mappedValue be Call(mapfn, T, «kValue, k»).
-                Value args[2] = { kValue, Value(k) };
-                mappedValue = Object::call(state, mapfn, T, 2, args);
-            }
-            // Let setStatus be Set(targetObj, Pk, mappedValue, true).
-            targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
-            // Increase k by 1.
-            k++;
-        }
-        // Return targetObj.
-        return targetObj;
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotObject);
     }
 
-    // Let arrayLike be ToObject(items).
-    Object* arrayLike = items.toObject(state);
-    // Let len be ToLength(Get(arrayLike, "length")).
-    size_t len = arrayLike->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, arrayLike).toLength(state);
-
-    // FIXME Let targetObj be AllocateTypedArray(C, len).
-    Value arg[1] = { Value(len) };
-    Value targetObj = Object::construct(state, C, 1, arg);
-
-    // Let k be 0.
-    size_t k = 0;
-    // Repeat, while k < len
-    while (k < len) {
-        // Let Pk be ToString(k).
-        // Let kValue be Get(arrayLike, Pk).
-        Value kValue = arrayLike->get(state, ObjectPropertyName(state, Value(k))).value(state, arrayLike);
-        Value mappedValue = kValue;
-        // If mapping is true, then
-        if (mapping) {
-            // Let mappedValue be Call(mapfn, T, «kValue, k»).
-            Value args[2] = { kValue, Value(k) };
-            mappedValue = Object::call(state, mapfn, T, 2, args);
-        }
-        // Let setStatus be Set(targetObj, Pk, mappedValue, true).
-        targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
-        // Increase k by 1.
-        k++;
-    }
-    // Return targetObj.
-    return targetObj;
-}
-
-static ArrayBufferObject* validateTypedArray(ExecutionState& state, Object* thisObject, String* func)
-{
-    const StaticStrings* strings = &state.context()->staticStrings();
+    Object* thisObject = O.asObject();
     if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_ThisNotTypedArrayObject);
     }
@@ -261,7 +160,25 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-%typedarray%.from
+// https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
+static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, const Value& method)
+{
+    Value iteratorRecord = IteratorObject::getIterator(state, items, true, method);
+    ValueVectorWithInlineStorage values;
+    Value next(Value::True);
+
+    while (!next.isFalse()) {
+        next = IteratorObject::iteratorStep(state, iteratorRecord);
+        if (!next.isFalse()) {
+            Value nextValue = IteratorObject::iteratorValue(state, next);
+            values.pushBack(nextValue);
+        }
+    }
+
+    return values;
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.from
 static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Value C = thisValue;
@@ -271,22 +188,69 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotConstructor);
     }
 
-    Value f;
+    Value mapfn;
     if (argc > 1) {
-        f = argv[1];
+        mapfn = argv[1];
+    }
+    Value T;
+    if (argc > 2) {
+        T = argv[2];
     }
 
-    if (!f.isUndefined()) {
-        if (!f.isObject() || !f.asObject()->isCallable()) {
+    bool mapping = false;
+    if (!mapfn.isUndefined()) {
+        if (!mapfn.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "mapfn is not callable");
         }
+        mapping = true;
     }
 
-    Value t;
-    if (argc > 2) {
-        t = argv[2];
+    Value usingIterator = Object::getMethod(state, source, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+    if (!usingIterator.isUndefined()) {
+        ValueVectorWithInlineStorage values = iterableToList(state, source, usingIterator);
+        uint64_t len = values.size();
+        // TODO Let targetObj be ? TypedArrayCreate(C, « len »).
+        Value arg[1] = { Value(len) };
+        Value targetObj = Object::construct(state, C, 1, arg);
+        validateTypedArray(state, targetObj, state.context()->staticStrings().from.string());
+
+        uint64_t k = 0;
+        while (k < len) {
+            Value mappedValue = values[k];
+            if (mapping) {
+                Value args[2] = { values[k], Value(k) };
+                mappedValue = Object::call(state, mapfn, T, 2, args);
+            }
+            targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+            k++;
+        }
+
+        return targetObj;
     }
-    return TypedArrayFrom(state, C, source, f, t);
+
+    Object* arrayLike = source.toObject(state);
+    uint64_t len = arrayLike->lengthES6(state);
+
+    // TODO Let targetObj be ? TypedArrayCreate(C, « len »).
+    Value arg[1] = { Value(len) };
+    Value targetObj = Object::construct(state, C, 1, arg);
+    validateTypedArray(state, targetObj, state.context()->staticStrings().from.string());
+
+    uint64_t k = 0;
+    while (k < len) {
+        Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
+        Value mappedValue = kValue;
+        if (mapping) {
+            // Let mappedValue be Call(mapfn, T, «kValue, k»).
+            Value args[2] = { kValue, Value(k) };
+            mappedValue = Object::call(state, mapfn, T, 2, args);
+        }
+        // Let setStatus be Set(targetObj, Pk, mappedValue, true).
+        targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+        k++;
+    }
+
+    return targetObj;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-%typedarray%.of
@@ -469,23 +433,64 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             // Set O’s [[ArrayLength]] internal slot to elementLength.
             obj->setBuffer(data, 0, byteLength, elementLength);
         } else if (val.isObject()) {
-            // TODO implement 22.2.1.4
+            // https://www.ecma-international.org/ecma-262/10.0/#sec-typedarray-object
             Object* inputObj = val.asObject();
-            uint64_t length = inputObj->lengthES6(state);
-            ASSERT(length >= 0);
+            // Let usingIterator be ? GetMethod(object, @@iterator).
+            Value usingIterator = Object::getMethod(state, inputObj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+            // If usingIterator is not undefined, then
+            if (!usingIterator.isUndefined()) {
+                // Let values be ? IterableToList(object, usingIterator).
+                ValueVectorWithInlineStorage values = iterableToList(state, inputObj, usingIterator);
+                // Let len be the number of elements in values.
+                uint64_t len = values.size();
+                // Perform ? AllocateTypedArrayBuffer(O, len).
+                unsigned elementSize = obj->elementSize();
+                uint64_t bufferSize = len * elementSize;
+                ArrayBufferObject* buffer = new ArrayBufferObject(state);
+                buffer->allocateBuffer(state, bufferSize);
+                obj->setBuffer(buffer, 0, len * elementSize, len);
+
+                // Let k be 0.
+                uint64_t k = 0;
+                // Repeat, while k < len
+                while (k < len) {
+                    // Let Pk be ! ToString(k).
+                    // Let kValue be the first element of values and remove that element from values.
+                    // Perform ? Set(O, Pk, kValue, true).
+                    obj->setIndexedPropertyThrowsException(state, Value(k), values[k]);
+
+                    // Increase k by 1.
+                    k++;
+                }
+                return obj;
+            }
+            // Let arrayLike be object.
+            Object* arrayLike = inputObj;
+            // Let len be ? ToLength(? Get(arrayLike, "length")).
+            uint64_t len = arrayLike->lengthES6(state);
+            // Perform ? AllocateTypedArrayBuffer(O, len).
             unsigned elementSize = obj->elementSize();
-            uint64_t bufferSize = length * elementSize;
+            uint64_t bufferSize = len * elementSize;
             if (bufferSize > ArrayBufferObject::maxArrayBufferSize) {
-                // 6.2.6.1.2
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferSize);
             }
+
             ArrayBufferObject* buffer = new ArrayBufferObject(state);
             buffer->allocateBuffer(state, bufferSize);
-            obj->setBuffer(buffer, 0, length * elementSize, length);
-            for (uint64_t i = 0; i < length; i++) {
-                ObjectPropertyName pK(state, Value(i));
-                obj->setThrowsException(state, pK, inputObj->get(state, pK).value(state, inputObj), obj);
+            obj->setBuffer(buffer, 0, len * elementSize, len);
+
+            // Let k be 0.
+            uint64_t k = 0;
+            // Repeat, while k < len
+            while (k < len) {
+                // Let Pk be ! ToString(k).
+                // Let kValue be ? Get(arrayLike, Pk).
+                // Perform ? Set(O, Pk, kValue, true).
+                obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike));
+                // Increase k by 1.
+                k++;
             }
+
         } else {
             state.throwException(new ASCIIString(errorMessage_NotImplemented));
             RELEASE_ASSERT_NOT_REACHED();

@@ -22,7 +22,7 @@
 #include "runtime/GeneratorObject.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
-#include "runtime/IteratorOperations.h"
+#include "runtime/IteratorObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
@@ -121,7 +121,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         // normal return means generator end
         if (from == StartFrom::Generator) {
             source->asGeneratorObject()->m_generatorState = GeneratorState::CompletedReturn;
-            result = createIterResultObject(state, result, true);
+            result = IteratorObject::createIterResultObject(state, result, true);
         }
         self->release();
     } catch (PauseValue* exitValue) {
@@ -135,9 +135,9 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 
         if (from == Generator) {
             if (source->asGeneratorObject()->m_generatorState >= GeneratorState::CompletedReturn) {
-                return createIterResultObject(state, result, true);
+                return IteratorObject::createIterResultObject(state, result, true);
             }
-            return createIterResultObject(state, result, false);
+            return IteratorObject::createIterResultObject(state, result, false);
         }
     } catch (const Value& thrownValue) {
         if (from == Generator) {

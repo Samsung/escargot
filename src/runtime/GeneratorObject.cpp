@@ -19,11 +19,11 @@
 
 #include "Escargot.h"
 #include "GeneratorObject.h"
-#include "IteratorOperations.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "Context.h"
 #include "Environment.h"
 #include "EnvironmentRecord.h"
+#include "IteratorObject.h"
 
 namespace Escargot {
 
@@ -83,7 +83,7 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
     GeneratorObject* gen = generatorValidate(state, generator);
 
     if (gen->m_generatorState >= GeneratorState::CompletedReturn) {
-        return createIterResultObject(state, Value(), true);
+        return IteratorObject::createIterResultObject(state, Value(), true);
     }
 
     ASSERT(gen->m_generatorState == GeneratorState::SuspendedStart || gen->m_generatorState == SuspendedYield);
@@ -102,7 +102,7 @@ Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const
 
     if (gen->generatorState() >= GeneratorState::CompletedReturn) {
         if (type == GeneratorAbruptType::Return) {
-            return createIterResultObject(state, value, true);
+            return IteratorObject::createIterResultObject(state, value, true);
         }
         state.throwException(value);
     }

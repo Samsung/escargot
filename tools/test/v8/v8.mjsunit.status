@@ -771,6 +771,7 @@
   'for-in': [SKIP],
   # object
   'es6/object-literals-property-shorthand' : [SKIP],
+  'es6/spread-call' : [SKIP],
 
   ## Limit of string length differ
   'string-oom-array-join': [SKIP],
