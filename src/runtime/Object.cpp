@@ -553,20 +553,22 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
         return ObjectGetResult();
     }
     PropertyName P = propertyName.toPropertyName(state);
-    size_t idx = m_structure->findProperty(P);
-    if (LIKELY(idx != SIZE_MAX)) {
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        if (item.m_descriptor.isDataProperty()) {
-            if (LIKELY(!item.m_descriptor.isNativeAccessorProperty())) {
-                return ObjectGetResult(m_values[idx], item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+    auto findResult = m_structure->findProperty(P);
+    if (LIKELY(findResult.first != SIZE_MAX)) {
+        const ObjectStructureItem* item = findResult.second.value();
+        const auto& desc = item->m_descriptor;
+        auto presentAttributes = desc.descriptorData().presentAttributes();
+        if (desc.isDataProperty()) {
+            if (LIKELY(!desc.isNativeAccessorProperty())) {
+                return ObjectGetResult(m_values[findResult.first], presentAttributes & ObjectStructurePropertyDescriptor::WritablePresent, presentAttributes & ObjectStructurePropertyDescriptor::EnumerablePresent, presentAttributes & ObjectStructurePropertyDescriptor::ConfigurablePresent);
             } else {
-                ObjectPropertyNativeGetterSetterData* data = item.m_descriptor.nativeGetterSetterData();
-                return ObjectGetResult(data->m_getter(state, this, m_values[idx]), item.m_descriptor.isWritable(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+                ObjectPropertyNativeGetterSetterData* data = desc.nativeGetterSetterData();
+                return ObjectGetResult(data->m_getter(state, this, m_values[findResult.first]), presentAttributes & ObjectStructurePropertyDescriptor::WritablePresent, presentAttributes & ObjectStructurePropertyDescriptor::EnumerablePresent, presentAttributes & ObjectStructurePropertyDescriptor::ConfigurablePresent);
             }
         } else {
-            Value v = m_values[idx];
+            const Value& v = m_values[findResult.first];
             ASSERT(v.isPointerValue() && v.asPointerValue()->isJSGetterSetter());
-            return ObjectGetResult(v.asPointerValue()->asJSGetterSetter(), item.m_descriptor.isEnumerable(), item.m_descriptor.isConfigurable());
+            return ObjectGetResult(v.asPointerValue()->asJSGetterSetter(), presentAttributes & ObjectStructurePropertyDescriptor::EnumerablePresent, presentAttributes & ObjectStructurePropertyDescriptor::ConfigurablePresent);
         }
     }
     return ObjectGetResult();
@@ -582,8 +584,8 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     // TODO Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value as the corresponding field in current when compared using the SameValue algorithm (9.12).
 
     PropertyName propertyName = P.toPropertyName(state);
-    size_t oldIdx = m_structure->findProperty(propertyName);
-    if (oldIdx == SIZE_MAX) {
+    auto findResult = m_structure->findProperty(propertyName);
+    if (findResult.first == SIZE_MAX) {
         // 3. If current is undefined and extensible is false, then Reject.
         if (UNLIKELY(!isExtensible(state))) {
             return false;
@@ -602,9 +604,9 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         // ASSERT(m_values.size() == m_structure->propertyCount());
         return true;
     } else {
-        size_t idx = oldIdx;
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        auto current = item.m_descriptor;
+        size_t idx = findResult.first;
+        const ObjectStructureItem* item = findResult.second.value();
+        auto current = item->m_descriptor;
 
         // If the [[Configurable]] field of current is false then
         if (!current.isConfigurable()) {
@@ -652,16 +654,16 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
                 newDesc = ObjectPropertyDescriptor(desc.isValuePresent() ? desc.value() : Value(), (ObjectPropertyDescriptor::PresentAttribute)f);
             }
             // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
-        } else if (item.m_descriptor.isDataProperty() && desc.isDataDescriptor()) {
+        } else if (item->m_descriptor.isDataProperty() && desc.isDataDescriptor()) {
             // If the [[Configurable]] field of current is false, then
-            if (!item.m_descriptor.isConfigurable()) {
+            if (!item->m_descriptor.isConfigurable()) {
                 // Reject, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
-                if (!item.m_descriptor.isWritable() && desc.isWritable()) {
+                if (!item->m_descriptor.isWritable() && desc.isWritable()) {
                     return false;
                 }
                 // If the [[Writable]] field of current is false, then
                 // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                if (!item.m_descriptor.isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                if (!item->m_descriptor.isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
                     return false;
                 }
             }
@@ -726,16 +728,16 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         if (!shouldDelete) {
             if (newDesc.isDataDescriptor()) {
                 if (desc.isValuePresent()) {
-                    return setOwnDataPropertyUtilForObjectInner(state, idx, item, newDesc.value());
+                    return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *item, newDesc.value());
                 }
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
         } else {
-            auto oldDesc = m_structure->readProperty(idx);
-            if (newDesc.isDataDescriptor() && oldDesc.m_descriptor.isNativeAccessorProperty()) {
+            auto oldDesc = findResult.second.value();
+            if (newDesc.isDataDescriptor() && oldDesc->m_descriptor.isNativeAccessorProperty()) {
                 auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
-                                                                          oldDesc.m_descriptor.nativeGetterSetterData()->m_getter, oldDesc.m_descriptor.nativeGetterSetterData()->m_setter);
+                                                                          oldDesc->m_descriptor.nativeGetterSetterData()->m_getter, oldDesc->m_descriptor.nativeGetterSetterData()->m_setter);
                 m_structure = m_structure->replacePropertyDescriptor(idx, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative));
             } else {
                 m_structure = m_structure->replacePropertyDescriptor(idx, newDesc.toObjectStructurePropertyDescriptor());
@@ -756,7 +758,7 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 {
     auto result = getOwnProperty(state, P);
     if (result.hasValue() && result.isConfigurable()) {
-        deleteOwnProperty(state, m_structure->findProperty(P.toPropertyName(state)));
+        deleteOwnProperty(state, m_structure->findProperty(P.toPropertyName(state)).first);
         return true;
     } else if (result.hasValue() && !result.isConfigurable()) {
         return false;
@@ -1169,9 +1171,9 @@ ArrayObject* Object::createArrayFromList(ExecutionState& state, const size_t siz
     // Assert: status is true.
     // Increment n by 1.
     // Return array.
-    ArrayObject* array = new ArrayObject(state);
+    ArrayObject* array = new ArrayObject(state, size);
     for (size_t n = 0; n < size; n++) {
-        array->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(buffer[n], ObjectPropertyDescriptor::AllPresent));
+        array->defineOwnProperty(state, ObjectPropertyName(state, n), ObjectPropertyDescriptor(buffer[n], ObjectPropertyDescriptor::AllPresent));
     }
     return array;
 }

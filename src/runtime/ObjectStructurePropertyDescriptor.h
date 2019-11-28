@@ -157,7 +157,6 @@ public:
         return m_descriptorData.m_data;
     }
 
-protected:
     enum ObjectStructurePropertyDescriptorMode {
         PlainDataMode,
         HasJSGetterSetter,
@@ -224,7 +223,6 @@ protected:
                 return (PresentAttribute)a;
             }
         }
-
         ObjectStructurePropertyDescriptorMode mode() const
         {
             if (LIKELY(m_data & 1)) {
@@ -235,6 +233,12 @@ protected:
         }
     };
 
+    const ObjectStructurePropertyDescriptorData& descriptorData() const
+    {
+        return m_descriptorData;
+    }
+
+protected:
     ObjectStructurePropertyDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent), ObjectStructurePropertyDescriptorMode mode = PlainDataMode)
         : m_descriptorData(attribute, mode)
     {

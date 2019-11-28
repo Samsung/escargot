@@ -29,6 +29,9 @@ Value PointerValue::call(ExecutionState& state, const Value& thisValue, const si
     ASSERT(!isCallable());
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
     ASSERT_NOT_REACHED();
+
+    // never get here. but I add return statement for removing compile warning
+    return Value(Value::EmptyValue);
 }
 
 Object* PointerValue::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
@@ -39,5 +42,8 @@ Object* PointerValue::construct(ExecutionState& state, const size_t argc, NULLAB
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
     ASSERT_NOT_REACHED();
+
+    // never get here. but I add return statement for removing compile warning
+    return nullptr;
 }
 }

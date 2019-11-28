@@ -1791,14 +1791,14 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         newItem.m_objectStructure = obj->structure();
 
         cachedHiddenClassChain->push_back(newItem);
-        size_t idx = obj->structure()->findProperty(name);
+        auto result = obj->structure()->findProperty(name);
 
         if (!obj->structure()->inTransitionMode()) {
             block->m_objectStructuresInUse->insert(obj->structure());
         }
 
-        if (idx != SIZE_MAX) {
-            inlineCache.m_cache[0].m_cachedIndex = idx;
+        if (result.first != SIZE_MAX) {
+            inlineCache.m_cache[0].m_cachedIndex = result.first;
             break;
         }
         obj = obj->Object::getPrototypeObject(state);
@@ -1885,26 +1885,26 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 
     Object* obj = originalObject;
 
-    size_t idx = obj->structure()->findProperty(name);
-    if (idx != SIZE_MAX) {
+    auto findResult = obj->structure()->findProperty(name);
+    if (findResult.first != SIZE_MAX) {
         // own property
         ObjectStructureChainItem newItem;
         newItem.m_objectStructure = obj->structure();
 
-        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, willBeObject);
+        obj->setOwnPropertyThrowsExceptionWhenStrictMode(state, findResult.first, value, willBeObject);
         // Don't update the inline cache if the property is removed by a setter function.
         /* example code
         var o = { set foo (a) { var a = delete o.foo } };
         o.foo = 0;
         */
-        if (UNLIKELY(idx >= obj->structure()->propertyCount())) {
+        if (UNLIKELY(findResult.first >= obj->structure()->propertyCount())) {
             return;
         }
 
-        const auto& propertyData = obj->structure()->readProperty(idx);
+        const auto& propertyData = obj->structure()->readProperty(findResult.first);
         const auto& desc = propertyData.m_descriptor;
         if (propertyData.m_propertyName == name && desc.isPlainDataProperty() && desc.isWritable()) {
-            inlineCache.m_cachedIndex = idx;
+            inlineCache.m_cachedIndex = findResult.first;
             inlineCache.m_cachedhiddenClassChain.push_back(newItem);
         }
     } else {
@@ -1982,8 +1982,8 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
         }
     }
 
-    size_t idx = go->structure()->findProperty(slot->m_propertyName);
-    if (UNLIKELY(idx == SIZE_MAX)) {
+    auto findResult = go->structure()->findProperty(slot->m_propertyName);
+    if (UNLIKELY(findResult.first == SIZE_MAX)) {
         ObjectGetResult res = go->get(state, ObjectPropertyName(state, slot->m_propertyName));
         if (res.hasValue()) {
             return res.value(state, go);
@@ -1995,17 +1995,18 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
             }
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
             ASSERT_NOT_REACHED();
+            return Value(Value::EmptyValue);
         }
     } else {
-        const ObjectStructureItem& item = go->structure()->readProperty(idx);
-        if (!item.m_descriptor.isPlainDataProperty() || !item.m_descriptor.isWritable()) {
+        const ObjectStructureItem* item = findResult.second.value();
+        if (!item->m_descriptor.isPlainDataProperty() || !item->m_descriptor.isWritable()) {
             slot->m_cachedStructure = nullptr;
             slot->m_cachedAddress = nullptr;
             slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
-            return go->getOwnPropertyUtilForObject(state, idx, go);
+            return go->getOwnPropertyUtilForObject(state, findResult.first, go);
         }
 
-        slot->m_cachedAddress = &go->m_values.data()[idx];
+        slot->m_cachedAddress = &go->m_values.data()[findResult.first];
         slot->m_cachedStructure = go->structure();
         slot->m_lexicalIndexCache = siz;
         return *((SmallValue*)slot->m_cachedAddress);
@@ -2050,16 +2051,16 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
     }
 
 
-    size_t idx = go->structure()->findProperty(slot->m_propertyName);
-    if (UNLIKELY(idx == SIZE_MAX)) {
+    auto findResult = go->structure()->findProperty(slot->m_propertyName);
+    if (UNLIKELY(findResult.first == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
         }
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
     } else {
-        const ObjectStructureItem& item = go->structure()->readProperty(idx);
-        if (!item.m_descriptor.isPlainDataProperty() || !item.m_descriptor.isWritable()) {
+        const ObjectStructureItem* item = findResult.second.value();
+        if (!item->m_descriptor.isPlainDataProperty() || !item->m_descriptor.isWritable()) {
             slot->m_cachedStructure = nullptr;
             slot->m_cachedAddress = nullptr;
             slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
@@ -2067,11 +2068,11 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
             return;
         }
 
-        slot->m_cachedAddress = &go->m_values.data()[idx];
+        slot->m_cachedAddress = &go->m_values.data()[findResult.first];
         slot->m_cachedStructure = go->structure();
         slot->m_lexicalIndexCache = siz;
 
-        go->setOwnPropertyThrowsExceptionWhenStrictMode(state, idx, value, go);
+        go->setOwnPropertyThrowsExceptionWhenStrictMode(state, findResult.first, value, go);
     }
 }
 
@@ -2248,6 +2249,8 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
             state->context()->throwException(*state, record->value());
             ASSERT_NOT_REACHED();
+            // never get here. but I add return statement for removing compile warning
+            return Value(Value::EmptyValue);
         } else {
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
             record->m_count--;
@@ -2844,6 +2847,8 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
     }
 
     ASSERT_NOT_REACHED();
+    // never get here. but I add return statement for removing compile warning
+    return Value(Value::EmptyValue);
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)

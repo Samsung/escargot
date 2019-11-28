@@ -58,6 +58,9 @@ public:
     ALWAYS_INLINE friend bool operator==(const PropertyName& a, const PropertyName& b);
     ALWAYS_INLINE friend bool operator!=(const PropertyName& a, const PropertyName& b);
 
+    ALWAYS_INLINE friend bool operator==(const PropertyName& a, const AtomicString& b);
+    ALWAYS_INLINE friend bool operator!=(const PropertyName& a, const AtomicString& b);
+
     ALWAYS_INLINE bool isSymbol() const
     {
         if (hasAtomicString()) {
@@ -147,6 +150,11 @@ public:
         return ((Symbol*)m_data)->symbolDescriptiveString();
     }
 
+    size_t rawValue() const
+    {
+        return m_data;
+    }
+
 private:
     size_t m_data;
 
@@ -185,6 +193,26 @@ ALWAYS_INLINE bool operator==(const PropertyName& a, const PropertyName& b)
 }
 
 ALWAYS_INLINE bool operator!=(const PropertyName& a, const PropertyName& b)
+{
+    return !operator==(a, b);
+}
+
+ALWAYS_INLINE bool operator==(const PropertyName& a, const AtomicString& b)
+{
+    bool aa = a.hasAtomicString();
+    if (LIKELY(aa)) {
+        return a.asAtomicString() == b;
+    } else {
+        bool sa = a.hasSymbol();
+        if (LIKELY(!sa)) { // a is string
+            return a.plainString()->equals(b.string());
+        } else {
+            return false;
+        }
+    }
+}
+
+ALWAYS_INLINE bool operator!=(const PropertyName& a, const AtomicString& b)
 {
     return !operator==(a, b);
 }
