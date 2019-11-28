@@ -107,7 +107,7 @@ public:
 class ObjectStructure : public gc {
 public:
     virtual ~ObjectStructure() {}
-    size_t findProperty(ExecutionState& state, String* propertyName)
+    std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(ExecutionState& state, String* propertyName)
     {
         PropertyName name(state, propertyName);
         return findProperty(name);
@@ -119,7 +119,7 @@ public:
         return addProperty(name, desc);
     }
 
-    virtual size_t findProperty(const PropertyName& s) = 0;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) = 0;
     virtual const ObjectStructureItem& readProperty(size_t idx) = 0;
     virtual const ObjectStructureItem* properties() const = 0;
     virtual size_t propertyCount() const = 0;
@@ -135,13 +135,14 @@ public:
 
 class ObjectStructureWithoutTransition : public ObjectStructure {
 public:
-    ObjectStructureWithoutTransition(ObjectStructureItemVector* properties, bool hasIndexPropertyName)
+    ObjectStructureWithoutTransition(ObjectStructureItemVector* properties, bool hasIndexPropertyName, bool hasNonAtomicPropertyName)
         : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_hasNonAtomicPropertyName(hasNonAtomicPropertyName)
         , m_properties(properties)
     {
     }
 
-    virtual size_t findProperty(const PropertyName& s) override;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;
     virtual size_t propertyCount() const override;
@@ -165,22 +166,24 @@ public:
 
 private:
     bool m_hasIndexPropertyName;
+    bool m_hasNonAtomicPropertyName;
     ObjectStructureItemVector* m_properties;
 };
 
 class ObjectStructureWithTransition : public ObjectStructure {
 public:
-    ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName)
+    ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName, bool hasNonAtomicPropertyName)
         : m_properties(std::move(properties))
         , m_doesTransitionTableUseMap(false)
         , m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_hasNonAtomicPropertyName(hasNonAtomicPropertyName)
         , m_transitionTableVectorBufferSize(0)
         , m_transitionTableVectorBufferCapacity(0)
         , m_transitionTableVectorBuffer(nullptr)
     {
     }
 
-    virtual size_t findProperty(const PropertyName& s) override;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;
     virtual size_t propertyCount() const override;
@@ -216,13 +219,18 @@ private:
 
     bool m_doesTransitionTableUseMap : 1;
     bool m_hasIndexPropertyName : 1;
-    size_t m_transitionTableVectorBufferSize : 15;
-    size_t m_transitionTableVectorBufferCapacity : 15;
+    bool m_hasNonAtomicPropertyName : 1;
+    uint8_t m_transitionTableVectorBufferSize;
+    uint8_t m_transitionTableVectorBufferCapacity;
+
     union {
         ObjectStructureTransitionVectorItem* m_transitionTableVectorBuffer;
         ObjectStructureTransitionTableMap* m_transitionTableMap;
     };
 };
+
+COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE <= 32, "");
+COMPILE_ASSERT(sizeof(ObjectStructureWithTransition) == sizeof(size_t) * 5, "");
 
 class ObjectStructureWithMap : public ObjectStructure {
 public:
@@ -257,7 +265,7 @@ public:
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
-    virtual size_t findProperty(const PropertyName& s) override;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;
     virtual size_t propertyCount() const override;

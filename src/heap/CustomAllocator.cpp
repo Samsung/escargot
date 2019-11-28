@@ -138,15 +138,15 @@ void initializeCustomAllocators()
                                                                         FALSE,
                                                                         TRUE);
 #endif
-    s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 2>), 0),
+    s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind(GC_new_free_list(),
+                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 2>), 0),
+                                                           FALSE,
+                                                           TRUE);
+
+    s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
+                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 10>), 0),
                                                                       FALSE,
                                                                       TRUE);
-
-    s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 10>), 0),
-                                                                                 FALSE,
-                                                                                 TRUE);
 }
 
 void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, HeapObjectIteratorCallback callback)

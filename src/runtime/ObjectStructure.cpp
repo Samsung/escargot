@@ -48,15 +48,32 @@ void* ObjectStructureWithoutTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-size_t ObjectStructureWithoutTransition::findProperty(const PropertyName& s)
+std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTransition::findProperty(const PropertyName& s)
 {
     size_t size = m_properties->size();
-    for (size_t i = 0; i < size; i++) {
-        if ((*m_properties)[i].m_propertyName == s) {
-            return i;
+
+    if (LIKELY(s.hasAtomicString() && !m_hasNonAtomicPropertyName)) {
+        for (size_t i = 0; i < size; i++) {
+            if ((*m_properties)[i].m_propertyName.rawValue() == s.rawValue()) {
+                return std::make_pair(i, &(*m_properties)[i]);
+            }
+        }
+    } else if (LIKELY(s.hasAtomicString())) {
+        AtomicString as = s.asAtomicString();
+        for (size_t i = 0; i < size; i++) {
+            if ((*m_properties)[i].m_propertyName == as) {
+                return std::make_pair(i, &(*m_properties)[i]);
+            }
+        }
+    } else {
+        for (size_t i = 0; i < size; i++) {
+            if ((*m_properties)[i].m_propertyName == s) {
+                return std::make_pair(i, &(*m_properties)[i]);
+            }
         }
     }
-    return SIZE_MAX;
+
+    return std::make_pair(SIZE_MAX, Optional<const ObjectStructureItem*>());
 }
 
 const ObjectStructureItem& ObjectStructureWithoutTransition::readProperty(size_t idx)
@@ -78,13 +95,14 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const PropertyNam
 {
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    bool hasNonAtomicName = m_hasNonAtomicPropertyName ? true : !name.hasAtomicString();
     ObjectStructure* newStructure;
     m_properties->push_back(newItem);
 
     if (m_properties->size() + 1 > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), m_hasIndexPropertyName | nameIsIndexString);
     } else {
-        newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName | nameIsIndexString);
+        newStructure = new ObjectStructureWithoutTransition(m_properties, nameIsIndexString, hasNonAtomicName);
     }
 
     m_properties = nullptr;
@@ -99,16 +117,18 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 
     size_t newIdx = 0;
     bool hasIndexString = false;
+    bool hasNonAtomicName = false;
     for (size_t i = 0; i < ps; i++) {
         if (i == pIndex)
             continue;
         hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
+        hasNonAtomicName = hasNonAtomicName | !(*m_properties)[i].m_propertyName.hasAtomicString();
         (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
         (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
         newIdx++;
     }
 
-    auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString);
+    auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasNonAtomicName);
     m_properties = nullptr;
     return newStructure;
 }
@@ -116,7 +136,7 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     m_properties->at(idx).m_descriptor = newDesc;
-    auto newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName);
+    auto newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName, m_hasNonAtomicPropertyName);
     m_properties = nullptr;
     return newStructure;
 }
@@ -140,15 +160,32 @@ void* ObjectStructureWithTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-size_t ObjectStructureWithTransition::findProperty(const PropertyName& s)
+std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithTransition::findProperty(const PropertyName& s)
 {
-    size_t siz = m_properties.size();
-    for (size_t i = 0; i < siz; i++) {
-        if (m_properties[i].m_propertyName == s) {
-            return i;
+    size_t size = m_properties.size();
+
+    if (LIKELY(s.hasAtomicString() && !m_hasNonAtomicPropertyName)) {
+        for (size_t i = 0; i < size; i++) {
+            if (m_properties[i].m_propertyName.rawValue() == s.rawValue()) {
+                return std::make_pair(i, &m_properties[i]);
+            }
+        }
+    } else if (LIKELY(s.hasAtomicString())) {
+        AtomicString as = s.asAtomicString();
+        for (size_t i = 0; i < size; i++) {
+            if (m_properties[i].m_propertyName == as) {
+                return std::make_pair(i, &m_properties[i]);
+            }
+        }
+    } else {
+        for (size_t i = 0; i < size; i++) {
+            if (m_properties[i].m_propertyName == s) {
+                return std::make_pair(i, &m_properties[i]);
+            }
         }
     }
-    return SIZE_MAX;
+
+    return std::make_pair(SIZE_MAX, Optional<const ObjectStructureItem*>());
 }
 
 const ObjectStructureItem& ObjectStructureWithTransition::readProperty(size_t idx)
@@ -185,6 +222,7 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const PropertyName& 
 
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    bool hasNonAtomicName = m_hasNonAtomicPropertyName ? true : !name.hasAtomicString();
     ObjectStructure* newObjectStructure;
 
     size_t nextSize = m_properties.size() + 1;
@@ -192,10 +230,10 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const PropertyName& 
         newObjectStructure = new ObjectStructureWithMap(nameIsIndexString, m_properties, newItem);
     } else if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties, newItem);
-        newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString);
+        newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasNonAtomicName);
     } else {
         ObjectStructureItemTightVector newProperties(m_properties, newItem);
-        newObjectStructure = new ObjectStructureWithTransition(std::move(newProperties), nameIsIndexString);
+        newObjectStructure = new ObjectStructureWithTransition(std::move(newProperties), nameIsIndexString, hasNonAtomicName);
         ObjectStructureTransitionVectorItem newTransitionItem(name, desc, newObjectStructure);
 
         if (m_doesTransitionTableUseMap) {
@@ -211,6 +249,7 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const PropertyName& 
                 transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
                                                           newTransitionItem.m_structure));
 
+                GC_FREE(m_transitionTableVectorBuffer);
                 m_doesTransitionTableUseMap = true;
                 m_transitionTableMap = transitionTableMap;
                 m_transitionTableVectorBufferCapacity = 0;
@@ -218,7 +257,7 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const PropertyName& 
             } else {
                 if (m_transitionTableVectorBufferCapacity <= (size_t)(m_transitionTableVectorBufferSize + 1)) {
                     size_t oldc = m_transitionTableVectorBufferCapacity;
-                    m_transitionTableVectorBufferCapacity = computeVectorAllocateSize(m_transitionTableVectorBufferSize + 1);
+                    m_transitionTableVectorBufferCapacity = std::min(computeVectorAllocateSize(m_transitionTableVectorBufferSize + 1), (size_t)std::numeric_limits<uint8_t>::max());
                     m_transitionTableVectorBuffer = (ObjectStructureTransitionVectorItem*)GC_REALLOC(m_transitionTableVectorBuffer, sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity);
                 }
                 m_transitionTableVectorBuffer[m_transitionTableVectorBufferSize] = newTransitionItem;
@@ -238,29 +277,31 @@ ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
 
     size_t newIdx = 0;
     bool hasIndexString = false;
+    bool hasNonAtomicName = false;
     for (size_t i = 0; i < pc; i++) {
         if (i == pIndex)
             continue;
         hasIndexString = hasIndexString | m_properties[i].m_propertyName.isIndexString();
+        hasNonAtomicName = hasNonAtomicName | !m_properties[i].m_propertyName.hasAtomicString();
         (*newProperties)[newIdx].m_propertyName = m_properties[i].m_propertyName;
         (*newProperties)[newIdx].m_descriptor = m_properties[i].m_descriptor;
         newIdx++;
     }
 
-    return new ObjectStructureWithoutTransition(newProperties, hasIndexString);
+    return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasNonAtomicName);
 }
 
 ObjectStructure* ObjectStructureWithTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
     newProperties->at(idx).m_descriptor = newDesc;
-    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName);
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasNonAtomicPropertyName);
 }
 
 ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure()
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
-    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName);
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasNonAtomicPropertyName);
 }
 
 void* ObjectStructureWithMap::operator new(size_t size)
@@ -278,13 +319,13 @@ void* ObjectStructureWithMap::operator new(size_t size)
 }
 
 
-size_t ObjectStructureWithMap::findProperty(const PropertyName& s)
+std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithMap::findProperty(const PropertyName& s)
 {
     auto iter = m_propertyNameMap->find(s);
     if (iter == m_propertyNameMap->end()) {
-        return SIZE_MAX;
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructureItem*>());
     }
-    return iter->second;
+    return std::make_pair(iter->second, &(m_properties->data()[iter->second]));
 }
 
 const ObjectStructureItem& ObjectStructureWithMap::readProperty(size_t idx)

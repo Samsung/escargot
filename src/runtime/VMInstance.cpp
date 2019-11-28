@@ -194,7 +194,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
     ExecutionState stateForInit((Context*)nullptr);
 
-    m_defaultStructureForObject = new ObjectStructureWithTransition(ObjectStructureItemTightVector(), false);
+    m_defaultStructureForObject = new ObjectStructureWithTransition(ObjectStructureItemTightVector(), false, false);
 
     m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
                                                                                    ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&functionPrototypeNativeGetterSetterData));
