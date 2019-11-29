@@ -78,12 +78,12 @@ void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
         for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
             m_values[i] = Value();
         m_structure = state.context()->defaultStructureForRegExpObject();
-        setPrototype(state, state.context()->globalObject()->regexpPrototype());
+        setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->regexpPrototype());
     } else {
         for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4; i++)
             m_values[i] = Value();
         m_structure = state.context()->defaultStructureForObject();
-        setPrototype(state, state.context()->globalObject()->regexpPrototype());
+        setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->regexpPrototype());
     }
 }
 

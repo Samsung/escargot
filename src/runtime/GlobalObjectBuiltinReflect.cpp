@@ -262,7 +262,7 @@ static Value builtinReflectOwnKeys(ExecutionState& state, Value thisValue, size_
     // 3. ReturnIfAbrupt(keys).
     auto keys = target.asObject()->ownPropertyKeys(state);
     // 4. Return CreateArrayFromList(keys).
-    return Object::createArrayFromList(state, keys);
+    return Object::createArrayFromList(state, keys.size(), keys.data());
 }
 
 

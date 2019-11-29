@@ -89,9 +89,9 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+    if (UNLIKELY(state.stackLimit() > currentStackBase)) {
 #else
-    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+    if (UNLIKELY(state.stackLimit() < currentStackBase)) {
 #endif
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
     }
@@ -250,7 +250,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
 
                     ObjectPropertyNameVector keys;
                     if (object->isProxyObject()) {
-                        ValueVector keyValues = Object::enumerableOwnProperties(state, object, EnumerableOwnPropertiesType::Key);
+                        auto keyValues = Object::enumerableOwnProperties(state, object, EnumerableOwnPropertiesType::Key);
 
                         for (size_t i = 0; i < keyValues.size(); ++i) {
                             keys.push_back(ObjectPropertyName(state, keyValues[i]));
@@ -318,7 +318,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value replacer = argv[1];
     Value space = argv[2];
     String* indent = new ASCIIString("");
-    ValueVector stack;
+    ValueVectorWithInlineStorage stack;
     ObjectPropertyNameVector propertyList;
     bool propertyListTouched = false;
 
@@ -587,7 +587,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         if (propertyListTouched) {
             k = propertyList;
         } else if (value->isProxyObject()) {
-            ValueVector keyValues = Object::enumerableOwnProperties(state, value, EnumerableOwnPropertiesType::Key);
+            auto keyValues = Object::enumerableOwnProperties(state, value, EnumerableOwnPropertiesType::Key);
 
             for (size_t i = 0; i < keyValues.size(); ++i) {
                 k.push_back(ObjectPropertyName(state, keyValues[i]));

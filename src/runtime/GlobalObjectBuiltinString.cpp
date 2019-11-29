@@ -919,16 +919,14 @@ static Value builtinStringTrimString(ExecutionState& state, Value thisValue, Str
     // Let S be ? ToString(str).
     RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
 
-    int64_t s, e;
-    if (where == START)
-        e = str->length() - 1;
-    if (where == END)
-        s = 0;
+    int64_t stringLength = str->length();
+    int64_t s = 0;
+    int64_t e = stringLength - 1;
 
     // If where is "start", let T be the String value that is a copy of S with leading white space removed.
     // Trim beginning if start, or start+end
     if (where == START || where == STARTEND) {
-        for (s = 0; s < (int64_t)str->length(); s++) {
+        for (s = 0; s < stringLength; s++) {
             if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[s]))
                 break;
         }
@@ -936,7 +934,7 @@ static Value builtinStringTrimString(ExecutionState& state, Value thisValue, Str
     // Else if where is "end", let T be the String value that is a copy of S with trailing white space removed.
     // Trim ending if end or start+end
     if (where == END || where == STARTEND) {
-        for (e = ((int64_t)str->length()) - 1; e >= s; e--) {
+        for (e = stringLength - 1; e >= s; e--) {
             if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[e]))
                 break;
         }

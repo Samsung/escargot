@@ -1067,7 +1067,7 @@ OptionalRef<ContextRef> ObjectRef::creationContext()
 
 ValueVectorRef* ObjectRef::ownPropertyKeys(ExecutionStateRef* state)
 {
-    ValueVector v = toImpl(this)->ownPropertyKeys(*toImpl(state));
+    auto v = toImpl(this)->ownPropertyKeys(*toImpl(state));
 
     ValueVectorRef* result = ValueVectorRef::create(v.size());
     for (size_t i = 0; i < v.size(); i++) {
@@ -1856,7 +1856,7 @@ ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state)
 
 ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state, ValueVectorRef* source)
 {
-    auto sourceSize = source->size();
+    uint64_t sourceSize = source->size();
     ArrayObject* ret = new ArrayObject(*toImpl(state), sourceSize);
 
     for (size_t i = 0; i < sourceSize; i++) {

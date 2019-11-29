@@ -152,9 +152,9 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (state.stackBase() - currentStackBase);
+        size_t stackRemainApprox = currentStackBase - state.stackLimit();
 #else
-        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
+        size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
         Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, strlen(s)), false, nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false, false).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
@@ -201,9 +201,9 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (state.stackBase() - currentStackBase);
+        size_t stackRemainApprox = currentStackBase - state.stackLimit();
 #else
-        size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
+        size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
 
         Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), String::fromUTF8(s, sizeof(s) - 1), false, parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty(), allowNewTarget).scriptThrowsExceptionIfParseError(state);

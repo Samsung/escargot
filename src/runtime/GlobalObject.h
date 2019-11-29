@@ -153,6 +153,7 @@ public:
         , m_asyncFunctionPrototype(nullptr)
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
+        m_objectPrototype->markAsPrototypeObject(state);
         m_objectPrototype->markThisObjectDontNeedStructureTransitionTable();
         Object::setPrototype(state, m_objectPrototype);
 

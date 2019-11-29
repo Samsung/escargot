@@ -159,7 +159,7 @@ DateObject::DateObject(ExecutionState& state)
     , m_cachedLocal()
     , m_isCacheDirty(false)
 {
-    Object::setPrototype(state, state.context()->globalObject()->datePrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->datePrototype());
 }
 
 

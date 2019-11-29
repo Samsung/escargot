@@ -24,16 +24,16 @@
 
 namespace Escargot {
 
-#define DEFINE_FN(Type, type, siz)                                                                    \
-    template <>                                                                                       \
-    void TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectPrototypeFiller(ExecutionState& state) \
-    {                                                                                                 \
-        setPrototype(state, state.context()->globalObject()->type##ArrayPrototype());                 \
-    }                                                                                                 \
-    template <>                                                                                       \
-    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty()                         \
-    {                                                                                                 \
-        return #Type "Array";                                                                         \
+#define DEFINE_FN(Type, type, siz)                                                                              \
+    template <>                                                                                                 \
+    void TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectPrototypeFiller(ExecutionState& state)           \
+    {                                                                                                           \
+        setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->type##ArrayPrototype()); \
+    }                                                                                                           \
+    template <>                                                                                                 \
+    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty()                                   \
+    {                                                                                                           \
+        return #Type "Array";                                                                                   \
     }
 
 DEFINE_FN(Int8, int8, 1);

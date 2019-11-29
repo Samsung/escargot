@@ -90,12 +90,16 @@ public:
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual bool canUseOwnPropertyKeysFastPath() override
+    {
+        return false;
+    }
 
     virtual bool preventExtensions(ExecutionState& state) override;
 
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override;
 
-    virtual ValueVector ownPropertyKeys(ExecutionState& state) override;
+    virtual Object::OwnPropertyKeyVector ownPropertyKeys(ExecutionState& state) override;
 
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName) override;
     virtual bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;

@@ -45,9 +45,9 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* cod
     initStructureAndValues(state, isConstructor, isGenerator);
 
     if (isGenerator) {
-        Object::setPrototype(state, state.context()->globalObject()->generator());
+        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->generator());
     } else {
-        Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     }
 }
 
@@ -109,11 +109,10 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-    size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (state.stackBase() - currentStackBase);
+    size_t stackRemainApprox = currentStackBase - state.stackLimit();
 #else
-    size_t stackRemainApprox = STACK_LIMIT_FROM_BASE - (currentStackBase - state.stackBase());
+    size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
-
 
     state.context()->scriptParser().generateFunctionByteCode(state, m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox);
 

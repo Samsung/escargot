@@ -36,7 +36,7 @@ PromiseObject::PromiseObject(ExecutionState& state)
     : Object(state)
     , m_state(PromiseState::Pending)
 {
-    Object::setPrototype(state, state.context()->globalObject()->promisePrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->promisePrototype());
 }
 
 void* PromiseObject::operator new(size_t size)

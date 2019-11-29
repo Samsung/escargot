@@ -65,70 +65,81 @@ public:
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
         , m_programCounter(nullptr)
-        , m_argc(0)
-        , m_argv(nullptr)
-        , m_parent(1)
+        , m_parent(0)
+        , m_hasRareData(false)
         , m_inStrictMode(false)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_argc(0)
+        , m_argv(nullptr)
     {
         volatile int sp;
-        m_stackBase = (size_t)&sp;
-    }
+        m_stackLimit = (size_t)&sp;
 
-    ExecutionState(Context* context, size_t stackBase)
-        : m_context(context)
-        , m_lexicalEnvironment(nullptr)
-        , m_stackBase(stackBase)
-        , m_programCounter(nullptr)
-        , m_argc(0)
-        , m_argv(nullptr)
-        , m_parent(1)
-        , m_inStrictMode(false)
-        , m_inTryStatement(false)
-        , m_isNativeFunctionObjectExecutionContext(false)
-    {
+#ifdef STACK_GROWS_DOWN
+        m_stackLimit = m_stackLimit - STACK_LIMIT_FROM_BASE;
+#else
+        m_stackLimit = m_stackLimit + STACK_LIMIT_FROM_BASE;
+#endif
     }
 
     ALWAYS_INLINE ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackBase(parent->stackBase())
+        , m_stackLimit(parent->stackLimit())
         , m_programCounter(nullptr)
-        , m_argc(parent->argc())
-        , m_argv(parent->argv())
-        , m_parent((size_t)parent + 1)
+        , m_parent(parent)
+        , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_argc(parent->argc())
+        , m_argv(parent->argv())
+    {
+    }
+
+    ExecutionState(Context* context, size_t stackLimit)
+        : m_context(context)
+        , m_lexicalEnvironment(nullptr)
+        , m_stackLimit(stackLimit)
+        , m_programCounter(nullptr)
+        , m_parent(0)
+        , m_hasRareData(false)
+        , m_inStrictMode(false)
+        , m_inTryStatement(false)
+        , m_isNativeFunctionObjectExecutionContext(false)
+        , m_argc(0)
+        , m_argv(nullptr)
     {
     }
 
     ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackBase(parent->stackBase())
+        , m_stackLimit(parent->stackLimit())
         , m_programCounter(nullptr)
-        , m_argc(argc)
-        , m_argv(argv)
-        , m_parent((size_t)parent + 1)
+        , m_parent(parent)
+        , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_argc(argc)
+        , m_argv(argv)
     {
     }
 
     ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, NativeFunctionObject* callee, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_stackBase(parent->stackBase())
+        , m_stackLimit(parent->stackLimit())
         , m_calledNativeFunctionObject(callee)
-        , m_argc(argc)
-        , m_argv(argv)
-        , m_parent((size_t)parent + 1)
+        , m_parent(parent)
+        , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(true)
+        , m_argc(argc)
+        , m_argv(argv)
     {
     }
 
@@ -138,14 +149,15 @@ public:
     ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForGenerator)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackBase(0)
+        , m_stackLimit(0)
         , m_programCounter(nullptr)
-        , m_argc(argc)
-        , m_argv(argv)
-        , m_parent((size_t)parent + 1)
+        , m_parent(parent)
+        , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_argc(argc)
+        , m_argv(argv)
     {
     }
 
@@ -165,9 +177,9 @@ public:
         m_inStrictMode = inStrictMode;
     }
 
-    size_t stackBase()
+    size_t stackLimit()
     {
-        return m_stackBase;
+        return m_stackLimit;
     }
 
     void throwException(const Value& e);
@@ -176,7 +188,7 @@ public:
 
     bool hasRareData()
     {
-        return (m_parent & 1) == 0;
+        return m_hasRareData;
     }
 
     ExecutionStateRareData* rareData()
@@ -188,7 +200,7 @@ public:
     ExecutionState* parent()
     {
         if (!hasRareData()) {
-            return (ExecutionState*)(m_parent - 1);
+            return m_parent;
         }
         return rareData()->m_parent;
     }
@@ -206,13 +218,12 @@ public:
     void setParent(ExecutionState* parent)
     {
         if (parent) {
-            m_stackBase = parent->stackBase();
+            m_stackLimit = parent->stackLimit();
         }
         if (hasRareData()) {
             rareData()->m_parent = parent;
         } else {
-            ASSERT(m_parent & 1);
-            m_parent = (size_t)parent + 1;
+            m_parent = parent;
         }
     }
 
@@ -262,22 +273,27 @@ public:
 private:
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
-    size_t m_stackBase;
+    size_t m_stackLimit;
     union {
         size_t* m_programCounter;
         NativeFunctionObject* m_calledNativeFunctionObject;
     };
-    size_t m_argc;
-    Value* m_argv;
 
     union {
-        size_t m_parent;
+        ExecutionState* m_parent;
         ExecutionStateRareData* m_rareData;
     };
 
-    bool m_inStrictMode;
-    bool m_inTryStatement;
-    bool m_isNativeFunctionObjectExecutionContext;
+    bool m_hasRareData : 1;
+    bool m_inStrictMode : 1;
+    bool m_inTryStatement : 1;
+    bool m_isNativeFunctionObjectExecutionContext : 1;
+#ifdef ESCARGOT_32
+    size_t m_argc : 28;
+#else
+    size_t m_argc : 60;
+#endif
+    Value* m_argv;
 };
 }
 

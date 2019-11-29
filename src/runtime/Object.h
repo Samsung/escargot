@@ -879,7 +879,14 @@ public:
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName);
     virtual ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName);
 
-    virtual ValueVector ownPropertyKeys(ExecutionState& state);
+    typedef VectorWithInlineStorage<32, Value, GCUtil::gc_malloc_allocator<Value>> OwnPropertyKeyVector;
+    typedef VectorWithInlineStorage<32, std::pair<Value, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Value, ObjectStructurePropertyDescriptor>>> OwnPropertyKeyAndDescVector;
+    virtual OwnPropertyKeyVector ownPropertyKeys(ExecutionState& state);
+    virtual bool canUseOwnPropertyKeysFastPath()
+    {
+        return true;
+    }
+    OwnPropertyKeyAndDescVector ownPropertyKeysFastPath(ExecutionState& state);
 
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
@@ -1023,10 +1030,10 @@ public:
     static void throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P);
     static void throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P);
-    static ArrayObject* createArrayFromList(ExecutionState& state, const size_t size, Value* buffer);
-    static ArrayObject* createArrayFromList(ExecutionState& state, ValueVector& elements);
+    static ArrayObject* createArrayFromList(ExecutionState& state, const uint64_t& size, const Value* buffer);
+    static ArrayObject* createArrayFromList(ExecutionState& state, const ValueVector& elements);
     static ValueVector createListFromArrayLike(ExecutionState& state, Value obj, uint8_t types = (uint8_t)ElementTypes::ALL);
-    static ValueVector enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind);
+    static ValueVectorWithInlineStorage enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind);
 
     // this function differ with defineOwnProperty.
     // !hasOwnProperty(state, P) is needed for success
@@ -1147,6 +1154,8 @@ protected:
             throwCannotWriteError(state, m_structure->readProperty(idx).m_propertyName);
         }
     }
+
+    void setPrototypeForIntrinsicObjectCreation(ExecutionState& state, Object* obj);
 
     void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);

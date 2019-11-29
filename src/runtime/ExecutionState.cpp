@@ -33,10 +33,11 @@ void ExecutionState::throwException(const Value& e)
 
 ExecutionStateRareData* ExecutionState::ensureRareData()
 {
-    if (m_parent & 1) {
+    if (!m_hasRareData) {
         ExecutionState* p = parent();
         m_rareData = new ExecutionStateRareData();
         m_rareData->m_parent = p;
+        m_hasRareData = true;
     }
     return rareData();
 }

@@ -32,7 +32,7 @@ public:
     explicit DataViewObject(ExecutionState& state)
         : ArrayBufferView(state)
     {
-        Object::setPrototype(state, state.context()->globalObject()->dataViewPrototype());
+        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->dataViewPrototype());
     }
 
     virtual TypedArrayType typedArrayType()

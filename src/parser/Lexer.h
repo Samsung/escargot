@@ -438,6 +438,7 @@ public:
         // SmallScannerResult always allocated on the stack
         MAKE_STACK_ALLOCATED();
 
+        static void* operator new(size_t, void* p) { return p; } // for VectorWithInlineStorage
         unsigned char type : 4;
         char prec : 8; // max prec is 11
 

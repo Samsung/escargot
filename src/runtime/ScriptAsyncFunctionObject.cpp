@@ -30,7 +30,7 @@ ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, Code
     , m_thisValue(thisValue)
     , m_homeObject(homeObject)
 {
-    Object::setPrototype(state, state.context()->globalObject()->asyncFunction());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncFunction());
 }
 
 class ScriptAsyncFunctionObjectThisValueBinder {
