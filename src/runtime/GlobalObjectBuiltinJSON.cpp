@@ -302,7 +302,7 @@ static void builtinJSONArrayReplacerHelper(ExecutionState& state, ObjectProperty
 
     for (size_t i = 0; i < propertyList.size(); i++) {
         ObjectPropertyName& v = propertyList[i];
-        if (v.toPropertyName(state).equals(item)) {
+        if (v.toObjectStructurePropertyName(state).equals(item)) {
             return;
         }
     }
@@ -450,7 +450,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 
     // https://www.ecma-international.org/ecma-262/6.0/#sec-quotejsonstring
     Quote = [&](ObjectPropertyName value) -> String* {
-        String* str = value.toPropertyName(state).plainString();
+        String* str = value.toObjectStructurePropertyName(state).plainString();
 
         StringBuilder product;
         product.appendChar('"');

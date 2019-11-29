@@ -160,7 +160,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Value loc
     collator->setPrototype(state, state.context()->globalObject()->intlCollator()->getFunctionPrototype(state));
     // If collator has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
-    if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, PropertyName(state, initializedIntlObject)))) {
+    if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
     }
 

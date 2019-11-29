@@ -197,7 +197,7 @@ void RegExpObject::initWithOption(ExecutionState& state, String* source, Option 
 void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
 {
     if (UNLIKELY(rareData() && rareData()->m_hasNonWritableLastIndexRegexpObject && (m_option & (Option::Sticky | Option::Global)))) {
-        Object::throwCannotWriteError(state, PropertyName(state.context()->staticStrings().lastIndex));
+        Object::throwCannotWriteError(state, ObjectStructurePropertyName(state.context()->staticStrings().lastIndex));
     }
     m_lastIndex = v;
 }
@@ -205,7 +205,7 @@ void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
 bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     bool returnValue = Object::defineOwnProperty(state, P, desc);
-    if (!P.isUIntType() && returnValue && P.propertyName() == PropertyName(state.context()->staticStrings().lastIndex)) {
+    if (!P.isUIntType() && returnValue && P.objectStructurePropertyName() == ObjectStructurePropertyName(state.context()->staticStrings().lastIndex)) {
         if (!structure()->readProperty((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
             ensureObjectRareData()->m_hasNonWritableLastIndexRegexpObject = true;
         } else {

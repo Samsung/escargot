@@ -64,7 +64,7 @@ public:
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!ArrayObject::defineOwnProperty(state, P, desc)) {
-            throwCannotDefineError(state, P.toPropertyName(state));
+            throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
         }
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;

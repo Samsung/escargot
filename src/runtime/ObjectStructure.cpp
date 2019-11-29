@@ -48,7 +48,7 @@ void* ObjectStructureWithoutTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTransition::findProperty(const PropertyName& s)
+std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTransition::findProperty(const ObjectStructurePropertyName& s)
 {
     size_t size = m_properties->size();
 
@@ -91,7 +91,7 @@ size_t ObjectStructureWithoutTransition::propertyCount() const
     return m_properties->size();
 }
 
-ObjectStructure* ObjectStructureWithoutTransition::addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
+ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
@@ -160,7 +160,7 @@ void* ObjectStructureWithTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithTransition::findProperty(const PropertyName& s)
+std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithTransition::findProperty(const ObjectStructurePropertyName& s)
 {
     size_t size = m_properties.size();
 
@@ -203,7 +203,7 @@ size_t ObjectStructureWithTransition::propertyCount() const
     return m_properties.size();
 }
 
-ObjectStructure* ObjectStructureWithTransition::addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
+ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
     if (m_doesTransitionTableUseMap) {
         auto iter = m_transitionTableMap->find(ObjectStructureTransitionMapItem(name, desc));
@@ -319,7 +319,7 @@ void* ObjectStructureWithMap::operator new(size_t size)
 }
 
 
-std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithMap::findProperty(const PropertyName& s)
+std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithMap::findProperty(const ObjectStructurePropertyName& s)
 {
     auto iter = m_propertyNameMap->find(s);
     if (iter == m_propertyNameMap->end()) {
@@ -343,7 +343,7 @@ size_t ObjectStructureWithMap::propertyCount() const
     return m_properties->size();
 }
 
-ObjectStructure* ObjectStructureWithMap::addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc)
+ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
