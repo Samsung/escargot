@@ -30,17 +30,15 @@ typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self,
 typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
 struct ObjectPropertyNativeGetterSetterData : public gc {
-    bool m_isWritable : 1;
-    bool m_isEnumerable : 1;
-    bool m_isConfigurable : 1;
+    size_t m_presentAttributes;
     ObjectPropertyNativeGetter m_getter;
     ObjectPropertyNativeSetter m_setter;
 
     ObjectPropertyNativeGetterSetterData(bool isWritable, bool isEnumerable, bool isConfigurable,
+                                         ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter);
+    ObjectPropertyNativeGetterSetterData(size_t presentAttributes,
                                          ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
-        : m_isWritable(isWritable)
-        , m_isEnumerable(isEnumerable)
-        , m_isConfigurable(isConfigurable)
+        : m_presentAttributes(presentAttributes)
         , m_getter(getter)
         , m_setter(setter)
     {
@@ -83,24 +81,19 @@ public:
         return ObjectStructurePropertyDescriptor(nativeGetterSetterData);
     }
 
-    bool isPlainDataWritableEnumerableConfigurable() const
-    {
-        return isPlainDataProperty() && m_descriptorData.presentAttributes() == AllPresent;
-    }
-
     bool isWritable() const
     {
-        return m_descriptorData.presentAttributes() & WritablePresent;
+        return m_descriptorData.presentAttribute(WritablePresent);
     }
 
     bool isEnumerable() const
     {
-        return m_descriptorData.presentAttributes() & EnumerablePresent;
+        return m_descriptorData.presentAttribute(EnumerablePresent);
     }
 
     bool isConfigurable() const
     {
-        return m_descriptorData.presentAttributes() & ConfigurablePresent;
+        return m_descriptorData.presentAttribute(ConfigurablePresent);
     }
 
     bool isDataProperty() const
@@ -116,13 +109,13 @@ public:
     bool hasJSGetter() const
     {
         ASSERT(isAccessorProperty());
-        return m_descriptorData.presentAttributes() & HasJSGetter;
+        return m_descriptorData.presentAttribute(HasJSGetter);
     }
 
     bool hasJSSetter() const
     {
         ASSERT(isAccessorProperty());
-        return m_descriptorData.presentAttributes() & HasJSSetter;
+        return m_descriptorData.presentAttribute(HasJSSetter);
     }
 
     bool isPlainDataProperty() const
@@ -132,7 +125,6 @@ public:
 
     bool isNativeAccessorProperty() const
     {
-        //ASSERT(isDataProperty());
         return m_descriptorData.mode() == HasDataButHasNativeGetterSetter;
     }
 
@@ -192,35 +184,21 @@ public:
             return m_nativeGetterSetterData;
         }
 
+        bool presentAttribute(PresentAttribute a) const
+        {
+            if (LIKELY(m_data & 1)) {
+                return a & m_data;
+            } else {
+                return m_nativeGetterSetterData->m_presentAttributes & a;
+            }
+        }
+
         PresentAttribute presentAttributes() const
         {
             if (LIKELY(m_data & 1)) {
-                size_t a = 0;
-                if (m_data & 2) {
-                    a |= PresentAttribute::WritablePresent;
-                }
-                if (m_data & 4) {
-                    a |= PresentAttribute::EnumerablePresent;
-                }
-                if (m_data & 8) {
-                    a |= PresentAttribute::ConfigurablePresent;
-                }
-                if (m_data & 16) {
-                    a |= PresentAttribute::HasJSGetter;
-                }
-                if (m_data & 32) {
-                    a |= PresentAttribute::HasJSSetter;
-                }
-                return (PresentAttribute)a;
+                return (PresentAttribute)m_data;
             } else {
-                size_t a = 0;
-                if (m_nativeGetterSetterData->m_isWritable)
-                    a |= PresentAttribute::WritablePresent;
-                if (m_nativeGetterSetterData->m_isEnumerable)
-                    a |= PresentAttribute::EnumerablePresent;
-                if (m_nativeGetterSetterData->m_isConfigurable)
-                    a |= PresentAttribute::ConfigurablePresent;
-                return (PresentAttribute)a;
+                return (PresentAttribute)m_nativeGetterSetterData->m_presentAttributes;
             }
         }
         ObjectStructurePropertyDescriptorMode mode() const
@@ -238,8 +216,13 @@ public:
         return m_descriptorData;
     }
 
-protected:
-    ObjectStructurePropertyDescriptor(PresentAttribute attribute = (PresentAttribute)(WritablePresent | EnumerablePresent | ConfigurablePresent), ObjectStructurePropertyDescriptorMode mode = PlainDataMode)
+    ObjectStructurePropertyDescriptor(PresentAttribute attribute = NotPresent)
+        : m_descriptorData(attribute, PlainDataMode)
+    {
+    }
+
+private:
+    ObjectStructurePropertyDescriptor(PresentAttribute attribute, ObjectStructurePropertyDescriptorMode mode)
         : m_descriptorData(attribute, mode)
     {
         if (m_descriptorData.mode() == HasJSGetterSetter) {
@@ -252,14 +235,30 @@ protected:
         }
     }
 
-    explicit ObjectStructurePropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
+    ObjectStructurePropertyDescriptor(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
         : m_descriptorData(nativeGetterSetterData)
     {
     }
 
-private:
     ObjectStructurePropertyDescriptorData m_descriptorData;
 };
+
+inline ObjectPropertyNativeGetterSetterData::ObjectPropertyNativeGetterSetterData(bool isWritable, bool isEnumerable, bool isConfigurable,
+                                                                                  ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
+    : m_presentAttributes(0)
+    , m_getter(getter)
+    , m_setter(setter)
+{
+    if (isWritable) {
+        m_presentAttributes |= ObjectStructurePropertyDescriptor::PresentAttribute::WritablePresent;
+    }
+    if (isEnumerable) {
+        m_presentAttributes |= ObjectStructurePropertyDescriptor::PresentAttribute::EnumerablePresent;
+    }
+    if (isConfigurable) {
+        m_presentAttributes |= ObjectStructurePropertyDescriptor::PresentAttribute::ConfigurablePresent;
+    }
+}
 
 COMPILE_ASSERT(sizeof(ObjectStructurePropertyDescriptor) <= sizeof(size_t), "");
 }

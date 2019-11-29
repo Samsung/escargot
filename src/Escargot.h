@@ -163,6 +163,23 @@
 #define NOMINMAX
 #endif
 
+
+#if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
+#define CPU_X86_64
+
+#elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__THW_INTEL__) || defined(__I86__) || defined(__INTEL__) || defined(__386)
+#define CPU_X86
+
+#elif defined(__arm__) || defined(__thumb__) || defined(_ARM) || defined(_M_ARM) || defined(_M_ARMT) || defined(__arm) || defined(__arm)
+#define CPU_ARM
+
+#elif defined(__aarch64__)
+#define CPU_ARM64
+
+#else
+#error "Could't find cpu arch."
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <climits>

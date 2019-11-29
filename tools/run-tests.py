@@ -258,6 +258,7 @@ def run_spidermonkey(engine, arch):
 
     run([join(SPIDERMONKEY_DIR, 'jstests.py'),
          '--no-progress', '-s',
+         '--timeout', '300',
          '--xul-info', '%s-gcc3:Linux:false' % arch,
          '--exclude-file', join(SPIDERMONKEY_OVERRIDE_DIR, 'excludelist.txt'),
          engine,

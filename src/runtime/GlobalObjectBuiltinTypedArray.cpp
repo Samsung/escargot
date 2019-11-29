@@ -136,7 +136,7 @@ static Value TypedArrayFrom(ExecutionState& state, const Value& constructor, con
         // Let iterator be GetIterator(items, usingIterator).
         Value iterator = getIterator(state, items, usingIterator);
         // Let values be a new empty List.
-        ValueVector values;
+        ValueVectorWithInlineStorage values;
         // Let next be true.
         Value next(Value::True);
         // Repeat, while next is not false
@@ -1032,7 +1032,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     Value C = O->speciesConstructor(state, defaultConstructor);
 
     // Let kept be a new empty List.
-    ValueVector kept;
+    ValueVectorWithInlineStorage kept;
     // Let k be 0.
     size_t k = 0;
     // Let captured be 0.

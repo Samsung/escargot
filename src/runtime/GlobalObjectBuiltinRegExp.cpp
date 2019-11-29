@@ -368,7 +368,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean(state);
         rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(0), rx);
     }
-    ValueVector results;
+    ValueVectorWithInlineStorage results;
     Value strValue = Value(str);
     while (true) {
         Value result = builtinRegExpExec(state, rx.toObject(state), 1, &strValue, false);
@@ -386,7 +386,9 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
             rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(nextIndex), rx);
         }
     }
-    for (uint i = 0; i < results.size(); i++) {
+
+    size_t resultSize = results.size();
+    for (uint i = 0; i < resultSize; i++) {
         Object* result = results[i].toObject(state);
         size_t nCaptures = result->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, result).toLength(state) - 1;
 

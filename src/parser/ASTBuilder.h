@@ -137,6 +137,7 @@ class SyntaxNode {
 public:
     MAKE_STACK_ALLOCATED();
 
+    static void* operator new(size_t, void* p) { return p; } // for VectorWithInlineStorage
     SyntaxNode()
         : m_nodeType(ASTNodeTypeError)
         , m_string()

@@ -93,9 +93,9 @@ public:
         volatile int sp;
         size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-        if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+        if (UNLIKELY(state.stackLimit() > currentStackBase)) {
 #else
-        if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+        if (UNLIKELY(state.stackLimit() < currentStackBase)) {
 #endif
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
         }
@@ -103,8 +103,6 @@ public:
         ASSERT(self->codeBlock()->isInterpretedCodeBlock());
 
         CodeBlock* codeBlock = self->codeBlock();
-        Context* ctx = codeBlock->context();
-        bool isStrict = codeBlock->isStrict();
 
         // prepare ByteCodeBlock if needed
         if (UNLIKELY(codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
@@ -112,13 +110,13 @@ public:
         }
 
         ByteCodeBlock* blk = codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
-
+        Context* ctx = codeBlock->context();
+        bool isStrict = codeBlock->isStrict();
         size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
         size_t identifierOnStackCount = codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
         size_t stackStorageSize = codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize();
         size_t literalStorageSize = blk->m_numeralLiteralData.size();
         Value* literalStorageSrc = blk->m_numeralLiteralData.data();
-        size_t parameterCopySize = std::min(argc, (size_t)codeBlock->parameterCount());
 
         // prepare env, ec
         FunctionEnvironmentRecord* record;
@@ -222,8 +220,9 @@ public:
                                                                                                                        : ByteCodeInterpreter::interpret(newState, blk, 0, registerFile),
                                                     thisArgument, record);
 
-        if (UNLIKELY(blk->m_shouldClearStack))
+        if (UNLIKELY(blk->m_shouldClearStack)) {
             clearStack<512>();
+        }
 
         return returnValue;
     }

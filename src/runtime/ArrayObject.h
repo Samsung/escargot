@@ -45,6 +45,8 @@ class ArrayObject : public Object {
 public:
     explicit ArrayObject(ExecutionState& state);
     ArrayObject(ExecutionState& state, double size); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-arraycreate
+    ArrayObject(ExecutionState& state, const uint64_t& size);
+    ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size);
 
     static ArrayObject* createSpreadArray(ExecutionState& state);
 
@@ -100,6 +102,13 @@ private:
             return true;
         }
         return rareData()->m_isFastModeArrayObject;
+    }
+
+    void setFastModeArrayValueWithoutExpanding(ExecutionState& state, size_t idx, const Value& v)
+    {
+        ASSERT(isFastModeArray());
+        ASSERT(idx < getArrayLength(state));
+        m_fastModeData[idx] = v;
     }
 
     ALWAYS_INLINE bool isInArrayObjectDefineOwnProperty()

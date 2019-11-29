@@ -29,7 +29,7 @@ StringObject::StringObject(ExecutionState& state, String* value)
 {
     m_structure = state.context()->defaultStructureForStringObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value();
-    Object::setPrototype(state, state.context()->globalObject()->stringPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->stringPrototype());
 }
 
 void* StringObject::operator new(size_t size)
@@ -93,7 +93,7 @@ void StringObject::enumeration(ExecutionState& state, bool (*callback)(Execution
 {
     size_t len = m_primitiveValue->length();
     for (size_t i = 0; i < len; i++) {
-        if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::EnumerablePresent), data)) {
+        if (!callback(state, this, ObjectPropertyName(state, i), ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::EnumerablePresent), data)) {
             return;
         }
     }
@@ -129,7 +129,7 @@ StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
     , m_string(s)
     , m_iteratorNextIndex(0)
 {
-    Object::setPrototype(state, state.context()->globalObject()->stringIteratorPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->stringIteratorPrototype());
 }
 
 void* StringIteratorObject::operator new(size_t size)

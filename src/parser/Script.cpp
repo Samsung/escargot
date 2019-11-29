@@ -312,7 +312,7 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
     LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
         new GlobalEnvironmentRecord(state, nullptr, context()->globalObject(), &context()->globalDeclarativeRecord(), &context()->globalDeclarativeStorage()), nullptr);
 
-    ExecutionState newState(context(), state.stackBase());
+    ExecutionState newState(context(), state.stackLimit());
 
     ModuleEnvironmentRecord* moduleRecord = new ModuleEnvironmentRecord(this);
     m_moduleData->m_moduleRecord = moduleRecord;
@@ -459,7 +459,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         return executeModule(state, nullptr);
     }
 
-    ExecutionState newState(context(), state.stackBase());
+    ExecutionState newState(context(), state.stackLimit());
     ExecutionState* codeExecutionState = &newState;
 
     EnvironmentRecord* globalRecord = new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), &context()->globalDeclarativeRecord(), &context()->globalDeclarativeStorage());

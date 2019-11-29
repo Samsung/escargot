@@ -97,6 +97,12 @@ public:
         return ((String*)m_data);
     }
 
+    Symbol* symbol() const
+    {
+        ASSERT(isSymbol());
+        return ((Symbol*)m_data);
+    }
+
     AtomicString asAtomicString() const
     {
         ASSERT(hasAtomicString());

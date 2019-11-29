@@ -35,7 +35,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
 {
     m_codeBlock = codeBlock;
     initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
@@ -47,7 +47,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
 {
     m_codeBlock = new CodeBlock(state.context(), info);
     initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin)
@@ -64,7 +64,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
     m_codeBlock = codeBlock;
 
     initStructureAndValues(state, codeBlock->isNativeFunctionConstructor(), false);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
@@ -77,7 +77,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     m_codeBlock = new CodeBlock(state.context(), info);
 
     initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
     ASSERT(NativeFunctionObject::isConstructor());
@@ -93,7 +93,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
-    Object::setPrototype(state, state.context()->globalObject()->functionPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
 
     ASSERT(NativeFunctionObject::isConstructor());
     ASSERT(codeBlock()->hasCallNativeFunctionCode());
@@ -110,9 +110,9 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-    if (UNLIKELY((state.stackBase() - currentStackBase) > STACK_LIMIT_FROM_BASE)) {
+    if (UNLIKELY(state.stackLimit() > currentStackBase)) {
 #else
-    if (UNLIKELY((currentStackBase - state.stackBase()) > STACK_LIMIT_FROM_BASE)) {
+    if (UNLIKELY(state.stackLimit() < currentStackBase)) {
 #endif
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
     }

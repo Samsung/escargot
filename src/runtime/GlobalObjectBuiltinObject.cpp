@@ -393,7 +393,7 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
 static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     Object* obj = argv[0].toObject(state);
-    ValueVector ownKeys = obj->ownPropertyKeys(state);
+    auto ownKeys = obj->ownPropertyKeys(state);
     Object* descriptors = new Object(state);
 
     for (uint64_t i = 0; i < ownKeys.size(); i++) {
@@ -423,7 +423,7 @@ static ArrayObject* getOwnPropertyKeys(ExecutionState& state, Value o, GetOwnPro
     auto keys = obj->ownPropertyKeys(state);
 
     // 5. Let nameList be a new empty List.
-    ValueVector nameList;
+    ValueVectorWithInlineStorage nameList;
 
     // 6. Repeat for each element nextKey of keys in List order,
     //  a. If Type(nextKey) is Type, then
@@ -441,7 +441,7 @@ static ArrayObject* getOwnPropertyKeys(ExecutionState& state, Value o, GetOwnPro
     }
 
     // 7. Return CreateArrayFromList(nameList).
-    return Object::createArrayFromList(state, nameList);
+    return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
 static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -576,7 +576,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
     for (size_t i = 1; i < argc; i++) {
         Value nextSource = argv[i];
         // If nextSource is undefined or null, let keys be a new empty List.
-        ValueVector keys;
+        Object::OwnPropertyKeyVector keys;
         Object* from = nullptr;
         if (!nextSource.isUndefinedOrNull()) {
             // Let from be ! ToObject(nextSource).
@@ -624,7 +624,7 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
     // Let nameList be ? EnumerableOwnProperties(obj, "key").
     auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::Key);
     // Return CreateArrayFromList(nameList).
-    return Object::createArrayFromList(state, nameList);
+    return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
 static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -636,7 +636,7 @@ static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t 
     // Let nameList be ? EnumerableOwnProperties(obj, "value").
     auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::Value);
     // Return CreateArrayFromList(nameList).
-    return Object::createArrayFromList(state, nameList);
+    return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
 static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -648,7 +648,7 @@ static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t
     // Let nameList be ? EnumerableOwnProperties(obj, "key+value").
     auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::KeyAndValue);
     // Return CreateArrayFromList(nameList).
-    return Object::createArrayFromList(state, nameList);
+    return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
 void GlobalObject::installObject(ExecutionState& state)

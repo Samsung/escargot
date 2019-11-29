@@ -33,7 +33,7 @@ ArrayObject::ArrayObject(ExecutionState& state)
 {
     m_structure = state.context()->defaultStructureForArrayObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
-    Object::setPrototype(state, state.context()->globalObject()->arrayPrototype());
+    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->arrayPrototype());
 
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
         ensureObjectRareData()->m_isFastModeArrayObject = false;
@@ -48,11 +48,43 @@ ArrayObject::ArrayObject(ExecutionState& state, double length)
         length = +0.0;
     }
     // If length>2^32-1, throw a RangeError exception.
-    if (length > ((1LL << 32LL) - 1LL)) {
+    if (UNLIKELY(length > ((1LL << 32LL) - 1LL))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
     }
-    defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(Value(length),
-                                                                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+
+    VMInstance::arrayLengthNativeSetter(state, this, m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER], Value(length));
+}
+
+ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
+    : ArrayObject(state)
+{
+    if (UNLIKELY(size > ((1LL << 32LL) - 1LL))) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+    }
+
+    setArrayLength(state, size);
+}
+
+ArrayObject::ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size)
+    : ArrayObject(state, size)
+{
+    // Let array be ! ArrayCreate(0).
+    // Let n be 0.
+    // For each element e of elements, do
+    // Let status be CreateDataProperty(array, ! ToString(n), e).
+    // Assert: status is true.
+    // Increment n by 1.
+    // Return array.
+
+    if (isFastModeArray()) {
+        for (size_t n = 0; n < size; n++) {
+            setFastModeArrayValueWithoutExpanding(state, n, src[n]);
+        }
+    } else {
+        for (size_t n = 0; n < size; n++) {
+            defineOwnProperty(state, ObjectPropertyName(state, n), ObjectPropertyDescriptor(src[n], ObjectPropertyDescriptor::AllPresent));
+        }
+    }
 }
 
 ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
@@ -287,14 +319,16 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
 bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength)
 {
-    if (UNLIKELY(isFastModeArray() && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
+    bool isFastMode = isFastModeArray();
+    if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
         uint32_t orgLength = getArrayLength(state);
         if (newLength > orgLength && (newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP)) {
             convertIntoNonFastMode(state);
+            isFastMode = false;
         }
     }
 
-    if (LIKELY(isFastModeArray())) {
+    if (LIKELY(isFastMode)) {
         auto oldSize = getArrayLength(state);
         auto oldLenDesc = structure()->readProperty((size_t)0);
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);

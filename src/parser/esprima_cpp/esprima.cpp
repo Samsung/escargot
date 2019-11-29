@@ -218,10 +218,6 @@ public:
         this->codeBlock = nullptr;
 
         this->scanner = &scannerInstance;
-        if (stackRemain >= STACK_LIMIT_FROM_BASE) {
-            stackRemain = STACK_LIMIT_FROM_BASE;
-        }
-
         this->sourceType = isModule ? Module : Script;
         this->moduleData = isModule ? new Script::ModuleData() : nullptr;
         this->hasLineTerminator = false;

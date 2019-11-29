@@ -480,6 +480,17 @@ Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObj
     return obj;
 }
 
+void Object::setPrototypeForIntrinsicObjectCreation(ExecutionState& state, Object* o)
+{
+    o->ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
+
+    if (rareData()) {
+        rareData()->m_prototype = o;
+    } else {
+        m_prototype = o;
+    }
+}
+
 bool Object::setPrototype(ExecutionState& state, const Value& proto)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-setprototypeof-v
@@ -815,46 +826,88 @@ ObjectHasPropertyResult Object::hasIndexedProperty(ExecutionState& state, const 
     return hasProperty(state, ObjectPropertyName(state, propertyName));
 }
 
-ValueVector Object::ownPropertyKeys(ExecutionState& state)
+template <typename ResultType, typename ResultBinder>
+static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Properties {
-        std::vector<Value::ValueIndex> indexes;
-        VectorWithInlineStorage<32, Value, GCUtil::gc_malloc_allocator<Value>> strings;
-        VectorWithInlineStorage<4, SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> symbols;
+        VectorWithInlineStorage<32, std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>>> indexes;
+        VectorWithInlineStorage<32, std::pair<String*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<String*, ObjectStructurePropertyDescriptor>>> strings;
+        VectorWithInlineStorage<4, std::pair<Symbol*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Symbol*, ObjectStructurePropertyDescriptor>>> symbols;
     } properties;
 
-    enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+    self->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         auto properties = (Properties*)data;
-        auto value = name.toPlainValue(state);
-        Value::ValueIndex nameAsIndexValue;
-        if (value.isSymbol()) {
-            properties->symbols.push_back(value);
-        } else if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
-            properties->indexes.push_back(nameAsIndexValue);
+
+        if (name.isUIntType()) {
+            properties->indexes.push_back(std::make_pair(name.uintValue(), desc));
         } else {
-            properties->strings.push_back(value);
+            const ObjectStructurePropertyName& propertyName = name.objectStructurePropertyName();
+
+            if (propertyName.isSymbol()) {
+                properties->symbols.push_back(std::make_pair(propertyName.symbol(), desc));
+            } else {
+                String* name = propertyName.plainString();
+                auto idx = name->tryToUseAsArrayIndex();
+                if (idx == Value::InvalidArrayIndexValue) {
+                    properties->strings.push_back(std::make_pair(name, desc));
+                } else {
+                    properties->indexes.push_back(std::make_pair(idx, desc));
+                }
+            }
         }
         return true;
     },
-                &properties, false);
+                      &properties, false);
 
-    std::sort(properties.indexes.begin(), properties.indexes.end(), std::less<Value::ValueIndex>());
+    std::sort(properties.indexes.begin(), properties.indexes.end(),
+              [](const std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>& a, const std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>& b) -> bool {
+                  return a.first < b.first;
+              });
 
-    ValueVector result;
-    result.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
+
+    ResultType result(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
+
+    ResultBinder b;
     size_t idx = 0;
     for (auto& v : properties.indexes) {
-        result[idx++] = Value(v).toString(state);
+        result[idx++] = b(Value(v.first).toString(state), v.second);
     }
     for (auto& v : properties.strings) {
-        result[idx++] = v;
+        result[idx++] = b(v.first, v.second);
     }
     for (auto& v : properties.symbols) {
-        result[idx++] = v;
+        result[idx++] = b(v.first, v.second);
     }
 
     return result;
+}
+
+class OwnPropertyKeyResultResultBinder {
+public:
+    Value operator()(PointerValue* s, const ObjectStructurePropertyDescriptor& desc)
+    {
+        return Value(s);
+    }
+};
+
+class OwnPropertyKeyAndDescResultResultBinder {
+public:
+    std::pair<Value, ObjectStructurePropertyDescriptor> operator()(PointerValue* s, const ObjectStructurePropertyDescriptor& desc)
+    {
+        return std::make_pair(Value(s), desc);
+    }
+};
+
+Object::OwnPropertyKeyAndDescVector Object::ownPropertyKeysFastPath(ExecutionState& state)
+{
+    ASSERT(canUseOwnPropertyKeysFastPath());
+    return objectOwnPropertyKeys<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this);
+}
+
+Object::OwnPropertyKeyVector Object::ownPropertyKeys(ExecutionState& state)
+{
+    return objectOwnPropertyKeys<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
@@ -1162,23 +1215,12 @@ void Object::throwCannotDeleteError(ExecutionState& state, const ObjectStructure
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
 }
 
-ArrayObject* Object::createArrayFromList(ExecutionState& state, const size_t size, Value* buffer)
+ArrayObject* Object::createArrayFromList(ExecutionState& state, const uint64_t& size, const Value* buffer)
 {
-    // Let array be ! ArrayCreate(0).
-    // Let n be 0.
-    // For each element e of elements, do
-    // Let status be CreateDataProperty(array, ! ToString(n), e).
-    // Assert: status is true.
-    // Increment n by 1.
-    // Return array.
-    ArrayObject* array = new ArrayObject(state, size);
-    for (size_t n = 0; n < size; n++) {
-        array->defineOwnProperty(state, ObjectPropertyName(state, n), ObjectPropertyDescriptor(buffer[n], ObjectPropertyDescriptor::AllPresent));
-    }
-    return array;
+    return new ArrayObject(state, buffer, size);
 }
 
-ArrayObject* Object::createArrayFromList(ExecutionState& state, ValueVector& elements)
+ArrayObject* Object::createArrayFromList(ExecutionState& state, const ValueVector& elements)
 {
     return Object::createArrayFromList(state, elements.size(), elements.data());
 }
@@ -1469,15 +1511,70 @@ IteratorObject* Object::entries(ExecutionState& state)
     return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeKeyValue);
 }
 
-ValueVector Object::enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind)
+ALWAYS_INLINE static void enumerableOwnPropertiesPushResult(ExecutionState& state, ValueVectorWithInlineStorage& properties, Object* object, const Value& key, EnumerableOwnPropertiesType kind)
+{
+    if (kind == EnumerableOwnPropertiesType::Key) {
+        // 1. If kind is "key", append key to properties
+        properties.pushBack(key);
+    } else {
+        // 2. Else
+        // a. Let value be ? Get(O, key).
+        ObjectPropertyName propertyName(state, key);
+        Value value = object->get(state, propertyName).value(state, object);
+        // b. If kind is "value", append value to properties.
+        if (kind == EnumerableOwnPropertiesType::Value) {
+            properties.pushBack(value);
+        } else {
+            // c. else
+            // i. Assert: kind is "key+value".
+            ASSERT(kind == EnumerableOwnPropertiesType::KeyAndValue);
+            // ii. Let entry be CreateArrayFromList(« key, value »).
+            Value v[2] = { key, value };
+            auto entry = Object::createArrayFromList(state, 2, v);
+            // iii. Append entry to properties.
+            properties.pushBack(entry);
+        }
+    }
+}
+
+ValueVectorWithInlineStorage Object::enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind)
 {
     // https://www.ecma-international.org/ecma-262/8.0/#sec-enumerableownproperties
+    if (object->canUseOwnPropertyKeysFastPath()) {
+        // FAST PATH
+        Object::OwnPropertyKeyAndDescVector ownKeysAndDesc = object->ownPropertyKeysFastPath(state);
+
+        bool seenAccessorProperty = false;
+        ValueVectorWithInlineStorage properties;
+        size_t size = ownKeysAndDesc.size();
+        for (size_t i = 0; i < size; ++i) {
+            const Value& key = ownKeysAndDesc[i].first;
+            const ObjectStructurePropertyDescriptor& desc = ownKeysAndDesc[i].second;
+            if (key.isSymbol()) {
+                continue;
+            }
+
+            if (seenAccessorProperty || desc.isAccessorProperty()) {
+                seenAccessorProperty = true; // we need to full evaluation after saw accessor. Accessors can delete properties
+                ObjectPropertyName propertyName(state, key);
+                auto desc = object->getOwnProperty(state, propertyName);
+                if (desc.hasValue() && desc.isEnumerable()) {
+                    enumerableOwnPropertiesPushResult(state, properties, object, key, kind);
+                }
+            } else {
+                if (desc.isEnumerable()) {
+                    enumerableOwnPropertiesPushResult(state, properties, object, key, kind);
+                }
+            }
+        }
+        return properties;
+    }
 
     // 1. Assert: Type(O) is Object.
     // 2. Let ownKeys be ? O.[[OwnPropertyKeys]]().
     auto ownKeys = object->ownPropertyKeys(state);
     // 3. Let properties be a new empty List.
-    ValueVector properties;
+    ValueVectorWithInlineStorage properties;
 
     // 4. For each element key of ownKeys in List order, do
     for (size_t i = 0; i < ownKeys.size(); ++i) {
@@ -1490,29 +1587,7 @@ ValueVector Object::enumerableOwnProperties(ExecutionState& state, Object* objec
             auto desc = object->getOwnProperty(state, propertyName);
             // ii. If desc is not undefined and desc.[[Enumerable]] is true, then
             if (desc.hasValue() && desc.isEnumerable()) {
-                if (kind == EnumerableOwnPropertiesType::Key) {
-                    // 1. If kind is "key", append key to properties
-                    properties.pushBack(key);
-                } else {
-                    // 2. Else
-                    // a. Let value be ? Get(O, key).
-                    Value value = object->get(state, propertyName).value(state, object);
-                    // b. If kind is "value", append value to properties.
-                    if (kind == EnumerableOwnPropertiesType::Value) {
-                        properties.pushBack(value);
-                    } else {
-                        // c. else
-                        // i. Assert: kind is "key+value".
-                        ASSERT(kind == EnumerableOwnPropertiesType::KeyAndValue);
-                        // ii. Let entry be CreateArrayFromList(« key, value »).
-                        ValueVector vv;
-                        vv.pushBack(key);
-                        vv.pushBack(value);
-                        auto entry = createArrayFromList(state, vv);
-                        // iii. Append entry to properties.
-                        properties.push_back(entry);
-                    }
-                }
+                enumerableOwnPropertiesPushResult(state, properties, object, key, kind);
             }
         }
     }

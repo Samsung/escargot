@@ -474,7 +474,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     return ObjectHasPropertyResult();
 }
 
-ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
+Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
     auto strings = &state.context()->staticStrings();
@@ -483,7 +483,7 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return ValueVector();
+        return OwnPropertyKeyVector();
     }
     Value handler(this->handler());
 
@@ -549,7 +549,7 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     // 19. If extensibleTarget is true and targetNonconfigurableKeys is empty, then
     if (extensibleTarget && targetNonconfigurableKeys.size() == 0) {
         // a. Return trapResult.
-        return trapResult;
+        return OwnPropertyKeyVector(trapResult.data(), trapResult.size());
     }
 
     // 20. Let uncheckedResultKeys be a new List which is a copy of trapResult.
@@ -580,7 +580,7 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
 
     // 22. If extensibleTarget is true, return trapResult.
     if (extensibleTarget) {
-        return trapResult;
+        return OwnPropertyKeyVector(trapResult.data(), trapResult.size());
     }
 
     // 23. Repeat, for each key that is an element of targetConfigurableKeys,
@@ -607,7 +607,7 @@ ValueVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     }
 
     // 25. Return trapResult.
-    return trapResult;
+    return OwnPropertyKeyVector(trapResult.data(), trapResult.size());
 }
 
 bool ProxyObject::isArray(ExecutionState& state) const
