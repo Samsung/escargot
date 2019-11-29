@@ -305,11 +305,21 @@ public:
     {
         return false;
     }
-
     virtual bool isArrayIteratorPrototypeObject() const
     {
         return false;
     }
+
+    virtual bool isRegExpStringIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isRegExpStringIteratorPrototypeObject() const
+    {
+        return false;
+    }
+
 
     virtual bool isStringIteratorObject() const
     {

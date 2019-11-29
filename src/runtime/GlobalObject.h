@@ -89,6 +89,7 @@ public:
         , m_datePrototype(nullptr)
         , m_regexp(nullptr)
         , m_regexpPrototype(nullptr)
+        , m_regexpStringIteratorPrototype(nullptr)
         , m_regexpSplitMethod(nullptr)
         , m_regexpReplaceMethod(nullptr)
         , m_math(nullptr)
@@ -402,6 +403,11 @@ public:
     Object* regexpPrototype()
     {
         return m_regexpPrototype;
+    }
+
+    Object* regexpStringIteratorPrototype()
+    {
+        return m_regexpStringIteratorPrototype;
     }
 
     FunctionObject* regexpSplitMethod()
@@ -745,8 +751,10 @@ private:
 
     GlobalRegExpFunctionObject* m_regexp;
     Object* m_regexpPrototype;
+    Object* m_regexpStringIteratorPrototype;
     FunctionObject* m_regexpSplitMethod;
     FunctionObject* m_regexpReplaceMethod;
+
 
     Object* m_math;
 

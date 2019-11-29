@@ -22,6 +22,8 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/IteratorObject.h"
+
 
 namespace JSC {
 namespace Yarr {
@@ -172,6 +174,33 @@ private:
     const String* m_lastExecutedString;
 };
 
+
+class RegExpStringIteratorObject : public IteratorObject {
+public:
+    RegExpStringIteratorObject(ExecutionState& state, Object* R, String* S, bool global, bool fullUnicode, bool done);
+
+    virtual bool isRegExpStringIteratorObject() const override
+    {
+        return true;
+    }
+
+    virtual const char* internalClassProperty() override
+    {
+        return "RegExpString Iterator";
+    }
+    virtual std::pair<Value, bool> advance(ExecutionState& state) override;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+private:
+    Object* m_regexp;
+    String* m_iteratedString;
+    bool m_isGlobal;
+    bool m_isUnicode;
+    bool m_isDone;
+};
+
 typedef std::unordered_map<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,
                            std::hash<RegExpObject::RegExpCacheKey>, std::equal_to<RegExpObject::RegExpCacheKey>,
                            gc_allocator<std::pair<const RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry>>>
@@ -196,5 +225,6 @@ struct equal_to<Escargot::RegExpObject::RegExpCacheKey> {
     }
 };
 }
+
 
 #endif

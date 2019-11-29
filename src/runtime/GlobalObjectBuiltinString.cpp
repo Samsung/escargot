@@ -199,6 +199,33 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     return Object::call(state, match, rx, 1, parameter);
 }
 
+// String.prototype.match ( regexp )
+static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Value flags;
+    if (thisValue.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), "%s: called on undefined or null");
+    }
+    Value regexp = argv[0];
+    if (!regexp.isUndefinedOrNull()) {
+        if (regexp.isObject() && regexp.asObject()->isRegExpObject()) {
+            Value flags = regexp.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, regexp);
+            if (flags.toString(state)->find(String::fromASCII("g")) == SIZE_MAX) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().matchAll.string(), "The regexp doesn't contain Global flag ");
+            }
+        }
+        Value matcher = regexp.toObject(state)->getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll));
+        if (!matcher.isUndefined()) {
+            return Object::call(state, matcher, regexp, 1, &thisValue);
+        }
+    }
+    String* S = thisValue.toString(state);
+    RegExpObject* rx = new RegExpObject(state, regexp.toString(state), RegExpObject::Option::Global);
+    Value matchAll = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll)).value(state, rx);
+    Value parameter[1] = { S };
+    return Object::call(state, matchAll, rx, 1, parameter);
+}
+
 #if defined(ENABLE_ICU)
 static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
@@ -1469,6 +1496,10 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->match),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->match, builtinStringMatch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->matchAll),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->matchAll, builtinStringMatchAll, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
 #if defined(ENABLE_ICU)
     // The length property of the normalize method is 0.

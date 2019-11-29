@@ -49,6 +49,7 @@ class ASTAllocator;
     F(unscopables)               \
     F(search)                    \
     F(match)                     \
+    F(matchAll)                  \
     F(replace)
 
 struct GlobalSymbols {

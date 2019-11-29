@@ -510,4 +510,64 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
         }
     }
 }
+
+RegExpStringIteratorObject::RegExpStringIteratorObject(ExecutionState& state, Object* R, String* S, bool global, bool fullUnicode, bool done)
+    : IteratorObject(state)
+    , m_regexp(R)
+    , m_iteratedString(S)
+    , m_isGlobal(global)
+    , m_isUnicode(fullUnicode)
+    , m_isDone(done)
+{
+    Object::setPrototype(state, state.context()->globalObject()->regexpStringIteratorPrototype());
+}
+
+void* RegExpStringIteratorObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpStringIteratorObject)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpStringIteratorObject, m_structure));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpStringIteratorObject, m_prototype));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpStringIteratorObject, m_values));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpStringIteratorObject, m_regexp));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RegExpStringIteratorObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state)
+{
+    if (m_isDone) {
+        return std::make_pair(Value(), m_isDone);
+    }
+    Object* R = m_regexp;
+    String* S = m_iteratedString;
+    bool global = m_isGlobal;
+    bool fullUnicode = m_isUnicode;
+
+    auto execFunction = R->getMethod(state, ObjectPropertyName(state.context()->staticStrings().exec));
+    Value arg[1] = { S };
+    Value match = Object::call(state, execFunction ? execFunction.value() : Value(), R, 1, arg);
+
+    if (match.isNull()) {
+        m_isDone = true;
+        return std::make_pair(Value(), m_isDone);
+    } else {
+        if (global) {
+            String* matchStr = match.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, match).toString(state);
+            if (matchStr->length() == 0) {
+                size_t thisIndex = R->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, R).toLength(state);
+                size_t nextIndex = S->advanceStringIndex(thisIndex, fullUnicode);
+                R->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), R);
+            }
+            return std::make_pair(match, m_isDone);
+        } else {
+            m_isDone = true;
+            return std::make_pair(match, false);
+        }
+    }
+}
 }

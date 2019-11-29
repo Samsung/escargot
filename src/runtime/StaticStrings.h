@@ -266,6 +266,7 @@ namespace Escargot {
     F(compare)                    \
     F(map)                        \
     F(match)                      \
+    F(matchAll)                   \
     F(now)                        \
     F(normalize)                  \
     F(parseFloat)                 \
@@ -370,6 +371,7 @@ namespace Escargot {
     F(next)                       \
     F(MapIterator)                \
     F(ArrayIterator)              \
+    F(RegexpStringIterator)       \
     F(StringIterator)             \
     F(SetIterator)                \
     F(entries)                    \
@@ -619,6 +621,7 @@ public:
     AtomicString symbolReplace;
     AtomicString symbolSearch;
     AtomicString symbolMatch;
+    AtomicString symbolMatchAll;
     AtomicString $Ampersand;
     AtomicString $PlusSign;
     AtomicString $GraveAccent;
