@@ -70,7 +70,7 @@ public:
             setUIntValue(v.asUInt32());
         } else {
             setUIntType(false);
-            m_value.m_name = PropertyName(state, v);
+            m_value.m_name = ObjectStructurePropertyName(state, v);
         }
     }
 
@@ -81,7 +81,7 @@ public:
             setUIntValue((uint32_t)v);
         } else {
             setUIntType(false);
-            m_value.m_name = PropertyName(state, Value(v));
+            m_value.m_name = ObjectStructurePropertyName(state, Value(v));
         }
     }
 
@@ -93,7 +93,7 @@ public:
             setUIntValue((uint32_t)v);
         } else {
             setUIntType(false);
-            m_value.m_name = PropertyName(state, Value(v));
+            m_value.m_name = ObjectStructurePropertyName(state, Value(v));
         }
     }
 #else
@@ -115,7 +115,7 @@ public:
             setUIntValue((uint32_t)v);
         } else {
             setUIntType(false);
-            m_value.m_name = PropertyName(state, Value(v));
+            m_value.m_name = ObjectStructurePropertyName(state, Value(v));
         }
 #endif
     }
@@ -123,7 +123,7 @@ public:
     ObjectPropertyName(Symbol* symbol)
     {
         setUIntType(false);
-        m_value.m_name = PropertyName(symbol);
+        m_value.m_name = ObjectStructurePropertyName(symbol);
     }
 
     ObjectPropertyName(const AtomicString& v)
@@ -132,7 +132,7 @@ public:
         m_value.m_name = v;
     }
 
-    ObjectPropertyName(ExecutionState&, const PropertyName& v)
+    ObjectPropertyName(ExecutionState&, const ObjectStructurePropertyName& v)
     {
         setUIntType(false);
         m_value.m_name = v;
@@ -169,7 +169,7 @@ public:
 #endif
     }
 
-    const PropertyName& propertyName() const
+    const ObjectStructurePropertyName& objectStructurePropertyName() const
     {
         ASSERT(!isUIntType());
         return m_value.m_name;
@@ -190,16 +190,16 @@ public:
         if (isUIntType()) {
             return true;
         } else {
-            return propertyName().isIndexString();
+            return objectStructurePropertyName().isIndexString();
         }
     }
 
-    ALWAYS_INLINE PropertyName toPropertyName(ExecutionState& state) const
+    ALWAYS_INLINE ObjectStructurePropertyName toObjectStructurePropertyName(ExecutionState& state) const
     {
         if (isUIntType()) {
-            return toPropertyNameUintCase(state);
+            return toObjectStructurePropertyNameUintCase(state);
         }
-        return propertyName();
+        return objectStructurePropertyName();
     }
 
     uint64_t tryToUseAsIndex() const
@@ -207,7 +207,7 @@ public:
         if (LIKELY(isUIntType())) {
             return uintValue();
         }
-        return propertyName().tryToUseAsIndex();
+        return objectStructurePropertyName().tryToUseAsIndex();
     }
 
     uint64_t tryToUseAsArrayIndex() const
@@ -215,7 +215,7 @@ public:
         if (LIKELY(isUIntType())) {
             return uintValue();
         }
-        return propertyName().tryToUseAsArrayIndex();
+        return objectStructurePropertyName().tryToUseAsArrayIndex();
     }
 
     Value toPlainValue(ExecutionState&) const
@@ -223,7 +223,7 @@ public:
         if (isUIntType()) {
             return Value(uintValue());
         } else {
-            return propertyName().toValue();
+            return objectStructurePropertyName().toValue();
         }
     }
 
@@ -232,7 +232,7 @@ public:
         if (isUIntType()) {
             return String::fromDouble(uintValue());
         } else {
-            return propertyName().toExceptionString();
+            return objectStructurePropertyName().toExceptionString();
         }
     }
 
@@ -241,7 +241,7 @@ public:
         if (isUIntType()) {
             return Value(String::fromDouble(uintValue()));
         } else {
-            return propertyName().toValue();
+            return objectStructurePropertyName().toValue();
         }
     }
 
@@ -259,7 +259,7 @@ private:
 #endif
         }
 
-        PropertyName m_name;
+        ObjectStructurePropertyName m_name;
 #ifdef ESCARGOT_32
         uint32_t m_uint;
 #else
@@ -271,7 +271,7 @@ private:
 #endif
     } m_value;
 
-    PropertyName toPropertyNameUintCase(ExecutionState& state) const;
+    ObjectStructurePropertyName toObjectStructurePropertyNameUintCase(ExecutionState& state) const;
 };
 
 typedef std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> ObjectPropertyNameVector;
@@ -890,21 +890,21 @@ public:
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
-            throwCannotDefineError(state, P.toPropertyName(state));
+            throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
         }
     }
 
     void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!defineOwnProperty(state, P, desc) && state.inStrictMode()) {
-            throwCannotDefineError(state, P.toPropertyName(state));
+            throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
         }
     }
 
     void deleteOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P)
     {
         if (!deleteOwnProperty(state, P)) {
-            throwCannotDefineError(state, P.toPropertyName(state));
+            throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
         }
     }
 
@@ -913,7 +913,7 @@ public:
     void setIndexedPropertyThrowsException(ExecutionState& state, const Value& property, const Value& value)
     {
         if (!setIndexedProperty(state, property, value)) {
-            throwCannotDefineError(state, PropertyName(state, property.toString(state)));
+            throwCannotDefineError(state, ObjectStructurePropertyName(state, property.toString(state)));
         }
     }
 
@@ -1020,9 +1020,9 @@ public:
 
     static bool isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult current);
 
-    static void throwCannotDefineError(ExecutionState& state, const PropertyName& P);
-    static void throwCannotWriteError(ExecutionState& state, const PropertyName& P);
-    static void throwCannotDeleteError(ExecutionState& state, const PropertyName& P);
+    static void throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P);
+    static void throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P);
+    static void throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P);
     static ArrayObject* createArrayFromList(ExecutionState& state, const size_t size, Value* buffer);
     static ArrayObject* createArrayFromList(ExecutionState& state, ValueVector& elements);
     static ValueVector createListFromArrayLike(ExecutionState& state, Value obj, uint8_t types = (uint8_t)ElementTypes::ALL);

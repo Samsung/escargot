@@ -1630,7 +1630,7 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
         const Value& o = state.makeSuperPropertyReference();
         Object* obj = o.toObject(state);
 
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.toPropertyName(state).toExceptionString(), false, String::emptyString, "ReferenceError: Unsupported reference to 'super'");
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.toObjectStructurePropertyName(state).toExceptionString(), false, String::emptyString, "ReferenceError: Unsupported reference to 'super'");
     } else {
         const Value& o = registerFile[code->m_srcIndex0];
         const Value& p = registerFile[code->m_srcIndex1];
@@ -1640,7 +1640,7 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
 
         bool result = obj->deleteOwnProperty(state, name);
         if (!result && state.inStrictMode())
-            Object::throwCannotDeleteError(state, name.toPropertyName(state));
+            Object::throwCannotDeleteError(state, name.toObjectStructurePropertyName(state));
         registerFile[code->m_dstIndex] = Value(result);
     }
 }
@@ -1719,7 +1719,7 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     }
 }
 
-ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& receiver, const PropertyName& name, GetObjectInlineCache& inlineCache, ByteCodeBlock* block)
+ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& receiver, const ObjectStructurePropertyName& name, GetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
     Object* orgObj = obj;
     const size_t cacheFillCount = inlineCache.m_cache.size();
@@ -1759,7 +1759,7 @@ TestCache:
     return getObjectPrecomputedCaseOperationCacheMiss(state, orgObj, receiver, name, inlineCache, block);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, const PropertyName& name, GetObjectInlineCache& inlineCache, ByteCodeBlock* block)
+NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, const ObjectStructurePropertyName& name, GetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
     const int maxCacheMissCount = 16;
     const int minCacheFillCount = 3;
@@ -1814,7 +1814,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     }
 }
 
-ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
+ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const ObjectStructurePropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
     Object* obj;
     if (UNLIKELY(!willBeObject.isObject())) {
@@ -1866,7 +1866,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
     setObjectPreComputedCaseOperationCacheMiss(state, originalObject, willBeObject, name, value, inlineCache, block);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const PropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
+NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const ObjectStructurePropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block)
 {
     // cache miss
     if (inlineCache.m_cacheMissCount > 16) {
@@ -3238,7 +3238,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& s
 
     bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
     if (UNLIKELY(!result) && state.inStrictMode()) {
-        Object::throwCannotWriteError(state, PropertyName(state, property.toString(state)));
+        Object::throwCannotWriteError(state, ObjectStructurePropertyName(state, property.toString(state)));
     }
 }
 

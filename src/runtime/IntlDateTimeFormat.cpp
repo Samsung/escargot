@@ -194,7 +194,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     dateTimeFormat->setPrototype(state, state.context()->globalObject()->intlDateTimeFormat()->getFunctionPrototype(state));
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
-    if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, PropertyName(state, initializedIntlObject)))) {
+    if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
     }
 

@@ -63,14 +63,14 @@ ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, ModuleEnviro
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-getownproperty-p
 ObjectGetResult ModuleNamespaceObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    auto pAsPropertyName = P.toPropertyName(state);
+    auto pAsPropertyName = P.toObjectStructurePropertyName(state);
     // If Type(P) is Symbol, return OrdinaryGetOwnProperty(O, P).
     if (pAsPropertyName.isSymbol()) {
         return Object::getOwnProperty(state, P);
     }
     // Let exports be the value of O’s [[Exports]] internal slot.
     for (size_t i = 0; i < m_exports.size(); i++) {
-        if (pAsPropertyName == PropertyName(m_exports[i])) {
+        if (pAsPropertyName == ObjectStructurePropertyName(m_exports[i])) {
             // Let value be O.[[Get]](P, O).
             Value value = this->get(state, P).value(state, this);
             // ReturnIfAbrupt(value).
@@ -86,7 +86,7 @@ ObjectGetResult ModuleNamespaceObject::getOwnProperty(ExecutionState& state, con
 ObjectHasPropertyResult ModuleNamespaceObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     // If Type(P) is Symbol, return OrdinaryHasProperty(O, P).
-    auto pAsPropertyName = P.toPropertyName(state);
+    auto pAsPropertyName = P.toObjectStructurePropertyName(state);
     // If Type(P) is Symbol, return OrdinaryGetOwnProperty(O, P).
     if (pAsPropertyName.isSymbol()) {
         return Object::hasProperty(state, P);
@@ -95,7 +95,7 @@ ObjectHasPropertyResult ModuleNamespaceObject::hasProperty(ExecutionState& state
     // If P is an element of exports, return true.
     // Return false.
     for (size_t i = 0; i < m_exports.size(); i++) {
-        if (pAsPropertyName == PropertyName(m_exports[i])) {
+        if (pAsPropertyName == ObjectStructurePropertyName(m_exports[i])) {
             return ObjectHasPropertyResult([](ExecutionState& state, const ObjectPropertyName& P, void* handlerData) -> Value {
                 ModuleNamespaceObject* p = (ModuleNamespaceObject*)handlerData;
                 return p->getOwnProperty(state, P).value(state, p);
@@ -111,14 +111,14 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
 {
     // Assert: IsPropertyKey(P) is true.
     // If Type(P) is Symbol, then
-    auto pAsPropertyName = P.toPropertyName(state);
+    auto pAsPropertyName = P.toObjectStructurePropertyName(state);
     if (pAsPropertyName.isSymbol()) {
         // Return the result of calling the default ordinary object [[Get]] internal method (9.1.8) on O passing P and Receiver as arguments.
         return Object::get(state, P);
     }
     // Let exports be the value of O’s [[Exports]] internal slot.
     for (size_t i = 0; i < m_exports.size(); i++) {
-        if (pAsPropertyName == PropertyName(m_exports[i])) {
+        if (pAsPropertyName == ObjectStructurePropertyName(m_exports[i])) {
             AtomicString pAsAtomicString(state, pAsPropertyName.plainString());
             // Let m be the value of O’s [[Module]] internal slot.
             // Let binding be m.ResolveExport(P, «», «»).
@@ -147,12 +147,12 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-delete-p
 bool ModuleNamespaceObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    auto pAsPropertyName = P.toPropertyName(state);
+    auto pAsPropertyName = P.toObjectStructurePropertyName(state);
     // Let exports be the value of O’s [[Exports]] internal slot.
     // If P is an element of exports, return true.
     // Return false.
     for (size_t i = 0; i < m_exports.size(); i++) {
-        if (pAsPropertyName == PropertyName(m_exports[i])) {
+        if (pAsPropertyName == ObjectStructurePropertyName(m_exports[i])) {
             return false;
         }
     }

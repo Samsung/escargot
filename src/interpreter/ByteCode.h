@@ -944,7 +944,7 @@ struct GetObjectInlineCache {
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
-    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, PropertyName propertyName)
+    GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, ObjectStructurePropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
@@ -955,7 +955,7 @@ public:
     GetObjectInlineCache m_inlineCache;
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_storeRegisterIndex;
-    PropertyName m_propertyName;
+    ObjectStructurePropertyName m_propertyName;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
@@ -989,7 +989,7 @@ struct SetObjectInlineCache {
 
 class SetObjectPreComputedCase : public ByteCode {
 public:
-    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, PropertyName propertyName, const size_t loadRegisterIndex, SetObjectInlineCache* inlineCache)
+    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, ObjectStructurePropertyName propertyName, const size_t loadRegisterIndex, SetObjectInlineCache* inlineCache)
         : ByteCode(Opcode::SetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
@@ -1000,7 +1000,7 @@ public:
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
-    PropertyName m_propertyName;
+    ObjectStructurePropertyName m_propertyName;
     SetObjectInlineCache* m_inlineCache;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)

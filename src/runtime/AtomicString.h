@@ -31,7 +31,7 @@ typedef std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, 
 
 class AtomicString : public gc {
     friend class StaticStrings;
-    friend class PropertyName;
+    friend class ObjectStructurePropertyName;
     friend class ASTBlockScopeContextNameInfo;
     friend class AtomicStringRef;
     inline explicit AtomicString(String* str)

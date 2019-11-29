@@ -108,7 +108,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             return setArrayLength(state, idx + 1);
         }
         return true;
-    } else if (P.toPropertyName(state).equals(state.context()->staticStrings().length.string())) {
+    } else if (P.toObjectStructurePropertyName(state).equals(state.context()->staticStrings().length.string())) {
         // See 3.a ~ 3.n on http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.5.1
         if (desc.isValuePresent()) {
             ObjectPropertyDescriptor newLenDesc(desc);

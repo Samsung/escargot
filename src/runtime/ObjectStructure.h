@@ -22,7 +22,7 @@
 
 #include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
-#include "runtime/PropertyName.h"
+#include "runtime/ObjectStructurePropertyName.h"
 #include "runtime/ObjectStructurePropertyDescriptor.h"
 
 namespace Escargot {
@@ -30,22 +30,22 @@ namespace Escargot {
 class ObjectStructure;
 
 struct ObjectStructureItem : public gc {
-    ObjectStructureItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc)
+    ObjectStructureItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
         , m_descriptor(desc)
     {
     }
 
-    PropertyName m_propertyName;
+    ObjectStructurePropertyName m_propertyName;
     ObjectStructurePropertyDescriptor m_descriptor;
 };
 
 struct ObjectStructureTransitionVectorItem : public gc {
-    PropertyName m_propertyName;
+    ObjectStructurePropertyName m_propertyName;
     ObjectStructurePropertyDescriptor m_descriptor;
     ObjectStructure* m_structure;
 
-    ObjectStructureTransitionVectorItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc, ObjectStructure* structure)
+    ObjectStructureTransitionVectorItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc, ObjectStructure* structure)
         : m_propertyName(as)
         , m_descriptor(desc)
         , m_structure(structure)
@@ -54,10 +54,10 @@ struct ObjectStructureTransitionVectorItem : public gc {
 };
 
 struct ObjectStructureTransitionMapItem : public gc {
-    PropertyName m_propertyName;
+    ObjectStructurePropertyName m_propertyName;
     ObjectStructurePropertyDescriptor m_descriptor;
 
-    ObjectStructureTransitionMapItem(const PropertyName& as, const ObjectStructurePropertyDescriptor& desc)
+    ObjectStructureTransitionMapItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
         , m_descriptor(desc)
     {
@@ -109,21 +109,21 @@ public:
     virtual ~ObjectStructure() {}
     std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(ExecutionState& state, String* propertyName)
     {
-        PropertyName name(state, propertyName);
+        ObjectStructurePropertyName name(state, propertyName);
         return findProperty(name);
     }
 
     ObjectStructure* addProperty(ExecutionState& state, String* propertyName, const ObjectStructurePropertyDescriptor& desc)
     {
-        PropertyName name(state, propertyName);
+        ObjectStructurePropertyName name(state, propertyName);
         return addProperty(name, desc);
     }
 
-    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) = 0;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) = 0;
     virtual const ObjectStructureItem& readProperty(size_t idx) = 0;
     virtual const ObjectStructureItem* properties() const = 0;
     virtual size_t propertyCount() const = 0;
-    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) = 0;
+    virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) = 0;
     virtual ObjectStructure* removeProperty(size_t pIndex) = 0;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) = 0;
 
@@ -142,11 +142,11 @@ public:
     {
     }
 
-    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) override;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;
     virtual size_t propertyCount() const override;
-    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
+    virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
     virtual ObjectStructure* removeProperty(size_t pIndex) override;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
     virtual ObjectStructure* convertToNonTransitionStructure() override;
@@ -183,11 +183,11 @@ public:
     {
     }
 
-    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) override;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;
     virtual size_t propertyCount() const override;
-    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
+    virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
     virtual ObjectStructure* removeProperty(size_t pIndex) override;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
     virtual ObjectStructure* convertToNonTransitionStructure() override;
@@ -265,11 +265,11 @@ public:
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
-    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const PropertyName& s) override;
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;
     virtual size_t propertyCount() const override;
-    virtual ObjectStructure* addProperty(const PropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
+    virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
     virtual ObjectStructure* removeProperty(size_t pIndex) override;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
     virtual ObjectStructure* convertToNonTransitionStructure() override;

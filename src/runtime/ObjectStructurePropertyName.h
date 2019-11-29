@@ -17,8 +17,8 @@
  *  USA
  */
 
-#ifndef __EscargotPropertyName__
-#define __EscargotPropertyName__
+#ifndef __EscargotObjectStructurePropertyName__
+#define __EscargotObjectStructurePropertyName__
 
 #include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
@@ -30,20 +30,20 @@ namespace Escargot {
 
 #define PROPERTY_NAME_ATOMIC_STRING_VIAS 1
 
-class PropertyName {
+class ObjectStructurePropertyName {
 public:
-    PropertyName(const AtomicString& atomicString)
+    ObjectStructurePropertyName(const AtomicString& atomicString)
     {
         m_data = ((size_t)atomicString.string() + PROPERTY_NAME_ATOMIC_STRING_VIAS);
         ASSERT(m_data);
     }
 
-    PropertyName(Symbol* symbol)
+    ObjectStructurePropertyName(Symbol* symbol)
     {
         m_data = (size_t)symbol;
     }
 
-    PropertyName(ExecutionState& state, const Value& value);
+    ObjectStructurePropertyName(ExecutionState& state, const Value& value);
     size_t hashValue() const
     {
         if (LIKELY(hasAtomicString())) {
@@ -55,11 +55,11 @@ public:
         return ((String*)m_data)->hashValue();
     }
 
-    ALWAYS_INLINE friend bool operator==(const PropertyName& a, const PropertyName& b);
-    ALWAYS_INLINE friend bool operator!=(const PropertyName& a, const PropertyName& b);
+    ALWAYS_INLINE friend bool operator==(const ObjectStructurePropertyName& a, const ObjectStructurePropertyName& b);
+    ALWAYS_INLINE friend bool operator!=(const ObjectStructurePropertyName& a, const ObjectStructurePropertyName& b);
 
-    ALWAYS_INLINE friend bool operator==(const PropertyName& a, const AtomicString& b);
-    ALWAYS_INLINE friend bool operator!=(const PropertyName& a, const AtomicString& b);
+    ALWAYS_INLINE friend bool operator==(const ObjectStructurePropertyName& a, const AtomicString& b);
+    ALWAYS_INLINE friend bool operator!=(const ObjectStructurePropertyName& a, const AtomicString& b);
 
     ALWAYS_INLINE bool isSymbol() const
     {
@@ -173,7 +173,7 @@ protected:
     // String*, Symbol* <- saves pointer
 };
 
-ALWAYS_INLINE bool operator==(const PropertyName& a, const PropertyName& b)
+ALWAYS_INLINE bool operator==(const ObjectStructurePropertyName& a, const ObjectStructurePropertyName& b)
 {
     bool aa = a.hasAtomicString();
     bool ab = b.hasAtomicString();
@@ -192,12 +192,12 @@ ALWAYS_INLINE bool operator==(const PropertyName& a, const PropertyName& b)
     }
 }
 
-ALWAYS_INLINE bool operator!=(const PropertyName& a, const PropertyName& b)
+ALWAYS_INLINE bool operator!=(const ObjectStructurePropertyName& a, const ObjectStructurePropertyName& b)
 {
     return !operator==(a, b);
 }
 
-ALWAYS_INLINE bool operator==(const PropertyName& a, const AtomicString& b)
+ALWAYS_INLINE bool operator==(const ObjectStructurePropertyName& a, const AtomicString& b)
 {
     bool aa = a.hasAtomicString();
     if (LIKELY(aa)) {
@@ -212,26 +212,26 @@ ALWAYS_INLINE bool operator==(const PropertyName& a, const AtomicString& b)
     }
 }
 
-ALWAYS_INLINE bool operator!=(const PropertyName& a, const AtomicString& b)
+ALWAYS_INLINE bool operator!=(const ObjectStructurePropertyName& a, const AtomicString& b)
 {
     return !operator==(a, b);
 }
 
-typedef std::unordered_map<PropertyName, size_t, std::hash<PropertyName>, std::equal_to<PropertyName>, GCUtil::gc_malloc_allocator<std::pair<const PropertyName, size_t>>> PropertyNameMap;
+typedef std::unordered_map<ObjectStructurePropertyName, size_t, std::hash<ObjectStructurePropertyName>, std::equal_to<ObjectStructurePropertyName>, GCUtil::gc_malloc_allocator<std::pair<const ObjectStructurePropertyName, size_t>>> PropertyNameMap;
 }
 
 namespace std {
 template <>
-struct hash<Escargot::PropertyName> {
-    size_t operator()(Escargot::PropertyName const& x) const
+struct hash<Escargot::ObjectStructurePropertyName> {
+    size_t operator()(Escargot::ObjectStructurePropertyName const& x) const
     {
         return x.hashValue();
     }
 };
 
 template <>
-struct equal_to<Escargot::PropertyName> {
-    bool operator()(Escargot::PropertyName const& a, Escargot::PropertyName const& b) const
+struct equal_to<Escargot::ObjectStructurePropertyName> {
+    bool operator()(Escargot::ObjectStructurePropertyName const& a, Escargot::ObjectStructurePropertyName const& b) const
     {
         return a == b;
     }

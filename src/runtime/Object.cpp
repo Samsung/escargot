@@ -38,7 +38,7 @@ namespace Escargot {
 COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS == (PROPERTY_NAME_ATOMIC_STRING_VIAS << 1), "");
 COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS <= (1 << 3), "");
 
-PropertyName::PropertyName(ExecutionState& state, const Value& valueIn)
+ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, const Value& valueIn)
 {
     Value value = valueIn.toPrimitive(state, Value::PreferString);
     if (UNLIKELY(value.isSymbol())) {
@@ -68,16 +68,16 @@ PropertyName::PropertyName(ExecutionState& state, const Value& valueIn)
     }
 }
 
-PropertyName ObjectPropertyName::toPropertyNameUintCase(ExecutionState& state) const
+ObjectStructurePropertyName ObjectPropertyName::toObjectStructurePropertyNameUintCase(ExecutionState& state) const
 {
     ASSERT(isUIntType());
 
     auto uint = uintValue();
     if (uint < ESCARGOT_STRINGS_NUMBERS_MAX) {
-        return PropertyName(state.context()->staticStrings().numbers[uint]);
+        return ObjectStructurePropertyName(state.context()->staticStrings().numbers[uint]);
     }
 
-    return PropertyName(state, String::fromDouble(uint));
+    return ObjectStructurePropertyName(state, String::fromDouble(uint));
 }
 
 size_t g_objectRareDataTag;
@@ -552,7 +552,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
     if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
         return ObjectGetResult();
     }
-    PropertyName P = propertyName.toPropertyName(state);
+    ObjectStructurePropertyName P = propertyName.toObjectStructurePropertyName(state);
     auto findResult = m_structure->findProperty(P);
     if (LIKELY(findResult.first != SIZE_MAX)) {
         const ObjectStructureItem* item = findResult.second.value();
@@ -583,7 +583,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     // TODO Return true, if every field in Desc is absent.
     // TODO Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value as the corresponding field in current when compared using the SameValue algorithm (9.12).
 
-    PropertyName propertyName = P.toPropertyName(state);
+    ObjectStructurePropertyName propertyName = P.toObjectStructurePropertyName(state);
     auto findResult = m_structure->findProperty(propertyName);
     if (findResult.first == SIZE_MAX) {
         // 3. If current is undefined and extensible is false, then Reject.
@@ -758,7 +758,7 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 {
     auto result = getOwnProperty(state, P);
     if (result.hasValue() && result.isConfigurable()) {
-        deleteOwnProperty(state, m_structure->findProperty(P.toPropertyName(state)).first);
+        deleteOwnProperty(state, m_structure->findProperty(P.toObjectStructurePropertyName(state)).first);
         return true;
     } else if (result.hasValue() && !result.isConfigurable()) {
         return false;
@@ -1147,17 +1147,17 @@ void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const Objec
     }
 }
 
-void Object::throwCannotDefineError(ExecutionState& state, const PropertyName& P)
+void Object::throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_RedefineNotConfigurable);
 }
 
-void Object::throwCannotWriteError(ExecutionState& state, const PropertyName& P)
+void Object::throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
 }
 
-void Object::throwCannotDeleteError(ExecutionState& state, const PropertyName& P)
+void Object::throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
 }
@@ -1438,7 +1438,7 @@ bool Object::defineNativeDataAccessorProperty(ExecutionState& state, const Objec
     ASSERT(!hasOwnProperty(state, P));
     ASSERT(isExtensible(state));
 
-    m_structure = m_structure->addProperty(P.toPropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
+    m_structure = m_structure->addProperty(P.toObjectStructurePropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
     m_values.pushBack(objectInternalData, m_structure->propertyCount());
 
     return true;
