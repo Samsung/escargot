@@ -63,7 +63,7 @@ public:
         codeBlock->peekCode<JumpByteCode>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         if (!m_alternate) {
-            if (context->m_isEvalCode || context->m_isGlobalScope) {
+            if (context->shouldCareScriptExecutionResult()) {
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
                 context->giveUpRegister();
             }

@@ -268,6 +268,11 @@ struct ByteCodeGenerateContext {
         return m_isGlobalScope;
     }
 
+    bool shouldCareScriptExecutionResult()
+    {
+        return m_isGlobalScope | m_isEvalCode;
+    }
+
     void addLexicallyDeclaredNames(AtomicString name)
     {
         bool finded = false;

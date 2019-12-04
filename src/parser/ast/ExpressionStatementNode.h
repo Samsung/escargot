@@ -37,7 +37,7 @@ public:
     Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        if (!context->m_isEvalCode && !context->m_isGlobalScope) {
+        if (!context->shouldCareScriptExecutionResult()) {
             m_expression->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             return;
         }
