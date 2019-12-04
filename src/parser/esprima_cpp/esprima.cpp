@@ -3868,6 +3868,12 @@ public:
         ASTNode discriminant = this->parseExpression(builder);
         this->expect(RightParenthesis);
 
+        ParserBlockContext blockContext;
+        openBlock(blockContext);
+        this->currentBlockContext->m_nodeType = ASTNodeType::SwitchStatement;
+        bool oldAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
+        this->context->allowLexicalDeclaration = true;
+
         bool previousInSwitch = this->context->inSwitch;
         this->context->inSwitch = true;
 
@@ -3902,8 +3908,11 @@ public:
         }
         this->expect(RightBrace);
 
+        this->context->allowLexicalDeclaration = oldAllowLexicalDeclaration;
+        closeBlock(blockContext);
+
         this->context->inSwitch = previousInSwitch;
-        return this->finalize(this->createNode(), builder.createSwitchStatementNode(discriminant, casesA, deflt, casesB));
+        return this->finalize(this->createNode(), builder.createSwitchStatementNode(discriminant, casesA, deflt, casesB, blockContext.childLexicalBlockIndex));
     }
 
     // ECMA-262 13.13 Labelled Statements

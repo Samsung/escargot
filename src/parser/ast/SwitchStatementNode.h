@@ -28,8 +28,9 @@ namespace Escargot {
 
 class SwitchStatementNode : public StatementNode {
 public:
-    SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB)
+    SwitchStatementNode(Node* discriminant, StatementContainer* casesA, Node* deflt, StatementContainer* casesB, LexicalBlockIndex lexicalBlockIndex)
         : StatementNode()
+        , m_lexicalBlockIndex(lexicalBlockIndex)
         , m_discriminant(discriminant)
         , m_casesA(casesA)
         , m_default(deflt)
@@ -40,13 +41,25 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         ByteCodeGenerateContext newContext(*context);
-        newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
+        size_t firstRegister = newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
 
         bool canSkipCopyToRegister = newContext.m_canSkipCopyToRegister;
         newContext.m_canSkipCopyToRegister = false;
         size_t rIndex0 = m_discriminant->getRegister(codeBlock, &newContext);
         m_discriminant->generateExpressionByteCode(codeBlock, &newContext, rIndex0);
         newContext.m_canSkipCopyToRegister = canSkipCopyToRegister;
+
+        if (firstRegister == 0 && context->shouldCareScriptExecutionResult()) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+        }
+
+        size_t lexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
+        ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+        if (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            newContext.m_lexicalBlockIndex = m_lexicalBlockIndex;
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_lexicalBlockIndex);
+            blockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+        }
 
         std::vector<size_t> jumpCodePerCaseNodePosition;
         StatementNode* nd = m_casesB->firstChild();
@@ -107,10 +120,15 @@ public:
         newContext.consumeBreakPositions(codeBlock, breakPos, context->tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = context->m_positionToContinue;
 
-        newContext.propagateInformationTo(*context);
         if (!m_default) {
             codeBlock->peekCode<Jump>(jmpToDefault)->m_jumpPosition = codeBlock->currentCodeSize();
         }
+        if (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+            codeBlock->finalizeLexicalBlock(&newContext, blockContext);
+            newContext.m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        }
+
+        newContext.propagateInformationTo(*context);
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::SwitchStatement; }
@@ -127,6 +145,7 @@ public:
     }
 
 private:
+    LexicalBlockIndex m_lexicalBlockIndex;
     Node* m_discriminant;
     StatementContainer* m_casesA;
     Node* m_default;

@@ -166,7 +166,7 @@ public:
 
         size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
-            if (!context->m_isEvalCode && !context->m_isGlobalScope) {
+            if (!context->shouldCareScriptExecutionResult()) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
             } else {
                 m_update->generateExpressionByteCode(codeBlock, &newContext, newContext.getRegister());

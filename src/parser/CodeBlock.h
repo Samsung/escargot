@@ -414,6 +414,7 @@ public:
     typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
 
     struct BlockInfo : public gc {
+        ASTNodeType m_nodeType : 16;
         bool m_canAllocateEnvironmentOnStack : 1;
         bool m_shouldAllocateEnvironment : 1;
         LexicalBlockIndex m_parentBlockIndex;
@@ -428,7 +429,8 @@ public:
             ExtendedNodeLOC loc
 #endif
             )
-            : m_canAllocateEnvironmentOnStack(false)
+            : m_nodeType(ASTNodeType::ASTNodeTypeError)
+            , m_canAllocateEnvironmentOnStack(false)
             , m_shouldAllocateEnvironment(false)
             , m_parentBlockIndex(LEXICAL_BLOCK_INDEX_MAX)
             , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)

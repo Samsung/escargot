@@ -121,6 +121,7 @@ private:
 typedef TightVector<ASTBlockScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContextNameInfo>> ASTBlockScopeContextNameInfoVector;
 // context for block in function or program
 struct ASTBlockScopeContext {
+    ASTNodeType m_nodeType;
     LexicalBlockIndex m_blockIndex;
     LexicalBlockIndex m_parentBlockIndex;
     ASTBlockScopeContextNameInfoVector m_names;
@@ -141,7 +142,8 @@ struct ASTBlockScopeContext {
     void operator delete[](void *) = delete;
 
     ASTBlockScopeContext()
-        : m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
+        : m_nodeType(ASTNodeType::ASTNodeTypeError)
+        , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
         , m_parentBlockIndex(LEXICAL_BLOCK_INDEX_MAX)
 #ifndef NDEBUG
         , m_loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)

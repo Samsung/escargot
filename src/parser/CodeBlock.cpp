@@ -171,6 +171,13 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
             blockScopes[i]->m_loc
 #endif
             );
+        info->m_nodeType = blockScopes[i]->m_nodeType;
+
+        // if block comes from switch statement, we should allocate variables on heap.
+        // because our we can track only heap variables are initialized by user
+        // we can track that {let, const} variables are initialized by user only if variables are allocated in heap
+        bool everyVariablesShouldUseHeapStorage = info->m_nodeType == ASTNodeType::SwitchStatement;
+        m_canAllocateEnvironmentOnStack = m_canAllocateEnvironmentOnStack && !everyVariablesShouldUseHeapStorage;
         info->m_canAllocateEnvironmentOnStack = m_canAllocateEnvironmentOnStack;
         info->m_shouldAllocateEnvironment = true;
         info->m_blockIndex = blockScopes[i]->m_blockIndex;
@@ -180,7 +187,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
         for (size_t j = 0; j < blockScopes[i]->m_names.size(); j++) {
             BlockIdentifierInfo idInfo;
             idInfo.m_name = blockScopes[i]->m_names[j].name();
-            idInfo.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
+            idInfo.m_needToAllocateOnStack = m_canUseIndexedVariableStorage && !everyVariablesShouldUseHeapStorage;
             idInfo.m_isMutable = !blockScopes[i]->m_names[j].isConstBinding();
             idInfo.m_indexForIndexedStorage = SIZE_MAX;
             info->m_identifiers[j] = idInfo;

@@ -167,7 +167,7 @@ public:
             context->giveUpRegister();
         } else {
             auto rt = right->type();
-            if (left->isIdentifier() && (rt != ASTNodeType::RegisterReference && rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->m_isGlobalScope && !context->m_isEvalCode) {
+            if (left->isIdentifier() && (rt != ASTNodeType::RegisterReference && rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->shouldCareScriptExecutionResult()) {
                 auto r = left->asIdentifier()->isAllocatedOnStack(context);
                 if (std::get<0>(r)) {
                     if (isLexicallyDeclaredBindingInitialization) {
