@@ -82,7 +82,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                 AtomicString uname = scopeCtx->m_childBlockScopes[i]->m_usingNames[j];
                 auto blockIndex = scopeCtx->m_childBlockScopes[i]->m_blockIndex;
                 if (uname == arguments) {
-                    if (UNLIKELY(codeBlock->hasParameter(arguments))) {
+                    if (UNLIKELY(codeBlock->isOnParameterName(arguments))) {
                         continue;
                     } else {
                         bool hasKindOfArgumentsHolderOnAncestors = false;
@@ -96,11 +96,11 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                             argumentsObjectHolder = argumentsObjectHolder->parentCodeBlock();
                         }
 
-                        if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->hasParameter(arguments)) {
+                        if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->isOnParameterName(arguments)) {
                             InterpretedCodeBlock* argumentsVariableHolder = nullptr;
                             InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
                             while (c && !c->isGlobalScopeCodeBlock()) {
-                                if (c->hasParameter(arguments)) {
+                                if (c->isOnParameterName(arguments)) {
                                     argumentsVariableHolder = c;
                                     break;
                                 } else if (!c->isArrowFunctionExpression()) {
@@ -312,13 +312,14 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
     printf(" ");
 
         PRINT_TAB()
-        printf("CodeBlock %p %s %s (%d:%d -> %d:%d, block %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
+        printf("CodeBlock %p %s %s(%d:%d -> %d:%d, block %d, body %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
                (int)cb->m_sourceElementStart.line,
                (int)cb->m_sourceElementStart.column,
                (int)cb->m_bodyEndLOC.line,
                (int)cb->m_bodyEndLOC.column,
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),
+               (int)cb->functionBodyBlockIndex(),
                cb->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap",
                cb->m_canUseIndexedVariableStorage ? "Indexed" : "Named",
                (int)cb->m_hasEval, (int)cb->m_hasWith, (int)cb->m_usesArgumentsObject);

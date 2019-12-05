@@ -40,8 +40,39 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::Function; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        m_params->generateStatementByteCode(codeBlock, context);
-        m_body->generateStatementByteCode(codeBlock, context);
+        if (codeBlock->m_codeBlock->functionBodyBlockIndex() != 0) {
+            ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+            context->m_lexicalBlockIndex = 0;
+            InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(0);
+            blockContext = codeBlock->pushLexicalBlock(context, bi, this);
+
+            m_params->generateStatementByteCode(codeBlock, context);
+            m_body->generateStatementByteCode(codeBlock, context);
+
+            codeBlock->finalizeLexicalBlock(context, blockContext);
+        } else {
+            size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+            ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
+            if (m_body->lexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+                context->m_lexicalBlockIndex = m_body->lexicalBlockIndex();
+                InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_body->lexicalBlockIndex());
+                blockContext = codeBlock->pushLexicalBlock(context, bi, this, false);
+            }
+
+            m_params->generateStatementByteCode(codeBlock, context);
+
+            if (m_body->lexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+                InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_body->lexicalBlockIndex());
+                codeBlock->initFunctionDeclarationWithinBlock(context, bi, this);
+            }
+
+            m_body->container()->generateStatementByteCode(codeBlock, context);
+
+            if (m_body->lexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
+                codeBlock->finalizeLexicalBlock(context, blockContext);
+                context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+            }
+        }
     }
 
     BlockStatementNode* body()

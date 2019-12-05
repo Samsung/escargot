@@ -200,6 +200,9 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC paramsStartLOC, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(src)
+    , m_parameterNames(nullptr)
+    , m_parameterNamesCount(0)
+    , m_functionBodyBlockIndex(0)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
@@ -262,6 +265,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         info.m_needToAllocateOnStack = false;
         info.m_isMutable = true;
         info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
+        info.m_isParameterName = innerIdentifiers[i].isParameterName();
         info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         info.m_indexForIndexedStorage = SIZE_MAX;
         m_identifierInfos[i] = info;
@@ -273,6 +277,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC paramsStartLOC, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(StringView(src, scopeCtx->m_paramsStartLOC.index, scopeCtx->m_bodyEndLOC.index))
+    , m_parameterNames(nullptr)
+    , m_parameterNamesCount(0)
+    , m_functionBodyBlockIndex(0)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
@@ -303,6 +310,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasImplicitFunctionName = scopeCtx->m_hasImplicitFunctionName;
     m_hasArrowParameterPlaceHolder = scopeCtx->m_hasArrowParameterPlaceHolder;
     m_hasParameterOtherThanIdentifier = scopeCtx->m_hasParameterOtherThanIdentifier;
+    m_functionBodyBlockIndex = scopeCtx->m_functionBodyBlockIndex;
 
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;
@@ -325,8 +333,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
 
-    m_parameterNames.resizeWithUninitializedValues(parameterNames.size());
-    for (size_t i = 0; i < parameterNames.size(); i++) {
+    m_parameterNamesCount = parameterNames.size();
+    m_parameterNames = (AtomicString*)GC_MALLOC_ATOMIC(sizeof(AtomicString) * m_parameterNamesCount);
+    for (size_t i = 0; i < m_parameterNamesCount; i++) {
         m_parameterNames[i] = parameterNames[i];
     }
 
@@ -343,6 +352,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
         info.m_isMutable = true;
         info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
+        info.m_isParameterName = innerIdentifiers[i].isParameterName();
         info.m_indexForIndexedStorage = SIZE_MAX;
         info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         m_identifierInfos[i] = info;
@@ -354,7 +364,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 void InterpretedCodeBlock::captureArguments()
 {
     AtomicString arguments = m_context->staticStrings().arguments;
-    ASSERT(!hasParameter(arguments));
+    ASSERT(!isOnParameterName(arguments));
     ASSERT(!isGlobalScopeCodeBlock() && !isArrowFunctionExpression());
 
     if (m_usesArgumentsObject) {
@@ -379,7 +389,7 @@ void InterpretedCodeBlock::captureArguments()
         // Unmapped arguments object doesn't connect arguments object property with arguments variable
         if (isMapped) {
             m_canAllocateEnvironmentOnStack = false;
-            for (size_t j = 0; j < m_parameterNames.size(); j++) {
+            for (size_t j = 0; j < m_parameterNamesCount; j++) {
                 for (size_t k = 0; k < m_identifierInfos.size(); k++) {
                     if (m_identifierInfos[k].m_name == m_parameterNames[j]) {
                         m_identifierInfos[k].m_needToAllocateOnStack = false;
@@ -400,6 +410,13 @@ std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCode
         ASSERT(id.m_name == name);
         id.m_needToAllocateOnStack = false;
         return std::make_pair(true, std::get<1>(r));
+    }
+
+
+    if (blockIndex < m_functionBodyBlockIndex) {
+        if (!isParameterName(name)) {
+            return std::make_pair(false, SIZE_MAX);
+        }
     }
 
     size_t idx = findVarName(name);
@@ -712,11 +729,11 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
 {
     size_t upperIndex = 0;
     IndexedIdentifierInfo info;
-
     InterpretedCodeBlock* blk = this;
+    LexicalBlockIndex startBlockIndex = blockIndex;
     while (blk && blk->canUseIndexedVariableStorage()) {
         // search block first.
-        while (blockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+        while (true) {
             InterpretedCodeBlock::BlockInfo* bi = nullptr;
             for (size_t i = 0; i < blk->m_blockInfos.size(); i++) {
                 if (blk->m_blockInfos[i]->m_blockIndex == blockIndex) {
@@ -752,6 +769,9 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                 upperIndex++;
             }
 
+            if (bi->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                break;
+            }
             blockIndex = bi->m_parentBlockIndex;
         }
 
@@ -759,17 +779,26 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
             break;
         }
 
-        size_t index = blk->asInterpretedCodeBlock()->findVarName(name);
-        if (index != SIZE_MAX) {
-            ASSERT(blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage != SIZE_MAX);
-            info.m_isResultSaved = true;
-            info.m_isGlobalLexicalVariable = false;
-            info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
-            info.m_upperIndex = upperIndex;
-            info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
-            info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
-            info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
-            return info;
+        bool canUseVarName;
+        if (startBlockIndex < blk->asInterpretedCodeBlock()->functionBodyBlockIndex()) {
+            canUseVarName = blk->asInterpretedCodeBlock()->isParameterName(name) || name == blk->functionName() || name == context()->staticStrings().arguments;
+        } else {
+            canUseVarName = true;
+        }
+
+        if (canUseVarName) {
+            size_t index = blk->asInterpretedCodeBlock()->findVarName(name);
+            if (index != SIZE_MAX) {
+                ASSERT(blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage != SIZE_MAX);
+                info.m_isResultSaved = true;
+                info.m_isGlobalLexicalVariable = false;
+                info.m_isStackAllocated = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_needToAllocateOnStack;
+                info.m_upperIndex = upperIndex;
+                info.m_isMutable = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_isMutable;
+                info.m_index = blk->asInterpretedCodeBlock()->m_identifierInfos[index].m_indexForIndexedStorage;
+                info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
+                return info;
+            }
         }
 
         if (blk == this) {
@@ -777,7 +806,8 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
         } else {
             upperIndex += !blk->canAllocateEnvironmentOnStack();
         }
-        blockIndex = blk->lexicalBlockIndexFunctionLocatedIn();
+
+        startBlockIndex = blockIndex = blk->lexicalBlockIndexFunctionLocatedIn();
         blk = blk->asInterpretedCodeBlock()->parentCodeBlock();
     }
 

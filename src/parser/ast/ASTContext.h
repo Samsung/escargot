@@ -28,6 +28,7 @@ class ASTFunctionScopeContextNameInfo {
 public:
     ASTFunctionScopeContextNameInfo()
     {
+        m_isParameterName = false;
         m_isExplicitlyDeclaredOrParameterName = false;
         m_isVarDeclaration = false;
         m_lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
@@ -44,9 +45,24 @@ public:
         m_name = name;
     }
 
+    bool isParameterName() const
+    {
+        return m_isParameterName;
+    }
+
+    void setIsParameterName(bool v)
+    {
+        m_isParameterName = v;
+    }
+
     bool isExplicitlyDeclaredOrParameterName() const
     {
         return m_isExplicitlyDeclaredOrParameterName;
+    }
+
+    void setIsExplicitlyDeclaredOrParameterName(bool v)
+    {
+        m_isExplicitlyDeclaredOrParameterName = v;
     }
 
     bool isVarDeclaration() const
@@ -57,11 +73,6 @@ public:
     void setIsVarDeclaration(bool v)
     {
         m_isVarDeclaration = v;
-    }
-
-    void setIsExplicitlyDeclaredOrParameterName(bool v)
-    {
-        m_isExplicitlyDeclaredOrParameterName = v;
     }
 
     LexicalBlockIndex lexicalBlockIndex() const
@@ -75,6 +86,7 @@ public:
     }
 
 private:
+    bool m_isParameterName : 1;
     bool m_isExplicitlyDeclaredOrParameterName : 1;
     bool m_isVarDeclaration : 1;
     LexicalBlockIndex m_lexicalBlockIndex : 16;
@@ -180,6 +192,7 @@ struct ASTFunctionScopeContext {
     bool m_allowSuperProperty : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
     unsigned int m_parameterCount : 16;
+    LexicalBlockIndex m_functionBodyBlockIndex : 16;
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTFunctionScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;
@@ -343,7 +356,7 @@ struct ASTFunctionScopeContext {
         return m_varNamesMap;
     }
 
-    void insertVarName(AtomicString name, LexicalBlockIndex blockIndex, bool isExplicitlyDeclaredOrParameterName, bool isVarDeclaration = true)
+    void insertVarName(AtomicString name, LexicalBlockIndex blockIndex, bool isExplicitlyDeclaredOrParameterName, bool isVarDeclaration = true, bool isParameterName = false)
     {
         size_t idx = findVarName(name);
 
@@ -357,6 +370,7 @@ struct ASTFunctionScopeContext {
 
         ASTFunctionScopeContextNameInfo info;
         info.setName(name);
+        info.setIsParameterName(isParameterName);
         info.setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
         info.setIsVarDeclaration(isVarDeclaration);
         info.setLexicalBlockIndex(blockIndex);
@@ -492,6 +506,7 @@ struct ASTFunctionScopeContext {
         , m_allowSuperProperty(false)
         , m_nodeType(ASTNodeType::Program)
         , m_parameterCount(0)
+        , m_functionBodyBlockIndex(0)
         , m_lexicalBlockIndexFunctionLocatedIn(LEXICAL_BLOCK_INDEX_MAX)
         , m_varNamesMap(nullptr)
         , m_firstChild(nullptr)

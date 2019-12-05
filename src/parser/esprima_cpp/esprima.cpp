@@ -55,13 +55,23 @@
 #define ASTSentinelNode typename ASTBuilder::ASTSentinelNode
 #define ASTNodeList typename ASTBuilder::ASTNodeList
 
-#define BEGIN_FUNCTION_SCANNING(name)                      \
-    SyntaxChecker newBuilder;                              \
-    auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex; \
-    auto oldScopeContext = pushScopeContext(name);
+#define BEGIN_FUNCTION_SCANNING(name)                                    \
+    SyntaxChecker newBuilder;                                            \
+    auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex;               \
+    auto oldScopeContext = pushScopeContext(name);                       \
+    LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex; \
+    LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount; \
+    this->lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;                   \
+    this->lexicalBlockCount = LEXICAL_BLOCK_INDEX_MAX;                   \
+    ParserBlockContext blockContext;                                     \
+    openBlock(blockContext);
 
-#define END_FUNCTION_SCANNING()       \
-    popScopeContext(oldScopeContext); \
+#define END_FUNCTION_SCANNING()                                                                \
+    closeBlock(blockContext);                                                                  \
+    this->lexicalBlockIndex = lexicalBlockIndexBefore;                                         \
+    this->lexicalBlockCount = lexicalBlockCountBefore;                                         \
+    this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore; \
+    popScopeContext(oldScopeContext);                                                          \
     this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
 using namespace Escargot::EscargotLexer;
@@ -92,6 +102,7 @@ struct Context {
     bool inCatchClause : 1;
     bool inLoop : 1;
     bool inParameterParsing : 1;
+    bool inParameterNameParsing : 1;
     bool hasRestrictedWordInArrayOrObjectInitializer : 1;
     bool strict : 1;
     Scanner::SmallScannerResult firstCoverInitializedNameError;
@@ -240,6 +251,7 @@ public:
         this->context->inCatchClause = false;
         this->context->inLoop = false;
         this->context->inParameterParsing = false;
+        this->context->inParameterNameParsing = false;
         this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         this->context->strict = this->sourceType == Module;
         this->setMarkers(startLoc);
@@ -449,8 +461,9 @@ public:
         }
 #endif
         this->currentScopeContext->m_hasParameterOtherThanIdentifier = hasParameterOtherThanIdentifier;
+        LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
-            this->currentScopeContext->insertVarName(paramNames[i], 0, true);
+            this->currentScopeContext->insertVarName(paramNames[i], functionBodyBlockIndex, true, true, true);
         }
 
         // Check if any identifier names are duplicated.
@@ -1249,6 +1262,9 @@ public:
 
             if (this->match(Substitution)) {
                 params.push_back(*keyToken);
+                if (this->context->inParameterParsing) {
+                    this->currentScopeContext->m_functionBodyBlockIndex = 1;
+                }
                 if (isExplicitVariableDeclaration) {
                     addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
@@ -1341,9 +1357,15 @@ public:
 
         ASTNode pattern = this->parsePattern(builder, params, kind, isExplicitVariableDeclaration);
         if (this->match(PunctuatorKind::Substitution)) {
+            if (this->context->inParameterParsing) {
+                this->currentScopeContext->m_functionBodyBlockIndex = 1;
+            }
             this->nextToken();
             const bool previousAllowYield = this->context->allowYield;
+            const bool previousInParameterNameParsing = this->context->inParameterNameParsing;
+            this->context->inParameterNameParsing = false;
             ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            this->context->inParameterNameParsing = previousInParameterNameParsing;
 
             AtomicString name = pattern->isIdentifier() ? pattern->asIdentifier()->name() : AtomicString();
             ASTNodeType type = right->type();
@@ -1363,8 +1385,6 @@ public:
     ASTNode parseFormalParameter(ASTBuilder& builder, ParseFormalParametersResult& options)
     {
         ASTNode param = nullptr;
-        bool trackUsingNamesBefore = this->trackUsingNames;
-        this->trackUsingNames = false;
         SmallScannerResultVector params;
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -1379,7 +1399,6 @@ public:
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(builder.convertToParameterSyntaxNode(param));
-        this->trackUsingNames = trackUsingNamesBefore;
 
         return param;
     }
@@ -1392,6 +1411,7 @@ public:
         ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
 
         this->context->inParameterParsing = true;
+        this->context->inParameterNameParsing = true;
 
         if (firstRestricted) {
             options.firstRestricted = *firstRestricted;
@@ -1416,6 +1436,7 @@ public:
         }
 
         this->context->inParameterParsing = false;
+        this->context->inParameterNameParsing = false;
     }
 
     bool matchAsyncFunction()
@@ -2766,23 +2787,9 @@ public:
                 if (this->match(LeftBrace)) {
                     this->parseFunctionSourceElements(newBuilder);
                 } else {
-                    LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
-                    LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
-                    this->lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
-                    this->lexicalBlockCount = LEXICAL_BLOCK_INDEX_MAX;
-
-                    ParserBlockContext blockContext;
-                    openBlock(blockContext);
-
                     auto oldNameCallback = this->nameDeclaredCallback;
 
                     this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<SyntaxChecker, false>);
-
-                    closeBlock(blockContext);
-
-                    this->lexicalBlockIndex = lexicalBlockIndexBefore;
-                    this->lexicalBlockCount = lexicalBlockCountBefore;
-                    this->nameDeclaredCallback = oldNameCallback;
 
                     this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
@@ -3043,7 +3050,10 @@ public:
             // if there is no new variable in this block, merge this block into parent block
             auto currentFunctionScope = this->currentScopeContext;
             auto blockContext = this->currentBlockContext;
-            if (this->lexicalBlockIndex != 0 && blockContext->m_names.size() == 0) {
+
+            auto essentialBlockMax = this->currentScopeContext->m_functionBodyBlockIndex;
+
+            if (this->lexicalBlockIndex > essentialBlockMax && blockContext->m_names.size() == 0) {
                 const auto currentBlockIndex = this->lexicalBlockIndex;
                 LexicalBlockIndex parentBlockIndex = blockContext->m_parentBlockIndex;
 
@@ -3244,6 +3254,9 @@ public:
             if (UNLIKELY(declName == stringArguments && !this->isParsingSingleFunction)) {
                 this->insertUsingName(stringArguments);
             }
+        } else if (this->context->inParameterNameParsing) {
+            TrackUsingNameBlocker blocker(this);
+            id = finishIdentifier(builder, token);
         } else {
             id = finishIdentifier(builder, token);
         }
@@ -3269,6 +3282,7 @@ public:
                 }
             }
             /* code end */
+
 
             if (!this->currentScopeContext->canDeclareName(name, blockIndex, kind == VarKeyword)) {
                 this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
@@ -4236,15 +4250,20 @@ public:
         // only for parsing the body of callee function
         ASSERT(this->isParsingSingleFunction);
 
-        this->lexicalBlockIndex = 0;
-        this->lexicalBlockCount = 0;
-
         this->context->inCatchClause = false;
 
         MetaNode nodeStart = this->createNode();
         StatementContainer* body = builder.createStatementContainer();
 
         this->expect(LeftBrace);
+
+        LexicalBlockIndex blockIndex = 0;
+        ParserBlockContext blockContext;
+        if (currentScopeContext->m_functionBodyBlockIndex) {
+            openBlock(blockContext);
+            blockIndex = blockContext.childLexicalBlockIndex;
+        }
+
         this->parseDirectivePrologues(builder, body);
 
         this->context->labelSet.clear();
@@ -4265,9 +4284,13 @@ public:
             referNode = body->appendChild(builder.createReturnStatementNode(nullptr));
         }
 
+        if (currentScopeContext->m_functionBodyBlockIndex) {
+            closeBlock(blockContext);
+        }
+
         this->expect(RightBrace);
 
-        return this->finalize(nodeStart, builder.createBlockStatementNode(body, 0));
+        return this->finalize(nodeStart, builder.createBlockStatementNode(body, blockIndex));
     }
 
     // ECMA-262 14.1 Function Definition
@@ -4282,15 +4305,8 @@ public:
         ASTNode result = nullptr;
 
         bool oldAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
-        LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;
-        LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;
         auto oldNameCallback = this->nameDeclaredCallback;
-
         this->context->allowLexicalDeclaration = true;
-        this->lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
-        this->lexicalBlockCount = LEXICAL_BLOCK_INDEX_MAX;
-        ParserBlockContext blockContext;
-        openBlock(blockContext);
 
         bool oldInCatchClause = this->context->inCatchClause;
         this->context->inCatchClause = false;
@@ -4313,6 +4329,12 @@ public:
         this->context->inSwitch = false;
         this->context->inFunctionBody = true;
 
+        ParserBlockContext blockContext;
+        if (this->currentScopeContext->m_functionBodyBlockIndex) {
+            openBlock(blockContext);
+            this->currentScopeContext->m_functionBodyBlockIndex = blockContext.childLexicalBlockIndex;
+        }
+
         while (this->startMarker.index < this->scanner->length) {
             if (this->match(RightBrace)) {
                 break;
@@ -4320,15 +4342,16 @@ public:
             this->parseStatementListItem(builder);
         }
 
+        if (this->currentScopeContext->m_functionBodyBlockIndex) {
+            closeBlock(blockContext);
+        }
+
         this->expect(RightBrace);
 
         this->context->inCatchClause = oldInCatchClause;
         this->context->catchClauseSimplyDeclaredVariableNames = std::move(oldCatchClauseSimplyDeclaredVariableNames);
 
-        closeBlock(blockContext);
         this->context->allowLexicalDeclaration = oldAllowLexicalDeclaration;
-        this->lexicalBlockIndex = lexicalBlockIndexBefore;
-        this->lexicalBlockCount = lexicalBlockCountBefore;
         this->nameDeclaredCallback = oldNameCallback;
 
         this->context->labelSet = previousLabelSet;
@@ -4336,14 +4359,12 @@ public:
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
 
-        this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore;
         this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #ifndef NDEBUG
         this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
         this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
 
-        //return this->finalize(nodeStart, builder.createBlockStatementNode(StatementContainer::create(), this->lexicalBlockIndex));
         return result;
     }
 
@@ -5628,10 +5649,14 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
 
     scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
+    parser.currentScopeContext->m_functionBodyBlockIndex = codeBlock->functionBodyBlockIndex();
     parser.context->allowYield = !codeBlock->isGenerator();
 
     Parser::ParserBlockContext blockContext;
     parser.openBlock(blockContext);
+
+    parser.lexicalBlockIndex = 0;
+    parser.lexicalBlockCount = 0;
 
     if (codeBlock->isArrowFunctionExpression()) {
         return parser.parseScriptArrowFunction(builder, codeBlock->hasArrowParameterPlaceHolder());

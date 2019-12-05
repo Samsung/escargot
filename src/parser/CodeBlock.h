@@ -368,9 +368,14 @@ public:
     /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */
     std::pair<bool, size_t> tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
-    const AtomicStringTightVector& parameterNames() const
+    AtomicString* parameterNames() const
     {
         return m_parameterNames;
+    }
+
+    size_t parameterNamesCount() const
+    {
+        return m_parameterNamesCount;
     }
 
     struct IndexedIdentifierInfo {
@@ -450,6 +455,7 @@ public:
     struct IdentifierInfo {
         bool m_needToAllocateOnStack : 1;
         bool m_isMutable : 1;
+        bool m_isParameterName : 1;
         bool m_isExplicitlyDeclaredOrParameterName : 1;
         bool m_isVarDeclaration : 1;
         size_t m_indexForIndexedStorage; // TODO reduce variable size into uint16_t.
@@ -477,6 +483,11 @@ public:
         }
         ASSERT_NOT_REACHED();
         return nullptr;
+    }
+
+    LexicalBlockIndex functionBodyBlockIndex() const
+    {
+        return m_functionBodyBlockIndex;
     }
 
     size_t identifierOnStackCount() const // var
@@ -657,16 +668,30 @@ public:
             return true;
         }
 
+        if (blockIndex < m_functionBodyBlockIndex) {
+            return isParameterName(name);
+        }
+
         return findVarName(name) != SIZE_MAX;
     }
 
-    bool hasParameter(const AtomicString& name)
+    bool isOnParameterName(const AtomicString& name)
     {
-        for (size_t i = 0; i < m_parameterNames.size(); i++) {
+        for (size_t i = 0; i < m_parameterNamesCount; i++) {
             if (m_parameterNames[i] == name) {
                 return true;
             }
         }
+        return false;
+    }
+
+    bool isParameterName(const AtomicString& name)
+    {
+        size_t r = findVarName(name);
+        if (r != SIZE_MAX) {
+            return m_identifierInfos[r].m_isParameterName;
+        }
+
         return false;
     }
 
@@ -757,7 +782,10 @@ protected:
     Script* m_script;
     StringView m_src; // function source including parameters
 
-    AtomicStringTightVector m_parameterNames;
+    AtomicString* m_parameterNames;
+    uint16_t m_parameterNamesCount : 16;
+    LexicalBlockIndex m_functionBodyBlockIndex : 16;
+
     uint16_t m_identifierOnStackCount; // this member variable only count `var`
     uint16_t m_identifierOnHeapCount; // this member variable only count `var`
     uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`
