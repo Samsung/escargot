@@ -27,6 +27,7 @@
 #include "runtime/SandBox.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/IteratorObject.h"
+#include "ExtendedNativeFunctionObject.h"
 
 namespace Escargot {
 
@@ -327,13 +328,39 @@ static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t 
 }
 
 
+static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto strings = &state.context()->staticStrings();
+    if (!thisValue.isObject())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->stringFinally.string(), "%s: not a Promise object");
+    Object* thisObject = thisValue.asObject();
+    Value onFinally = argv[0];
+    ExtendedNativeFunctionObject* thenFinally;
+    ExtendedNativeFunctionObject* catchFinally;
+    Value arguments[] = { onFinally, onFinally };
+    Value C = thisObject->speciesConstructor(state, state.context()->globalObject()->promise());
+    if (onFinally.isCallable()) {
+        SmallValueVector valueArgs;
+        valueArgs.push_back(C);
+        valueArgs.push_back(onFinally);
+        thenFinally = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), PromiseObject::promiseThenFinally, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
+        catchFinally = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), PromiseObject::promiseCatchFinally, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
+        arguments[0] = thenFinally;
+        arguments[1] = catchFinally;
+    }
+    Value then = thisObject->get(state, strings->then).value(state, thisObject);
+    return Object::call(state, then, thisObject, 2, arguments);
+}
+
+
 static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
     if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
-    PromiseObject* promise = thisValue.asPointerValue()->asPromiseObject();
-    return promise->then(state, argv[0], argv[1], promise->newPromiseResultCapability(state)).value();
+    Value C = thisValue.asObject()->speciesConstructor(state, state.context()->globalObject()->promise());
+    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject());
+    return thisValue.asObject()->asPromiseObject()->then(state, argv[0], argv[1], promiseCapability).value();
 }
 
 void GlobalObject::installPromise(ExecutionState& state)
@@ -374,7 +401,6 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->resolve),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolve, builtinPromiseResolve, 1, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
     // $25.4.5.1 Promise.prototype.catch(onRejected)
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->stringCatch),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringCatch, builtinPromiseCatch, 1, NativeFunctionInfo::Strict)),
@@ -382,6 +408,10 @@ void GlobalObject::installPromise(ExecutionState& state)
     // $25.4.5.3 Promise.prototype.then(onFulfilled, onRejected)
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->then),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict)),
+                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // $25.6.5.3 Promise.prototype.finally ( onFinally )
+    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->stringFinally),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringFinally, builtinPromiseFinally, 1, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.5.4 Promise.prototype [ @@toStringTag ]
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),

@@ -27,6 +27,7 @@
 #include "runtime/JobQueue.h"
 #include "runtime/SandBox.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
@@ -327,5 +328,93 @@ Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Val
         Object::call(state, resolveFunction, Value(), 1, arguments);
     }
     return Value();
+}
+
+
+Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let F be the active function object.
+    Object* F = state.resolveCallee();
+    // Return the resolve's member value
+    return F->asExtendedNativeFunctionObject()->getInternalValues()->at(0);
+}
+
+
+Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // Let F be the active function object.
+    Object* F = state.resolveCallee();
+    // Throw the resolve's member value
+    state.throwException(F->asExtendedNativeFunctionObject()->getInternalValues()->at(0));
+    return Value();
+}
+
+
+Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto strings = &state.context()->staticStrings();
+    // Let F be the active function object.
+    Object* F = state.resolveCallee();
+    // Let onFinally be F.[[OnFinally]].
+    SmallValueVector* internals = F->asExtendedNativeFunctionObject()->getInternalValues();
+    Value onFinally = internals->at(1);
+
+    // Assert: IsCallable(onFinally) is true.
+    // Let result be ? Call(onFinally, undefined).
+    ASSERT(onFinally.isCallable());
+    Value result = Object::call(state, onFinally, Value(), 0, nullptr);
+
+    // Let C be F.[[Constructor]].
+    // Assert: IsConstructor(C) is true.
+    Value C = internals->at(0);
+    ASSERT(C.isConstructor());
+
+    // Let promise be ? PromiseResolve(C, result).
+    Value promise = PromiseObject::promiseResolve(state, C.asObject(), result);
+
+    // Let valueThunk be equivalent to a function that returns value.
+    SmallValueVector valueArgs;
+    valueArgs.push_back(argv[0]);
+    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), ValueThunkHelper, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
+    // Return ? Invoke(promise, "then", « valueThunk »).
+    Value then = promise.asObject()->asPromiseObject()->get(state, strings->then).value(state, promise.asObject()->asPromiseObject());
+
+    Value argument[1] = { Value(valueThunk) };
+
+    return Object::call(state, then, promise, 1, argument);
+}
+
+
+Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    auto strings = &state.context()->staticStrings();
+    // Let F be the active function object.
+    Object* F = state.resolveCallee();
+    // Let onFinally be F.[[OnFinally]].
+    SmallValueVector* internals = F->asExtendedNativeFunctionObject()->getInternalValues();
+    Value onFinally = internals->at(1);
+
+    // Assert: IsCallable(onFinally) is true.
+    // Let result be ? Call(onFinally, undefined).
+    ASSERT(onFinally.isCallable());
+    Value result = Object::call(state, onFinally, Value(), 0, nullptr);
+
+    // Let C be F.[[Constructor]].
+    // Assert: IsConstructor(C) is true.
+    Value C = internals->at(0);
+    ASSERT(C.isConstructor());
+
+    // Let promise be ? PromiseResolve(C, result).
+    Value promise = PromiseObject::promiseResolve(state, C.asObject(), result);
+
+    // Let thrower be equivalent to a function that throws reason.
+    SmallValueVector valueArgs;
+    valueArgs.push_back(argv[0]);
+    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), ValueThunkThrower, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
+    // Return ? Invoke(promise, "then", « thrower »).
+    Value then = promise.asObject()->asPromiseObject()->get(state, strings->then).value(state, promise.asObject()->asPromiseObject());
+    Value argument[1] = { Value(valueThunk) };
+
+    return Object::call(state, then, promise, 1, argument);
 }
 }
