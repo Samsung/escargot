@@ -167,12 +167,14 @@ public:
     inline PointerValue* asPointerValue() const;
     inline Object* asObject() const;
     inline FunctionObject* asFunction() const;
+    inline ExtendedNativeFunctionObject* asExtendedNativeFunctionObject() const;
     inline String* asString() const;
     inline Symbol* asSymbol() const;
 
     // Querying the type.
     inline bool isEmpty() const;
     inline bool isFunction() const;
+    inline bool isExtendedNativeFunctionObject() const;
     inline bool isUndefined() const;
     inline bool isNull() const;
     inline bool isUndefinedOrNull() const

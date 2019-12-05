@@ -131,6 +131,8 @@ public:
     // The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
     static Object* promiseResolve(ExecutionState& state, Object* C, const Value& x);
     static Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+    static Value promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+    static Value promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 
 private:
     PromiseState m_state;
@@ -141,5 +143,4 @@ private:
 protected:
 };
 }
-
 #endif // __EscargotPromiseObject__

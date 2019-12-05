@@ -28,6 +28,7 @@ class Symbol;
 class Object;
 class FunctionObject;
 class NativeFunctionObject;
+class ExtendedNativeFunctionObject;
 class ScriptFunctionObject;
 class ScriptArrowFunctionObject;
 class ScriptGeneratorFunctionObject;
@@ -120,6 +121,11 @@ public:
     }
 
     virtual bool isNativeFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isExtendedNativeFunctionObject() const
     {
         return false;
     }
@@ -397,6 +403,12 @@ public:
     {
         ASSERT(isFunctionObject());
         return (FunctionObject*)this;
+    }
+
+    ExtendedNativeFunctionObject* asExtendedNativeFunctionObject()
+    {
+        ASSERT(isExtendedNativeFunctionObject());
+        return (ExtendedNativeFunctionObject*)this;
     }
 
     NativeFunctionObject* asNativeFunctionObject()
