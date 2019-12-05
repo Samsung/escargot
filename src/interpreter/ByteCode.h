@@ -2399,7 +2399,7 @@ public:
         {
         }
     };
-    ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
+    ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside = true);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
     void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
 

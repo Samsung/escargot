@@ -195,7 +195,7 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
     }
 }
 
-ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside)
 {
     ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
     InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
@@ -208,7 +208,9 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
         this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
     }
 
-    initFunctionDeclarationWithinBlock(context, bi, node);
+    if (initFunctionDeclarationInside) {
+        initFunctionDeclarationWithinBlock(context, bi, node);
+    }
     ctx.lexicalBlockStartPosition = currentCodeSize();
 
     return ctx;

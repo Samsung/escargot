@@ -35,6 +35,7 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::BlockStatement; }
+    LexicalBlockIndex lexicalBlockIndex() { return m_lexicalBlockIndex; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
@@ -52,6 +53,11 @@ public:
             codeBlock->finalizeLexicalBlock(context, blockContext);
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         }
+    }
+
+    StatementContainer* container()
+    {
+        return m_container;
     }
 
     StatementNode* firstChild()
