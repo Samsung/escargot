@@ -143,10 +143,10 @@ public:
     {
     }
 
-    enum ForGenerator {
-        OnlyForGenerator
+    enum ForPauserType {
+        ForPauser
     };
-    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForGenerator)
+    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForPauserType)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
         , m_stackLimit(0)
