@@ -174,7 +174,7 @@ public:
             Value* arguments = CustomAllocator<Value>().allocate(argc);
             memcpy(arguments, argv, sizeof(Value) * argc);
 
-            ExecutionState* newState = new ExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict, ExecutionState::OnlyForGenerator);
+            ExecutionState* newState = new ExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict, ExecutionState::ForPauser);
 
             // prepare receiver(this variable)
             // we should use newState because
@@ -196,7 +196,7 @@ public:
         ExecutionState* newState;
 
         if (std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
-            newState = new ExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
+            newState = new ExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict, ExecutionState::ForPauser);
             newState->setPauseSource(new ExecutionPauser(state, self, newState, registerFile, blk));
         } else {
             newState = new (alloca(sizeof(ExecutionState))) ExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
