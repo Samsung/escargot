@@ -205,7 +205,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
         while (code < end) {
             ByteCode* currentCode = (ByteCode*)code;
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
             Opcode opcode = currentCode->m_opcode;

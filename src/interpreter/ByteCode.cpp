@@ -32,7 +32,7 @@ OpcodeTable g_opcodeTable;
 
 OpcodeTable::OpcodeTable()
 {
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
     // Dummy bytecode execution to initialize the OpcodeTable.
     ByteCodeInterpreter::interpret(nullptr, nullptr, 0, nullptr);
 #endif

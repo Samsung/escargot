@@ -81,7 +81,7 @@ private:
 
 Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
     if (UNLIKELY(byteCodeBlock == nullptr)) {
         goto FillOpcodeTableLbl;
     }
@@ -95,8 +95,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(codeBuffer + programCounter);
 
-#if defined(COMPILER_GCC)
-
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
 #define DEFINE_DEFAULT
 #define NEXT_INSTRUCTION() \
@@ -1262,10 +1261,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (UNLIKELY(!callee.isPointerValue())) {
                 ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, errorMessage_NOT_Callable);
             }
-            ValueVector spreadArgs;
-            spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-            // Return F.[[Call]](V, argumentsList).
-            registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, spreadArgs.size(), spreadArgs.data());
+
+            {
+                ValueVector spreadArgs;
+                spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                // Return F.[[Call]](V, argumentsList).
+                registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, spreadArgs.size(), spreadArgs.data());
+            }
 
             ADD_PROGRAM_COUNTER(CallFunctionWithSpreadElement);
             NEXT_INSTRUCTION();
@@ -1276,9 +1278,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             NewOperationWithSpreadElement* code = (NewOperationWithSpreadElement*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
-            ValueVector spreadArgs;
-            spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-            registerFile[code->m_resultIndex] = Object::construct(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+
+            {
+                ValueVector spreadArgs;
+                spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                registerFile[code->m_resultIndex] = Object::construct(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+            }
+
             ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
             NEXT_INSTRUCTION();
         }
@@ -1389,7 +1395,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 
     ASSERT_NOT_REACHED();
 
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 FillOpcodeTableLbl:
 #define REGISTER_TABLE(opcode, pushCount, popCount) g_opcodeTable.m_table[opcode##Opcode] = &&opcode##OpcodeLbl;
     FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
