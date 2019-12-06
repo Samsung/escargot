@@ -35,6 +35,10 @@
 #endif
 
 #if defined(COMPILER_CLANG)
+/* Check clang version */
+#if __clang_major__ < 6
+#error "Clang version is low (require clang version 6+)"
+#endif
 /* Keep strong enums turned off when building with clang-cl: We cannot yet build all of Blink without fallback to cl.exe, and strong enums are exposed at ABI boundaries. */
 #undef COMPILER_SUPPORTS_CXX_STRONG_ENUMS
 #else

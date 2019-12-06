@@ -187,7 +187,7 @@ struct ByteCodeLOC {
 class ByteCode {
 public:
     ByteCode(Opcode code, const ByteCodeLOC& loc)
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
         : m_opcodeInAddress((void*)code)
 #else
         : m_opcode(code)
@@ -202,18 +202,18 @@ public:
     void assignOpcodeInAddress()
     {
 #ifndef NDEBUG
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
         m_orgOpcode = (Opcode)(size_t)m_opcodeInAddress;
 #else
         m_orgOpcode = m_opcode;
 #endif
 #endif
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
         m_opcodeInAddress = g_opcodeTable.m_table[(Opcode)(size_t)m_opcodeInAddress];
 #endif
     }
 
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
     void* m_opcodeInAddress;
 #else
     Opcode m_opcode;
@@ -2362,7 +2362,7 @@ public:
         }
 #endif
 
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
         Opcode opcode = (Opcode)(size_t)code.m_opcodeInAddress;
 #else
         Opcode opcode = code.m_opcode;
