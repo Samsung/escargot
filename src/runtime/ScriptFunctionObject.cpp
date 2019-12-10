@@ -69,41 +69,6 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* cod
 
 NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& state)
 {
-    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& v = state.context()->compiledCodeBlocks();
-
-    auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
-
-    if (currentCodeSizeTotal > FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
-        currentCodeSizeTotal = 0;
-        std::vector<CodeBlock*, gc_allocator<CodeBlock*>> codeBlocksInCurrentStack;
-
-        ExecutionState* es = &state;
-        while (es) {
-            FunctionObject* callee = es->resolveCallee();
-            if (callee && callee->codeBlock()->isInterpretedCodeBlock()) {
-                InterpretedCodeBlock* cblk = callee->codeBlock()->asInterpretedCodeBlock();
-                if (cblk->script() && cblk->byteCodeBlock() && std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), cblk) == codeBlocksInCurrentStack.end()) {
-                    codeBlocksInCurrentStack.push_back(cblk);
-                }
-            }
-            es = es->parent();
-        }
-
-        for (size_t i = 0; i < v.size(); i++) {
-            if (std::find(codeBlocksInCurrentStack.begin(), codeBlocksInCurrentStack.end(), v[i]) == codeBlocksInCurrentStack.end()) {
-                v[i]->m_byteCodeBlock = nullptr;
-            }
-        }
-
-        v.clear();
-        v.resizeWithUninitializedValues(codeBlocksInCurrentStack.size());
-
-        size_t stackCodeBlocksSize = codeBlocksInCurrentStack.size();
-        for (size_t i = 0; i < stackCodeBlocksSize; i++) {
-            v[i] = codeBlocksInCurrentStack[i];
-            currentCodeSizeTotal += v[i]->m_byteCodeBlock->memoryAllocatedSize();
-        }
-    }
     ASSERT(!m_codeBlock->hasCallNativeFunctionCode());
 
     volatile int sp;
@@ -116,8 +81,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 
     state.context()->scriptParser().generateFunctionByteCode(state, m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox);
 
-    v.pushBack(m_codeBlock);
-
+    auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
     currentCodeSizeTotal += m_codeBlock->m_byteCodeBlock->memoryAllocatedSize();
 }
 

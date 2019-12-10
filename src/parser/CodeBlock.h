@@ -74,6 +74,7 @@ class CodeBlock : public gc {
     friend class FunctionObject;
     friend class ScriptFunctionObject;
     friend class InterpretedCodeBlock;
+    friend class VMInstance;
     friend int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr);
 
 public:

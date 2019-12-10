@@ -30,6 +30,8 @@ namespace Escargot {
 class Context;
 class ByteCodeBlock;
 class LexicalEnvironment;
+class GetObjectPreComputedCase;
+class SetObjectPreComputedCase;
 struct GetObjectInlineCache;
 struct SetObjectInlineCache;
 struct GlobalVariableAccessCacheItem;
@@ -92,10 +94,10 @@ public:
     static bool abstractRelationalComparisonOrEqualSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
     static bool abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst);
 
-    static Value getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& receiver, const ObjectStructurePropertyName& name, GetObjectInlineCache& inlineCache, ByteCodeBlock* block);
-    static Value getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, const ObjectStructurePropertyName& name, GetObjectInlineCache& inlineCache, ByteCodeBlock* block);
-    static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const ObjectStructurePropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block);
-    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const ObjectStructurePropertyName& name, const Value& value, SetObjectInlineCache& inlineCache, ByteCodeBlock* block);
+    static Value getObjectPrecomputedCaseOperation(ExecutionState& state, Object* obj, const Value& receiver, GetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static Value getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, GetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
 
     static Object* fastToObject(ExecutionState& state, const Value& obj);
 

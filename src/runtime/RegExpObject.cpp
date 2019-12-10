@@ -274,10 +274,6 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
     if (it != cache->end()) {
         return it->second;
     } else {
-        if (cache->size() > 256) {
-            cache->clear();
-        }
-
         const char* yarrError = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
         try {

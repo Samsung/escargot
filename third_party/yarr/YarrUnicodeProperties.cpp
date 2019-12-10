@@ -58,7 +58,7 @@ struct HashTable {
             return -1;
 
         while (true) {
-            if (key.impl()->equals(values[valueIndex].key))
+            if (key.impl()->equals(values[valueIndex].key, strlen(values[valueIndex].key)))
                 return values[valueIndex].index;
 
             indexEntry = index[indexEntry].next;

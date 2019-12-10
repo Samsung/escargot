@@ -33,7 +33,7 @@ public:
     AtomicString functionName() { return m_functionName; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        // do nothing
+        codeBlock->m_shouldClearStack = true;
     }
 
 private:

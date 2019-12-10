@@ -89,7 +89,6 @@ public:
             } else {
                 size_t pos = codeBlock->currentCodeSize();
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
-                context->m_getObjectCodePositions.push_back(pos);
             }
         } else {
             size_t propertyIndex = m_property->getRegister(codeBlock, context);
@@ -128,9 +127,7 @@ public:
                 context->giveUpRegister();
                 context->giveUpRegister();
             } else {
-                SetObjectInlineCache* inlineCache = new SetObjectInlineCache();
-                codeBlock->m_literalData.pushBack(inlineCache);
-                codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex, inlineCache), context, this);
+                codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
                 context->giveUpRegister();
             }
         } else {
@@ -177,7 +174,6 @@ public:
             size_t resultIndex = context->getRegister();
             size_t pos = codeBlock->currentCodeSize();
             codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
-            context->m_getObjectCodePositions.push_back(pos);
         } else {
             size_t objectIndex = context->getLastRegisterIndex(1);
             size_t propertyIndex = context->getLastRegisterIndex();

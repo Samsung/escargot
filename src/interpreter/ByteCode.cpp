@@ -21,6 +21,7 @@
 #include "ByteCode.h"
 #include "ByteCodeInterpreter.h"
 #include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 #include "parser/Lexer.h"
 #include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
@@ -76,6 +77,34 @@ void SetGlobalVariable::dump(const char* byteCodeStart)
 }
 #endif
 
+ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
+    : m_isEvalMode(false)
+    , m_isOnGlobal(false)
+    , m_isOwnerMayFreed(false)
+    , m_requiredRegisterFileSizeInValueSize(2)
+    , m_inlineCacheDataSize(0)
+    , m_locData(nullptr)
+    , m_codeBlock(codeBlock)
+{
+    auto& v = m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
+    v.push_back(this);
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        ByteCodeBlock* self = (ByteCodeBlock*)obj;
+        self->m_numeralLiteralData.clear();
+        self->m_code.clear();
+        if (self->m_locData) {
+            delete self->m_locData;
+            self->m_locData = nullptr;
+        }
+
+        if (!self->m_isOwnerMayFreed) {
+            auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
+            v.erase(std::find(v.begin(), v.end(), self));
+        }
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
 void* ByteCodeBlock::operator new(size_t size)
 {
     static bool typeInited = false;
@@ -84,7 +113,6 @@ void* ByteCodeBlock::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(ByteCodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_literalData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_codeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_objectStructuresInUse));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ByteCodeBlock));
         typeInited = true;
     }
@@ -256,13 +284,26 @@ void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context
     }
 }
 
+void* GetObjectInlineCache::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCache)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCache, m_cache));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCache));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 void* SetObjectInlineCache::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SetObjectInlineCache)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_cachedhiddenClassChain));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_cachedHiddenClassChainData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_hiddenClassWillBe));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SetObjectInlineCache));
         typeInited = true;

@@ -61,11 +61,6 @@ public:
         return bufferAccessData().charAt(idx);
     }
 
-    virtual size_t length() const
-    {
-        return m_bufferAccessData.length;
-    }
-
     bool operator==(const char* src) const
     {
         size_t srcLen = strlen(src);

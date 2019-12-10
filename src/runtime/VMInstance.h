@@ -187,9 +187,9 @@ public:
     bool hasPendingPromiseJob();
     SandBox::SandBoxResult executePendingPromiseJob();
 
-    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& compiledCodeBlocks()
+    std::vector<ByteCodeBlock*>& compiledByteCodeBlocks()
     {
-        return m_compiledCodeBlocks;
+        return m_compiledByteCodeBlocks;
     }
 
     size_t& compiledByteCodeSize()
@@ -244,9 +244,10 @@ private:
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
-    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>> m_compiledCodeBlocks;
+    std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
 
+    static void gcEventCallback(GC_EventType t, void* data);
     void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
     void* m_onVMInstanceDestroyData;
 

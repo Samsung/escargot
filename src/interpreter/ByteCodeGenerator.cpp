@@ -192,8 +192,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         block->m_code.shrinkToFit();
     }
 
-    block->m_getObjectCodePositions = std::move(ctx.m_getObjectCodePositions);
-
     {
         ByteCodeRegisterIndex stackBase = REGULAR_REGISTER_LIMIT;
         ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredRegisterFileSizeInValueSize;

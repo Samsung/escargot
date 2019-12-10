@@ -893,52 +893,33 @@ public:
     }
 };
 
-typedef std::vector<ObjectStructureChainItem, std::allocator<ObjectStructureChainItem>> ObjectStructureChain;
-typedef std::vector<ObjectStructureChainItem, GCUtil::gc_malloc_atomic_allocator<ObjectStructureChainItem>> ObjectStructureChainGC;
-
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
     {
-        m_cachedIndex = SIZE_MAX;
+        m_cachedhiddenClassChain = nullptr;
+        m_cachedhiddenClassChainLength = 0;
+        m_cachedIndex = 0;
     }
 
-    GetObjectInlineCacheData(const GetObjectInlineCacheData& src)
-    {
-        m_cachedhiddenClassChain = src.m_cachedhiddenClassChain;
-        m_cachedIndex = src.m_cachedIndex;
-    }
-
-    GetObjectInlineCacheData(GetObjectInlineCacheData&& src)
-    {
-        m_cachedhiddenClassChain = std::move(src.m_cachedhiddenClassChain);
-        m_cachedIndex = src.m_cachedIndex;
-    }
-
-    GetObjectInlineCacheData& operator=(const GetObjectInlineCacheData& src)
-    {
-        if (&src == this)
-            return *this;
-
-        m_cachedhiddenClassChain = src.m_cachedhiddenClassChain;
-        m_cachedIndex = src.m_cachedIndex;
-        return *this;
-    }
-
-    ObjectStructureChain m_cachedhiddenClassChain;
+    union {
+        ObjectStructure** m_cachedhiddenClassChain;
+        ObjectStructure* m_cachedhiddenClass;
+    };
+    size_t m_cachedhiddenClassChainLength;
     size_t m_cachedIndex;
 };
 
-typedef std::vector<GetObjectInlineCacheData, std::allocator<GetObjectInlineCacheData>> GetObjectInlineCacheDataVector;
+typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCache {
     GetObjectInlineCache()
     {
-        m_cacheMissCount = m_executeCount = 0;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     GetObjectInlineCacheDataVector m_cache;
-    uint16_t m_executeCount;
-    uint16_t m_cacheMissCount;
 };
 
 class GetObjectPreComputedCase : public ByteCode {
@@ -946,13 +927,19 @@ public:
     // [object] -> [value]
     GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, ObjectStructurePropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
+        , m_executeCount(0)
+        , m_cacheMissCount(0)
+        , m_inlineCache(nullptr)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
         , m_propertyName(propertyName)
     {
     }
 
-    GetObjectInlineCache m_inlineCache;
+    uint16_t m_executeCount;
+    uint16_t m_cacheMissCount;
+    GetObjectInlineCache* m_inlineCache;
+
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_storeRegisterIndex;
     ObjectStructurePropertyName m_propertyName;
@@ -965,22 +952,26 @@ public:
 };
 
 struct SetObjectInlineCache {
-    ObjectStructureChainGC m_cachedhiddenClassChain;
-    size_t m_cachedIndex;
-    ObjectStructure* m_hiddenClassWillBe;
-    size_t m_cacheMissCount;
+    union {
+        ObjectStructure** m_cachedHiddenClassChainData;
+        ObjectStructure* m_cachedHiddenClass;
+    };
+    size_t m_cachedhiddenClassChainLength;
+    union {
+        size_t m_cachedIndex;
+        ObjectStructure* m_hiddenClassWillBe;
+    };
+
     SetObjectInlineCache()
     {
-        m_cachedIndex = SIZE_MAX;
-        m_hiddenClassWillBe = nullptr;
-        m_cacheMissCount = 0;
+        m_cachedHiddenClass = m_hiddenClassWillBe = nullptr;
+        m_cachedhiddenClassChainLength = 0;
     }
 
     void invalidateCache()
     {
-        m_cachedIndex = SIZE_MAX;
-        m_hiddenClassWillBe = nullptr;
-        m_cachedhiddenClassChain.clear();
+        m_cachedHiddenClass = m_hiddenClassWillBe = nullptr;
+        m_cachedhiddenClassChainLength = 0;
     }
 
     void* operator new(size_t size);
@@ -989,12 +980,13 @@ struct SetObjectInlineCache {
 
 class SetObjectPreComputedCase : public ByteCode {
 public:
-    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, ObjectStructurePropertyName propertyName, const size_t loadRegisterIndex, SetObjectInlineCache* inlineCache)
+    SetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, ObjectStructurePropertyName propertyName, const size_t loadRegisterIndex)
         : ByteCode(Opcode::SetObjectPreComputedCaseOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_propertyName(propertyName)
-        , m_inlineCache(inlineCache)
+        , m_inlineCache(nullptr)
+        , m_missCount(0)
     {
     }
 
@@ -1002,6 +994,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex;
     ObjectStructurePropertyName m_propertyName;
     SetObjectInlineCache* m_inlineCache;
+    size_t m_missCount;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
@@ -2311,39 +2304,18 @@ typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
-typedef std::unordered_set<ObjectStructure*, std::hash<ObjectStructure*>, std::equal_to<ObjectStructure*>,
-                           GCUtil::gc_malloc_allocator<ObjectStructure*>>
-    ObjectStructuresInUse;
+
 class ByteCodeBlock : public gc {
     friend struct OpcodeTable;
+    friend class VMInstance;
+    friend int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr);
+
     ByteCodeBlock()
     {
     }
 
 public:
-    explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock)
-        : m_isEvalMode(false)
-        , m_isOnGlobal(false)
-        , m_shouldClearStack(false)
-        , m_requiredRegisterFileSizeInValueSize(2)
-        , m_objectStructuresInUse((codeBlock->hasCallNativeFunctionCode()) ? nullptr : new (GC) ObjectStructuresInUse())
-        , m_locData(nullptr)
-        , m_codeBlock(codeBlock)
-    {
-        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-            ByteCodeBlock* self = (ByteCodeBlock*)obj;
-            for (size_t i = 0; i < self->m_getObjectCodePositions.size(); i++) {
-                GetObjectInlineCacheDataVector().swap(((GetObjectPreComputedCase*)((size_t)self->m_code.data() + self->m_getObjectCodePositions[i]))->m_inlineCache.m_cache);
-            }
-            std::vector<size_t>().swap(self->m_getObjectCodePositions);
-
-            self->m_numeralLiteralData.clear();
-            self->m_code.clear();
-            if (self->m_locData)
-                delete self->m_locData;
-        },
-                                       nullptr, nullptr, nullptr);
-    }
+    explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock);
 
     template <typename CodeType>
     void pushCode(const CodeType& code, ByteCodeGenerateContext* context, Node* node)
@@ -2428,10 +2400,11 @@ public:
     size_t memoryAllocatedSize()
     {
         size_t siz = m_code.size();
+        siz += sizeof(ByteCodeBlock);
         siz += m_locData ? (m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0;
+        siz += m_numeralLiteralData.size() * sizeof(Value);
         siz += m_literalData.size() * sizeof(size_t);
-        siz += m_objectStructuresInUse->size() * sizeof(size_t);
-        siz += m_getObjectCodePositions.size() * sizeof(size_t);
+        siz += m_inlineCacheDataSize;
         return siz;
     }
 
@@ -2442,17 +2415,16 @@ public:
     bool m_isEvalMode : 1;
     bool m_isOnGlobal : 1;
     bool m_shouldClearStack : 1;
+    bool m_isOwnerMayFreed : 1;
     ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize : REGISTER_INDEX_IN_BIT;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
     ByteCodeLiteralData m_literalData;
-    ObjectStructuresInUse* m_objectStructuresInUse;
+    size_t m_inlineCacheDataSize;
 
     ByteCodeLOCData* m_locData;
     InterpretedCodeBlock* m_codeBlock;
-
-    std::vector<size_t> m_getObjectCodePositions;
 
     void* operator new(size_t size);
 };

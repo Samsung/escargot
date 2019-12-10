@@ -27,6 +27,9 @@
 
 namespace Escargot {
 
+typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> ObjectPropertyVector;
+typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> ObjectStructurePropertyVector;
+
 static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     return thisValue.toObject(state)->getPrototype(state);
@@ -113,10 +116,10 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     if (!object.isObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
     Object* props = properties.toObject(state);
-    std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> descriptors;
+    ObjectPropertyVector descriptors;
     props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         auto propDesc = self->getOwnProperty(state, name);
-        std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>>*)data;
+        auto descriptors = (ObjectPropertyVector*)data;
         if (propDesc.hasValue() && desc.isEnumerable()) {
             Value propVal = propDesc.value(state, self);
             if (!propVal.isObject())
@@ -289,9 +292,9 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     Object* O = argv[0].asObject();
 
     // For each named own property name P of O,
-    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>> descriptors;
+    ObjectStructurePropertyVector descriptors;
     O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>*)data;
+        auto descriptors = (ObjectStructurePropertyVector*)data;
         descriptors->push_back(std::make_pair(P, desc));
         return true;
     },
@@ -534,9 +537,9 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     Object* O = argv[0].asObject();
 
     // For each named own property name P of O,
-    std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> descriptors;
+    ObjectStructurePropertyVector descriptors;
     O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>* descriptors = (std::vector<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>>*)data;
+        auto descriptors = (ObjectStructurePropertyVector*)data;
         descriptors->push_back(std::make_pair(P, desc));
         return true;
     },

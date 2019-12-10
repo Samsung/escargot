@@ -23,7 +23,9 @@
 
 #include "runtime/Value.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/ArrayBufferObject.h"
 #include "parser/CodeBlock.h"
+#include "interpreter/ByteCode.h"
 
 namespace Escargot {
 
@@ -113,20 +115,45 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     return 0;
 }
 
+int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
+{
+    ArrayBufferObject* current = (ArrayBufferObject*)ptr;
+    arr[0].from = (GC_word*)&current->m_structure;
+    arr[0].to = (GC_word*)current->m_structure;
+    arr[1].from = (GC_word*)&current->m_prototype;
+    arr[1].to = (GC_word*)current->m_prototype;
+    arr[2].from = (GC_word*)&current->m_values;
+    arr[2].to = (GC_word*)current->m_values.data();
+    arr[3].from = (GC_word*)&current->m_context;
+    arr[3].to = (GC_word*)current->m_context;
+    return 0;
+}
+
+GC_word* getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word** next_ptr)
+{
+    GetObjectInlineCacheData* current = (GetObjectInlineCacheData*)ptr;
+    *next_ptr = (GC_word*)((size_t)ptr + sizeof(GetObjectInlineCacheData));
+    GC_word* ret = (GC_word*)current->m_cachedhiddenClassChain;
+    return ret;
+}
 
 void initializeCustomAllocators()
 {
+    if (s_gcKinds[HeapObjectKind::ValueVectorKind]) {
+        return;
+    }
+
     s_gcKinds[HeapObjectKind::ValueVectorKind] = GC_new_kind(GC_new_free_list(),
                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInValueVector>), 0),
                                                              FALSE,
                                                              TRUE);
 #ifdef NDEBUG
-    GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayObject)] = { 0 };
-    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_structure));
-    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_prototype));
-    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_values));
-    GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayObject, m_fastModeData));
-    auto descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayObject));
+    GC_word objBitmap[GC_BITMAP_SIZE(ArrayObject)] = { 0 };
+    GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_structure));
+    GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_prototype));
+    GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_values));
+    GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_fastModeData));
+    auto descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ArrayObject));
 
     s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
                                                                         descr,
@@ -147,6 +174,16 @@ void initializeCustomAllocators()
                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 10>), 0),
                                                                       FALSE,
                                                                       TRUE);
+
+    s_gcKinds[HeapObjectKind::ArrayBufferObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 4>), 0),
+                                                                              FALSE,
+                                                                              TRUE);
+
+    s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataKind] = GC_new_kind(GC_new_free_list(),
+                                                                          GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
+                                                                          FALSE,
+                                                                          TRUE);
 }
 
 void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, HeapObjectIteratorCallback callback)
@@ -218,4 +255,28 @@ InterpretedCodeBlock* CustomAllocator<InterpretedCodeBlock>::allocate(size_type 
     int kind = s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind];
     return (InterpretedCodeBlock*)GC_GENERIC_MALLOC(sizeof(InterpretedCodeBlock), kind);
 }
+
+template <>
+ArrayBufferObject* CustomAllocator<ArrayBufferObject>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (ArrayBufferObject*)GC_MALLOC(sizeof(ArrayBufferObject));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::ArrayBufferObjectKind];
+    return (ArrayBufferObject*)GC_GENERIC_MALLOC(sizeof(ArrayBufferObject), kind);
+}
+
+template <>
+GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (Value*)GC_MALLOC(sizeof(GetObjectInlineCacheData) * GC_n);
+    int kind = s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataKind];
+    size_t size = sizeof(GetObjectInlineCacheData) * GC_n;
+
+    GetObjectInlineCacheData* ret;
+    ret = (GetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
+    return ret;
+}
+
 } // namespace Escargot

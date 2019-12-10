@@ -307,6 +307,8 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
 
 Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
 {
+    ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
+
     // http://www.ecma-international.org/ecma-262/6.0/#sec-moduledeclarationinstantiation
     // ModuleDeclarationInstantiation( ) Concrete Method
     LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
@@ -425,18 +427,18 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
 
     newState.setLexicalEnvironment(new LexicalEnvironment(moduleRecord, globalLexicalEnv), true);
 
-    size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
-    Value* registerFile = (Value*)ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
+    Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
     registerFile[0] = Value();
-    Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = Value();
     Value* literalStorage = stackStorage + 1 + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
-    Value* src = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.data();
+    Value* src = byteCodeBlock->m_numeralLiteralData.data();
     for (size_t i = 0; i < literalStorageSize; i++) {
         literalStorage[i] = src[i];
     }
 
-    Value resultValue = ByteCodeInterpreter::interpret(&newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(&newState, byteCodeBlock, 0, registerFile);
     clearStack<512>();
 
     // we give up program bytecodeblock after first excution for reducing memory usage
@@ -458,6 +460,8 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     if (isModule()) {
         return executeModule(state, nullptr);
     }
+
+    ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
 
     ExecutionState newState(context(), state.stackLimit());
     ExecutionState* codeExecutionState = &newState;
@@ -506,18 +510,18 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     Value thisValue(context()->globalObject());
 
-    size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
-    Value* registerFile = (Value*)ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
+    Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
     registerFile[0] = Value();
-    Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = thisValue;
     Value* literalStorage = stackStorage + 1 + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
-    Value* src = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.data();
+    Value* src = byteCodeBlock->m_numeralLiteralData.data();
     for (size_t i = 0; i < literalStorageSize; i++) {
         literalStorage[i] = src[i];
     }
 
-    Value resultValue = ByteCodeInterpreter::interpret(codeExecutionState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(codeExecutionState, byteCodeBlock, 0, registerFile);
     clearStack<512>();
 
     // we give up program bytecodeblock after first excution for reducing memory usage
@@ -529,6 +533,8 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 // NOTE: eval by direct call
 Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside, bool isEvalCodeOnFunction)
 {
+    ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
+
     EnvironmentRecord* record;
     bool inStrict = false;
     if (UNLIKELY(isStrictModeOutside)) {
@@ -581,15 +587,15 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
     size_t stackStorageSize = m_topCodeBlock->totalStackAllocatedVariableSize();
     size_t identifierOnStackCount = m_topCodeBlock->identifierOnStackCount();
-    size_t literalStorageSize = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.size();
-    Value* registerFile = ALLOCA((m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
+    Value* registerFile = ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
     registerFile[0] = Value();
-    Value* stackStorage = registerFile + m_topCodeBlock->byteCodeBlock()->m_requiredRegisterFileSizeInValueSize;
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     for (size_t i = 0; i < identifierOnStackCount; i++) {
         stackStorage[i] = Value();
     }
     Value* literalStorage = stackStorage + stackStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
-    Value* src = m_topCodeBlock->byteCodeBlock()->m_numeralLiteralData.data();
+    Value* src = byteCodeBlock->m_numeralLiteralData.data();
     for (size_t i = 0; i < literalStorageSize; i++) {
         literalStorage[i] = src[i];
     }
@@ -620,7 +626,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     }
 
     newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
-    Value resultValue = ByteCodeInterpreter::interpret(&newState, m_topCodeBlock->byteCodeBlock(), 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(&newState, byteCodeBlock, 0, registerFile);
     clearStack<512>();
 
     return resultValue;

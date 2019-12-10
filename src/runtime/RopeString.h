@@ -32,10 +32,10 @@ public:
         : String()
     {
         m_left = String::emptyString;
-        m_right = String::emptyString;
-        m_contentLength = 0;
-        m_has8BitContent = true;
+        m_bufferAccessData.has8BitContent = true;
         m_bufferAccessData.hasSpecialImpl = true;
+        m_bufferAccessData.length = 0;
+        m_bufferAccessData.buffer = nullptr;
     }
 
     // this function not always create RopeString.
@@ -44,23 +44,12 @@ public:
     // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
     static String* createRopeString(String* lstr, String* rstr, ExecutionState* state = nullptr);
 
-    virtual size_t length() const
-    {
-        return m_contentLength;
-    }
     virtual char16_t charAt(const size_t idx) const
     {
-        return normalString()->charAt(idx);
+        return bufferAccessData().charAt(idx);
     }
-    virtual UTF16StringData toUTF16StringData() const
-    {
-        return normalString()->toUTF16StringData();
-    }
-    virtual UTF8StringData toUTF8StringData() const
-    {
-        return normalString()->toUTF8StringData();
-    }
-
+    virtual UTF16StringData toUTF16StringData() const;
+    virtual UTF8StringData toUTF8StringData() const;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
 
     virtual bool isRopeString()
@@ -70,47 +59,32 @@ public:
 
     virtual const LChar* characters8() const
     {
-        return normalString()->characters8();
+        return (const LChar*)bufferAccessData().buffer;
     }
 
     virtual const char16_t* characters16() const
     {
-        return normalString()->characters16();
+        return (const char16_t*)bufferAccessData().buffer;
     }
 
     virtual void bufferAccessDataSpecialImpl()
     {
-        m_bufferAccessData = normalString()->bufferAccessData();
+        ASSERT(m_bufferAccessData.hasSpecialImpl);
+        flattenRopeString();
+        ASSERT(!m_bufferAccessData.hasSpecialImpl);
     }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
-    String* normalString() const
-    {
-        if (m_right)
-            const_cast<RopeString*>(this)->flattenRopeString();
-        return m_left;
-    }
-    template <typename A, typename B>
+    template <typename ResultType>
     void flattenRopeStringWorker();
     void flattenRopeString();
 
 private:
     String* m_left;
-    String* m_right;
-    struct {
-        bool m_has8BitContent : 1;
-#if ESCARGOT_32
-        size_t m_contentLength : 31;
-#else
-        size_t m_contentLength : 63;
-#endif
-    };
-#if !defined(COMPILER_MSVC)
-    static_assert(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() / 2), "");
-#endif
+    // String* m_right; // Right String is stored in m_bufferAccessData.buffer if string is not flattened
 };
 }
 

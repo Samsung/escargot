@@ -112,7 +112,6 @@ public:
 
             context->giveUpRegister(); // for drop value index
         }
-
         codeBlock->m_shouldClearStack = true;
     }
 

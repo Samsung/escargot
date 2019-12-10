@@ -385,8 +385,8 @@ public:
         return m_impl;
     }
 
-
-    ALWAYS_INLINE bool operator==(const char* src) const
+    template<const size_t srcLen>
+    ALWAYS_INLINE bool operator==(const char (&src)[srcLen]) const
     {
         return m_impl->equals(src);
     }
