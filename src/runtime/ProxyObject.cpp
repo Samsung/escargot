@@ -553,7 +553,7 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     }
 
     // 20. Let uncheckedResultKeys be a new List which is a copy of trapResult.
-    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> uncheckedResultKeys;
+    ValueVector uncheckedResultKeys;
     for (size_t i = 0; i < trapResult.size(); ++i) {
         uncheckedResultKeys.push_back(trapResult[i]);
     }
@@ -565,12 +565,11 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
         // b. Remove key from uncheckedResultKeys
         bool found = false;
-        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end();) {
-            if (iter->equalsTo(state, key)) {
-                iter = uncheckedResultKeys.erase(iter);
+        for (size_t i = 0; i < uncheckedResultKeys.size(); i++) {
+            if (uncheckedResultKeys[i].equalsTo(state, key)) {
+                uncheckedResultKeys.erase(i);
                 found = true;
-            } else {
-                iter++;
+                i--;
             }
         }
         if (!found) {
@@ -589,12 +588,11 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.
         // b. Remove key from uncheckedResultKeys
         bool found = false;
-        for (auto iter = uncheckedResultKeys.begin(); iter != uncheckedResultKeys.end();) {
-            if (iter->equalsTo(state, key)) {
-                iter = uncheckedResultKeys.erase(iter);
+        for (size_t i = 0; i < uncheckedResultKeys.size(); i++) {
+            if (uncheckedResultKeys[i].equalsTo(state, key)) {
+                uncheckedResultKeys.erase(i);
                 found = true;
-            } else {
-                iter++;
+                i--;
             }
         }
         if (!found) {

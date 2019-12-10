@@ -31,7 +31,7 @@ void* RopeString::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(RopeString)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_left));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_right));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_bufferAccessData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RopeString));
         typeInited = true;
     }
@@ -41,7 +41,14 @@ void* RopeString::operator new(size_t size)
 String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState* state)
 {
     size_t llen = lstr->length();
+    if (llen == 0) {
+        return rstr;
+    }
+
     size_t rlen = rstr->length();
+    if (rlen == 0) {
+        return lstr;
+    }
 
     if (llen + rlen < ROPE_STRING_MIN_LENGTH) {
         const auto& lData = lstr->bufferAccessData();
@@ -76,64 +83,45 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     }
 
     RopeString* rope = new RopeString();
-    rope->m_contentLength = llen + rlen;
+    rope->m_bufferAccessData.length = llen + rlen;
     rope->m_left = lstr;
-    rope->m_right = rstr;
+    rope->m_bufferAccessData.buffer = rstr;
 
     bool l8bit;
     if (lstr->isRopeString()) {
-        l8bit = ((RopeString*)lstr)->m_has8BitContent;
+        l8bit = ((RopeString*)lstr)->m_bufferAccessData.has8BitContent;
     } else {
         l8bit = lstr->has8BitContent();
     }
 
     bool r8bit;
     if (rstr->isRopeString()) {
-        r8bit = ((RopeString*)rstr)->m_has8BitContent;
+        r8bit = ((RopeString*)rstr)->m_bufferAccessData.has8BitContent;
     } else {
         r8bit = rstr->has8BitContent();
     }
 
-    rope->m_has8BitContent = l8bit & r8bit;
-    /*
-    bool has8 = true;
-    if (!lstr->has8BitContent()) {
-        if (!isAllLatin1((char16_t*)lstr->bufferAccessData().buffer, llen)) {
-            has8 = false;
-        }
-    }
-
-    if (has8 && !rstr->has8BitContent()) {
-        if (!isAllLatin1((char16_t*)rstr->bufferAccessData().buffer, rlen)) {
-            has8 = false;
-        }
-    }
-
-    rope->m_has8BitContent = has8;
-    */
+    rope->m_bufferAccessData.has8BitContent = l8bit & r8bit;
     return rope;
 }
 
-template <typename A, typename B>
+template <typename ResultType>
 void RopeString::flattenRopeStringWorker()
 {
-    A result;
-    result.resizeWithUninitializedValues(length());
+    ResultType* result = (ResultType*)GC_MALLOC_ATOMIC(sizeof(ResultType) * m_bufferAccessData.length);
     std::vector<String*> queue;
     queue.push_back(m_left);
-    queue.push_back(m_right);
-    size_t pos = result.size();
+    queue.push_back((String*)m_bufferAccessData.buffer);
+    size_t pos = m_bufferAccessData.length;
     size_t k = 0;
     while (!queue.empty()) {
         String* cur = queue.back();
         queue.pop_back();
         if (cur->isRopeString()) {
             RopeString* cur2 = (RopeString*)cur;
-            if (cur2->m_right != nullptr) {
-                ASSERT(cur2->m_left);
-                ASSERT(cur2->m_right);
+            if (cur2->m_bufferAccessData.hasSpecialImpl) {
                 queue.push_back(cur2->m_left);
-                queue.push_back(cur2->m_right);
+                queue.push_back((String*)cur2->m_bufferAccessData.buffer);
                 continue;
             }
         }
@@ -155,22 +143,45 @@ void RopeString::flattenRopeStringWorker()
             }
         }
     }
-    m_left = new B(std::move(result));
-    m_right = nullptr;
+
+    m_bufferAccessData.hasSpecialImpl = false;
+    m_bufferAccessData.buffer = result;
+
+    m_left = nullptr;
 }
 
 void RopeString::flattenRopeString()
 {
-    ASSERT(m_right);
-    if (m_has8BitContent) {
-        flattenRopeStringWorker<Latin1StringData, Latin1String>();
+    ASSERT(m_left);
+    if (m_bufferAccessData.has8BitContent) {
+        flattenRopeStringWorker<LChar>();
     } else {
-        flattenRopeStringWorker<UTF16StringData, UTF16String>();
+        flattenRopeStringWorker<char16_t>();
     }
 }
 
 UTF8StringDataNonGCStd RopeString::toNonGCUTF8StringData() const
 {
-    return normalString()->toNonGCUTF8StringData();
+    return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
+}
+
+UTF8StringData RopeString::toUTF8StringData() const
+{
+    return bufferAccessData().toUTF8String<UTF8StringData>();
+}
+
+UTF16StringData RopeString::toUTF16StringData() const
+{
+    auto data = bufferAccessData();
+    if (data.has8BitContent) {
+        UTF16StringData ret;
+        ret.resizeWithUninitializedValues(data.length);
+        for (size_t i = 0; i < data.length; i++) {
+            ret[i] = data.uncheckedCharAtFor8Bit(i);
+        }
+        return ret;
+    } else {
+        return UTF16StringData(data.bufferAs16Bit, data.length);
+    }
 }
 }

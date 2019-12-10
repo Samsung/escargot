@@ -62,7 +62,7 @@ ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
     }
 
-    setArrayLength(state, size);
+    setArrayLength(state, size, true);
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size)
@@ -183,21 +183,29 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
                 return false;
             }
 
-            while (newLen < oldLen) {
-                oldLen--;
+            if (isFastModeArray()) {
+                m_fastModeData.resize(idx, newLen);
+            } else {
+                int64_t i = oldLen;
+                while (true) {
+                    Object::nextIndexBackward(state, this, i, -1, i);
+                    if (i < newLen) {
+                        break;
+                    }
 
-                bool deleteSucceeded = Object::deleteOwnProperty(state, ObjectPropertyName(state, Value(oldLen).toString(state)));
-                if (!deleteSucceeded) {
-                    newLenDesc.setValue(Value(oldLen + 1));
-                    if (!newWritable) {
-                        newLenDesc.setWritable(false);
+                    bool deleteSucceeded = Object::deleteOwnProperty(state, ObjectPropertyName(state, i));
+                    if (!deleteSucceeded) {
+                        newLenDesc.setValue(Value(i + 1));
+                        if (!newWritable) {
+                            newLenDesc.setWritable(false);
+                        }
+                        Object::defineOwnProperty(state, P, newLenDesc);
+                        if (isInArrayObjectDefineOwnProperty()) {
+                            ASSERT(rareData());
+                            rareData()->m_isInArrayObjectDefineOwnProperty = false;
+                        }
+                        return false;
                     }
-                    Object::defineOwnProperty(state, P, newLenDesc);
-                    if (isInArrayObjectDefineOwnProperty()) {
-                        ASSERT(rareData());
-                        rareData()->m_isInArrayObjectDefineOwnProperty = false;
-                    }
-                    return false;
                 }
             }
 
@@ -256,20 +264,25 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
     if (isFastModeArray()) {
         if (length) {
             size_t orgLength = length;
-            Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * orgLength);
+            size_t byteLength = sizeof(Value) * orgLength;
+            bool canUseStack = byteLength <= 1024;
+            Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(orgLength);
 
             for (size_t i = 0; i < orgLength; i++) {
                 tempBuffer[i] = m_fastModeData[i];
             }
 
             if (orgLength) {
-                TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
-                tempSpace.resizeWithUninitializedValues(orgLength);
+                Value* tempSpace = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(orgLength);
 
-                mergeSort(tempBuffer, orgLength, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+                mergeSort(tempBuffer, orgLength, tempSpace, [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
                     *lessOrEqualp = comp(a, b);
                     return true;
                 });
+
+                if (!canUseStack) {
+                    GC_FREE(tempSpace);
+                }
             }
 
             if (getArrayLength(state) != orgLength) {
@@ -281,7 +294,10 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
                     m_fastModeData[i] = tempBuffer[i];
                 }
             }
-            GC_FREE(tempBuffer);
+
+            if (!canUseStack) {
+                GC_FREE(tempBuffer);
+            }
         }
         return;
     }
@@ -317,7 +333,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
     m_fastModeData.clear();
 }
 
-bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength)
+bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength, bool useFitStorage)
 {
     bool isFastMode = isFastModeArray();
     if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
@@ -332,7 +348,11 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength
         auto oldSize = getArrayLength(state);
         auto oldLenDesc = structure()->readProperty((size_t)0);
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
-        m_fastModeData.resize(oldSize, newLength, Value(Value::EmptyValue));
+        if (useFitStorage) {
+            m_fastModeData.fitSizeTo(oldSize, newLength, Value(Value::EmptyValue));
+        } else {
+            m_fastModeData.resize(oldSize, newLength, Value(Value::EmptyValue));
+        }
 
         if (UNLIKELY(!oldLenDesc.m_descriptor.isWritable())) {
             convertIntoNonFastMode(state);
@@ -347,7 +367,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength
 
             while (newLen < oldLen) {
                 oldLen--;
-                ObjectPropertyName key(state, Value(oldLen));
+                ObjectPropertyName key(state, oldLen);
 
                 if (!getOwnProperty(state, key).hasValue()) {
                     int64_t result;

@@ -1393,7 +1393,7 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
 
 void Object::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
-    std::vector<Value, GCUtil::gc_malloc_allocator<Value>> selected;
+    ValueVectorWithInlineStorage64 selected;
 
     int64_t n = 0;
     int64_t k = 0;

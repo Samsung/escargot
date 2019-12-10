@@ -663,11 +663,11 @@ Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, size_t s
 void Scanner::skipSingleLineComment(void)
 {
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         ++this->index;
 
         if (isLineTerminator(ch)) {
-            if (ch == 13 && this->peekChar() == 10) {
+            if (ch == 13 && this->peekCharWithoutEOF() == 10) {
                 ++this->index;
             }
             ++this->lineNumber;
@@ -681,16 +681,16 @@ void Scanner::skipSingleLineComment(void)
 void Scanner::skipMultiLineComment(void)
 {
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         ++this->index;
 
         if (isLineTerminator(ch)) {
-            if (ch == 0x0D && this->peekChar() == 0x0A) {
+            if (ch == 0x0D && this->peekCharWithoutEOF() == 0x0A) {
                 ++this->index;
             }
             ++this->lineNumber;
             this->lineStart = this->index;
-        } else if (ch == 0x2A && this->peekChar() == 0x2F) {
+        } else if (ch == 0x2A && this->peekCharWithoutEOF() == 0x2F) {
             // Block comment ends with '*/'.
             ++this->index;
             return;
@@ -706,8 +706,8 @@ char32_t Scanner::scanHexEscape(char prefix)
     char32_t code = 0;
 
     for (size_t i = 0; i < len; ++i) {
-        if (!this->eof() && isHexDigit(this->peekChar())) {
-            code = code * 16 + hexValue(this->peekChar());
+        if (!this->eof() && isHexDigit(this->peekCharWithoutEOF())) {
+            code = code * 16 + hexValue(this->peekCharWithoutEOF());
             ++this->index;
         } else {
             return EMPTY_CODE_POINT;
@@ -719,16 +719,16 @@ char32_t Scanner::scanHexEscape(char prefix)
 
 char32_t Scanner::scanUnicodeCodePointEscape()
 {
-    char16_t ch = this->peekChar();
-    char32_t code = 0;
-
     // At least, one hex digit is required.
-    if (ch == '}') {
+    if (this->eof() || this->peekCharWithoutEOF() == '}') {
         this->throwUnexpectedToken();
     }
 
+    char32_t code = 0;
+    char16_t ch;
+
     while (!this->eof()) {
-        ch = this->peekChar();
+        ch = this->peekCharWithoutEOF();
         ++this->index;
         if (!isHexDigit(ch)) {
             break;
@@ -748,7 +748,7 @@ Scanner::ScanIDResult Scanner::getIdentifier()
     const size_t start = this->index;
     ++this->index;
     while (UNLIKELY(!this->eof())) {
-        const char16_t ch = this->peekChar();
+        const char16_t ch = this->peekCharWithoutEOF();
         if (UNLIKELY(ch == 0x5C)) {
             // Blackslash (U+005C) marks Unicode escape sequence.
             this->index = start;
@@ -1117,7 +1117,7 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
 
     size_t shiftCount = 0;
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         if (!isHexDigit(ch)) {
             break;
         }
@@ -1159,7 +1159,7 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
     bool scanned = false;
 
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         if (ch != '0' && ch != '1') {
             break;
         }
@@ -1174,7 +1174,7 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
     }
 
     if (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         /* istanbul ignore else */
         if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
             this->throwUnexpectedToken();
@@ -1192,7 +1192,7 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
     bool octal = isOctalDigit(prefix);
 
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         if (!isOctalDigit(ch)) {
             break;
         }
@@ -1305,7 +1305,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
         }
     }
 
-    if (isIdentifierStart(this->peekChar())) {
+    if (!this->eof() && isIdentifierStart(this->peekChar())) {
         this->throwUnexpectedToken();
     }
 
@@ -1328,7 +1328,7 @@ void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
     bool isPlainCase = true;
 
     while (LIKELY(!this->eof())) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         ++this->index;
         if (ch == quote) {
             quote = '\0';
@@ -1421,7 +1421,7 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
     bool tail = false;
 
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         ++this->index;
         if (ch == '`') {
             tail = true;
@@ -1566,7 +1566,7 @@ String* Scanner::scanRegExpBody()
     bool terminated = false;
 
     while (!this->eof()) {
-        ch = this->peekChar();
+        ch = this->peekCharWithoutEOF();
         ++this->index;
         str += ch;
         if (ch == '\\') {
@@ -1611,7 +1611,7 @@ String* Scanner::scanRegExpFlags()
     // UTF16StringData str = '';
     UTF16StringDataNonGCStd flags;
     while (!this->eof()) {
-        char16_t ch = this->peekChar();
+        char16_t ch = this->peekCharWithoutEOF();
         if (!isIdentifierPart(ch)) {
             break;
         }
@@ -1876,7 +1876,7 @@ void Scanner::lex(Scanner::ScannerResult* token)
         return;
     }
 
-    const char16_t cp = this->peekChar();
+    const char16_t cp = this->peekCharWithoutEOF();
 
     if (isIdentifierStart(cp)) {
         goto ScanID;

@@ -267,6 +267,8 @@ private:
 
 typedef Vector<Value, CustomAllocator<Value>> ValueVector;
 typedef VectorWithInlineStorage<32, Value, CustomAllocator<Value>> ValueVectorWithInlineStorage;
+typedef VectorWithInlineStorage<32, Value, CustomAllocator<Value>> ValueVectorWithInlineStorage32;
+typedef VectorWithInlineStorage<64, Value, CustomAllocator<Value>> ValueVectorWithInlineStorage64;
 }
 
 namespace std {

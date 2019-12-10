@@ -185,11 +185,6 @@ public:
 
     void throwException(ExecutionState& state, const Value& exception);
 
-    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& compiledCodeBlocks()
-    {
-        return m_compiledCodeBlocks;
-    }
-
     // this is not compatible with ECMAScript
     // but this callback is needed for browser-implementation
     // if there is a Identifier with that value, callback should return non-empty value
@@ -250,7 +245,6 @@ private:
                        GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
         m_globalVariableAccessCache;
     LoadedModuleVector m_loadedModules;
-    Vector<CodeBlock*, GCUtil::gc_malloc_allocator<CodeBlock*>>& m_compiledCodeBlocks;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
     ObjectStructure* m_defaultStructureForObject;

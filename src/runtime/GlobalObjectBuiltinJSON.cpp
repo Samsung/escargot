@@ -506,7 +506,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         newIndent.appendString(gap);
         indent = newIndent.finalize(&state);
         // 5
-        std::vector<String*, GCUtil::gc_malloc_allocator<String*>> partial;
+        VectorWithInlineStorage<32, String*, GCUtil::gc_malloc_allocator<String*>> partial;
         // 6, 7
         uint32_t len = obj->lengthES6(state);
 
@@ -604,7 +604,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         }
 
         // 7
-        std::vector<String*, GCUtil::gc_malloc_allocator<String*>> partial;
+        VectorWithInlineStorage<32, String*, GCUtil::gc_malloc_allocator<String*>> partial;
         // 8
         int len = k.size();
         for (int i = 0; i < len; ++i) {

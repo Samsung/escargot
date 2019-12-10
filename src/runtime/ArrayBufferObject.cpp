@@ -31,6 +31,15 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     , m_bytelength(0)
 {
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->arrayBufferPrototype());
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
+                                            void*) {
+        ArrayBufferObject* self = (ArrayBufferObject*)obj;
+        if (self->m_data) {
+            self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
+        }
+    },
+                                   nullptr, nullptr, nullptr);
 }
 
 void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
@@ -39,12 +48,6 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 
     m_data = (uint8_t*)m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, bytelength);
     m_bytelength = bytelength;
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
-                                            void*) {
-        ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
-    },
-                                   nullptr, nullptr, nullptr);
 }
 
 void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t bytelength)
@@ -52,17 +55,13 @@ void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t
     ASSERT(isDetachedBuffer());
     m_data = (uint8_t*)buffer;
     m_bytelength = bytelength;
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
-                                            void*) {
-        ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
-    },
-                                   nullptr, nullptr, nullptr);
 }
 
 void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
 {
-    m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
+    if (m_data) {
+        m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
+    }
     m_data = NULL;
     m_bytelength = 0;
 }
@@ -87,17 +86,6 @@ bool ArrayBufferObject::cloneBuffer(ExecutionState& state, ArrayBufferObject* sr
 
 void* ArrayBufferObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayBufferObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_values));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_context));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferObject));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    return CustomAllocator<ArrayBufferObject>().allocate(1);
 }
 }

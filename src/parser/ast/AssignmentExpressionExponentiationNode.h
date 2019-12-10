@@ -39,9 +39,8 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         bool slowMode = AssignmentExpressionSimpleNode::isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
-        bool flagBefore;
+        bool flagBefore = context->m_canSkipCopyToRegister;
         if (slowMode) {
-            flagBefore = context->m_canSkipCopyToRegister;
             context->m_canSkipCopyToRegister = false;
         }
 

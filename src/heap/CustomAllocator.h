@@ -52,6 +52,8 @@ enum HeapObjectKind : unsigned {
     ArrayObjectKind,
     CodeBlockKind,
     InterpretedCodeBlockKind,
+    ArrayBufferObjectKind,
+    GetObjectInlineCacheDataKind,
     NumberOfKind,
 };
 

@@ -43,6 +43,8 @@ public:
         } else {
             codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, SIZE_MAX, blk), context, this);
         }
+
+        codeBlock->m_shouldClearStack = true;
     }
 
 private:

@@ -619,9 +619,14 @@ public:
     void lex(Scanner::ScannerResult* token);
 
 private:
-    ALWAYS_INLINE char16_t peekChar()
+    ALWAYS_INLINE char16_t peekCharWithoutEOF()
     {
         return this->source.bufferedCharAt(this->index);
+    }
+
+    ALWAYS_INLINE char16_t peekChar()
+    {
+        return UNLIKELY(this->eof()) ? 0 : this->source.bufferedCharAt(this->index);
     }
 
     char32_t scanHexEscape(char prefix);

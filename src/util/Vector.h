@@ -548,6 +548,29 @@ public:
         m_capacity = 0;
     }
 
+    void fitSizeTo(size_t oldSize, size_t newSize, const T& val = T())
+    {
+        if (newSize) {
+            if (newSize > m_capacity) {
+                size_t newCapacity = newSize;
+                T* newBuffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * newCapacity);
+
+                for (size_t i = oldSize; i < newSize; i++) {
+                    newBuffer[i] = val;
+                }
+
+                m_capacity = newCapacity;
+                m_buffer = newBuffer;
+            } else {
+                for (size_t i = oldSize; i < newSize; i++) {
+                    m_buffer[i] = val;
+                }
+            }
+        } else {
+            clear();
+        }
+    }
+
     void resize(size_t oldSize, size_t newSize, const T& val = T())
     {
         if (newSize) {
@@ -596,6 +619,11 @@ public:
     {
         m_size = 0;
         m_useExternalStorage = false;
+    }
+
+    VectorWithInlineStorage(const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& src)
+    {
+        copy(src);
     }
 
     VectorWithInlineStorage(size_t s)
@@ -651,6 +679,13 @@ public:
     {
         clear();
         move(std::move(src));
+        return *this;
+    }
+
+    const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& operator=(const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& src)
+    {
+        clear();
+        copy(src);
         return *this;
     }
 
@@ -758,6 +793,21 @@ protected:
     {
         return (T*)(&m_inlineStorage[idx * sizeof(T)]);
     }
+
+    void copy(const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& src)
+    {
+        m_size = src.m_size;
+        m_useExternalStorage = src.m_useExternalStorage;
+
+        if (src.m_useExternalStorage) {
+            m_externalStorage = src.m_externalStorage;
+        } else {
+            for (size_t i = 0; i < src.m_size; i++) {
+                new (inlineAt(i)) T(*src.inlineAt(i));
+            }
+        }
+    }
+
     void move(VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>&& src)
     {
         m_size = src.m_size;
@@ -778,7 +828,7 @@ protected:
     bool m_useExternalStorage;
     size_t m_size;
     uint8_t m_inlineStorage[InlineStorageSize * sizeof(T)];
-    std::vector<T, ExternalStorageAllocator> m_externalStorage;
+    Vector<T, ExternalStorageAllocator> m_externalStorage;
 };
 
 

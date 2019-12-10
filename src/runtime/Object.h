@@ -274,7 +274,7 @@ private:
     ObjectStructurePropertyName toObjectStructurePropertyNameUintCase(ExecutionState& state) const;
 };
 
-typedef std::vector<ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> ObjectPropertyNameVector;
+typedef VectorWithInlineStorage<48, ObjectPropertyName, GCUtil::gc_malloc_allocator<ObjectPropertyName>> ObjectPropertyNameVector;
 
 class JSGetterSetter : public PointerValue {
     friend class ObjectPropertyDescriptor;

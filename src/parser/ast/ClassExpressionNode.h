@@ -104,7 +104,6 @@ public:
         }
 
         context->giveUpRegister(); // for drop m_bodyIndex
-        codeBlock->m_shouldClearStack = true;
 
         context->m_classInfo = classInfoBefore;
     }

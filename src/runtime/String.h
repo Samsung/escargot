@@ -209,7 +209,10 @@ public:
     }
     static String* fromUTF8(const char* src, size_t len);
 
-    virtual size_t length() const = 0;
+    size_t length() const
+    {
+        return m_bufferAccessData.length;
+    }
     virtual char16_t charAt(const size_t idx) const = 0;
     char16_t operator[](const size_t idx) const
     {
@@ -229,9 +232,15 @@ public:
     }
 
     bool equals(const String* src) const;
-    bool equals(const char* src) const
+
+    template <const size_t srcLen>
+    bool equals(const char (&src)[srcLen]) const
     {
-        size_t srcLen = strlen(src);
+        return equals(src, srcLen - 1);
+    }
+
+    bool equals(const char* src, size_t srcLen) const
+    {
         if (srcLen != length()) {
             return false;
         }
@@ -491,11 +500,6 @@ public:
         return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual size_t length() const
-    {
-        return m_bufferAccessData.length;
-    }
-
     virtual const LChar* characters8() const
     {
         return (const LChar*)m_bufferAccessData.buffer;
@@ -595,11 +599,6 @@ public:
         return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual size_t length() const
-    {
-        return m_bufferAccessData.length;
-    }
-
     virtual const LChar* characters8() const
     {
         return (const LChar*)m_bufferAccessData.buffer;
@@ -674,11 +673,6 @@ public:
     virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferAccessData.uncheckedCharAtFor16Bit(idx);
-    }
-
-    virtual size_t length() const
-    {
-        return m_bufferAccessData.length;
     }
 
     virtual const char16_t* characters16() const

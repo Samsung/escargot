@@ -116,7 +116,7 @@ public:
     static size_t totalSize(); // Return the total number of bytes allocated in this process
 
     typedef void (*OnGCEventListener)();
-    static void setEventEventListener(OnGCEventListener l);
+    static void setGCEventListener(OnGCEventListener l);
     // NOTE bdwgc(c/c++ gc library escargot use) allocate at least N/GC_free_space_divisor bytes between collections
     // (Allocated memory by GC x 2) / (Frequency parameter value)
     // Increasing this value may use less space but there is more collection event

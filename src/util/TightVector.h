@@ -379,6 +379,14 @@ public:
         }
     }
 
+    void clear()
+    {
+        if (m_buffer) {
+            GC_FREE(m_buffer);
+        }
+        m_buffer = nullptr;
+    }
+
     void pushBack(const T& val, size_t newSize)
     {
         T* newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
@@ -399,6 +407,21 @@ public:
     const T& operator[](const size_t idx) const
     {
         return m_buffer[idx];
+    }
+
+    void resize(size_t oldSize, size_t newSize, const T& val = T())
+    {
+        if (newSize) {
+            T* newBuffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * newSize);
+
+            for (size_t i = oldSize; i < newSize; i++) {
+                newBuffer[i] = val;
+            }
+
+            m_buffer = newBuffer;
+        } else {
+            clear();
+        }
     }
 
     void resizeWithUninitializedValues(size_t oldSize, size_t newSize)

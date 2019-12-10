@@ -20,9 +20,11 @@
 #include "Escargot.h"
 #include "VMInstance.h"
 #include "BumpPointerAllocator.h"
-#include "ArrayObject.h"
-#include "StringObject.h"
-#include "JobQueue.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/ArrayBufferObject.h"
+#include "runtime/StringObject.h"
+#include "runtime/JobQueue.h"
+#include "interpreter/ByteCode.h"
 #include "parser/ASTAllocator.h"
 
 namespace Escargot {
@@ -86,7 +88,7 @@ bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, Sm
     if (UNLIKELY(!isPrimitiveValue && !self->structure()->readProperty((size_t)0).m_descriptor.isWritable())) {
         ret = false;
     } else {
-        ret = self->asArrayObject()->setArrayLength(state, newLen);
+        ret = self->asArrayObject()->setArrayLength(state, newLen, true);
     }
     return ret;
 }
@@ -126,8 +128,54 @@ bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
 
+void VMInstance::gcEventCallback(GC_EventType t, void* data)
+{
+    VMInstance* self = (VMInstance*)data;
+    if (t == GC_EventType::GC_EVENT_MARK_START) {
+        if (self->m_regexpCache.size() > REGEXP_CACHE_SIZE_MAX) {
+            self->m_regexpCache.clear();
+        }
+
+        auto& currentCodeSizeTotal = self->compiledByteCodeSize();
+        if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
+            currentCodeSizeTotal = std::numeric_limits<size_t>::max();
+            auto& v = self->compiledByteCodeBlocks();
+            for (size_t i = 0; i < v.size(); i++) {
+                auto cb = v[i]->m_codeBlock;
+                v[i]->m_codeBlock->m_byteCodeBlock = nullptr;
+            }
+        }
+    } else if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
+        auto& currentCodeSizeTotal = self->compiledByteCodeSize();
+
+        if (currentCodeSizeTotal == std::numeric_limits<size_t>::max()) {
+            GC_invoke_finalizers();
+
+            currentCodeSizeTotal = 0;
+            auto& v = self->compiledByteCodeBlocks();
+            for (size_t i = 0; i < v.size(); i++) {
+                v[i]->m_codeBlock->m_byteCodeBlock = v[i];
+                currentCodeSizeTotal += v[i]->memoryAllocatedSize();
+            }
+        }
+    }
+    /*
+    if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
+        printf("Done GC: HeapSize: [%f MB , %f MB]\n", GC_get_memory_use() / 1024.f / 1024.f, GC_get_heap_size() / 1024.f / 1024.f);
+        printf("bytecode Size %f KiB codeblock count %zu\n", self->compiledByteCodeSize() / 1024.f, self->m_compiledByteCodeBlocks.size());
+        printf("regexp cache size %zu\n", self->m_regexpCache.size());
+    }
+    */
+}
+
 VMInstance::~VMInstance()
 {
+    auto& v = compiledByteCodeBlocks();
+    for (size_t i = 0; i < v.size(); i++) {
+        v[i]->m_isOwnerMayFreed = true;
+    }
+
+    GC_remove_event_callback(gcEventCallback, this);
     if (m_onVMInstanceDestroy) {
         m_onVMInstanceDestroy(this, m_onVMInstanceDestroyData);
     }
@@ -181,6 +229,8 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
         m_locale = icu::Locale::getDefault();
     }
 #endif
+
+    GC_add_event_callback(gcEventCallback, this);
 
     g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
 
@@ -260,7 +310,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
 void VMInstance::clearCaches()
 {
-    m_compiledCodeBlocks.clear();
     m_regexpCache.clear();
     m_cachedUTC = nullptr;
     globalSymbolRegistry().clear();
@@ -278,8 +327,8 @@ void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
     Escargot::ArrayObject::iterateArrays(state, callback);
 
     GC_disable();
-    std::vector<ArrayObject*, GCUtil::gc_malloc_allocator<ArrayObject*>> allOfArrayRooted;
-    allOfArrayRooted.assign(allOfArray.begin(), allOfArray.end());
+    Vector<ArrayObject*, GCUtil::gc_malloc_allocator<ArrayObject*>> allOfArrayRooted;
+    allOfArrayRooted.assign(allOfArray.data(), allOfArray.data() + allOfArray.size());
     GC_enable();
 
     for (size_t i = 0; i < allOfArrayRooted.size(); i++) {

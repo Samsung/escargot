@@ -224,14 +224,18 @@ size_t Memory::totalSize()
 }
 
 static Memory::OnGCEventListener g_gcEventListener;
-void Memory::setEventEventListener(OnGCEventListener l)
+static void gcEventListener(GC_EventType evtType, void*)
+{
+    if (GC_EVENT_RECLAIM_END == evtType && g_gcEventListener) {
+        g_gcEventListener();
+    }
+}
+
+void Memory::setGCEventListener(OnGCEventListener l)
 {
     g_gcEventListener = l;
-    GC_set_on_collection_event([](GC_EventType evtType) {
-        if (GC_EVENT_RECLAIM_END == evtType && g_gcEventListener) {
-            g_gcEventListener();
-        }
-    });
+    GC_remove_event_callback(gcEventListener, nullptr);
+    GC_add_event_callback(gcEventListener, nullptr);
 }
 
 // I store ref count as SmallValue. this can prevent what bdwgc can see ref count as address (SmallValue store integer value as odd)
@@ -671,7 +675,6 @@ void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
 void VMInstanceRef::clearCachesRelatedWithContext()
 {
     VMInstance* imp = toImpl(this);
-    imp->m_compiledCodeBlocks.clear();
     imp->m_regexpCache.clear();
     imp->m_cachedUTC = nullptr;
     imp->globalSymbolRegistry().clear();

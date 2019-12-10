@@ -767,7 +767,8 @@ public:
     // Return true if the next token matches the specified contextual keyword
     // (where an identifier is sometimes a keyword depending on the context)
 
-    bool matchContextualKeyword(const char* keyword)
+    template <const size_t len>
+    bool matchContextualKeyword(const char (&keyword)[len])
     {
         return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteral(this->scanner).equals(keyword);
     }
@@ -835,7 +836,8 @@ public:
         }
     }
 
-    bool isPropertyKey(Node* key, const StringView& name, const char* value)
+    template <const size_t len>
+    bool isPropertyKey(Node* key, const StringView& name, const char (&value)[len])
     {
         if (key->type() == Identifier) {
             return ((IdentifierNode*)key)->name() == value;
@@ -848,7 +850,8 @@ public:
         return false;
     }
 
-    bool isPropertyKey(SyntaxNode key, const StringView& name, const char* value)
+    template <const size_t len>
+    bool isPropertyKey(SyntaxNode key, const StringView& name, const char (&value)[len])
     {
         if (key.type() == Identifier) {
             return key.name() == value;
