@@ -23,6 +23,7 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/IteratorObject.h"
+#include "runtime/PromiseObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
@@ -122,6 +123,10 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         if (from == StartFrom::Generator) {
             source->asGeneratorObject()->m_generatorState = GeneratorState::CompletedReturn;
             result = IteratorObject::createIterResultObject(state, result, true);
+        } else {
+            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
+            ASSERT(from == StartFrom::Async);
+            result = promiseResolve(state, state.context()->globalObject()->promise(), result).asObject()->asPromiseObject();
         }
         self->release();
     } catch (PauseValue* exitValue) {
@@ -133,18 +138,26 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             return result;
         }
 
-        if (from == Generator) {
+        if (from == StartFrom::Generator) {
             if (source->asGeneratorObject()->m_generatorState >= GeneratorState::CompletedReturn) {
                 return IteratorObject::createIterResultObject(state, result, true);
             }
             return IteratorObject::createIterResultObject(state, result, false);
         }
     } catch (const Value& thrownValue) {
-        if (from == Generator) {
-            source->asGeneratorObject()->m_generatorState = GeneratorState::CompletedThrow;
-        }
         self->release();
-        throw thrownValue;
+        if (from == StartFrom::Async) {
+            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
+            ASSERT(from == StartFrom::Async);
+            auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+            Value argv = thrownValue;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+            result = promiseCapability.m_promise;
+        } else {
+            ASSERT(from == StartFrom::Generator);
+            source->asGeneratorObject()->m_generatorState = GeneratorState::CompletedThrow;
+            throw thrownValue;
+        }
     }
 
     return result;
