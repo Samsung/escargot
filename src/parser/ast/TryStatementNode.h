@@ -21,7 +21,6 @@
 #define TryStatementNode_h
 
 #include "CatchClauseNode.h"
-#include "RegisterReferenceNode.h"
 #include "StatementNode.h"
 
 namespace Escargot {
@@ -80,14 +79,18 @@ public:
 
         auto catchedValueRegister = context->getRegister();
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_catchedValueRegisterIndex = catchedValueRegister;
-        RegisterReferenceNode *registerRef = new (alloca(sizeof(RegisterReferenceNode))) RegisterReferenceNode(catchedValueRegister);
-        AssignmentExpressionSimpleNode *assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(handler->param(), registerRef);
-        assign->m_loc = handler->m_loc;
+
+        // cached variable is treated as let variable initialization in default
         context->m_isLexicallyDeclaredBindingInitialization = true;
-        assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
+        handler->param()->generateResolveAddressByteCode(codeBlock, context);
+        handler->param()->generateStoreByteCode(codeBlock, context, catchedValueRegister, false);
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
+        // drop the catchedValueRegister
+        // because catchedValueRegister is a catchedValue holder and after initialzation,
+        // catchedValueRegister is no longer necessary.
         context->giveUpRegister();
+        context->giveUpRegister(); // drop dummy register
 
         handler->body()->generateStatementByteCode(codeBlock, context);
 

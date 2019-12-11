@@ -139,7 +139,6 @@ enum ASTNodeType {
     ObjectPattern,
     Property,
     RegExpLiteral,
-    RegisterReference,
     RestElement,
     ReturnStatement,
     SequenceExpression,

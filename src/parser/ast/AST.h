@@ -108,7 +108,6 @@
 #include "ObjectPatternNode.h"
 #include "ProgramNode.h"
 #include "RegExpLiteralNode.h"
-#include "RegisterReferenceNode.h"
 #include "RestElementNode.h"
 #include "ReturnStatementNode.h"
 #include "SequenceExpressionNode.h"

@@ -59,6 +59,9 @@ public:
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
+
+        // set m_isLexicallyDeclaredBindingInitialization to false for the case of empty object pattern
+        context->m_isLexicallyDeclaredBindingInitialization = false;
         if (m_properties.size() > 0) {
             if (m_hasRestElement) {
                 context->m_inObjectDestruction = true;
