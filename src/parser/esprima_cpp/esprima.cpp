@@ -1265,7 +1265,7 @@ public:
                 if (this->context->inParameterParsing) {
                     this->currentScopeContext->m_functionBodyBlockIndex = 1;
                 }
-                if (isExplicitVariableDeclaration) {
+                if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
                     addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;
@@ -1281,7 +1281,7 @@ public:
                 valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode, expr));
             } else if (!this->match(Colon)) {
                 params.push_back(*keyToken);
-                if (isExplicitVariableDeclaration) {
+                if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
                     addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;

@@ -51,18 +51,14 @@ public:
 
         if (m_init) {
             context->getRegister();
+
+            auto r = m_init->getRegister(codeBlock, context);
+
+            m_id->generateResolveAddressByteCode(codeBlock, context);
+            m_init->generateExpressionByteCode(codeBlock, context, r);
             context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
-            if (m_id->isIdentifier() && !m_id->asIdentifier()->name().string()->equals("arguments")) {
-                // check canUseIndexedVariableStorage for give right value to generateStoreByteCode(isInit..) with eval
-                AssignmentExpressionSimpleNode* assign = new (alloca(sizeof(AssignmentExpressionSimpleNode))) AssignmentExpressionSimpleNode(m_id, m_init);
-                assign->m_loc = m_loc;
-                assign->generateResultNotRequiredExpressionByteCode(codeBlock, context);
-            } else {
-                auto r = m_init->getRegister(codeBlock, context);
-                m_init->generateExpressionByteCode(codeBlock, context, r);
-                m_id->generateStoreByteCode(codeBlock, context, r, true);
-                context->giveUpRegister();
-            }
+            m_id->generateStoreByteCode(codeBlock, context, r, false);
+            context->giveUpRegister();
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             context->giveUpRegister();
         }

@@ -98,6 +98,8 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+
         bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
 
         if (codeBlock->m_codeBlock->hasEval()) {
@@ -129,82 +131,60 @@ public:
         }
     }
 
-    static void generateResultNotRequiredAssignmentByteCode(Node* self, Node* left, Node* right, ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
-        context->m_isLexicallyDeclaredBindingInitialization = false;
+        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
-        isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization && left->isIdentifier();
-
-        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(left, right);
+        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
 
         if (codeBlock->m_codeBlock->hasEval()) {
             // x = (eval("var x;"), 1);
-            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression(left, right);
+            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression(m_left, m_right);
         }
 
         if (isSlowMode) {
-            size_t rightRegister = right->getRegister(codeBlock, context);
+            size_t rightRegister = m_right->getRegister(codeBlock, context);
             bool canSkipCopyToRegister = context->m_canSkipCopyToRegister;
             context->m_canSkipCopyToRegister = false;
 
             bool oldIsLeftBindingAffectedByRightExpression = context->m_isLeftBindingAffectedByRightExpression;
-            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression(left, right);
+            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression(m_left, m_right);
 
-            left->generateResolveAddressByteCode(codeBlock, context);
+            m_left->generateResolveAddressByteCode(codeBlock, context);
             context->m_canSkipCopyToRegister = canSkipCopyToRegister;
 
-            right->generateExpressionByteCode(codeBlock, context, rightRegister);
-
-            if (isLexicallyDeclaredBindingInitialization) {
-                context->addLexicallyDeclaredNames(left->asIdentifier()->name());
-                context->m_isLexicallyDeclaredBindingInitialization = true;
-            }
-            left->generateStoreByteCode(codeBlock, context, rightRegister, false);
+            m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
+            m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
 
             context->m_isLeftBindingAffectedByRightExpression = oldIsLeftBindingAffectedByRightExpression;
-            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
             context->giveUpRegister();
         } else {
-            auto rt = right->type();
-            if (left->isIdentifier() && (rt != ASTNodeType::RegisterReference && rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->shouldCareScriptExecutionResult()) {
-                auto r = left->asIdentifier()->isAllocatedOnStack(context);
+            auto rt = m_right->type();
+            if (m_left->isIdentifier() && (rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->shouldCareScriptExecutionResult()) {
+                auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
                 if (std::get<0>(r)) {
-                    if (isLexicallyDeclaredBindingInitialization) {
-                        context->addLexicallyDeclaredNames(left->asIdentifier()->name());
-                    }
-                    left->asIdentifier()->addLexicalVariableErrorsIfNeeds(codeBlock, context, std::get<2>(r), isLexicallyDeclaredBindingInitialization, true);
-                    if (right->isLiteral()) {
-                        auto r2 = right->getRegister(codeBlock, context);
+                    m_left->asIdentifier()->addLexicalVariableErrorsIfNeeds(codeBlock, context, std::get<2>(r), false, true);
+                    if (m_right->isLiteral()) {
+                        auto r2 = m_right->getRegister(codeBlock, context);
                         if (r2 >= REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
                             context->giveUpRegister();
-                            codeBlock->pushCode(Move(ByteCodeLOC(self->m_loc.index), r2, std::get<1>(r)), context, self);
+                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r2, std::get<1>(r)), context, this);
                             return;
                         }
                     }
                     context->pushRegister(std::get<1>(r));
-                    right->generateExpressionByteCode(codeBlock, context, std::get<1>(r));
+                    m_right->generateExpressionByteCode(codeBlock, context, std::get<1>(r));
                     context->giveUpRegister();
                     return;
                 }
             }
 
-            size_t rightRegister = right->getRegister(codeBlock, context);
-            left->generateResolveAddressByteCode(codeBlock, context);
-            right->generateExpressionByteCode(codeBlock, context, rightRegister);
-            if (isLexicallyDeclaredBindingInitialization) {
-                context->addLexicallyDeclaredNames(left->asIdentifier()->name());
-                context->m_isLexicallyDeclaredBindingInitialization = true;
-            }
-            left->generateStoreByteCode(codeBlock, context, rightRegister, false);
-            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+            size_t rightRegister = m_right->getRegister(codeBlock, context);
+            m_left->generateResolveAddressByteCode(codeBlock, context);
+            m_right->generateExpressionByteCode(codeBlock, context, rightRegister);
+            m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
             context->giveUpRegister();
         }
-    }
-
-    virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
-    {
-        generateResultNotRequiredAssignmentByteCode(this, m_left, m_right, codeBlock, context);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override

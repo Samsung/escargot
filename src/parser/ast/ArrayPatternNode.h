@@ -44,14 +44,18 @@ public:
         // store each element by iterator
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
 
+        // set m_isLexicallyDeclaredBindingInitialization to false for the case of empty array pattern
+        context->m_isLexicallyDeclaredBindingInitialization = false;
+
         size_t iteratorIndex = context->getRegister();
         size_t iteratorValueIndex = context->getRegister();
 
         codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), srcRegister, iteratorIndex), context, this);
 
         for (SentinelNode* element = m_elements.begin(); element != m_elements.end(); element = element->next()) {
-            context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
             if (element->astNode()) {
+                // enable lexical declaration only if each element exists
+                context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                 if (LIKELY(element->astNode()->type() != RestElement)) {
                     codeBlock->pushCode(IteratorStep(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorIndex), context, this);
                     element->astNode()->generateResolveAddressByteCode(codeBlock, context);
