@@ -463,7 +463,11 @@ public:
 
     MAKE_STACK_ALLOCATED();
 
-    SyntaxChecker() {}
+    SyntaxChecker()
+        : m_valueStringLiteral()
+    {
+    }
+
     bool isNodeGenerator() { return false; }
     SyntaxNode createIdentifierNode(const AtomicString& name)
     {
@@ -560,6 +564,31 @@ public:
     {
         return SyntaxNode(CallExpression);
     }
+
+    void setValueStringLiteral(const StringView& string)
+    {
+        m_valueStringLiteral = string;
+    }
+
+    StringView& getValueStringLiteral()
+    {
+        return m_valueStringLiteral;
+    }
+
+    template <const size_t len>
+    bool isPropertyKey(SyntaxNode key, const char (&value)[len])
+    {
+        if (key.type() == Identifier) {
+            return key.name() == value;
+        } else if (key.type() == Literal) {
+            return getValueStringLiteral().equals(value);
+        }
+
+        return false;
+    }
+
+private:
+    StringView m_valueStringLiteral; // for StringLiteralNode (valueStringLiteral method)
 };
 
 class NodeGenerator {
@@ -722,6 +751,25 @@ public:
             scopeContext->m_hasEval = true;
         }
         return new (m_allocator) CallExpressionNode(taggedTemplateExpression->expr(), args);
+    }
+
+    void setValueStringLiteral(const StringView& string)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    template <const size_t len>
+    bool isPropertyKey(Node* key, const char (&value)[len])
+    {
+        if (key->type() == Identifier) {
+            return ((IdentifierNode*)key)->name() == value;
+        } else if (key->type() == Literal) {
+            if (((LiteralNode*)key)->value().isString()) {
+                return ((LiteralNode*)key)->value().asString()->equals(value);
+            }
+        }
+
+        return false;
     }
 
 private:

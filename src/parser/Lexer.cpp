@@ -482,13 +482,20 @@ StringView Scanner::ScannerResult::relatedSource(const StringView& source)
     return StringView(source, this->start, this->end);
 }
 
-Value Scanner::ScannerResult::valueStringLiteralForAST(Scanner* scannerInstance)
+Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance)
 {
-    StringView sv = valueStringLiteral(scannerInstance);
-    if (!this->hasAllocatedString) {
-        return new StringView(sv);
+    if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
+        return keywordToString(scannerInstance->escargotContext, this->valueKeywordKind).string();
     }
-    return sv.string();
+
+    if (this->hasAllocatedString) {
+        if (!this->valueStringLiteralData.m_stringIfNewlyAllocated) {
+            constructStringLiteral(scannerInstance);
+        }
+        return this->valueStringLiteralData.m_stringIfNewlyAllocated;
+    }
+
+    return new StringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
 }
 
 StringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
