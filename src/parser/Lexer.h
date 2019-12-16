@@ -284,7 +284,7 @@ public:
 
         StringView relatedSource(const StringView& source);
         StringView valueStringLiteral(Scanner* scannerInstance);
-        Value valueStringLiteralForAST(Scanner* scannerInstance);
+        Value valueStringLiteralToValue(Scanner* scannerInstance);
         double valueNumberLiteral(Scanner* scannerInstance);
 
         inline operator bool() const

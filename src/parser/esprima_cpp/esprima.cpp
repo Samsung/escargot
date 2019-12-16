@@ -836,33 +836,6 @@ public:
         }
     }
 
-    template <const size_t len>
-    bool isPropertyKey(Node* key, const StringView& name, const char (&value)[len])
-    {
-        if (key->type() == Identifier) {
-            return ((IdentifierNode*)key)->name() == value;
-        } else if (key->type() == Literal) {
-            if (((LiteralNode*)key)->value().isString()) {
-                return ((LiteralNode*)key)->value().asString()->equals(value);
-            }
-        }
-
-        return false;
-    }
-
-    template <const size_t len>
-    bool isPropertyKey(SyntaxNode key, const StringView& name, const char (&value)[len])
-    {
-        if (key.type() == Identifier) {
-            return key.name() == value;
-        } else if (key.type() == Literal) {
-            return name.equals(value);
-        }
-
-        return false;
-    }
-
-
     // Cover grammar support.
     //
     // When an assignment expression position starts with an left parenthesis, the determination of the type
@@ -1056,7 +1029,7 @@ public:
                         }
                         return this->finalize(node, builder.createLiteralNode(Value(d)));
                     } else {
-                        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST(this->scanner)));
+                        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralToValue(this->scanner)));
                     }
                 } else {
                     return this->finalize(node, builder.createLiteralNode(Value()));
@@ -1295,8 +1268,7 @@ public:
             }
         } else {
             computed = this->match(LeftSquareBracket);
-            StringView keyString;
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
             this->expect(Colon);
             valueNode = this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration);
         }
@@ -1587,7 +1559,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseObjectPropertyKey(ASTBuilder& builder, StringView& keyString)
+    ASTNode parseObjectPropertyKey(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
         ALLOC_TOKEN(token);
@@ -1614,12 +1586,11 @@ public:
                         }
                         v = Value(d);
                     } else {
-                        keyString = token->valueStringLiteral(this->scanner);
-                        v = Value(token->valueStringLiteralForAST(this->scanner));
+                        v = token->valueStringLiteralToValue(this->scanner);
                     }
                 } else {
                     if (token->type == Token::StringLiteralToken) {
-                        keyString = token->valueStringLiteral(this->scanner);
+                        builder.setValueStringLiteral(token->valueStringLiteral(this->scanner));
                     }
                 }
                 key = this->finalize(node, builder.createLiteralNode(v));
@@ -1633,7 +1604,6 @@ public:
             {
                 TrackUsingNameBlocker blocker(this);
                 key = this->finalize(node, finishIdentifier(builder, token));
-                keyString = StringView(key->asIdentifier()->name().string());
             }
             break;
         }
@@ -1664,7 +1634,6 @@ public:
         PropertyNode::Kind kind;
         ASTNode keyNode = nullptr; //'': Node.PropertyKey;
         ASTNode valueNode = nullptr; //: Node.PropertyValue;
-        StringView keyString;
 
         bool computed = false;
         bool method = false;
@@ -1677,7 +1646,7 @@ public:
             computed = this->match(LeftSquareBracket);
             isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Multiply) && !this->match(Comma);
             if (isAsync) {
-                keyNode = this->parseObjectPropertyKey(builder, keyString);
+                keyNode = this->parseObjectPropertyKey(builder);
             } else {
                 TrackUsingNameBlocker blocker(this);
                 keyNode = this->finalize(node, finishIdentifier(builder, token));
@@ -1686,7 +1655,7 @@ public:
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
         }
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
@@ -1708,18 +1677,18 @@ public:
         if (isGet) {
             kind = PropertyNode::Kind::Get;
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
             this->context->allowYield = false;
             valueNode = this->parseGetterMethod(builder);
         } else if (isSet) {
             kind = PropertyNode::Kind::Set;
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
             valueNode = this->parseSetterMethod(builder);
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
             valueNode = this->parseGeneratorMethod(builder);
             method = true;
         } else {
@@ -1729,7 +1698,7 @@ public:
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon) && !isAsync) {
                 // FIXME check !this->isParsingSingleFunction
-                isProto = !this->isParsingSingleFunction && this->isPropertyKey(keyNode, keyString, "__proto__");
+                isProto = !this->isParsingSingleFunction && builder.isPropertyKey(keyNode, "__proto__");
 
                 if (!computed && isProto) {
                     if (hasProto) {
@@ -4875,7 +4844,6 @@ public:
 
         ASTNode keyNode = nullptr;
         ASTNode value = nullptr;
-        StringView keyString;
 
         bool computed = false;
         bool isStatic = false;
@@ -4886,7 +4854,7 @@ public:
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
 
             if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->valueStringLiteral(this->scanner) == "static") {
                 *token = this->lookahead;
@@ -4895,7 +4863,7 @@ public:
                 if (this->match(Multiply)) {
                     this->nextToken();
                 } else {
-                    keyNode = this->parseObjectPropertyKey(builder, keyString);
+                    keyNode = this->parseObjectPropertyKey(builder);
                 }
             }
             if ((token->type == Token::IdentifierToken) && !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async")) {
@@ -4904,7 +4872,7 @@ public:
                 if (!isPunctuator || (punctuator != Colon && punctuator != LeftParenthesis && punctuator != Multiply)) {
                     isAsync = true;
                     *token = this->lookahead;
-                    keyNode = this->parseObjectPropertyKey(builder, keyString);
+                    keyNode = this->parseObjectPropertyKey(builder);
                     if (token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "constructor") {
                         this->throwUnexpectedToken(*token);
                     }
@@ -4917,19 +4885,19 @@ public:
             if (token->valueStringLiteral(this->scanner) == "get" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Get;
                 computed = this->match(LeftSquareBracket);
-                keyNode = this->parseObjectPropertyKey(builder, keyString);
+                keyNode = this->parseObjectPropertyKey(builder);
                 this->context->allowYield = false;
                 value = this->parseGetterMethod(builder);
             } else if (token->valueStringLiteral(this->scanner) == "set" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
                 computed = this->match(LeftSquareBracket);
-                keyNode = this->parseObjectPropertyKey(builder, keyString);
+                keyNode = this->parseObjectPropertyKey(builder);
                 value = this->parseSetterMethod(builder);
             }
         } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
             kind = ClassElementNode::Kind::Method;
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder, keyString);
+            keyNode = this->parseObjectPropertyKey(builder);
             value = this->parseGeneratorMethod(builder);
             isGenerator = true;
         }
@@ -4938,7 +4906,7 @@ public:
             kind = ClassElementNode::Kind::Method;
             bool allowSuperCall = false;
             if (hasSuperClass) {
-                if (keyNode && this->isPropertyKey(keyNode, keyString, "constructor")) {
+                if (keyNode && builder.isPropertyKey(keyNode, "constructor")) {
                     allowSuperCall = true;
                 }
             }
@@ -4949,10 +4917,10 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
-        if (isStatic && !computed && this->isPropertyKey(keyNode, keyString, "prototype")) {
+        if (isStatic && !computed && builder.isPropertyKey(keyNode, "prototype")) {
             this->throwUnexpectedToken(*token, Messages::StaticPrototype);
         }
-        if (!isStatic && !computed && this->isPropertyKey(keyNode, keyString, "constructor")) {
+        if (!isStatic && !computed && builder.isPropertyKey(keyNode, "constructor")) {
             if (kind != ClassElementNode::Kind::Method) {
                 this->throwUnexpectedToken(*token, Messages::ConstructorSpecialMethod);
             }
@@ -5085,7 +5053,7 @@ public:
 
         // const raw = this->getTokenRaw(token);
         ASSERT(token->type == Token::StringLiteralToken);
-        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralForAST(this->scanner)));
+        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralToValue(this->scanner)));
     }
 
     // import {<foo as bar>} ...;
