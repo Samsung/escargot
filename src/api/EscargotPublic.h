@@ -772,6 +772,11 @@ public:
     static StringRef* createExternalFromLatin1(const unsigned char* s, size_t len);
     static StringRef* createExternalFromUTF16(const char16_t* s, size_t len);
 
+#if defined(ENABLE_SOURCE_COMPRESSION)
+    static StringRef* createFromUTF8ToCompressibleString(const char* s, size_t len);
+    static StringRef* createCompressibleString(const unsigned char* s, size_t len);
+#endif
+
     static StringRef* emptyString();
 
     char16_t charAt(size_t idx);

@@ -50,6 +50,7 @@
 #include "runtime/WeakSetObject.h"
 #include "runtime/MapObject.h"
 #include "runtime/WeakMapObject.h"
+#include "runtime/CompressibleString.h"
 
 namespace Escargot {
 
@@ -326,6 +327,18 @@ StringRef* StringRef::createExternalFromUTF16(const char16_t* s, size_t len)
 {
     return toRef(new UTF16String(s, len, String::FromExternalMemory));
 }
+
+#if defined(ENABLE_SOURCE_COMPRESSION)
+StringRef* StringRef::createFromUTF8ToCompressibleString(const char* s, size_t len)
+{
+    return toRef(String::fromUTF8ToCompressibleString(s, len));
+}
+
+StringRef* StringRef::createCompressibleString(const unsigned char* s, size_t len)
+{
+    return toRef(new CompressibleString(s, len));
+}
+#endif
 
 StringRef* StringRef::emptyString()
 {

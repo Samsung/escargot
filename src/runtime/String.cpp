@@ -45,6 +45,7 @@
 
 #include "Escargot.h"
 #include "String.h"
+#include "CompressibleString.h"
 #include "Value.h"
 
 #include "fast-dtoa.h"
@@ -53,12 +54,6 @@
 namespace Escargot {
 
 String* String::emptyString;
-
-size_t g_asciiStringTag;
-size_t g_latin1StringTag;
-size_t g_utf16StringTag;
-size_t g_ropeStringTag;
-size_t g_stringViewTag;
 
 std::vector<std::string> split(const std::string& s, char seperator)
 {
@@ -610,6 +605,14 @@ String* String::fromUTF8(const char* src, size_t len)
         return new UTF16String(std::move(s));
     }
 }
+
+#if defined(ENABLE_SOURCE_COMPRESSION)
+String* String::fromUTF8ToCompressibleString(const char* src, size_t len)
+{
+    auto s = utf8StringToUTF16String(src, len);
+    return new CompressibleString(std::move(s));
+}
+#endif
 
 int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* c2)
 {

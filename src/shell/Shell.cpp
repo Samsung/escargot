@@ -170,11 +170,20 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
             }
         }
         fclose(fp);
+
+#if defined(ENABLE_SOURCE_COMPRESSION)
+        if (hasNonLatin1Content) {
+            src = StringRef::createFromUTF8ToCompressibleString(utf8Str.data(), utf8Str.length());
+        } else {
+            src = StringRef::createCompressibleString(str.data(), str.length());
+        }
+#else
         if (hasNonLatin1Content) {
             src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length());
         } else {
             src = StringRef::createFromLatin1(str.data(), str.length());
         }
+#endif
         return src;
     } else {
         char msg[1024];
