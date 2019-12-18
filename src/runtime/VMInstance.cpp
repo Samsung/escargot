@@ -151,11 +151,14 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
         if (currentCodeSizeTotal == std::numeric_limits<size_t>::max()) {
             GC_invoke_finalizers();
 
-            currentCodeSizeTotal = 0;
-            auto& v = self->compiledByteCodeBlocks();
-            for (size_t i = 0; i < v.size(); i++) {
-                v[i]->m_codeBlock->m_byteCodeBlock = v[i];
-                currentCodeSizeTotal += v[i]->memoryAllocatedSize();
+            // we need to check this because ~VMInstance can be called by GC_invoke_finalizers
+            if (!self->m_isFinalized) {
+                currentCodeSizeTotal = 0;
+                auto& v = self->compiledByteCodeBlocks();
+                for (size_t i = 0; i < v.size(); i++) {
+                    v[i]->m_codeBlock->m_byteCodeBlock = v[i];
+                    currentCodeSizeTotal += v[i]->memoryAllocatedSize();
+                }
             }
         }
     }
@@ -175,6 +178,7 @@ VMInstance::~VMInstance()
         v[i]->m_isOwnerMayFreed = true;
     }
 
+    m_isFinalized = true;
     GC_remove_event_callback(gcEventCallback, this);
     if (m_onVMInstanceDestroy) {
         m_onVMInstanceDestroy(this, m_onVMInstanceDestroyData);
@@ -189,6 +193,7 @@ VMInstance::~VMInstance()
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
     : m_currentSandBox(nullptr)
     , m_randEngine((unsigned int)time(NULL))
+    , m_isFinalized(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
     , m_onVMInstanceDestroy(nullptr)
