@@ -1399,7 +1399,8 @@ void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
                 }
                 this->lineStart = this->index;
             }
-        } else if (UNLIKELY(isLineTerminator(ch))) {
+        } else if (UNLIKELY(ch < 128 && (g_asciiRangeCharMap[ch] & LexerIsCharLineTerminator))) {
+            // while parsing string literal, we should not end parsing string token with 0x2028 or 0x2029
             break;
         }
     }
