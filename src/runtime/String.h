@@ -189,6 +189,11 @@ public:
         return true;
     }
 
+    virtual bool isCompressibleString()
+    {
+        return false;
+    }
+
     virtual bool isRopeString()
     {
         return false;
@@ -208,6 +213,9 @@ public:
         return fromDouble(v);
     }
     static String* fromUTF8(const char* src, size_t len);
+#if defined(ENABLE_SOURCE_COMPRESSION)
+    static String* fromUTF8ToCompressibleString(const char* src, size_t len);
+#endif
 
     size_t length() const
     {
@@ -448,8 +456,6 @@ inline int stringCompare(const String& a, const String& b)
 }
 
 class ASCIIString : public String {
-    friend class String;
-
 public:
     explicit ASCIIString(ASCIIStringData&& src)
         : String()
@@ -526,13 +532,9 @@ public:
         return ptr;
     }
     void* operator new[](size_t size) = delete;
-
-protected:
 };
 
 class Latin1String : public String {
-    friend class Latin1;
-
 public:
     explicit Latin1String(Latin1StringData&& src)
         : String()
@@ -609,22 +611,10 @@ public:
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
 
     void* operator new(size_t size);
-    void* operator new(size_t size, GCPlacement p)
-    {
-        return gc::operator new(size, p);
-    }
-    void* operator new(size_t, void* ptr)
-    {
-        return ptr;
-    }
     void* operator new[](size_t size) = delete;
-
-protected:
 };
 
 class UTF16String : public String {
-    friend class String;
-
 public:
     explicit UTF16String(UTF16StringData&& src)
         : String()
@@ -686,8 +676,6 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
-
-protected:
 };
 
 inline String* String::fromCharCode(char32_t code)
