@@ -1881,7 +1881,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
             // cache hit!
             obj->m_values[inlineCache->m_cachedIndex] = value;
             return;
-        } else if (inlineCache->m_cachedhiddenClassChainLength) {
+        } else if (inlineCache->m_hiddenClassWillBe) {
             const auto& cSiz = inlineCache->m_cachedhiddenClassChainLength;
             bool miss = false;
             for (size_t i = 0; i < cSiz - 1; i++) {
@@ -1991,6 +1991,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
             proto = obj->getPrototype(state);
         }
 
+        inlineCache->m_hiddenClassWillBe = nullptr;
         inlineCache->m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
         inlineCache->m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * inlineCache->m_cachedhiddenClassChainLength);
         memcpy(inlineCache->m_cachedHiddenClassChainData, cachedhiddenClassChain.data(), sizeof(ObjectStructure*) * inlineCache->m_cachedhiddenClassChainLength);
