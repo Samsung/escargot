@@ -1845,7 +1845,7 @@ public:
         MetaNode node = this->createNode();
 
         ASTNodeList expressions;
-        TemplateElementVector* quasis = new (GC) TemplateElementVector;
+        TemplateElementVector* quasis = new TemplateElementVector;
         quasis->push_back(this->parseTemplateHead());
         while (!quasis->back()->tail) {
             expressions.append(this->allocator, this->parseExpression(builder));

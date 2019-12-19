@@ -47,10 +47,10 @@ Context* Script::context()
 
 static Optional<Script*> findLoadedModule(Context* context, Optional<Script*> referrer, String* src)
 {
-    const auto& lm = context->loadedModules();
+    const auto& lm = *context->loadedModules();
     for (size_t j = 0; j < lm.size(); j++) {
         if (lm[j].m_referrer == referrer && lm[j].m_src->equals(src)) {
-            return Optional<Script*>(context->loadedModules()[j].m_loadedModule);
+            return Optional<Script*>(lm[j].m_loadedModule);
         }
     }
 
@@ -64,8 +64,8 @@ static void registerToLoadedModuleIfNeeds(Context* context, Optional<Script*> re
         m.m_loadedModule = module;
         m.m_referrer = referrer;
         m.m_src = src;
-        auto& lm = context->loadedModules();
-        lm.push_back(m);
+        auto lm = context->loadedModules();
+        lm->push_back(m);
     }
 }
 
@@ -312,7 +312,7 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
     // http://www.ecma-international.org/ecma-262/6.0/#sec-moduledeclarationinstantiation
     // ModuleDeclarationInstantiation( ) Concrete Method
     LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
-        new GlobalEnvironmentRecord(state, nullptr, context()->globalObject(), &context()->globalDeclarativeRecord(), &context()->globalDeclarativeStorage()), nullptr);
+        new GlobalEnvironmentRecord(state, nullptr, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage()), nullptr);
 
     ExecutionState newState(context(), state.stackLimit());
 
@@ -466,7 +466,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     ExecutionState newState(context(), state.stackLimit());
     ExecutionState* codeExecutionState = &newState;
 
-    EnvironmentRecord* globalRecord = new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), &context()->globalDeclarativeRecord(), &context()->globalDeclarativeStorage());
+    EnvironmentRecord* globalRecord = new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage());
     LexicalEnvironment* globalLexicalEnvironment = new LexicalEnvironment(globalRecord, nullptr);
     newState.setLexicalEnvironment(globalLexicalEnvironment, m_topCodeBlock->isStrict());
 

@@ -909,7 +909,7 @@ struct GetObjectInlineCacheData {
     size_t m_cachedIndex;
 };
 
-typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>> GetObjectInlineCacheDataVector;
+typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCache {
     GetObjectInlineCache()
@@ -927,7 +927,7 @@ public:
     // [object] -> [value]
     GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, ObjectStructurePropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
-        , m_executeCount(0)
+        , m_isLength(propertyName.plainString()->equals("length"))
         , m_cacheMissCount(0)
         , m_inlineCache(nullptr)
         , m_objectRegisterIndex(objectRegisterIndex)
@@ -936,8 +936,8 @@ public:
     {
     }
 
-    uint16_t m_executeCount;
-    uint16_t m_cacheMissCount;
+    bool m_isLength : 1;
+    uint16_t m_cacheMissCount : 16;
     GetObjectInlineCache* m_inlineCache;
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
@@ -986,6 +986,7 @@ public:
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_propertyName(propertyName)
         , m_inlineCache(nullptr)
+        , m_isLength(propertyName.plainString()->equals("length"))
         , m_missCount(0)
     {
     }
@@ -994,7 +995,8 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex;
     ObjectStructurePropertyName m_propertyName;
     SetObjectInlineCache* m_inlineCache;
-    size_t m_missCount;
+    bool m_isLength : 1;
+    uint16_t m_missCount : 16;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
@@ -2300,7 +2302,7 @@ public:
 };
 
 
-typedef Vector<char, std::allocator<char>, 200> ByteCodeBlockData;
+typedef Vector<char, std::allocator<char>, ComputeReservedCapacityFunctionWithLog2<200>> ByteCodeBlockData;
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
@@ -2399,7 +2401,7 @@ public:
 
     size_t memoryAllocatedSize()
     {
-        size_t siz = m_code.size();
+        size_t siz = m_code.capacity();
         siz += sizeof(ByteCodeBlock);
         siz += m_locData ? (m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0;
         siz += m_numeralLiteralData.size() * sizeof(Value);

@@ -157,16 +157,16 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             bool isCacheWork = false;
 
             if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
-                if (LIKELY(ctx->globalDeclarativeStorage().size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
+                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
                     registerFile[code->m_registerIndex] = *((SmallValue*)slot->m_cachedAddress);
                     isCacheWork = true;
                 } else if (slot->m_cachedStructure == nullptr) {
-                    const SmallValue& val = ctx->globalDeclarativeStorage()[idx];
+                    const SmallValue& val = ctx->globalDeclarativeStorage()->at(idx);
                     isCacheWork = true;
                     if (UNLIKELY(val.isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()[idx].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
                     }
                     registerFile[code->m_registerIndex] = val;
                 }
@@ -190,17 +190,17 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 
             bool isCacheWork = false;
             if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
-                if (LIKELY(ctx->globalDeclarativeStorage().size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
+                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
                     *((SmallValue*)slot->m_cachedAddress) = registerFile[code->m_registerIndex];
                     isCacheWork = true;
                 } else if (slot->m_cachedStructure == nullptr) {
                     isCacheWork = true;
-                    if (UNLIKELY(ctx->globalDeclarativeStorage()[idx].isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()[idx].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                    if (UNLIKELY(ctx->globalDeclarativeStorage()->at(idx).isEmpty())) {
+                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
                     }
-                    ctx->globalDeclarativeStorage()[idx] = registerFile[code->m_registerIndex];
+                    ctx->globalDeclarativeStorage()->at(idx) = registerFile[code->m_registerIndex];
                 }
             }
 
@@ -1776,18 +1776,30 @@ ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(Execu
 
 NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, GetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
+    if (code->m_isLength && obj->hasTag(g_arrayObjectTag)) {
+        return Value(obj->asArrayObject()->getArrayLength(state));
+    }
+
     const int maxCacheMissCount = 16;
     const int minCacheFillCount = 3;
     const size_t maxCacheCount = 6;
 
     // cache miss.
-    code->m_executeCount++;
-    if (code->m_executeCount <= minCacheFillCount || code->m_cacheMissCount > maxCacheMissCount) {
+    if (code->m_cacheMissCount > maxCacheMissCount) {
         return obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
     }
 
     code->m_cacheMissCount++;
-    if (code->m_cacheMissCount == maxCacheMissCount) {
+    if (code->m_cacheMissCount <= minCacheFillCount) {
+        return obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+    }
+
+    if (UNLIKELY(!obj->isInlineCacheable())) {
+        code->m_cacheMissCount = maxCacheMissCount + 1;
+        return obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+    }
+
+    if (UNLIKELY(code->m_cacheMissCount == maxCacheMissCount)) {
         if (code->m_inlineCache) {
             code->m_inlineCache->m_cache.clear();
         }
@@ -1818,12 +1830,6 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
     VectorWithInlineStorage<24, ObjectStructure*, std::allocator<ObjectStructure*>> cachedhiddenClassChain;
 
     while (true) {
-        if (UNLIKELY(!obj->isInlineCacheable())) {
-            inlineCache->m_cache.erase(0);
-            code->m_cacheMissCount = maxCacheMissCount + 1;
-            return obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
-        }
-
         auto s = obj->structure();
         cachedhiddenClassChain.push_back(s);
         auto result = s->findProperty(code->m_propertyName);
@@ -1838,6 +1844,12 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         if (!obj) {
             newItem.m_cachedIndex = SIZE_MAX;
             break;
+        }
+
+        if (UNLIKELY(!obj->isInlineCacheable())) {
+            inlineCache->m_cache.clear();
+            code->m_cacheMissCount = maxCacheMissCount + 1;
+            return obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
         }
     }
 
@@ -1913,6 +1925,13 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
 
 NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
+    if (code->m_isLength && originalObject->hasTag(g_arrayObjectTag) && originalObject->asArrayObject()->isFastModeArray()) {
+        if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+        }
+        return;
+    }
+
     // cache miss
     if (code->m_missCount > 16) {
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
@@ -2039,7 +2058,7 @@ ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, c
 NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
-    auto& records = ctx->globalDeclarativeRecord();
+    auto& records = *ctx->globalDeclarativeRecord();
     AtomicString name = slot->m_propertyName;
     auto siz = records.size();
 
@@ -2048,7 +2067,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
             slot->m_lexicalIndexCache = i;
             slot->m_cachedAddress = nullptr;
             slot->m_cachedStructure = nullptr;
-            auto v = state.context()->globalDeclarativeStorage()[i];
+            auto v = (*state.context()->globalDeclarativeStorage())[i];
             if (UNLIKELY(v.isEmpty())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
             }
@@ -2107,7 +2126,7 @@ public:
 NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
-    auto& records = ctx->globalDeclarativeRecord();
+    auto& records = *ctx->globalDeclarativeRecord();
     AtomicString name = slot->m_propertyName;
     auto siz = records.size();
     for (size_t i = 0; i < siz; i++) {
@@ -2115,7 +2134,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
             slot->m_lexicalIndexCache = i;
             slot->m_cachedAddress = nullptr;
             slot->m_cachedStructure = nullptr;
-            auto& place = ctx->globalDeclarativeStorage()[i];
+            auto& place = (*ctx->globalDeclarativeStorage())[i];
             if (UNLIKELY(place.isEmpty())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
             }
@@ -2153,10 +2172,10 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
 NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value)
 {
     Context* ctx = state.context();
-    auto& records = ctx->globalDeclarativeRecord();
+    auto& records = *ctx->globalDeclarativeRecord();
     for (size_t i = 0; i < records.size(); i++) {
         if (records[i].m_name == code->m_variableName) {
-            state.context()->globalDeclarativeStorage()[i] = value;
+            state.context()->globalDeclarativeStorage()->at(i) = value;
             return;
         }
     }

@@ -160,7 +160,7 @@ public:
         m_structure = m_structure->convertToNonTransitionStructure();
     }
 
-    virtual bool isGlobalObject() const
+    virtual bool isGlobalObject() const override
     {
         return true;
     }
@@ -231,7 +231,7 @@ public:
     Value eval(ExecutionState& state, const Value& arg);
     Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation); // we get isInWithOperation as parameter because this affects bytecode
 
-    virtual const char* internalClassProperty()
+    virtual const char* internalClassProperty() override
     {
         return "global";
     }
@@ -676,13 +676,13 @@ public:
         return m_symbolProxyObject;
     }
 
-    virtual bool isInlineCacheable()
+    virtual bool isInlineCacheable() override
     {
         return false;
     }
 
-    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
 
     void* operator new(size_t size)
     {

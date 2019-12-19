@@ -164,7 +164,7 @@ struct ASTBlockScopeContext {
     }
 };
 
-typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContext *>> ASTBlockScopeContextVector;
+typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContext *>, ComputeReservedCapacityFunctionWithLog2<>> ASTBlockScopeContextVector;
 typedef std::unordered_map<AtomicString, StorePositiveIntergerAsOdd, std::hash<AtomicString>, std::equal_to<AtomicString>,
                            GCUtil::gc_malloc_allocator<std::pair<AtomicString const, StorePositiveIntergerAsOdd>>>
     FunctionContextVarMap;

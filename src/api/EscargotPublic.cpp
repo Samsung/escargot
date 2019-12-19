@@ -675,7 +675,7 @@ void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
 void VMInstanceRef::clearCachesRelatedWithContext()
 {
     VMInstance* imp = toImpl(this);
-    imp->m_regexpCache.clear();
+    imp->m_regexpCache->clear();
     imp->m_cachedUTC = nullptr;
     imp->globalSymbolRegistry().clear();
 }
@@ -747,7 +747,7 @@ ScriptParserRef* ContextRef::scriptParser()
 
 ValueVectorRef* ValueVectorRef::create(size_t size)
 {
-    return toRef(new (GC) SmallValueVector(size));
+    return toRef(new SmallValueVector(size));
 }
 
 size_t ValueVectorRef::size()

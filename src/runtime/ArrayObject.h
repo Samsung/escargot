@@ -60,6 +60,11 @@ public:
         return true;
     }
 
+    virtual bool isInlineCacheable() override
+    {
+        return false;
+    }
+
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
@@ -98,10 +103,16 @@ public:
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
-        if (LIKELY(rareData() == nullptr)) {
+        auto rd = rareData();
+        if (LIKELY(rd == nullptr)) {
             return true;
         }
-        return rareData()->m_isFastModeArrayObject;
+        return rd->m_isFastModeArrayObject;
+    }
+
+    bool isLengthPropertyWritable()
+    {
+        return rareData() ? rareData()->m_isArrayObjectLengthWritable : true;
     }
 
     void setFastModeArrayValueWithoutExpanding(ExecutionState& state, size_t idx, const Value& v)
@@ -111,27 +122,19 @@ private:
         m_fastModeData[idx] = v;
     }
 
-    ALWAYS_INLINE bool isInArrayObjectDefineOwnProperty()
+    ALWAYS_INLINE uint32_t getArrayLength(ExecutionState&)
     {
-        if (LIKELY(rareData() == nullptr)) {
-            return false;
-        }
-        return rareData()->m_isInArrayObjectDefineOwnProperty;
+        return m_arrayLength;
     }
 
-    ALWAYS_INLINE uint32_t getArrayLength(ExecutionState& state)
-    {
-        return m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER].toUint32(state);
-    }
-
-    bool setArrayLength(ExecutionState& state, const uint64_t newLength, bool useFitStorage = false);
-    bool defineArrayLengthProperty(ExecutionState& state, const ObjectPropertyDescriptor& desc);
+    bool setArrayLength(ExecutionState& state, const Value& newLength);
+    bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false);
     void convertIntoNonFastMode(ExecutionState& state);
 
-    ObjectGetResult getFastModeValue(ExecutionState& state, const ObjectPropertyName& P);
-    bool setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+    ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
 
-    VectorWithNoSizeUseGCRealloc<SmallValue> m_fastModeData;
+    uint32_t m_arrayLength;
+    SmallValue* m_fastModeData;
 };
 
 class ArrayObjectPrototype : public ArrayObject {

@@ -44,7 +44,46 @@ struct VectorCopier<T, false> {
     }
 };
 
-template <typename T, typename Allocator, int const glowFactor = 120>
+
+template <size_t glowFactor = 100>
+struct ComputeReservedCapacityFunctionWithLog2 {
+    size_t operator()(size_t newSize)
+    {
+        if (newSize == 0) {
+            return 0;
+        }
+        size_t base = FAST_LOG2_UINT(newSize);
+        size_t capacity = 1 << (base + 1);
+        if (glowFactor > 100) {
+            return capacity * glowFactor / 100.f;
+        }
+        return capacity;
+    }
+};
+
+template <size_t glowFactor = 125>
+struct ComputeReservedCapacityFunctionWithPercent {
+    size_t operator()(size_t newSize)
+    {
+        return newSize * (glowFactor / 100.f);
+    }
+};
+
+template <size_t glowFactor = 125, size_t maxGap = 256>
+struct ComputeReservedCapacityFunctionWithPercentAndGap {
+    size_t operator()(size_t newSize)
+    {
+        size_t newCapacity = newSize * (glowFactor / 100.f);
+        if (newCapacity - glowFactor > maxGap) {
+            newCapacity = newSize + maxGap;
+        }
+        return newCapacity;
+    }
+};
+
+using VectorDefaultComputeReservedCapacityFunction = ComputeReservedCapacityFunctionWithPercent<>;
+
+template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
 class Vector : public gc {
 public:
     Vector()
@@ -62,7 +101,7 @@ public:
         resize(siz);
     }
 
-    Vector(Vector<T, Allocator, glowFactor>&& other)
+    Vector(Vector<T, Allocator, ComputeReservedCapacityFunction>&& other)
     {
         m_size = other.size();
         m_buffer = other.m_buffer;
@@ -72,7 +111,7 @@ public:
         other.m_capacity = 0;
     }
 
-    Vector(const Vector<T, Allocator, glowFactor>& other)
+    Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other)
     {
         if (other.size()) {
             m_size = other.size();
@@ -94,7 +133,7 @@ public:
         }
     }
 
-    const Vector<T, Allocator, glowFactor>& operator=(const Vector<T, Allocator, glowFactor>& other)
+    const Vector<T, Allocator, ComputeReservedCapacityFunction>& operator=(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other)
     {
         if (&other == this)
             return *this;
@@ -110,10 +149,11 @@ public:
         return *this;
     }
 
-    Vector(const Vector<T, Allocator, glowFactor>& other, const T& newItem)
+    Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other, const T& newItem)
     {
         m_size = other.size() + 1;
-        m_capacity = computeAllocateSize(m_size);
+        ComputeReservedCapacityFunction f;
+        m_capacity = f(m_size);
         m_buffer = Allocator().allocate(m_capacity);
         VectorCopier<T>::copy(m_buffer, other.data(), other.size());
 
@@ -132,18 +172,22 @@ public:
 
         m_size = std::distance(start, end);
 
-        m_capacity = computeAllocateSize(m_size);
-        T* newBuffer = Allocator().allocate(m_capacity);
-        m_buffer = newBuffer;
+        if (m_size) {
+            ComputeReservedCapacityFunction f;
+            m_capacity = f(m_size);
+            T* newBuffer = Allocator().allocate(m_capacity);
+            m_buffer = newBuffer;
 
-        VectorCopier<T>::copy(m_buffer, start, m_size);
+            VectorCopier<T>::copy(m_buffer, start, m_size);
+        }
     }
 
     void pushBack(const T& val)
     {
         if (m_capacity <= (m_size + 1)) {
             size_t oldc = m_capacity;
-            m_capacity = computeAllocateSize(m_size + 1);
+            ComputeReservedCapacityFunction f;
+            m_capacity = f(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
             VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
 
@@ -165,7 +209,9 @@ public:
         ASSERT(pos <= m_size);
         if (m_capacity <= (m_size + 1)) {
             size_t oldC = m_capacity;
-            m_capacity = computeAllocateSize(m_size + 1);
+
+            ComputeReservedCapacityFunction f;
+            m_capacity = f(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
 
             VectorCopier<T>::copy(newBuffer, m_buffer, pos);
@@ -290,14 +336,18 @@ public:
     void shrinkToFit()
     {
         if (m_size != m_capacity) {
-            T* newBuffer = Allocator().allocate(m_size);
-            VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
+            if (m_size) {
+                T* newBuffer = Allocator().allocate(m_size);
+                VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
 
-            size_t oldC = m_capacity;
-            m_capacity = m_size;
-            if (m_buffer)
-                Allocator().deallocate(m_buffer, oldC);
-            m_buffer = newBuffer;
+                size_t oldC = m_capacity;
+                m_capacity = m_size;
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, oldC);
+                m_buffer = newBuffer;
+            } else {
+                clear();
+            }
         }
     }
 
@@ -320,7 +370,8 @@ public:
     {
         if (newSize) {
             if (m_capacity < newSize) {
-                size_t newCapacity = computeAllocateSize(newSize);
+                ComputeReservedCapacityFunction f;
+                size_t newCapacity = f(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
                 VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
 
@@ -340,7 +391,8 @@ public:
     {
         if (newSize) {
             if (newSize > m_capacity) {
-                size_t newCapacity = computeAllocateSize(newSize);
+                ComputeReservedCapacityFunction f;
+                size_t newCapacity = f(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
                 VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
 
@@ -363,23 +415,27 @@ public:
         }
     }
 
-protected:
-    size_t computeAllocateSize(size_t newSize)
+    void* operator new(size_t size)
     {
-        if (newSize == 0) {
-            return 1;
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word desc[GC_BITMAP_SIZE(Vector)] = { 0 };
+            GC_set_bit(desc, GC_WORD_OFFSET(Vector, m_buffer));
+            descr = GC_make_descriptor(desc, GC_WORD_LEN(Vector));
+            typeInited = true;
         }
-        size_t base = FAST_LOG2_UINT(newSize);
-        size_t capacity = 1 << (base + 1);
-        return capacity * glowFactor / 100.f;
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
     }
+    void* operator new[](size_t size) = delete;
 
+protected:
     T* m_buffer;
     size_t m_capacity;
     size_t m_size;
 };
 
-template <typename T, typename Allocator, int const glowFactor = 120>
+template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
 class VectorWithNoSize : public gc {
 public:
     VectorWithNoSize()
@@ -388,8 +444,8 @@ public:
         m_capacity = 0;
     }
 
-    const VectorWithNoSize<T, Allocator, glowFactor>& operator=(const VectorWithNoSize<T, Allocator, glowFactor>& other) = delete;
-    VectorWithNoSize(const VectorWithNoSize<T, Allocator, glowFactor>& other, const T& newItem) = delete;
+    const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& operator=(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& other) = delete;
+    VectorWithNoSize(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& other, const T& newItem) = delete;
     ~VectorWithNoSize()
     {
         if (m_buffer)
@@ -400,7 +456,8 @@ public:
     {
         if (m_capacity <= (newSize)) {
             size_t oldc = m_capacity;
-            m_capacity = computeAllocateSize(newSize);
+            ComputeReservedCapacityFunction f;
+            m_capacity = f(newSize);
             T* newBuffer = Allocator().allocate(m_capacity);
             VectorCopier<T>::copy(newBuffer, m_buffer, newSize - 1);
 
@@ -449,7 +506,8 @@ public:
     {
         if (newSize) {
             if (newSize > m_capacity) {
-                size_t newCapacity = computeAllocateSize(newSize);
+                ComputeReservedCapacityFunction f;
+                size_t newCapacity = f(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
                 VectorCopier<T>::copy(newBuffer, m_buffer, std::min(oldSize, newSize));
 
@@ -471,22 +529,26 @@ public:
         }
     }
 
-protected:
-    size_t computeAllocateSize(size_t siz)
+    void* operator new(size_t size)
     {
-        if (siz == 0) {
-            return 1;
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word desc[GC_BITMAP_SIZE(VectorWithNoSize)] = { 0 };
+            GC_set_bit(desc, GC_WORD_OFFSET(VectorWithNoSize, m_buffer));
+            descr = GC_make_descriptor(desc, GC_WORD_LEN(VectorWithNoSize));
+            typeInited = true;
         }
-        size_t base = FAST_LOG2_UINT(siz);
-        size_t capacity = 1 << (base + 1);
-        return capacity * glowFactor / 100.f;
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
     }
+    void* operator new[](size_t size) = delete;
 
+protected:
     T* m_buffer;
     size_t m_capacity;
 };
 
-template <typename T, int const glowFactor = 120>
+template <typename T, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
 class VectorWithNoSizeUseGCRealloc : public gc {
 public:
     VectorWithNoSizeUseGCRealloc()
@@ -495,8 +557,8 @@ public:
         m_capacity = 0;
     }
 
-    const VectorWithNoSizeUseGCRealloc<T, glowFactor>& operator=(const VectorWithNoSizeUseGCRealloc<T, glowFactor>& other) = delete;
-    VectorWithNoSizeUseGCRealloc(const VectorWithNoSizeUseGCRealloc<T, glowFactor>& other, const T& newItem) = delete;
+    const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& operator=(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& other) = delete;
+    VectorWithNoSizeUseGCRealloc(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& other, const T& newItem) = delete;
     ~VectorWithNoSizeUseGCRealloc()
     {
         if (m_buffer) {
@@ -508,7 +570,8 @@ public:
     {
         if (m_capacity <= (newSize)) {
             size_t oldc = m_capacity;
-            m_capacity = computeAllocateSize(newSize);
+            ComputeReservedCapacityFunction f;
+            m_capacity = f(newSize);
             m_buffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * m_capacity);
         }
         m_buffer[newSize - 1] = val;
@@ -575,7 +638,8 @@ public:
     {
         if (newSize) {
             if (newSize > m_capacity) {
-                size_t newCapacity = computeAllocateSize(newSize);
+                ComputeReservedCapacityFunction f;
+                size_t newCapacity = f(newSize);
                 T* newBuffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * newCapacity);
 
                 for (size_t i = oldSize; i < newSize; i++) {
@@ -595,16 +659,6 @@ public:
     }
 
 protected:
-    size_t computeAllocateSize(size_t siz)
-    {
-        if (siz == 0) {
-            return 1;
-        }
-        size_t base = FAST_LOG2_UINT(siz);
-        size_t capacity = 1 << (base + 1);
-        return capacity * glowFactor / 100.f;
-    }
-
     T* m_buffer;
     size_t m_capacity;
 };
