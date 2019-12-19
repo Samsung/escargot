@@ -68,6 +68,10 @@ struct GlobalVariableAccessCacheItem : public gc {
     void* operator new[](size_t size) = delete;
 };
 
+typedef std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
+                           GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
+    GlobalVariableAccessCache;
+
 class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
@@ -143,11 +147,6 @@ public:
         return m_defaultStructureForClassConstructorFunctionObject;
     }
 
-    ObjectStructure* defaultStructureForArrayObject()
-    {
-        return m_defaultStructureForArrayObject;
-    }
-
     ObjectStructure* defaultStructureForStringObject()
     {
         return m_defaultStructureForStringObject;
@@ -208,19 +207,19 @@ public:
         return m_securityPolicyCheckCallback;
     }
 
-    IdentifierRecordVector& globalDeclarativeRecord()
+    IdentifierRecordVector* globalDeclarativeRecord()
     {
         return m_globalDeclarativeRecord;
     }
 
-    SmallValueVector& globalDeclarativeStorage()
+    SmallValueVector* globalDeclarativeStorage()
     {
         return m_globalDeclarativeStorage;
     }
 
     GlobalVariableAccessCacheItem* ensureGlobalVariableAccessCacheSlot(AtomicString as);
 
-    LoadedModuleVector& loadedModules()
+    LoadedModuleVector* loadedModules()
     {
         return m_loadedModules;
     }
@@ -239,12 +238,10 @@ private:
     StaticStrings& m_staticStrings;
     GlobalObject* m_globalObject;
     ScriptParser* m_scriptParser;
-    IdentifierRecordVector m_globalDeclarativeRecord;
-    SmallValueVector m_globalDeclarativeStorage;
-    std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
-                       GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
-        m_globalVariableAccessCache;
-    LoadedModuleVector m_loadedModules;
+    IdentifierRecordVector* m_globalDeclarativeRecord;
+    SmallValueVector* m_globalDeclarativeStorage;
+    GlobalVariableAccessCache* m_globalVariableAccessCache;
+    LoadedModuleVector* m_loadedModules;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
     ObjectStructure* m_defaultStructureForObject;
@@ -254,7 +251,6 @@ private:
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
-    ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;

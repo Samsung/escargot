@@ -51,8 +51,12 @@ Context::Context(VMInstance* instance)
     , m_atomicStringMap(&instance->m_atomicStringMap)
     , m_staticStrings(instance->m_staticStrings)
     , m_scriptParser(new ScriptParser(this))
+    , m_globalDeclarativeRecord(new IdentifierRecordVector())
+    , m_globalDeclarativeStorage(new SmallValueVector())
+    , m_globalVariableAccessCache(new (GC) GlobalVariableAccessCache)
+    , m_loadedModules(new LoadedModuleVector())
     , m_bumpPointerAllocator(instance->m_bumpPointerAllocator)
-    , m_regexpCache(&instance->m_regexpCache)
+    , m_regexpCache(instance->m_regexpCache)
     , m_toStringRecursionPreventer(&instance->m_toStringRecursionPreventer)
     , m_astAllocator(*instance->m_astAllocator)
 {
@@ -63,7 +67,6 @@ Context::Context(VMInstance* instance)
     m_defaultStructureForFunctionPrototypeObject = m_instance->m_defaultStructureForFunctionPrototypeObject;
     m_defaultStructureForBoundFunctionObject = m_instance->m_defaultStructureForBoundFunctionObject;
     m_defaultStructureForClassConstructorFunctionObject = m_instance->m_defaultStructureForClassConstructorFunctionObject;
-    m_defaultStructureForArrayObject = m_instance->m_defaultStructureForArrayObject;
     m_defaultStructureForStringObject = m_instance->m_defaultStructureForStringObject;
     m_defaultStructureForSymbolObject = m_instance->m_defaultStructureForSymbolObject;
     m_defaultStructureForRegExpObject = m_instance->m_defaultStructureForRegExpObject;
@@ -95,14 +98,14 @@ void Context::throwException(ExecutionState& state, const Value& exception)
 
 GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(AtomicString as)
 {
-    auto iter = m_globalVariableAccessCache.find(as);
-    if (iter == m_globalVariableAccessCache.end()) {
+    auto iter = m_globalVariableAccessCache->find(as);
+    if (iter == m_globalVariableAccessCache->end()) {
         GlobalVariableAccessCacheItem* slot = new GlobalVariableAccessCacheItem();
         slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
         slot->m_propertyName = as;
         slot->m_cachedAddress = nullptr;
         slot->m_cachedStructure = nullptr;
-        m_globalVariableAccessCache.insert(std::make_pair(as, slot));
+        m_globalVariableAccessCache->insert(std::make_pair(as, slot));
         return slot;
     }
 

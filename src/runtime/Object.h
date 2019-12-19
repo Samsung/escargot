@@ -48,13 +48,16 @@ struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
     bool m_isFastModeArrayObject : 1;
+    bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
     bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
-    bool m_isInArrayObjectDefineOwnProperty : 1;
     bool m_hasNonWritableLastIndexRegexpObject : 1;
     void* m_extraData;
     Object* m_prototype;
-    Object* m_internalSlot;
+    union {
+        Object* m_internalSlot;
+        StorePositiveIntergerAsOdd m_arrayObjectFastModeBufferCapacity;
+    };
     explicit ObjectRareData(Object* obj);
 
     void* operator new(size_t size);
@@ -986,6 +989,7 @@ public:
 
     Object* ensureInternalSlot(ExecutionState& state)
     {
+        ASSERT(!isArrayObject());
         ensureObjectRareData();
         if (!internalSlot()) {
             setInternalSlot(new Object(state));
@@ -996,17 +1000,22 @@ public:
 
     Object* internalSlot()
     {
+        ASSERT(!isArrayObject());
         ASSERT(rareData());
         return rareData()->m_internalSlot;
     }
 
     bool hasInternalSlot()
     {
+        if (isArrayObject()) {
+            return false;
+        }
         return rareData() && rareData()->m_internalSlot;
     }
 
     void setInternalSlot(Object* object)
     {
+        ASSERT(!isArrayObject());
         ensureObjectRareData()->m_internalSlot = object;
     }
 

@@ -74,6 +74,9 @@ public:
     VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
     ~VMInstance();
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     void clearCaches();
 
     const GlobalSymbols& globalSymbols()
@@ -143,11 +146,6 @@ public:
     // [name, length] or [prototype, name, length]
     static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
     static bool functionPrototypeNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
-
-    // array
-    // [length]
-    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
-    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
     // string
     // [length]
@@ -238,7 +236,6 @@ private:
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
-    ObjectStructure* m_defaultStructureForArrayObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
@@ -256,7 +253,7 @@ private:
 
     // regexp object data
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
-    RegExpCacheMap m_regexpCache;
+    RegExpCacheMap* m_regexpCache;
 
 // date object data
 #ifdef ENABLE_ICU

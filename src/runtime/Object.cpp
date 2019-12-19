@@ -91,9 +91,9 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_isExtensible = true;
     m_isEverSetAsPrototypeObject = false;
     m_isFastModeArrayObject = true;
+    m_isArrayObjectLengthWritable = true;
     m_isSpreadArrayObject = false;
     m_shouldUpdateEnumerateObject = false;
-    m_isInArrayObjectDefineOwnProperty = false;
     m_hasNonWritableLastIndexRegexpObject = false;
     m_extraData = nullptr;
     m_internalSlot = nullptr;

@@ -29,10 +29,10 @@ namespace Escargot {
 size_t g_arrayObjectTag;
 
 ArrayObject::ArrayObject(ExecutionState& state)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)
+    , m_arrayLength(0)
+    , m_fastModeData(nullptr)
 {
-    m_structure = state.context()->defaultStructureForArrayObject();
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(0);
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->arrayPrototype());
 
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
@@ -52,7 +52,7 @@ ArrayObject::ArrayObject(ExecutionState& state, double length)
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
     }
 
-    VMInstance::arrayLengthNativeSetter(state, this, m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER], Value(length));
+    setArrayLength(state, Value(length));
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
@@ -101,7 +101,7 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
 
 ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    ObjectGetResult v = getFastModeValue(state, P);
+    ObjectGetResult v = getVirtualValue(state, P);
     if (LIKELY(v.hasValue())) {
         return ObjectHasPropertyResult(v);
     }
@@ -112,7 +112,7 @@ ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const Ob
 
 ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    ObjectGetResult v = getFastModeValue(state, P);
+    ObjectGetResult v = getVirtualValue(state, P);
     if (LIKELY(v.hasValue())) {
         return v;
     } else {
@@ -122,16 +122,90 @@ ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectP
 
 bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    if (LIKELY(setFastModeValue(state, P, desc))) {
+    if (!P.isUIntType() && P.objectStructurePropertyName() == state.context()->staticStrings().length) {
+        // Let newLen be ToUint32(Desc.[[Value]]).
+        uint32_t newLen = 0;
+
+        if (desc.isValuePresent()) {
+            newLen = desc.value().toUint32(state);
+            // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
+            if (newLen != desc.value().toNumber(state)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+            }
+        }
+        if (!isLengthPropertyWritable() && desc.isValuePresent() && m_arrayLength != newLen) {
+            return false;
+        }
+
+        if (desc.isConfigurablePresent() && desc.isConfigurable()) {
+            return false;
+        }
+
+        if (desc.isEnumerablePresent() && desc.isEnumerable()) {
+            return false;
+        }
+
+        if (desc.isAccessorDescriptor()) {
+            return false;
+        }
+
+        if (!isLengthPropertyWritable() && desc.isWritable()) {
+            return false;
+        }
+
+        if (desc.isWritablePresent() && !desc.isWritable()) {
+            ensureObjectRareData()->m_isArrayObjectLengthWritable = false;
+        }
+
+        if (desc.isValuePresent() && m_arrayLength != newLen) {
+            return setArrayLength(state, newLen);
+        }
+
         return true;
     }
 
     uint64_t idx = P.tryToUseAsArrayIndex();
-    auto oldLenDesc = structure()->readProperty((size_t)0);
+    if (LIKELY(isFastModeArray())) {
+        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+            uint32_t len = getArrayLength(state);
+            if (len > idx && !m_fastModeData[idx].isEmpty()) {
+                // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
+                // So, when new desciptor is not present, keep {w:true, e:true, c:true}
+                if (UNLIKELY(!(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable()))) {
+                    convertIntoNonFastMode(state);
+                    goto NonFastPath;
+                }
+            } else if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
+                // In case of empty slot property or over-lengthed property,
+                // when new desciptor is not present, keep {w:false, e:false, c:false}
+                convertIntoNonFastMode(state);
+                goto NonFastPath;
+            }
+
+            if (!desc.isValuePresent()) {
+                convertIntoNonFastMode(state);
+                goto NonFastPath;
+            }
+
+            if (UNLIKELY(len <= idx)) {
+                if (UNLIKELY(!isExtensible(state))) {
+                    goto NonFastPath;
+                }
+                if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
+                    goto NonFastPath;
+                }
+            }
+            m_fastModeData[idx] = desc.value();
+            return true;
+        }
+    }
+
+NonFastPath:
+
     uint32_t oldLen = getArrayLength(state);
 
     if (idx != Value::InvalidArrayIndexValue) {
-        if ((idx >= oldLen) && !oldLenDesc.m_descriptor.isWritable())
+        if ((idx >= oldLen) && !isLengthPropertyWritable())
             return false;
         bool succeeded = Object::defineOwnProperty(state, P, desc);
         if (!succeeded)
@@ -140,88 +214,6 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             return setArrayLength(state, idx + 1);
         }
         return true;
-    } else if (P.toObjectStructurePropertyName(state).equals(state.context()->staticStrings().length.string())) {
-        // See 3.a ~ 3.n on http://www.ecma-international.org/ecma-262/5.1/#sec-15.4.5.1
-        if (desc.isValuePresent()) {
-            ObjectPropertyDescriptor newLenDesc(desc);
-
-            uint32_t newLen = desc.value().toLength(state);
-            bool newWritable = false;
-
-            if (newLen != desc.value().toNumber(state)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
-            }
-
-            newLenDesc.setValue(Value(newLen));
-
-            if (newLen >= oldLen) {
-                return Object::defineOwnProperty(state, P, newLenDesc);
-            }
-
-            if (!(oldLenDesc.m_descriptor.isWritable())) {
-                return false;
-            }
-
-            if (!(newLenDesc.isWritablePresent()) || newLenDesc.isWritable()) {
-                newWritable = true;
-            } else {
-                // In this case, even if an element of this array cannot be deleted,
-                // it should not throw any error.
-                // Object::defineOwnProperty() below can make call to ArrayObject::setArrayLength()
-                // so, we set this variable to give the information to ArrayObject::setArrayLength()
-                // not to throw error.
-                ensureObjectRareData()->m_isInArrayObjectDefineOwnProperty = true;
-                newWritable = false;
-                newLenDesc.setWritable(true);
-            }
-
-            if (!(Object::defineOwnProperty(state, P, newLenDesc))) {
-                if (isInArrayObjectDefineOwnProperty()) {
-                    ASSERT(rareData());
-                    rareData()->m_isInArrayObjectDefineOwnProperty = false;
-                }
-                return false;
-            }
-
-            if (isFastModeArray()) {
-                m_fastModeData.resize(idx, newLen);
-            } else {
-                int64_t i = oldLen;
-                while (true) {
-                    Object::nextIndexBackward(state, this, i, -1, i);
-                    if (i < newLen) {
-                        break;
-                    }
-
-                    bool deleteSucceeded = Object::deleteOwnProperty(state, ObjectPropertyName(state, i));
-                    if (!deleteSucceeded) {
-                        newLenDesc.setValue(Value(i + 1));
-                        if (!newWritable) {
-                            newLenDesc.setWritable(false);
-                        }
-                        Object::defineOwnProperty(state, P, newLenDesc);
-                        if (isInArrayObjectDefineOwnProperty()) {
-                            ASSERT(rareData());
-                            rareData()->m_isInArrayObjectDefineOwnProperty = false;
-                        }
-                        return false;
-                    }
-                }
-            }
-
-            if (!newWritable) {
-                ObjectPropertyDescriptor tmpDesc(ObjectPropertyDescriptor::NonWritablePresent, true);
-                Object::defineOwnProperty(state, P, tmpDesc);
-            }
-
-            if (isInArrayObjectDefineOwnProperty()) {
-                ASSERT(rareData());
-                rareData()->m_isInArrayObjectDefineOwnProperty = false;
-            }
-            return true;
-        } else {
-            return Object::defineOwnProperty(state, P, desc);
-        }
     }
 
     return Object::defineOwnProperty(state, P, desc);
@@ -229,17 +221,24 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 
 bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
+    if (!P.isUIntType() && P.toObjectStructurePropertyName(state) == state.context()->staticStrings().length) {
+        return false;
+    }
+
     if (LIKELY(isFastModeArray())) {
         uint64_t idx = P.tryToUseAsArrayIndex();
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
             uint64_t len = getArrayLength(state);
             if (idx < len) {
-                m_fastModeData[idx] = Value(Value::EmptyValue);
-                ensureObjectRareData()->m_shouldUpdateEnumerateObject = true;
+                if (!m_fastModeData[idx].isEmpty()) {
+                    m_fastModeData[idx] = Value(Value::EmptyValue);
+                    ensureObjectRareData()->m_shouldUpdateEnumerateObject = true;
+                }
                 return true;
             }
         }
     }
+
     return Object::deleteOwnProperty(state, P);
 }
 
@@ -256,6 +255,12 @@ void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
             }
         }
     }
+
+    int attr = isLengthPropertyWritable() ? (int)ObjectStructurePropertyDescriptor::WritablePresent : 0;
+    if (!callback(state, this, ObjectPropertyName(state.context()->staticStrings().length), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)attr), data)) {
+        return;
+    }
+
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
@@ -263,7 +268,7 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
 {
     if (isFastModeArray()) {
         if (length) {
-            size_t orgLength = length;
+            uint32_t orgLength = length;
             size_t byteLength = sizeof(Value) * orgLength;
             bool canUseStack = byteLength <= 1024;
             Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(orgLength);
@@ -330,71 +335,149 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
         }
     }
 
-    m_fastModeData.clear();
+    GC_FREE(m_fastModeData);
+    m_fastModeData = nullptr;
 }
 
-bool ArrayObject::setArrayLength(ExecutionState& state, const uint64_t newLength, bool useFitStorage)
+bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
+{
+    bool isPrimitiveValue;
+    if (LIKELY(newLength.isPrimitive())) {
+        isPrimitiveValue = true;
+    } else {
+        isPrimitiveValue = false;
+    }
+    // Let newLen be ToUint32(Desc.[[Value]]).
+    uint32_t newLen = newLength.toUint32(state);
+    // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
+    if (newLen != newLength.toNumber(state)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+    }
+
+    bool ret;
+    if (UNLIKELY(!isPrimitiveValue && !isLengthPropertyWritable())) {
+        ret = false;
+    } else {
+        ret = setArrayLength(state, newLen, true);
+    }
+    return ret;
+}
+
+bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage)
 {
     bool isFastMode = isFastModeArray();
     if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
         uint32_t orgLength = getArrayLength(state);
-        if (newLength > orgLength && (newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP)) {
+        constexpr uint32_t maxSize = std::numeric_limits<uint32_t>::max() / 2;
+        if (newLength > orgLength && ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) || newLength >= maxSize)) {
             convertIntoNonFastMode(state);
             isFastMode = false;
         }
     }
 
     if (LIKELY(isFastMode)) {
-        auto oldSize = getArrayLength(state);
-        auto oldLenDesc = structure()->readProperty((size_t)0);
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
-        if (useFitStorage) {
-            m_fastModeData.fitSizeTo(oldSize, newLength, Value(Value::EmptyValue));
-        } else {
-            m_fastModeData.resize(oldSize, newLength, Value(Value::EmptyValue));
-        }
+        auto oldLength = getArrayLength(state);
+        if (LIKELY(oldLength != newLength)) {
+            m_arrayLength = newLength;
+            if (useFitStorage || oldLength == 0 || newLength <= 128) {
+                auto rd = rareData();
+                size_t oldCapacity = rd ? (size_t)rd->m_arrayObjectFastModeBufferCapacity : 0;
+                if (oldCapacity) {
+                    if (newLength > oldCapacity) {
+                        m_fastModeData = (SmallValue*)GC_REALLOC(m_fastModeData, sizeof(SmallValue) * newLength);
 
-        if (UNLIKELY(!oldLenDesc.m_descriptor.isWritable())) {
-            convertIntoNonFastMode(state);
+                        for (size_t i = oldLength; i < newLength; i++) {
+                            m_fastModeData[i] = SmallValue(SmallValue::EmptyValue);
+                        }
+
+                    } else {
+                        m_fastModeData = (SmallValue*)GC_REALLOC(m_fastModeData, sizeof(SmallValue) * newLength);
+                    }
+                } else {
+                    m_fastModeData = (SmallValue*)GC_REALLOC(m_fastModeData, sizeof(SmallValue) * newLength);
+
+                    for (size_t i = oldLength; i < newLength; i++) {
+                        m_fastModeData[i] = SmallValue(SmallValue::EmptyValue);
+                    }
+                }
+                if (rd) {
+                    rd->m_arrayObjectFastModeBufferCapacity = 0;
+                }
+            } else {
+                auto rd = rareData();
+                size_t oldCapacity = rd ? (size_t)rd->m_arrayObjectFastModeBufferCapacity : oldLength;
+
+                if (newLength) {
+                    if (newLength > oldCapacity) {
+                        ComputeReservedCapacityFunctionWithPercent<133> f;
+                        size_t newCapacity = f(newLength);
+                        auto newFastModeData = (SmallValue*)GC_MALLOC(sizeof(SmallValue) * newCapacity);
+                        memcpy(newFastModeData, m_fastModeData, sizeof(SmallValue) * oldLength);
+                        GC_FREE(m_fastModeData);
+                        m_fastModeData = newFastModeData;
+
+                        for (size_t i = oldLength; i < newLength; i++) {
+                            m_fastModeData[i] = SmallValue(SmallValue::EmptyValue);
+                        }
+
+                        ensureObjectRareData()->m_arrayObjectFastModeBufferCapacity = newCapacity;
+                    } else {
+                        for (size_t i = oldLength; i < newLength; i++) {
+                            m_fastModeData[i] = SmallValue(SmallValue::EmptyValue);
+                        }
+                        ensureObjectRareData()->m_arrayObjectFastModeBufferCapacity = oldCapacity;
+                    }
+                } else {
+                    GC_FREE(m_fastModeData);
+                    m_fastModeData = nullptr;
+
+                    if (rd) {
+                        rd->m_arrayObjectFastModeBufferCapacity = 0;
+                    }
+                }
+            }
+
+            if (UNLIKELY(!isLengthPropertyWritable())) {
+                convertIntoNonFastMode(state);
+            }
         }
         return true;
     } else {
-        if (!isInArrayObjectDefineOwnProperty()) {
-            auto oldLenDesc = structure()->readProperty((size_t)0);
+        int64_t oldLen = length(state);
+        int64_t newLen = newLength;
 
-            int64_t oldLen = length(state);
-            int64_t newLen = newLength;
+        while (newLen < oldLen) {
+            oldLen--;
+            ObjectPropertyName key(state, oldLen);
 
-            while (newLen < oldLen) {
-                oldLen--;
-                ObjectPropertyName key(state, oldLen);
+            if (!getOwnProperty(state, key).hasValue()) {
+                int64_t result;
+                Object::nextIndexBackward(state, this, oldLen, -1, result);
+                oldLen = result;
 
-                if (!getOwnProperty(state, key).hasValue()) {
-                    int64_t result;
-                    Object::nextIndexBackward(state, this, oldLen, -1, result);
-                    oldLen = result;
-
-                    if (oldLen < newLen) {
-                        break;
-                    }
-
-                    key = ObjectPropertyName(state, Value(oldLen));
+                if (oldLen < newLen) {
+                    break;
                 }
 
-                bool deleteSucceeded = deleteOwnProperty(state, key);
-                if (!deleteSucceeded) {
-                    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(oldLen + 1);
-                    return false;
-                }
+                key = ObjectPropertyName(state, Value(oldLen));
+            }
+
+            bool deleteSucceeded = deleteOwnProperty(state, key);
+            if (!deleteSucceeded) {
+                m_arrayLength = oldLen + 1;
+                return false;
             }
         }
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value(newLength);
+        m_arrayLength = newLength;
         return true;
     }
 }
 
-ObjectGetResult ArrayObject::getFastModeValue(ExecutionState& state, const ObjectPropertyName& P)
+ObjectGetResult ArrayObject::getVirtualValue(ExecutionState& state, const ObjectPropertyName& P)
 {
+    if (!P.isUIntType() && P.objectStructurePropertyName() == state.context()->staticStrings().length) {
+        return ObjectGetResult(Value(m_arrayLength), isLengthPropertyWritable(), false, false);
+    }
     if (LIKELY(isFastModeArray())) {
         uint64_t idx = P.tryToUseAsArrayIndex();
         if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
@@ -406,46 +489,6 @@ ObjectGetResult ArrayObject::getFastModeValue(ExecutionState& state, const Objec
         }
     }
     return ObjectGetResult();
-}
-
-bool ArrayObject::setFastModeValue(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
-{
-    if (LIKELY(isFastModeArray())) {
-        uint64_t idx = P.tryToUseAsArrayIndex();
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            uint32_t len = getArrayLength(state);
-            if (len > idx && !m_fastModeData[idx].isEmpty()) {
-                // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
-                // So, when new desciptor is not present, keep {w:true, e:true, c:true}
-                if (UNLIKELY(!(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable()))) {
-                    convertIntoNonFastMode(state);
-                    return false;
-                }
-            } else if (UNLIKELY(!desc.isDataWritableEnumerableConfigurable())) {
-                // In case of empty slot property or over-lengthed property,
-                // when new desciptor is not present, keep {w:false, e:false, c:false}
-                convertIntoNonFastMode(state);
-                return false;
-            }
-
-            if (!desc.isValuePresent()) {
-                convertIntoNonFastMode(state);
-                return false;
-            }
-
-            if (UNLIKELY(len <= idx)) {
-                if (UNLIKELY(!isExtensible(state))) {
-                    return false;
-                }
-                if (UNLIKELY(!setArrayLength(state, idx + 1)) || UNLIKELY(!isFastModeArray())) {
-                    return false;
-                }
-            }
-            m_fastModeData[idx] = desc.value();
-            return true;
-        }
-    }
-    return false;
 }
 
 ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)

@@ -28,6 +28,8 @@
 namespace Escargot {
 
 class ToStringRecursionPreventer : public gc {
+    friend class VMInstance;
+
 public:
     void pushItem(Object* obj)
     {

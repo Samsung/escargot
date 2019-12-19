@@ -189,7 +189,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         // yield delegate + .next call can use yield * 2 at once
         block->m_code.reserve(block->m_code.size() + ctx.m_maxPauseStatementExtraDataLength * 2);
     } else {
-        block->m_code.shrinkToFit();
+        if (block->m_code.capacity() - block->m_code.size() > 1024 * 4) {
+            block->m_code.shrinkToFit();
+        }
     }
 
     {

@@ -61,41 +61,6 @@ static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterD
 static ObjectPropertyNativeGetterSetterData builtinFunctionPrototypeNativeGetterSetterData(
     false, false, false, &VMInstance::functionPrototypeNativeGetter, &VMInstance::functionPrototypeNativeSetter);
 
-Value VMInstance::arrayLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
-{
-    ASSERT(self->isArrayObject());
-    return privateDataFromObjectPrivateArea;
-}
-
-bool VMInstance::arrayLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
-{
-    ASSERT(self->isArrayObject());
-
-    bool isPrimitiveValue;
-    if (LIKELY(setterInputData.isPrimitive())) {
-        isPrimitiveValue = true;
-    } else {
-        isPrimitiveValue = false;
-    }
-    // Let newLen be ToUint32(Desc.[[Value]]).
-    auto newLen = setterInputData.toUint32(state);
-    // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
-    if (newLen != setterInputData.toNumber(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
-    }
-
-    bool ret;
-    if (UNLIKELY(!isPrimitiveValue && !self->structure()->readProperty((size_t)0).m_descriptor.isWritable())) {
-        ret = false;
-    } else {
-        ret = self->asArrayObject()->setArrayLength(state, newLen, true);
-    }
-    return ret;
-}
-
-static ObjectPropertyNativeGetterSetterData arrayLengthGetterSetterData(
-    true, false, false, &VMInstance::arrayLengthNativeGetter, &VMInstance::arrayLengthNativeSetter);
-
 Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isStringObject());
@@ -132,8 +97,8 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
 {
     VMInstance* self = (VMInstance*)data;
     if (t == GC_EventType::GC_EVENT_MARK_START) {
-        if (self->m_regexpCache.size() > REGEXP_CACHE_SIZE_MAX) {
-            self->m_regexpCache.clear();
+        if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX) {
+            self->m_regexpCache->clear();
         }
 
         auto& currentCodeSizeTotal = self->compiledByteCodeSize();
@@ -166,9 +131,55 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
     if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
         printf("Done GC: HeapSize: [%f MB , %f MB]\n", GC_get_memory_use() / 1024.f / 1024.f, GC_get_heap_size() / 1024.f / 1024.f);
         printf("bytecode Size %f KiB codeblock count %zu\n", self->compiledByteCodeSize() / 1024.f, self->m_compiledByteCodeBlocks.size());
-        printf("regexp cache size %zu\n", self->m_regexpCache.size());
+        printf("regexp cache size %zu\n", self->m_regexpCache->size());
     }
     */
+}
+
+void* VMInstance::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word desc[GC_BITMAP_SIZE(VMInstance)] = { 0 };
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_staticStrings.dtoaCache));
+
+        // we should mark every word of m_atomicStringMap
+        for (size_t i = 0; i < sizeof(m_atomicStringMap); i += sizeof(size_t)) {
+            GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringMap) + (i / sizeof(size_t)));
+        }
+
+#define DECLARE_GLOBAL_SYMBOLS(name) GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_globalSymbols.name));
+        DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
+#undef DECLARE_GLOBAL_SYMBOLS
+
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_globalSymbolRegistry));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_currentSandBox));
+
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForFunctionObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForNotConstructorFunctionObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForBuiltinFunctionObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForFunctionPrototypeObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForBoundFunctionObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForClassConstructorFunctionObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForStringObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForSymbolObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForRegExpObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_bumpPointerAllocator));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_platform));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
+
+        descr = GC_make_descriptor(desc, GC_WORD_LEN(VMInstance));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
 VMInstance::~VMInstance()
@@ -213,9 +224,8 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     }
     m_staticStrings.initStaticStrings(&m_atomicStringMap);
 
-    // TODO call destructor
-    m_bumpPointerAllocator = new (GC) WTF::BumpPointerAllocator();
-
+    m_bumpPointerAllocator = new (PointerFreeGC) WTF::BumpPointerAllocator();
+    m_regexpCache = new (GC) RegExpCacheMap();
 #ifdef ENABLE_ICU
     m_timezone = nullptr;
     if (timezone) {
@@ -291,9 +301,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
                                                                                                                            ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
 
 
-    m_defaultStructureForArrayObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
-                                                                                ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&arrayLengthGetterSetterData));
-
     m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&stringLengthGetterSetterData));
 
     m_defaultStructureForSymbolObject = m_defaultStructureForObject;
@@ -315,7 +322,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
 void VMInstance::clearCaches()
 {
-    m_regexpCache.clear();
+    m_regexpCache->clear();
     m_cachedUTC = nullptr;
     globalSymbolRegistry().clear();
 }

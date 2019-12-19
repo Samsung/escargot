@@ -33,7 +33,7 @@ namespace Escargot {
 Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     bool interpretArgumentsAsElements = false;
-    size_t size = 0;
+    uint32_t size = 0;
     if (argc > 1) {
         size = argc;
         interpretArgumentsAsElements = true;
@@ -51,8 +51,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         }
     }
 
-    ArrayObject* array = new ArrayObject(state);
-    array->setArrayLength(state, size);
+    ArrayObject* array = new ArrayObject(state, (uint64_t)size);
 
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
