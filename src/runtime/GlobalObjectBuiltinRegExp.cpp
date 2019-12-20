@@ -35,7 +35,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     String* source = pattern.isUndefined() ? String::emptyString : pattern.toString(state);
     String* option = flags.isUndefined() ? String::emptyString : flags.toString(state);
     // Let patternIsRegExp be IsRegExp(pattern).
-    bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExpObject();
+    bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExp(state);
     if (patternIsRegExp) {
         // If patternIsRegExp is true and flags is undefined, then
         if (flags.isUndefined()) {
@@ -54,6 +54,13 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         // If flags is undefined, let F be the value of pattern’s [[OriginalFlags]] internal slot.
         // Else, let F be flags.
         option = flags.isUndefined() ? patternRegExp->optionString(state) : flags.toString(state);
+    } else if (patternIsRegExp) {
+        Value P = pattern.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().source)).value(state, pattern);
+        source = P.isUndefined() ? String::emptyString : P.toString(state);
+        if (flags.isUndefined()) {
+            Value F = pattern.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, pattern);
+            option = F.isUndefined() ? String::emptyString : F.toString(state);
+        }
     }
 
     RegExpObject* regexp = new RegExpObject(state);
@@ -109,6 +116,22 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     }
 
     return Value(Value::Null);
+}
+
+static Value regExpExec(ExecutionState& state, Object* R, String* S)
+{
+    ASSERT(R->isObject());
+    ASSERT(S->isString());
+    Value exec = R->get(state, ObjectPropertyName(state.context()->staticStrings().exec)).value(state, R);
+    Value arg[1] = { S };
+    if (exec.isCallable()) {
+        Value result = Object::call(state, exec, R, 1, arg);
+        if (result.isNull() || result.isObject()) {
+            return result;
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), errorMessage_GlobalObject_ThisNotObject);
+    }
+    return builtinRegExpExec(state, R, 1, arg, false);
 }
 
 static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -192,11 +215,16 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, search);
     String* s = argv[0].toString(state);
     Value previousLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
+    if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, Value(0))) {
+        rx->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(0), thisValue);
+    }
+    Value result = regExpExec(state, rx, s);
 
-    bool status = rx->set(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(0), thisValue);
-    Value result = builtinRegExpExec(state, rx, 1, argv, true);
-    status = rx->set(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), previousLastIndex, thisValue);
-    if (result.isUndefinedOrNull()) {
+    Value currentLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
+    if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, currentLastIndex)) {
+        rx->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), previousLastIndex, thisValue);
+    }
+    if (result.isNull()) {
         return Value(-1);
     } else {
         return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, thisValue);
@@ -206,14 +234,17 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
 // $21.2.5.11 RegExp.prototype[@@split]
 static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, split);
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+    }
+    Object* rx = thisValue.asObject();
     String* S = argv[0].toString(state);
 
     // Let C be SpeciesConstructor(rx, %RegExp%).
     Value C = rx->speciesConstructor(state, state.context()->globalObject()->regexp());
 
     // Let flags be ToString(Get(rx, "flags")).
-    String* flags = rx->optionString(state);
+    String* flags = rx->get(state, ObjectPropertyName(state.context()->staticStrings().flags)).value(state, rx).toString(state);
     bool unicodeMatching = false;
 
     String* newFlags;
@@ -229,15 +260,11 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     if (flags->find(String::fromASCII("y")) == SIZE_MAX) {
         builder.appendString("y");
     }
-    if (flags->find(String::fromASCII("g")) == SIZE_MAX) {
-        // Must use global, because later we use lastIndex, which will not get adjusted without the global flag.
-        builder.appendString("g");
-    }
     newFlags = builder.finalize();
 
     // Let splitter be Construct(C, <<rx, newFlags>>).
     Value params[2] = { rx, newFlags };
-    RegExpObject* splitter = Object::construct(state, C, 2, params)->asRegExpObject();
+    Object* splitter = Object::construct(state, C, 2, params);
 
     // Let A be ArrayCreate(0).
     ArrayObject* A = new ArrayObject(state);
@@ -260,10 +287,9 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     Value z;
     // If size = 0, then
     if (size == 0) {
-        auto execFunction = splitter->getMethod(state, ObjectPropertyName(state.context()->staticStrings().exec));
         // Let z be RegExpExec(splitter, S).
-        Value arg[1] = { S };
-        z = Object::call(state, execFunction ? execFunction.value() : Value(), splitter, 1, arg);
+
+        Value z = regExpExec(state, splitter, S);
         // If z is not null, return A.
         if (!z.isNull()) {
             return A;
@@ -281,9 +307,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
         // Let setStatus be Set(splitter, "lastIndex", q, true).
         splitter->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(q), splitter);
         // Let z be RegExpExec(splitter, S).
-        auto execFunction = splitter->getMethod(state, ObjectPropertyName(state.context()->staticStrings().exec));
-        Value arg[1] = { S };
-        z = Object::call(state, execFunction ? execFunction.value() : Value(), splitter, 1, arg);
+        Value z = regExpExec(state, splitter, S);
         // If z is null, let q be AdvanceStringIndex(S, q, unicodeMatching).
         if (z.isNull()) {
             q = S->advanceStringIndex(q, unicodeMatching);
@@ -291,14 +315,18 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
             // Else z is not null,
             // Let e be ToLength(Get(splitter, "lastIndex")).
             size_t e = splitter->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, splitter).toLength(state);
+            if (e > size) {
+                e = size;
+            }
             // If e = p, let q be AdvanceStringIndex(S, q, unicodeMatching).
             if (e == p) {
                 q = S->advanceStringIndex(q, unicodeMatching);
             } else {
                 // Else e != p
                 size_t matchStart = z.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, z).toNumber(state);
+
                 if (matchStart >= S->length()) {
-                    break;
+                    matchStart = p;
                 }
                 // Let T be a String value equal to the substring of S consisting of the elements at indices p (inclusive) through q (exclusive).
                 String* T = S->substring(p, matchStart);
@@ -316,6 +344,9 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
                 size_t numberOfCaptures = z.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, z).toLength(state);
                 // Let numberOfCaptures be max(numberOfCaptures - 1, 0).
                 numberOfCaptures = std::max(numberOfCaptures - 1, (size_t)0);
+                if (numberOfCaptures == SIZE_MAX) {
+                    numberOfCaptures = 0;
+                }
                 // Let i be 1.
                 // Repeat, while i <= numberOfCaptures.
                 for (size_t i = 1; i <= numberOfCaptures; i++) {
@@ -371,7 +402,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     ValueVectorWithInlineStorage results;
     Value strValue = Value(str);
     while (true) {
-        Value result = builtinRegExpExec(state, rx.toObject(state), 1, &strValue, false);
+        Value result = regExpExec(state, rx.toObject(state), str);
         if (result.isNull()) {
             break;
         }
@@ -461,7 +492,7 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean(state);
 
     if (!global) {
-        return builtinRegExpExec(state, rx, 1, arg, false);
+        return regExpExec(state, rx.asObject(), str);
     }
 
     bool fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean(state);
@@ -472,7 +503,7 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     //21.2.5.6.8.g.i
     while (true) {
         //21.2.5.6.8.g.i
-        Value result = builtinRegExpExec(state, rx, 1, arg, false);
+        Value result = regExpExec(state, rx.asObject(), str);
         //21.2.5.6.8.g.iii
         if (result.isNull()) {
             if (n == 0) {
@@ -667,7 +698,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSearch, builtinRegExpSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.2.5.11 RegExp.prototype[@@split]
-    m_regexpSplitMethod = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSplit, builtinRegExpSplit, 1, NativeFunctionInfo::Strict));
+    m_regexpSplitMethod = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symbolSplit, builtinRegExpSplit, 2, NativeFunctionInfo::Strict));
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().split),
                                                         ObjectPropertyDescriptor(m_regexpSplitMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
