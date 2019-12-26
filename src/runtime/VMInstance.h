@@ -37,6 +37,7 @@ class CodeBlock;
 class JobQueue;
 class Job;
 class ASTAllocator;
+class CompressibleString;
 
 #define DEFINE_GLOBAL_SYMBOLS(F) \
     F(hasInstance)               \
@@ -179,6 +180,18 @@ public:
         return m_compiledByteCodeSize;
     }
 
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    std::vector<CompressibleString*>& compressibleStrings()
+    {
+        return m_compressibleStrings;
+    }
+
+    size_t& compressibleStringsUncomressedBufferSize()
+    {
+        return m_compressibleStringsUncomressedBufferSize;
+    }
+#endif
+
     std::mt19937& randEngine()
     {
         return m_randEngine;
@@ -193,6 +206,17 @@ public:
     {
         return m_currentSandBox;
     }
+
+    void* stackStartAddress()
+    {
+        return m_stackStartAddress;
+    }
+
+    ASCIIString** regexpOptionStringCache()
+    {
+        return m_regexpOptionStringCache;
+    }
+
 
     void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
     {
@@ -229,15 +253,26 @@ private:
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
 
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    uint64_t m_lastCompressibleStringsTestTime;
+    size_t m_compressibleStringsUncomressedBufferSize;
+    std::vector<CompressibleString*> m_compressibleStrings;
+
+    NEVER_INLINE void compressStringsIfNeeds(uint64_t currentTickCount = fastTickCount());
+#endif
+
     static void gcEventCallback(GC_EventType t, void* data);
     void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
     void* m_onVMInstanceDestroyData;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 
+    void* m_stackStartAddress;
+
     // regexp object data
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
+    ASCIIString** m_regexpOptionStringCache;
 
 // date object data
 #ifdef ENABLE_ICU

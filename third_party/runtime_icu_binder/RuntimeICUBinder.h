@@ -167,6 +167,7 @@ private:
 
 public:
     static ICU& instance();
+    static std::string findSystemLocale();
     static std::string findSystemTimezoneName();
 
     enum Soname {

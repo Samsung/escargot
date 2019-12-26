@@ -101,6 +101,17 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 
 namespace Escargot {
 
+uint64_t fastTickCount()
+{
+#if defined(CLOCK_MONOTONIC_COARSE)
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
+    return ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL;
+#else
+    return tickCount();
+#endif
+}
+
 uint64_t tickCount()
 {
     struct timeval gettick;

@@ -32,10 +32,10 @@ public:
         : String()
     {
         m_left = String::emptyString;
-        m_bufferAccessData.has8BitContent = true;
-        m_bufferAccessData.hasSpecialImpl = true;
-        m_bufferAccessData.length = 0;
-        m_bufferAccessData.buffer = nullptr;
+        m_bufferData.has8BitContent = true;
+        m_bufferData.hasSpecialImpl = true;
+        m_bufferData.length = 0;
+        m_bufferData.buffer = nullptr;
     }
 
     // this function not always create RopeString.
@@ -44,40 +44,38 @@ public:
     // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
     static String* createRopeString(String* lstr, String* rstr, ExecutionState* state = nullptr);
 
-    virtual char16_t charAt(const size_t idx) const
-    {
-        return bufferAccessData().charAt(idx);
-    }
-    virtual UTF16StringData toUTF16StringData() const;
-    virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
+    virtual UTF16StringData toUTF16StringData() const override;
+    virtual UTF8StringData toUTF8StringData() const override;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const override;
 
-    virtual bool isRopeString()
+    virtual bool isRopeString() override
     {
         return true;
     }
 
-    virtual const LChar* characters8() const
+    virtual const LChar* characters8() const override
     {
         return (const LChar*)bufferAccessData().buffer;
     }
 
-    virtual const char16_t* characters16() const
+    virtual const char16_t* characters16() const override
     {
         return (const char16_t*)bufferAccessData().buffer;
-    }
-
-    virtual void bufferAccessDataSpecialImpl()
-    {
-        ASSERT(m_bufferAccessData.hasSpecialImpl);
-        flattenRopeString();
-        ASSERT(!m_bufferAccessData.hasSpecialImpl);
     }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        ASSERT(m_bufferData.hasSpecialImpl);
+        flattenRopeString();
+        ASSERT(!m_bufferData.hasSpecialImpl);
+
+        return m_bufferData;
+    }
+
     template <typename ResultType>
     void flattenRopeStringWorker();
     void flattenRopeString();

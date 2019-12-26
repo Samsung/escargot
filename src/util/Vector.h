@@ -69,15 +69,34 @@ struct ComputeReservedCapacityFunctionWithPercent {
     }
 };
 
-template <size_t glowFactor = 125, size_t maxGap = 256>
+template <size_t glowFactor = 125, size_t maxGap = 512>
 struct ComputeReservedCapacityFunctionWithPercentAndGap {
     size_t operator()(size_t newSize)
     {
         size_t newCapacity = newSize * (glowFactor / 100.f);
-        if (newCapacity - glowFactor > maxGap) {
+        if ((newCapacity - newSize) > maxGap) {
             newCapacity = newSize + maxGap;
         }
         return newCapacity;
+    }
+};
+
+template <size_t glowFactor = 125>
+struct ComputeReservedCapacityFunctionWithLog2AndPercent {
+    size_t operator()(size_t newSize)
+    {
+        if (newSize == 0) {
+            return 0;
+        }
+
+        if (newSize <= 32) {
+            ComputeReservedCapacityFunctionWithLog2<> f1;
+            return f1(newSize);
+        }
+
+        ComputeReservedCapacityFunctionWithLog2<> f1;
+        ComputeReservedCapacityFunctionWithPercentAndGap<> f2;
+        return std::min(f1(newSize), f2(newSize));
     }
 };
 

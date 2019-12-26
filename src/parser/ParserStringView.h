@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2019-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,47 +17,62 @@
  *  USA
  */
 
-#ifndef __EscargotStringView__
-#define __EscargotStringView__
-
-#include "runtime/String.h"
+#ifndef __EscargotParserStringView__
+#define __EscargotParserStringView__
 
 namespace Escargot {
 
-class StringView : public String {
+class ParserStringView : public String {
 public:
-    ALWAYS_INLINE StringView(String* str, const size_t s, const size_t e)
+    ALWAYS_INLINE ParserStringView(const ParserStringView& str, const size_t s, const size_t e)
         : String()
     {
-        initBufferAccessData(str, s, e);
+        initBufferAccessData(str.bufferAccessData(), s, e);
     }
 
-    ALWAYS_INLINE explicit StringView(String* str)
+    ALWAYS_INLINE ParserStringView(const StringView& str, const size_t s, const size_t e)
         : String()
     {
-        initBufferAccessData(str, 0, str->length());
+        initBufferAccessData(str.bufferAccessData(), s, e);
     }
 
-    ALWAYS_INLINE StringView(const StringView& str, const size_t s, const size_t e)
+    ALWAYS_INLINE ParserStringView(String* str)
         : String()
     {
-        initBufferAccessData(str.m_bufferData.bufferAsString, s + str.m_start, e + str.m_start);
+        initBufferAccessData(str->bufferAccessData(), 0, str->length());
     }
 
-    ALWAYS_INLINE StringView()
+    ALWAYS_INLINE ParserStringView(String* str, size_t s, size_t e)
         : String()
     {
-        initBufferAccessData(String::emptyString, 0, 0);
+        initBufferAccessData(str->bufferAccessData(), s, e);
     }
 
-    bool operator==(const char* src) const
+    ALWAYS_INLINE ParserStringView()
+        : String()
     {
-        size_t srcLen = strlen(src);
+        initBufferAccessData(String::emptyString->bufferAccessData(), 0, 0);
+    }
+
+    template <const size_t srcLen>
+    bool operator==(const char (&src)[srcLen]) const
+    {
+        return equals(src, srcLen - 1);
+    }
+
+    template <const size_t srcLen>
+    bool equals(const char (&src)[srcLen]) const
+    {
+        return equals(src, srcLen - 1);
+    }
+
+    bool equals(const char* src, size_t srcLen) const
+    {
         if (srcLen != length()) {
             return false;
         }
 
-        const auto& data = bufferAccessData();
+        const auto& data = m_bufferData;
         if (data.has8BitContent) {
             for (size_t i = 0; i < srcLen; i++) {
                 if (src[i] != ((const LChar*)data.buffer)[i]) {
@@ -75,7 +90,8 @@ public:
         return true;
     }
 
-    bool operator!=(const char* src) const
+    template <const size_t srcLen>
+    bool operator!=(const char (&src)[srcLen]) const
     {
         return !operator==(src);
     }
@@ -106,13 +122,13 @@ public:
     virtual const LChar* characters8() const override
     {
         ASSERT(has8BitContent());
-        return (LChar*)bufferAccessData().buffer;
+        return (LChar*)m_bufferData.buffer;
     }
 
     virtual const char16_t* characters16() const override
     {
         ASSERT(!has8BitContent());
-        return (const char16_t*)bufferAccessData().buffer;
+        return (const char16_t*)m_bufferData.buffer;
     }
 
     virtual bool isStringView() override
@@ -120,44 +136,33 @@ public:
         return true;
     }
 
-    void* operator new(size_t size, void* ptr)
+    char16_t bufferedCharAt(const size_t idx) const
     {
-        return ptr;
+        if (m_bufferData.has8BitContent) {
+            return ((const LChar*)m_bufferData.buffer)[idx];
+        } else {
+            return ((const char16_t*)m_bufferData.buffer)[idx];
+        }
     }
-    void* operator new(size_t size);
+
+    void* operator new(size_t size) = delete;
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    ALWAYS_INLINE void initBufferAccessData(const StringBufferAccessData& srcData, size_t start, size_t end)
     {
-        ASSERT(m_bufferData.hasSpecialImpl);
-
-        StringBufferAccessData r = m_bufferData.bufferAsString->bufferAccessData();
-        // keep original buffer pointer in stack
-        // without this, compressible string can free this pointer
-        r.extraData = const_cast<void*>(r.buffer);
-        r.length = m_bufferData.length;
-        if (r.has8BitContent) {
-            r.bufferAs8Bit += m_start;
-        } else {
-            r.bufferAs16Bit += m_start;
-        }
-
-        return r;
-    }
-
-    ALWAYS_INLINE void initBufferAccessData(String* str, size_t start, size_t end)
-    {
-        m_bufferData.hasSpecialImpl = true;
-        m_bufferData.bufferAsString = str;
-        m_bufferData.has8BitContent = str->has8BitContent();
+        m_bufferData.has8BitContent = srcData.has8BitContent;
         m_bufferData.length = end - start;
-        m_start = start;
+        if (srcData.has8BitContent) {
+            m_bufferData.buffer = ((LChar*)srcData.buffer) + start;
+        } else {
+            m_bufferData.buffer = ((char16_t*)srcData.buffer) + start;
+        }
     }
 
 private:
-    size_t m_start;
 };
-}
+
+} // Escargot
 
 #endif

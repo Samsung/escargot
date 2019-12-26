@@ -31,7 +31,7 @@ void* RopeString::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(RopeString)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_left));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_bufferAccessData.buffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_bufferData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RopeString));
         typeInited = true;
     }
@@ -83,45 +83,45 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     }
 
     RopeString* rope = new RopeString();
-    rope->m_bufferAccessData.length = llen + rlen;
+    rope->m_bufferData.length = llen + rlen;
     rope->m_left = lstr;
-    rope->m_bufferAccessData.buffer = rstr;
+    rope->m_bufferData.buffer = rstr;
 
     bool l8bit;
     if (lstr->isRopeString()) {
-        l8bit = ((RopeString*)lstr)->m_bufferAccessData.has8BitContent;
+        l8bit = ((RopeString*)lstr)->m_bufferData.has8BitContent;
     } else {
         l8bit = lstr->has8BitContent();
     }
 
     bool r8bit;
     if (rstr->isRopeString()) {
-        r8bit = ((RopeString*)rstr)->m_bufferAccessData.has8BitContent;
+        r8bit = ((RopeString*)rstr)->m_bufferData.has8BitContent;
     } else {
         r8bit = rstr->has8BitContent();
     }
 
-    rope->m_bufferAccessData.has8BitContent = l8bit & r8bit;
+    rope->m_bufferData.has8BitContent = l8bit & r8bit;
     return rope;
 }
 
 template <typename ResultType>
 void RopeString::flattenRopeStringWorker()
 {
-    ResultType* result = (ResultType*)GC_MALLOC_ATOMIC(sizeof(ResultType) * m_bufferAccessData.length);
+    ResultType* result = (ResultType*)GC_MALLOC_ATOMIC(sizeof(ResultType) * m_bufferData.length);
     std::vector<String*> queue;
     queue.push_back(m_left);
-    queue.push_back((String*)m_bufferAccessData.buffer);
-    size_t pos = m_bufferAccessData.length;
+    queue.push_back((String*)m_bufferData.buffer);
+    size_t pos = m_bufferData.length;
     size_t k = 0;
     while (!queue.empty()) {
         String* cur = queue.back();
         queue.pop_back();
         if (cur->isRopeString()) {
             RopeString* cur2 = (RopeString*)cur;
-            if (cur2->m_bufferAccessData.hasSpecialImpl) {
+            if (cur2->m_bufferData.hasSpecialImpl) {
                 queue.push_back(cur2->m_left);
-                queue.push_back((String*)cur2->m_bufferAccessData.buffer);
+                queue.push_back((String*)cur2->m_bufferData.buffer);
                 continue;
             }
         }
@@ -144,8 +144,8 @@ void RopeString::flattenRopeStringWorker()
         }
     }
 
-    m_bufferAccessData.hasSpecialImpl = false;
-    m_bufferAccessData.buffer = result;
+    m_bufferData.hasSpecialImpl = false;
+    m_bufferData.buffer = result;
 
     m_left = nullptr;
 }
@@ -153,7 +153,7 @@ void RopeString::flattenRopeStringWorker()
 void RopeString::flattenRopeString()
 {
     ASSERT(m_left);
-    if (m_bufferAccessData.has8BitContent) {
+    if (m_bufferData.has8BitContent) {
         flattenRopeStringWorker<LChar>();
     } else {
         flattenRopeStringWorker<char16_t>();

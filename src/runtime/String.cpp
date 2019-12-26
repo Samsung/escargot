@@ -204,7 +204,7 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     return ch - offsetsFromUTF8[length - 1];
 }
 
-UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len)
+UTF16StringDataNonGCStd utf8StringToUTF16StringNonGC(const char* buf, const size_t len)
 {
     UTF16StringDataNonGCStd str;
     const char* source = buf;
@@ -230,6 +230,12 @@ UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len)
         }
     }
 
+    return str;
+}
+
+UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len)
+{
+    auto str = utf8StringToUTF16StringNonGC(buf, len);
     return UTF16StringData(str.data(), str.length());
 }
 
@@ -381,7 +387,7 @@ UTF8StringData Latin1String::toUTF8StringData() const
     UTF8StringData ret;
     size_t len = length();
     for (size_t i = 0; i < len; i++) {
-        uint8_t ch = m_bufferAccessData.uncheckedCharAtFor8Bit(i); /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
+        uint8_t ch = m_bufferData.uncheckedCharAtFor8Bit(i); /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
         if (ch < 0x80) {
             ret.append((char*)&ch, 1);
         } else {
@@ -398,7 +404,7 @@ UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData() const
     UTF8StringDataNonGCStd ret;
     size_t len = length();
     for (size_t i = 0; i < len; i++) {
-        uint8_t ch = m_bufferAccessData.uncheckedCharAtFor8Bit(i); /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
+        uint8_t ch = m_bufferData.uncheckedCharAtFor8Bit(i); /* assume that code points above 0xff are impossible since latin-1 is 8-bit */
         if (ch < 0x80) {
             ret.append((char*)&ch, 1);
         } else {
@@ -606,11 +612,15 @@ String* String::fromUTF8(const char* src, size_t len)
     }
 }
 
-#if defined(ENABLE_SOURCE_COMPRESSION)
-String* String::fromUTF8ToCompressibleString(const char* src, size_t len)
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+String* String::fromUTF8ToCompressibleString(Context* context, const char* src, size_t len)
 {
-    auto s = utf8StringToUTF16String(src, len);
-    return new CompressibleString(std::move(s));
+    if (isAllASCII(src, len)) {
+        return new CompressibleString(context, src, len);
+    } else {
+        auto s = utf8StringToUTF16StringNonGC(src, len);
+        return new CompressibleString(context, s.data(), s.length());
+    }
 }
 #endif
 
@@ -635,11 +645,12 @@ int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* 
 
 bool String::equals(const String* src) const
 {
-    const auto& myData = bufferAccessData();
-    const auto& srcData = src->bufferAccessData();
-    if (srcData.length != myData.length) {
+    if (length() != src->length()) {
         return false;
     }
+
+    const auto& myData = bufferAccessData();
+    const auto& srcData = src->bufferAccessData();
 
     bool myIs8Bit = myData.has8BitContent;
     bool srcIs8Bit = srcData.has8BitContent;
@@ -658,12 +669,13 @@ bool String::equals(const String* src) const
 uint64_t String::tryToUseAsArrayIndex() const
 {
     uint32_t number = 0;
-    const auto& data = bufferAccessData();
-    const size_t& len = data.length;
+    const size_t& len = length();
 
     if (UNLIKELY(len == 0)) {
         return Value::InvalidArrayIndexValue;
     }
+
+    const auto& data = bufferAccessData();
 
     char16_t first;
     if (LIKELY(data.has8BitContent)) {
@@ -698,12 +710,13 @@ uint64_t String::tryToUseAsArrayIndex() const
 uint64_t String::tryToUseAsIndex() const
 {
     uint32_t number = 0;
-    const auto& data = bufferAccessData();
-    const size_t& len = data.length;
+    const size_t& len = length();
 
     if (UNLIKELY(len == 0)) {
         return Value::InvalidIndexValue;
     }
+
+    const auto& data = bufferAccessData();
 
     char16_t first;
     if (LIKELY(data.has8BitContent)) {
@@ -856,7 +869,7 @@ void* ASCIIString::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_bufferAccessData.buffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_bufferData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
         typeInited = true;
     }
@@ -869,7 +882,7 @@ void* Latin1String::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferAccessData.buffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Latin1String));
         typeInited = true;
     }
@@ -882,7 +895,7 @@ void* UTF16String::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_bufferAccessData.buffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_bufferData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(UTF16String));
         typeInited = true;
     }

@@ -88,7 +88,7 @@ public:
         return true;
     }
 
-    const StringBufferAccessData& bufferAccessData() const
+    StringBufferAccessData bufferAccessData() const
     {
         return m_string->bufferAccessData();
     }

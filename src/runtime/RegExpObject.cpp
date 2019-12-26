@@ -110,20 +110,23 @@ void* RegExpObject::operator new(size_t size)
 
 static String* escapeSlashInPattern(String* patternStr)
 {
-    if (patternStr->length() == 0)
+    if (patternStr->length() == 0) {
         return patternStr;
+    }
 
-    size_t len = patternStr->length();
+    auto accessData = patternStr->bufferAccessData();
+
+    const size_t& len = accessData.length;
     bool slashFlag = false;
     size_t i, start = 0;
     StringBuilder builder;
     while (true) {
         for (i = 0; start + i < len; i++) {
-            if (UNLIKELY(patternStr->charAt(start + i) == '/') && i > 0) {
+            if (UNLIKELY(accessData.charAt(start + i) == '/') && i > 0) {
                 size_t backSlashCount = 0;
                 size_t s = start + i - 1;
                 while (true) {
-                    if (patternStr->charAt(s) == '\\') {
+                    if (accessData.charAt(s) == '\\') {
                         backSlashCount++;
                         if (s == 0) {
                             break;
@@ -153,10 +156,11 @@ static String* escapeSlashInPattern(String* patternStr)
             break;
         }
     }
-    if (!slashFlag)
+    if (!slashFlag) {
         return patternStr;
-    else
+    } else {
         return builder.finalize();
+    }
 }
 
 void RegExpObject::internalInit(ExecutionState& state, String* source)
@@ -224,8 +228,9 @@ void RegExpObject::parseOption(ExecutionState& state, const String* optionString
 {
     this->m_option = RegExpObject::Option::None;
 
-    for (size_t i = 0; i < optionString->length(); i++) {
-        switch (optionString->charAt(i)) {
+    auto bufferAccessData = optionString->bufferAccessData();
+    for (size_t i = 0; i < bufferAccessData.length; i++) {
+        switch (bufferAccessData.charAt(i)) {
         case 'g':
             if (this->m_option & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");

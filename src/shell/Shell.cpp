@@ -170,12 +170,19 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
             }
         }
         fclose(fp);
-
-#if defined(ENABLE_SOURCE_COMPRESSION)
-        if (hasNonLatin1Content) {
-            src = StringRef::createFromUTF8ToCompressibleString(utf8Str.data(), utf8Str.length());
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+        if (state) {
+            if (hasNonLatin1Content) {
+                src = StringRef::createFromUTF8ToCompressibleString(state->context(), utf8Str.data(), utf8Str.length());
+            } else {
+                src = StringRef::createFromLatin1ToCompressibleString(state->context(), str.data(), str.length());
+            }
         } else {
-            src = StringRef::createCompressibleString(str.data(), str.length());
+            if (hasNonLatin1Content) {
+                src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length());
+            } else {
+                src = StringRef::createFromLatin1(str.data(), str.length());
+            }
         }
 #else
         if (hasNonLatin1Content) {
@@ -543,6 +550,11 @@ int main(int argc, char* argv[])
     });
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
+    if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {
+        int d = atoi(getenv("GC_FREE_SPACE_DIVISOR"));
+        Memory::setGCFrequency(d);
+    }
+
     bool runShell = true;
     bool seenModule = false;
     for (int i = 1; i < argc; i++) {
@@ -579,7 +591,11 @@ int main(int argc, char* argv[])
             fclose(fp);
             runShell = false;
 
-            StringRef* src = builtinHelperFileRead(nullptr, argv[i], "read").get();
+            StringRef* src = Evaluator::execute(context, [](ExecutionStateRef* state, char* c) -> ValueRef* {
+                                 return builtinHelperFileRead(state, c, "read").get();
+                             },
+                                                argv[i])
+                                 .result->asString();
 
             if (!evalScript(context, src, StringRef::createFromUTF8(argv[i], strlen(argv[i])), false, seenModule)) {
                 return 3;
@@ -590,11 +606,6 @@ int main(int argc, char* argv[])
             printf("Cannot open file %s\n", argv[i]);
             return 3;
         }
-    }
-
-    if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {
-        int d = atoi(getenv("GC_FREE_SPACE_DIVISOR"));
-        Memory::setGCFrequency(d);
     }
 
     while (runShell) {

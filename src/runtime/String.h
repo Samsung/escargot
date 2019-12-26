@@ -75,22 +75,25 @@ class Latin1String;
 class UTF16String;
 class RopeString;
 class StringView;
+class Context;
 
 struct StringBufferAccessData {
-    bool has8BitContent : 1;
-    bool hasSpecialImpl : 1;
-#if defined(ESCARGOT_32)
-    size_t length : 30;
-#else
-    size_t length : 62;
-#endif
+    bool has8BitContent;
+    size_t length;
     union {
         const void* buffer;
         const char* bufferAs8Bit;
         const char16_t* bufferAs16Bit;
     };
+    void* extraData;
 
-    COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() >> 2), "");
+    StringBufferAccessData(bool has8BitContent, size_t length, void* buffer, void* extraDataKeepInStack = nullptr)
+        : has8BitContent(has8BitContent)
+        , length(length)
+        , buffer(buffer)
+        , extraData(extraDataKeepInStack)
+    {
+    }
 
     char16_t uncheckedCharAtFor8Bit(size_t idx) const
     {
@@ -176,8 +179,53 @@ protected:
     String()
     {
         m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
-        m_bufferAccessData.hasSpecialImpl = false;
+        m_bufferData.hasSpecialImpl = false;
     }
+
+    struct StringBufferData {
+        bool has8BitContent : 1;
+        bool hasSpecialImpl : 1;
+#if defined(ESCARGOT_32)
+        size_t length : 30;
+#else
+        size_t length : 62;
+#endif
+        union {
+            const void* buffer;
+            const char* bufferAs8Bit;
+            const char16_t* bufferAs16Bit;
+            String* bufferAsString;
+        };
+
+        COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() >> 2), "");
+
+        operator StringBufferAccessData() const
+        {
+            ASSERT(!hasSpecialImpl);
+            return StringBufferAccessData(has8BitContent, length, const_cast<void*>(buffer));
+        }
+
+        char16_t uncheckedCharAtFor8Bit(size_t idx) const
+        {
+            ASSERT(has8BitContent);
+            return ((LChar*)buffer)[idx];
+        }
+
+        char16_t uncheckedCharAtFor16Bit(size_t idx) const
+        {
+            ASSERT(!has8BitContent);
+            return ((char16_t*)buffer)[idx];
+        }
+
+        char16_t charAt(size_t idx) const
+        {
+            if (has8BitContent) {
+                return ((LChar*)buffer)[idx];
+            } else {
+                return ((char16_t*)buffer)[idx];
+            }
+        }
+    };
 
 public:
     enum FromExternalMemoryTag {
@@ -187,6 +235,11 @@ public:
     virtual bool isStringByVTable() const override
     {
         return true;
+    }
+
+    virtual bool isStringView()
+    {
+        return false;
     }
 
     virtual bool isCompressibleString()
@@ -201,7 +254,7 @@ public:
 
     bool has8BitContent() const
     {
-        return bufferAccessData().has8BitContent;
+        return m_bufferData.has8BitContent;
     }
 
     static String* fromASCII(const char* s);
@@ -213,30 +266,29 @@ public:
         return fromDouble(v);
     }
     static String* fromUTF8(const char* src, size_t len);
-#if defined(ENABLE_SOURCE_COMPRESSION)
-    static String* fromUTF8ToCompressibleString(const char* src, size_t len);
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    static String* fromUTF8ToCompressibleString(Context* context, const char* src, size_t len);
 #endif
 
     size_t length() const
     {
-        return m_bufferAccessData.length;
+        return m_bufferData.length;
     }
-    virtual char16_t charAt(const size_t idx) const = 0;
+    virtual char16_t charAt(const size_t idx) const
+    {
+        return bufferAccessData().charAt(idx);
+    }
     char16_t operator[](const size_t idx) const
     {
         return charAt(idx);
     }
 
-    virtual void bufferAccessDataSpecialImpl()
+    ALWAYS_INLINE StringBufferAccessData bufferAccessData() const
     {
-        ASSERT(m_bufferAccessData.hasSpecialImpl);
-    }
-    ALWAYS_INLINE const StringBufferAccessData& bufferAccessData() const
-    {
-        if (UNLIKELY(m_bufferAccessData.hasSpecialImpl)) {
-            const_cast<String*>(this)->bufferAccessDataSpecialImpl();
+        if (UNLIKELY(m_bufferData.hasSpecialImpl)) {
+            return const_cast<String*>(this)->bufferAccessDataSpecialImpl();
         }
-        return m_bufferAccessData;
+        return m_bufferData;
     }
 
     bool equals(const String* src) const;
@@ -410,7 +462,13 @@ private:
     size_t m_tag;
 
 protected:
-    StringBufferAccessData m_bufferAccessData;
+    StringBufferData m_bufferData;
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        return m_bufferData;
+    }
+
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);
 
     template <typename T>
@@ -495,27 +553,27 @@ public:
     ASCIIString(const char* str, size_t len, FromExternalMemoryTag)
         : String()
     {
-        m_bufferAccessData.bufferAs8Bit = str;
-        m_bufferAccessData.length = len;
-        m_bufferAccessData.hasSpecialImpl = false;
-        m_bufferAccessData.has8BitContent = true;
+        m_bufferData.bufferAs8Bit = str;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = true;
     }
 
     virtual char16_t charAt(const size_t idx) const
     {
-        return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
+        return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
     virtual const LChar* characters8() const
     {
-        return (const LChar*)m_bufferAccessData.buffer;
+        return (const LChar*)m_bufferData.buffer;
     }
 
     void initBufferAccessData(ASCIIStringData& stringData)
     {
-        m_bufferAccessData.has8BitContent = true;
-        m_bufferAccessData.length = stringData.length();
-        m_bufferAccessData.buffer = stringData.takeBuffer();
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = stringData.length();
+        m_bufferData.buffer = stringData.takeBuffer();
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -562,10 +620,10 @@ public:
     Latin1String(const LChar* str, size_t len, FromExternalMemoryTag)
         : String()
     {
-        m_bufferAccessData.buffer = str;
-        m_bufferAccessData.length = len;
-        m_bufferAccessData.hasSpecialImpl = false;
-        m_bufferAccessData.has8BitContent = true;
+        m_bufferData.buffer = str;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = true;
     }
 
     Latin1String(const LChar* str, size_t len)
@@ -591,19 +649,19 @@ public:
 
     void initBufferAccessData(Latin1StringData& stringData)
     {
-        m_bufferAccessData.has8BitContent = true;
-        m_bufferAccessData.length = stringData.length();
-        m_bufferAccessData.buffer = stringData.takeBuffer();
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = stringData.length();
+        m_bufferData.buffer = stringData.takeBuffer();
     }
 
     virtual char16_t charAt(const size_t idx) const
     {
-        return m_bufferAccessData.uncheckedCharAtFor8Bit(idx);
+        return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
     virtual const LChar* characters8() const
     {
-        return (const LChar*)m_bufferAccessData.buffer;
+        return (const LChar*)m_bufferData.buffer;
     }
 
     virtual UTF16StringData toUTF16StringData() const;
@@ -634,27 +692,27 @@ public:
     UTF16String(const char16_t* str, size_t len, FromExternalMemoryTag)
         : String()
     {
-        m_bufferAccessData.bufferAs16Bit = str;
-        m_bufferAccessData.length = len;
-        m_bufferAccessData.hasSpecialImpl = false;
-        m_bufferAccessData.has8BitContent = false;
+        m_bufferData.bufferAs16Bit = str;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = false;
     }
 
     void initBufferAccessData(UTF16StringData& stringData)
     {
-        m_bufferAccessData.has8BitContent = false;
-        m_bufferAccessData.length = stringData.length();
-        m_bufferAccessData.buffer = stringData.takeBuffer();
+        m_bufferData.has8BitContent = false;
+        m_bufferData.length = stringData.length();
+        m_bufferData.buffer = stringData.takeBuffer();
     }
 
     virtual char16_t charAt(const size_t idx) const
     {
-        return m_bufferAccessData.uncheckedCharAtFor16Bit(idx);
+        return m_bufferData.uncheckedCharAtFor16Bit(idx);
     }
 
     virtual const char16_t* characters16() const
     {
-        return (const char16_t*)m_bufferAccessData.buffer;
+        return (const char16_t*)m_bufferData.buffer;
     }
 
     virtual UTF16StringData toUTF16StringData() const;

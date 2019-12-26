@@ -112,6 +112,15 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
 
     auto iter = ec->find(name);
     if (ec->end() == iter) {
+        if (name->isStringView()) {
+            auto buffer = name->bufferAccessData();
+            if (buffer.has8BitContent) {
+                name = new Latin1String((const char*)buffer.buffer, buffer.length);
+            } else {
+                name = new UTF16String((const char16_t*)buffer.buffer, buffer.length);
+            }
+        }
+        ASSERT(!name->isStringView());
         ec->insert(name);
         ASSERT(ec->find(name) != ec->end());
         m_string = name;
