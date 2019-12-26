@@ -33,7 +33,7 @@
     - LZ4 source repository : https://github.com/lz4/lz4
 */
 
-#if defined(ENABLE_SOURCE_COMPRESSION)
+#if defined(ENABLE_COMPRESSIBLE_STRING)
 
 #if defined(__cplusplus)
 extern "C" {

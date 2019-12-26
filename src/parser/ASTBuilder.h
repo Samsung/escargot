@@ -20,6 +20,8 @@
 #ifndef __EscargotASTBuilder__
 #define __EscargotASTBuilder__
 
+#include "parser/ParserStringView.h"
+
 namespace Escargot {
 
 #define FOR_EACH_TARGET_NODE(F)               \
@@ -565,12 +567,12 @@ public:
         return SyntaxNode(CallExpression);
     }
 
-    void setValueStringLiteral(const StringView& string)
+    void setValueStringLiteral(const ParserStringView& string)
     {
         m_valueStringLiteral = string;
     }
 
-    StringView& getValueStringLiteral()
+    const ParserStringView& valueStringLiteral()
     {
         return m_valueStringLiteral;
     }
@@ -581,14 +583,14 @@ public:
         if (key.type() == Identifier) {
             return key.name() == value;
         } else if (key.type() == Literal) {
-            return getValueStringLiteral().equals(value);
+            return valueStringLiteral().equals(value);
         }
 
         return false;
     }
 
 private:
-    StringView m_valueStringLiteral; // for StringLiteralNode (valueStringLiteral method)
+    ParserStringView m_valueStringLiteral; // for StringLiteralNode (valueStringLiteral method)
 };
 
 class NodeGenerator {
@@ -753,7 +755,7 @@ public:
         return new (m_allocator) CallExpressionNode(taggedTemplateExpression->expr(), args);
     }
 
-    void setValueStringLiteral(const StringView& string)
+    void setValueStringLiteral(const ParserStringView& string)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }

@@ -605,7 +605,7 @@ public:
             } else if (token.type == Token::EOFToken) {
                 msg = Messages::UnexpectedEOS;
             }
-            value = (String*)new StringView(token.relatedSource(this->scanner->source));
+            value = new StringView(this->scanner->sourceAsNormalView, token.start, token.end);
         } else {
             value = new ASCIIString("ILLEGAL");
         }
@@ -969,16 +969,16 @@ public:
     {
         ASSERT(token != nullptr);
         ASTNode ret;
-        StringView sv = token->valueStringLiteral(this->scanner);
+        ParserStringView sv = token->valueStringLiteral(this->scanner);
         const auto& a = sv.bufferAccessData();
         char16_t firstCh = a.charAt(0);
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
             ret = builder.createIdentifierNode(this->escargotContext->staticStrings().asciiTable[firstCh]);
         } else {
             if (token->hasAllocatedString) {
-                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, sv.string()));
+                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, token->valueStringLiteralData.m_stringIfNewlyAllocated));
             } else {
-                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, sv));
+                ret = builder.createIdentifierNode(AtomicString(this->escargotContext, &sv));
             }
         }
 
@@ -1370,7 +1370,7 @@ public:
             param = this->parsePatternWithDefault(builder, params);
         }
         for (size_t i = 0; i < params.size(); i++) {
-            AtomicString as(this->escargotContext, params[i].relatedSource(this->scanner->source));
+            AtomicString as(this->escargotContext, params[i].relatedSource(this->scanner->sourceAsNormalView));
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(builder.convertToParameterSyntaxNode(param));
@@ -1663,7 +1663,7 @@ public:
         bool isSet = false;
         bool needImplicitName = false;
         if (token->type == Token::IdentifierToken && !isAsync && lookaheadPropertyKey) {
-            StringView sv = token->valueStringLiteral(this->scanner);
+            ParserStringView sv = token->valueStringLiteral(this->scanner);
             const auto& d = sv.bufferAccessData();
             if (d.length == 3) {
                 if (d.equalsSameLength("get")) {
@@ -3544,7 +3544,7 @@ public:
 
                 if (!this->context->strict && this->matchKeyword(InKeyword)) {
                     this->nextToken();
-                    left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource(this->scanner->source))));
+                    left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource(this->scanner->sourceAsNormalView))));
                     init = nullptr;
                     type = statementTypeForIn;
                 } else {
@@ -5016,7 +5016,7 @@ public:
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
 
-        return this->finalize(startNode, builder.template createClass<ClassType>(idNode, superClass, classBody, classBlockContext.childLexicalBlockIndex, StringView(this->scanner->source, startNode.index, endNode.index)));
+        return this->finalize(startNode, builder.template createClass<ClassType>(idNode, superClass, classBody, classBlockContext.childLexicalBlockIndex, StringView(this->scanner->sourceAsNormalView, startNode.index, endNode.index)));
     }
 
     template <class ASTBuilder>

@@ -328,16 +328,101 @@ StringRef* StringRef::createExternalFromUTF16(const char16_t* s, size_t len)
     return toRef(new UTF16String(s, len, String::FromExternalMemory));
 }
 
-#if defined(ENABLE_SOURCE_COMPRESSION)
-StringRef* StringRef::createFromUTF8ToCompressibleString(const char* s, size_t len)
+bool StringRef::isCompressibleStringEnabled()
 {
-    return toRef(String::fromUTF8ToCompressibleString(s, len));
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    return true;
+#else
+    return false;
+#endif
 }
 
-StringRef* StringRef::createCompressibleString(const unsigned char* s, size_t len)
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+StringRef* StringRef::createFromUTF8ToCompressibleString(ContextRef* context, const char* s, size_t len)
 {
-    return toRef(new CompressibleString(s, len));
+    return toRef(String::fromUTF8ToCompressibleString(toImpl(context), s, len));
 }
+
+StringRef* StringRef::createFromUTF16ToCompressibleString(ContextRef* context, const char16_t* s, size_t len)
+{
+    return toRef(new CompressibleString(toImpl(context), s, len));
+}
+
+StringRef* StringRef::createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len)
+{
+    return toRef(new CompressibleString(toImpl(context), s, len));
+}
+
+StringRef* StringRef::createFromLatin1ToCompressibleString(ContextRef* context, const unsigned char* s, size_t len)
+{
+    return toRef(new CompressibleString(toImpl(context), s, len));
+}
+
+void* StringRef::allocateStringDataBufferForCompressibleString(size_t byteLength)
+{
+    return CompressibleString::allocateStringDataBuffer(byteLength);
+}
+
+void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr)
+{
+    CompressibleString::deallocateStringDataBuffer(ptr);
+}
+
+StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit)
+{
+    return toRef(new CompressibleString(toImpl(context), buffer, stringLen, is8Bit));
+}
+
+#else
+StringRef* StringRef::createFromUTF8ToCompressibleString(ContextRef* context, const char* s, size_t len)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+StringRef* StringRef::createCompressibleString(ContextRef* context, const unsigned char* s, size_t len)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+StringRef* StringRef::createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+StringRef* StringRef::createFromLatin1ToCompressibleString(ContextRef* context, const unsigned char* s, size_t len)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+void* StringRef::allocateStringDataBufferForCompressibleString(size_t byteLength)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
 #endif
 
 StringRef* StringRef::emptyString()

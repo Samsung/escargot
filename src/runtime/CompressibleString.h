@@ -20,143 +20,99 @@
 #ifndef __EscargotCompressibleString__
 #define __EscargotCompressibleString__
 
-#if defined(ENABLE_SOURCE_COMPRESSION)
+#if defined(ENABLE_COMPRESSIBLE_STRING)
 
 #include "runtime/String.h"
 
 namespace Escargot {
 
+class Context;
+
 class CompressibleString : public String {
+    friend class VMInstance;
+
 public:
-    CompressibleString()
-        : String()
-        , m_compressedLength(0)
-    {
-    }
+    CompressibleString(Context* context);
 
     // 8bit string constructor
-
-    explicit CompressibleString(Latin1StringData&& src)
-        : String()
-        , m_compressedLength(0)
-    {
-        Latin1StringData data = std::move(src);
-        initBufferAccessData(data);
-    }
-
-    explicit CompressibleString(const char* str)
-        : String()
-        , m_compressedLength(0)
-    {
-        Latin1StringData data;
-        data.append((const LChar*)str, strlen(str));
-        initBufferAccessData(data);
-    }
-
-    CompressibleString(const char* str, size_t len)
-        : String()
-        , m_compressedLength(0)
-    {
-        Latin1StringData data;
-        data.append((const LChar*)str, len);
-        initBufferAccessData(data);
-    }
-
-    CompressibleString(const LChar* str, size_t len)
-        : String()
-        , m_compressedLength(0)
-    {
-        Latin1StringData data;
-        data.append(str, len);
-        initBufferAccessData(data);
-    }
+    CompressibleString(Context* context, const char* str, size_t len);
+    CompressibleString(Context* context, const LChar* str, size_t len);
 
     // 16bit string constructor
+    CompressibleString(Context* context, const char16_t* str, size_t len);
 
-    explicit CompressibleString(UTF16StringData&& src)
-        : String()
-        , m_compressedLength(0)
-    {
-        UTF16StringData data = std::move(src);
-        initBufferAccessData(data);
-    }
+    // from already allocated buffer
+    CompressibleString(Context* context, void* buffer, size_t stringLength, bool is8bit);
 
-    CompressibleString(const char16_t* str, size_t len)
-        : String()
-        , m_compressedLength(0)
-    {
-        UTF16StringData data;
-        data.append(str, len);
-        initBufferAccessData(data);
-    }
-
-    virtual bool isCompressibleString()
+    virtual bool isCompressibleString() override
     {
         return true;
     }
 
-    virtual char16_t charAt(const size_t idx) const
-    {
-        return bufferAccessData().charAt(idx);
-    }
-    virtual UTF16StringData toUTF16StringData() const;
-    virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
+    virtual UTF16StringData toUTF16StringData() const override;
+    virtual UTF8StringData toUTF8StringData() const override;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const override;
 
-    virtual const LChar* characters8() const
+    virtual const LChar* characters8() const override
     {
         return (const LChar*)bufferAccessData().buffer;
     }
 
-    virtual const char16_t* characters16() const
+    virtual const char16_t* characters16() const override
     {
         return (const char16_t*)bufferAccessData().buffer;
     }
 
-    virtual void bufferAccessDataSpecialImpl()
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
     {
-        ASSERT(m_bufferAccessData.hasSpecialImpl);
-        decompress();
-        ASSERT(!m_bufferAccessData.hasSpecialImpl);
+        m_lastUsedTickcount = fastTickCount();
+        if (isCompressed()) {
+            decompress();
+        }
+        return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer));
     }
 
     bool isCompressed()
     {
-        // m_bufferAccessData.hasSpecialImpl represents compression status
-        return m_bufferAccessData.hasSpecialImpl;
+        return m_isCompressed;
     }
 
     void* operator new(size_t);
     void* operator new[](size_t) = delete;
     void operator delete[](void*) = delete;
 
+    static void* allocateStringDataBuffer(size_t byteLength);
+    static void deallocateStringDataBuffer(void* ptr);
+
     bool compress();
-    bool decompress();
+    void decompress();
 
 private:
-    void initBufferAccessData(Latin1StringData& stringData)
-    {
-        m_bufferAccessData.has8BitContent = true;
-        m_bufferAccessData.length = stringData.length();
-        m_bufferAccessData.buffer = stringData.takeBuffer();
-    }
+    void initBufferAccessData(void* data, size_t len, bool is8bit);
 
-    void initBufferAccessData(UTF16StringData& stringData)
+    size_t decomressedBufferSize()
     {
-        m_bufferAccessData.has8BitContent = false;
-        m_bufferAccessData.length = stringData.length();
-        m_bufferAccessData.buffer = stringData.takeBuffer();
+        if (isCompressed()) {
+            return 0;
+        } else {
+            return m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2);
+        }
     }
 
     template <typename StringType>
-    bool compressWorker();
+    NEVER_INLINE bool compressWorker(void* callerSP);
     template <typename StringType>
-    bool decompressWorker();
+    NEVER_INLINE void decompressWorker();
 
-    int m_compressedLength; // compressed length in byte
+    bool m_isOwnerMayFreed;
+    bool m_isCompressed;
+    Context* m_context;
+    uint64_t m_lastUsedTickcount;
+    typedef std::vector<std::vector<char>> CompressedDataVector;
+    CompressedDataVector m_compressedData;
 };
 }
 
-#endif // ENABLE_SOURCE_COMPRESSION
+#endif // ENABLE_COMPRESSIBLE_STRING
 
 #endif

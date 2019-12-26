@@ -46,6 +46,21 @@ inline void clearStack()
 #error
 #endif
 
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+inline void* currentStackPointer()
+{
+    return __builtin_frame_address(0);
+}
+#elif defined(COMPILER_MSVC)
+inline void* currentStackPointer()
+{
+    volatile int temp;
+    return &temp;
+}
+#else
+#error
+#endif
+
 class StorePositiveIntergerAsOdd {
 public:
     StorePositiveIntergerAsOdd(const size_t& src = 0)
@@ -63,6 +78,7 @@ private:
     size_t m_data;
 };
 
+uint64_t fastTickCount(); // increase 1000 by 1 second(fast version. not super accurate)
 uint64_t tickCount(); // increase 1000 by 1 second
 uint64_t longTickCount(); // increase 1000000 by 1 second
 uint64_t timestamp(); // increase 1000 by 1 second

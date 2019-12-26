@@ -21,6 +21,7 @@
 #define __EscargotLexer__
 
 #include "parser/esprima_cpp/esprima.h"
+#include "parser/ParserStringView.h"
 
 namespace Escargot {
 
@@ -280,8 +281,9 @@ public:
             KeywordKind valueKeywordKind;
         };
 
+        ParserStringView relatedSource(const ParserStringView& source);
         StringView relatedSource(const StringView& source);
-        StringView valueStringLiteral(Scanner* scannerInstance);
+        ParserStringView valueStringLiteral(Scanner* scannerInstance);
         Value valueStringLiteralToValue(Scanner* scannerInstance);
         double valueNumberLiteral(Scanner* scannerInstance);
 
@@ -453,15 +455,17 @@ public:
             this->type = InvalidToken;
         }
 
+        ParserStringView relatedSource(const ParserStringView& source) const;
         StringView relatedSource(const StringView& source) const;
     };
 
     // ScannerResult should be allocated on the stack by ALLOCA
     COMPILE_ASSERT(sizeof(ScannerResult) < 512, "");
 
-    StringView source;
+    ParserStringView source;
+    StringView sourceAsNormalView;
     ::Escargot::Context* escargotContext;
-    // trackComment: boolean;
+    StringBufferAccessData sourceCodeAccessData;
 
     size_t length;
     size_t index;
@@ -487,6 +491,11 @@ public:
         ErrorHandler::throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
     }
 
+    ALWAYS_INLINE char16_t sourceCharAt(const size_t idx) const
+    {
+        return sourceCodeAccessData.charAt(idx);
+    }
+
     // ECMA-262 11.4 Comments
 
     void skipSingleLineComment(void);
@@ -496,20 +505,20 @@ public:
     {
         bool start = (this->index == 0);
         while (LIKELY(!this->eof())) {
-            char16_t ch = this->source.bufferedCharAt(this->index);
+            char16_t ch = this->sourceCharAt(this->index);
 
             if (isWhiteSpace(ch)) {
                 ++this->index;
             } else if (isLineTerminator(ch)) {
                 ++this->index;
-                if (ch == 0x0D && this->source.bufferedCharAt(this->index) == 0x0A) {
+                if (ch == 0x0D && this->sourceCharAt(this->index) == 0x0A) {
                     ++this->index;
                 }
                 ++this->lineNumber;
                 this->lineStart = this->index;
                 start = true;
             } else if (ch == 0x2F) { // U+002F is '/'
-                ch = this->source.bufferedCharAt(this->index + 1);
+                ch = this->sourceCharAt(this->index + 1);
                 if (ch == 0x2F) {
                     this->index += 2;
                     this->skipSingleLineComment();
@@ -522,7 +531,7 @@ public:
                 }
             } else if (start && ch == 0x2D) { // U+002D is '-'
                 // U+003E is '>'
-                if ((this->source.bufferedCharAt(this->index + 1) == 0x2D) && (this->source.bufferedCharAt(this->index + 2) == 0x3E)) {
+                if ((this->sourceCharAt(this->index + 1) == 0x2D) && (this->sourceCharAt(this->index + 2) == 0x3E)) {
                     // '-->' is a single-line comment
                     this->index += 3;
                     this->skipSingleLineComment();
@@ -531,9 +540,9 @@ public:
                 }
             } else if (ch == 0x3C) { // U+003C is '<'
                 if (this->length > this->index + 4) {
-                    if (this->source.bufferedCharAt(this->index + 1) == '!'
-                        && this->source.bufferedCharAt(this->index + 2) == '-'
-                        && this->source.bufferedCharAt(this->index + 3) == '-') {
+                    if (this->sourceCharAt(this->index + 1) == '!'
+                        && this->sourceCharAt(this->index + 2) == '-'
+                        && this->sourceCharAt(this->index + 3) == '-') {
                         this->index += 4; // `<!--`
                         this->skipSingleLineComment();
                     } else {
@@ -549,13 +558,13 @@ public:
         }
     }
 
-    bool isFutureReservedWord(const StringView& id);
+    bool isFutureReservedWord(const ParserStringView& id);
 
     void convertToKeywordInStrictMode(ScannerResult* token)
     {
         ASSERT(token->type == Token::IdentifierToken);
 
-        const StringView& keyword = token->relatedSource(this->source);
+        const auto& keyword = token->relatedSource(this->source);
         if (keyword.equals("let")) {
             token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::LetKeyword);
         } else if (keyword.equals("yield")) {
@@ -617,9 +626,9 @@ public:
     char32_t codePointAt(size_t i)
     {
         char32_t cp, first, second;
-        cp = this->source.bufferedCharAt(i);
+        cp = this->sourceCharAt(i);
         if (cp >= 0xD800 && cp <= 0xDBFF) {
-            second = this->source.bufferedCharAt(i + 1);
+            second = this->sourceCharAt(i + 1);
             if (second >= 0xDC00 && second <= 0xDFFF) {
                 first = cp;
                 cp = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
@@ -640,12 +649,12 @@ public:
 private:
     ALWAYS_INLINE char16_t peekCharWithoutEOF()
     {
-        return this->source.bufferedCharAt(this->index);
+        return this->sourceCharAt(this->index);
     }
 
     ALWAYS_INLINE char16_t peekChar()
     {
-        return UNLIKELY(this->eof()) ? 0 : this->source.bufferedCharAt(this->index);
+        return UNLIKELY(this->eof()) ? 0 : this->sourceCharAt(this->index);
     }
 
     char32_t scanHexEscape(char prefix);

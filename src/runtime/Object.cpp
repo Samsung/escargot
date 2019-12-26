@@ -95,6 +95,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_isSpreadArrayObject = false;
     m_shouldUpdateEnumerateObject = false;
     m_hasNonWritableLastIndexRegexpObject = false;
+    m_arrayObjectFastModeBufferExpandCount = 0;
     m_extraData = nullptr;
     m_internalSlot = nullptr;
 }
@@ -1628,29 +1629,43 @@ Value Object::speciesConstructor(ExecutionState& state, const Value& defaultCons
 String* Object::optionString(ExecutionState& state)
 {
     char flags[6] = { 0 };
-    int flags_idx = 0;
+    size_t flagsIdx = 0;
+    size_t cacheIndex = 0;
 
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, this).toBoolean(state)) {
-        flags[flags_idx++] = 'g';
+        flags[flagsIdx++] = 'g';
+        cacheIndex |= 1 << 0;
     }
 
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, this).toBoolean(state)) {
-        flags[flags_idx++] = 'i';
+        flags[flagsIdx++] = 'i';
+        cacheIndex |= 1 << 1;
     }
 
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, this).toBoolean(state)) {
-        flags[flags_idx++] = 'm';
+        flags[flagsIdx++] = 'm';
+        cacheIndex |= 1 << 2;
     }
 
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean(state)) {
-        flags[flags_idx++] = 'u';
+        flags[flagsIdx++] = 'u';
+        cacheIndex |= 1 << 3;
     }
 
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean(state)) {
-        flags[flags_idx++] = 'y';
+        flags[flagsIdx++] = 'y';
+        cacheIndex |= 1 << 4;
     }
 
-    return new ASCIIString(flags);
+    ASCIIString* result;
+    auto cache = state.context()->vmInstance()->regexpOptionStringCache();
+    if (cache[cacheIndex]) {
+        result = cache[cacheIndex];
+    } else {
+        result = cache[cacheIndex] = new ASCIIString(flags, flagsIdx);
+    }
+
+    return result;
 }
 
 bool Object::isRegExp(ExecutionState& state)

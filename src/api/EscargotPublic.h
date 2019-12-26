@@ -774,10 +774,16 @@ public:
     static StringRef* createExternalFromLatin1(const unsigned char* s, size_t len);
     static StringRef* createExternalFromUTF16(const char16_t* s, size_t len);
 
-#if defined(ENABLE_SOURCE_COMPRESSION)
-    static StringRef* createFromUTF8ToCompressibleString(const char* s, size_t len);
-    static StringRef* createCompressibleString(const unsigned char* s, size_t len);
-#endif
+    // you can use these functions only if you enabled source compression
+    // you don't need to use CompressibleString when string is small(~128KB)
+    static bool isCompressibleStringEnabled();
+    static StringRef* createFromUTF8ToCompressibleString(ContextRef* context, const char* s, size_t len);
+    static StringRef* createFromUTF16ToCompressibleString(ContextRef* context, const char16_t* s, size_t len);
+    static StringRef* createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len);
+    static StringRef* createFromLatin1ToCompressibleString(ContextRef* context, const unsigned char* s, size_t len);
+    static void* allocateStringDataBufferForCompressibleString(size_t byteLength);
+    static void deallocateStringDataBufferForCompressibleString(void* ptr);
+    static StringRef* createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit /* is ASCII or Latin1 */);
 
     static StringRef* emptyString();
 
@@ -789,7 +795,7 @@ public:
 
     std::string toStdUTF8String();
 
-    // don't store this sturct
+    // don't store this sturct or string buffer
     // this is only for temporary access
     struct StringBufferAccessDataRef {
         bool has8BitContent;

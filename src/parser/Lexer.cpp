@@ -472,9 +472,19 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     throw * error;
 };
 
+ParserStringView Scanner::SmallScannerResult::relatedSource(const ParserStringView& source) const
+{
+    return ParserStringView(source, this->start, this->end);
+}
+
 StringView Scanner::SmallScannerResult::relatedSource(const StringView& source) const
 {
     return StringView(source, this->start, this->end);
+}
+
+ParserStringView Scanner::ScannerResult::relatedSource(const ParserStringView& source)
+{
+    return ParserStringView(source, this->start, this->end);
 }
 
 StringView Scanner::ScannerResult::relatedSource(const StringView& source)
@@ -495,22 +505,22 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
         return this->valueStringLiteralData.m_stringIfNewlyAllocated;
     }
 
-    return new StringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
+    return new StringView(scannerInstance->sourceAsNormalView, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
 }
 
-StringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
+ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
 {
     if (this->type == Token::KeywordToken) {
         AtomicString as = keywordToString(scannerInstance->escargotContext, this->valueKeywordKind);
-        return StringView(as.string(), 0, as.string()->length());
+        return ParserStringView(as.string(), 0, as.string()->length());
     }
     if (this->hasAllocatedString) {
         if (!this->valueStringLiteralData.m_stringIfNewlyAllocated) {
             constructStringLiteral(scannerInstance);
         }
-        return StringView(this->valueStringLiteralData.m_stringIfNewlyAllocated);
+        return ParserStringView(this->valueStringLiteralData.m_stringIfNewlyAllocated);
     }
-    return StringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
+    return ParserStringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
 }
 
 double Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
@@ -656,8 +666,10 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
 }
 
 Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, size_t startLine, size_t startColumn)
-    : source(code)
+    : source(code, 0, code.length())
+    , sourceAsNormalView(code)
     , escargotContext(escargotContext)
+    , sourceCodeAccessData(code.bufferAccessData())
     , length(code.length())
     , index(0)
     , lineNumber(((length > 0) ? 1 : 0) + startLine)
@@ -773,15 +785,8 @@ Scanner::ScanIDResult Scanner::getIdentifier()
     }
 
     const auto& srcData = this->source.bufferAccessData();
-    StringBufferAccessData ad;
-
-    ad.has8BitContent = srcData.has8BitContent;
-    ad.length = this->index - start;
-    if (srcData.has8BitContent) {
-        ad.buffer = ((LChar*)srcData.buffer) + start;
-    } else {
-        ad.buffer = ((char16_t*)srcData.buffer) + start;
-    }
+    StringBufferAccessData ad(srcData.has8BitContent, this->index - start,
+                              srcData.has8BitContent ? reinterpret_cast<void*>(((LChar*)srcData.buffer) + start) : reinterpret_cast<void*>(((char16_t*)srcData.buffer) + start));
 
     return std::make_tuple(ad, nullptr);
 }
@@ -896,7 +901,7 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
 
     case '.':
         kind = Period;
-        if (this->peekChar() == '.' && this->source.bufferedCharAt(this->index + 1) == '.') {
+        if (this->peekChar() == '.' && this->sourceCharAt(this->index + 1) == '.') {
             // Spread operator "..."
             this->index += 2;
             kind = PeriodPeriodPeriod;
@@ -1227,7 +1232,7 @@ bool Scanner::isImplicitOctalLiteral()
     // Implicit octal, unless there is a non-octal digit.
     // (Annex B.1.1 on Numeric Literals)
     for (size_t i = this->index + 1; i < this->length; ++i) {
-        const char16_t ch = this->source.bufferedCharAt(i);
+        const char16_t ch = this->sourceCharAt(i);
         if (ch == '8' || ch == '9') {
             return false;
         }
@@ -1402,7 +1407,7 @@ void Scanner::scanStringLiteral(Scanner::ScannerResult* token)
     }
 }
 
-bool Scanner::isFutureReservedWord(const StringView& id)
+bool Scanner::isFutureReservedWord(const ParserStringView& id)
 {
     const StringBufferAccessData& data = id.bufferAccessData();
     switch (data.length) {
@@ -1508,7 +1513,7 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                 }
                 auto endIndex = this->index;
                 for (size_t i = currentIndex; i < endIndex; i++) {
-                    raw += this->source.bufferedCharAt(i);
+                    raw += this->sourceCharAt(i);
                 }
             } else {
                 ++this->index;
@@ -1897,7 +1902,7 @@ void Scanner::lex(Scanner::ScannerResult* token)
 
     // Dot (.) U+002E can also start a floating-point number, hence the need
     // to check the next character.
-    if (UNLIKELY(cp == 0x2E) && isDecimalDigit(this->source.bufferedCharAt(this->index + 1))) {
+    if (UNLIKELY(cp == 0x2E) && isDecimalDigit(this->sourceCharAt(this->index + 1))) {
         this->scanNumericLiteral(token);
         return;
     }

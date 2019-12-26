@@ -192,6 +192,28 @@ static char *timeValueFromFile(const char *filename, const char *tag, char *valu
 }
 #endif
 
+static std::string extractLocaleName(std::string input)
+{
+    if (input.find('.') != std::string::npos) {
+        input = input.substr(0, input.find('.'));
+    }
+    return input;
+}
+
+
+std::string ICU::findSystemLocale()
+{
+    char* c = getenv("LANG");
+    if (c && strlen(c)) {
+        return extractLocaleName(c);
+    }
+    c = setlocale(LC_CTYPE, "");
+    if (c && strlen(c)) {
+        return extractLocaleName(c);
+    }
+    return ICU::instance().uloc_getDefault();
+}
+
 std::string ICU::findSystemTimezoneName()
 {
 #if defined(OS_POSIX)

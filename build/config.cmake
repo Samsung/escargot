@@ -98,6 +98,10 @@ IF (${ESCARGOT_HOST} STREQUAL "android")
     SET (ESCARGOT_LIBICU_SUPPORT OFF)
 ENDIF()
 
+#######################################################
+# FLAGS FOR ADDITIONAL FUNCTION
+#######################################################
+
 FIND_PACKAGE (PkgConfig REQUIRED)
 IF (${ESCARGOT_LIBICU_SUPPORT} STREQUAL "ON")
     IF (${ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN} STREQUAL "ON")
@@ -126,6 +130,8 @@ IF (${ESCARGOT_HOST} STREQUAL "tizen_obs")
     SET (ESCARGOT_INCDIRS ${ESCARGOT_INCDIRS} ${DLOG_INCLUDE_DIRS})
     SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} ${DLOG_CFLAGS_OTHER})
 ENDIF()
+
+SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_COMPRESSIBLE_STRING)
 
 #######################################################
 # flags for $(MODE) : debug/release

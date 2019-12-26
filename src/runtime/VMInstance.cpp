@@ -24,8 +24,11 @@
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/JobQueue.h"
+#include "runtime/CompressibleString.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ASTAllocator.h"
+
+#include <pthread.h>
 
 namespace Escargot {
 
@@ -92,6 +95,33 @@ bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self
 
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+
+#define COMPRESSIBLE_COMPRESS_CHECK_INTERVAL 1000
+#define COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL 1000
+#define COMPRESSIBLE_COMPRESS_MIN_SIZE 1024 * 128
+
+void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
+{
+    auto& currentAllocatedCompressibleStrings = compressibleStrings();
+    const size_t& currentAllocatedCompressibleStringsCount = currentAllocatedCompressibleStrings.size();
+    size_t mostBigIndex = SIZE_MAX;
+
+    for (size_t i = 0; i < currentAllocatedCompressibleStringsCount; i++) {
+        if (!currentAllocatedCompressibleStrings[i]->isCompressed() && currentTickCount - currentAllocatedCompressibleStrings[i]->m_lastUsedTickcount > COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL && currentAllocatedCompressibleStrings[i]->decomressedBufferSize() > COMPRESSIBLE_COMPRESS_MIN_SIZE) {
+            if (mostBigIndex == SIZE_MAX) {
+                mostBigIndex = i;
+            } else if (currentAllocatedCompressibleStrings[i]->decomressedBufferSize() > currentAllocatedCompressibleStrings[mostBigIndex]->decomressedBufferSize()) {
+                mostBigIndex = i;
+            }
+        }
+    }
+
+    if (mostBigIndex != SIZE_MAX) {
+        currentAllocatedCompressibleStrings[mostBigIndex]->compress();
+    }
+}
+#endif
 
 void VMInstance::gcEventCallback(GC_EventType t, void* data)
 {
@@ -111,6 +141,13 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
             }
         }
     } else if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+        auto currentTick = fastTickCount();
+        if (currentTick - self->m_lastCompressibleStringsTestTime > COMPRESSIBLE_COMPRESS_CHECK_INTERVAL) {
+            self->compressStringsIfNeeds(currentTick);
+            self->m_lastCompressibleStringsTestTime = currentTick;
+        }
+#endif
         auto& currentCodeSizeTotal = self->compiledByteCodeSize();
 
         if (currentCodeSizeTotal == std::numeric_limits<size_t>::max()) {
@@ -172,6 +209,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_bumpPointerAllocator));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_platform));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
@@ -184,11 +222,20 @@ void* VMInstance::operator new(size_t size)
 
 VMInstance::~VMInstance()
 {
-    auto& v = compiledByteCodeBlocks();
-    for (size_t i = 0; i < v.size(); i++) {
-        v[i]->m_isOwnerMayFreed = true;
+    {
+        auto& v = compiledByteCodeBlocks();
+        for (size_t i = 0; i < v.size(); i++) {
+            v[i]->m_isOwnerMayFreed = true;
+        }
     }
-
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    {
+        auto& v = compressibleStrings();
+        for (size_t i = 0; i < v.size(); i++) {
+            v[i]->m_isOwnerMayFreed = true;
+        }
+    }
+#endif
     m_isFinalized = true;
     GC_remove_event_callback(gcEventCallback, this);
     if (m_onVMInstanceDestroy) {
@@ -207,6 +254,10 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_isFinalized(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    , m_lastCompressibleStringsTestTime(0)
+    , m_compressibleStringsUncomressedBufferSize(0)
+#endif
     , m_onVMInstanceDestroy(nullptr)
     , m_onVMInstanceDestroyData(nullptr)
     , m_cachedUTC(nullptr)
@@ -219,6 +270,20 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     },
                                    nullptr, nullptr, nullptr);
 
+
+    pthread_attr_t attr;
+    RELEASE_ASSERT(pthread_getattr_np(pthread_self(), &attr) == 0);
+
+    size_t size;
+    RELEASE_ASSERT(pthread_attr_getstack(&attr, &m_stackStartAddress, &size) == 0);
+    pthread_attr_destroy(&attr);
+#ifdef STACK_GROWS_DOWN
+    m_stackStartAddress = (char*)m_stackStartAddress + size;
+#endif
+
+    // test stack base property aligned
+    RELEASE_ASSERT(((size_t)m_stackStartAddress) % sizeof(size_t) == 0);
+
     if (!String::emptyString) {
         String::emptyString = new (NoGC) ASCIIString("");
     }
@@ -226,6 +291,9 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
     m_bumpPointerAllocator = new (PointerFreeGC) WTF::BumpPointerAllocator();
     m_regexpCache = new (GC) RegExpCacheMap();
+    m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(32 * sizeof(ASCIIString*));
+    memset(m_regexpOptionStringCache, 0, 32 * sizeof(ASCIIString*));
+
 #ifdef ENABLE_ICU
     m_timezone = nullptr;
     if (timezone) {
@@ -241,7 +309,17 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     } else if (getenv("LOCALE") && strlen(getenv("LOCALE"))) {
         m_locale = getenv("LOCALE");
     } else {
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        m_locale = RuntimeICUBinder::ICU::findSystemLocale();
+#else
         m_locale = uloc_getDefault();
+#endif
+    }
+#endif
+
+#if defined(ESCARGOT_ENABLE_TEST)
+    if (getenv("RANDOM_SEED_ZERO")) {
+        m_randEngine = std::mt19937(0);
     }
 #endif
 
