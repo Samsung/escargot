@@ -82,6 +82,11 @@ typedef union {
     } xparts;
 } ieee_double_shape_type;
 
+#define __HI(x) *(1 + (int *)&x)
+#define __LO(x) *(int *)&x
+#define __HIp(x) *(1 + (int *)x)
+#define __LOp(x) *(int *)x
+
 #else
 
 typedef union {
@@ -94,6 +99,11 @@ typedef union {
         uint64_t w;
     } xparts;
 } ieee_double_shape_type;
+
+#define __HI(x) *(int *)&x
+#define __LO(x) *(1 + (int *)&x)
+#define __HIp(x) *(int *)x
+#define __LOp(x) *(1 + (int *)x)
 
 #endif
 
@@ -191,7 +201,7 @@ int32_t __ieee754_rem_pio2(double x, double *y)
     /*
    * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
    */
-    static const int32_t two_over_pi[] = {
+    constexpr int32_t two_over_pi[] = {
         0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62, 0x95993C,
         0x439041, 0xFE5163, 0xABDEBB, 0xC561B7, 0x246E3A, 0x424DD2, 0xE00649,
         0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129, 0xA73EE8, 0x8235F5, 0x2EBB44,
@@ -204,7 +214,7 @@ int32_t __ieee754_rem_pio2(double x, double *y)
         0x73A8C9, 0x60E27B, 0xC08C6B,
     };
 
-    static const int32_t npio2_hw[] = {
+    constexpr int32_t npio2_hw[] = {
         0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C,
         0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C,
         0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB, 0x403AB41B, 0x403C463A,
@@ -223,7 +233,7 @@ int32_t __ieee754_rem_pio2(double x, double *y)
    * pio2_3t:  pi/2 - (pio2_1+pio2_2+pio2_3)
    */
 
-    static const double
+    constexpr double
         zero
         = 0.00000000000000000000e+00, /* 0x00000000, 0x00000000 */
         half = 5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
@@ -378,7 +388,7 @@ int32_t __ieee754_rem_pio2(double x, double *y)
  */
 ALWAYS_INLINE double __kernel_cos(double x, double y)
 {
-    static const double
+    constexpr double
         one
         = 1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
         C1 = 4.16666666666666019037e-02, /* 0x3FA55555, 0x5555554C */
@@ -525,9 +535,9 @@ int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec,
    * compiler will convert from decimal to binary accurately enough
    * to produce the hexadecimal values shown.
    */
-    static const int init_jk[] = { 2, 3, 4, 6 }; /* initial value for jk */
+    constexpr int init_jk[] = { 2, 3, 4, 6 }; /* initial value for jk */
 
-    static const double PIo2[] = {
+    constexpr double PIo2[] = {
         1.57079625129699707031e+00, /* 0x3FF921FB, 0x40000000 */
         7.54978941586159635335e-08, /* 0x3E74442D, 0x00000000 */
         5.39030252995776476554e-15, /* 0x3CF84698, 0x80000000 */
@@ -538,7 +548,7 @@ int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec,
         2.16741683877804819444e-51, /* 0x3569F31D, 0x00000000 */
     };
 
-    static const double
+    constexpr double
         zero
         = 0.0,
         one = 1.0,
@@ -760,7 +770,7 @@ recompute:
  */
 ALWAYS_INLINE double __kernel_sin(double x, double y, int iy)
 {
-    static const double
+    constexpr double
         half
         = 5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
         S1 = -1.66666666666666324348e-01, /* 0xBFC55555, 0x55555549 */
@@ -822,7 +832,7 @@ ALWAYS_INLINE double __kernel_sin(double x, double y, int iy)
  */
 double __kernel_tan(double x, double y, int iy)
 {
-    static const double xxx[] = {
+    constexpr double xxx[] = {
         3.33333333333334091986e-01, /* 3FD55555, 55555563 */
         1.33333333333201242699e-01, /* 3FC11111, 1110FE7A */
         5.39682539762260521377e-02, /* 3FABA1BA, 1BB341FE */
@@ -950,7 +960,7 @@ double __kernel_tan(double x, double y, int iy)
  */
 double acos(double x)
 {
-    static const double
+    constexpr double
         one
         = 1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
         pi = 3.14159265358979311600e+00, /* 0x400921FB, 0x54442D18 */
@@ -1027,7 +1037,7 @@ double acos(double x)
  */
 double acosh(double x)
 {
-    static const double
+    constexpr double
         one
         = 1.0,
         ln2 = 6.93147180559945286227e-01; /* 0x3FE62E42, 0xFEFA39EF */
@@ -1084,7 +1094,7 @@ double acosh(double x)
  */
 double asin(double x)
 {
-    static const double
+    constexpr double
         one
         = 1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
         huge = 1.000e+300,
@@ -1161,7 +1171,7 @@ double asin(double x)
  */
 double asinh(double x)
 {
-    static const double
+    constexpr double
         one
         = 1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
         ln2 = 6.93147180559945286227e-01, /* 0x3FE62E42, 0xFEFA39EF */
@@ -1213,21 +1223,21 @@ double asinh(double x)
  */
 double atan(double x)
 {
-    static const double atanhi[] = {
+    constexpr double atanhi[] = {
         4.63647609000806093515e-01, /* atan(0.5)hi 0x3FDDAC67, 0x0561BB4F */
         7.85398163397448278999e-01, /* atan(1.0)hi 0x3FE921FB, 0x54442D18 */
         9.82793723247329054082e-01, /* atan(1.5)hi 0x3FEF730B, 0xD281F69B */
         1.57079632679489655800e+00, /* atan(inf)hi 0x3FF921FB, 0x54442D18 */
     };
 
-    static const double atanlo[] = {
+    constexpr double atanlo[] = {
         2.26987774529616870924e-17, /* atan(0.5)lo 0x3C7A2B7F, 0x222F65E2 */
         3.06161699786838301793e-17, /* atan(1.0)lo 0x3C81A626, 0x33145C07 */
         1.39033110312309984516e-17, /* atan(1.5)lo 0x3C700788, 0x7AF0CBBD */
         6.12323399573676603587e-17, /* atan(inf)lo 0x3C91A626, 0x33145C07 */
     };
 
-    static const double aT[] = {
+    constexpr double aT[] = {
         3.33333333333329318027e-01, /* 0x3FD55555, 0x5555550D */
         -1.99999999998764832476e-01, /* 0xBFC99999, 0x9998EBC4 */
         1.42857142725034663711e-01, /* 0x3FC24924, 0x920083FF */
@@ -1241,7 +1251,7 @@ double atan(double x)
         1.62858201153657823623e-02, /* 0x3F90AD3A, 0xE322DA11 */
     };
 
-    static const double one = 1.0, huge = 1.0e300;
+    constexpr double one = 1.0, huge = 1.0e300;
 
     double w, s1, s2, z;
     int32_t ix, hx, id;
@@ -1325,14 +1335,14 @@ double atan(double x)
  */
 double atan2(double y, double x)
 {
-    static volatile double tiny = 1.0e-300;
-    static const double
+    constexpr volatile double tiny = 1.0e-300;
+    constexpr double
         zero
         = 0.0,
         pi_o_4 = 7.8539816339744827900E-01, /* 0x3FE921FB, 0x54442D18 */
         pi_o_2 = 1.5707963267948965580E+00, /* 0x3FF921FB, 0x54442D18 */
         pi = 3.1415926535897931160E+00; /* 0x400921FB, 0x54442D18 */
-    static volatile double pi_lo = 1.2246467991473531772E-16; /* 0x3CA1A626, 0x33145C07 */
+    constexpr volatile double pi_lo = 1.2246467991473531772E-16; /* 0x3CA1A626, 0x33145C07 */
 
     double z;
     int32_t k, m, hx, hy, ix, iy;
@@ -1542,7 +1552,7 @@ double cos(double x)
  */
 double exp(double x)
 {
-    static const double
+    constexpr double
         one
         = 1.0,
         halF[2] = { 0.5, -0.5 },
@@ -1560,7 +1570,7 @@ double exp(double x)
         P5 = 4.13813679705723846039e-08, /* 0x3E663769, 0x72BEA4D0 */
         E = 2.718281828459045; /* 0x4005BF0A, 0x8B145769 */
 
-    static volatile double
+    constexpr volatile double
         huge
         = 1.0e+300,
         twom1000 = 9.33263618503218878990e-302, /* 2**-1000=0x01700000,0*/
@@ -1657,8 +1667,8 @@ double exp(double x)
  */
 double atanh(double x)
 {
-    static const double one = 1.0, huge = 1e300;
-    static const double zero = 0.0;
+    constexpr double one = 1.0, huge = 1e300;
+    constexpr double zero = 0.0;
 
     double t;
     int32_t hx, ix;
@@ -1736,7 +1746,7 @@ double atanh(double x)
  */
 double log(double x)
 {
-    static const double /* -- */
+    constexpr double /* -- */
         ln2_hi
         = 6.93147180369123816490e-01, /* 3fe62e42 fee00000 */
         ln2_lo = 1.90821492927058770002e-10, /* 3dea39ef 35793c76 */
@@ -1749,8 +1759,8 @@ double log(double x)
         Lg6 = 1.531383769920937332e-01, /* 3FC39A09 D078C69F */
         Lg7 = 1.479819860511658591e-01; /* 3FC2F112 DF3E5244 */
 
-    static const double zero = 0.0;
-    static volatile double vzero = 0.0;
+    constexpr double zero = 0.0;
+    constexpr volatile double vzero = 0.0;
 
     double hfsq, f, s, z, R, w, t1, t2, dk;
     int32_t k, hx, i, j;
@@ -1883,7 +1893,7 @@ double log(double x)
  */
 double log1p(double x)
 {
-    static const double /* -- */
+    constexpr double /* -- */
         ln2_hi
         = 6.93147180369123816490e-01, /* 3fe62e42 fee00000 */
         ln2_lo = 1.90821492927058770002e-10, /* 3dea39ef 35793c76 */
@@ -1896,8 +1906,8 @@ double log1p(double x)
         Lp6 = 1.531383769920937332e-01, /* 3FC39A09 D078C69F */
         Lp7 = 1.479819860511658591e-01; /* 3FC2F112 DF3E5244 */
 
-    static const double zero = 0.0;
-    static volatile double vzero = 0.0;
+    constexpr double zero = 0.0;
+    constexpr volatile double vzero = 0.0;
 
     double hfsq, f, c, s, z, R, u;
     int32_t k, hx, hu, ax;
@@ -2041,7 +2051,7 @@ double log1p(double x)
  * to produce the hexadecimal values shown.
  */
 
-static const double Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
+constexpr double Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
     Lg2 = 3.999999999940941908e-01, /* 3FD99999 9997FA04 */
     Lg3 = 2.857142874366239149e-01, /* 3FD24924 94229359 */
     Lg4 = 2.222219843214978396e-01, /* 3FCC71C5 1D8E78AF */
@@ -2078,14 +2088,14 @@ static inline double k_log1p(double f)
  */
 double log2(double x)
 {
-    static const double
+    constexpr double
         two54
         = 1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
         ivln2hi = 1.44269504072144627571e+00, /* 0x3FF71547, 0x65200000 */
         ivln2lo = 1.67517131648865118353e-10; /* 0x3DE705FC, 0x2EEFA200 */
 
-    static const double zero = 0.0;
-    static volatile double vzero = 0.0;
+    constexpr double zero = 0.0;
+    constexpr volatile double vzero = 0.0;
 
     double f, hfsq, hi, lo, r, val_hi, val_lo, w, y;
     int32_t i, k, hx;
@@ -2189,15 +2199,15 @@ double log2(double x)
  */
 double log10(double x)
 {
-    static const double
+    constexpr double
         two54
         = 1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
         ivln10 = 4.34294481903251816668e-01,
         log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
         log10_2lo = 3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
 
-    static const double zero = 0.0;
-    static volatile double vzero = 0.0;
+    constexpr double zero = 0.0;
+    constexpr volatile double vzero = 0.0;
 
     double y;
     int32_t i, k, hx;
@@ -2328,7 +2338,7 @@ double log10(double x)
  */
 double expm1(double x)
 {
-    static const double
+    constexpr double
         one
         = 1.0,
         tiny = 1.0e-300,
@@ -2344,7 +2354,7 @@ double expm1(double x)
         Q4 = 4.00821782732936239552e-06, /* 3ED0CFCA 86E65239 */
         Q5 = -2.01099218183624371326e-07; /* BE8AFDB7 6E09C32D */
 
-    static volatile double huge = 1.0e+300;
+    constexpr volatile double huge = 1.0e+300;
 
     double y, hi, lo, c, t, e, hxs, hfx, r1, twopk;
     int32_t k, xsb;
@@ -2449,13 +2459,13 @@ double expm1(double x)
 
 double cbrt(double x)
 {
-    static const uint32_t
+    constexpr uint32_t
         B1
         = 715094163, /* B1 = (1023-1023/3-0.03306235651)*2**20 */
         B2 = 696219795; /* B2 = (1023-1023/3-54/3-0.03306235651)*2**20 */
 
     /* |1/cbrt(x) - p(x)| < 2**-23.5 (~[-7.93e-8, 7.929e-8]). */
-    static const double P0 = 1.87595182427177009643, /* 0x3FFE03E6, 0x0F61E692 */
+    constexpr double P0 = 1.87595182427177009643, /* 0x3FFE03E6, 0x0F61E692 */
         P1 = -1.88497979543377169875, /* 0xBFFE28E0, 0x92F02420 */
         P2 = 1.621429720105354466140, /* 0x3FF9F160, 0x4A49D6C2 */
         P3 = -0.758397934778766047437, /* 0xBFE844CB, 0xBEE751D9 */
@@ -2676,9 +2686,9 @@ double tan(double x)
  */
 double cosh(double x)
 {
-    static const double KCOSH_OVERFLOW = 710.4758600739439;
-    static const double one = 1.0, half = 0.5;
-    static volatile double huge = 1.0e+300;
+    constexpr double KCOSH_OVERFLOW = 710.4758600739439;
+    constexpr double one = 1.0, half = 0.5;
+    constexpr volatile double huge = 1.0e+300;
 
     int32_t ix;
 
@@ -2742,10 +2752,10 @@ double cosh(double x)
  */
 double sinh(double x)
 {
-    static const double KSINH_OVERFLOW = 710.4758600739439,
-                        TWO_M28 = 3.725290298461914e-9, // 2^-28, empty lower half
+    constexpr double KSINH_OVERFLOW = 710.4758600739439,
+                     TWO_M28 = 3.725290298461914e-9, // 2^-28, empty lower half
         LOG_MAXD = 709.7822265625; // 0x40862E42 00000000, empty lower half
-    static const double shuge = 1.0e307;
+    constexpr double shuge = 1.0e307;
 
     double h = (x < 0) ? -0.5 : 0.5;
     // |x| in [0, 22]. return sign(x)*0.5*(E+E/(E+1))
@@ -2800,8 +2810,8 @@ double sinh(double x)
  */
 double tanh(double x)
 {
-    static const volatile double tiny = 1.0e-300;
-    static const double one = 1.0, two = 2.0, huge = 1.0e300;
+    constexpr volatile double tiny = 1.0e-300;
+    constexpr double one = 1.0, two = 2.0, huge = 1.0e300;
     double t, z;
     int32_t jx, ix;
 
@@ -2833,6 +2843,64 @@ double tanh(double x)
         z = one - tiny; /* raise inexact flag */
     }
     return (jx >= 0) ? z : -z;
+}
+
+double ceil(double x)
+{
+    constexpr double huge = 1.0e300;
+    int i0, i1, j0;
+    unsigned i, j;
+    i0 = __HI(x);
+    i1 = __LO(x);
+    j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
+    if (j0 < 20) {
+        if (j0 < 0) { /* raise inexact if x != 0 */
+            if (huge + x > 0.0) { /* return 0*sign(x) if |x|<1 */
+                if (i0 < 0) {
+                    i0 = 0x80000000;
+                    i1 = 0;
+                } else if ((i0 | i1) != 0) {
+                    i0 = 0x3ff00000;
+                    i1 = 0;
+                }
+            }
+        } else {
+            i = (0x000fffff) >> j0;
+            if (((i0 & i) | i1) == 0)
+                return x; /* x is integral */
+            if (huge + x > 0.0) { /* raise inexact flag */
+                if (i0 > 0)
+                    i0 += (0x00100000) >> j0;
+                i0 &= (~i);
+                i1 = 0;
+            }
+        }
+    } else if (j0 > 51) {
+        if (j0 == 0x400)
+            return x + x; /* inf or NaN */
+        else
+            return x; /* x is integral */
+    } else {
+        i = ((unsigned)(0xffffffff)) >> (j0 - 20);
+        if ((i1 & i) == 0)
+            return x; /* x is integral */
+        if (huge + x > 0.0) { /* raise inexact flag */
+            if (i0 > 0) {
+                if (j0 == 20)
+                    i0 += 1;
+                else {
+                    j = i1 + (1 << (52 - j0));
+                    if (j < (unsigned)i1)
+                        i0 += 1; /* got a carry */
+                    i1 = j;
+                }
+            }
+            i1 &= (~i);
+        }
+    }
+    __HI(x) = i0;
+    __LO(x) = i1;
+    return x;
 }
 
 } // namespace ieee754

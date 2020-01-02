@@ -291,7 +291,10 @@ static Value builtinMathCbrt(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathCeil(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     double x = argv[0].toNumber(state);
-    return Value(ceil(x));
+
+    // I add custom ceil implementation
+    // because I found some problem from gcc implementation about negative zero
+    return Value(ieee754::ceil(x));
 }
 
 static Value builtinMathClz32(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

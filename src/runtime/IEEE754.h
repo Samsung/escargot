@@ -90,6 +90,8 @@ double sinh(double x);
 // Returns the hyperbolic tangent of |x|, where |x| is given radians.
 double tanh(double x);
 
+double ceil(double x);
+
 } // namespace ieee754
 } // namespace Escargot
 

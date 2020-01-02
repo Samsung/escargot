@@ -258,6 +258,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
         return Value();
     }
     int32_t normalizedStringLength = unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), nullptr, 0, &status);
+
     if (U_FAILURE(status) && status != U_BUFFER_OVERFLOW_ERROR) {
         // when normalize fails.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
@@ -267,6 +268,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
     ret.resizeWithUninitializedValues(normalizedStringLength);
     status = U_ZERO_ERROR;
     unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), (UChar*)ret.data(), normalizedStringLength, &status);
+
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
         return Value();
@@ -809,7 +811,11 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         const LChar* buf = str->characters8();
         bool result = true;
         for (size_t i = 0; i < len; i++) {
+#if defined(ENABLE_ICU)
             char32_t u2 = u_tolower(buf[i]);
+#else
+            char32_t u2 = tolower(buf[i]);
+#endif
             if (UNLIKELY(u2 > 255)) {
                 result = false;
                 break;
@@ -835,7 +841,12 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         char32_t c;
         size_t iBefore = i;
         U16_NEXT(buf, i, len, c);
+
+#if defined(ENABLE_ICU)
         c = u_tolower(c);
+#else
+        c = tolower(c);
+#endif
         if (c <= 0x10000) {
             char16_t c2 = (char16_t)c;
             buf[iBefore] = c2;
@@ -857,7 +868,11 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         const LChar* buf = str->characters8();
         bool result = true;
         for (size_t i = 0; i < len; i++) {
+#if defined(ENABLE_ICU)
             char32_t u2 = u_toupper(buf[i]);
+#else
+            char32_t u2 = toupper(buf[i]);
+#endif
             if (UNLIKELY(u2 > 255)) {
                 result = false;
                 break;
@@ -883,7 +898,11 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         char32_t c;
         size_t iBefore = i;
         U16_NEXT(buf, i, len, c);
+#if defined(ENABLE_ICU)
         c = u_toupper(c);
+#else
+        c = toupper(c);
+#endif
         if (c <= 0x10000) {
             char16_t c2 = (char16_t)c;
             buf[iBefore] = c2;

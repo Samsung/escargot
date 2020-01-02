@@ -3342,7 +3342,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& s
 NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     ExecutionState* es = &state;
-    while (es) {
+    while (true) {
         if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
             break;
         }

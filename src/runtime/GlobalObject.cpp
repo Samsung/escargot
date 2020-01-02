@@ -1127,7 +1127,8 @@ const Vector<String*, gc_allocator<String*>>& GlobalObject::intlCollatorAvailabl
     if (m_intlCollatorAvailableLocales.size() == 0) {
         auto count = ucol_countAvailable();
         for (int32_t i = 0; i < count; ++i) {
-            String* locale = String::fromASCII(ucol_getAvailable(i));
+            const char* l = ucol_getAvailable(i);
+            String* locale = String::fromUTF8(l, strlen(l));
             locale = icuLocaleToBCP47Tag(locale);
             m_intlCollatorAvailableLocales.pushBack(locale);
         }
@@ -1140,7 +1141,8 @@ const Vector<String*, gc_allocator<String*>>& GlobalObject::intlDateTimeFormatAv
     if (m_intlDateTimeFormatAvailableLocales.size() == 0) {
         auto count = udat_countAvailable();
         for (int32_t i = 0; i < count; ++i) {
-            String* locale = String::fromASCII(udat_getAvailable(i));
+            const char* l = udat_getAvailable(i);
+            String* locale = String::fromUTF8(l, strlen(l));
             locale = icuLocaleToBCP47Tag(locale);
             m_intlDateTimeFormatAvailableLocales.pushBack(locale);
         }
@@ -1153,7 +1155,8 @@ const Vector<String*, gc_allocator<String*>>& GlobalObject::intlNumberFormatAvai
     if (m_intlNumberFormatAvailableLocales.size() == 0) {
         auto count = unum_countAvailable();
         for (int32_t i = 0; i < count; ++i) {
-            String* locale = String::fromASCII(unum_getAvailable(i));
+            const char* l = unum_getAvailable(i);
+            String* locale = String::fromUTF8(l, strlen(l));
             locale = icuLocaleToBCP47Tag(locale);
             m_intlNumberFormatAvailableLocales.pushBack(locale);
         }

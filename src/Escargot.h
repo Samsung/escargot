@@ -209,9 +209,15 @@
 #include <random>
 
 #ifdef ENABLE_ICU
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+typedef unsigned char LChar;
+#include "RuntimeICUBinder.h"
+#include "ICUPolyfill.h"
+#else
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/datefmt.h>
+#include <unicode/vtzone.h>
 #include <unicode/unorm.h> // for normalize builtin function of String
 #include <unicode/ucol.h> // for Intl
 #include <unicode/urename.h> // for Intl
@@ -219,7 +225,23 @@
 #include <unicode/udat.h> // for Intl
 #include <unicode/udatpg.h> // for Intl
 #include <unicode/unum.h> // for Intl
+
+// FIXME replace these vzone decl into include
+// I declare vzone api because there is no header file in include folder
+extern "C" {
+// VZone c api
+struct VZone;
+VZone* vzone_openID(const UChar* ID, int32_t idLength);
+void vzone_close(VZone* zone);
+UBool vzone_getTZURL(VZone* zone, UChar*& url, int32_t& urlLength);
+void vzone_getOffset3(VZone* zone, UDate date, UBool local, int32_t& rawOffset,
+                      int32_t& dstOffset, UErrorCode& ec);
+int32_t vzone_getRawOffset(VZone* zone);
+}
+#endif
+
 #else
+
 typedef char16_t UChar;
 typedef unsigned char LChar;
 typedef int32_t UChar32;
@@ -245,17 +267,14 @@ typedef int32_t UChar32;
 #define U16_LENGTH(c) ((uint32_t)(c) <= 0xffff ? 1 : 2)
 #define U_IS_BMP(c) ((uint32_t)(c) <= 0xffff)
 #define UCHAR_MAX_VALUE 0x10ffff
+#endif
 
-#define u_tolower tolower
-#define u_toupper toupper
 #ifndef TRUE
 #define TRUE 1
 #endif
 
 #ifndef FALSE
 #define FALSE 0
-#endif
-
 #endif
 
 #define ESCARGOT_LOG_INFO(...) fprintf(stdout, __VA_ARGS__);
