@@ -275,14 +275,14 @@ static int equivalentYearForDST(int year)
 // e.g. return (t - 32400*1000) on KST zone
 time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 {
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU)
     UErrorCode succ = U_ZERO_ERROR;
 #endif
-    int32_t stdOffset, dstOffset;
+    int32_t stdOffset = 0, dstOffset = 0;
 
 // roughly check range before calling yearFromTime function
-#ifdef ENABLE_ICU
-    stdOffset = state.context()->vmInstance()->timezone()->getRawOffset();
+#if defined(ENABLE_ICU)
+    stdOffset = vzone_getRawOffset(state.context()->vmInstance()->timezone());
 #else
     stdOffset = 0;
 #endif
@@ -301,15 +301,15 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
     time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
 
     t += msBetweenYears;
-#ifdef ENABLE_ICU
-    state.context()->vmInstance()->timezone()->getOffset(t, true, stdOffset, dstOffset, succ);
+#if defined(ENABLE_ICU)
+    vzone_getOffset3(state.context()->vmInstance()->timezone(), t, true, stdOffset, dstOffset, succ);
 #else
     dstOffset = 0;
 #endif
     t -= msBetweenYears;
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU)
     // range check should be completed by caller function
-    if (succ == U_ZERO_ERROR) {
+    if (!U_FAILURE(succ)) {
         return t - (stdOffset + dstOffset);
     }
     return TIME64NAN;
@@ -1122,12 +1122,10 @@ void DateObject::resolveCache(ExecutionState& state)
 
     t += msBetweenYears;
 
-#ifdef ENABLE_ICU
-    UErrorCode succ = U_ZERO_ERROR;
-#endif
     int32_t stdOffset = 0, dstOffset = 0;
-#ifdef ENABLE_ICU
-    state.context()->vmInstance()->timezone()->getOffset(t, false, stdOffset, dstOffset, succ);
+#if defined(ENABLE_ICU)
+    UErrorCode succ = U_ZERO_ERROR;
+    vzone_getOffset3(state.context()->vmInstance()->timezone(), t, true, stdOffset, dstOffset, succ);
 #endif
 
     m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
@@ -1246,18 +1244,46 @@ String* DateObject::toUTCString(ExecutionState& state, String* functionName)
     }
 }
 
+#if defined(ENABLE_ICU)
+static String* formatDateTimeString(ExecutionState& state, DateObject* self, bool isDate)
+{
+    UChar* buf = (UChar*)alloca(sizeof(UChar) * (state.context()->vmInstance()->timezoneID().size() + 1));
+    int32_t len = state.context()->vmInstance()->timezoneID().size();
+    buf[len] = 0;
+    for (int32_t i = 0; i < len; i++) {
+        buf[i] = state.context()->vmInstance()->timezoneID()[i];
+    }
+    UDateFormat* format = nullptr;
+    UErrorCode err = U_ZERO_ERROR;
+    if (isDate) {
+        udat_open(UDateFormatStyle::UDAT_NONE, UDateFormatStyle::UDAT_MEDIUM, state.context()->vmInstance()->locale().data(),
+                  buf, len, nullptr, 0, &err);
+    } else {
+        udat_open(UDateFormatStyle::UDAT_MEDIUM, UDateFormatStyle::UDAT_NONE, state.context()->vmInstance()->locale().data(),
+                  buf, len, nullptr, 0, &err);
+    }
+    UFieldPosition field;
+    field.field = -1;
+    field.endIndex = field.beginIndex = 0;
+    int32_t bufSize;
+
+    bufSize = udat_format(format, self->primitiveValue(), nullptr, 0, &field, &err);
+
+    char16_t* result = (char16_t*)alloca(sizeof(char16_t) * (bufSize + 1));
+    result[bufSize] = 0;
+
+    udat_format(format, self->primitiveValue(), result, bufSize, &field, &err);
+    udat_close(format);
+
+    return new UTF16String(result, bufSize);
+}
+#endif
+
 String* DateObject::toLocaleDateString(ExecutionState& state)
 {
     if (IS_VALID_TIME(m_primitiveValue)) {
-#ifdef ENABLE_ICU
-        icu::UnicodeString myString;
-        icu::DateFormat* df = icu::DateFormat::createDateInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
-        df->setTimeZone(*state.context()->vmInstance()->timezone());
-        df->format(primitiveValue(), myString);
-
-        delete df;
-
-        return new UTF16String(myString);
+#if defined(ENABLE_ICU)
+        return formatDateTimeString(state, this, true);
 #else
         return toDateString(state);
 #endif
@@ -1269,14 +1295,8 @@ String* DateObject::toLocaleDateString(ExecutionState& state)
 String* DateObject::toLocaleTimeString(ExecutionState& state)
 {
     if (IS_VALID_TIME(m_primitiveValue)) {
-#ifdef ENABLE_ICU
-        icu::UnicodeString myString;
-        icu::DateFormat* tf = icu::DateFormat::createTimeInstance(icu::DateFormat::MEDIUM, state.context()->vmInstance()->locale());
-        tf->format(primitiveValue(), myString);
-
-        delete tf;
-
-        return new UTF16String(myString);
+#if defined(ENABLE_ICU)
+        return formatDateTimeString(state, this, false);
 #else
         return toTimeString(state);
 #endif

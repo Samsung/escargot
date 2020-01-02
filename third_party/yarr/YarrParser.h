@@ -1043,12 +1043,20 @@ private:
 
     bool isIdentifierStart(int ch)
     {
+#if defined(ENABLE_ICU)
         return (WTF::isASCII(ch) && (WTF::isASCIIAlpha(ch) || ch == '_' || ch == '$')) || (U_GET_GC_MASK(ch) & U_GC_L_MASK);
+#else
+        return (WTF::isASCII(ch) && (WTF::isASCIIAlpha(ch) || ch == '_' || ch == '$'));
+#endif
     }
 
     bool isIdentifierPart(int ch)
     {
+#if defined(ENABLE_ICU)
         return (WTF::isASCII(ch) && (WTF::isASCIIAlpha(ch) || ch == '_' || ch == '$')) || (U_GET_GC_MASK(ch) & (U_GC_L_MASK | U_GC_MN_MASK | U_GC_MC_MASK | U_GC_ND_MASK | U_GC_PC_MASK)) || ch == 0x200C || ch == 0x200D;
+#else
+        return (WTF::isASCII(ch) && (WTF::isASCIIAlpha(ch) || ch == '_' || ch == '$')) || ch == 0x200C || ch == 0x200D;
+#endif
     }
 
     bool isUnicodePropertyValueExpressionChar(int ch)

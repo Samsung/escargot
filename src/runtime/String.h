@@ -640,19 +640,6 @@ public:
         m_bufferAccessData.has8BitContent = false;
     }
 
-#ifdef ENABLE_ICU
-    explicit UTF16String(icu::UnicodeString& src)
-        : String()
-    {
-        UTF16StringData str;
-        size_t srclen = src.length();
-        for (size_t i = 0; i < srclen; i++) {
-            str.push_back(src.charAt(i));
-        }
-        initBufferAccessData(str);
-    }
-#endif
-
     void initBufferAccessData(UTF16StringData& stringData)
     {
         m_bufferAccessData.has8BitContent = false;

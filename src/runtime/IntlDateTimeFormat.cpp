@@ -177,9 +177,9 @@ static void toDateTimeOptionsTest(ExecutionState& state, Value options, const ch
 
 static String* defaultTimeZone(ExecutionState& state)
 {
-    icu::UnicodeString s;
-    state.context()->vmInstance()->timezone()->getID(s);
-    return new UTF16String(s);
+    // ensure timezone
+    state.context()->vmInstance()->timezone();
+    return String::fromUTF8(state.context()->vmInstance()->timezoneID().data(), state.context()->vmInstance()->timezoneID().length());
 }
 
 Object* IntlDateTimeFormat::create(ExecutionState& state, Value locales, Value options)

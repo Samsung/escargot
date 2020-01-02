@@ -44,12 +44,13 @@
  */
 
 #include "Escargot.h"
-#include "Context.h"
-#include "ExecutionState.h"
-#include "Value.h"
-#include "Object.h"
-#include "ArrayObject.h"
-#include "Intl.h"
+#include "runtime/Context.h"
+#include "runtime/ExecutionState.h"
+#include "runtime/Value.h"
+#include "runtime/Object.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/Intl.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
@@ -1097,8 +1098,7 @@ static String* icuLocaleToBCP47Tag(String* string)
 
 static String* defaultLocale(ExecutionState& state)
 {
-    const char* locale = uloc_getDefault();
-    String* localeString = String::fromUTF8(locale, strlen(locale));
+    String* localeString = String::fromUTF8(state.context()->vmInstance()->locale().data(), state.context()->vmInstance()->locale().length());
     return icuLocaleToBCP47Tag(localeString);
 }
 

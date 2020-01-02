@@ -196,7 +196,7 @@ VMInstance::~VMInstance()
     }
     clearCaches();
 #ifdef ENABLE_ICU
-    delete m_timezone;
+    vzone_close(m_timezone);
 #endif
     delete m_astAllocator;
 }
@@ -237,11 +237,11 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     }
 
     if (locale) {
-        m_locale = icu::Locale::createFromName(locale);
-    } else if (getenv("LOCALE")) {
-        m_locale = icu::Locale::createFromName(getenv("LOCALE"));
+        m_locale = locale;
+    } else if (getenv("LOCALE") && strlen(getenv("LOCALE"))) {
+        m_locale = getenv("LOCALE");
     } else {
-        m_locale = icu::Locale::getDefault();
+        m_locale = uloc_getDefault();
     }
 #endif
 
@@ -319,6 +319,40 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
     m_jobQueue = new JobQueue();
 }
+
+#if defined(ENABLE_ICU)
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+static std::string findTimezone()
+{
+    return RuntimeICUBinder::ICU::findSystemTimezoneName();
+}
+#else
+static std::string findTimezone()
+{
+    auto tz = icu::TimeZone::detectHostTimeZone();
+    icu::UnicodeString id;
+    tz->getID(id);
+    delete tz;
+    std::string r;
+    id.toUTF8String(r);
+    return r;
+}
+#endif
+
+
+void VMInstance::ensureTimezone()
+{
+    if (m_timezoneID == "") {
+        m_timezoneID = findTimezone();
+    } else {
+        tzset();
+    }
+
+    auto u16 = utf8StringToUTF16String(m_timezoneID.data(), m_timezoneID.size());
+    m_timezone = vzone_openID(u16.data(), u16.size());
+}
+#endif
 
 void VMInstance::clearCaches()
 {

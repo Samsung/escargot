@@ -89,18 +89,18 @@ public:
         return m_globalSymbolRegistry;
     }
 
-#ifdef ENABLE_ICU
-    icu::Locale& locale()
+#if defined(ENABLE_ICU)
+    const std::string& locale()
     {
         return m_locale;
     }
 
-    void setLocale(icu::Locale locale)
+    const std::string& timezoneID()
     {
-        m_locale = locale;
+        return m_timezoneID;
     }
 
-    icu::TimeZone* timezone()
+    VZone* timezone()
     {
         if (m_timezone == nullptr) {
             ensureTimezone();
@@ -108,23 +108,7 @@ public:
         return m_timezone;
     }
 
-    void ensureTimezone()
-    {
-        if (m_timezoneID == "") {
-            icu::TimeZone* tz = icu::TimeZone::createDefault();
-            ASSERT(tz != nullptr);
-            tz->getID(m_timezoneID);
-            m_timezone = tz;
-        } else {
-            tzset();
-            m_timezone = (icu::TimeZone::createTimeZone(m_timezoneID));
-        }
-    }
-
-    void setTimezoneID(icu::UnicodeString id)
-    {
-        m_timezoneID = id;
-    }
+    void ensureTimezone();
 #endif
     DateObject* cachedUTC() const
     {
@@ -257,9 +241,9 @@ private:
 
 // date object data
 #ifdef ENABLE_ICU
-    icu::Locale m_locale;
-    icu::TimeZone* m_timezone;
-    icu::UnicodeString m_timezoneID;
+    std::string m_locale;
+    VZone* m_timezone;
+    std::string m_timezoneID;
 #endif
     DateObject* m_cachedUTC;
 

@@ -121,7 +121,7 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value&
 
     auto wrapper = thisObject->asArrayBufferView();
     ArrayBufferObject* buffer = wrapper->buffer();
-    if (!buffer && buffer->isDetachedBuffer()) {
+    if (!buffer || buffer->isDetachedBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
     }
     return buffer;

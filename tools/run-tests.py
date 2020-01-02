@@ -172,7 +172,7 @@ def run_test262(engine, arch):
 
     out = open('test262_out', 'w')
 
-    run(['python', join('tools', 'packaging', 'test262.py'),
+    run(['pypy', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--full-summary'],
         cwd=TEST262_DIR,
@@ -199,7 +199,7 @@ def run_test262_strict(engine, arch):
 
     out = open('test262-strict_out', 'w')
 
-    run(['python', join('tools', 'packaging', 'test262.py'),
+    run(['pypy', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--full-summary',
          '--strict_only'],
@@ -230,7 +230,7 @@ def run_test262_nonstrict(engine, arch):
 
     out = open('test262-nonstrict_out', 'w')
 
-    run(['python', join('tools', 'packaging', 'test262.py'),
+    run(['pypy', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--full-summary',
          '--non_strict_only'],
