@@ -245,7 +245,6 @@ public:
             , octal(false)
             , hasAllocatedString(false)
             , hasNonComputedNumberLiteral(false)
-            , hasKeywordButUseString(false)
             , prec(0)
             , lineNumber(0)
             , lineStart(0)
@@ -263,7 +262,6 @@ public:
         bool octal : 1;
         bool hasAllocatedString : 1;
         bool hasNonComputedNumberLiteral : 1;
-        bool hasKeywordButUseString : 1;
         unsigned char prec : 8; // max prec is 11
         // we don't needs init prec.
         // prec is initialized by another function before use
@@ -304,7 +302,6 @@ public:
             this->octal = false;
             this->hasAllocatedString = false;
             this->hasNonComputedNumberLiteral = false;
-            this->hasKeywordButUseString = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -319,7 +316,6 @@ public:
             this->octal = false;
             this->hasAllocatedString = false;
             this->hasNonComputedNumberLiteral = false;
-            this->hasKeywordButUseString = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -334,7 +330,6 @@ public:
             this->octal = false;
             this->hasAllocatedString = false;
             this->hasNonComputedNumberLiteral = false;
-            this->hasKeywordButUseString = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -347,7 +342,6 @@ public:
             this->type = type;
             this->startWithZero = false;
             this->octal = octal;
-            this->hasKeywordButUseString = true;
             this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
@@ -363,7 +357,6 @@ public:
             this->type = type;
             this->startWithZero = false;
             this->octal = octal;
-            this->hasKeywordButUseString = true;
             this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
@@ -382,7 +375,6 @@ public:
             this->startWithZero = false;
             this->octal = false;
             this->hasAllocatedString = false;
-            this->hasKeywordButUseString = true;
             this->hasNonComputedNumberLiteral = hasNonComputedNumberLiteral;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
@@ -397,7 +389,6 @@ public:
             this->startWithZero = false;
             this->octal = false;
             this->hasAllocatedString = false;
-            this->hasKeywordButUseString = true;
             this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
@@ -559,6 +550,34 @@ public:
     }
 
     bool isFutureReservedWord(const StringView& id);
+
+    void convertToKeywordInStrictMode(ScannerResult* token)
+    {
+        ASSERT(token->type == Token::IdentifierToken);
+
+        const StringView& keyword = token->relatedSource(this->source);
+        if (keyword.equals("let")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::LetKeyword);
+        } else if (keyword.equals("yield")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::YieldKeyword);
+        } else if (keyword.equals("static")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::StaticKeyword);
+        } else if (keyword.equals("public")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::PublicKeyword);
+        } else if (keyword.equals("private")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::PrivateKeyword);
+        } else if (keyword.equals("package")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::PackageKeyword);
+        } else if (keyword.equals("protected")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::ProtectedKeyword);
+        } else if (keyword.equals("interface")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::InterfaceKeyword);
+        } else if (keyword.equals("implements")) {
+            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::ImplementsKeyword);
+        } else {
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
 
     template <typename T>
     bool isStrictModeReservedWord(const T& id)

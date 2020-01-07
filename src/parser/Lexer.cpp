@@ -484,7 +484,7 @@ StringView Scanner::ScannerResult::relatedSource(const StringView& source)
 
 Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance)
 {
-    if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
+    if (this->type == Token::KeywordToken) {
         return keywordToString(scannerInstance->escargotContext, this->valueKeywordKind).string();
     }
 
@@ -500,7 +500,7 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
 
 StringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
 {
-    if (this->type == Token::KeywordToken && !this->hasKeywordButUseString) {
+    if (this->type == Token::KeywordToken) {
         AtomicString as = keywordToString(scannerInstance->escargotContext, this->valueKeywordKind);
         return StringView(as.string(), 0, as.string()->length());
     }

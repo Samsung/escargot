@@ -278,7 +278,7 @@ public:
         this->hasLineTerminator = false;
 
         if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
-            next->type = Token::KeywordToken;
+            this->scanner->convertToKeywordInStrictMode(next);
         }
     }
 
@@ -657,7 +657,7 @@ public:
         this->hasLineTerminator = tokenLineNumber != next->lineNumber;
 
         if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
-            next->type = Token::KeywordToken;
+            this->scanner->convertToKeywordInStrictMode(next);
         }
         //this->lookahead = *next;
 
@@ -4548,35 +4548,31 @@ public:
     // ECMA-262 14.1.1 Directive Prologues
 
     template <class ASTBuilder>
-    ASTNode parseDirective(ASTBuilder& builder, bool& useStrict)
+    ASTNode parseDirective(ASTBuilder& builder)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-        bool isLiteral = false;
-        useStrict = false;
+        ASSERT(token->type == StringLiteralToken);
+
+        // check strict mode early before lexing of following tokens
+        if (!token->hasAllocatedString && token->valueStringLiteral(this->scanner).equals("use strict")) {
+            this->currentScopeContext->m_isStrict = this->context->strict = true;
+        }
 
         MetaNode node = this->createNode();
         ASTNode expr = this->parseExpression(builder);
-        if (expr->type() == Literal) {
-            isLiteral = true;
-            if (token->valueStringLiteral(this->scanner).equals("use strict")) {
-                useStrict = true;
-            }
-        }
         this->consumeSemicolon();
 
-        if (isLiteral) {
+        if (expr->type() == Literal) {
             return this->finalize(node, builder.createDirectiveNode(expr));
-        } else {
-            return this->finalize(node, builder.createExpressionStatementNode(expr));
         }
+        return this->finalize(node, builder.createExpressionStatementNode(expr));
     }
 
     template <class ASTBuilder>
     void parseDirectivePrologues(ASTBuilder& builder, ASTStatementContainer container)
     {
         ASSERT(container);
-        bool useStrict = false;
         Scanner::SmallScannerResult firstRestricted;
 
         ALLOC_TOKEN(token);
@@ -4586,15 +4582,14 @@ public:
                 break;
             }
 
-            ASTNode statement = this->parseDirective(builder, useStrict);
+            ASTNode statement = this->parseDirective(builder);
             container->appendChild(statement);
 
             if (statement->type() != Directive) {
                 break;
             }
 
-            if (!token->hasAllocatedString && useStrict) {
-                this->currentScopeContext->m_isStrict = this->context->strict = true;
+            if (this->context->strict) {
                 if (firstRestricted) {
                     this->throwUnexpectedToken(firstRestricted, Messages::StrictOctalLiteral);
                 }
@@ -4856,7 +4851,7 @@ public:
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
 
-            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->valueStringLiteral(this->scanner) == "static") {
+            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->relatedSource(this->scanner->source) == "static") {
                 *token = this->lookahead;
                 isStatic = true;
                 computed = this->match(LeftSquareBracket);
