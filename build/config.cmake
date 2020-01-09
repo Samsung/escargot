@@ -60,6 +60,10 @@ ELSE()
     MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
 ENDIF()
 
+if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
+    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-ignored-qualifiers)
+endif()
+
 SET (LDFLAGS_FROM_ENV $ENV{LDFLAGS})
 SEPARATE_ARGUMENTS(LDFLAGS_FROM_ENV)
 
