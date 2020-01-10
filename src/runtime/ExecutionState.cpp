@@ -60,6 +60,18 @@ FunctionObject* ExecutionState::resolveCallee()
     return nullptr;
 }
 
+LexicalEnvironment* ExecutionState::mostNearestFunctionLexicalEnvironment()
+{
+    ExecutionState* es = this;
+    while (true) {
+        if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            break;
+        }
+        es = es->parent();
+    }
+    return es->lexicalEnvironment();
+}
+
 LexicalEnvironment* ExecutionState::mostNearestHeapAllocatedLexicalEnvironment()
 {
     LexicalEnvironment* env = m_lexicalEnvironment;

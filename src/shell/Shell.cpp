@@ -170,12 +170,19 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
             }
         }
         fclose(fp);
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-        if (state) {
-            if (hasNonLatin1Content) {
-                src = StringRef::createFromUTF8ToCompressibleString(state->context(), utf8Str.data(), utf8Str.length());
+        if (StringRef::isCompressibleStringEnabled()) {
+            if (state) {
+                if (hasNonLatin1Content) {
+                    src = StringRef::createFromUTF8ToCompressibleString(state->context(), utf8Str.data(), utf8Str.length());
+                } else {
+                    src = StringRef::createFromLatin1ToCompressibleString(state->context(), str.data(), str.length());
+                }
             } else {
-                src = StringRef::createFromLatin1ToCompressibleString(state->context(), str.data(), str.length());
+                if (hasNonLatin1Content) {
+                    src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length());
+                } else {
+                    src = StringRef::createFromLatin1(str.data(), str.length());
+                }
             }
         } else {
             if (hasNonLatin1Content) {
@@ -184,13 +191,6 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
                 src = StringRef::createFromLatin1(str.data(), str.length());
             }
         }
-#else
-        if (hasNonLatin1Content) {
-            src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length());
-        } else {
-            src = StringRef::createFromLatin1(str.data(), str.length());
-        }
-#endif
         return src;
     } else {
         char msg[1024];

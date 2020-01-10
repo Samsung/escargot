@@ -144,7 +144,9 @@ public:
             auto args = generateArguments(codeBlock, context, false);
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
-            codeBlock->pushCode(CallEvalFunction(ByteCodeLOC(m_loc.index), evalIndex, startIndex, dstRegister, m_arguments.size(), context->m_isWithScope, args.second), context, this);
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
+                                                        REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                context, this);
             return;
         }
 
@@ -163,17 +165,54 @@ public:
             auto args = generateArguments(codeBlock, context);
             ByteCodeRegisterIndex startIndex = args.first;
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-            codeBlock->pushCode(CallFunctionInWithScope(ByteCodeLOC(m_loc.index), calleeName, startIndex, dstRegister, m_arguments.size(), args.second), context, this);
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second,
+                                                        calleeName, startIndex, dstRegister, m_arguments.size()),
+                                context, this);
             return;
         }
 
         bool isCalleeHasReceiver = false;
         bool isSuperCall = m_callee->isSuperExpression() && ((SuperExpressionNode*)m_callee)->isCall();
+        bool maySpecialBuiltinApplyCall = false; // ex) function.apply(<any>, arguments)
+        bool calleeIsMemberExpression = m_callee->isMemberExpression();
 
-        if (m_callee->isMemberExpression()) {
+        if (calleeIsMemberExpression && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
+            if (m_arguments.size() == 2 && codeBlock->m_codeBlock->parameterCount() == 0) {
+                auto node = m_arguments.begin();
+                node = node->next();
+                if (node->astNode()->isIdentifier() && node->astNode()->asIdentifier()->isPointsArgumentsObject(context)) {
+                    maySpecialBuiltinApplyCall = true;
+                }
+            }
+        }
+
+        if (calleeIsMemberExpression) {
             isCalleeHasReceiver = true;
             context->m_inCallingExpressionScope = true;
             context->m_isHeadOfMemberExpression = true;
+        }
+
+        if (maySpecialBuiltinApplyCall) {
+            auto calleeIndex = m_callee->getRegister(codeBlock, context);
+            m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
+            auto receiverIndex = context->getLastRegisterIndex();
+
+            ByteCodeRegisterIndex firstArgumentRegister = m_arguments.begin()->astNode()->getRegister(codeBlock, context);
+            m_arguments.begin()->astNode()->generateExpressionByteCode(codeBlock, context, firstArgumentRegister);
+            // argument 0
+            context->giveUpRegister();
+
+            // callee
+            context->giveUpRegister();
+            context->giveUpRegister();
+
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinApply, false, false,
+                                                        receiverIndex, calleeIndex, firstArgumentRegister, dstRegister, m_arguments.size()),
+                                context, this);
+
+            context->m_inCallingExpressionScope = prevInCallingExpressionScope;
+            context->m_canSkipCopyToRegister = directBefore;
+            return;
         }
 
         ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
@@ -205,9 +244,13 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallSuper(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size(), hasSpreadElement), context, this);
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Super, false, args.second,
+                                                        REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
+                                context, this);
         } else if (hasSpreadElement) {
-            codeBlock->pushCode(CallFunctionWithSpreadElement(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::WithSpreadElement, false, args.second,
+                                                        receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
+                                context, this);
         } else if (isCalleeHasReceiver) {
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
         } else {
@@ -215,7 +258,6 @@ public:
         }
 
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-
         context->m_canSkipCopyToRegister = directBefore;
     }
 

@@ -46,6 +46,17 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
 
+    const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
+    if (bytelength > (GC_get_heap_size() / ratio)) {
+        size_t n = 0;
+        size_t times = bytelength / (GC_get_heap_size() / ratio) / 3;
+        do {
+            GC_gcollect_and_unmap();
+            n += 1;
+        } while (n < times);
+        GC_invoke_finalizers();
+    }
+
     m_data = (uint8_t*)m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, bytelength);
     m_bytelength = bytelength;
 }

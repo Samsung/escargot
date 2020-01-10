@@ -755,6 +755,19 @@ public:
         return functionObject()->homeObject();
     }
 
+    Optional<ArgumentsObject*> argumentsObject()
+    {
+        if (m_argumentsObject->isArgumentsObject()) {
+            return m_argumentsObject;
+        }
+        return nullptr;
+    }
+
+    ArgumentsObject* uncheckedArgumentsObject()
+    {
+        return m_argumentsObject;
+    }
+
     FunctionObject* functionObject()
     {
         if (m_argumentsObject->isArgumentsObject()) {
