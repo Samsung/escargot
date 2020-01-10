@@ -264,6 +264,10 @@ public:
     {
         return m_functionPrototype;
     }
+    FunctionObject* functionApply()
+    {
+        return m_functionApply;
+    }
 
     FunctionObject* error()
     {
@@ -701,6 +705,7 @@ private:
 
     FunctionObject* m_function;
     FunctionObject* m_functionPrototype;
+    FunctionObject* m_functionApply;
 
     Object* m_iteratorPrototype;
 

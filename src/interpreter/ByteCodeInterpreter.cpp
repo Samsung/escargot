@@ -1003,15 +1003,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(CallSuper)
-            :
-        {
-            CallSuper* code = (CallSuper*)programCounter;
-            callSuperOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(CallSuper);
-            NEXT_INSTRUCTION();
-        }
-
         DEFINE_OPCODE(CreateRestElement)
             :
         {
@@ -1029,15 +1020,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
             registerFile[code->m_dstIndex] = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(*state);
             ADD_PROGRAM_COUNTER(LoadThisBinding);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(CallEvalFunction)
-            :
-        {
-            CallEvalFunction* code = (CallEvalFunction*)programCounter;
-            evalOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(CallEvalFunction);
             NEXT_INSTRUCTION();
         }
 
@@ -1219,15 +1201,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(CallFunctionInWithScope)
-            :
-        {
-            CallFunctionInWithScope* code = (CallFunctionInWithScope*)programCounter;
-            callFunctionInWithScope(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(CallFunctionInWithScope);
-            NEXT_INSTRUCTION();
-        }
-
         DEFINE_OPCODE(ReturnFunctionSlowCase)
             :
         {
@@ -1238,36 +1211,20 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             return Value();
         }
 
+        DEFINE_OPCODE(CallFunctionComplexCase)
+            :
+        {
+            CallFunctionComplexCase* code = (CallFunctionComplexCase*)programCounter;
+            callFunctionComplexCase(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(CallFunctionComplexCase);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(ThrowStaticErrorOperation)
             :
         {
             ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
             ErrorObject::throwBuiltinError(*state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage, code->m_templateDataString);
-        }
-
-        DEFINE_OPCODE(CallFunctionWithSpreadElement)
-            :
-        {
-            CallFunctionWithSpreadElement* code = (CallFunctionWithSpreadElement*)programCounter;
-            const Value& callee = registerFile[code->m_calleeIndex];
-            const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
-
-            // if PointerValue is not callable, PointerValue::call function throws builtin error
-            // https://www.ecma-international.org/ecma-262/6.0/#sec-call
-            // If IsCallable(F) is false, throw a TypeError exception.
-            if (UNLIKELY(!callee.isPointerValue())) {
-                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, errorMessage_NOT_Callable);
-            }
-
-            {
-                ValueVector spreadArgs;
-                spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                // Return F.[[Call]](V, argumentsList).
-                registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, spreadArgs.size(), spreadArgs.data());
-            }
-
-            ADD_PROGRAM_COUNTER(CallFunctionWithSpreadElement);
-            NEXT_INSTRUCTION();
         }
 
         DEFINE_OPCODE(NewOperationWithSpreadElement)
@@ -2360,49 +2317,6 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
-{
-    size_t argc;
-    Value* argv;
-    ValueVector spreadArgs;
-
-    if (code->m_hasSpreadElement) {
-        spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-        argv = spreadArgs.data();
-        argc = spreadArgs.size();
-    } else {
-        argc = code->m_argumentCount;
-        argv = &registerFile[code->m_argumentsStartIndex];
-    }
-
-    Value eval = registerFile[code->m_evalIndex];
-    if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
-        // do eval
-        Value arg;
-        if (argc) {
-            arg = argv[0];
-        }
-        Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-        registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
-    } else {
-        Value thisValue;
-        if (code->m_inWithScope) {
-            LexicalEnvironment* env = state.lexicalEnvironment();
-            while (env) {
-                EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
-                if (result.m_hasBindingValue) {
-                    break;
-                }
-                env = env->outerEnvironment();
-            }
-            if (env->record()->isObjectEnvironmentRecord()) {
-                thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
-            }
-        }
-        registerFile[code->m_resultIndex] = Object::call(state, eval, thisValue, argc, argv);
-    }
-}
-
 NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, CreateClass* code, Value* registerFile)
 {
     Value protoParent;
@@ -2521,39 +2435,6 @@ NEVER_INLINE Value ByteCodeInterpreter::superGetObjectOperation(ExecutionState& 
 
     Value object = registerFile[code->m_objectRegisterIndex];
     return object.toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex])).value(state, thisValue);
-}
-
-NEVER_INLINE void ByteCodeInterpreter::callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile)
-{
-    // Let newTarget be GetNewTarget().
-    Object* newTarget = state.getNewTarget();
-    // If newTarget is undefined, throw a ReferenceError exception. <-- we checked this at superOperation
-
-    // Let func be GetSuperConstructor(). <-- superOperation did this to calleeIndex
-
-    // Let argList be ArgumentListEvaluation of Arguments.
-    // ReturnIfAbrupt(argList).
-    size_t argc;
-    Value* argv;
-    ValueVector spreadArgs;
-
-    if (code->m_hasSpreadElement) {
-        spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-        argv = spreadArgs.data();
-        argc = spreadArgs.size();
-    } else {
-        argc = code->m_argumentCount;
-        argv = &registerFile[code->m_argumentsStartIndex];
-    }
-
-    // Let result be Construct(func, argList, newTarget).
-    Value result = Object::construct(state, registerFile[code->m_calleeIndex], argc, argv, newTarget);
-
-    // Let thisER be GetThisEnvironment( ).
-    // Return thisER.BindThisValue(result).
-    EnvironmentRecord* thisER = state.getThisEnvironment();
-    thisER->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, result);
-    registerFile[code->m_resultIndex] = result;
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
@@ -2753,29 +2634,165 @@ NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
 }
 
-NEVER_INLINE void ByteCodeInterpreter::callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
-    const AtomicString& calleeName = code->m_calleeName;
-    // NOTE: record for with scope
-    Object* receiverObj = NULL;
-    Value callee;
-    EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, state.lexicalEnvironment(), calleeName, callee);
-    if (!bindedRecord) {
-        callee = Value();
-    }
+    switch (code->m_kind) {
+    case CallFunctionComplexCase::InWithScope: {
+        const AtomicString& calleeName = code->m_calleeName;
+        // NOTE: record for with scope
+        Object* receiverObj = NULL;
+        Value callee;
+        EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, state.lexicalEnvironment(), calleeName, callee);
+        if (!bindedRecord) {
+            callee = Value();
+        }
 
-    if (bindedRecord && bindedRecord->isObjectEnvironmentRecord()) {
-        receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
-    } else {
-        receiverObj = state.context()->globalObject();
-    }
+        if (bindedRecord && bindedRecord->isObjectEnvironmentRecord()) {
+            receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
+        } else {
+            receiverObj = state.context()->globalObject();
+        }
 
-    if (code->m_hasSpreadElement) {
+        if (code->m_hasSpreadElement) {
+            ValueVector spreadArgs;
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+        } else {
+            registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+        }
+        break;
+    }
+    case CallFunctionComplexCase::MayBuiltinApply: {
+        const Value& callee = registerFile[code->m_calleeIndex];
+        const Value& receiver = registerFile[code->m_receiverIndex];
+        if (UNLIKELY(!callee.isPointerValue() || !receiver.isPointerValue())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+        }
+
+        auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+
+        if (callee.asPointerValue() == state.context()->globalObject()->functionApply()) {
+            if (!functionRecord->argumentsObject()) {
+                Value* v = ALLOCA(sizeof(Value) * state.argc(), Value, state);
+                memcpy(v, state.argv(), sizeof(Value) * state.argc());
+                registerFile[code->m_resultIndex] = receiver.asPointerValue()->call(state, registerFile[code->m_argumentsStartIndex], state.argc(), v);
+                return;
+            }
+        }
+
+        ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile);
+
+        const auto& idInfo = byteCodeBlock->m_codeBlock->identifierInfos();
+        AtomicString argumentsAtomicString = state.context()->staticStrings().arguments;
+        Value argumentsValue;
+        for (size_t i = 0; i < idInfo.size(); i++) {
+            if (idInfo[i].m_name == argumentsAtomicString) {
+                if (idInfo[i].m_needToAllocateOnStack) {
+                    argumentsValue = registerFile[idInfo[i].m_indexForIndexedStorage + byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+                } else {
+                    argumentsValue = functionRecord->getBindingValue(state, argumentsAtomicString).m_value;
+                }
+            }
+        }
+        Value argv[2] = { registerFile[code->m_argumentsStartIndex], argumentsValue };
+        registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, registerFile[code->m_receiverIndex], 2, argv);
+        break;
+    }
+    case CallFunctionComplexCase::MayBuiltinEval: {
+        size_t argc;
+        Value* argv;
         ValueVector spreadArgs;
-        spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-        registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
-    } else {
-        registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+
+        if (code->m_hasSpreadElement) {
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            argv = spreadArgs.data();
+            argc = spreadArgs.size();
+        } else {
+            argc = code->m_argumentCount;
+            argv = &registerFile[code->m_argumentsStartIndex];
+        }
+
+        Value eval = registerFile[code->m_calleeIndex];
+        if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
+            // do eval
+            Value arg;
+            if (argc) {
+                arg = argv[0];
+            }
+            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+            registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
+        } else {
+            Value thisValue;
+            if (code->m_inWithScope) {
+                LexicalEnvironment* env = state.lexicalEnvironment();
+                while (env) {
+                    EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
+                    if (result.m_hasBindingValue) {
+                        break;
+                    }
+                    env = env->outerEnvironment();
+                }
+                if (env->record()->isObjectEnvironmentRecord()) {
+                    thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
+                }
+            }
+            registerFile[code->m_resultIndex] = Object::call(state, eval, thisValue, argc, argv);
+        }
+        break;
+    }
+    case CallFunctionComplexCase::WithSpreadElement: {
+        const Value& callee = registerFile[code->m_calleeIndex];
+        const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
+
+        // if PointerValue is not callable, PointerValue::call function throws builtin error
+        // https://www.ecma-international.org/ecma-262/6.0/#sec-call
+        // If IsCallable(F) is false, throw a TypeError exception.
+        if (UNLIKELY(!callee.isPointerValue())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+        }
+
+        {
+            ValueVector spreadArgs;
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            // Return F.[[Call]](V, argumentsList).
+            registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
+        }
+        break;
+    }
+    case CallFunctionComplexCase::Super: {
+        // Let newTarget be GetNewTarget().
+        Object* newTarget = state.getNewTarget();
+        // If newTarget is undefined, throw a ReferenceError exception. <-- we checked this at superOperation
+
+        // Let func be GetSuperConstructor(). <-- superOperation did this to calleeIndex
+
+        // Let argList be ArgumentListEvaluation of Arguments.
+        // ReturnIfAbrupt(argList).
+        size_t argc;
+        Value* argv;
+        ValueVector spreadArgs;
+
+        if (code->m_hasSpreadElement) {
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            argv = spreadArgs.data();
+            argc = spreadArgs.size();
+        } else {
+            argc = code->m_argumentCount;
+            argv = &registerFile[code->m_argumentsStartIndex];
+        }
+
+        // Let result be Construct(func, argList, newTarget).
+        Value result = Object::construct(state, registerFile[code->m_calleeIndex], argc, argv, newTarget);
+
+        // Let thisER be GetThisEnvironment( ).
+        // Return thisER.BindThisValue(result).
+        EnvironmentRecord* thisER = state.getThisEnvironment();
+        thisER->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, result);
+        registerFile[code->m_resultIndex] = result;
+        break;
+    }
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
     }
 }
 
@@ -3341,17 +3358,9 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& s
 
 NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    ExecutionState* es = &state;
-    while (true) {
-        if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            break;
-        }
-        es = es->parent();
-    }
-
-    auto r = es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-    auto functionObject = r->functionObject()->asScriptFunctionObject();
+    auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+    auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
     bool isMapped = !functionObject->codeBlock()->hasParameterOtherThanIdentifier() && !functionObject->codeBlock()->isStrict();
-    r->functionObject()->asScriptFunctionObject()->generateArgumentsObject(state, state.argc(), state.argv(), r, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
+    functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
 }
 }

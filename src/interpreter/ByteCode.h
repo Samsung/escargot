@@ -75,7 +75,6 @@ struct GlobalVariableAccessCacheItem;
     F(SuperReference, 1, 0)                                 \
     F(SuperSetObjectOperation, 0, 2)                        \
     F(SuperGetObjectOperation, 1, 2)                        \
-    F(CallSuper, -1, 0)                                     \
     F(LoadThisBinding, 0, 0)                                \
     F(ObjectDefineOwnPropertyOperation, 0, 0)               \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0)       \
@@ -108,7 +107,6 @@ struct GlobalVariableAccessCacheItem;
     F(JumpIfEqual, 0, 0)                                    \
     F(CallFunction, -1, 0)                                  \
     F(CallFunctionWithReceiver, -1, 0)                      \
-    F(CallFunctionWithSpreadElement, -1, 0)                 \
     F(GetParameter, 0, 0)                                   \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
@@ -125,8 +123,7 @@ struct GlobalVariableAccessCacheItem;
     F(LoadRegexp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
     F(ObjectDefineGetterSetter, 0, 0)                       \
-    F(CallEvalFunction, 0, 0)                               \
-    F(CallFunctionInWithScope, 0, 0)                        \
+    F(CallFunctionComplexCase, 0, 0)                        \
     F(BindingRestElement, 1, 0)                             \
     F(ExecutionResume, 0, 0)                                \
     F(ExecutionPause, 0, 0)                                 \
@@ -556,34 +553,6 @@ public:
     }
 #endif
 };
-
-class CallSuper : public ByteCode {
-public:
-    CallSuper(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount, bool hasSpreadElement)
-        : ByteCode(Opcode::CallSuperOpcode, loc)
-        , m_calleeIndex(calleeIndex)
-        , m_argumentsStartIndex(argumentsStartIndex)
-        , m_resultIndex(resultIndex)
-        , m_argumentCount(argumentCount)
-        , m_hasSpreadElement(hasSpreadElement)
-    {
-    }
-
-    ByteCodeRegisterIndex m_calleeIndex : REGISTER_INDEX_IN_BIT;
-    ByteCodeRegisterIndex m_argumentsStartIndex : REGISTER_INDEX_IN_BIT;
-    ByteCodeRegisterIndex m_resultIndex : REGISTER_INDEX_IN_BIT;
-    uint16_t m_argumentCount : 16;
-    bool m_hasSpreadElement : 1;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("call super r%d <- super(r%d-r%d)", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
-    }
-#endif
-};
-
-BYTECODE_SIZE_CHECK_IN_32BIT(CallSuper, sizeof(size_t) * 4);
 
 class LoadThisBinding : public ByteCode {
 public:
@@ -1607,85 +1576,71 @@ public:
 #endif
 };
 
-class CallFunctionWithSpreadElement : public ByteCode {
+class CallFunctionComplexCase : public ByteCode {
 public:
-    CallFunctionWithSpreadElement(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
-        : ByteCode(Opcode::CallFunctionWithSpreadElementOpcode, loc)
+    enum Kind {
+        WithSpreadElement,
+        MayBuiltinApply,
+        MayBuiltinEval,
+        InWithScope,
+        Super
+    };
+
+    CallFunctionComplexCase(const ByteCodeLOC& loc, Kind kind,
+                            bool inWithScope, bool hasSpreadElement,
+                            const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallFunctionComplexCaseOpcode, loc)
+        , m_kind(kind)
+        , m_inWithScope(inWithScope)
+        , m_hasSpreadElement(hasSpreadElement)
+        , m_argumentCount(argumentCount)
         , m_receiverIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_resultIndex(resultIndex)
-        , m_argumentCount(argumentCount)
     {
     }
 
-    ByteCodeRegisterIndex m_receiverIndex;
-    ByteCodeRegisterIndex m_calleeIndex;
-    ByteCodeRegisterIndex m_argumentsStartIndex;
-    ByteCodeRegisterIndex m_resultIndex;
-    uint16_t m_argumentCount;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        if (m_receiverIndex != REGISTER_LIMIT) {
-            printf("call(spread) r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
-        } else {
-            printf("call(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
-        }
-    }
-#endif
-};
-
-class CallEvalFunction : public ByteCode {
-public:
-    CallEvalFunction(const ByteCodeLOC& loc, const size_t evalIndex, const size_t argumentsStartIndex, const size_t resultIndex, size_t argumentCount, bool inWithScope, bool hasSpreadElement)
-        : ByteCode(Opcode::CallEvalFunctionOpcode, loc)
-        , m_evalIndex(evalIndex)
-        , m_argumentsStartIndex(argumentsStartIndex)
-        , m_resultIndex(resultIndex)
-        , m_argumentCount(argumentCount)
-        , m_inWithScope(inWithScope)
+    CallFunctionComplexCase(const ByteCodeLOC& loc, bool hasSpreadElement,
+                            AtomicString calleeName, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallFunctionComplexCaseOpcode, loc)
+        , m_kind(InWithScope)
+        , m_inWithScope(true)
         , m_hasSpreadElement(hasSpreadElement)
-    {
-    }
-    ByteCodeRegisterIndex m_evalIndex;
-    ByteCodeRegisterIndex m_argumentsStartIndex;
-    ByteCodeRegisterIndex m_resultIndex;
-    uint16_t m_argumentCount;
-    bool m_inWithScope : 1;
-    bool m_hasSpreadElement : 1;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("call eval r%d <- r%d, r%d-r%d", (int)m_resultIndex, (int)m_evalIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
-    }
-#endif
-};
-
-class CallFunctionInWithScope : public ByteCode {
-public:
-    CallFunctionInWithScope(const ByteCodeLOC& loc, const AtomicString& calleeName, const size_t argumentsStartIndex, const size_t resultIndex, size_t argumentCount, bool hasSpreadElement)
-        : ByteCode(Opcode::CallFunctionInWithScopeOpcode, loc)
+        , m_argumentCount(argumentCount)
         , m_calleeName(calleeName)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_resultIndex(resultIndex)
-        , m_argumentCount(argumentCount)
-        , m_hasSpreadElement(hasSpreadElement)
     {
     }
 
-    AtomicString m_calleeName;
+    Kind m_kind : 3;
+    bool m_inWithScope : 1;
+    bool m_hasSpreadElement : 1;
+    uint16_t m_argumentCount : 16;
+
+    union {
+        struct {
+            ByteCodeRegisterIndex m_receiverIndex;
+            ByteCodeRegisterIndex m_calleeIndex;
+        };
+        AtomicString m_calleeName; // used with InWithScope
+    };
     ByteCodeRegisterIndex m_argumentsStartIndex;
     ByteCodeRegisterIndex m_resultIndex;
-    uint16_t m_argumentCount;
-    bool m_hasSpreadElement;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("call in with r%d <- r%d-r%d", (int)m_resultIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount - 1);
+        if (m_kind == Kind::InWithScope) {
+            printf("call(complex inWith) r%d <- %s(r%d-r%d)", (int)m_resultIndex, m_calleeName.string()->toNonGCUTF8StringData().data(), (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        } else {
+            if (m_receiverIndex != REGISTER_LIMIT) {
+                printf("call(complex %d) r%d <- r%d,r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+            } else {
+                printf("call(complex %d) r%d <- r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+            }
+        }
     }
 #endif
 };

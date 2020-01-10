@@ -36,14 +36,12 @@ struct GetObjectInlineCache;
 struct SetObjectInlineCache;
 struct GlobalVariableAccessCacheItem;
 class InitializeGlobalVariable;
-class CallFunctionInWithScope;
-class CallEvalFunction;
+class CallFunctionComplexCase;
 class CreateFunction;
 class CreateClass;
 class SuperReference;
 class SuperSetObjectOperation;
 class SuperGetObjectOperation;
-class CallSuper;
 class WithOperation;
 class BlockOperation;
 class ReplaceBlockLexicalEnvironmentOperation;
@@ -109,17 +107,15 @@ public:
 
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
-    static void evalOperation(ExecutionState& state, CallEvalFunction* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
     static void superSetObjectOperation(ExecutionState& state, SuperSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static Value superGetObjectOperation(ExecutionState& state, SuperGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
-    static void callSuperOperation(ExecutionState& state, CallSuper* code, Value* registerFile);
     static Value withOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
-    static void callFunctionInWithScope(ExecutionState& state, CallFunctionInWithScope* code, Value* registerFile);
+    static void callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
 
     static EnumerateObject* createEnumerateObject(ExecutionState& state, Object* obj, bool isDestruction);

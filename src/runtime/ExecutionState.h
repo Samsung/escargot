@@ -261,6 +261,7 @@ public:
         return m_argv;
     }
 
+    LexicalEnvironment* mostNearestFunctionLexicalEnvironment();
     LexicalEnvironment* mostNearestHeapAllocatedLexicalEnvironment();
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getnewtarget
