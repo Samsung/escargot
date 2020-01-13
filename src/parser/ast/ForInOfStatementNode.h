@@ -143,7 +143,7 @@ public:
 
         size_t exit1Pos, exit2Pos, exit3Pos, continuePosition;
         // for-of only
-        TryStatementNode::TryStatementByteCodeContext forOfTryStatmentContext;
+        TryStatementNode::TryStatementByteCodeContext forOfTryStatementContext;
         ByteCodeRegisterIndex finishCheckRegisterIndex = REGISTER_LIMIT, iteratorDataRegisterIndex = REGISTER_LIMIT;
         size_t forOfEndCheckRegisterHeadStartPosition = SIZE_MAX;
         size_t forOfEndCheckRegisterHeadEndPosition = SIZE_MAX;
@@ -212,7 +212,7 @@ public:
             codeBlock->peekCode<GetEnumerateKey>(enumerateObjectKeyPos)->m_dataRegisterIndex = dataRegisterIndex;
         } else {
             // for-of statement
-            TryStatementNode::generateTryStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatmentContext);
+            TryStatementNode::generateTryStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatementContext);
 
             auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
             codeBlock->m_requiredRegisterFileSizeInValueSize = 0;
@@ -296,15 +296,15 @@ public:
         newContext.m_positionToContinue = continuePosition;
 
         if (!m_forIn) {
-            TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, &newContext, this, forOfTryStatmentContext);
-            TryStatementNode::generateTryFinalizerStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatmentContext, true);
+            TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, &newContext, this, forOfTryStatementContext);
+            TryStatementNode::generateTryFinalizerStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatementContext, true);
 
             size_t exceptionThrownCheckStartJumpPos = codeBlock->currentCodeSize();
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), finishCheckRegisterIndex, SIZE_MAX), &newContext, this);
             codeBlock->pushCode(IteratorClose(ByteCodeLOC(m_loc.index), iteratorDataRegisterIndex), &newContext, this);
 
             codeBlock->peekCode<JumpIfTrue>(exceptionThrownCheckStartJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
-            TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, &newContext, this, forOfTryStatmentContext, true);
+            TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, &newContext, this, forOfTryStatementContext, true);
 
             codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterHeadStartPosition)->m_registerIndex = finishCheckRegisterIndex;
             codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterHeadEndPosition)->m_registerIndex = finishCheckRegisterIndex;

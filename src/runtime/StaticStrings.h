@@ -368,6 +368,7 @@ namespace Escargot {
     F(has)                        \
     F(done)                       \
     F(next)                       \
+    F(nextMethod)                 \
     F(MapIterator)                \
     F(ArrayIterator)              \
     F(StringIterator)             \

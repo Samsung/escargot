@@ -30,43 +30,6 @@ class MapIteratorObject;
 class SetIteratorObject;
 class IteratorObject;
 
-class IteratorRecord : public PointerValue {
-    friend class IteratorObject;
-
-public:
-    explicit IteratorRecord(const Value& iterator, const Value& nextMethod, const bool done)
-        : m_iterator(iterator)
-        , m_nextMethod(nextMethod)
-        , m_done(done)
-    {
-    }
-
-    virtual bool isIteratorRecord() const
-    {
-        return true;
-    }
-
-    bool done() const
-    {
-        return m_done;
-    }
-
-    Value iterator() const
-    {
-        return m_iterator;
-    }
-
-    void setDone(bool done)
-    {
-        m_done = done;
-    }
-
-private:
-    SmallValue m_iterator;
-    SmallValue m_nextMethod;
-    bool m_done;
-};
-
 class IteratorObject : public Object {
 public:
     explicit IteratorObject(ExecutionState& state);

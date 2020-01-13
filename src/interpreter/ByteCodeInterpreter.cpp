@@ -2849,7 +2849,7 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
     } else if (code->m_reason == ExecutionPause::YieldDelegate) {
         // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
         const Value iteratorRecord = registerFile[code->m_yieldDelegateData.m_iterIntex];
-        Object* iterator = iteratorRecord.asPointerValue()->asIteratorRecord()->iterator().toObject(state);
+        Object* iterator = iteratorRecord.asObject()->getOwnProperty(state, state.context()->staticStrings().iterator).value(state, iteratorRecord).asObject();
         GeneratorState resultState = GeneratorState::SuspendedYield;
         Value nextResult;
         bool done = true;
@@ -3306,7 +3306,7 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorCloseOperation(ExecutionState& st
 {
     bool exceptionWasThrown = state.hasRareData() && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->back() && state.rareData()->m_controlFlowRecord->back()->reason() == ControlFlowRecord::NeedsThrow;
     const Value& iteratorRecord = registerFile[code->m_iterRegisterIndex];
-    Object* iterator = iteratorRecord.asPointerValue()->asIteratorRecord()->iterator().asObject();
+    Object* iterator = iteratorRecord.asObject()->getOwnProperty(state, state.context()->staticStrings().iterator).value(state, iteratorRecord).asObject();
     Value returnFunction = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
     if (returnFunction.isUndefined()) {
         return;
