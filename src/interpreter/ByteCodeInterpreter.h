@@ -68,12 +68,15 @@ class SetObjectOperation;
 class GetIterator;
 class IteratorStep;
 class IteratorClose;
+class IteratorBind;
 class EnumerateObject;
 class CheckLastEnumerateKey;
 
 class ByteCodeInterpreter {
 public:
     static Value interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile);
+
+private:
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
@@ -149,6 +152,8 @@ public:
     static void getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile);
     static void iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
     static void iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile);
+    static void iteratorBindOperation(ExecutionState& state, size_t& programCounter, Value* registerFile);
+    static Object* restBindOperation(ExecutionState& state, Value& iteratorRecord);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 };

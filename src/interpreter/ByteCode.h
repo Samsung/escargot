@@ -122,6 +122,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetIterator, 1, 0)                                    \
     F(IteratorStep, 1, 0)                                   \
     F(IteratorClose, 1, 0)                                  \
+    F(IteratorBind, 1, 0)                                   \
     F(LoadRegexp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
     F(ObjectDefineGetterSetter, 0, 0)                       \
@@ -2099,6 +2100,32 @@ public:
 #endif
 
     ByteCodeRegisterIndex m_iterRegisterIndex;
+};
+
+class IteratorBind : public ByteCode {
+public:
+    explicit IteratorBind(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::IteratorBindOpcode, loc)
+    {
+        m_registerIndex = m_iterRegisterIndex = REGISTER_LIMIT;
+    }
+
+    explicit IteratorBind(const ByteCodeLOC& loc, size_t dstIndex, size_t iterIndex)
+        : ByteCode(Opcode::IteratorBindOpcode, loc)
+        , m_registerIndex(dstIndex)
+        , m_iterRegisterIndex(iterIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_iterRegisterIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("iterator bind(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
+    }
+#endif
 };
 
 class LoadRegexp : public ByteCode {

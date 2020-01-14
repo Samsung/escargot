@@ -1131,7 +1131,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             GetIterator* code = (GetIterator*)programCounter;
-            ByteCodeInterpreter::getIteratorOperation(*state, code, registerFile);
+            getIteratorOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(GetIterator);
             NEXT_INSTRUCTION();
         }
@@ -1150,6 +1150,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             IteratorClose* code = (IteratorClose*)programCounter;
             iteratorCloseOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(IteratorClose);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(IteratorBind)
+            :
+        {
+            IteratorBind* code = (IteratorBind*)programCounter;
+            iteratorBindOperation(*state, programCounter, registerFile);
             NEXT_INSTRUCTION();
         }
 
@@ -1300,15 +1308,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 result = new Object(*state);
                 enumObj->fillRestElement(*state, result);
             } else {
-                result = new ArrayObject(*state);
-                size_t i = 0;
-                while (true) {
-                    Value next = IteratorObject::iteratorStep(*state, iterOrEnum);
-                    if (next.isFalse()) {
-                        break;
-                    }
-                    result->setIndexedProperty(*state, Value(i++), IteratorObject::iteratorValue(*state, next));
-                }
+                result = restBindOperation(*state, iterOrEnum);
             }
 
             registerFile[code->m_dstIndex] = result;
@@ -1319,7 +1319,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(ExecutionResume)
             :
         {
-            Value v = ByteCodeInterpreter::executionResumeOperation(state, programCounter, byteCodeBlock);
+            Value v = executionResumeOperation(state, programCounter, byteCodeBlock);
             if (!v.isEmpty()) {
                 return v;
             }
@@ -3273,12 +3273,7 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorStepOperation(ExecutionState& sta
     Value nextResult = IteratorObject::iteratorStep(state, registerFile[code->m_iterRegisterIndex]);
 
     if (nextResult.isFalse()) {
-        if (code->m_forOfEndPosition == SIZE_MAX) {
-            registerFile[code->m_registerIndex] = Value();
-            ADD_PROGRAM_COUNTER(IteratorStep);
-        } else {
-            programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
-        }
+        programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
     } else {
         registerFile[code->m_registerIndex] = IteratorObject::iteratorValue(state, nextResult);
         ADD_PROGRAM_COUNTER(IteratorStep);
@@ -3309,6 +3304,81 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorCloseOperation(ExecutionState& st
     if (!exceptionWasThrown && !innerResult.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
     }
+}
+
+NEVER_INLINE void ByteCodeInterpreter::iteratorBindOperation(ExecutionState& state, size_t& programCounter, Value* registerFile)
+{
+    auto strings = &state.context()->staticStrings();
+
+    IteratorBind* code = (IteratorBind*)programCounter;
+    Value nextResult, value;
+    Value iteratorRecord = registerFile[code->m_iterRegisterIndex];
+
+    if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isFalse()) {
+        try {
+            nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
+        } catch (const Value& e) {
+            Value exceptionValue = e;
+            iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+            state.throwException(exceptionValue);
+        }
+
+        if (nextResult.isFalse()) {
+            iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+        } else {
+            try {
+                value = IteratorObject::iteratorValue(state, nextResult);
+            } catch (const Value& e) {
+                Value exceptionValue = e;
+                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                state.throwException(exceptionValue);
+            }
+        }
+    }
+
+    registerFile[code->m_registerIndex] = value;
+    ADD_PROGRAM_COUNTER(IteratorBind);
+}
+
+NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& state, Value& iteratorRecord)
+{
+    auto strings = &state.context()->staticStrings();
+
+    Object* result = new ArrayObject(state);
+    Value nextResult, value;
+    size_t index = 0;
+
+    while (true) {
+        if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isFalse()) {
+            try {
+                nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
+            } catch (const Value& e) {
+                Value exceptionValue = e;
+                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                state.throwException(exceptionValue);
+            }
+
+            if (nextResult.isFalse()) {
+                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+            }
+        }
+
+        if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isTrue()) {
+            break;
+        }
+
+        try {
+            value = IteratorObject::iteratorValue(state, nextResult);
+        } catch (const Value& e) {
+            Value exceptionValue = e;
+            iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+            state.throwException(exceptionValue);
+        }
+
+        result->setIndexedProperty(state, Value(index++), value);
+    }
+
+    return result;
 }
 
 NEVER_INLINE void ByteCodeInterpreter::getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile)
