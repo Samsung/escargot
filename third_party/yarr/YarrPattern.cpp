@@ -1076,7 +1076,7 @@ private:
     PatternAlternative* m_alternative;
     CharacterClassConstructor m_characterClassConstructor;
     void* m_stackLimit;
-    bool m_invertCharacterClass;
+    bool m_invertCharacterClass { false };
     bool m_invertParentheticalAssertion { false };
 };
 

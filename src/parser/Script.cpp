@@ -616,6 +616,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
                 env = env->outerEnvironment();
             }
         }
+        ASSERT(!!fnRecord);
 
         FunctionObject* callee = state.resolveCallee();
         if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && callee->isScriptFunctionObject()) {

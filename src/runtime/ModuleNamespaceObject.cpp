@@ -132,6 +132,7 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
             if (!targetModule->moduleData()->m_moduleRecord) {
                 // If targetEnv is undefined, throw a ReferenceError exception.
                 ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->src());
+                return ObjectGetResult();
             }
             // Let targetEnvRec be targetEnv’s EnvironmentRecord.
             // Return targetEnvRec.GetBindingValue(binding.[[bindingName]], true).
