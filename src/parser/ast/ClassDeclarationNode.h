@@ -96,6 +96,7 @@ public:
             codeBlock->finalizeLexicalBlock(context, blockContext);
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         }
+        ASSERT(classIdent);
 
         context->m_isLexicallyDeclaredBindingInitialization = true;
         classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);

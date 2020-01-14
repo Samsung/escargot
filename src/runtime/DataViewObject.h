@@ -62,8 +62,10 @@ public:
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
 
         ArrayBufferObject* buffer = this->buffer();
-        if (!buffer || buffer->isDetachedBuffer())
+        if (!buffer || buffer->isDetachedBuffer()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
+            return Value();
+        }
 
         unsigned viewOffset = byteOffset();
         unsigned viewSize = byteLength();
@@ -109,8 +111,10 @@ public:
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
 
         ArrayBufferObject* buffer = this->buffer();
-        if (!buffer || buffer->isDetachedBuffer())
+        if (!buffer || buffer->isDetachedBuffer()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
+            return Value();
+        }
 
         unsigned viewOffset = byteOffset();
         unsigned viewSize = byteLength();

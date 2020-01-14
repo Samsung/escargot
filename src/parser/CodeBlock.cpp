@@ -622,6 +622,7 @@ void InterpretedCodeBlock::computeVariables()
                 break;
             }
         }
+        ASSERT(!!bi);
 
         // global {let, const} declaration should be processed on ModuleEnvironmentRecord
         for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
@@ -690,6 +691,7 @@ void InterpretedCodeBlock::computeVariables()
                     break;
                 }
             }
+            ASSERT(!!bi);
 
             // global {let, const} declaration should be processed on GlobalEnvironmentRecord
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
