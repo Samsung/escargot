@@ -502,6 +502,11 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case IteratorBindOpcode: {
+                IteratorBind* cd = (IteratorBind*)currentCode;
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case BindingRestElementOpcode: {
                 BindingRestElement* cd = (BindingRestElement*)currentCode;
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterOrEnumIndex, stackBase, stackBaseWillBe, stackVariableSize);
