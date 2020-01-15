@@ -256,6 +256,11 @@ void RegExpObject::parseOption(ExecutionState& state, const String* optionString
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
             this->m_option = (Option)(this->m_option | Option::Sticky);
             break;
+        case 's':
+            if (this->m_option & Option::DotAll)
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 's' flags");
+            this->m_option = (Option)(this->m_option | Option::DotAll);
+            break;
         default:
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
         }

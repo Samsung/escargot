@@ -291,8 +291,8 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
     m_bumpPointerAllocator = new (PointerFreeGC) WTF::BumpPointerAllocator();
     m_regexpCache = new (GC) RegExpCacheMap();
-    m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(32 * sizeof(ASCIIString*));
-    memset(m_regexpOptionStringCache, 0, 32 * sizeof(ASCIIString*));
+    m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(64 * sizeof(ASCIIString*));
+    memset(m_regexpOptionStringCache, 0, 64 * sizeof(ASCIIString*));
 
 #ifdef ENABLE_ICU
     m_timezone = nullptr;

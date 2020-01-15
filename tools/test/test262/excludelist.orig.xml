@@ -1608,8 +1608,6 @@
     <test id="built-ins/RegExp/CharacterClassEscapes/character-class-whitespace-class-escape-plus-quantifier-flags-u"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/CharacterClassEscapes/character-class-word-class-escape-flags-u"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/CharacterClassEscapes/character-class-word-class-escape-plus-quantifier-flags-u"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/dotall/with-dotall"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/dotall/with-dotall-unicode"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/duplicate-flags"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/from-regexp-like-flag-override"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/from-regexp-like-get-ctor-err"><reason>TODO</reason></test>
@@ -2063,17 +2061,9 @@
     <test id="built-ins/RegExp/property-escapes/generated/XID_Start"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/dotAll/cross-realm"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/length"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/name"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/this-val-invalid-obj"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/this-val-non-obj"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/this-val-regexp-prototype"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/dotAll/this-val-regexp"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/exec/failure-lastindex-access"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/exec/success-lastindex-access"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/exec/u-lastindex-adv"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/flags/coercion-dotall"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/flags/get-order"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/flags/rethrow"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/flags/return-order"><reason>TODO</reason></test>

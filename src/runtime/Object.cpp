@@ -1628,7 +1628,7 @@ Value Object::speciesConstructor(ExecutionState& state, const Value& defaultCons
 
 String* Object::optionString(ExecutionState& state)
 {
-    char flags[6] = { 0 };
+    char flags[7] = { 0 };
     size_t flagsIdx = 0;
     size_t cacheIndex = 0;
 
@@ -1647,14 +1647,19 @@ String* Object::optionString(ExecutionState& state)
         cacheIndex |= 1 << 2;
     }
 
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, this).toBoolean(state)) {
+        flags[flagsIdx++] = 's';
+        cacheIndex |= 1 << 3;
+    }
+
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean(state)) {
         flags[flagsIdx++] = 'u';
-        cacheIndex |= 1 << 3;
+        cacheIndex |= 1 << 4;
     }
 
     if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean(state)) {
         flags[flagsIdx++] = 'y';
-        cacheIndex |= 1 << 4;
+        cacheIndex |= 1 << 5;
     }
 
     ASCIIString* result;

@@ -50,6 +50,7 @@ non262/BigInt/large-bit-length.js
 non262/BigInt/mod.js
 non262/BigInt/Number-conversion-rounding.js
 non262/class/newTargetDVG.js
+non262/RegExp/flags.js
 
 
 # Passed in 64bit but, Failed in 32bit binary due to value expression bug in 32bit mode
