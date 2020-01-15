@@ -194,6 +194,7 @@ namespace Escargot {
     F(propertyIsEnumerable)       \
     F(ignoreCase)                 \
     F(global)                     \
+    F(dotAll)                     \
     F(multiline)                  \
     F(sticky)                     \
     F(unicode)                    \
@@ -608,6 +609,7 @@ public:
     AtomicString getBuffer;
     AtomicString getFlags;
     AtomicString getGlobal;
+    AtomicString getDotAll;
     AtomicString getIgnoreCase;
     AtomicString getMultiline;
     AtomicString getSource;

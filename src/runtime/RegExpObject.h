@@ -52,6 +52,7 @@ public:
         MultiLine = 4,
         Sticky = 8,
         Unicode = 16,
+        DotAll = 32,
     };
 
     struct RegExpCacheKey {

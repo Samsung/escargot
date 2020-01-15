@@ -559,6 +559,11 @@ static Value builtinRegExpGlobalGetter(ExecutionState& state, Value thisValue, s
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Global);
 }
 
+static Value builtinRegExpDotAllGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::DotAll);
+}
+
 static Value builtinRegExpIgnoreCaseGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::IgnoreCase);
@@ -633,11 +638,19 @@ void GlobalObject::installRegExp(ExecutionState& state)
         m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().flags), desc);
     }
 
+
     {
         Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getGlobal, builtinRegExpGlobalGetter, 0, NativeFunctionInfo::Strict));
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().global), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getDotAll, builtinRegExpDotAllGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll), desc);
     }
 
     {
