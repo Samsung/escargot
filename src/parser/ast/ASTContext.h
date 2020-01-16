@@ -449,7 +449,7 @@ struct ASTFunctionScopeContext {
         }
     };
 
-    bool canDeclareName(AtomicString name, LexicalBlockIndex blockIndex, bool isVarName)
+    bool canDeclareName(AtomicString name, LexicalBlockIndex blockIndex, bool isVarName, bool isExplicitVariableDeclaration)
     {
         if (isVarName) {
             int32_t findBlockIndex = m_childBlockScopes.size() - 1;
@@ -461,6 +461,10 @@ struct ASTFunctionScopeContext {
                     if (cb->m_names[i].name() == name) {
                         return false;
                     }
+                }
+
+                if (!isExplicitVariableDeclaration) {
+                    break;
                 }
 
                 if (cb->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {

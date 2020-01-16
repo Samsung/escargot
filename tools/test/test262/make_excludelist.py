@@ -19,6 +19,7 @@ from __future__ import print_function
 import os
 import traceback
 import sys
+import subprocess
 
 from argparse import ArgumentParser
 from os.path import abspath, dirname, join, isfile
@@ -46,9 +47,12 @@ def run_all_test262(engine, arch):
 
     os.environ['GC_FREE_SPACE_DIVISOR'] = '1'
     if arch == 'x86':
+        subprocess.call(["gcc", "-shared", "-m32", 
+        "-fPIC", "-o", "backtrace-hooking-32.so", "tools/test/test262/backtrace-hooking.c"])
         if isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-32.so')):
             os.environ['ESCARGOT_LD_PRELOAD'] = join(PROJECT_SOURCE_DIR, 'backtrace-hooking-32.so')
     else:
+        subprocess.call(["gcc", "-shared", "-fPIC", "-o", "backtrace-hooking-64.so", "tools/test/test262/backtrace-hooking.c"])
         if isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')):
             os.environ['ESCARGOT_LD_PRELOAD'] = join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')
         

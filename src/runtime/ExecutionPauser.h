@@ -21,6 +21,7 @@
 #define __EscargotExecutionPauser__
 
 #include "runtime/Object.h"
+#include "runtime/PromiseObject.h"
 
 namespace Escargot {
 
@@ -52,6 +53,9 @@ public:
         m_registerFile = nullptr;
         m_byteCodeBlock = nullptr;
         m_resumeValue = SmallValue();
+        m_promiseCapability.m_promise = SmallValue();
+        m_promiseCapability.m_rejectFunction = nullptr;
+        m_promiseCapability.m_resolveFunction = nullptr;
     }
 
     enum StartFrom {
@@ -87,6 +91,7 @@ private:
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
     SmallValue m_resumeValue;
     uint16_t m_resumeValueIndex;
+    PromiseReaction::Capability m_promiseCapability; // async function needs this
 };
 }
 

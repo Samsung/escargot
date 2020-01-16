@@ -467,10 +467,17 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
         return Value(d->primitiveValue());
     }
 
-    double year;
+    double y;
     int month, date, hour, minute, second, millisecond;
 
-    year = argv[0].toNumber(state);
+    // Let y be ToNumber(year).
+    y = argv[0].toNumber(state);
+    // If y is NaN, set the [[DateValue]] internal slot of this Date object to NaN and return NaN.
+    if (std::isnan(y)) {
+        d->setTimeValueAsNaN();
+        return Value(d->primitiveValue());
+    }
+
     month = d->getMonth(state);
     date = d->getDate(state);
     hour = d->getHours(state);
@@ -478,14 +485,18 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     second = d->getSeconds(state);
     millisecond = d->getMilliseconds(state);
 
-    if (0 <= year && year <= 99) {
-        year += 1900;
+    double yyyy;
+    double yAsInteger = Value(y).toInteger(state);
+    // If y is not NaN and 0 ≤ ToInteger(y) ≤ 99, let yyyy be ToInteger(y) + 1900.
+    if (0 <= yAsInteger && yAsInteger <= 99) {
+        yyyy = 1900 + yAsInteger;
+    } else {
+        // Else, let yyyy be y.
+        yyyy = y;
     }
 
-    if (std::isnan(year)) {
-        d->setTimeValueAsNaN();
-    } else if (d->isValid()) {
-        d->setTimeValue(state, year, month, date, hour, minute, second, millisecond);
+    if (d->isValid()) {
+        d->setTimeValue(state, yyyy, month, date, hour, minute, second, millisecond);
     }
 
     return Value(d->primitiveValue());

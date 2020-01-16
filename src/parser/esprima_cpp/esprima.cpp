@@ -106,7 +106,7 @@ struct Context {
     bool hasRestrictedWordInArrayOrObjectInitializer : 1;
     bool strict : 1;
     Scanner::SmallScannerResult firstCoverInitializedNameError;
-    std::vector<AtomicString> catchClauseSimplyDeclaredVariableNames;
+    std::vector<std::pair<AtomicString, LexicalBlockIndex>> catchClauseSimplyDeclaredVariableNames;
     std::vector<std::pair<AtomicString, bool>> labelSet; // <LabelString, continue accepted>
 };
 
@@ -3245,18 +3245,23 @@ public:
                we need this bunch of code for tolerate this error(we consider variable 'e' as lexically declared)
                try { } catch(e) { var e; }
             */
-            if (this->context->inCatchClause && isExplicitVariableDeclaration && kind == KeywordKind::VarKeyword) {
+            if (this->context->inCatchClause && kind == KeywordKind::VarKeyword) {
                 for (size_t i = 0; i < this->context->catchClauseSimplyDeclaredVariableNames.size(); i++) {
-                    if (this->context->catchClauseSimplyDeclaredVariableNames[i] == name) {
-                        this->currentScopeContext->insertVarName(name, blockIndex, true, kind == VarKeyword);
-                        return;
+                    if (this->context->catchClauseSimplyDeclaredVariableNames[i].first == name) {
+                        if (isExplicitVariableDeclaration) {
+                            this->currentScopeContext->insertVarName(name, blockIndex, true, kind == VarKeyword);
+                            return;
+                        } else if (this->context->catchClauseSimplyDeclaredVariableNames[i].second + 1 == this->lexicalBlockIndex) {
+                            // try {} catch(e) { function e() {} }
+                            this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
+                        }
                     }
                 }
             }
             /* code end */
 
 
-            if (!this->currentScopeContext->canDeclareName(name, blockIndex, kind == VarKeyword)) {
+            if (!this->currentScopeContext->canDeclareName(name, blockIndex, kind == VarKeyword, isExplicitVariableDeclaration)) {
                 this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
             }
             if (kind == VarKeyword) {
@@ -4002,7 +4007,7 @@ public:
         bool gotSimplyDeclaredVariableName = param->isIdentifier();
 
         if (gotSimplyDeclaredVariableName) {
-            this->context->catchClauseSimplyDeclaredVariableNames.push_back(param->asIdentifier()->name());
+            this->context->catchClauseSimplyDeclaredVariableNames.push_back(std::make_pair(param->asIdentifier()->name(), this->lexicalBlockIndex));
         }
 
         ASTNode body = this->parseBlock(builder);
@@ -4391,7 +4396,7 @@ public:
         MetaNode paramsStart = this->createNode();
         this->expect(LeftParenthesis);
 
-        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
+        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
         this->insertUsingName(fnName);
 
         BEGIN_FUNCTION_SCANNING(fnName);
@@ -4496,8 +4501,10 @@ public:
         AtomicString fnName = id ? id->asIdentifier()->name() : AtomicString();
 
         if (tryToSkipFunctionParsing()) {
+            this->context->await = previousAwait;
             this->context->allowYield = previousAllowYield;
             this->context->inArrowFunction = previousInArrowFunction;
+            this->context->allowNewTarget = previousAllowNewTarget;
             return this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName));
         }
 
@@ -5610,6 +5617,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.context->allowSuperProperty = true;
     parser.context->allowNewTarget = true;
     parser.context->await = codeBlock->isAsync();
+
     parser.isParsingSingleFunction = true;
     parser.codeBlock = codeBlock;
 
