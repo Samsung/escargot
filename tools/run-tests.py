@@ -168,26 +168,18 @@ def run_test262(engine, arch):
     copy(join(TEST262_OVERRIDE_DIR, 'monkeyYaml.py'), join(TEST262_DIR, 'tools', 'packaging', 'monkeyYaml.py'))
     copy(join(TEST262_OVERRIDE_DIR, 'parseTestRecord.py'), join(TEST262_DIR, 'tools', 'packaging', 'parseTestRecord.py'))
     copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
-    #copy(join(TEST262_OVERRIDE_DIR, 'testIntl.js'), join(TEST262_DIR, 'harness', 'testIntl.js')) # The original was written incorrectly(test262 Head : d1f718f806)
 
-    out = open('test262_out', 'w')
-
-    run(['pypy', join('tools', 'packaging', 'test262.py'),
+    stdout = run(['pypy', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--full-summary'],
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
-        stdout=out)
+        stdout=PIPE)
 
-    out.close()
-
-    with open('test262_out', 'r') as out:
-        full = out.read()
-        summary = full.split('=== Summary ===')[1]
-        print(summary)
-        if summary.find('- All tests succeeded') < 0:
-            raise Exception('test262 failed')
-        print('test262: All tests passed')
+    summary = stdout.split('=== Test262 Summary ===')[1]
+    if summary.find('- All tests succeeded') < 0:
+        raise Exception('test262 failed')
+    print('test262: All tests passed')
 
 @runner('test262-strict', default=True)
 def run_test262_strict(engine, arch):

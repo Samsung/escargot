@@ -393,7 +393,7 @@ class ProgressIndicator(object):
     self.failed_tests = []
 
   def HasRun(self, result):
-    result.ReportOutcome(True)
+#result.ReportOutcome(True)
     if result.HasUnexpectedOutcome():
       self.failed += 1
       self.failed_tests.append(result)
@@ -513,7 +513,7 @@ class TestSuite(object):
       print s
 
     print
-    write("=== Summary ===");
+    write("=== Test262 Summary ===");
     count = progress.count
     succeeded = progress.succeeded
     failed = progress.failed
@@ -528,14 +528,16 @@ class TestSuite(object):
       negative = [c for c in progress.failed_tests if c.case.IsNegative()]
       if len(positive) > 0:
         print
-        write("Failed Tests")
+        write("Test262 Failed Tests")
         for result in positive:
           write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
+        write("Failed Tests End")
       if len(negative) > 0:
         print
-        write("Expected to fail but passed ---")
+        write("Test262 Expected to fail but passed")
         for result in negative:
           write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
+        write("Expected to fail End")
 
   def PrintFailureOutput(self, progress, logfile):
     for result in progress.failed_tests:
@@ -604,11 +606,13 @@ class TestSuite(object):
 
     if print_summary:
       self.PrintSummary(progress, logname)
+    '''
       if full_summary:
         self.PrintFailureOutput(progress, logname)
       else:
         print
         print "Use --full-summary to see output from failed tests"
+    '''
     print
     return progress.failed
 
