@@ -1226,7 +1226,6 @@ public:
 
         bool computed = false;
         bool shorthand = false;
-        bool needImplicitName = false;
 
         ASTNode keyNode = nullptr; //'': Node.PropertyKey;
         ASTNode valueNode = nullptr; //: Node.PropertyValue;
@@ -1235,6 +1234,7 @@ public:
             ALLOC_TOKEN(keyToken);
             *keyToken = this->lookahead;
             keyNode = this->parseVariableIdentifier(builder);
+            AtomicString name = keyNode->asIdentifier()->name();
 
             if (this->match(Substitution)) {
                 params.push_back(*keyToken);
@@ -1242,7 +1242,7 @@ public:
                     this->currentScopeContext->m_functionBodyBlockIndex = 1;
                 }
                 if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
-                    addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
+                    addDeclaredNameIntoContext(name, this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;
                 this->nextToken();
@@ -1250,15 +1250,20 @@ public:
                 ASTNode expr = this->parseAssignmentExpression<ASTBuilder, false>(builder);
 
                 ASTNodeType type = expr->type();
-                if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                    needImplicitName = true;
+                if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
+                    if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                        this->lastPoppedScopeContext->m_functionName = name;
+                        this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
+                    }
+                } else if (type == ASTNodeType::ClassExpression) {
+                    expr->asClassExpression()->tryToSetImplicitName(name);
                 }
 
                 valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode, expr));
             } else if (!this->match(Colon)) {
                 params.push_back(*keyToken);
                 if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
-                    addDeclaredNameIntoContext(keyNode->asIdentifier()->name(), this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
+                    addDeclaredNameIntoContext(name, this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;
                 valueNode = keyNode;
@@ -1271,12 +1276,6 @@ public:
             keyNode = this->parseObjectPropertyKey(builder);
             this->expect(Colon);
             valueNode = this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration);
-        }
-
-        if (!this->isParsingSingleFunction && needImplicitName) {
-            AtomicString as = keyNode->isIdentifier() ? keyNode->asIdentifier()->name() : AtomicString();
-            this->lastPoppedScopeContext->m_functionName = as;
-            this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
         }
 
         return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, PropertyNode::Kind::Init, computed, shorthand));
@@ -1342,12 +1341,16 @@ public:
             ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
             this->context->inParameterNameParsing = previousInParameterNameParsing;
 
-            AtomicString name = pattern->isIdentifier() ? pattern->asIdentifier()->name() : AtomicString();
-            ASTNodeType type = right->type();
-            if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
-                if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                    this->lastPoppedScopeContext->m_functionName = name;
-                    this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
+            if (pattern->isIdentifier()) {
+                AtomicString name = pattern->asIdentifier()->name();
+                ASTNodeType type = right->type();
+                if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
+                    if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                        this->lastPoppedScopeContext->m_functionName = name;
+                        this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
+                    }
+                } else if (type == ASTNodeType::ClassExpression) {
+                    right->asClassExpression()->tryToSetImplicitName(name);
                 }
             }
             return this->finalize(this->startNode(startToken), builder.createAssignmentPatternNode(pattern, right));
@@ -2845,9 +2848,22 @@ public:
                     rightNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
                     switch (token->valuePunctuatorKind) {
-                    case Substitution:
+                    case Substitution: {
+                        if (type == ASTNodeType::Identifier) {
+                            AtomicString name = exprNode->asIdentifier()->name();
+                            ASTNodeType rightType = rightNode->type();
+                            if (!this->isParsingSingleFunction && (rightType == ASTNodeType::FunctionExpression || rightType == ASTNodeType::ArrowFunctionExpression)) {
+                                if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                                    this->lastPoppedScopeContext->m_functionName = name;
+                                    this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
+                                }
+                            } else if (rightType == ASTNodeType::ClassExpression) {
+                                rightNode->asClassExpression()->tryToSetImplicitName(name);
+                            }
+                        }
                         exprResult = builder.createAssignmentExpressionSimpleNode(exprNode, rightNode);
                         break;
+                    }
                     case PlusEqual:
                         exprResult = builder.createAssignmentExpressionPlusNode(exprNode, rightNode);
                         break;
@@ -3316,9 +3332,7 @@ public:
                     this->lastPoppedScopeContext->m_functionName = name;
                     this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
                 }
-            }
-
-            if (type == ASTNodeType::ClassExpression) {
+            } else if (type == ASTNodeType::ClassExpression) {
                 initNode->asClassExpression()->tryToSetImplicitName(name);
             }
         } else if (!isIdentifier && !options.inFor) {

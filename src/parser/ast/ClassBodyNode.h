@@ -42,6 +42,18 @@ public:
         return m_constructor != nullptr;
     }
 
+    bool hasStaticMemberName(AtomicString name)
+    {
+        for (SentinelNode* element = m_elementList.begin(); element != m_elementList.end(); element = element->next()) {
+            ClassElementNode* p = element->astNode()->asClassElement();
+            if (p->isStatic() && !p->isComputed() && p->key()->isIdentifier() && p->key()->asIdentifier()->name() == name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     Node* constructor()
     {
         return m_constructor;
