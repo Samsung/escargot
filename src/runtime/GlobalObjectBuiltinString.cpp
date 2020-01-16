@@ -1574,9 +1574,9 @@ void GlobalObject::installString(ExecutionState& state)
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinStringIterator, 0, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
-#define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, argLength)                                                                                                                                                      \
-    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fnName),                                                                                                                    \
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinString##fnName, argLength, NativeFunctionInfo::Strict)), \
+#define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, argLength)                                                                                                                                                    \
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fnName),                                                                                                                  \
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fnName, builtinString##fnName, argLength, NativeFunctionInfo::Strict)), \
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // String.prototype.anchor (name)

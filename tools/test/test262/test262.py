@@ -23,6 +23,7 @@ import datetime
 import shutil
 import json
 import stat
+import signal
 import xml.etree.ElementTree as xmlj
 import unicodedata
 from collections import Counter
@@ -31,6 +32,14 @@ from collections import Counter
 from parseTestRecord import parseTestRecord, stripHeader
 
 from packagerConfig import *
+
+class Alarm(Exception):
+    pass
+
+def alarm_handler(signum, frame):
+    raise Alarm
+
+signal.signal(signal.SIGALRM, alarm_handler)
 
 class Test262Error(Exception):
   def __init__(self, message):
@@ -340,7 +349,18 @@ class TestCase(object):
         stderr = stderr.fd,
         env = my_env
       )
-      code = process.wait()
+
+      signal.alarm(120)  # raise Alarm in 2 minutes
+
+      try:
+        code = process.wait()
+        signal.alarm(0)  # reset the alarm
+      except Alarm:
+        process.kill()
+        process.wait()
+        code = -1
+
+      # code = process.wait()
       out = stdout.Read()
       err = stderr.Read()
     finally:

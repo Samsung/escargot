@@ -816,11 +816,12 @@ static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t 
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
 
-    // Perform ? DefinePropertyOrThrow(O, key, desc).
-    // https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
-    // says we should use 'Object::defineOwnPropertyThrowsException'
-    // but, other engines not follow that clause
+// Perform ? DefinePropertyOrThrow(O, key, desc).
+#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
     O->defineOwnProperty(state, key, desc);
+#else
+    O->defineOwnPropertyThrowsException(state, key, desc);
+#endif
 
     // Return undefined.
     return Value();
@@ -841,11 +842,12 @@ static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t 
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
 
-    // Perform ? DefinePropertyOrThrow(O, key, desc).
-    // https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
-    // says we should use 'Object::defineOwnPropertyThrowsException'
-    // but, other engines not follow that clause
+// Perform ? DefinePropertyOrThrow(O, key, desc).
+#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
     O->defineOwnProperty(state, key, desc);
+#else
+    O->defineOwnPropertyThrowsException(state, key, desc);
+#endif
 
     // Return undefined.
     return Value();
@@ -1040,24 +1042,30 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                         NativeFunctionInfo(strings->unescape, builtinUnescape, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    auto defineLookupGetterSetterNativeFunctionFlag =
+#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
+        0;
+#else
+        NativeFunctionInfo::Strict;
+#endif
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineGetter__),
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, 0)),
+                                                                                           NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, defineLookupGetterSetterNativeFunctionFlag)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineSetter__),
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, 0)),
+                                                                                           NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, defineLookupGetterSetterNativeFunctionFlag)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupGetter__),
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, 0)),
+                                                                                           NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, defineLookupGetterSetterNativeFunctionFlag)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupSetter__),
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, 0)),
+                                                                                           NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, defineLookupGetterSetterNativeFunctionFlag)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #if defined(ESCARGOT_ENABLE_TEST)

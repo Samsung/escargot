@@ -41,6 +41,9 @@ void* ExecutionPauser::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_registerFile));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_byteCodeBlock));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_resumeValue));
+        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_promise));
+        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_rejectFunction));
+        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_resolveFunction));
         descr = GC_make_descriptor(desc, GC_WORD_LEN(ExecutionPauser));
         typeInited = true;
     }
@@ -107,6 +110,11 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             // need to fresh start
             startPos = 0;
             es = self->m_executionState;
+
+            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-function-definitions-EvaluateBody
+            if (from == StartFrom::Async) {
+                self->m_promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+            }
         } else {
             // resume
             startPos = self->m_extraDataByteCodePosition;
@@ -126,7 +134,9 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         } else {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             ASSERT(from == StartFrom::Async);
-            result = promiseResolve(state, state.context()->globalObject()->promise(), result).asObject()->asPromiseObject();
+            Value argv = result;
+            Object::call(state, self->m_promiseCapability.m_resolveFunction, Value(), 1, &argv);
+            result = self->m_promiseCapability.m_promise;
         }
         self->release();
     } catch (PauseValue* exitValue) {
@@ -143,15 +153,20 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
                 return IteratorObject::createIterResultObject(state, result, true);
             }
             return IteratorObject::createIterResultObject(state, result, false);
+        } else {
+            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
+            // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
+            result = self->m_promiseCapability.m_promise;
         }
     } catch (const Value& thrownValue) {
+        auto promiseCapability = self->m_promiseCapability;
         self->release();
         if (from == StartFrom::Async) {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             ASSERT(from == StartFrom::Async);
-            auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
             Value argv = thrownValue;
             Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+            // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
             result = promiseCapability.m_promise;
         } else {
             ASSERT(from == StartFrom::Generator);

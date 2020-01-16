@@ -880,8 +880,18 @@
   'regress/regress-353551': [SKIP],
   'regress/regress-655573': [SKIP],
 
-  ## 12. implementation-dependent (according to the spec)
+  ## 13. implementation-dependent (according to the spec)
   'regress/regress-5767': [SKIP],
+
+  ## 14. test is wrong
+
+  # {define, lookup}{Getter,Setter} is differ with other engines
+  'regress/regress-394': [SKIP],
+  'regress/regress-1240': [SKIP],
+  'indexed-accessors': [SKIP],
+  'global-accessors': [SKIP],
+  'accessors-on-global-object': [SKIP],
+
 }],  # 'escargot == True'
 
 ]
