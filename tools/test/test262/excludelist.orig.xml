@@ -3887,10 +3887,6 @@
     <test id="language/expressions/addition/coerce-bigint-to-string"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-elem-var-open"><reason>TODO</reason></test>
@@ -3903,11 +3899,6 @@
     <test id="language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/destructuring/obj-prop-__proto__dup"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/array-elem-init-fn-name-arrow"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/array-elem-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/array-elem-init-fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/array-elem-init-fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/array-elem-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/array-elem-iter-rtrn-close-err"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/array-elem-iter-thrw-close"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/array-elem-iter-thrw-close-err"><reason>TODO</reason></test>
@@ -3931,11 +3922,6 @@
     <test id="language/expressions/assignment/dstr/obj-id-init-fn-name-cover"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-id-init-fn-name-fn"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-id-init-fn-name-gen"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/obj-prop-elem-init-fn-name-arrow"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/obj-prop-elem-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/obj-prop-elem-init-fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/obj-prop-elem-init-fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/dstr/obj-prop-elem-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-prop-elem-target-obj-literal-prop-ref-init"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-prop-elem-target-obj-literal-prop-ref-init-active"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-rest-computed-property"><reason>TODO</reason></test>
@@ -3956,11 +3942,7 @@
     <test id="language/expressions/assignment/dstr/obj-rest-val-null"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-rest-val-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-rest-valid-object"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/fn-name-arrow"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/fn-name-gen"><reason>TODO</reason></test>
+    <test id="language/expressions/assignment/fn-name-lhs-cover"><reason>TODO</reason></test>
     <test id="language/expressions/async-arrow-function/arrow-returns-promise"><reason>TODO</reason></test>
     <test id="language/expressions/async-arrow-function/dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/async-arrow-function/dflt-params-arg-val-not-undefined"><reason>TODO</reason></test>
@@ -5310,7 +5292,6 @@
     <test id="language/expressions/class/dstr/async-private-gen-meth-static-obj-ptrn-rest-val-obj"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -5323,7 +5304,6 @@
     <test id="language/expressions/class/dstr/gen-meth-ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -5337,7 +5317,6 @@
     <test id="language/expressions/class/dstr/gen-meth-dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -5351,7 +5330,6 @@
     <test id="language/expressions/class/dstr/gen-meth-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -5364,7 +5342,6 @@
     <test id="language/expressions/class/dstr/gen-meth-obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-static-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -5377,7 +5354,6 @@
     <test id="language/expressions/class/dstr/gen-meth-static-ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -5391,7 +5367,6 @@
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -5405,7 +5380,6 @@
     <test id="language/expressions/class/dstr/gen-meth-static-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -5416,14 +5390,6 @@
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-prop-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-prop-obj-value-null"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/gen-meth-static-obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-static-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-static-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-static-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/dstr/meth-static-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/private-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/private-gen-meth-ary-init-iter-no-close"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/private-gen-meth-ary-name-iter-val"><reason>TODO</reason></test>
@@ -7477,10 +7443,6 @@
     <test id="language/expressions/exponentiation/bigint-zero-base-zero-exponent"><reason>TODO</reason></test>
     <test id="language/expressions/function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/function/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/function/dstr/dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/function/dstr/dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/function/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/function/length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-elem-var-open"><reason>TODO</reason></test>
@@ -7492,7 +7454,6 @@
     <test id="language/expressions/generators/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/generators/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -7505,7 +7466,6 @@
     <test id="language/expressions/generators/dstr/ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/generators/dstr/dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -7519,7 +7479,6 @@
     <test id="language/expressions/generators/dstr/dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/generators/dstr/dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -7533,7 +7492,6 @@
     <test id="language/expressions/generators/dstr/obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/generators/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/generators/dstr/obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -7792,7 +7750,6 @@
     <test id="language/expressions/object/dstr/async-gen-meth-obj-ptrn-rest-val-obj"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/gen-meth-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -7805,7 +7762,6 @@
     <test id="language/expressions/object/dstr/gen-meth-ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -7819,7 +7775,6 @@
     <test id="language/expressions/object/dstr/gen-meth-dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/gen-meth-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -7833,7 +7788,6 @@
     <test id="language/expressions/object/dstr/gen-meth-obj-init-null"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -7844,10 +7798,6 @@
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-prop-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-prop-obj-value-null"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/meth-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/meth-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/meth-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/meth-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/expressions/object/fn-name-accessor-get"><reason>TODO</reason></test>
     <test id="language/expressions/object/fn-name-accessor-set"><reason>TODO</reason></test>
     <test id="language/expressions/object/fn-name-arrow"><reason>TODO</reason></test>
@@ -9608,7 +9558,6 @@
     <test id="language/statements/class/dstr/async-private-gen-meth-static-obj-ptrn-rest-val-obj"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -9621,7 +9570,6 @@
     <test id="language/statements/class/dstr/gen-meth-ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -9635,7 +9583,6 @@
     <test id="language/statements/class/dstr/gen-meth-dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -9649,7 +9596,6 @@
     <test id="language/statements/class/dstr/gen-meth-obj-init-null"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -9662,7 +9608,6 @@
     <test id="language/statements/class/dstr/gen-meth-obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-static-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -9675,7 +9620,6 @@
     <test id="language/statements/class/dstr/gen-meth-static-ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -9689,7 +9633,6 @@
     <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -9703,7 +9646,6 @@
     <test id="language/statements/class/dstr/gen-meth-static-obj-init-null"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -9714,14 +9656,6 @@
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-prop-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-prop-obj-value-null"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/gen-meth-static-obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-static-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-static-dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-static-dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/dstr/meth-static-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/private-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/private-gen-meth-ary-init-iter-no-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/private-gen-meth-ary-name-iter-val"><reason>TODO</reason></test>
@@ -11277,9 +11211,6 @@
     <test id="language/statements/class/static-method-length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/class/subclass/class-definition-null-proto-this"><reason>TODO</reason></test>
     <test id="language/statements/class/super/in-constructor-superproperty-evaluation"><reason>TODO</reason></test>
-    <test id="language/statements/const/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/const/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/const/fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/do-while/cptn-abrupt-empty"><reason>TODO</reason></test>
     <test id="language/statements/do-while/cptn-normal"><reason>TODO</reason></test>
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
@@ -12512,11 +12443,6 @@
     <test id="language/statements/for-of/cptn-expr-abrupt-empty"><reason>TODO</reason></test>
     <test id="language/statements/for-of/cptn-expr-itr"><reason>TODO</reason></test>
     <test id="language/statements/for-of/cptn-expr-no-itr"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/array-elem-init-fn-name-arrow"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/array-elem-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/array-elem-init-fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/array-elem-init-fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/array-elem-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-elem-iter-rtrn-close-err"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-elem-iter-thrw-close"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-elem-iter-thrw-close-err"><reason>TODO</reason></test>
@@ -12537,10 +12463,6 @@
     <test id="language/statements/for-of/dstr/array-rest-iter-thrw-close-err"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-rest-lref-err"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-rest-nested-obj-yield-expr"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/const-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/const-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/let-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/let-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-id-init-fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-id-init-fn-name-cover"><reason>TODO</reason></test>
@@ -12548,11 +12470,6 @@
     <test id="language/statements/for-of/dstr/obj-id-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-id-init-let"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-id-init-yield-expr"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/obj-prop-elem-init-fn-name-arrow"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/obj-prop-elem-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/obj-prop-elem-init-fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/obj-prop-elem-init-fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/obj-prop-elem-init-fn-name-gen"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-prop-elem-target-obj-literal-prop-ref"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-prop-elem-target-yield-expr"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-prop-elem-target-yield-ident-valid"><reason>TODO</reason></test>
@@ -12562,8 +12479,6 @@
     <test id="language/statements/for-of/dstr/obj-prop-put-prop-ref-user-err"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-computed-property"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-computed-property-no-strict"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/var-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/dstr/var-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/for-of/head-var-bound-names-let"><reason>TODO</reason></test>
     <test id="language/statements/for-of/let-block-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/for-of/let-identifier-with-newline"><reason>TODO</reason></test>
@@ -12573,12 +12488,6 @@
     <test id="language/statements/for/cptn-decl-expr-no-iter"><reason>TODO</reason></test>
     <test id="language/statements/for/cptn-expr-expr-iter"><reason>TODO</reason></test>
     <test id="language/statements/for/cptn-expr-expr-no-iter"><reason>TODO</reason></test>
-    <test id="language/statements/for/dstr/const-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for/dstr/const-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for/dstr/let-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for/dstr/let-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for/dstr/var-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/for/dstr/var-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/for/head-init-expr-check-empty-inc-empty-completion"><reason>TODO</reason></test>
     <test id="language/statements/for/head-init-var-check-empty-inc-empty-completion"><reason>TODO</reason></test>
     <test id="language/statements/for/head-lhs-let"><reason>TODO</reason></test>
@@ -12590,10 +12499,6 @@
     <test id="language/statements/for/tco-var-body"><reason>TODO</reason></test>
     <test id="language/statements/function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/statements/function/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/function/dstr/dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/function/dstr/dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/function/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/function/length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-elem-var-open"><reason>TODO</reason></test>
@@ -12605,7 +12510,6 @@
     <test id="language/statements/generators/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/statements/generators/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -12618,7 +12522,6 @@
     <test id="language/statements/generators/dstr/ary-ptrn-rest-id-iter-val-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-ary-init-iter-get-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-ary-ptrn-elem-ary-val-null"><reason>TODO</reason></test>
-    <test id="language/statements/generators/dstr/dflt-ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-ary-ptrn-elem-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-ary-ptrn-elem-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-ary-ptrn-elem-id-iter-step-err"><reason>TODO</reason></test>
@@ -12632,7 +12535,6 @@
     <test id="language/statements/generators/dstr/dflt-obj-init-null"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/statements/generators/dstr/dflt-obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/dflt-obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -12646,7 +12548,6 @@
     <test id="language/statements/generators/dstr/obj-init-null"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/obj-init-undefined"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/obj-ptrn-id-get-value-err"><reason>TODO</reason></test>
-    <test id="language/statements/generators/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/obj-ptrn-id-init-throws"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/obj-ptrn-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/obj-ptrn-list-err"><reason>TODO</reason></test>
@@ -12676,8 +12577,6 @@
     <test id="language/statements/labeled/let-block-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/labeled/let-identifier-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/labeled/tco"><reason>TODO</reason></test>
-    <test id="language/statements/let/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/let/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/let/fn-name-arrow"><reason>TODO</reason></test>
     <test id="language/statements/let/fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/let/fn-name-cover"><reason>TODO</reason></test>
@@ -12699,8 +12598,6 @@
     <test id="language/statements/try/cptn-finally-skip-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/cptn-finally-wo-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/cptn-try"><reason>TODO</reason></test>
-    <test id="language/statements/try/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/try/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/try/optional-catch-binding"><reason>TODO</reason></test>
     <test id="language/statements/try/optional-catch-binding-finally"><reason>TODO</reason></test>
     <test id="language/statements/try/optional-catch-binding-lexical"><reason>TODO</reason></test>
@@ -12708,9 +12605,6 @@
     <test id="language/statements/try/tco-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-catch-finally"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-finally"><reason>TODO</reason></test>
-    <test id="language/statements/variable/dstr/ary-ptrn-elem-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/variable/dstr/obj-ptrn-id-init-fn-name-class"><reason>TODO</reason></test>
-    <test id="language/statements/variable/fn-name-class"><reason>TODO</reason></test>
     <test id="language/statements/while/cptn-abrupt-empty"><reason>TODO</reason></test>
     <test id="language/statements/while/cptn-iter"><reason>TODO</reason></test>
     <test id="language/statements/while/cptn-no-iter"><reason>TODO</reason></test>

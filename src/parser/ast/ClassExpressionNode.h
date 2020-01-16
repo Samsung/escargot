@@ -58,7 +58,6 @@ public:
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
-            ASSERT(classIdent);
             context->m_lexicalBlockIndex = m_class.classBodyLexicalBlockIndex();
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_class.classBodyLexicalBlockIndex());
             blockContext = codeBlock->pushLexicalBlock(context, bi, this);
@@ -76,24 +75,26 @@ public:
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, dstIndex);
 
-        size_t nameRegister = context->getRegister();
-        // we don't need to root class name string because it is AtomicString
-
-        AtomicString className = context->m_classInfo.m_name.string()->length() ? context->m_classInfo.m_name : m_implicitName;
-
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(className.string())), context, this);
-        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstIndex,
-                                                                     codeBlock->m_codeBlock->context()->staticStrings().name,
-                                                                     nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
-                            context, this);
-        context->giveUpRegister();
+        // add class name property if there is no 'name' static member
+        if (!m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
+            // we don't need to root class name string because it is AtomicString
+            AtomicString className = context->m_classInfo.m_name.string()->length() ? context->m_classInfo.m_name : m_implicitName;
+            size_t nameRegister = context->getRegister();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(className.string())), context, this);
+            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstIndex,
+                                                                         codeBlock->m_codeBlock->context()->staticStrings().name,
+                                                                         nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
+                                context, this);
+            context->giveUpRegister();
+        }
 
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
-            ASSERT(classIdent);
             // Initialize class name
-            context->m_isLexicallyDeclaredBindingInitialization = true;
-            classIdent->generateStoreByteCode(codeBlock, context, dstIndex, true);
-            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+            if (classIdent) {
+                context->m_isLexicallyDeclaredBindingInitialization = true;
+                classIdent->generateStoreByteCode(codeBlock, context, dstIndex, true);
+                ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+            }
 
             codeBlock->finalizeLexicalBlock(context, blockContext);
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;

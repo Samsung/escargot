@@ -27,7 +27,6 @@ android/obj
 android/libs
 tools/vendortest/chakracore/chakracorelog.verbose.txt
 tools/test/jetstream/*.res
-test262_out
 *.gen.txt
 *.log.txt
 *.sort.txt
