@@ -80,6 +80,7 @@ void SetGlobalVariable::dump(const char* byteCodeStart)
 ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     : m_isEvalMode(false)
     , m_isOnGlobal(false)
+    , m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_requiredRegisterFileSizeInValueSize(2)
     , m_inlineCacheDataSize(0)
@@ -167,9 +168,9 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     }
 
     size_t indexRelatedWithScript = index;
-    index -= cb->asInterpretedCodeBlock()->sourceElementStart().index;
+    index -= cb->asInterpretedCodeBlock()->functionStart().index;
 
-    auto result = computeNodeLOC(cb->asInterpretedCodeBlock()->src(), cb->asInterpretedCodeBlock()->sourceElementStart(), index);
+    auto result = computeNodeLOC(cb->asInterpretedCodeBlock()->src(), cb->asInterpretedCodeBlock()->functionStart(), index);
     result.index = indexRelatedWithScript;
 
     return result;

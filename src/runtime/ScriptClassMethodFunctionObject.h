@@ -28,7 +28,7 @@ namespace Escargot {
 class ScriptClassMethodFunctionObject : public ScriptFunctionObject {
 public:
     ScriptClassMethodFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject)
-        : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, codeBlock->isGenerator())
+        : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, codeBlock->isGenerator(), codeBlock->isAsync())
         , m_homeObject(homeObject)
     {
     }

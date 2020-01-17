@@ -29,7 +29,7 @@ class ScriptFunctionObject : public FunctionObject {
     friend class ByteCodeInterpreter;
 
 public:
-    ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator);
+    ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator, bool isAsync);
 
 protected:
     ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount);

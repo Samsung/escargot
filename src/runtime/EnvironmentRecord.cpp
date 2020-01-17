@@ -310,6 +310,7 @@ void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::create
         record.m_name = name;
         record.m_canDelete = canDelete;
         record.m_isMutable = isMutable;
+        record.m_isVarDeclaration = true;
         m_recordVector.pushBack(record);
         m_heapStorage.pushBack(Value());
     } else {

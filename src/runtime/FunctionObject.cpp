@@ -30,7 +30,7 @@
 
 namespace Escargot {
 
-void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator)
+void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator, bool isAsync)
 {
     if (isGenerator) {
         // Unlike function instances, the object that is the value of the a GeneratorFunction’s prototype property
@@ -115,7 +115,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     GC_disable();
 
     try {
-        srcToTest.appendString(") { }");
+        srcToTest.appendString("\n) { }");
         String* cur = srcToTest.finalize(&state);
         esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, false, SIZE_MAX, false, false, true);
 
@@ -147,7 +147,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
         }
     }
-    src.appendString(") {\n");
+    src.appendString("\n) {\n");
     src.appendString(source);
     src.appendString("\n}");
 
@@ -156,7 +156,6 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
     Script* script = parser.initializeScript(StringView(scriptSource, 0, scriptSource->length()), new ASCIIString("Function Constructor input"), false, nullptr, false, false, false, false, SIZE_MAX, false, allowSuperCall, false, true).scriptThrowsExceptionIfParseError(state);
     InterpretedCodeBlock* cb = script->topCodeBlock()->firstChild();
-    cb->updateSourceElementStart(3, 1);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), state.context()->globalDeclarativeRecord(), state.context()->globalDeclarativeStorage()), nullptr);
 
     FunctionObject::FunctionSource fs;

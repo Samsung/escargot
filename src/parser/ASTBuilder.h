@@ -142,18 +142,27 @@ public:
     static void* operator new(size_t, void* p) { return p; } // for VectorWithInlineStorage
     SyntaxNode()
         : m_nodeType(ASTNodeTypeError)
+        , m_flag(false)
         , m_string()
     {
     }
 
     SyntaxNode(ASTNodeType nodeType)
         : m_nodeType(nodeType)
+        , m_flag(false)
         , m_string()
+    {
+    }
+
+    SyntaxNode(ASTNodeType nodeType, bool flag)
+        : m_nodeType(nodeType)
+        , m_flag(flag)
     {
     }
 
     SyntaxNode(ASTNodeType nodeType, const AtomicString& string)
         : m_nodeType(nodeType)
+        , m_flag(false)
         , m_string(string)
     {
         ASSERT(m_nodeType == Identifier);
@@ -161,15 +170,16 @@ public:
 
     SyntaxNode(std::nullptr_t ptr)
         : m_nodeType(ASTNodeTypeError)
+        , m_flag(false)
         , m_string()
     {
     }
 
     SyntaxNode(SyntaxNode* node)
         : m_nodeType(node->m_nodeType)
+        , m_flag(node->m_flag)
         , m_string(node->m_string)
     {
-        ASSERT(node != nullptr);
     }
 
     ASTNodeType type() { return m_nodeType; }
@@ -199,6 +209,12 @@ public:
     void setString(const AtomicString& string)
     {
         m_string = string;
+    }
+
+    bool async()
+    {
+        ASSERT(m_nodeType == ASTNodeType::ArrowParameterPlaceHolder);
+        return m_flag;
     }
 
     ALWAYS_INLINE bool isAssignmentOperation()
@@ -284,6 +300,12 @@ public:
     ALWAYS_INLINE SyntaxNode* asExportSpecifier()
     {
         ASSERT(m_nodeType == ExportSpecifier);
+        return this;
+    }
+
+    ALWAYS_INLINE SyntaxNode* asArrowParameterPlaceHolder()
+    {
+        ASSERT(m_nodeType == ArrowParameterPlaceHolder);
         return this;
     }
 
@@ -398,7 +420,8 @@ public:
 
     ALWAYS_INLINE SyntaxNode* operator->() { return this; }
 private:
-    ASTNodeType m_nodeType;
+    ASTNodeType m_nodeType : 16;
+    bool m_flag : 1;
     AtomicString m_string;
 };
 
@@ -517,6 +540,11 @@ public:
     ALWAYS_INLINE SyntaxNode createStatementContainer()
     {
         return SyntaxNode(ASTNodeType::ASTStatementContainer);
+    }
+
+    ALWAYS_INLINE SyntaxNode createArrowParameterPlaceHolderNode(ASTNodeList, bool async)
+    {
+        return SyntaxNode(ASTNodeType::ArrowParameterPlaceHolder, async);
     }
 
 #define DECLARE_CREATE_FUNCTION(name)                         \

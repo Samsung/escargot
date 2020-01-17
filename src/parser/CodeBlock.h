@@ -218,11 +218,6 @@ public:
         return m_allowSuperProperty;
     }
 
-    bool hasImplicitFunctionName()
-    {
-        return m_hasImplicitFunctionName;
-    }
-
     AtomicString functionName() const
     {
         return m_functionName;
@@ -549,12 +544,6 @@ public:
 
     IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, LexicalBlockIndex blockIndex);
 
-    void updateSourceElementStart(size_t line, size_t column)
-    {
-        m_sourceElementStart.line = line;
-        m_sourceElementStart.column = column;
-    }
-
     InterpretedCodeBlock* parentCodeBlock()
     {
         return m_parentCodeBlock;
@@ -701,10 +690,9 @@ public:
         return m_src;
     }
 
-    ExtendedNodeLOC sourceElementStart()
+    ExtendedNodeLOC functionStart()
     {
-        // currently, sourceElementStart point to the start location of the parameter list
-        return m_sourceElementStart;
+        return m_functionStart;
     }
 
 #ifndef NDEBUG
@@ -726,9 +714,9 @@ public:
 
 protected:
     // init global codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC sourceElementStart, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
 
     void computeBlockVariables(LexicalBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
     void initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx);
@@ -799,7 +787,7 @@ protected:
     InterpretedCodeBlock* m_firstChild;
     InterpretedCodeBlock* m_nextSibling;
 
-    ExtendedNodeLOC m_sourceElementStart; // point to the start position of the parameter list
+    ExtendedNodeLOC m_functionStart; // point to the start position
 #ifndef NDEBUG
     ExtendedNodeLOC m_bodyEndLOC;
     ASTFunctionScopeContext* m_scopeContext;

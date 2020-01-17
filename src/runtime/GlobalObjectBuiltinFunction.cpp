@@ -50,7 +50,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
 
-    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
+    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
@@ -64,16 +64,6 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
             return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->classSourceCode();
         } else {
             StringBuilder builder;
-            if (!fn->isScriptArrowFunctionObject()) {
-                if (fn->isScriptAsyncFunctionObject()) {
-                    builder.appendString("async ");
-                }
-                builder.appendString("function ");
-                if (!fn->codeBlock()->hasImplicitFunctionName()) {
-                    builder.appendString(fn->codeBlock()->functionName().string());
-                }
-            }
-
             if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
                 StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
                 while (src.length() && EscargotLexer::isWhiteSpaceOrLineTerminator(src[src.length() - 1])) {
@@ -81,6 +71,8 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
                 }
                 builder.appendString(new StringView(src));
             } else {
+                builder.appendString("function ");
+                builder.appendString(fn->codeBlock()->functionName().string());
                 builder.appendString("() { [native code] }");
             }
 
@@ -208,7 +200,7 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
 
 void GlobalObject::installFunction(ExecutionState& state)
 {
-    FunctionObject* emptyFunction = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict)),
+    FunctionObject* emptyFunction = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict)),
                                                              NativeFunctionObject::__ForGlobalBuiltin__);
 
     m_functionPrototype = emptyFunction;

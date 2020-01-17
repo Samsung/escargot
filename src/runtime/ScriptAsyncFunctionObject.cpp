@@ -26,11 +26,10 @@
 namespace Escargot {
 
 ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue, Object* homeObject)
-    : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, true)
+    : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, false, true)
     , m_thisValue(thisValue)
     , m_homeObject(homeObject)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncFunction());
 }
 
 class ScriptAsyncFunctionObjectThisValueBinder {
