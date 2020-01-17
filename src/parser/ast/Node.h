@@ -253,6 +253,7 @@ class ImportSpecifierNode;
 class ImportDefaultSpecifierNode;
 class ImportNamespaceSpecifierNode;
 class ExportSpecifierNode;
+class ArrowParameterPlaceHolderNode;
 
 class Node {
 protected:
@@ -462,6 +463,12 @@ public:
     {
         ASSERT(type() == ASTNodeType::ExportSpecifier);
         return (ExportSpecifierNode*)this;
+    }
+
+    ALWAYS_INLINE ArrowParameterPlaceHolderNode* asArrowParameterPlaceHolder()
+    {
+        ASSERT(type() == ArrowParameterPlaceHolder);
+        return (ArrowParameterPlaceHolderNode*)this;
     }
 
     bool isLiteral()

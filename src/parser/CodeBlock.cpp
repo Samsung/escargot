@@ -110,7 +110,6 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isGenerator(false)
     , m_isAsync(false)
     , m_needsVirtualIDOperation(false)
-    , m_hasImplicitFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
@@ -150,7 +149,6 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isGenerator(false)
     , m_isAsync(false)
     , m_needsVirtualIDOperation(false)
-    , m_hasImplicitFunctionName(false)
     , m_hasArrowParameterPlaceHolder(false)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
@@ -197,7 +195,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
     }
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC paramsStartLOC, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(src)
     , m_parameterNames(nullptr)
@@ -211,7 +209,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_parentCodeBlock(nullptr)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
-    , m_sourceElementStart(paramsStartLOC)
+    , m_functionStart(1, 1, 0)
 #ifndef NDEBUG
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
@@ -235,8 +233,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
     m_inWith = scopeCtx->m_inWith;
-
-    m_hasImplicitFunctionName = scopeCtx->m_hasImplicitFunctionName;
 
     m_isEvalCode = isEvalCode;
     m_isEvalCodeInFunction = isEvalCodeInFunction;
@@ -274,9 +270,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     initBlockScopeInformation(scopeCtx);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, ExtendedNodeLOC paramsStartLOC, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
-    , m_src(StringView(src, scopeCtx->m_paramsStartLOC.index, scopeCtx->m_bodyEndLOC.index))
+    , m_src(StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index))
     , m_parameterNames(nullptr)
     , m_parameterNamesCount(0)
     , m_functionBodyBlockIndex(0)
@@ -288,7 +284,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_parentCodeBlock(parentBlock)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
-    , m_sourceElementStart(paramsStartLOC)
+    , m_functionStart(scopeCtx->m_functionStartLOC)
 #ifndef NDEBUG
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , m_scopeContext(nullptr)
@@ -307,7 +303,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_hasEval = scopeCtx->m_hasEval;
     m_hasWith = scopeCtx->m_hasWith;
     m_inWith = scopeCtx->m_inWith;
-    m_hasImplicitFunctionName = scopeCtx->m_hasImplicitFunctionName;
     m_hasArrowParameterPlaceHolder = scopeCtx->m_hasArrowParameterPlaceHolder;
     m_hasParameterOtherThanIdentifier = scopeCtx->m_hasParameterOtherThanIdentifier;
     m_functionBodyBlockIndex = scopeCtx->m_functionBodyBlockIndex;

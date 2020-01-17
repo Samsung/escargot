@@ -494,11 +494,10 @@ public:
         this->expect(LeftParenthesis);
 
         InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
-        StringView src = childBlock->src();
-        this->scanner->index = src.length() + orgIndex;
+        this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
 
-        this->scanner->lineNumber = childBlock->sourceElementStart().line;
-        this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
+        this->scanner->lineNumber = childBlock->functionStart().line;
+        this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
         this->lookahead.lineNumber = this->scanner->lineNumber;
         this->lookahead.lineStart = this->scanner->lineStart;
         this->lookahead.type = Token::PunctuatorToken;
@@ -1253,7 +1252,6 @@ public:
                 if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
                     if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
                         this->lastPoppedScopeContext->m_functionName = name;
-                        this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
                     }
                 } else if (type == ASTNodeType::ClassExpression) {
                     expr->asClassExpression()->tryToSetImplicitName(name);
@@ -1347,7 +1345,6 @@ public:
                 if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
                     if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
                         this->lastPoppedScopeContext->m_functionName = name;
-                        this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
                     }
                 } else if (type == ASTNodeType::ClassExpression) {
                     right->asClassExpression()->tryToSetImplicitName(name);
@@ -1504,7 +1501,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall, bool isAsyncFunction)
+    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall, bool isAsyncFunction, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
 
@@ -1546,9 +1543,9 @@ public:
         this->context->await = previousAwait;
         this->context->inArrowFunction = previousInArrowFunction;
 
-        this->currentScopeContext->m_paramsStartLOC.index = node.index;
-        this->currentScopeContext->m_paramsStartLOC.column = node.column;
-        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
         this->currentScopeContext->m_allowSuperProperty = true;
         if (allowSuperCall) {
             this->currentScopeContext->m_allowSuperCall = true;
@@ -1682,17 +1679,17 @@ public:
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
             this->context->allowYield = false;
-            valueNode = this->parseGetterMethod(builder);
+            valueNode = this->parseGetterMethod(builder, node);
         } else if (isSet) {
             kind = PropertyNode::Kind::Set;
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
-            valueNode = this->parseSetterMethod(builder);
+            valueNode = this->parseSetterMethod(builder, node);
         } else if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::Multiply && lookaheadPropertyKey) {
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
-            valueNode = this->parseGeneratorMethod(builder);
+            valueNode = this->parseGeneratorMethod(builder, this->createNode());
             method = true;
         } else {
             if (!keyNode) {
@@ -1720,7 +1717,7 @@ public:
                     needImplicitName = true;
                 }
             } else if (this->match(LeftParenthesis)) {
-                valueNode = this->parsePropertyMethodFunction(builder, false, isAsync);
+                valueNode = this->parsePropertyMethodFunction(builder, false, isAsync, node);
                 method = true;
             } else {
                 if (token->type != Token::IdentifierToken) {
@@ -1773,9 +1770,7 @@ public:
                 as = keyNode->asIdentifier()->name();
             }
             this->lastPoppedScopeContext->m_functionName = as;
-            if (needImplicitName) {
-                this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
-            } else {
+            if (!needImplicitName) {
                 this->lastPoppedScopeContext->m_isClassMethod = true;
             }
         }
@@ -2673,15 +2668,19 @@ public:
                 if (this->lookahead.type == Token::IdentifierToken || this->matchKeyword(YieldKeyword)) {
                     ASTNode arg = this->parsePrimaryExpression(builder);
                     arg = builder.reinterpretExpressionAsPattern(arg);
-                    ASTNodeList args;
-                    args.append(this->allocator, arg);
-                    exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(args, true));
+                    // We cannot use code below
+                    // because SyntaxNode cannot save AST nodes(but we need for original code)
+                    // this is original code
+                    // ASTNodeList args;
+                    // args.append(this->allocator, arg);
+                    // exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(args, true));
                     isAsync = true;
+                    exprNode = arg;
                 }
             }
 
             type = exprNode->type();
-            if (type == ArrowParameterPlaceHolder || this->match(Arrow)) {
+            if (type == ArrowParameterPlaceHolder || this->match(Arrow) || isAsync) {
                 // ECMA-262 14.2 Arrow Function Definitions
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
@@ -2697,10 +2696,10 @@ public:
                     size_t orgIndex = this->lookahead.start;
 
                     InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
-                    StringView src = childBlock->src();
-                    this->scanner->index = src.length() + orgIndex;
-                    this->scanner->lineNumber = childBlock->sourceElementStart().line;
-                    this->scanner->lineStart = childBlock->sourceElementStart().index - childBlock->sourceElementStart().column;
+                    this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
+                    this->scanner->lineNumber = childBlock->functionStart().line;
+                    this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
+
                     this->lookahead.lineNumber = this->scanner->lineNumber;
                     this->lookahead.lineStart = this->scanner->lineStart;
                     this->nextToken();
@@ -2724,6 +2723,12 @@ public:
                     this->scanner->lineNumber = startMarker.lineNumber;
                     this->scanner->lineStart = startMarker.lineStart;
                     this->nextToken();
+
+                    if (type == ArrowParameterPlaceHolder && exprNode->asArrowParameterPlaceHolder()->async()) {
+                        this->nextToken();
+                        isAsync = true;
+                    }
+
                     this->expect(LeftParenthesis);
                     this->currentScopeContext->m_hasArrowParameterPlaceHolder = true;
 
@@ -2748,9 +2753,9 @@ public:
                 this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
                 this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
 
-                this->currentScopeContext->m_paramsStartLOC.index = startNode.index;
-                this->currentScopeContext->m_paramsStartLOC.column = startNode.column;
-                this->currentScopeContext->m_paramsStartLOC.line = startNode.line;
+                this->currentScopeContext->m_functionStartLOC.index = startNode.index;
+                this->currentScopeContext->m_functionStartLOC.column = startNode.column;
+                this->currentScopeContext->m_functionStartLOC.line = startNode.line;
 
                 extractNamesFromFunctionParams(list);
 
@@ -2849,16 +2854,17 @@ public:
 
                     switch (token->valuePunctuatorKind) {
                     case Substitution: {
-                        if (type == ASTNodeType::Identifier) {
-                            AtomicString name = exprNode->asIdentifier()->name();
-                            ASTNodeType rightType = rightNode->type();
-                            if (!this->isParsingSingleFunction && (rightType == ASTNodeType::FunctionExpression || rightType == ASTNodeType::ArrowFunctionExpression)) {
-                                if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                                    this->lastPoppedScopeContext->m_functionName = name;
-                                    this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
+                        if (!this->isParsingSingleFunction) {
+                            if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
+                                AtomicString name = exprNode->asIdentifier()->name();
+                                ASTNodeType rightType = rightNode->type();
+                                if (!this->isParsingSingleFunction && (rightType == ASTNodeType::FunctionExpression || rightType == ASTNodeType::ArrowFunctionExpression)) {
+                                    if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                                        this->lastPoppedScopeContext->m_functionName = name;
+                                    }
+                                } else if (rightType == ASTNodeType::ClassExpression) {
+                                    rightNode->asClassExpression()->tryToSetImplicitName(name);
                                 }
-                            } else if (rightType == ASTNodeType::ClassExpression) {
-                                rightNode->asClassExpression()->tryToSetImplicitName(name);
                             }
                         }
                         exprResult = builder.createAssignmentExpressionSimpleNode(exprNode, rightNode);
@@ -3330,7 +3336,6 @@ public:
             if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
                 if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
                     this->lastPoppedScopeContext->m_functionName = name;
-                    this->lastPoppedScopeContext->m_hasImplicitFunctionName = true;
                 }
             } else if (type == ASTNodeType::ClassExpression) {
                 initNode->asClassExpression()->tryToSetImplicitName(name);
@@ -4415,9 +4420,9 @@ public:
 
         BEGIN_FUNCTION_SCANNING(fnName);
 
-        this->currentScopeContext->m_paramsStartLOC.index = paramsStart.index;
-        this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
-        this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
+        this->currentScopeContext->m_functionStartLOC.index = node.index;
+        this->currentScopeContext->m_functionStartLOC.column = node.column;
+        this->currentScopeContext->m_functionStartLOC.line = node.line;
 
         bool previousAwait = this->context->await;
         bool previousAllowYield = this->context->allowYield;
@@ -4531,9 +4536,9 @@ public:
             this->currentScopeContext->insertVarName(fnName, 0, false);
         }
 
-        this->currentScopeContext->m_paramsStartLOC.index = paramsStart.index;
-        this->currentScopeContext->m_paramsStartLOC.column = paramsStart.column;
-        this->currentScopeContext->m_paramsStartLOC.line = paramsStart.line;
+        this->currentScopeContext->m_functionStartLOC.index = node.index;
+        this->currentScopeContext->m_functionStartLOC.column = node.column;
+        this->currentScopeContext->m_functionStartLOC.line = node.line;
 
         ParseFormalParametersResult formalParameters;
         this->parseFormalParameters(newBuilder, formalParameters, &firstRestricted);
@@ -4625,7 +4630,7 @@ public:
     // ECMA-262 14.3 Method Definitions
 
     template <class ASTBuilder>
-    ASTNode parseGetterMethod(ASTBuilder& builder)
+    ASTNode parseGetterMethod(ASTBuilder& builder, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
 
@@ -4659,9 +4664,9 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_paramsStartLOC.index = node.index;
-        this->currentScopeContext->m_paramsStartLOC.column = node.column;
-        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
         this->currentScopeContext->m_allowSuperProperty = true;
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
@@ -4672,7 +4677,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseSetterMethod(ASTBuilder& builder)
+    ASTNode parseSetterMethod(ASTBuilder& builder, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
 
@@ -4711,9 +4716,9 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_paramsStartLOC.index = node.index;
-        this->currentScopeContext->m_paramsStartLOC.column = node.column;
-        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
         this->currentScopeContext->m_allowSuperProperty = true;
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
@@ -4724,7 +4729,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseGeneratorMethod(ASTBuilder& builder)
+    ASTNode parseGeneratorMethod(ASTBuilder& builder, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
 
@@ -4758,9 +4763,9 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_paramsStartLOC.index = node.index;
-        this->currentScopeContext->m_paramsStartLOC.column = node.column;
-        this->currentScopeContext->m_paramsStartLOC.line = node.line;
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
         this->currentScopeContext->m_allowSuperProperty = true;
 
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
@@ -4855,6 +4860,7 @@ public:
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         MetaNode node = this->createNode();
+        MetaNode mayMethodStartNode(node);
 
         ClassElementNode::Kind kind = ClassElementNode::Kind::None;
 
@@ -4875,6 +4881,7 @@ public:
             if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->relatedSource(this->scanner->source) == "static") {
                 *token = this->lookahead;
                 isStatic = true;
+                mayMethodStartNode = this->createNode();
                 computed = this->match(LeftSquareBracket);
                 if (this->match(Multiply)) {
                     this->nextToken();
@@ -4903,18 +4910,18 @@ public:
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder);
                 this->context->allowYield = false;
-                value = this->parseGetterMethod(builder);
+                value = this->parseGetterMethod(builder, mayMethodStartNode);
             } else if (token->valueStringLiteral(this->scanner) == "set" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder);
-                value = this->parseSetterMethod(builder);
+                value = this->parseSetterMethod(builder, mayMethodStartNode);
             }
         } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
             kind = ClassElementNode::Kind::Method;
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
-            value = this->parseGeneratorMethod(builder);
+            value = this->parseGeneratorMethod(builder, this->createNode());
             isGenerator = true;
         }
 
@@ -4926,7 +4933,7 @@ public:
                     allowSuperCall = true;
                 }
             }
-            value = this->parsePropertyMethodFunction(builder, allowSuperCall, isAsync);
+            value = this->parsePropertyMethodFunction(builder, allowSuperCall, isAsync, mayMethodStartNode);
         }
 
         if (kind == ClassElementNode::Kind::None) {
@@ -5514,6 +5521,22 @@ public:
     {
         ASSERT(this->isParsingSingleFunction);
 
+        size_t squareBraketCount = 0;
+        bool isPunctuator;
+        while (true) {
+            isPunctuator = this->lookahead.type == Token::PunctuatorToken;
+            if (isPunctuator) {
+                if (this->lookahead.valuePunctuatorKind == PunctuatorKind::LeftParenthesis && squareBraketCount == 0) {
+                    break;
+                } else if (this->lookahead.valuePunctuatorKind == PunctuatorKind::LeftSquareBracket) {
+                    squareBraketCount++;
+                } else if (this->lookahead.valuePunctuatorKind == PunctuatorKind::RightSquareBracket) {
+                    squareBraketCount--;
+                }
+            }
+            this->nextToken();
+        }
+
         const bool previousAllowNewTarget = context->allowNewTarget;
 
         context->allowNewTarget = true;
@@ -5526,7 +5549,7 @@ public:
         return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
     }
 
-    FunctionNode* parseScriptArrowFunction(NodeGenerator& builder, bool hasArrowParameterPlaceHolder)
+    FunctionNode* parseScriptArrowFunction(NodeGenerator& builder)
     {
         ASSERT(this->isParsingSingleFunction);
 
@@ -5534,8 +5557,12 @@ public:
         StatementContainer* params;
         BlockStatementNode* body;
 
+        if (this->codeBlock->isAsync()) {
+            this->nextToken();
+        }
+
         // generate parameter statements
-        if (hasArrowParameterPlaceHolder) {
+        if (this->codeBlock->hasArrowParameterPlaceHolder()) {
             params = parseFunctionParameters(builder);
         } else {
             Node* param = this->parseConditionalExpression(builder);
@@ -5622,7 +5649,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, codeBlock->src(), false, stackRemain, codeBlock->sourceElementStart());
+    Parser parser(ctx, codeBlock->src(), false, stackRemain, codeBlock->functionStart());
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;
@@ -5647,7 +5674,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.lexicalBlockCount = 0;
 
     if (codeBlock->isArrowFunctionExpression()) {
-        return parser.parseScriptArrowFunction(builder, codeBlock->hasArrowParameterPlaceHolder());
+        return parser.parseScriptArrowFunction(builder);
     }
     return parser.parseScriptFunction(builder);
 }

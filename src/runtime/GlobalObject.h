@@ -636,7 +636,7 @@ public:
         return m_asyncFunction;
     }
 
-    Object* asyncPrototype()
+    Object* asyncFunctionPrototype()
     {
         return m_asyncFunctionPrototype;
     }

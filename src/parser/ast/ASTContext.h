@@ -187,7 +187,6 @@ struct ASTFunctionScopeContext {
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_needsToComputeLexicalBlockStuffs : 1;
-    bool m_hasImplicitFunctionName : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
@@ -203,7 +202,7 @@ struct ASTFunctionScopeContext {
     ASTFunctionScopeContext *m_nextSibling;
     ASTBlockScopeContextVector m_childBlockScopes;
 
-    ExtendedNodeLOC m_paramsStartLOC;
+    ExtendedNodeLOC m_functionStartLOC;
 #ifndef NDEBUG
     ExtendedNodeLOC m_bodyEndLOC;
 #else
@@ -505,7 +504,6 @@ struct ASTFunctionScopeContext {
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
         , m_needsToComputeLexicalBlockStuffs(false)
-        , m_hasImplicitFunctionName(false)
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
         , m_nodeType(ASTNodeType::Program)
@@ -515,7 +513,7 @@ struct ASTFunctionScopeContext {
         , m_varNamesMap(nullptr)
         , m_firstChild(nullptr)
         , m_nextSibling(nullptr)
-        , m_paramsStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_functionStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #ifndef NDEBUG
         , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else

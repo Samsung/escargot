@@ -34,7 +34,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
     : FunctionObject(state, codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = codeBlock;
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
@@ -46,7 +46,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     : FunctionObject(state, info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new CodeBlock(state.context(), info);
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
 }
 
@@ -55,7 +55,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
 {
     m_codeBlock = codeBlock;
     ASSERT(!NativeFunctionObject::isConstructor());
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltinConstructor)
@@ -63,7 +63,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
 {
     m_codeBlock = codeBlock;
 
-    initStructureAndValues(state, codeBlock->isNativeFunctionConstructor(), false);
+    initStructureAndValues(state, codeBlock->isNativeFunctionConstructor(), false, false);
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
@@ -76,7 +76,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
 {
     m_codeBlock = new CodeBlock(state.context(), info);
 
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false);
+    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 

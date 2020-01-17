@@ -41,9 +41,9 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
     InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, ExtendedNodeLOC(1, 1, 0), isEvalCode, isEvalCodeInFunction);
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, isEvalCode, isEvalCodeInFunction);
     } else {
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, scopeCtx->m_paramsStartLOC, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
+        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
     }
 
     // child scopes are don't need this
@@ -196,9 +196,9 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT || cb->m_lexicalBlockStackAllocatedIdentifierMaximumDepth > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
         err->errorCode = ErrorObject::SyntaxError;
-        err->lineNumber = cb->m_sourceElementStart.line;
-        err->column = cb->m_sourceElementStart.column;
-        err->index = cb->m_sourceElementStart.index;
+        err->lineNumber = cb->m_functionStart.line;
+        err->column = cb->m_functionStart.column;
+        err->index = cb->m_functionStart.index;
         throw * err;
     }
 }
@@ -314,8 +314,8 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         PRINT_TAB()
         printf("CodeBlock %p %s %s(%d:%d -> %d:%d, block %d, body %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict" : "",
-               (int)cb->m_sourceElementStart.line,
-               (int)cb->m_sourceElementStart.column,
+               (int)cb->m_functionStart.line,
+               (int)cb->m_functionStart.column,
                (int)cb->m_bodyEndLOC.line,
                (int)cb->m_bodyEndLOC.column,
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),

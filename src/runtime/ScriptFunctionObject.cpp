@@ -38,14 +38,16 @@
 
 namespace Escargot {
 
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator)
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator, bool isAsync)
     : ScriptFunctionObject(state, codeBlock, outerEnv,
                            ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
 {
-    initStructureAndValues(state, isConstructor, isGenerator);
+    initStructureAndValues(state, isConstructor, isGenerator, isAsync);
 
     if (isGenerator) {
         Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->generator());
+    } else if (isAsync) {
+        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncFunctionPrototype());
     } else {
         Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     }

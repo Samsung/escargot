@@ -2310,7 +2310,7 @@ public:
             CodeType& t = const_cast<CodeType&>(code);
             if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
                 if (idx != SIZE_MAX && !m_codeBlock->hasCallNativeFunctionCode()) {
-                    auto loc = computeNodeLOC(m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->sourceElementStart(), idx);
+                    auto loc = computeNodeLOC(m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->functionStart(), idx);
                     t.m_loc.line = loc.line;
                     t.m_loc.column = loc.column;
                 }

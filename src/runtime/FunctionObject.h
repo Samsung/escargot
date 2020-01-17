@@ -150,7 +150,7 @@ public:
 protected:
     FunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
 
-    void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator);
+    void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator, bool isAsync);
     virtual size_t functionPrototypeIndex()
     {
         ASSERT(isConstructor() || isGenerator());
