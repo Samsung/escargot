@@ -112,7 +112,6 @@ public:
 
                 element->generateExpressionByteCode(codeBlock, context, elementIndex);
 
-
                 size_t cmpIndex = context->getRegister();
                 LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
                 size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);

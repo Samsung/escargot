@@ -122,9 +122,13 @@ public:
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
-            PropertyNode* p = property->astNode()->asProperty();
-            if (!(p->key()->isIdentifier() && !p->computed())) {
-                p->key()->iterateChildrenIdentifier(fn);
+            if (property->astNode()->isProperty()) {
+                PropertyNode* p = property->astNode()->asProperty();
+                if (!(p->key()->isIdentifier() && !p->computed())) {
+                    p->key()->iterateChildrenIdentifier(fn);
+                }
+            } else {
+                property->astNode()->iterateChildrenIdentifier(fn);
             }
         }
     }

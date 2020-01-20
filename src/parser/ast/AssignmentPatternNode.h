@@ -74,18 +74,20 @@ public:
         context->giveUpRegister(); // for drop cmpIndex
 
         // not undefined case, set srcRegister
-        m_left->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+        m_left->generateResolveAddressByteCode(codeBlock, context);
+        m_left->generateStoreByteCode(codeBlock, context, srcRegister, false);
         codeBlock->pushCode<Jump>(Jump(ByteCodeLOC(m_loc.index)), context, this);
         size_t pos2 = codeBlock->lastCodePosition<Jump>();
 
         // undefined case, set default node
         codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
         size_t rightIndex = m_right->getRegister(codeBlock, context);
+        m_left->generateResolveAddressByteCode(codeBlock, context);
         m_right->generateExpressionByteCode(codeBlock, context, rightIndex);
 
         // set m_isLexicallyDeclaredBindingInitialization for second m_left generateStoreByteCode
         context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
-        m_left->generateStoreByteCode(codeBlock, context, rightIndex, needToReferenceSelf);
+        m_left->generateStoreByteCode(codeBlock, context, rightIndex, false);
         context->giveUpRegister(); // for drop rightIndex
 
         codeBlock->peekCode<Jump>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();

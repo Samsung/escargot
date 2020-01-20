@@ -85,7 +85,7 @@ public:
             size_t valueIndex = context->getRegister();
             codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), srcRegister, valueIndex, propertyAtomicName), context, this);
             m_value->generateResolveAddressByteCode(codeBlock, context);
-            m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+            m_value->generateStoreByteCode(codeBlock, context, valueIndex, false);
             context->giveUpRegister(); // for drop valueIndex
 
             if (enumDataIndex != REGISTER_LIMIT) {
@@ -103,7 +103,7 @@ public:
             m_key->generateExpressionByteCode(codeBlock, context, propertyIndex);
             codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this);
             m_value->generateResolveAddressByteCode(codeBlock, context);
-            m_value->generateStoreByteCode(codeBlock, context, valueIndex, needToReferenceSelf);
+            m_value->generateStoreByteCode(codeBlock, context, valueIndex, false);
 
             if (enumDataIndex != REGISTER_LIMIT) {
                 codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this);
