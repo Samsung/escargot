@@ -721,6 +721,30 @@ public:
         return node;
     }
 
+    void addImplicitName(Node* rightNode, AtomicString name)
+    {
+        // add implicit name for function and class
+        ASTNodeType type = rightNode->type();
+        if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
+            if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                this->lastPoppedScopeContext->m_functionName = name;
+            }
+        } else if (type == ASTNodeType::ClassExpression) {
+            rightNode->asClassExpression()->tryToSetImplicitName(name);
+        }
+    }
+
+    void addImplicitName(SyntaxNode rightNode, AtomicString name)
+    {
+        // add implicit name for function only
+        ASTNodeType type = rightNode->type();
+        if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
+            if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
+                this->lastPoppedScopeContext->m_functionName = name;
+            }
+        }
+    }
+
     // Expect the next token to match the specified punctuator.
     // If not, an exception will be thrown.
     void expect(PunctuatorKind value)
@@ -1247,15 +1271,7 @@ public:
                 this->nextToken();
 
                 ASTNode expr = this->parseAssignmentExpression<ASTBuilder, false>(builder);
-
-                ASTNodeType type = expr->type();
-                if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
-                    if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                        this->lastPoppedScopeContext->m_functionName = name;
-                    }
-                } else if (type == ASTNodeType::ClassExpression) {
-                    expr->asClassExpression()->tryToSetImplicitName(name);
-                }
+                this->addImplicitName(expr, name);
 
                 valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode, expr));
             } else if (!this->match(Colon)) {
@@ -1340,15 +1356,7 @@ public:
             this->context->inParameterNameParsing = previousInParameterNameParsing;
 
             if (pattern->isIdentifier()) {
-                AtomicString name = pattern->asIdentifier()->name();
-                ASTNodeType type = right->type();
-                if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
-                    if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                        this->lastPoppedScopeContext->m_functionName = name;
-                    }
-                } else if (type == ASTNodeType::ClassExpression) {
-                    right->asClassExpression()->tryToSetImplicitName(name);
-                }
+                this->addImplicitName(right, pattern->asIdentifier()->name());
             }
             return this->finalize(this->startNode(startToken), builder.createAssignmentPatternNode(pattern, right));
         }
@@ -1661,7 +1669,6 @@ public:
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
         bool isGet = false;
         bool isSet = false;
-        bool needImplicitName = false;
         if (token->type == Token::IdentifierToken && !isAsync && lookaheadPropertyKey) {
             ParserStringView sv = token->valueStringLiteral(this->scanner);
             const auto& d = sv.bufferAccessData();
@@ -1707,14 +1714,10 @@ public:
                     hasProto = true;
                 }
                 this->nextToken();
-                ASTNodeType type = ASTNodeType::ASTNodeTypeError;
                 valueNode = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, true>);
-                if (valueNode) {
-                    type = valueNode->type();
-                }
 
-                if ((type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression) && this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                    needImplicitName = true;
+                if (!computed && keyNode->isIdentifier()) {
+                    this->addImplicitName(valueNode, keyNode->asIdentifier()->name());
                 }
             } else if (this->match(LeftParenthesis)) {
                 valueNode = this->parsePropertyMethodFunction(builder, false, isAsync, node);
@@ -1744,6 +1747,10 @@ public:
                     shorthand = true;
                     ASTNode init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
                     valueNode = this->finalize(node, builder.createAssignmentPatternNode(keyNode, init));
+
+                    if (!computed && keyNode->isIdentifier()) {
+                        this->addImplicitName(init, keyNode->asIdentifier()->name());
+                    }
                 } else {
                     shorthand = true;
                     valueNode = keyNode;
@@ -1764,15 +1771,11 @@ public:
             }
         }
 
-        if (!this->isParsingSingleFunction && (method || isGet || isSet || needImplicitName)) {
-            AtomicString as;
+        if (!this->isParsingSingleFunction && (method || isGet || isSet)) {
             if (!computed && keyNode->isIdentifier()) {
-                as = keyNode->asIdentifier()->name();
+                this->lastPoppedScopeContext->m_functionName = keyNode->asIdentifier()->name();
             }
-            this->lastPoppedScopeContext->m_functionName = as;
-            if (!needImplicitName) {
-                this->lastPoppedScopeContext->m_isClassMethod = true;
-            }
+            this->lastPoppedScopeContext->m_isClassMethod = true;
         }
         return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, kind, computed, shorthand));
     }
@@ -2854,18 +2857,8 @@ public:
 
                     switch (token->valuePunctuatorKind) {
                     case Substitution: {
-                        if (!this->isParsingSingleFunction) {
-                            if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
-                                AtomicString name = exprNode->asIdentifier()->name();
-                                ASTNodeType rightType = rightNode->type();
-                                if (!this->isParsingSingleFunction && (rightType == ASTNodeType::FunctionExpression || rightType == ASTNodeType::ArrowFunctionExpression)) {
-                                    if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                                        this->lastPoppedScopeContext->m_functionName = name;
-                                    }
-                                } else if (rightType == ASTNodeType::ClassExpression) {
-                                    rightNode->asClassExpression()->tryToSetImplicitName(name);
-                                }
-                            }
+                        if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
+                            this->addImplicitName(rightNode, exprNode->asIdentifier()->name());
                         }
                         exprResult = builder.createAssignmentExpressionSimpleNode(exprNode, rightNode);
                         break;
@@ -3330,15 +3323,8 @@ public:
             this->nextToken();
             ASTNodeType type = ASTNodeType::ASTNodeTypeError;
             initNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-            if (initNode) {
-                type = initNode->type();
-            }
-            if (!this->isParsingSingleFunction && (type == ASTNodeType::FunctionExpression || type == ASTNodeType::ArrowFunctionExpression)) {
-                if (this->lastPoppedScopeContext->m_functionName == AtomicString()) {
-                    this->lastPoppedScopeContext->m_functionName = name;
-                }
-            } else if (type == ASTNodeType::ClassExpression) {
-                initNode->asClassExpression()->tryToSetImplicitName(name);
+            if (isIdentifier) {
+                this->addImplicitName(initNode, name);
             }
         } else if (!isIdentifier && !options.inFor) {
             this->expect(Substitution);

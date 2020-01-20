@@ -63,8 +63,8 @@ public:
                 // enable lexical declaration only if each element exists
                 context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                 if (LIKELY(element->astNode()->type() != RestElement)) {
-                    codeBlock->pushCode(IteratorBind(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorRecordIndex), context, this);
                     element->astNode()->generateResolveAddressByteCode(codeBlock, context);
+                    codeBlock->pushCode(IteratorBind(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorRecordIndex), context, this);
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
                 } else {
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorRecordIndex, true);

@@ -1097,13 +1097,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             MarkEnumerateKey* code = (MarkEnumerateKey*)programCounter;
-            EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
-            SmallValue key = registerFile[code->m_keyRegisterIndex];
-            for (size_t i = 0; i < data->m_keys.size(); i++) {
-                if (data->m_keys[i] == key) {
-                    data->m_keys[i] = Value(Value::EmptyValue);
-                }
-            }
+            markEnumerateKey(*state, code, registerFile);
 
             ADD_PROGRAM_COUNTER(MarkEnumerateKey);
             NEXT_INSTRUCTION();
@@ -2834,6 +2828,27 @@ NEVER_INLINE void ByteCodeInterpreter::checkLastEnumerateKey(ExecutionState& sta
     }
 }
 
+NEVER_INLINE void ByteCodeInterpreter::markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile)
+{
+    EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
+    Value key = registerFile[code->m_keyRegisterIndex];
+    bool mark = false;
+    for (size_t i = 0; i < data->m_keys.size(); i++) {
+        Value cachedKey = data->m_keys[i];
+        if (!cachedKey.isEmpty()) {
+            if (key.isString() && cachedKey.isString()) {
+                mark = key.asString()->equals(cachedKey.asString());
+            } else if (key.isSymbol() && cachedKey.isSymbol()) {
+                mark = (key.asSymbol() == cachedKey.asSymbol());
+            }
+        }
+        if (mark) {
+            data->m_keys[i] = Value(Value::EmptyValue);
+            break;
+        }
+    }
+}
+
 NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
 {
     ExecutionPause* code = (ExecutionPause*)programCounter;
@@ -3315,10 +3330,16 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorCloseOperation(ExecutionState& st
         innerResult = e;
         innerResultHasException = true;
     }
+
+    if (exceptionWasThrown) {
+        return;
+    }
+
     if (innerResultHasException) {
         state.throwException(innerResult);
     }
-    if (!exceptionWasThrown && !innerResult.isObject()) {
+
+    if (!innerResult.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
     }
 }

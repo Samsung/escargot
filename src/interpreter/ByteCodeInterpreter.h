@@ -69,6 +69,7 @@ class IteratorClose;
 class IteratorBind;
 class EnumerateObject;
 class CheckLastEnumerateKey;
+class MarkEnumerateKey;
 
 class ByteCodeInterpreter {
 public:
@@ -123,6 +124,7 @@ private:
 
     static EnumerateObject* createEnumerateObject(ExecutionState& state, Object* obj, bool isDestruction);
     static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
+    static void markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile);
 
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
