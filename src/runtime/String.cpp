@@ -902,7 +902,7 @@ void* UTF16String::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-String* String::getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, String* replacement)
+String* String::getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, Value namedCapture, String* replacement)
 {
     ASSERT(matched != nullptr);
     ASSERT(str != nullptr);
@@ -957,6 +957,31 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                     builder.appendChar('$');
                     builder.appendChar(temp);
                 }
+            } else if (temp == '<' && !namedCapture.isUndefined()) {
+                size_t namedCaptureEnd = i + 1;
+                bool ValidNamedCapturedGroup = false;
+                char16_t temp2 = replacement->charAt(namedCaptureEnd);
+                while (namedCaptureEnd < replacement->length()) {
+                    if (temp2 == '>') {
+                        ValidNamedCapturedGroup = true;
+                        break;
+                    }
+                    namedCaptureEnd++;
+                    temp2 = replacement->charAt(namedCaptureEnd);
+                }
+                if (ValidNamedCapturedGroup) {
+                    String* groupName = replacement->substring((i + 2), (namedCaptureEnd));
+                    Value capture = namedCapture.asObject()->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
+                    if (!capture.isUndefined()) {
+                        builder.appendString(capture.toString(state));
+                    }
+                    i = namedCaptureEnd - 1;
+                    bool ValidNamedCapturedGroup = false;
+                } else {
+                    builder.appendChar('$');
+                    builder.appendChar(temp);
+                }
+
             } else {
                 builder.appendChar('$');
                 builder.appendChar(temp);

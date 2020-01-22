@@ -190,6 +190,8 @@ private:
         NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { RELEASE_ASSERT_NOT_REACHED(); }
         NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { RELEASE_ASSERT_NOT_REACHED(); }
         NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(String) { RELEASE_ASSERT_NOT_REACHED(); }
+        NO_RETURN_DUE_TO_ASSERT bool isValidNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
 
     private:
         Delegate& m_delegate;
@@ -287,7 +289,7 @@ private:
 
         // CharacterClassEscape
         case 'd':
-            if (m_isUnicode) {
+            if (m_squareBracketsNestingDepth > 0 && m_isUnicode) {
                 m_errorCode = ErrorCode::CharacterClassInvalid;
                 return false;
             }
@@ -295,7 +297,7 @@ private:
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::DigitClassID, false);
             break;
         case 's':
-            if (m_isUnicode) {
+            if (m_squareBracketsNestingDepth > 0 && m_isUnicode) {
                 m_errorCode = ErrorCode::CharacterClassInvalid;
                 return false;
             }
@@ -303,7 +305,7 @@ private:
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::SpaceClassID, false);
             break;
         case 'w':
-            if (m_isUnicode) {
+            if (m_squareBracketsNestingDepth > 0 && m_isUnicode) {
                 m_errorCode = ErrorCode::CharacterClassInvalid;
                 return false;
             }
@@ -311,7 +313,7 @@ private:
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::WordClassID, false);
             break;
         case 'D':
-            if (m_isUnicode) {
+            if (m_squareBracketsNestingDepth > 0 && m_isUnicode) {
                 m_errorCode = ErrorCode::CharacterClassInvalid;
                 return false;
             }
@@ -319,7 +321,7 @@ private:
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::DigitClassID, true);
             break;
         case 'S':
-            if (m_isUnicode) {
+            if (m_squareBracketsNestingDepth > 0 && m_isUnicode) {
                 m_errorCode = ErrorCode::CharacterClassInvalid;
                 return false;
             }
@@ -327,7 +329,7 @@ private:
             delegate.atomBuiltInCharacterClass(BuiltInCharacterClassID::SpaceClassID, true);
             break;
         case 'W':
-            if (m_isUnicode) {
+            if (m_squareBracketsNestingDepth > 0 && m_isUnicode) {
                 m_errorCode = ErrorCode::CharacterClassInvalid;
                 return false;
             }
@@ -472,10 +474,11 @@ private:
                         delegate.atomNamedBackReference(groupName.value());
                         break;
                     }
-                    if (m_isUnicode) {
-                        m_errorCode = ErrorCode::InvalidBackreference;
-                        break;
-                    }
+
+                    if (delegate.isValidNamedForwardReference(groupName.value())) {
+                           delegate.atomNamedForwardReference(groupName.value());
+                           break;
+                       }
                 }
             } else {
                 if (m_isUnicode) {
@@ -831,11 +834,13 @@ private:
                 break;
 
             case '[':
+                m_squareBracketsNestingDepth++;
                 parseCharacterClass();
                 lastTokenWasAnAtom = true;
                 break;
 
             case ']':
+                m_squareBracketsNestingDepth--;
                 if (m_isUnicode) {
                     m_errorCode = ErrorCode::CharacterClassUnmatched;
                     break;
@@ -1230,6 +1235,7 @@ private:
     unsigned m_index { 0 };
     bool m_isUnicode;
     unsigned m_parenthesesNestingDepth { 0 };
+    unsigned m_squareBracketsNestingDepth { 0 };
     std::vector<bool> m_isLookaheadExistOnParentheses; // this is used only unicode flag is true
     HashSet<String> m_captureGroupNames;
 
@@ -1263,6 +1269,8 @@ private:
  *    void atomParenthesesEnd();
  *    void atomBackReference(unsigned subpatternId);
  *    void atomNamedBackReference(String subpatternName);
+ *    bool isValidNamedForwardReference(const String& subpatternName);
+ *    void atomNamedForwardReference(const String& subpatternName);
  *
  *    void quantifyAtom(unsigned min, unsigned max, bool greedy);
  *

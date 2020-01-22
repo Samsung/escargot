@@ -329,7 +329,7 @@ public:
 
         return true;
     }
-    String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, String* replacement);
+    String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, Value namedCapture, String* replacement);
     size_t find(String* str, size_t pos = 0);
 
     template <size_t N>

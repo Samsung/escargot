@@ -21,7 +21,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -177,7 +177,7 @@ struct PatternTerm {
         quantityType = QuantifierFixedCount;
         quantityMinCount = quantityMaxCount = 1;
     }
-    
+
     PatternTerm(Type type, bool invert = false)
         : type(type)
         , m_capture(false)
@@ -207,7 +207,7 @@ struct PatternTerm {
         quantityType = QuantifierFixedCount;
         quantityMinCount = quantityMaxCount = 1;
     }
-    
+
     static PatternTerm ForwardReference()
     {
         return PatternTerm(TypeForwardReference);
@@ -227,7 +227,7 @@ struct PatternTerm {
     {
         return PatternTerm(TypeAssertionWordBoundary, invert);
     }
-    
+
     bool invert()
     {
         return m_invert;
@@ -279,18 +279,18 @@ public:
         ASSERT(m_terms.size());
         return m_terms[m_terms.size() - 1];
     }
-    
+
     void removeLastTerm()
     {
         ASSERT(m_terms.size());
         m_terms.shrink(m_terms.size() - 1);
     }
-    
+
     void setOnceThrough()
     {
         m_onceThrough = true;
     }
-    
+
     bool onceThrough()
     {
         return m_onceThrough;
@@ -313,7 +313,7 @@ public:
         , m_hasFixedSize(false)
     {
     }
-    
+
     PatternAlternative* addNewAlternative()
     {
         m_alternatives.append(std::make_unique<PatternAlternative>(this));
@@ -394,6 +394,28 @@ struct YarrPattern : public gc {
         return m_maxBackReference > m_numSubpatterns;
     }
 
+    bool containsIllegalNamedForwardReferences()
+    {
+        if (m_namedForwardReferences.empty())
+            return false;
+        bool notContains = true;
+        for (auto& entry : m_namedForwardReferences) {
+            for(auto& entry2 : m_captureGroupNames){
+              if (entry.equals(entry2)){
+                  notContains = false;
+                  break;
+            }
+          }
+        if(notContains)
+        {
+          return true;
+        }
+        notContains = true;
+    }
+
+
+      return false;
+  }
     bool containsUnsignedLengthPattern()
     {
         return m_containsUnsignedLengthPattern;
@@ -516,6 +538,7 @@ struct YarrPattern : public gc {
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
     ::Escargot::Vector<String, GCUtil::gc_malloc_allocator<String>> m_captureGroupNames;
     HashMap<String, unsigned> m_namedGroupToParenIndex;
+    HashSet<String> m_namedForwardReferences;
 
 private:
     JS_EXPORT_PRIVATE YarrPattern(const String& pattern, RegExpFlags, ErrorCode&, void* stackLimit = nullptr);

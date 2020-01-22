@@ -194,6 +194,7 @@ namespace Escargot {
     F(propertyIsEnumerable)       \
     F(ignoreCase)                 \
     F(global)                     \
+    F(groups)                     \
     F(dotAll)                     \
     F(multiline)                  \
     F(sticky)                     \
