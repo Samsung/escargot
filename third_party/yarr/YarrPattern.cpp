@@ -21,7 +21,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "WTFBridge.h"
@@ -46,7 +46,7 @@ public:
         , m_canonicalMode(canonicalMode)
     {
     }
-    
+
     void reset()
     {
         m_matches.clear();
@@ -169,7 +169,7 @@ public:
             char asciiLo = lo;
             char asciiHi = std::min(hi, (UChar32)0x7f);
             addSortedRange(m_ranges, lo, asciiHi);
-            
+
             if (m_isCaseInsensitive) {
                 if ((asciiLo <= 'Z') && (asciiHi >= 'A'))
                     addSortedRange(m_ranges, std::max(asciiLo, 'A')+('a'-'A'), std::min(asciiHi, 'Z')+('a'-'A'));
@@ -182,7 +182,7 @@ public:
 
         lo = std::max(lo, (UChar32)0x80);
         addSortedRange(m_rangesUnicode, lo, hi);
-        
+
         if (!m_isCaseInsensitive)
             return;
 
@@ -301,7 +301,7 @@ private:
                 range -= (index+1);
             }
         }
-        
+
         if (pos == matches.size())
             matches.append(ch);
         else
@@ -450,7 +450,26 @@ public:
         m_alternative = body->addNewAlternative();
         m_pattern.m_disjunctions.append(WTFMove(body));
     }
-    
+
+    void saveUnmatchedNamedForwardReferences()
+    {
+        m_unmatchedNamedForwardReferences.clear();
+        bool unique = true;
+        for (auto& entry : m_pattern.m_namedForwardReferences) {
+            for(auto& entry2 : m_pattern.m_captureGroupNames){
+              if (entry.equals(entry2)){
+                unique = false;
+              }
+              if(unique) {
+                m_unmatchedNamedForwardReferences.append(entry);
+                unique = true;
+              }
+        }
+    }
+
+
+    }
+
     void assertionBOL()
     {
         if (!m_alternative->m_terms.size() && !m_invertParentheticalAssertion) {
@@ -541,18 +560,18 @@ public:
         case BuiltInCharacterClassID::DigitClassID:
             m_characterClassConstructor.append(invert ? m_pattern.nondigitsCharacterClass() : m_pattern.digitsCharacterClass());
             break;
-        
+
         case BuiltInCharacterClassID::SpaceClassID:
             m_characterClassConstructor.append(invert ? m_pattern.nonspacesCharacterClass() : m_pattern.spacesCharacterClass());
             break;
-        
+
         case BuiltInCharacterClassID::WordClassID:
             if (m_pattern.unicode() && m_pattern.ignoreCase())
                 m_characterClassConstructor.append(invert ? m_pattern.nonwordUnicodeIgnoreCaseCharCharacterClass() : m_pattern.wordUnicodeIgnoreCaseCharCharacterClass());
             else
                 m_characterClassConstructor.append(invert ? m_pattern.nonwordcharCharacterClass() : m_pattern.wordcharCharacterClass());
             break;
-        
+
         default:
             if (!invert)
                 m_characterClassConstructor.append(m_pattern.unicodeCharacterClassFor(classID));
@@ -647,7 +666,7 @@ public:
         PatternAlternative* currentAlternative = m_alternative;
         ASSERT(currentAlternative);
 
-        // Note to self: if we waited until the AST was baked, we could also remove forwards refs 
+        // Note to self: if we waited until the AST was baked, we could also remove forwards refs
         while ((currentAlternative = currentAlternative->m_parent->m_parent)) {
             PatternTerm& term = currentAlternative->lastTerm();
             ASSERT((term.type == PatternTerm::TypeParenthesesSubpattern) || (term.type == PatternTerm::TypeParentheticalAssertion));
@@ -665,6 +684,27 @@ public:
     {
         ASSERT(m_pattern.m_namedGroupToParenIndex.find(subpatternName) != m_pattern.m_namedGroupToParenIndex.end());
         atomBackReference(m_pattern.m_namedGroupToParenIndex.get(subpatternName));
+    }
+
+    bool isValidNamedForwardReference(const String& subpatternName)
+    {
+      for (auto& entry : m_unmatchedNamedForwardReferences) {
+          if (entry.equals(subpatternName)){
+            return false;
+          }
+        }
+        return true;
+    }
+
+    void atomNamedForwardReference(const String& subpatternName)
+    {
+        for(auto& entry : m_pattern.m_namedForwardReferences) {
+          if(entry.equals(subpatternName)) {
+            return;
+          }
+        }
+        m_pattern.m_namedForwardReferences.add(subpatternName);
+        m_alternative->m_terms.append(PatternTerm::ForwardReference());
     }
 
     // deep copy the argument disjunction.  If filterStartsWithBOL is true,
@@ -685,7 +725,7 @@ public:
                     newAlternative->m_terms.append(copyTerm(alternative->m_terms[i], filterStartsWithBOL));
             }
         }
-        
+
         if (!newDisjunction)
             return 0;
 
@@ -693,18 +733,18 @@ public:
         m_pattern.m_disjunctions.append(WTFMove(newDisjunction));
         return copiedDisjunction;
     }
-    
+
     PatternTerm copyTerm(PatternTerm& term, bool filterStartsWithBOL = false)
     {
         if ((term.type != PatternTerm::TypeParenthesesSubpattern) && (term.type != PatternTerm::TypeParentheticalAssertion))
             return PatternTerm(term);
-        
+
         PatternTerm termCopy = term;
         termCopy.parentheses.disjunction = copyDisjunction(termCopy.parentheses.disjunction, filterStartsWithBOL);
         m_pattern.m_hasCopiedParenSubexpressions = true;
         return termCopy;
     }
-    
+
     void quantifyAtom(unsigned min, unsigned max, bool greedy)
     {
         ASSERT(min <= max);
@@ -898,7 +938,7 @@ public:
             if (alternative->m_minimumSize > INT_MAX)
                 m_pattern.m_containsUnsignedLengthPattern = true;
         }
-        
+
         ASSERT(minimumInputSize != UINT_MAX);
         ASSERT(maximumCallFrameSize >= initialCallFrameSize);
 
@@ -953,10 +993,10 @@ public:
         // m_startsWithBOL and rolling those up to containing alternatives.
         // At this point, this is only valid for non-multiline expressions.
         PatternDisjunction* disjunction = m_pattern.m_body;
-        
+
         if (!m_pattern.m_containsBOL || m_pattern.multiline())
             return;
-        
+
         PatternDisjunction* loopDisjunction = copyDisjunction(disjunction, true);
 
         // Set alternatives in disjunction to "onceThrough"
@@ -967,7 +1007,7 @@ public:
             // Move alternatives from loopDisjunction to disjunction
             for (unsigned alt = 0; alt < loopDisjunction->m_alternatives.size(); ++alt)
                 disjunction->m_alternatives.append(loopDisjunction->m_alternatives[alt].release());
-                
+
             loopDisjunction->m_alternatives.clear();
         }
     }
@@ -995,10 +1035,10 @@ public:
         return false;
     }
 
-    // This optimization identifies alternatives in the form of 
-    // [^].*[?]<expression>.*[$] for expressions that don't have any 
-    // capturing terms. The alternative is changed to <expression> 
-    // followed by processing of the dot stars to find and adjust the 
+    // This optimization identifies alternatives in the form of
+    // [^].*[?]<expression>.*[$] for expressions that don't have any
+    // capturing terms. The alternative is changed to <expression>
+    // followed by processing of the dot stars to find and adjust the
     // beginning and the end of the match.
     void optimizeDotStarWrappedExpressions()
     {
@@ -1019,22 +1059,22 @@ public:
                 startsWithBOL = true;
                 ++termIndex;
             }
-            
+
             PatternTerm& firstNonAnchorTerm = terms[termIndex];
             if ((firstNonAnchorTerm.type != PatternTerm::TypeCharacterClass)
                 || (firstNonAnchorTerm.characterClass != dotCharacterClass)
                 || !((firstNonAnchorTerm.quantityType == QuantifierGreedy)
                     || (firstNonAnchorTerm.quantityType == QuantifierNonGreedy)))
                 return;
-            
+
             firstExpressionTerm = termIndex + 1;
-            
+
             termIndex = terms.size() - 1;
             if (terms[termIndex].type == PatternTerm::TypeAssertionEOL) {
                 endsWithEOL = true;
                 --termIndex;
             }
-            
+
             PatternTerm& lastNonAnchorTerm = terms[termIndex];
             if ((lastNonAnchorTerm.type != PatternTerm::TypeCharacterClass)
                 || (lastNonAnchorTerm.characterClass != dotCharacterClass)
@@ -1053,7 +1093,7 @@ public:
                     terms.remove(termIndex - 1);
 
                 terms.append(PatternTerm(startsWithBOL, endsWithEOL));
-                
+
                 m_pattern.m_containsBOL = false;
             }
         }
@@ -1076,6 +1116,7 @@ private:
     YarrPattern& m_pattern;
     PatternAlternative* m_alternative;
     CharacterClassConstructor m_characterClassConstructor;
+    Vector<String> m_unmatchedNamedForwardReferences;
     void* m_stackLimit;
     bool m_invertCharacterClass { false };
     bool m_invertParentheticalAssertion { false };
@@ -1093,17 +1134,18 @@ ErrorCode YarrPattern::compile(const String& patternString, void* stackLimit)
         if (hasError(error))
             return error;
     }
-    
+
     // If the pattern contains illegal backreferences reset & reparse.
     // Quoting Netscape's "What's new in JavaScript 1.2",
     //      "Note: if the number of left parentheses is less than the number specified
     //       in \#, the \# is taken as an octal escape as described in the next row."
-    if (containsIllegalBackReference()) {
+    if (containsIllegalBackReference() || containsIllegalNamedForwardReferences()) {
         if (unicode())
             return ErrorCode::InvalidBackreference;
 
         unsigned numSubpatterns = m_numSubpatterns;
 
+        constructor.saveUnmatchedNamedForwardReferences();
         constructor.reset();
         ErrorCode error = parse(constructor, patternString, unicode(), numSubpatterns);
         ASSERT_UNUSED(error, !hasError(error));

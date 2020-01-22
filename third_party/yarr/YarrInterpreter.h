@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -178,7 +178,7 @@ struct ByteTerm {
         atom.quantityMaxCount = 1;
         inputPosition = inputPos;
     }
-    
+
     ByteTerm(Type type, bool invert = false)
         : type(type)
         , m_capture(false)
@@ -221,7 +221,7 @@ struct ByteTerm {
         term.checkInputCount = count.unsafeGet();
         return term;
     }
-    
+
     static ByteTerm EOL(unsigned inputPos)
     {
         ByteTerm term(TypeAssertionEOL);
@@ -235,7 +235,7 @@ struct ByteTerm {
         term.inputPosition = inputPos;
         return term;
     }
-    
+
     static ByteTerm BackReference(unsigned subpatternId, unsigned inputPos)
     {
         return ByteTerm(TypeBackReference, subpatternId, false, false, inputPos);
@@ -304,7 +304,7 @@ struct ByteTerm {
     {
         return ByteTerm(TypeSubpatternEnd);
     }
-    
+
     static ByteTerm DotStarEnclosure(bool bolAnchor, bool eolAnchor)
     {
         ByteTerm term(TypeDotStarEnclosure);
@@ -340,7 +340,7 @@ public:
     unsigned m_frameSize;
 };
 
-struct BytecodePattern : public gc {
+struct  BytecodePattern : public gc {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     BytecodePattern(std::unique_ptr<ByteDisjunction> body, Vector<std::unique_ptr<ByteDisjunction>>& parenthesesInfoToAdopt, YarrPattern& pattern, BumpPointerAllocator* allocator)
@@ -387,7 +387,7 @@ public:
     }
 
     size_t estimatedSizeInBytes() const { return m_body->estimatedSizeInBytes(); }
-    
+
     bool ignoreCase() const { return m_flags & FlagIgnoreCase; }
     bool multiline() const { return m_flags & FlagMultiline; }
     bool sticky() const { return m_flags & FlagSticky; }

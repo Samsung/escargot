@@ -436,8 +436,16 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         size_t n = 1;
         StringVector captures;
         Value* replacerArgs = nullptr;
+        Value namedCaptures = result->get(state, ObjectPropertyName(state, state.context()->staticStrings().groups)).value(state, result);
+        size_t replacerArgsSize = nCaptures + 3;
         if (functionalReplace) {
-            replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value, state);
+            if (namedCaptures.isUndefined()) {
+                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value, state);
+            } else {
+                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 4), Value, state);
+                replacerArgsSize++;
+                replacerArgs[nCaptures + 3] = namedCaptures;
+            }
             replacerArgs[0] = matched;
         }
         while (n <= nCaptures) {
@@ -455,9 +463,10 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         if (functionalReplace) {
             replacerArgs[nCaptures + 1] = Value((size_t)position);
             replacerArgs[nCaptures + 2] = Value(str);
-            replacement = Object::call(state, replaceValue, Value(), nCaptures + 3, replacerArgs).toString(state);
+
+            replacement = Object::call(state, replaceValue, Value(), replacerArgsSize, replacerArgs).toString(state);
         } else {
-            replacement = replacement->getSubstitution(state, matched, str, position, captures, replaceValue.toString(state));
+            replacement = replacement->getSubstitution(state, matched, str, position, captures, namedCaptures, replaceValue.toString(state));
         }
         if (position >= nextSourcePosition) {
             builder.appendSubString(str, nextSourcePosition, position);

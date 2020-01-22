@@ -163,7 +163,6 @@ private:
     Option m_option;
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
-
     SmallValue m_lastIndex;
     const String* m_lastExecutedString;
 };

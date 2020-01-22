@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "WTFBridge.h"
@@ -46,6 +46,8 @@ public:
     void atomParentheticalAssertionBegin(bool = false) {}
     void atomParenthesesEnd() {}
     void atomBackReference(unsigned) {}
+    bool isValidNamedForwardReference(const String&) { return true; }
+    void atomNamedForwardReference(const String&) {}
     void atomNamedBackReference(String) {}
     void quantifyAtom(unsigned, unsigned, bool) {}
     void disjunction() {}

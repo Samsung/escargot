@@ -497,6 +497,20 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             }
         }
     }
+    if (m_yarrPattern->m_namedGroupToParenIndex.empty()) {
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+    } else {
+        Object* groups = new Object(state);
+        groups->setPrototype(state, Value(Value::Null));
+        for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
+            auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndex.find(*it);
+            if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndex.end()) {
+                groups->defineOwnProperty(state, ObjectPropertyName(state, it->impl()),
+                                          ObjectPropertyDescriptor(arr->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second)).value(state, this), ObjectPropertyDescriptor::AllPresent));
+            }
+        }
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
+    }
     return arr;
 }
 
