@@ -36,6 +36,7 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iteratorPrototype = new Object(state);
     m_iteratorPrototype->markThisObjectDontNeedStructureTransitionTable();
 
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-%iteratorprototype%-@@iterator
     FunctionObject* fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinIteratorIterator, 0, NativeFunctionInfo::Strict));
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                           ObjectPropertyDescriptor(fn,

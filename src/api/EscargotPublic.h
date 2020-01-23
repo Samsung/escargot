@@ -546,6 +546,7 @@ public:
     SymbolRef* matchSymbol();
     SymbolRef* replaceSymbol();
     SymbolRef* splitSymbol();
+    SymbolRef* asyncIteratorSymbol();
 
     bool hasPendingPromiseJob();
     Evaluator::EvaluatorResult executePendingPromiseJob();

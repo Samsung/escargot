@@ -33,8 +33,8 @@ namespace Escargot {
 void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator, bool isAsync)
 {
     if (isGenerator) {
-        // Unlike function instances, the object that is the value of the a GeneratorFunction’s prototype property
-        // does not have a constructor property whose value is the GeneratorFunction instance.
+        // Unlike function instances, the object that is the value of the GeneratorFunction’s of AsyncGeneratorFunction prototype property
+        // does not have a constructor property whose value is the GeneratorFunction or the AsyncGeneratorFunction instance.
         m_structure = state.context()->defaultStructureForFunctionObject();
         ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
         ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
@@ -77,12 +77,13 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
         src.appendString("'use strict'; ");
     }
 
-    if (isGenerator) {
-        ASSERT(!isAsync);
+    if (isGenerator && isAsync) {
+        src.appendString("async function* ");
+        srcToTest.appendString("async function* ");
+    } else if (isGenerator) {
         src.appendString("function* ");
         srcToTest.appendString("function* ");
     } else if (isAsync) {
-        ASSERT(!isGenerator);
         src.appendString("async function ");
         srcToTest.appendString("async function ");
     } else {

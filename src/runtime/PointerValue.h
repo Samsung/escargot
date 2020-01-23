@@ -32,6 +32,7 @@ class ScriptFunctionObject;
 class ScriptArrowFunctionObject;
 class ScriptGeneratorFunctionObject;
 class ScriptAsyncFunctionObject;
+class ScriptAsyncGeneratorFunctionObject;
 class ScriptClassConstructorFunctionObject;
 class ArrayObject;
 class StringObject;
@@ -56,6 +57,7 @@ class SetObject;
 class WeakMapObject;
 class WeakSetObject;
 class GeneratorObject;
+class AsyncGeneratorObject;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
@@ -136,6 +138,11 @@ public:
     }
 
     virtual bool isScriptAsyncFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptAsyncGeneratorFunctionObject() const
     {
         return false;
     }
@@ -330,6 +337,11 @@ public:
         return false;
     }
 
+    virtual bool isAsyncGeneratorObject() const
+    {
+        return false;
+    }
+
     virtual bool isArgumentsObject() const
     {
         return false;
@@ -403,6 +415,12 @@ public:
     {
         ASSERT(isScriptAsyncFunctionObject());
         return (ScriptAsyncFunctionObject*)this;
+    }
+
+    ScriptAsyncGeneratorFunctionObject* asScriptAsyncGeneratorFunctionObject()
+    {
+        ASSERT(isScriptAsyncGeneratorFunctionObject());
+        return (ScriptAsyncGeneratorFunctionObject*)this;
     }
 
     ScriptClassConstructorFunctionObject* asScriptClassConstructorFunctionObject()
@@ -541,6 +559,12 @@ public:
     {
         ASSERT(isGeneratorObject());
         return (GeneratorObject*)this;
+    }
+
+    AsyncGeneratorObject* asAsyncGeneratorObject()
+    {
+        ASSERT(isAsyncGeneratorObject());
+        return (AsyncGeneratorObject*)this;
     }
 
     bool hasTag(const size_t tag) const

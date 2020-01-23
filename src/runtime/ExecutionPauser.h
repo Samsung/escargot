@@ -30,6 +30,7 @@ class ByteCodeBlock;
 class ExecutionPauser : public gc {
 public:
     friend class GeneratorObject;
+    friend class AsyncGeneratorObject;
     friend class ByteCodeInterpreter;
 
     ExecutionPauser(ExecutionState& state, Object* sourceObject, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
@@ -60,7 +61,8 @@ public:
 
     enum StartFrom {
         Generator,
-        Async
+        Async,
+        AsyncGenerator
     };
 
     static Value start(ExecutionState& state, ExecutionPauser* self, Object* source, const Value& resumeValue, bool isAbruptReturn, bool isAbruptThrow, StartFrom from);
