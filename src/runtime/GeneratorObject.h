@@ -27,30 +27,26 @@
 
 namespace Escargot {
 
-enum GeneratorState {
-    Undefined,
-    SuspendedStart,
-    SuspendedYield,
-    Executing,
-    CompletedReturn,
-    CompletedThrow,
-};
-
-enum GeneratorAbruptType {
-    Return,
-    Throw
-};
-
 class GeneratorObject : public Object {
     friend class ByteCodeInterpreter;
     friend class ExecutionPauser;
-    friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow);
-    friend Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
-    friend Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type);
 
 public:
+    enum GeneratorState {
+        SuspendedStart,
+        SuspendedYield,
+        Executing,
+        CompletedReturn,
+        CompletedThrow,
+    };
+
+    enum GeneratorAbruptType {
+        Return,
+        Throw
+    };
+
     GeneratorObject(ExecutionState& state);
-    GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
+    GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk, const Value& prototype);
 
     virtual const char* internalClassProperty() override
     {
@@ -76,6 +72,10 @@ public:
     }
 
 private:
+    friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow);
+    friend Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
+    friend Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type);
+
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
@@ -93,7 +93,7 @@ private:
 
 GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator);
 Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
-Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type);
+Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type);
 }
 
 #endif

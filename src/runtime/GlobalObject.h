@@ -57,6 +57,7 @@ public:
         , m_objectFreeze(nullptr)
         , m_function(nullptr)
         , m_functionPrototype(nullptr)
+        , m_functionApply(nullptr)
         , m_iteratorPrototype(nullptr)
         , m_error(nullptr)
         , m_errorPrototype(nullptr)
@@ -151,6 +152,10 @@ public:
         , m_generatorPrototype(nullptr)
         , m_asyncFunction(nullptr)
         , m_asyncFunctionPrototype(nullptr)
+        , m_asyncIteratorPrototype(nullptr)
+        , m_asyncGenerator(nullptr)
+        , m_asyncGeneratorPrototype(nullptr)
+        , m_asyncGeneratorFunction(nullptr)
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
         m_objectPrototype->markAsPrototypeObject(state);
@@ -194,6 +199,8 @@ public:
         installWeakSet(state);
         installGenerator(state);
         installAsyncFunction(state);
+        installAsyncIterator(state);
+        installAsyncGeneratorFunction(state);
         installOthers(state);
     }
 
@@ -226,6 +233,8 @@ public:
     void installWeakSet(ExecutionState& state);
     void installGenerator(ExecutionState& state);
     void installAsyncFunction(ExecutionState& state);
+    void installAsyncIterator(ExecutionState& state);
+    void installAsyncGeneratorFunction(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
@@ -641,6 +650,21 @@ public:
         return m_asyncFunctionPrototype;
     }
 
+    Object* asyncGenerator()
+    {
+        return m_asyncGenerator;
+    }
+
+    Object* asyncGeneratorPrototype()
+    {
+        return m_asyncGeneratorPrototype;
+    }
+
+    FunctionObject* asyncGeneratorFunction()
+    {
+        return m_asyncGeneratorFunction;
+    }
+
     FunctionObject* eval()
     {
         return m_eval;
@@ -827,6 +851,12 @@ private:
 
     FunctionObject* m_asyncFunction; // %AsyncFunction%
     Object* m_asyncFunctionPrototype; // %AsyncFunctionPrototype%
+
+    Object* m_asyncIteratorPrototype; // %AsyncIteratorPrototype%
+
+    Object* m_asyncGenerator; // %AsyncGenerator%
+    Object* m_asyncGeneratorPrototype; // %AsyncGeneratorPrototype%
+    FunctionObject* m_asyncGeneratorFunction; // %AsyncGeneratorFunction%
 };
 }
 

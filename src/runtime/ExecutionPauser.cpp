@@ -20,6 +20,8 @@
 #include "Escargot.h"
 #include "ExecutionPauser.h"
 #include "runtime/GeneratorObject.h"
+#include "runtime/AsyncGeneratorObject.h"
+#include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/IteratorObject.h"
@@ -89,7 +91,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     ExecutionPauserExecutionStateParentBinder parentBinder(state, originalState);
 
     if (from == StartFrom::Generator) {
-        source->asGeneratorObject()->m_generatorState = GeneratorState::Executing;
+        source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::Executing;
     }
     if (self->m_resumeValueIndex != REGISTER_LIMIT) {
         self->m_registerFile[self->m_resumeValueIndex] = resumeValue;
@@ -101,6 +103,11 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         gr->m_needsReturn = isAbruptReturn;
         gr->m_needsThrow = isAbruptThrow;
     }
+
+    // AsyncFunction
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
+    // AsyncGeneratorFunction
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorstart
 
     Value result;
     try {
@@ -127,12 +134,14 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             es = new ExecutionState(&state, env, false);
         }
         result = ByteCodeInterpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
-        // normal return means generator end
+        // normal return means execution end
         if (from == StartFrom::Generator) {
-            source->asGeneratorObject()->m_generatorState = GeneratorState::CompletedReturn;
+            source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedReturn;
             result = IteratorObject::createIterResultObject(state, result, true);
+        } else if (from == StartFrom::AsyncGenerator) {
+            source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
+            result = asyncGeneratorResolve(state, source->asAsyncGeneratorObject(), result, true);
         } else {
-            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             ASSERT(from == StartFrom::Async);
             Value argv = result;
             Object::call(state, self->m_promiseCapability.m_resolveFunction, Value(), 1, &argv);
@@ -149,11 +158,11 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         }
 
         if (from == StartFrom::Generator) {
-            if (source->asGeneratorObject()->m_generatorState >= GeneratorState::CompletedReturn) {
+            if (source->asGeneratorObject()->m_generatorState >= GeneratorObject::GeneratorState::CompletedReturn) {
                 return IteratorObject::createIterResultObject(state, result, true);
             }
             return IteratorObject::createIterResultObject(state, result, false);
-        } else {
+        } else if (from == StartFrom::Async) {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
             result = self->m_promiseCapability.m_promise;
@@ -161,17 +170,20 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     } catch (const Value& thrownValue) {
         auto promiseCapability = self->m_promiseCapability;
         self->release();
-        if (from == StartFrom::Async) {
+        if (from == StartFrom::Generator) {
+            ASSERT(from == StartFrom::Generator);
+            source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedThrow;
+            throw thrownValue;
+        } else if (from == StartFrom::AsyncGenerator) {
+            source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
+            result = asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
+        } else {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             ASSERT(from == StartFrom::Async);
             Value argv = thrownValue;
             Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
             // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
             result = promiseCapability.m_promise;
-        } else {
-            ASSERT(from == StartFrom::Generator);
-            source->asGeneratorObject()->m_generatorState = GeneratorState::CompletedThrow;
-            throw thrownValue;
         }
     }
 
@@ -195,8 +207,18 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     self->m_byteCodePosition = nextProgramCounter;
     self->m_resumeValueIndex = dstRegisterIndex;
 
+    bool isGenerator = pauser->isGeneratorObject();
+    bool isAsync = pauser->isScriptAsyncFunctionObject();
+    bool isAsyncGenerator = pauser->isAsyncGeneratorObject();
+
+
     if (reason == PauseReason::Yield || reason == PauseReason::YieldDelegate) {
-        pauser->asGeneratorObject()->m_generatorState = GeneratorState::SuspendedYield;
+        if (isGenerator) {
+            pauser->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::SuspendedYield;
+        } else if (isAsyncGenerator) {
+            pauser->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::SuspendedYield;
+            returnValue = asyncGeneratorResolve(state, pauser->asAsyncGeneratorObject(), returnValue, false);
+        }
     } else {
         ASSERT(reason == PauseReason::Await);
     }

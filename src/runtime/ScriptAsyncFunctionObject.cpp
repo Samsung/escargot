@@ -82,8 +82,21 @@ Object* ScriptAsyncFunctionObject::construct(ExecutionState& state, const size_t
     return nullptr;
 }
 
+class ScriptAsyncFunctionHelperFunctionObject : public NativeFunctionObject {
+public:
+    ScriptAsyncFunctionHelperFunctionObject(ExecutionState& state, NativeFunctionInfo info, ExecutionPauser* executionPauser, Object* source)
+        : NativeFunctionObject(state, info)
+        , m_executionPauser(executionPauser)
+        , m_source(source)
+    {
+    }
+
+    ExecutionPauser* m_executionPauser;
+    Object* m_source;
+};
+
 // http://www.ecma-international.org/ecma-262/10.0/#await-fulfilled
-void awaitFulfilledFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFunctionObject* F, const Value& value)
+static void awaitFulfilledFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFunctionObject* F, const Value& value)
 {
     // Let F be the active function object.
     // Let asyncContext be F.[[AsyncContext]].
@@ -91,12 +104,12 @@ void awaitFulfilledFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFun
     // Suspend prevContext.
     // Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
     // Resume the suspended evaluation of asyncContext using NormalCompletion(value) as the result of the operation that suspended it.
-    ExecutionPauser::start(state, F->m_executionPauser, F->m_sourceFunction, value, false, false, ExecutionPauser::StartFrom::Async);
+    ExecutionPauser::start(state, F->m_executionPauser, F->m_source, value, false, false, F->m_source->isAsyncGeneratorObject() ? ExecutionPauser::StartFrom::AsyncGenerator : ExecutionPauser::StartFrom::Async);
     // Assert: When we reach this step, asyncContext has already been removed from the execution context stack and prevContext is the currently running execution context.
     // Return undefined.
 }
 
-Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     ScriptAsyncFunctionHelperFunctionObject* self = (ScriptAsyncFunctionHelperFunctionObject*)state.resolveCallee();
     awaitFulfilledFunctions(state, self, argv[0]);
@@ -104,7 +117,7 @@ Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc
 }
 
 // http://www.ecma-international.org/ecma-262/10.0/#await-rejected
-void awaitRejectedFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFunctionObject* F, const Value& reason)
+static void awaitRejectedFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFunctionObject* F, const Value& reason)
 {
     // Let F be the active function object.
     // Let asyncContext be F.[[AsyncContext]].
@@ -112,15 +125,39 @@ void awaitRejectedFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFunc
     // Suspend prevContext.
     // Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
     // Resume the suspended evaluation of asyncContext using ThrowCompletion(reason) as the result of the operation that suspended it.
-    ExecutionPauser::start(state, F->m_executionPauser, F->m_sourceFunction, reason, false, true, ExecutionPauser::StartFrom::Async);
+    ExecutionPauser::start(state, F->m_executionPauser, F->m_source, reason, false, true, F->m_source->isAsyncGeneratorObject() ? ExecutionPauser::StartFrom::AsyncGenerator : ExecutionPauser::StartFrom::Async);
     // Assert: When we reach this step, asyncContext has already been removed from the execution context stack and prevContext is the currently running execution context.
     // Return undefined.
 }
 
-Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     ScriptAsyncFunctionHelperFunctionObject* self = (ScriptAsyncFunctionHelperFunctionObject*)state.resolveCallee();
     awaitRejectedFunctions(state, self, argv[0]);
     return Value();
+}
+
+// http://www.ecma-international.org/ecma-262/10.0/#await
+void await(ExecutionState& state, ExecutionPauser* executionPauser, const Value& awaitValue, Object* source)
+{
+    // Let asyncContext be the running execution context.
+    // Let promise be ? PromiseResolve(%Promise%, « value »).
+    PromiseObject* promise = promiseResolve(state, state.context()->globalObject()->promise(), awaitValue).asObject()->asPromiseObject();
+    // Let stepsFulfilled be the algorithm steps defined in Await Fulfilled Functions.
+    // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[AsyncContext]] »).
+    // Set onFulfilled.[[AsyncContext]] to asyncContext.
+    FunctionObject* onFulfilled = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitFulfilledFunction, 1), executionPauser, source);
+
+    // Let stepsRejected be the algorithm steps defined in Await Rejected Functions.
+    // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[AsyncContext]] »).
+    // Set onRejected.[[AsyncContext]] to asyncContext.
+    FunctionObject* onRejected = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitRejectedFunction, 1), executionPauser, source);
+
+    // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
+    promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
+    // Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
+    // Set the code evaluation state of asyncContext such that when evaluation is resumed with a Completion completion, the following steps of the algorithm that invoked Await will be performed, with completion available.
+    // Return.
+    // NOTE: This returns to the evaluation of the operation that had most previously resumed evaluation of asyncContext.
 }
 }

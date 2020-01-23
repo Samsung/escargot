@@ -43,12 +43,12 @@ static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorAbruptType::Return);
+    return generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Return);
 }
 
 static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorAbruptType::Throw);
+    return generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Throw);
 }
 
 void GlobalObject::installGenerator(ExecutionState& state)

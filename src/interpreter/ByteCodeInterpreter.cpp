@@ -41,6 +41,7 @@
 #include "runtime/ScriptClassMethodFunctionObject.h"
 #include "runtime/ScriptGeneratorFunctionObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
+#include "runtime/ScriptAsyncGeneratorFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
@@ -2139,11 +2140,18 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
 
     LexicalEnvironment* outerLexicalEnvironment = state.mostNearestHeapAllocatedLexicalEnvironment();
 
-    if (UNLIKELY(cb->isGenerator())) {
+    bool isGenerator = cb->isGenerator();
+    bool isAsync = cb->isAsync();
+
+    if (UNLIKELY(isGenerator && isAsync)) {
+        Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
+        Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
+        registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+    } else if (UNLIKELY(isGenerator)) {
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
-    } else if (UNLIKELY(cb->isAsync())) {
+    } else if (UNLIKELY(isAsync)) {
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
@@ -2865,7 +2873,7 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
         // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
         const Value iteratorRecord = registerFile[code->m_yieldDelegateData.m_iterIntex];
         Object* iterator = iteratorRecord.asObject()->getOwnProperty(state, state.context()->staticStrings().iterator).value(state, iteratorRecord).asObject();
-        GeneratorState resultState = GeneratorState::SuspendedYield;
+        GeneratorObject::GeneratorState resultState = GeneratorObject::GeneratorState::SuspendedYield;
         Value nextResult;
         bool done = true;
         Value nextValue;
@@ -2875,12 +2883,12 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
                 resultState = iterator->asGeneratorObject()->m_generatorState;
             }
         } catch (const Value& v) {
-            resultState = GeneratorState::CompletedThrow;
+            resultState = GeneratorObject::GeneratorState::CompletedThrow;
             nextValue = v;
         }
 
         switch (resultState) {
-        case GeneratorState::CompletedReturn: {
+        case GeneratorObject::GeneratorState::CompletedReturn: {
             Value ret = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
 
             nextValue = IteratorObject::iteratorValue(state, nextResult);
@@ -2899,13 +2907,13 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
             done = IteratorObject::iteratorComplete(state, innerResult);
             break;
         }
-        case GeneratorState::SuspendedYield: {
+        case GeneratorObject::GeneratorState::SuspendedYield: {
             done = IteratorObject::iteratorComplete(state, nextResult);
             nextValue = IteratorObject::iteratorValue(state, nextResult);
             break;
         }
         default: {
-            ASSERT(resultState == GeneratorState::CompletedThrow);
+            ASSERT(resultState == GeneratorObject::GeneratorState::CompletedThrow);
             Value throwMethod = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringThrow)).value(state, iterator);
 
             if (!throwMethod.isUndefined()) {
@@ -2935,9 +2943,6 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldDelegateData.m_tailDataLength;
         ExecutionPauser::pause(state, nextResult, programCounter + sizeof(ExecutionPause), code->m_yieldDelegateData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::YieldDelegate);
     } else if (code->m_reason == ExecutionPause::Await) {
-        // http://www.ecma-international.org/ecma-262/10.0/#await
-        ScriptAsyncFunctionObject* self = state.resolveCallee()->asScriptAsyncFunctionObject();
-
         ExecutionState* p = &state;
         ExecutionPauser* executionPauser;
         while (true) {
@@ -2949,29 +2954,13 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
         }
 
         const Value& awaitValue = registerFile[code->m_awaitData.m_awaitIndex];
-
-        // Let asyncContext be the running execution context.
-        // Let promise be ? PromiseResolve(%Promise%, « value »).
-        PromiseObject* promise = promiseResolve(state, state.context()->globalObject()->promise(), awaitValue).asObject()->asPromiseObject();
-        // Let stepsFulfilled be the algorithm steps defined in Await Fulfilled Functions.
-        // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[AsyncContext]] »).
-        // Set onFulfilled.[[AsyncContext]] to asyncContext.
-        FunctionObject* onFulfilled = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitFulfilledFunction, 1), executionPauser, self);
-
-        // Let stepsRejected be the algorithm steps defined in Await Rejected Functions.
-        // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[AsyncContext]] »).
-        // Set onRejected.[[AsyncContext]] to asyncContext.
-        FunctionObject* onRejected = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitRejectedFunction, 1), executionPauser, self);
-
-        // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
-        promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
-        // Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
-        // Set the code evaluation state of asyncContext such that when evaluation is resumed with a Completion completion, the following steps of the algorithm that invoked Await will be performed, with completion available.
-        // Return.
-        // NOTE: This returns to the evaluation of the operation that had most previously resumed evaluation of asyncContext.
-
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_awaitData.m_tailDataLength;
-        ExecutionPauser::pause(state, registerFile[code->m_awaitData.m_awaitIndex], programCounter + sizeof(ExecutionPause), code->m_awaitData.m_tailDataLength, nextProgramCounter, code->m_awaitData.m_dstIndex, ExecutionPauser::PauseReason::Await);
+        size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
+        size_t tailDataLength = code->m_awaitData.m_tailDataLength;
+        ByteCodeRegisterIndex dstRegisterIndex = code->m_awaitData.m_dstIndex;
+
+        await(state, executionPauser, awaitValue, executionPauser->sourceObject());
+        ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter, dstRegisterIndex, ExecutionPauser::PauseReason::Await);
     }
 
     ASSERT_NOT_REACHED();

@@ -29,6 +29,7 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/GeneratorObject.h"
+#include "runtime/AsyncGeneratorObject.h"
 #include "runtime/ExecutionPauser.h"
 #include "util/Util.h"
 
@@ -146,7 +147,7 @@ public:
 
         Value* registerFile;
 
-        if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
+        if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
             registerFile = (Value*)CustomAllocator<Value>().allocate(registerSize + stackStorageSize + literalStorageSize);
         } else {
             registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
@@ -170,7 +171,7 @@ public:
         }
 
         ThisValueBinder thisValueBinder;
-        if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
+        if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
             Value* arguments = CustomAllocator<Value>().allocate(argc);
             memcpy(arguments, argv, sizeof(Value) * argc);
 
@@ -187,11 +188,17 @@ public:
                 newTargetBinder(*newState, self, newTarget, record);
             }
 
-            GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk);
-            gen->setPrototype(state, self->get(state, state.context()->staticStrings().prototype).value(state, self));
-            newState->setPauseSource(gen->executionPauser());
-            return gen;
+            if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
+                GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk, self->getFunctionPrototype(state));
+                newState->setPauseSource(gen->executionPauser());
+                return gen;
+            } else {
+                AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, newState, registerFile, blk, self->getFunctionPrototype(state));
+                newState->setPauseSource(gen->executionPauser());
+                return gen;
+            }
         }
+
 
         ExecutionState* newState;
 

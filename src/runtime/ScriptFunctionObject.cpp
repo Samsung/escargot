@@ -44,9 +44,11 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* cod
 {
     initStructureAndValues(state, isConstructor, isGenerator, isAsync);
 
-    if (isGenerator) {
+    if (UNLIKELY(isGenerator && isAsync)) {
+        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncFunctionPrototype());
+    } else if (UNLIKELY(isGenerator)) {
         Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->generator());
-    } else if (isAsync) {
+    } else if (UNLIKELY(isAsync)) {
         Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncFunctionPrototype());
     } else {
         Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());

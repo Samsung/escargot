@@ -28,17 +28,18 @@
 namespace Escargot {
 
 GeneratorObject::GeneratorObject(ExecutionState& state)
-    : GeneratorObject(state, nullptr, nullptr, nullptr)
+    : GeneratorObject(state, nullptr, nullptr, nullptr, Value(Value::Null))
 {
+    Object* prototype = new Object(state);
+    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
+    setPrototype(state, prototype);
 }
 
-GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
+GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk, const Value& prototype)
     : Object(state)
     , m_generatorState(GeneratorState::SuspendedStart)
     , m_executionPauser(state, this, executionState, registerFile, blk)
 {
-    Object* prototype = new Object(state);
-    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
     setPrototype(state, prototype);
 }
 
@@ -70,7 +71,7 @@ GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator
 
     GeneratorObject* gen = generator.asObject()->asGeneratorObject();
 
-    if (gen->generatorState() == GeneratorState::Executing) {
+    if (gen->generatorState() == GeneratorObject::GeneratorState::Executing) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator is already running");
     }
 
@@ -82,33 +83,33 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
 {
     GeneratorObject* gen = generatorValidate(state, generator);
 
-    if (gen->m_generatorState >= GeneratorState::CompletedReturn) {
+    if (gen->m_generatorState >= GeneratorObject::GeneratorState::CompletedReturn) {
         return IteratorObject::createIterResultObject(state, Value(), true);
     }
 
-    ASSERT(gen->m_generatorState == GeneratorState::SuspendedStart || gen->m_generatorState == SuspendedYield);
+    ASSERT(gen->m_generatorState == GeneratorObject::GeneratorState::SuspendedStart || gen->m_generatorState == GeneratorObject::GeneratorState::SuspendedYield);
 
     return ExecutionPauser::start(state, gen->executionPauser(), gen, value, false, false, ExecutionPauser::Generator);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresumeabrupt
-Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorAbruptType type)
+Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type)
 {
     GeneratorObject* gen = generatorValidate(state, generator);
 
-    if (gen->m_generatorState == GeneratorState::SuspendedStart) {
-        gen->m_generatorState = GeneratorState::CompletedReturn;
+    if (gen->m_generatorState == GeneratorObject::GeneratorState::SuspendedStart) {
+        gen->m_generatorState = GeneratorObject::GeneratorState::CompletedReturn;
     }
 
-    if (gen->generatorState() >= GeneratorState::CompletedReturn) {
-        if (type == GeneratorAbruptType::Return) {
+    if (gen->generatorState() >= GeneratorObject::GeneratorState::CompletedReturn) {
+        if (type == GeneratorObject::GeneratorAbruptType::Return) {
             return IteratorObject::createIterResultObject(state, value, true);
         }
         state.throwException(value);
     }
 
-    ASSERT(gen->generatorState() == GeneratorState::SuspendedYield);
+    ASSERT(gen->generatorState() == GeneratorObject::GeneratorState::SuspendedYield);
 
-    return ExecutionPauser::start(state, gen->executionPauser(), gen, value, type == GeneratorAbruptType::Return, type == GeneratorAbruptType::Throw, ExecutionPauser::Generator);
+    return ExecutionPauser::start(state, gen->executionPauser(), gen, value, type == GeneratorObject::GeneratorAbruptType::Return, type == GeneratorObject::GeneratorAbruptType::Throw, ExecutionPauser::Generator);
 }
 }

@@ -50,7 +50,8 @@ class CompressibleString;
     F(unscopables)               \
     F(search)                    \
     F(match)                     \
-    F(replace)
+    F(replace)                   \
+    F(asyncIterator)
 
 struct GlobalSymbols {
 #define DECLARE_GLOBAL_SYMBOLS(name) Symbol* name;

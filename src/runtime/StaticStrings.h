@@ -415,7 +415,10 @@ namespace Escargot {
     F(trimStart)                  \
     F(trimEnd)                    \
     F(trimRight)                  \
-    F(trimLeft)
+    F(trimLeft)                   \
+    F(asyncIterator)              \
+    F(AsyncGenerator)             \
+    F(AsyncGeneratorFunction)
 
 
 #define FOR_EACH_STATIC_NUMBER(F) \

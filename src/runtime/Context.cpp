@@ -82,8 +82,8 @@ Context::Context(VMInstance* instance)
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
 
-    auto temp = new ArrayObject(stateForInit);
-    g_arrayObjectTag = *((size_t*)temp);
+    ArrayObject temp(stateForInit);
+    g_arrayObjectTag = *((size_t*)&temp);
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)

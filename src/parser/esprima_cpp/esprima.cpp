@@ -235,7 +235,7 @@ public:
 
         this->context = &contextInstance;
         this->context->allowIn = true;
-        this->context->allowYield = true;
+        this->context->allowYield = false;
         this->context->allowLexicalDeclaration = false;
         this->context->allowSuperCall = false;
         this->context->allowSuperProperty = false;
@@ -1122,7 +1122,7 @@ public:
         }
 
         case Token::KeywordToken:
-            if (!this->context->strict && this->context->allowYield && this->matchKeyword(YieldKeyword)) {
+            if (!this->context->strict && !this->context->allowYield && this->matchKeyword(YieldKeyword)) {
                 return this->parseIdentifierName(builder);
             } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
                 ALLOC_TOKEN(token);
@@ -1349,7 +1349,12 @@ public:
                 this->currentScopeContext->m_functionBodyBlockIndex = 1;
             }
             this->nextToken();
-            const bool previousAllowYield = this->context->allowYield;
+
+            // yield expression is not allowed in parameter
+            if (this->context->inParameterParsing && this->currentScopeContext->m_isGenerator && this->matchKeyword(YieldKeyword)) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
+
             const bool previousInParameterNameParsing = this->context->inParameterNameParsing;
             this->context->inParameterNameParsing = false;
             ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
@@ -1528,9 +1533,8 @@ public:
 
         this->context->allowNewTarget = true;
         this->context->allowSuperProperty = true;
-        this->context->allowYield = true;
+        this->context->allowYield = false;
         this->context->inArrowFunction = false;
-        this->context->await = isAsyncFunction;
 
         if (allowSuperCall) {
             this->context->allowSuperCall = true;
@@ -1538,18 +1542,6 @@ public:
 
         this->expect(LeftParenthesis);
         BEGIN_FUNCTION_SCANNING(AtomicString());
-
-        ParseFormalParametersResult params;
-        this->parseFormalParameters(newBuilder, params);
-        extractNamesFromFunctionParams(params);
-        this->parsePropertyMethod(newBuilder, params);
-
-        this->context->allowNewTarget = previousAllowNewTarget;
-        this->context->allowSuperCall = previousAllowSuperCall;
-        this->context->allowSuperProperty = previousAllowSuperProperty;
-        this->context->allowYield = previousAllowYield;
-        this->context->await = previousAwait;
-        this->context->inArrowFunction = previousInArrowFunction;
 
         this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
         this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
@@ -1561,6 +1553,20 @@ public:
         this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
         this->currentScopeContext->m_isGenerator = isGenerator;
         this->currentScopeContext->m_isAsync = isAsyncFunction;
+
+        ParseFormalParametersResult params;
+        this->parseFormalParameters(newBuilder, params);
+        extractNamesFromFunctionParams(params);
+
+        this->context->await = isAsyncFunction;
+        this->parsePropertyMethod(newBuilder, params);
+
+        this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowSuperCall = previousAllowSuperCall;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
+        this->context->allowYield = previousAllowYield;
+        this->context->await = previousAwait;
+        this->context->inArrowFunction = previousInArrowFunction;
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -1685,7 +1691,6 @@ public:
             kind = PropertyNode::Kind::Get;
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
-            this->context->allowYield = false;
             valueNode = this->parseGetterMethod(builder, node);
         } else if (isSet) {
             kind = PropertyNode::Kind::Set;
@@ -1726,7 +1731,7 @@ public:
                 if (token->type != Token::IdentifierToken) {
                     if (token->type == Token::KeywordToken && token->valueKeywordKind == KeywordKind::YieldKeyword) {
                         // yield is a valid Identifier in AssignmentProperty outside of strict mode and generator functions
-                        if (!this->context->allowYield) {
+                        if (this->context->allowYield) {
                             this->throwUnexpectedToken(*token);
                         }
                     } else if (token->type == Token::KeywordToken && token->valueKeywordKind == KeywordKind::LetKeyword) {
@@ -2653,7 +2658,7 @@ public:
     {
         ASTNode exprNode = nullptr;
 
-        if (!this->context->allowYield && this->matchKeyword(YieldKeyword)) {
+        if (this->context->allowYield && this->matchKeyword(YieldKeyword)) {
             exprNode = this->parseYieldExpression(builder);
         } else {
             ALLOC_TOKEN(startToken);
@@ -2749,8 +2754,7 @@ public:
                 bool previousAwait = this->context->await;
                 bool previousInArrowFunction = this->context->inArrowFunction;
 
-                this->context->allowYield = true;
-                this->context->await = isAsync;
+                this->context->allowYield = false;
                 this->context->inArrowFunction = true;
 
                 this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
@@ -2763,6 +2767,8 @@ public:
                 extractNamesFromFunctionParams(list);
 
                 this->expect(Arrow);
+
+                this->context->await = isAsync;
 
                 MetaNode node = this->startNode(startToken);
                 MetaNode bodyStart = this->createNode();
@@ -3215,7 +3221,7 @@ public:
             if (this->context->strict) {
                 this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
             }
-            if (!this->context->allowYield) {
+            if (this->context->allowYield) {
                 this->throwUnexpectedToken(*token);
             }
         } else if (token->type != Token::IdentifierToken) {
@@ -4361,7 +4367,7 @@ public:
 
         this->expectKeyword(FunctionKeyword);
 
-        bool isGenerator = isAsync ? false : this->match(Multiply);
+        bool isGenerator = this->match(Multiply);
         if (isGenerator) {
             this->nextToken();
         }
@@ -4406,19 +4412,21 @@ public:
 
         BEGIN_FUNCTION_SCANNING(fnName);
 
+        this->currentScopeContext->m_isAsync = isAsync;
+        this->currentScopeContext->m_isGenerator = isGenerator;
         this->currentScopeContext->m_functionStartLOC.index = node.index;
         this->currentScopeContext->m_functionStartLOC.column = node.column;
         this->currentScopeContext->m_functionStartLOC.line = node.line;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
 
         bool previousAwait = this->context->await;
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
         bool previousAllowNewTarget = this->context->allowNewTarget;
 
-        this->context->await = isAsync;
-        this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
+        this->context->allowYield = false;
 
         ParseFormalParametersResult formalParameters;
         this->parseFormalParameters(newBuilder, formalParameters, &firstRestricted);
@@ -4429,6 +4437,10 @@ public:
         }
 
         extractNamesFromFunctionParams(formalParameters);
+
+        this->context->await = isAsync;
+        this->context->allowYield = isGenerator;
+
         bool previousStrict = this->context->strict;
         this->parseFunctionSourceElements(newBuilder);
         if (this->context->strict && firstRestricted) {
@@ -4442,10 +4454,6 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
-
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionDeclaration;
-        this->currentScopeContext->m_isAsync = isAsync;
-        this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
         return static_cast<ASTNode>(this->finalize(node, builder.createFunctionDeclarationNode(subCodeBlockIndex, fnName)));
@@ -4463,7 +4471,7 @@ public:
 
         this->expectKeyword(FunctionKeyword);
 
-        bool isGenerator = isAsync ? false : this->match(Multiply);
+        bool isGenerator = this->match(Multiply);
         if (isGenerator) {
             this->nextToken();
         }
@@ -4477,8 +4485,6 @@ public:
         bool previousInArrowFunction = this->context->inArrowFunction;
         bool previousAllowNewTarget = this->context->allowNewTarget;
 
-        this->context->await = isAsync;
-        this->context->allowYield = !isGenerator;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
 
@@ -4522,9 +4528,13 @@ public:
             this->currentScopeContext->insertVarName(fnName, 0, false);
         }
 
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+        this->currentScopeContext->m_isAsync = isAsync;
         this->currentScopeContext->m_functionStartLOC.index = node.index;
         this->currentScopeContext->m_functionStartLOC.column = node.column;
         this->currentScopeContext->m_functionStartLOC.line = node.line;
+        this->context->allowYield = false;
 
         ParseFormalParametersResult formalParameters;
         this->parseFormalParameters(newBuilder, formalParameters, &firstRestricted);
@@ -4535,6 +4545,9 @@ public:
         }
 
         extractNamesFromFunctionParams(formalParameters);
+
+        this->context->await = isAsync;
+        this->context->allowYield = isGenerator;
         bool previousStrict = this->context->strict;
         this->parseFunctionSourceElements(newBuilder);
         if (this->context->strict && firstRestricted) {
@@ -4548,10 +4561,6 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
-
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
-        this->currentScopeContext->m_isGenerator = isGenerator;
-        this->currentScopeContext->m_isAsync = isAsync;
 
         END_FUNCTION_SCANNING();
         return static_cast<ASTNode>(this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName)));
@@ -4631,7 +4640,7 @@ public:
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowNewTarget = this->context->allowNewTarget;
 
-        this->context->allowYield = true;
+        this->context->allowYield = false;
         this->context->inArrowFunction = false;
         this->context->allowSuperProperty = true;
         this->context->allowNewTarget = true;
@@ -4641,6 +4650,13 @@ public:
 
         BEGIN_FUNCTION_SCANNING(AtomicString());
 
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
+
         ParseFormalParametersResult params;
         extractNamesFromFunctionParams(params);
         this->parsePropertyMethod(newBuilder, params);
@@ -4649,14 +4665,6 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->allowNewTarget = previousAllowNewTarget;
-
-        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
-        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
-        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
-        this->currentScopeContext->m_allowSuperProperty = true;
-
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
-        this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -4678,7 +4686,7 @@ public:
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowNewTarget = this->context->allowNewTarget;
 
-        this->context->allowYield = true;
+        this->context->allowYield = false;
         this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
@@ -4686,6 +4694,13 @@ public:
         this->expect(LeftParenthesis);
 
         BEGIN_FUNCTION_SCANNING(AtomicString());
+
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = isGenerator;
 
         ParseFormalParametersResult formalParameters;
         this->parseFormalParameters(newBuilder, formalParameters, nullptr, false);
@@ -4702,14 +4717,6 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
 
-        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
-        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
-        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
-        this->currentScopeContext->m_allowSuperProperty = true;
-
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
-        this->currentScopeContext->m_isGenerator = isGenerator;
-
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
     }
@@ -4718,8 +4725,6 @@ public:
     ASTNode parseGeneratorMethod(ASTBuilder& builder, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
-
-        bool isGenerator = true;
 
         if (tryToSkipFunctionParsing()) {
             return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -4730,7 +4735,6 @@ public:
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowNewTarget = this->context->allowNewTarget;
 
-        this->context->allowYield = false;
         this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
@@ -4739,23 +4743,26 @@ public:
 
         BEGIN_FUNCTION_SCANNING(AtomicString());
 
+        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
+        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
+        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
+        this->currentScopeContext->m_allowSuperProperty = true;
+        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
+        this->currentScopeContext->m_isGenerator = true;
+
+        this->context->allowYield = false;
+
         ParseFormalParametersResult formalParameters;
         this->parseFormalParameters(newBuilder, formalParameters);
         extractNamesFromFunctionParams(formalParameters);
+
+        this->context->allowYield = true;
         this->parsePropertyMethod(newBuilder, formalParameters);
 
         this->context->allowYield = previousAllowYield;
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
-
-        this->currentScopeContext->m_functionStartLOC.index = functionStart.index;
-        this->currentScopeContext->m_functionStartLOC.column = functionStart.column;
-        this->currentScopeContext->m_functionStartLOC.line = functionStart.line;
-        this->currentScopeContext->m_allowSuperProperty = true;
-
-        this->currentScopeContext->m_nodeType = ASTNodeType::FunctionExpression;
-        this->currentScopeContext->m_isGenerator = isGenerator;
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -4823,7 +4830,7 @@ public:
 
         if (!this->hasLineTerminator) {
             const bool previousAllowYield = this->context->allowYield;
-            this->context->allowYield = false;
+            this->context->allowYield = true;
             delegate = this->match(Multiply);
 
             if (delegate) {
@@ -4895,7 +4902,6 @@ public:
                 kind = ClassElementNode::Kind::Get;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder);
-                this->context->allowYield = false;
                 value = this->parseGetterMethod(builder, mayMethodStartNode);
             } else if (token->valueStringLiteral(this->scanner) == "set" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
@@ -5643,6 +5649,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.context->allowSuperCall = true;
     parser.context->allowSuperProperty = true;
     parser.context->allowNewTarget = true;
+    parser.context->allowYield = codeBlock->isGenerator();
     parser.context->await = codeBlock->isAsync();
 
     parser.isParsingSingleFunction = true;
@@ -5651,7 +5658,6 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
     parser.currentScopeContext->m_functionBodyBlockIndex = codeBlock->functionBodyBlockIndex();
-    parser.context->allowYield = !codeBlock->isGenerator();
 
     Parser::ParserBlockContext blockContext;
     parser.openBlock(blockContext);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2019-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,22 +17,23 @@
  *  USA
  */
 
-#ifndef __EscargotScriptAsyncFunctionObject__
-#define __EscargotScriptAsyncFunctionObject__
+#ifndef __EscargotScriptAsyncGeneratorFunctionObject__
+#define __EscargotScriptAsyncGeneratorFunctionObject__
 
 #include "runtime/ScriptFunctionObject.h"
-#include "runtime/NativeFunctionObject.h"
-#include "runtime/ExecutionPauser.h"
 
 namespace Escargot {
 
-// every async function(normal, arrow function, class...) uses this class
-class ScriptAsyncFunctionObject : public ScriptFunctionObject {
+class ScriptAsyncGeneratorFunctionObject : public ScriptFunctionObject {
 public:
-    // both thisValue, homeObject are optional
-    ScriptAsyncFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue = SmallValue(SmallValue::EmptyValue), Object* homeObject = nullptr);
+    ScriptAsyncGeneratorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue = SmallValue(SmallValue::EmptyValue), Object* homeObject = nullptr)
+        : ScriptFunctionObject(state, codeBlock, outerEnvironment, false, true, true)
+        , m_thisValue(thisValue)
+        , m_homeObject(homeObject)
+    {
+    }
 
-    virtual bool isScriptAsyncFunctionObject() const override
+    virtual bool isScriptAsyncGeneratorFunctionObject() const override
     {
         return true;
     }
@@ -52,6 +53,8 @@ public:
         return m_homeObject;
     }
 
+    virtual Object* createFunctionPrototypeObject(ExecutionState& state) override;
+
     friend class FunctionObjectProcessCallGenerator;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
@@ -62,9 +65,6 @@ private:
     SmallValue m_thisValue;
     Object* m_homeObject;
 };
-
-// http://www.ecma-international.org/ecma-262/10.0/#await
-void await(ExecutionState& state, ExecutionPauser* pauser, const Value& awaitValue, Object* source);
 }
 
 #endif
