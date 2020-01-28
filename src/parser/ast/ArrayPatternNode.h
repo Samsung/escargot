@@ -67,7 +67,7 @@ public:
                     codeBlock->pushCode(IteratorBind(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorRecordIndex), context, this);
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
                 } else {
-                    element->astNode()->generateStoreByteCode(codeBlock, context, iteratorRecordIndex, true);
+                    element->astNode()->generateStoreByteCode(codeBlock, context, iteratorRecordIndex, false);
                 }
             } else {
                 codeBlock->pushCode(IteratorBind(ByteCodeLOC(m_loc.index), iteratorValueIndex, iteratorRecordIndex), context, this);

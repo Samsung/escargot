@@ -3163,6 +3163,10 @@ public:
             init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
         }
 
+        if (init && isIdentifier) {
+            this->addImplicitName(init, name);
+        }
+
         return this->finalize(node, builder.createVariableDeclaratorNode(kind, idNode, init));
     }
 
@@ -3632,6 +3636,7 @@ public:
                     this->expect(SemiColon);
                 }
             }
+            this->context->firstCoverInitializedNameError.reset();
         }
 
         ParserBlockContext iterationBlockContext;
