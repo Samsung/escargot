@@ -82,7 +82,9 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
 
         // https://www.ecma-international.org/ecma-262/6.0/#sec-createmappedargumentsobject
         // Let numberOfParameters be the number of elements in parameterNames
-        int numberOfParameters = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parameterNamesCount();
+        int numberOfParameters = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parameterNames().size();
+        // all parameters are pure identifier nodes, so function length is same as the number of parameters
+        ASSERT(numberOfParameters == m_sourceFunctionObject->codeBlock()->functionLength());
         // Let index be 0.
         int index = 0;
         // Repeat while index < len ,

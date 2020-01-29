@@ -2161,7 +2161,7 @@ NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(Execut
     ASSERT(state.resolveCallee());
 
     ArrayObject* newArray;
-    size_t parameterLen = (size_t)byteCodeBlock->m_codeBlock->parameterCount();
+    size_t parameterLen = (size_t)byteCodeBlock->m_codeBlock->parameterCount() - 1; // parameter length except the rest element
     size_t argc = state.argc();
     Value* argv = state.argv();
 
@@ -3451,7 +3451,7 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
 {
     auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
     auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
-    bool isMapped = !functionObject->codeBlock()->hasParameterOtherThanIdentifier() && !functionObject->codeBlock()->isStrict();
+    bool isMapped = functionObject->codeBlock()->shouldHaveMappedArguments();
     functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
 }
 }

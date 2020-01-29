@@ -114,7 +114,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
-    , m_parameterCount(info.m_argumentCount)
+    , m_functionLength(info.m_argumentCount)
     , m_functionName(info.m_name)
 {
     auto data = new (PointerFreeGC) CallNativeFunctionData();
@@ -153,7 +153,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
-    , m_parameterCount(argc)
+    , m_functionLength(argc)
     , m_functionName(name)
     , m_nativeFunctionData(info)
 {
@@ -198,8 +198,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(src)
-    , m_parameterNames(nullptr)
-    , m_parameterNamesCount(0)
+    , m_parameterCount(0)
     , m_functionBodyBlockIndex(0)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
@@ -217,7 +216,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 {
     m_context = ctx;
 
-    m_parameterCount = 0;
+    m_functionLength = 0;
     m_hasCallNativeFunctionCode = false;
     m_isFunctionDeclaration = false;
     m_isFunctionExpression = false;
@@ -273,8 +272,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index))
-    , m_parameterNames(nullptr)
-    , m_parameterNamesCount(0)
+    , m_parameterCount(scopeCtx->m_parameterCount)
     , m_functionBodyBlockIndex(0)
     , m_identifierOnStackCount(0)
     , m_identifierOnHeapCount(0)
@@ -297,7 +295,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 
     m_context = ctx;
     m_functionName = scopeCtx->m_functionName;
-    m_parameterCount = scopeCtx->m_parameterCount;
+    m_functionLength = scopeCtx->m_functionLength;
     m_hasCallNativeFunctionCode = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
@@ -328,10 +326,12 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
 
-    m_parameterNamesCount = parameterNames.size();
-    m_parameterNames = (AtomicString*)GC_MALLOC_ATOMIC(sizeof(AtomicString) * m_parameterNamesCount);
-    for (size_t i = 0; i < m_parameterNamesCount; i++) {
-        m_parameterNames[i] = parameterNames[i];
+    if (parameterNames.size() > 0) {
+        size_t parameterNamesCount = parameterNames.size();
+        m_parameterNames.resizeWithUninitializedValues(parameterNamesCount);
+        for (size_t i = 0; i < parameterNamesCount; i++) {
+            m_parameterNames[i] = parameterNames[i];
+        }
     }
 
     m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
@@ -379,17 +379,15 @@ void InterpretedCodeBlock::captureArguments()
             m_identifierInfoMap->insert(std::make_pair(arguments, m_identifierInfos.size() - 1));
         }
     }
-    if (m_parameterCount) {
-        bool isMapped = !hasParameterOtherThanIdentifier() && !isStrict();
+    if (m_functionLength && shouldHaveMappedArguments()) {
+        ASSERT(m_functionLength == m_parameterNames.size());
         // Unmapped arguments object doesn't connect arguments object property with arguments variable
-        if (isMapped) {
-            m_canAllocateEnvironmentOnStack = false;
-            for (size_t j = 0; j < m_parameterNamesCount; j++) {
-                for (size_t k = 0; k < m_identifierInfos.size(); k++) {
-                    if (m_identifierInfos[k].m_name == m_parameterNames[j]) {
-                        m_identifierInfos[k].m_needToAllocateOnStack = false;
-                        break;
-                    }
+        m_canAllocateEnvironmentOnStack = false;
+        for (size_t j = 0; j < m_parameterNames.size(); j++) {
+            for (size_t k = 0; k < m_identifierInfos.size(); k++) {
+                if (m_identifierInfos[k].m_name == m_parameterNames[j]) {
+                    m_identifierInfos[k].m_needToAllocateOnStack = false;
+                    break;
                 }
             }
         }

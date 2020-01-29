@@ -409,45 +409,21 @@ public:
         }
 
         VectorWithInlineStorage<8, SyntaxNode, std::allocator<SyntaxNode>>& params = paramsResult.params;
-        const auto& paramNames = paramsResult.paramSet;
         bool hasParameterOtherThanIdentifier = false;
-#ifndef NDEBUG
-        bool shouldHaveEqualNumberOfParameterListAndParameterName = true;
-#endif
-        this->currentScopeContext->m_parameters.resizeWithUninitializedValues(params.size());
+
         for (size_t i = 0; i < params.size(); i++) {
             switch (params[i]->type()) {
             case Identifier: {
-                this->currentScopeContext->m_parameters[i] = params[i]->name();
-                this->currentScopeContext->m_parameterCount++;
-                break;
-            }
-            case AssignmentPattern: {
-                hasParameterOtherThanIdentifier = true;
-                AtomicString id = params[i]->assignmentPatternName();
-#ifndef NDEBUG
-                if (id.string()->length() == 0) {
-                    shouldHaveEqualNumberOfParameterListAndParameterName = false;
+                if (!hasParameterOtherThanIdentifier) {
+                    this->currentScopeContext->m_functionLength++;
                 }
-#endif
-                this->currentScopeContext->m_parameters[i] = id;
                 break;
             }
+            case AssignmentPattern:
             case ArrayPattern:
-            case ObjectPattern: {
-                hasParameterOtherThanIdentifier = true;
-#ifndef NDEBUG
-                shouldHaveEqualNumberOfParameterListAndParameterName = false;
-#endif
-                this->currentScopeContext->m_parameters[i] = AtomicString();
-                break;
-            }
+            case ObjectPattern:
             case RestElement: {
                 hasParameterOtherThanIdentifier = true;
-#ifndef NDEBUG
-                shouldHaveEqualNumberOfParameterListAndParameterName = false;
-#endif
-                this->currentScopeContext->m_parameters.erase(i);
                 break;
             }
             default: {
@@ -455,14 +431,22 @@ public:
             }
             }
         }
+        this->currentScopeContext->m_parameterCount = params.size();
+        this->currentScopeContext->m_hasParameterOtherThanIdentifier = hasParameterOtherThanIdentifier;
+
+        const auto& paramNames = paramsResult.paramSet;
 #ifndef NDEBUG
-        if (shouldHaveEqualNumberOfParameterListAndParameterName) {
-            ASSERT(params.size() == paramNames.size());
+        if (!hasParameterOtherThanIdentifier) {
+            ASSERT(this->currentScopeContext->m_functionLength == params.size());
+            ASSERT(this->currentScopeContext->m_functionLength == paramNames.size());
+            ASSERT(this->currentScopeContext->m_functionLength == this->currentScopeContext->m_parameterCount);
         }
 #endif
-        this->currentScopeContext->m_hasParameterOtherThanIdentifier = hasParameterOtherThanIdentifier;
+        this->currentScopeContext->m_parameters.resizeWithUninitializedValues(paramNames.size());
         LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
+            ASSERT(paramNames[i].string()->length() > 0);
+            this->currentScopeContext->m_parameters[i] = paramNames[i];
             this->currentScopeContext->insertVarName(paramNames[i], functionBodyBlockIndex, true, true, true);
         }
 

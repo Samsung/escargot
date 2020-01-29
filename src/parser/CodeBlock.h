@@ -208,6 +208,11 @@ public:
         return m_hasParameterOtherThanIdentifier;
     }
 
+    bool shouldHaveMappedArguments() const
+    {
+        return !hasParameterOtherThanIdentifier() && !isStrict();
+    }
+
     bool allowSuperCall() const
     {
         return m_allowSuperCall;
@@ -277,9 +282,9 @@ public:
         return m_needsVirtualIDOperation;
     }
 
-    uint16_t parameterCount()
+    uint16_t functionLength()
     {
-        return m_parameterCount;
+        return m_functionLength;
     }
 
     bool isInterpretedCodeBlock()
@@ -334,7 +339,7 @@ protected:
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
-    uint16_t m_parameterCount;
+    uint16_t m_functionLength;
 
     AtomicString m_functionName;
 
@@ -364,14 +369,22 @@ public:
     /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */
     std::pair<bool, size_t> tryCaptureIdentifiersFromChildCodeBlock(LexicalBlockIndex blockIndex, AtomicString name);
 
-    AtomicString* parameterNames() const
+    const AtomicStringTightVector& parameterNames() const
     {
+        // return all parameter names vector including targets of patterns and rest element
         return m_parameterNames;
     }
 
     size_t parameterNamesCount() const
     {
-        return m_parameterNamesCount;
+        // return the number of all parameter names including targets of patterns and rest element
+        return m_parameterNames.size();
+    }
+
+    size_t parameterCount() const
+    {
+        // return the number of parameter elements
+        return m_parameterCount;
     }
 
     struct IndexedIdentifierInfo {
@@ -667,7 +680,7 @@ public:
 
     bool isOnParameterName(const AtomicString& name)
     {
-        for (size_t i = 0; i < m_parameterNamesCount; i++) {
+        for (size_t i = 0; i < parameterNamesCount(); i++) {
             if (m_parameterNames[i] == name) {
                 return true;
             }
@@ -771,8 +784,8 @@ protected:
     Script* m_script;
     StringView m_src; // function source including parameters
 
-    AtomicString* m_parameterNames;
-    uint16_t m_parameterNamesCount : 16;
+    AtomicStringTightVector m_parameterNames;
+    uint16_t m_parameterCount : 16;
     LexicalBlockIndex m_functionBodyBlockIndex : 16;
 
     uint16_t m_identifierOnStackCount; // this member variable only count `var`

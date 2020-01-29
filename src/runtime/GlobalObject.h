@@ -57,6 +57,7 @@ public:
         , m_objectFreeze(nullptr)
         , m_function(nullptr)
         , m_functionPrototype(nullptr)
+        , m_functionApply(nullptr)
         , m_iteratorPrototype(nullptr)
         , m_error(nullptr)
         , m_errorPrototype(nullptr)
