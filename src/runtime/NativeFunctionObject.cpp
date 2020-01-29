@@ -92,7 +92,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     // The Proxy constructor does not have a prototype property
     m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->parameterCount()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionLength()));
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
 
     ASSERT(NativeFunctionObject::isConstructor());
@@ -122,7 +122,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 
     CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
 
-    size_t len = m_codeBlock->parameterCount();
+    size_t len = m_codeBlock->functionLength();
     if (argc < len) {
         Value* newArgv = (Value*)alloca(sizeof(Value) * len);
         for (size_t i = 0; i < argc; i++) {

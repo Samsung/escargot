@@ -35,7 +35,7 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
 
     ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
     ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->parameterCount()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionLength()));
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = SmallValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
 }
 

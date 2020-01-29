@@ -3788,7 +3788,6 @@
     <test id="language/expressions/addition/coerce-bigint-to-string"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -6402,14 +6401,12 @@
     <test id="language/expressions/class/elements/wrapped-in-sc-static-private-methods"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-static-private-methods-with-fields"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-string-literal-names"><reason>TODO</reason></test>
-    <test id="language/expressions/class/gen-method-length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/class/gen-method-static/dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/class/gen-method-static/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/class/gen-method-static/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/expressions/class/gen-method/dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/class/gen-method/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/class/gen-method/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/class/method-length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/class/method-static/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/class/method-static/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/expressions/class/method/dflt-params-ref-later"><reason>TODO</reason></test>
@@ -6453,7 +6450,6 @@
     <test id="language/expressions/class/private-static-setter-multiple-evaluations-of-class-function-ctor"><reason>TODO</reason></test>
     <test id="language/expressions/class/private-static-setter-multiple-evaluations-of-class-realm"><reason>TODO</reason></test>
     <test id="language/expressions/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
-    <test id="language/expressions/class/static-method-length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/abrupt-is-a-short-circuit"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/chainable"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and"><reason>TODO</reason></test>
@@ -6989,7 +6985,6 @@
     <test id="language/expressions/exponentiation/bigint-zero-base-zero-exponent"><reason>TODO</reason></test>
     <test id="language/expressions/function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/function/length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/function/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -7050,7 +7045,6 @@
     <test id="language/expressions/generators/dstr/obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
     <test id="language/expressions/generators/eval-body-proto-realm"><reason>TODO</reason></test>
     <test id="language/expressions/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
-    <test id="language/expressions/generators/length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/generators/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/generators/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/generators/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -7430,10 +7424,8 @@
     <test id="language/expressions/object/method-definition/gen-meth-dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/object/method-definition/generator-length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/meth-dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/meth-dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/expressions/object/method-definition/name-length-dflt"><reason>TODO</reason></test>
     <test id="language/expressions/object/scope-gen-meth-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/object/scope-gen-meth-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/object/scope-gen-meth-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -10594,21 +10586,18 @@
     <test id="language/statements/class/elements/wrapped-in-sc-static-private-methods"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-static-private-methods-with-fields"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-string-literal-names"><reason>TODO</reason></test>
-    <test id="language/statements/class/gen-method-length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/class/gen-method-static/dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/class/gen-method-static/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/class/gen-method-static/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/statements/class/gen-method/dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/class/gen-method/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/class/gen-method/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/statements/class/method-length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/class/method-static/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/class/method-static/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/statements/class/method/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/class/method/dflt-params-ref-self"><reason>TODO</reason></test>
     <test id="language/statements/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/statements/class/static-classelementname-abrupt-completion"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-method-length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/class/subclass/class-definition-null-proto-this"><reason>TODO</reason></test>
     <test id="language/statements/class/super/in-constructor-superproperty-evaluation"><reason>TODO</reason></test>
     <test id="language/statements/do-while/cptn-abrupt-empty"><reason>TODO</reason></test>
@@ -11863,7 +11852,6 @@
     <test id="language/statements/for/tco-var-body"><reason>TODO</reason></test>
     <test id="language/statements/function/dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/statements/function/dflt-params-ref-self"><reason>TODO</reason></test>
-    <test id="language/statements/function/length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/statements/function/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
@@ -11923,7 +11911,6 @@
     <test id="language/statements/generators/dstr/obj-ptrn-prop-obj-value-null"><reason>TODO</reason></test>
     <test id="language/statements/generators/dstr/obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
     <test id="language/statements/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
-    <test id="language/statements/generators/length-dflt"><reason>TODO</reason></test>
     <test id="language/statements/generators/scope-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/statements/generators/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/statements/generators/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
