@@ -678,7 +678,7 @@ public:
         return findVarName(name) != SIZE_MAX;
     }
 
-    bool isOnParameterName(const AtomicString& name)
+    bool hasParameterName(const AtomicString& name)
     {
         for (size_t i = 0; i < parameterNamesCount(); i++) {
             if (m_parameterNames[i] == name) {

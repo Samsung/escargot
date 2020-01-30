@@ -37,9 +37,11 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::InitializeParameterExpression; }
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+        context->m_inParameterInitialization = true;
         if (m_left->isIdentifier()) {
             auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
             if (std::get<0>(r)) {
+                context->addInitializedParameterNames(m_left->asIdentifier()->name());
                 codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), std::get<1>(r), m_paramIndex), context, this);
             } else {
                 size_t rightRegister = context->getRegister();
@@ -56,6 +58,7 @@ public:
             m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
             context->giveUpRegister();
         }
+        context->m_inParameterInitialization = false;
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override

@@ -84,6 +84,7 @@ struct ByteCodeGenerateContext {
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
         , m_inObjectDestruction(false)
+        , m_inParameterInitialization(false)
         , m_shouldGenerateLOCData(false)
         , m_forInOfVarBinding(false)
         , m_isLeftBindingAffectedByRightExpression(false)
@@ -118,6 +119,7 @@ struct ByteCodeGenerateContext {
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_inObjectDestruction(contextBefore.m_inObjectDestruction)
+        , m_inParameterInitialization(contextBefore.m_inParameterInitialization)
         , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
         , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
@@ -274,18 +276,33 @@ struct ByteCodeGenerateContext {
 
     void addLexicallyDeclaredNames(AtomicString name)
     {
-        bool finded = false;
+        bool find = false;
         auto iter = m_lexicallyDeclaredNames->begin();
         while (iter != m_lexicallyDeclaredNames->end()) {
             if (iter->first == m_lexicalBlockIndex && iter->second == name) {
-                finded = true;
+                find = true;
                 break;
             }
             iter++;
         }
 
-        if (!finded) {
+        if (!find) {
             m_lexicallyDeclaredNames->push_back(std::make_pair(m_lexicalBlockIndex, name));
+        }
+    }
+
+    void addInitializedParameterNames(AtomicString name)
+    {
+        bool find = false;
+        for (size_t i = 0; i < m_initializedParameterNames.size(); i++) {
+            if (m_initializedParameterNames[i] == name) {
+                find = true;
+                break;
+            }
+        }
+
+        if (!find) {
+            m_initializedParameterNames.push_back(name);
         }
     }
 
@@ -320,6 +337,7 @@ struct ByteCodeGenerateContext {
     bool m_keepNumberalLiteralsInRegisterFile : 1;
     bool m_inCallingExpressionScope : 1;
     bool m_inObjectDestruction : 1;
+    bool m_inParameterInitialization : 1;
     bool m_isHeadOfMemberExpression : 1;
     bool m_shouldGenerateLOCData : 1;
     bool m_forInOfVarBinding : 1;
@@ -327,6 +345,7 @@ struct ByteCodeGenerateContext {
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;
+    std::vector<AtomicString> m_initializedParameterNames;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
     std::vector<std::pair<String*, size_t>> m_labeledBreakStatmentPositions;

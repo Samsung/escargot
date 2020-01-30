@@ -359,7 +359,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 void InterpretedCodeBlock::captureArguments()
 {
     AtomicString arguments = m_context->staticStrings().arguments;
-    ASSERT(!isOnParameterName(arguments));
+    ASSERT(!hasParameterName(arguments));
     ASSERT(!isGlobalScopeCodeBlock() && !isArrowFunctionExpression());
 
     if (m_usesArgumentsObject) {
