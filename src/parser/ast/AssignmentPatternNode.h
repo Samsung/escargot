@@ -74,8 +74,17 @@ public:
         context->giveUpRegister(); // for drop cmpIndex
 
         // not undefined case, set srcRegister
+
+        // for the case of function (x = x) {...}
+        // set m_inParameterInitialization to false at first m_left->generateStoreByteCode, so addInitializedParameterNames is called by second m_left->generateStoreByteCode.
+        bool oldInParameterInitialization = context->m_inParameterInitialization;
+        context->m_inParameterInitialization = false;
+
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_left->generateStoreByteCode(codeBlock, context, srcRegister, false);
+
+        context->m_inParameterInitialization = oldInParameterInitialization;
+
         codeBlock->pushCode<Jump>(Jump(ByteCodeLOC(m_loc.index)), context, this);
         size_t pos2 = codeBlock->lastCodePosition<Jump>();
 

@@ -82,7 +82,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                 AtomicString uname = scopeCtx->m_childBlockScopes[i]->m_usingNames[j];
                 auto blockIndex = scopeCtx->m_childBlockScopes[i]->m_blockIndex;
                 if (uname == arguments) {
-                    if (UNLIKELY(codeBlock->isOnParameterName(arguments))) {
+                    if (UNLIKELY(codeBlock->hasParameterName(arguments))) {
                         continue;
                     } else {
                         bool hasKindOfArgumentsHolderOnAncestors = false;
@@ -96,11 +96,11 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                             argumentsObjectHolder = argumentsObjectHolder->parentCodeBlock();
                         }
 
-                        if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->isOnParameterName(arguments)) {
+                        if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->hasParameterName(arguments)) {
                             InterpretedCodeBlock* argumentsVariableHolder = nullptr;
                             InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
                             while (c && !c->isGlobalScopeCodeBlock()) {
-                                if (c->isOnParameterName(arguments)) {
+                                if (c->hasParameterName(arguments)) {
                                     argumentsVariableHolder = c;
                                     break;
                                 } else if (!c->isArrowFunctionExpression()) {

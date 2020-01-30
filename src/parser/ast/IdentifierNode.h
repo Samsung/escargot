@@ -48,22 +48,38 @@ public:
         return m_name;
     }
 
+    void addParameterReferenceErrorIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        // check if parameter value is referenced before initialized
+        bool find = false;
+        for (size_t i = 0; i < context->m_initializedParameterNames.size(); i++) {
+            if (context->m_initializedParameterNames[i] == m_name) {
+                find = true;
+                break;
+            }
+        }
+
+        if (!find) {
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, errorMessage_IsNotInitialized, m_name), context, this);
+        }
+    }
+
     void addLexicalVariableErrorsIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, InterpretedCodeBlock::IndexedIdentifierInfo info, bool isLexicallyDeclaredBindingInitialization, bool isVariableChainging = false)
     {
         // <temporal dead zone error>
         // only stack allocated lexical variables needs check (heap variables are checked on runtime)
         if (!isLexicallyDeclaredBindingInitialization && info.m_isResultSaved && info.m_isStackAllocated && info.m_type == InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
-            bool finded = false;
+            bool find = false;
             auto iter = context->m_lexicallyDeclaredNames->begin();
             while (iter != context->m_lexicallyDeclaredNames->end()) {
                 if (iter->first == info.m_blockIndex && iter->second == m_name) {
-                    finded = true;
+                    find = true;
                     break;
                 }
                 iter++;
             }
 
-            if (!finded) {
+            if (!find) {
                 codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, errorMessage_IsNotInitialized, m_name), context, this);
             }
         }
@@ -88,7 +104,7 @@ public:
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             if (!info.m_isResultSaved) {
-                if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                     if (context->m_isWithScope) {
                         return true;
                     }
@@ -122,6 +138,10 @@ public:
             context->addLexicallyDeclaredNames(m_name);
         }
 
+        if (context->m_inParameterInitialization && codeBlock->m_codeBlock->hasParameterName(m_name)) {
+            context->addInitializedParameterNames(m_name);
+        }
+
         if (isPointsArgumentsObject(context)) {
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
         }
@@ -131,7 +151,7 @@ public:
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization, true);
 
             if (!info.m_isResultSaved) {
-                if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                     size_t addressRegisterIndex = SIZE_MAX;
                     if (mayNeedsResolveAddress(codeBlock, context) && !needToReferenceSelf) {
                         addressRegisterIndex = context->getLastRegisterIndex();
@@ -208,12 +228,16 @@ public:
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
         }
 
+        if (context->m_inParameterInitialization && codeBlock->m_codeBlock->hasParameterName(m_name)) {
+            addParameterReferenceErrorIfNeeds(codeBlock, context);
+        }
+
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, false);
 
             if (!info.m_isResultSaved) {
-                if (codeBlock->m_codeBlock->asInterpretedCodeBlock()->hasAncestorUsesNonIndexedVariableStorage()) {
+                if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
                 } else {
                     codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
