@@ -47,26 +47,29 @@ def run_all_test262(engine, arch):
 
     os.environ['GC_FREE_SPACE_DIVISOR'] = '1'
     if arch == 'x86':
-        subprocess.call(["gcc", "-shared", "-m32", 
-        "-fPIC", "-o", "backtrace-hooking-32.so", "tools/test/test262/backtrace-hooking.c"])
+        if not isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-32.so')):
+            subprocess.call(["gcc", "-shared", "-m32", 
+            "-fPIC", "-o", join(PROJECT_SOURCE_DIR, 'backtrace-hooking-32.so'), join(SCRIPT_SOURCE_DIR, 'backtrace-hooking.c')])
+
         if isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-32.so')):
             os.environ['ESCARGOT_LD_PRELOAD'] = join(PROJECT_SOURCE_DIR, 'backtrace-hooking-32.so')
     else:
-        subprocess.call(["gcc", "-shared", "-fPIC", "-o", "backtrace-hooking-64.so", "tools/test/test262/backtrace-hooking.c"])
+        if not isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')):
+            subprocess.call(["gcc", "-shared", "-fPIC", 
+            "-o", join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so'), join(SCRIPT_SOURCE_DIR, 'backtrace-hooking.c')])
+
         if isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')):
             os.environ['ESCARGOT_LD_PRELOAD'] = join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')
         
-
     proc = Popen(['pypy', join(PROJECT_SOURCE_DIR, 'tools', 'run-tests.py'), 
         '--arch=%s' % arch, '--engine', engine, 'test262'],
-        stdout=PIPE)
+        stdout=PIPE, stderr=PIPE)
     out, _ = proc.communicate()
 
-    if out:
-        return out
+    if not out:
+        raise Exception('test262 run with empty exclude list returns no result')
 
-    print('no output')
-       
+    return out
 
 def front_template():
     template_file = open(join(SCRIPT_SOURCE_DIR, 'template.xml'), 'r')
@@ -87,7 +90,7 @@ def main():
 
     full = run_all_test262(args.engine, args.arch)
     if full.find('- All tests succeeded') >= 0:
-        sys.exit(COLOR_GREEN + 'passed all test262 tcs' + COLOR_RESET)
+        sys.exit(COLOR_RED + 'already passed all test262 tcs' + COLOR_RESET)
 
     with open(join(SCRIPT_SOURCE_DIR, 'excludelist.orig.xml'), 'w') as out_file:
         summary = full.split('=== Test262 Summary ===')[1]
@@ -123,6 +126,8 @@ def main():
             out_file.write(item)
         out_file.write(rear_template())
 
+    print(COLOR_GREEN + 'success: new exclude list generated' + COLOR_RESET)
+    sys.exit()
 
 
 if __name__ == '__main__':
