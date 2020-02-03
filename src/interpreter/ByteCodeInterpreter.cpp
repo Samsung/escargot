@@ -3038,9 +3038,12 @@ static Value createObjectPropertyFunctionName(ExecutionState& state, const Value
     StringBuilder builder;
     if (name.isSymbol()) {
         builder.appendString(prefix);
-        builder.appendString("[");
-        builder.appendString(name.asSymbol()->description());
-        builder.appendString("]");
+        if (name.asSymbol()->description()->length() > 0) {
+            // add symbol name if it is not an empty symbol
+            builder.appendString("[");
+            builder.appendString(name.asSymbol()->description());
+            builder.appendString("]");
+        }
     } else {
         builder.appendString(prefix);
         builder.appendString(name.toString(state));
@@ -3056,7 +3059,8 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(Executio
 
     Value propertyStringOrSymbol = property.isSymbol() ? property : property.toString(state);
 
-    if (code->m_needsToRedefineFunctionNameOnValue) {
+    if (code->m_redefineFunctionOrClassName) {
+        ASSERT(value.isFunction());
         Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
         value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     }

@@ -321,13 +321,6 @@ public:
         return SyntaxNode();
     }
 
-    void tryToSetImplicitName(AtomicString s)
-    {
-        // dummy function for tryToSetImplicitName() of ClassExpressionNode
-        ASSERT(m_nodeType == ClassExpression);
-        return;
-    }
-
     SyntaxNodeList& expressions()
     {
         // dummy function for expressions() of SequenceExpressionNode

@@ -7328,13 +7328,6 @@
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-prop-id-init-unresolvable"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-prop-obj-value-null"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/gen-meth-obj-ptrn-prop-obj-value-undef"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-accessor-get"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-accessor-set"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-arrow"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-class"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-cover"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/object/fn-name-gen"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-dflt-params-arg-val-not-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-dflt-params-arg-val-undefined"><reason>TODO</reason></test>
@@ -7411,8 +7404,6 @@
     <test id="language/expressions/object/method-definition/async-gen-yield-star-sync-next"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-yield-star-sync-return"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-yield-star-sync-throw"><reason>TODO</reason></test>
-    <test id="language/expressions/object/method-definition/fn-name-fn"><reason>TODO</reason></test>
-    <test id="language/expressions/object/method-definition/fn-name-gen"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-dflt-params-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-dflt-params-ref-later"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-dflt-params-ref-self"><reason>TODO</reason></test>
@@ -8313,10 +8304,6 @@
     <test id="language/statements/class/async-gen-method/yield-star-sync-return"><reason>TODO</reason></test>
     <test id="language/statements/class/async-gen-method/yield-star-sync-throw"><reason>TODO</reason></test>
     <test id="language/statements/class/classelementname-abrupt-completion"><reason>TODO</reason></test>
-    <test id="language/statements/class/definition/fn-name-accessor-get"><reason>TODO</reason></test>
-    <test id="language/statements/class/definition/fn-name-accessor-set"><reason>TODO</reason></test>
-    <test id="language/statements/class/definition/fn-name-gen-method"><reason>TODO</reason></test>
-    <test id="language/statements/class/definition/fn-name-method"><reason>TODO</reason></test>
     <test id="language/statements/class/definition/fn-name-static-precedence"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-gen-meth-ary-init-iter-get-err"><reason>TODO</reason></test>
