@@ -77,14 +77,17 @@ public:
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);
 
-        size_t nameRegister = context->getRegister();
-        // we don't need to root class name string because it is AtomicString
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(context->m_classInfo.m_name.string())), context, this);
-        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), classIndex,
-                                                                     codeBlock->m_codeBlock->context()->staticStrings().name,
-                                                                     nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
-                            context, this);
-        context->giveUpRegister();
+        // add class name property if there is no 'name' static member
+        if (!m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
+            size_t nameRegister = context->getRegister();
+            // we don't need to root class name string because it is AtomicString
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(context->m_classInfo.m_name.string())), context, this);
+            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), classIndex,
+                                                                         codeBlock->m_codeBlock->context()->staticStrings().name,
+                                                                         nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
+                                context, this);
+            context->giveUpRegister();
+        }
 
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
             ASSERT(classIdent);

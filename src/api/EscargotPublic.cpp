@@ -173,7 +173,7 @@ void* Memory::gcMalloc(size_t siz)
 
 void* Memory::gcMallocAtomic(size_t siz)
 {
-    return GC_MALLOC(siz);
+    return GC_MALLOC_ATOMIC(siz);
 }
 
 void* Memory::gcMallocUncollectable(size_t siz)

@@ -726,13 +726,13 @@ public:
 
 class ObjectDefineOwnPropertyOperation : public ByteCode {
 public:
-    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute, bool needsToRedefineFunctionNameOnValue)
+    ObjectDefineOwnPropertyOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute, bool redefineFunctionOrClassName)
         : ByteCode(Opcode::ObjectDefineOwnPropertyOperationOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_propertyRegisterIndex(propertyRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_presentAttribute(presentAttribute)
-        , m_needsToRedefineFunctionNameOnValue(needsToRedefineFunctionNameOnValue)
+        , m_redefineFunctionOrClassName(redefineFunctionOrClassName)
     {
     }
 
@@ -740,7 +740,7 @@ public:
     ByteCodeRegisterIndex m_propertyRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
     ObjectPropertyDescriptor::PresentAttribute m_presentAttribute : 8;
-    bool m_needsToRedefineFunctionNameOnValue : 1;
+    bool m_redefineFunctionOrClassName : 1;
 #ifndef NDEBUG
 
     void dump(const char* byteCodeStart)

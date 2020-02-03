@@ -3911,6 +3911,7 @@ public:
     template <class ASTBuilder>
     ASTNode parseLabelledStatement(ASTBuilder& builder, size_t multiLabelCount = 1)
     {
+        MetaNode node = this->createNode();
         ASTNode expr = nullptr;
         AtomicString name;
         bool isIdentifier = false;
@@ -3954,7 +3955,7 @@ public:
             statement = builder.createExpressionStatementNode(expr);
         }
 
-        return this->finalize(this->createNode(), statement);
+        return this->finalize(node, statement);
     }
 
     // ECMA-262 13.14 The throw statement
