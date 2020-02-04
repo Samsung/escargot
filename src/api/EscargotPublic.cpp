@@ -1614,6 +1614,15 @@ void ContextRef::throwException(ValueRef* exceptionValue)
     toImpl(this)->throwException(s, toImpl(exceptionValue));
 }
 
+bool ContextRef::initDebugger(const char* options)
+{
+#ifdef ESCARGOT_DEBUGGER
+    return toImpl(this)->initDebugger(options);
+#else /* !ESCARGOT_DEBUGGER */
+    return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
 void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
     Context* ctx = toImpl(this);

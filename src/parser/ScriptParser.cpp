@@ -28,6 +28,7 @@
 #include "parser/CodeBlock.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "debugger/Debugger.h"
 
 namespace Escargot {
 
@@ -50,8 +51,10 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
     isEvalCode = false;
     isEvalCodeInFunction = false;
 
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     codeBlock->m_bodyEndLOC = scopeCtx->m_bodyEndLOC;
+#endif
+#ifndef NDEBUG
     codeBlock->m_scopeContext = scopeCtx;
 #endif
 
@@ -205,6 +208,12 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
 
 ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
+#ifdef ESCARGOT_DEBUGGER
+    if (LIKELY(needByteCodeGeneration) && m_context->debugger() != NULL && m_context->debugger()->enabled()) {
+        return initializeScriptWithDebugger(scriptSource, fileName, isModule, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, allowSuperCall, allowSuperProperty, allowNewTarget);
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
     GC_disable();
 
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
@@ -270,6 +279,10 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
+#ifdef ESCARGOT_DEBUGGER
+    ASSERT(m_context->debugger() == NULL || !m_context->debugger()->enabled());
+#endif /* ESCARGOT_DEBUGGER */
+
     GC_disable();
 
     FunctionNode* functionNode;
@@ -294,6 +307,157 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     m_context->astAllocator().reset();
     GC_enable();
 }
+
+#ifdef ESCARGOT_DEBUGGER
+
+void ScriptParser::recursivelyGenerateByteCode(InterpretedCodeBlock* topCodeBlock)
+{
+    InterpretedCodeBlock* codeBlock = topCodeBlock;
+    bool directionDown = true;
+
+    if (codeBlock->m_firstChild == NULL) {
+        return;
+    }
+
+    while (true) {
+        if (directionDown) {
+            if (codeBlock->m_firstChild != NULL) {
+                codeBlock = codeBlock->m_firstChild;
+            } else if (codeBlock->m_nextSibling != NULL) {
+                codeBlock = codeBlock->m_nextSibling;
+            } else {
+                directionDown = false;
+                codeBlock = codeBlock->m_parentCodeBlock;
+
+                if (codeBlock == topCodeBlock) {
+                    return;
+                }
+                continue;
+            }
+        } else if (codeBlock->m_nextSibling != NULL) {
+            codeBlock = codeBlock->m_nextSibling;
+            directionDown = true;
+        } else {
+            codeBlock = codeBlock->m_parentCodeBlock;
+
+            if (codeBlock == topCodeBlock) {
+                return;
+            }
+            continue;
+        }
+
+        ASTFunctionScopeContext* scopeContext = nullptr;
+
+        // Errors caught by the caller.
+        FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, SIZE_MAX);
+        codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode, scopeContext, false, false, false, false);
+
+        if (m_context->debugger() != NULL && m_context->debugger()->enabled()) {
+            String* functionName = codeBlock->functionName().string();
+            if (functionName->length() > 0) {
+                StringView* functionNameView = new StringView(functionName);
+                m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionNameView);
+            }
+
+            if (m_context->debugger()->enabled()) {
+                m_context->debugger()->sendPointer(Debugger::ESCARGOT_MESSAGE_FUNCTION_PTR, codeBlock->m_byteCodeBlock->m_code.data());
+            }
+        }
+
+        m_context->astAllocator().reset();
+    }
+}
+
+ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
+{
+    GC_disable();
+
+    bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
+    bool allowSC = (parentCodeBlock ? parentCodeBlock->allowSuperCall() : false) || allowSuperCall;
+    bool allowSP = (parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false) || allowSuperProperty;
+
+    // Parsing
+    try {
+        InterpretedCodeBlock* topCodeBlock = nullptr;
+        ProgramNode* programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget);
+
+        StringView* scriptSourceView = new StringView(scriptSource);
+
+        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+            m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_SOURCE_8BIT, scriptSourceView);
+
+            if (m_context->debugger()->enabled()) {
+                StringView* fileNameView = new StringView(fileName);
+                m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_FILE_NAME_8BIT, fileNameView);
+            }
+        }
+
+        Script* script = new Script(fileName, scriptSourceView, programNode->moduleData(), !parentCodeBlock);
+        if (parentCodeBlock) {
+            programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
+            programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
+            programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
+            programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
+            programNode->scopeContext()->m_isClassMethod = parentCodeBlock->isClassMethod();
+            programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
+            programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
+            programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
+            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
+        } else {
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode, isEvalMode, isEvalCodeInFunction);
+        }
+        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+
+        script->m_topCodeBlock = topCodeBlock;
+
+// dump Code Block
+#ifndef NDEBUG
+        if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
+            dumpCodeBlockTree(topCodeBlock);
+        }
+#endif
+
+        ASSERT(script->m_topCodeBlock == topCodeBlock);
+
+        // Generate ByteCode
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, programNode->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
+
+        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+            m_context->debugger()->sendPointer(Debugger::ESCARGOT_MESSAGE_FUNCTION_PTR, topCodeBlock->m_byteCodeBlock->m_code.data());
+        }
+
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
+
+        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+            recursivelyGenerateByteCode(topCodeBlock);
+            m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_DONE);
+        }
+
+        GC_enable();
+
+        ScriptParser::InitializeScriptResult result;
+        result.script = script;
+        return result;
+
+    } catch (esprima::Error& orgError) {
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
+
+        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+            m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_ERROR);
+        }
+
+        GC_enable();
+
+        ScriptParser::InitializeScriptResult result;
+        result.parseErrorCode = orgError.errorCode;
+        result.parseErrorMessage = orgError.message;
+        return result;
+    }
+}
+
+#endif /* ESCARGOT_DEBUGGER */
 
 #ifndef NDEBUG
 void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)

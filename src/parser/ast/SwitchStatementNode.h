@@ -40,6 +40,10 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         ByteCodeGenerateContext newContext(*context);
         size_t firstRegister = newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by caseNode->m_test
 

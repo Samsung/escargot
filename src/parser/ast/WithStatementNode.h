@@ -36,6 +36,10 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::WithStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         size_t start = codeBlock->currentCodeSize();
         auto r = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, r);

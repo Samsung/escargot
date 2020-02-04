@@ -568,6 +568,10 @@ int main(int argc, char* argv[])
                     seenModule = true;
                     continue;
                 }
+                if (strcmp(argv[i], "--start-debug-server") == 0) {
+                    context->initDebugger(nullptr);
+                    continue;
+                }
             } else { // `-option` case
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;

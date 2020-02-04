@@ -37,6 +37,10 @@ public:
     Node* expression() { return m_expression; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         if (!context->shouldCareScriptExecutionResult()) {
             m_expression->generateResultNotRequiredExpressionByteCode(codeBlock, context);
             return;

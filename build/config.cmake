@@ -178,3 +178,12 @@ ENDIF()
 IF (ESCARGOT_VALGRIND)
     SET (PROFILER_FLAGS ${PROFILER_FLAGS} -DESCARGOT_VALGRIND)
 ENDIF()
+
+#######################################################
+# FLAGS FOR DEBUGGER
+#######################################################
+SET (DEBUGGER_FLAGS)
+
+IF (ESCARGOT_DEBUGGER)
+    SET (DEBUGGER_FLAGS ${DEBUGGER_FLAGS} -DESCARGOT_DEBUGGER)
+ENDIF()

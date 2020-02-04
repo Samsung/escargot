@@ -30,6 +30,7 @@
 #include "parser/CodeBlock.h"
 #include "SandBox.h"
 #include "ArrayObject.h"
+#include "debugger/Debugger.h"
 
 namespace Escargot {
 
@@ -59,6 +60,9 @@ Context::Context(VMInstance* instance)
     , m_regexpCache(instance->m_regexpCache)
     , m_toStringRecursionPreventer(&instance->m_toStringRecursionPreventer)
     , m_astAllocator(*instance->m_astAllocator)
+#ifdef ESCARGOT_DEBUGGER
+    , m_debugger(nullptr)
+#endif /* ESCARGOT_DEBUGGER */
 {
     m_defaultStructureForObject = m_instance->m_defaultStructureForObject;
     m_defaultStructureForFunctionObject = m_instance->m_defaultStructureForFunctionObject;
@@ -95,6 +99,21 @@ void Context::throwException(ExecutionState& state, const Value& exception)
         RELEASE_ASSERT_NOT_REACHED();
     }
 }
+
+#ifdef ESCARGOT_DEBUGGER
+
+bool Context::initDebugger(const char* options)
+{
+    if (m_debugger != nullptr) {
+        // debugger cannot be re-initialized
+        return false;
+    }
+
+    m_debugger = createDebugger(options, &m_instance->m_debuggerEnabled);
+    return m_debugger->enabled();
+}
+
+#endif /* ESCARGOT_DEBUGGER */
 
 GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(AtomicString as)
 {

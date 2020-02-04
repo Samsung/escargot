@@ -209,8 +209,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
     , m_functionStart(1, 1, 0)
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+#endif
+#ifndef NDEBUG
     , m_scopeContext(nullptr)
 #endif
 {
@@ -283,8 +285,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
     , m_functionStart(scopeCtx->m_functionStartLOC)
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+#endif
+#ifndef NDEBUG
     , m_scopeContext(nullptr)
 #endif
 {

@@ -52,6 +52,11 @@ public:
 
         codeBlock->finalizeLexicalBlock(context, blockContext);
 
+#ifdef ESCARGOT_DEBUGGER
+        if (context->m_breakpointContext->m_breakpointLocations.size() == 0) {
+            insertBreakpoint(context);
+        }
+#endif /* ESCARGOT_DEBUGGER */
         codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX), 0), context, this);
     }
 

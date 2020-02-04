@@ -535,6 +535,12 @@ public:
         fn(this);
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    virtual void setBreakpointInfo(size_t loc_index, size_t line)
+    {
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
     NodeLOC m_loc;
 };
 

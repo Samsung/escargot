@@ -37,6 +37,10 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::IfStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         context->getRegister(); // ExeuctionResult of m_consequente|m_alternate should not be overwritten by m_test
         size_t jPos = 0;
         if (m_test->isRelationOperation()) {

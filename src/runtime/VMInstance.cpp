@@ -126,7 +126,14 @@ void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
 void VMInstance::gcEventCallback(GC_EventType t, void* data)
 {
     VMInstance* self = (VMInstance*)data;
-    if (t == GC_EventType::GC_EVENT_MARK_START) {
+
+#ifdef ESCARGOT_DEBUGGER
+    const bool debuggerEnabled = self->m_debuggerEnabled;
+#else /* !ESCARGOT_DEBUGGER */
+    const bool debuggerEnabled = false;
+#endif /* ESCARGOT_DEBUGGER */
+
+    if (t == GC_EventType::GC_EVENT_MARK_START && !debuggerEnabled) {
         if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX) {
             self->m_regexpCache->clear();
         }
@@ -253,6 +260,9 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_randEngine((unsigned int)time(NULL))
     , m_isFinalized(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
+#ifdef ESCARGOT_DEBUGGER
+    , m_debuggerEnabled(false)
+#endif /* ESCARGOT_DEBUGGER */
     , m_compiledByteCodeSize(0)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     , m_lastCompressibleStringsTestTime(0)

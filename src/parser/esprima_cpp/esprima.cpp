@@ -199,7 +199,7 @@ public:
         }
     };
 
-    Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(0, 0, 0))
+    Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
         : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
         , allocator(escargotContext->astAllocator())
         , fakeContext(escargotContext->astAllocator())
@@ -480,8 +480,13 @@ public:
         InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
         this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
 
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+        this->scanner->lineNumber = childBlock->bodyEndLOC().line;
+        this->scanner->lineStart = childBlock->bodyEndLOC().index - childBlock->bodyEndLOC().column;
+#else
         this->scanner->lineNumber = childBlock->functionStart().line;
         this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
+#endif
         this->lookahead.lineNumber = this->scanner->lineNumber;
         this->lookahead.lineStart = this->scanner->lineStart;
         this->lookahead.type = Token::PunctuatorToken;
@@ -2771,7 +2776,7 @@ public:
                     this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<SyntaxChecker, false>);
 
                     this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
                     this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
                     this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
@@ -3299,6 +3304,10 @@ public:
         ASTNode idNode = nullptr;
         bool isIdentifier;
         AtomicString name;
+#ifdef ESCARGOT_DEBUGGER
+        size_t loc_index = this->lookahead.start;
+        size_t line = this->lookahead.lineNumber;
+#endif /* ESCARGOT_DEBUGGER */
 
         idNode = this->parsePattern(builder, params, options.kind, true);
         leftSideType = idNode->type();
@@ -3336,8 +3345,11 @@ public:
             }
         }
 
-        MetaNode node = this->createNode();
-        return this->finalize(node, builder.createVariableDeclaratorNode(options.kind, idNode, initNode));
+        ASTNode node = this->finalize(this->createNode(), builder.createVariableDeclaratorNode(options.kind, idNode, initNode));
+#ifdef ESCARGOT_DEBUGGER
+        node->setBreakpointInfo(loc_index, line);
+#endif /* ESCARGOT_DEBUGGER */
+        return node;
     }
 
     template <class ASTBuilder>
@@ -4094,6 +4106,11 @@ public:
     {
         checkRecursiveLimit();
         ASTNode statement = nullptr;
+#ifdef ESCARGOT_DEBUGGER
+        size_t loc_index = this->lookahead.start;
+        size_t line = this->lookahead.lineNumber;
+#endif /* ESCARGOT_DEBUGGER */
+
         switch (this->lookahead.type) {
         case Token::BooleanLiteralToken:
         case Token::NullLiteralToken:
@@ -4192,6 +4209,9 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
+#ifdef ESCARGOT_DEBUGGER
+        statement->setBreakpointInfo(loc_index, line);
+#endif /* ESCARGOT_DEBUGGER */
         return statement;
     }
 
@@ -4284,6 +4304,9 @@ public:
         bool isEndedWithReturnNode = referNode && referNode->type() == ASTNodeType::ReturnStatement;
         if (!isEndedWithReturnNode) {
             referNode = body->appendChild(builder.createReturnStatementNode(nullptr));
+#ifdef ESCARGOT_DEBUGGER
+            referNode->setBreakpointInfo(this->lookahead.start, this->lookahead.lineNumber);
+#endif /* ESCARGOT_DEBUGGER */
         }
 
         if (currentScopeContext->m_functionBodyBlockIndex) {
@@ -4362,7 +4385,7 @@ public:
         this->context->inFunctionBody = previousInFunctionBody;
 
         this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
         this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
         this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
@@ -5522,11 +5545,15 @@ public:
 
         MetaNode endNode = this->createNode();
         this->currentScopeContext->m_bodyEndLOC.index = endNode.index;
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
         this->currentScopeContext->m_bodyEndLOC.line = endNode.line;
         this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
-        return this->finalize(startNode, builder.createProgramNode(container, this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector)));
+        ProgramNode* programNode = builder.createProgramNode(container, this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector));
+#ifdef ESCARGOT_DEBUGGER
+        programNode->setBreakpointInfo(this->lookahead.start, this->lookahead.lineNumber);
+#endif /* ESCARGOT_DEBUGGER */
+        return this->finalize(startNode, programNode);
     }
 
     FunctionNode* parseScriptFunction(NodeGenerator& builder)
