@@ -564,6 +564,8 @@ public:
 
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
 
+    bool initDebugger(const char* options);
+
     typedef OptionalRef<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
     typedef OptionalRef<ValueRef> (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
 

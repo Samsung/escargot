@@ -35,6 +35,10 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ReturnStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         if (context->tryCatchWithBlockStatementCount() != 0) {
             ByteCodeRegisterIndex index;
             if (m_argument) {

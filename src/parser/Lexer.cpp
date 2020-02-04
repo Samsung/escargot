@@ -672,7 +672,7 @@ Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, size_t s
     , sourceCodeAccessData(code.bufferAccessData())
     , length(code.length())
     , index(0)
-    , lineNumber(((length > 0) ? 1 : 0) + startLine)
+    , lineNumber(startLine)
     , lineStart(startColumn)
 {
     ASSERT(escargotContext != nullptr);

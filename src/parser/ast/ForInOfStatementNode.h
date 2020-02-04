@@ -51,6 +51,10 @@ public:
 
     void generateBodyByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeGenerateContext& newContext)
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         // per iteration block
         size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext iterationBlockContext;

@@ -1314,6 +1314,34 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(BreakpointDisabled)
+            :
+        {
+#ifdef ESCARGOT_DEBUGGER
+            Debugger* debugger = state->context()->debugger();
+            if (debugger && debugger->enabled()) {
+                debugger->processDisabledBreakpoint(codeBuffer, (uint32_t)(programCounter - (size_t)codeBuffer));
+            }
+#endif /* ESCARGOT_DEBUGGER */
+
+            ADD_PROGRAM_COUNTER(BreakpointDisabled);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(BreakpointEnabled)
+            :
+        {
+#ifdef ESCARGOT_DEBUGGER
+            Debugger* debugger = state->context()->debugger();
+            if (debugger && debugger->enabled()) {
+                debugger->stopAtBreakpoint(codeBuffer, (uint32_t)(programCounter - (size_t)codeBuffer));
+            }
+#endif /* ESCARGOT_DEBUGGER */
+
+            ADD_PROGRAM_COUNTER(BreakpointEnabled);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_DEFAULT
     }
 

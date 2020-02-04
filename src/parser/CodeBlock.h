@@ -711,6 +711,13 @@ public:
         return m_functionStart;
     }
 
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+    ExtendedNodeLOC bodyEndLOC()
+    {
+        return m_bodyEndLOC;
+    }
+#endif
+
 #ifndef NDEBUG
     ASTFunctionScopeContext* scopeContext()
     {
@@ -804,8 +811,10 @@ protected:
     InterpretedCodeBlock* m_nextSibling;
 
     ExtendedNodeLOC m_functionStart; // point to the start position
-#ifndef NDEBUG
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     ExtendedNodeLOC m_bodyEndLOC;
+#endif
+#ifndef NDEBUG
     ASTFunctionScopeContext* m_scopeContext;
 #endif
 };

@@ -50,6 +50,10 @@ public:
         }
 
         if (m_init) {
+#ifdef ESCARGOT_DEBUGGER
+            context->insertBreakpoint(m_line, this);
+#endif /* ESCARGOT_DEBUGGER */
+
             context->getRegister();
 
             auto r = m_init->getRegister(codeBlock, context);
@@ -68,10 +72,21 @@ public:
         }
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    virtual void setBreakpointInfo(size_t loc_index, size_t line)
+    {
+        m_loc.index = loc_index;
+        m_line = line;
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
 private:
     EscargotLexer::KeywordKind m_kind;
     Node* m_id; // id: Pattern;
     Node* m_init; // init: Expression | null;
+#ifdef ESCARGOT_DEBUGGER
+    size_t m_line;
+#endif /* ESCARGOT_DEBUGGER */
 };
 }
 

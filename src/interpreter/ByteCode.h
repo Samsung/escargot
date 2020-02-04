@@ -66,6 +66,8 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryUnsignedRightShift, 1, 2)                       \
     F(BinaryInOperation, 1, 2)                              \
     F(BinaryInstanceOfOperation, 1, 2)                      \
+    F(BreakpointDisabled, 0, 0)                             \
+    F(BreakpointEnabled, 0, 0)                              \
     F(CreateObject, 1, 0)                                   \
     F(CreateArray, 1, 0)                                    \
     F(CreateSpreadArrayObject, 1, 0)                        \
@@ -619,6 +621,35 @@ DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
 DEFINE_BINARY_OPERATION(StrictEqual, "strict equal");
 DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
 
+class BreakpointDisabled : public ByteCode {
+public:
+    BreakpointDisabled(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::BreakpointDisabledOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("breakpointDisabled");
+    }
+#endif
+};
+
+class BreakpointEnabled : public ByteCode {
+public:
+    BreakpointEnabled(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::BreakpointDisabledOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("breakpointEnabled");
+    }
+#endif
+};
 
 class CreateObject : public ByteCode {
 public:

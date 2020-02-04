@@ -31,6 +31,9 @@ public:
     StatementNode()
         : Node()
         , m_nextSibling(nullptr)
+#ifdef ESCARGOT_DEBUGGER
+        , m_line(0)
+#endif /* ESCARGOT_DEBUGGER */
     {
     }
 
@@ -44,8 +47,24 @@ public:
         return m_nextSibling;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    virtual void setBreakpointInfo(size_t loc_index, size_t line)
+    {
+        m_loc.index = loc_index;
+        m_line = line;
+    }
+
+    inline void insertBreakpoint(ByteCodeGenerateContext* context)
+    {
+        context->insertBreakpoint(m_line, this);
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
 private:
     StatementNode* m_nextSibling;
+#ifdef ESCARGOT_DEBUGGER
+    size_t m_line;
+#endif /* ESCARGOT_DEBUGGER */
 };
 
 class StatementContainer {

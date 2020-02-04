@@ -39,6 +39,7 @@ class ControlFlowRecord;
 class SandBox;
 class ByteCodeBlock;
 class ToStringRecursionPreventer;
+class Debugger;
 
 struct IdentifierRecord {
     AtomicString m_name;
@@ -229,6 +230,15 @@ public:
         return m_astAllocator;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger* debugger()
+    {
+        return m_debugger;
+    }
+
+    bool initDebugger(const char* options);
+#endif /* ESCARGOT_DEBUGGER */
+
 private:
     VMInstance* m_instance;
 
@@ -264,6 +274,10 @@ private:
     // public helper variable
     void* m_virtualIdentifierCallbackPublic;
     void* m_securityPolicyCheckCallbackPublic;
+#ifdef ESCARGOT_DEBUGGER
+    // debugger support
+    Debugger* m_debugger;
+#endif /* ESCARGOT_DEBUGGER */
 };
 }
 

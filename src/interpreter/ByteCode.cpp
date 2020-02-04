@@ -91,6 +91,14 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         ByteCodeBlock* self = (ByteCodeBlock*)obj;
+
+#ifdef ESCARGOT_DEBUGGER
+        Debugger* debugger = self->m_codeBlock->context()->debugger();
+        if (debugger && debugger->enabled()) {
+            debugger->releaseFunction(self->m_code.data());
+        }
+#endif /* ESCARGOT_DEBUGGER */
+
         self->m_numeralLiteralData.clear();
         self->m_code.clear();
         if (self->m_locData) {

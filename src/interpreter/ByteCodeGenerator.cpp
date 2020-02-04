@@ -87,6 +87,19 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
     }
 }
 
+#ifdef ESCARGOT_DEBUGGER
+void ByteCodeGenerateContext::insertBreakpoint(size_t line, Node* node)
+{
+    ASSERT(m_breakpointContext != nullptr);
+
+    if (line != 0 && line != m_breakpointContext->m_lastBreakpointLine) {
+        m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+        m_breakpointContext->m_lastBreakpointLine = line;
+    }
+}
+#endif /* ESCARGOT_DEBUGGER */
+
 #define ASSIGN_STACKINDEX_IF_NEEDED(registerIndex, stackBase, stackBaseWillBe, stackVariableSize)                         \
     {                                                                                                                     \
         if (LIKELY(registerIndex != REGISTER_LIMIT)) {                                                                    \
@@ -135,6 +148,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
     }
 
     ByteCodeGenerateContext ctx(codeBlock, block, info, nData);
+
+#ifdef ESCARGOT_DEBUGGER
+    ByteCodeBreakpointContext breakpointContext;
+    ctx.m_breakpointContext = &breakpointContext;
+#endif /* ESCARGOT_DEBUGGER */
+
     ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
     if (shouldGenerateLOCData) {
         block->m_locData = new ByteCodeLOCData();
@@ -161,6 +180,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         }
 
         ast->generateStatementByteCode(block, &ctx);
+
+#ifdef ESCARGOT_DEBUGGER
+        if (c->debugger() && c->debugger()->enabled()) {
+            c->debugger()->sendBreakpointLocations(breakpointContext.m_breakpointLocations);
+        }
+#endif /* ESCARGOT_DEBUGGER */
     } catch (const ByteCodeGenerateError& err) {
         block->m_code.clear();
         char* data = (char*)GC_MALLOC_ATOMIC(err.m_message.size());

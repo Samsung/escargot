@@ -23,6 +23,7 @@
 #include "parser/CodeBlock.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
+#include "debugger/Debugger.h"
 
 namespace Escargot {
 
@@ -69,6 +70,13 @@ struct ByteCodeGenerateError {
     std::string m_message;
 };
 
+#ifdef ESCARGOT_DEBUGGER
+struct ByteCodeBreakpointContext {
+    size_t m_lastBreakpointLine;
+    std::vector<Debugger::BreakpointLocation> m_breakpointLocations;
+};
+#endif /* ESCARGOT_DEBUGGER */
+
 struct ByteCodeGenerateContext {
     ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, NumeralLiteralVector* numeralLiteralData)
         : m_baseRegisterCount(0)
@@ -98,6 +106,9 @@ struct ByteCodeGenerateContext {
         , m_lexicalBlockIndex(0)
         , m_maxPauseStatementExtraDataLength(0)
         , m_numeralLiteralData(numeralLiteralData)
+#ifdef ESCARGOT_DEBUGGER
+        , m_breakpointContext(nullptr)
+#endif /* ESCARGOT_DEBUGGER */
     {
         m_inCallingExpressionScope = false;
         m_isHeadOfMemberExpression = false;
@@ -135,6 +146,9 @@ struct ByteCodeGenerateContext {
         , m_classInfo(contextBefore.m_classInfo)
         , m_maxPauseStatementExtraDataLength(contextBefore.m_maxPauseStatementExtraDataLength)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
+#ifdef ESCARGOT_DEBUGGER
+        , m_breakpointContext(contextBefore.m_breakpointContext)
+#endif /* ESCARGOT_DEBUGGER */
     {
         m_isHeadOfMemberExpression = false;
     }
@@ -321,6 +335,10 @@ struct ByteCodeGenerateContext {
         return false;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    void insertBreakpoint(size_t line, Node* node);
+#endif /* ESCARGOT_DEBUGGER */
+
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;
 
@@ -371,6 +389,9 @@ struct ByteCodeGenerateContext {
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     size_t m_maxPauseStatementExtraDataLength;
     NumeralLiteralVector* m_numeralLiteralData;
+#ifdef ESCARGOT_DEBUGGER
+    ByteCodeBreakpointContext* m_breakpointContext;
+#endif /* ESCARGOT_DEBUGGER */
 };
 
 class ByteCodeGenerator {

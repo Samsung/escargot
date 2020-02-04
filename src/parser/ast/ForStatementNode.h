@@ -48,6 +48,10 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         // TODO remove iterationLexicalBlock if there is no capture from child blocks or self
         size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;

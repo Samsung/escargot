@@ -35,6 +35,10 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::BreakLabelStatement; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+#ifdef ESCARGOT_DEBUGGER
+        insertBreakpoint(context);
+#endif /* ESCARGOT_DEBUGGER */
+
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
         context->pushLabeledBreakPositions(codeBlock->lastCodePosition<Jump>(), m_label);
     }

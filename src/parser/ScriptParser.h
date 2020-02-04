@@ -74,6 +74,11 @@ private:
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
 #endif
 
+#ifdef ESCARGOT_DEBUGGER
+    void recursivelyGenerateByteCode(InterpretedCodeBlock* topCodeBlock);
+    InitializeScriptResult initializeScriptWithDebugger(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
+#endif /* ESCARGOT_DEBUGGER */
+
     Context* m_context;
 };
 }
