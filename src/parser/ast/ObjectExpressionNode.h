@@ -49,21 +49,10 @@ public:
         for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
             if (property->astNode()->isProperty()) {
                 PropertyNode* p = property->astNode()->asProperty();
-                AtomicString propertyAtomicName;
-                bool hasKey = false;
+                bool hasKeyName = false;
                 size_t propertyIndex = SIZE_MAX;
                 if (p->key()->isIdentifier() && !p->computed()) {
-                    if (p->kind() == PropertyNode::Kind::Init) {
-                        // skip
-                        propertyAtomicName = p->key()->asIdentifier()->name();
-                        hasKey = true;
-                    } else {
-                        // we can use LoadLiteral here
-                        // because, p->key()->asIdentifier()->name().string()
-                        // is protected by AtomicString (IdentifierNode always has AtomicString)
-                        propertyIndex = context->getRegister();
-                        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(p->key()->asIdentifier()->name().string())), context, this);
-                    }
+                    hasKeyName = true;
                 } else {
                     propertyIndex = p->key()->getRegister(codeBlock, context);
                     p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
@@ -78,29 +67,25 @@ public:
                 context->m_classInfo = classInfoBefore;
 
                 if (p->kind() == PropertyNode::Kind::Init) {
-                    if (hasKey) {
-                        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), objIndex, propertyAtomicName, valueIndex, ObjectPropertyDescriptor::AllPresent), context, this);
+                    if (hasKeyName) {
+                        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), objIndex, p->key()->asIdentifier()->name(), valueIndex, ObjectPropertyDescriptor::AllPresent), context, this);
                     } else {
                         bool hasFunctionOnRightSide = p->value()->type() == ASTNodeType::FunctionExpression || p->value()->type() == ASTNodeType::ArrowFunctionExpression;
                         bool hasClassOnRightSide = p->value()->type() == ASTNodeType::ClassExpression && !p->value()->asClassExpression()->classNode().classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name);
                         codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, hasFunctionOnRightSide | hasClassOnRightSide), context, this);
-                        // for drop property index
-                        context->giveUpRegister();
                     }
                 } else if (p->kind() == PropertyNode::Kind::Get) {
                     codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), true), context, this);
-                    // for drop property index
-                    context->giveUpRegister();
                 } else {
                     ASSERT(p->kind() == PropertyNode::Kind::Set);
                     codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), false), context, this);
-                    // for drop property index
-                    context->giveUpRegister();
                 }
 
-                // for drop value index
-                context->giveUpRegister();
+                if (!hasKeyName) {
+                    context->giveUpRegister(); // for drop property index
+                }
 
+                context->giveUpRegister(); // for drop value index
             } else {
                 // handle spread element in Object initialization
                 ASSERT(property->astNode()->type() == ASTNodeType::SpreadElement);

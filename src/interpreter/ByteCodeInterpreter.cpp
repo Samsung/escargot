@@ -3065,12 +3065,11 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(Executio
         value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     }
 
-    ObjectPropertyName objPropName = ObjectPropertyName(state, propertyStringOrSymbol);
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
     if (!willBeObject.asObject()->isScriptClassConstructorPrototypeObject() && (propertyStringOrSymbol.isString() && propertyStringOrSymbol.asString()->equals("__proto__"))) {
         willBeObject.asObject()->setPrototype(state, value);
     } else {
-        willBeObject.asObject()->defineOwnProperty(state, objPropName, ObjectPropertyDescriptor(value, code->m_presentAttribute));
+        willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, propertyStringOrSymbol), ObjectPropertyDescriptor(value, code->m_presentAttribute));
     }
 }
 
@@ -3200,7 +3199,7 @@ NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& s
 NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, Value* registerFile)
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
-    Value pName = registerFile[code->m_objectPropertyNameRegisterIndex];
+    Value pName = code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex];
     Value fnName;
     if (code->m_isGetter) {
         fnName = createObjectPropertyFunctionName(state, pName, "get ");
