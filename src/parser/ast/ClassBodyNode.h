@@ -68,17 +68,10 @@ public:
 
             size_t destIndex = p->isStatic() ? classIndex : objIndex;
 
-            AtomicString propertyAtomicName;
-            bool hasKey = false;
+            bool hasKeyName = false;
             size_t propertyIndex = SIZE_MAX;
             if (p->key()->isIdentifier() && !p->isComputed()) {
-                if (p->kind() == ClassElementNode::Kind::Method) {
-                    propertyAtomicName = p->key()->asIdentifier()->name();
-                    hasKey = true;
-                } else {
-                    propertyIndex = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(p->key()->asIdentifier()->name().string())), context, this);
-                }
+                hasKeyName = true;
             } else {
                 propertyIndex = p->key()->getRegister(codeBlock, context);
                 p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
@@ -107,18 +100,19 @@ public:
             p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
 
             if (p->kind() == ClassElementNode::Kind::Method) {
-                if (hasKey) {
-                    codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), destIndex, propertyAtomicName, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)), context, this);
+                if (hasKeyName) {
+                    codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), destIndex, p->key()->asIdentifier()->name(), valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)), context, this);
                 } else {
                     codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent), true), context, this);
-                    context->giveUpRegister(); // for drop property index
                 }
             } else if (p->kind() == ClassElementNode::Kind::Get) {
                 codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), true), context, this);
-                context->giveUpRegister(); // for drop property index
             } else {
                 ASSERT(p->kind() == ClassElementNode::Kind::Set);
                 codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), false), context, this);
+            }
+
+            if (!hasKeyName) {
                 context->giveUpRegister(); // for drop property index
             }
 

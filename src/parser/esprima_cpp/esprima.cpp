@@ -1760,12 +1760,14 @@ public:
             }
         }
 
+        if (!computed && keyNode->isIdentifier()) {
+            this->addImplicitName(valueNode, keyNode->asIdentifier()->name());
+        }
+
         if (!this->isParsingSingleFunction && (method || isGet || isSet)) {
-            if (!computed && keyNode->isIdentifier()) {
-                this->lastPoppedScopeContext->m_functionName = keyNode->asIdentifier()->name();
-            }
             this->lastPoppedScopeContext->m_isClassMethod = true;
         }
+
         return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, kind, computed, shorthand));
     }
 
@@ -4946,10 +4948,11 @@ public:
             }
         }
 
+        if (!computed && keyNode->isIdentifier()) {
+            this->addImplicitName(value, keyNode->asIdentifier()->name());
+        }
+
         if (!this->isParsingSingleFunction) {
-            if (keyNode->type() == Identifier) {
-                this->lastPoppedScopeContext->m_functionName = keyNode->asIdentifier()->name();
-            }
             if (isStatic) {
                 this->lastPoppedScopeContext->m_isClassStaticMethod = true;
             } else {
