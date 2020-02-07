@@ -793,7 +793,7 @@ Scanner::ScanIDResult Scanner::getIdentifier()
 
 Scanner::ScanIDResult Scanner::getComplexIdentifier()
 {
-    char32_t cp = this->codePointAt(this->index);
+    char16_t cp = this->codePointAt(this->index);
     ParserCharPiece piece = ParserCharPiece(cp);
     UTF16StringDataNonGCStd id(piece.data, piece.length);
     this->index += id.length();
@@ -826,6 +826,16 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
 
         // ch = Character.fromCodePoint(cp);
         ch = cp;
+
+        if (this->peekChar() >= 0xD800 && this->peekChar() < 0xDFFF) {
+            ch = peekChar();
+            ++this->index;
+            char32_t ch2 = this->peekChar();
+            if (U16_IS_TRAIL(ch2)) {
+                ch = U16_GET_SUPPLEMENTARY(ch, ch2);
+            }
+            --this->index;
+        }
         piece = ParserCharPiece(ch);
         id += UTF16StringDataNonGCStd(piece.data, piece.length);
         this->index += piece.length;
@@ -1893,7 +1903,6 @@ void Scanner::lex(Scanner::ScannerResult* token)
     if (isIdentifierStart(cp)) {
         goto ScanID;
     }
-
     // String literal starts with single quote (U+0027) or double quote (U+0022).
     if (cp == 0x27 || cp == 0x22) {
         this->scanStringLiteral(token);
