@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -559,7 +559,7 @@ private:
                 if (U16_IS_LEAD(u) && m_isUnicode && (patternRemaining() >= 6) && peek() == '\\') {
                     ParseState state = saveState();
                     consume();
-                    
+
                     if (tryConsume('u')) {
                         int surrogate2 = tryConsumeHex(4);
                         if (U16_IS_TRAIL(surrogate2)) {
@@ -591,7 +591,7 @@ private:
 
             delegate.atomPatternCharacter(consume());
         }
-        
+
         return true;
     }
 
@@ -686,7 +686,7 @@ private:
             case ':':
                 m_delegate.atomParenthesesSubpatternBegin(false);
                 break;
-            
+
             case '=':
                 m_delegate.atomParentheticalAssertionBegin();
                 isLookhead = true;
@@ -878,7 +878,7 @@ private:
                 if (peekIsDigit()) {
                     unsigned min = consumeNumber();
                     unsigned max = min;
-                    
+
                     if (tryConsume(','))
                         max = peekIsDigit() ? consumeNumber() : quantifyInfinite;
 
@@ -928,14 +928,14 @@ private:
         else
             parseTokens();
         ASSERT(atEndOfPattern() || hasError(m_errorCode));
-        
+
         return m_errorCode;
     }
 
     // Misc helper functions:
 
     typedef unsigned ParseState;
-    
+
     ParseState saveState()
     {
         return m_index;
@@ -1126,15 +1126,33 @@ private:
             return nullptr;
 
         ParseState state = saveState();
-        
-        int ch = tryConsumeIdentifierCharacter();
+
+        UChar32 ch = tryConsumeIdentifierCharacter();
+        if (U16_IS_LEAD(ch) && m_isUnicode && (patternRemaining() > 0)) {
+            ParseState state = saveState();
+            UChar32 surrogate2 = consume();
+            if (U16_IS_TRAIL(surrogate2)) {
+                  ch = U16_GET_SUPPLEMENTARY(ch, surrogate2);
+                }
+            else
+                 restoreState(state);
+           }
+
 
         if (isIdentifierStart(ch)) {
             StringBuilder identifierBuilder;
             identifierBuilder.append(ch);
 
             while (!atEndOfPattern()) {
-                ch = tryConsumeIdentifierCharacter();
+                UChar32 ch = tryConsumeIdentifierCharacter();
+                if (U16_IS_LEAD(ch) && m_isUnicode && (patternRemaining() > 0)) {
+                    ParseState state = saveState();
+                    UChar32 surrogate2 = consume();
+                    if (U16_IS_TRAIL(surrogate2))
+                        ch = U16_GET_SUPPLEMENTARY(ch, surrogate2);
+                    else
+                      restoreState(state);
+                }
                 if (ch == '>')
                     return Optional<String>(identifierBuilder.toString());
 
