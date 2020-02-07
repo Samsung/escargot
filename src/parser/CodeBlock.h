@@ -304,7 +304,11 @@ public:
     }
 
 protected:
-    CodeBlock() {}
+    CodeBlock()
+        : m_context(nullptr)
+    {
+    }
+
     Context* m_context;
 
     bool m_isStrict : 1;
@@ -346,7 +350,6 @@ protected:
     union {
         ByteCodeBlock* m_byteCodeBlock;
         CallNativeFunctionData* m_nativeFunctionData;
-        ASTFunctionScopeContext* m_astContext;
     };
 };
 
