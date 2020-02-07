@@ -67,6 +67,7 @@ public:
     // specified matches and ranges)
     CharacterClass()
         : m_table(0)
+        , m_tableInverted(false)
         , m_hasNonBMPCharacters(false)
         , m_anyCharacter(false)
     {
