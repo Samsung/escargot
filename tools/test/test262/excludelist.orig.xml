@@ -8902,10 +8902,6 @@
     <test id="language/statements/try/cptn-finally-skip-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/cptn-finally-wo-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/cptn-try"><reason>TODO</reason></test>
-    <test id="language/statements/try/optional-catch-binding"><reason>TODO</reason></test>
-    <test id="language/statements/try/optional-catch-binding-finally"><reason>TODO</reason></test>
-    <test id="language/statements/try/optional-catch-binding-lexical"><reason>TODO</reason></test>
-    <test id="language/statements/try/optional-catch-binding-throws"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-catch-finally"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-finally"><reason>TODO</reason></test>

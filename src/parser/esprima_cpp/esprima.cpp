@@ -4064,46 +4064,60 @@ public:
     ASTNode parseCatchClause(ASTBuilder& builder)
     {
         this->expectKeyword(CatchKeyword);
+        if (this->match(LeftBrace)) {
+            ParserBlockContext catchBlockContext;
 
-        this->expect(LeftParenthesis);
-        if (this->match(RightParenthesis)) {
-            this->throwUnexpectedToken(this->lookahead);
-        }
+            openBlock(catchBlockContext);
+            bool oldInCatchClause = this->context->inCatchClause;
 
-        ParserBlockContext catchBlockContext;
-        openBlock(catchBlockContext);
+            this->context->inCatchClause = true;
+            ASTNode body = this->parseBlock(builder);
 
-        SmallScannerResultVector params;
-        ASTNode param = this->parsePattern(builder, params, KeywordKind::LetKeyword);
+            this->context->inCatchClause = oldInCatchClause;
+            closeBlock(catchBlockContext);
 
-        if (this->context->strict && param->type() == Identifier) {
-            if (this->scanner->isRestrictedWord(param->asIdentifier()->name())) {
-                this->throwError(Messages::StrictCatchVariable);
+            return this->finalize(this->createNode(), builder.createCatchClauseNode(nullptr, nullptr, body, catchBlockContext.childLexicalBlockIndex));
+        } else {
+            this->expect(LeftParenthesis);
+            if (this->match(RightParenthesis)) {
+                this->throwUnexpectedToken(this->lookahead);
             }
+
+            ParserBlockContext catchBlockContext;
+            openBlock(catchBlockContext);
+
+            SmallScannerResultVector params;
+            ASTNode param = this->parsePattern(builder, params, KeywordKind::LetKeyword);
+
+            if (this->context->strict && param->type() == Identifier) {
+                if (this->scanner->isRestrictedWord(param->asIdentifier()->name())) {
+                    this->throwError(Messages::StrictCatchVariable);
+                }
+            }
+
+            this->expect(RightParenthesis);
+
+            bool oldInCatchClause = this->context->inCatchClause;
+            this->context->inCatchClause = true;
+
+            bool gotSimplyDeclaredVariableName = param->isIdentifier();
+
+            if (gotSimplyDeclaredVariableName) {
+                this->context->catchClauseSimplyDeclaredVariableNames.push_back(std::make_pair(param->asIdentifier()->name(), this->lexicalBlockIndex));
+            }
+
+            ASTNode body = this->parseBlock(builder);
+
+            if (gotSimplyDeclaredVariableName) {
+                this->context->catchClauseSimplyDeclaredVariableNames.pop_back();
+            }
+
+            this->context->inCatchClause = oldInCatchClause;
+
+            closeBlock(catchBlockContext);
+
+            return this->finalize(this->createNode(), builder.createCatchClauseNode(param, nullptr, body, catchBlockContext.childLexicalBlockIndex));
         }
-
-        this->expect(RightParenthesis);
-
-        bool oldInCatchClause = this->context->inCatchClause;
-        this->context->inCatchClause = true;
-
-        bool gotSimplyDeclaredVariableName = param->isIdentifier();
-
-        if (gotSimplyDeclaredVariableName) {
-            this->context->catchClauseSimplyDeclaredVariableNames.push_back(std::make_pair(param->asIdentifier()->name(), this->lexicalBlockIndex));
-        }
-
-        ASTNode body = this->parseBlock(builder);
-
-        if (gotSimplyDeclaredVariableName) {
-            this->context->catchClauseSimplyDeclaredVariableNames.pop_back();
-        }
-
-        this->context->inCatchClause = oldInCatchClause;
-
-        closeBlock(catchBlockContext);
-
-        return this->finalize(this->createNode(), builder.createCatchClauseNode(param, nullptr, body, catchBlockContext.childLexicalBlockIndex));
     }
 
     template <class ASTBuilder>
