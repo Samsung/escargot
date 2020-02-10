@@ -81,11 +81,12 @@ public:
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_catchedValueRegisterIndex = catchedValueRegister;
 
         // cached variable is treated as let variable initialization in default
-        context->m_isLexicallyDeclaredBindingInitialization = true;
-        handler->param()->generateResolveAddressByteCode(codeBlock, context);
-        handler->param()->generateStoreByteCode(codeBlock, context, catchedValueRegister, false);
-        ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
-
+        if (handler->param() != nullptr) {
+            context->m_isLexicallyDeclaredBindingInitialization = true;
+            handler->param()->generateResolveAddressByteCode(codeBlock, context);
+            handler->param()->generateStoreByteCode(codeBlock, context, catchedValueRegister, false);
+            ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+        }
         // drop the catchedValueRegister
         // because catchedValueRegister is a catchedValue holder and after initialzation,
         // catchedValueRegister is no longer necessary.
