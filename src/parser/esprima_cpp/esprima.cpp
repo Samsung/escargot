@@ -1498,11 +1498,9 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall, bool isAsyncFunction, const MetaNode& functionStart)
+    ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall, bool isGenerator, bool isAsyncFunction, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
-
-        const bool isGenerator = false;
 
         if (tryToSkipFunctionParsing()) {
             return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -1637,13 +1635,19 @@ public:
         bool method = false;
         bool shorthand = false;
         bool isProto = false;
+        bool isGenerator = false;
         bool isAsync = false;
 
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
             computed = this->match(LeftSquareBracket);
-            isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Multiply) && !this->match(Comma);
+            isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Comma);
             if (isAsync) {
+                isGenerator = this->match(Multiply);
+                if (isGenerator) {
+                    this->nextToken();
+                    computed = this->match(LeftSquareBracket);
+                }
                 keyNode = this->parseObjectPropertyKey(builder);
             } else {
                 TrackUsingNameBlocker blocker(this);
@@ -1709,7 +1713,7 @@ public:
                     this->addImplicitName(valueNode, keyNode->asIdentifier()->name());
                 }
             } else if (this->match(LeftParenthesis)) {
-                valueNode = this->parsePropertyMethodFunction(builder, false, isAsync, node);
+                valueNode = this->parsePropertyMethodFunction(builder, false, false, isAsync, node);
                 method = true;
             } else {
                 if (token->type != Token::IdentifierToken) {
@@ -4877,8 +4881,13 @@ public:
             if ((token->type == Token::IdentifierToken) && !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async")) {
                 bool isPunctuator = this->lookahead.type == Token::PunctuatorToken;
                 PunctuatorKind punctuator = this->lookahead.valuePunctuatorKind;
-                if (!isPunctuator || (punctuator != Colon && punctuator != LeftParenthesis && punctuator != Multiply)) {
+                isGenerator = isPunctuator && punctuator == Multiply;
+                if (!isPunctuator || (punctuator != Colon && punctuator != LeftParenthesis)) {
                     isAsync = true;
+                    if (isGenerator) {
+                        this->nextToken();
+                    }
+                    computed = this->match(LeftSquareBracket);
                     *token = this->lookahead;
                     keyNode = this->parseObjectPropertyKey(builder);
                     if (token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "constructor") {
@@ -4917,7 +4926,7 @@ public:
                     allowSuperCall = true;
                 }
             }
-            value = this->parsePropertyMethodFunction(builder, allowSuperCall, isAsync, mayMethodStartNode);
+            value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
         }
 
         if (kind == ClassElementNode::Kind::None) {
