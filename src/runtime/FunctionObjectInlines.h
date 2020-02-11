@@ -87,6 +87,24 @@ public:
 };
 
 class FunctionObjectProcessCallGenerator {
+private:
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-getprototypefromconstructor
+    static Value getPrototypeFromConstructor(ExecutionState& state, FunctionObject* constructor, const Value& intrinsicDefaultProto)
+    {
+        // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
+        // Assert: IsCallable(constructor) is true.
+        // Let proto be ? Get(constructor, "prototype").
+        Value proto = constructor->getFunctionPrototype(state);
+        // If Type(proto) is not Object, then
+        if (!proto.isObject()) {
+            // Let realm be ? GetFunctionRealm(constructor).
+            // Set proto to realm's intrinsic object named intrinsicDefaultProto.
+            proto = intrinsicDefaultProto;
+        }
+        // Return proto.
+        return proto;
+    }
+
 public:
     template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
     static ALWAYS_INLINE Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
@@ -188,12 +206,26 @@ public:
                 newTargetBinder(*newState, self, newTarget, record);
             }
 
+            // https://www.ecma-international.org/ecma-262/10.0/#sec-ordinarycreatefromconstructor
+            // OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] )
+            FunctionObject* constructor = self;
+
+            // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
+            // let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
+            Value proto(Value::ForceUninitialized);
             if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
-                GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk, self->getFunctionPrototype(state));
+                proto = getPrototypeFromConstructor(state, constructor, constructor->getFunctionRealm(state)->globalObject()->generatorPrototype());
+            } else {
+                proto = getPrototypeFromConstructor(state, constructor, constructor->getFunctionRealm(state)->globalObject()->asyncGeneratorPrototype());
+            }
+
+            // Return ObjectCreate(proto, internalSlotsList).
+            if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
+                GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk, proto);
                 newState->setPauseSource(gen->executionPauser());
                 return gen;
             } else {
-                AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, newState, registerFile, blk, self->getFunctionPrototype(state));
+                AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, newState, registerFile, blk, proto);
                 newState->setPauseSource(gen->executionPauser());
                 return gen;
             }
