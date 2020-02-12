@@ -1282,7 +1282,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ExecutionPause* code = (ExecutionPause*)programCounter;
-            if (code->m_reason == ExecutionPause::Reason::Yield || code->m_reason == ExecutionPause::Reason::Await) {
+            if (code->m_reason == ExecutionPause::Reason::Yield || code->m_reason == ExecutionPause::Reason::Await || code->m_reason == ExecutionPause::Reason::AsyncGeneratorInitialize) {
                 executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
             } else if (code->m_reason == ExecutionPause::Reason::YieldDelegate) {
                 Value result = executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
@@ -2961,6 +2961,20 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
 
         await(state, executionPauser, awaitValue, executionPauser->sourceObject());
         ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter, dstRegisterIndex, ExecutionPauser::PauseReason::Await);
+    } else if (code->m_reason == ExecutionPause::AsyncGeneratorInitialize) {
+        ExecutionState* p = &state;
+        ExecutionPauser* executionPauser;
+        while (true) {
+            executionPauser = p->pauseSource();
+            if (executionPauser) {
+                break;
+            }
+            p = p->parent();
+        }
+
+        size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
+        size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_asyncGeneratorInitializeData.m_tailDataLength;
+        ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::AsyncGeneratorInitialize);
     }
 
     ASSERT_NOT_REACHED();

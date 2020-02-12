@@ -47,6 +47,9 @@ public:
             blockContext = codeBlock->pushLexicalBlock(context, bi, this);
 
             m_params->generateStatementByteCode(codeBlock, context);
+
+            addExecutionPauseIfNeeds(codeBlock, context);
+
             m_body->generateStatementByteCode(codeBlock, context);
 
             codeBlock->finalizeLexicalBlock(context, blockContext);
@@ -61,6 +64,8 @@ public:
 
             m_params->generateStatementByteCode(codeBlock, context);
 
+            addExecutionPauseIfNeeds(codeBlock, context);
+
             if (m_body->lexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
                 InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_body->lexicalBlockIndex());
                 codeBlock->initFunctionDeclarationWithinBlock(context, bi, this);
@@ -72,6 +77,19 @@ public:
                 codeBlock->finalizeLexicalBlock(context, blockContext);
                 context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
             }
+        }
+    }
+
+    void addExecutionPauseIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (codeBlock->m_codeBlock->isGenerator() && codeBlock->m_codeBlock->isAsync()) {
+            codeBlock->updateMaxPauseStatementExtraDataLength(context);
+            size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
+
+            ExecutionPause::ExecutionPauseAsyncGeneratorInitializeData data;
+            data.m_tailDataLength = tailDataLength;
+
+            codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
         }
     }
 

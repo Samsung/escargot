@@ -30,6 +30,11 @@
 
 namespace Escargot {
 
+COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Yield == (int)ExecutionPause::Yield, "");
+COMPILE_ASSERT((int)ExecutionPauser::PauseReason::YieldDelegate == (int)ExecutionPause::YieldDelegate, "");
+COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Await == (int)ExecutionPause::Await, "");
+COMPILE_ASSERT((int)ExecutionPauser::PauseReason::AsyncGeneratorInitialize == (int)ExecutionPause::AsyncGeneratorInitialize, "");
+
 void* ExecutionPauser::operator new(size_t size)
 {
     ASSERT(size == sizeof(ExecutionPauser));
@@ -150,10 +155,10 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         self->release();
     } catch (PauseValue* exitValue) {
         result = exitValue->m_value;
-        auto isDelegateOperation = exitValue->m_isDelegateOperation;
+        auto pauseReason = exitValue->m_pauseReason;
         delete exitValue;
 
-        if (isDelegateOperation) {
+        if (pauseReason == ExecutionPauser::PauseReason::YieldDelegate || pauseReason == ExecutionPauser::PauseReason::AsyncGeneratorInitialize) {
             return result;
         }
 
@@ -175,8 +180,12 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedThrow;
             throw thrownValue;
         } else if (from == StartFrom::AsyncGenerator) {
-            source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
-            result = asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
+            if (source->asAsyncGeneratorObject()->m_asyncGeneratorState == AsyncGeneratorObject::SuspendedStart) {
+                throw thrownValue;
+            } else {
+                source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
+                result = asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
+            }
         } else {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             ASSERT(from == StartFrom::Async);
@@ -220,7 +229,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
             returnValue = asyncGeneratorResolve(state, pauser->asAsyncGeneratorObject(), returnValue, false);
         }
     } else {
-        ASSERT(reason == PauseReason::Await);
+        ASSERT(reason == PauseReason::Await || reason == PauseReason::AsyncGeneratorInitialize);
     }
 
     // read & fill recursive statement self
@@ -293,7 +302,8 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
 
     PauseValue* exitValue = new PauseValue();
     exitValue->m_value = returnValue;
-    exitValue->m_isDelegateOperation = reason == PauseReason::YieldDelegate;
+    exitValue->m_pauseReason = (ExecutionPauser::PauseReason)reason;
+
     throw exitValue;
 }
 }
