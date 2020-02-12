@@ -227,6 +227,7 @@ public:
             } else {
                 AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, newState, registerFile, blk, proto);
                 newState->setPauseSource(gen->executionPauser());
+                ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::AsyncGenerator);
                 return gen;
             }
         }

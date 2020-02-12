@@ -35,9 +35,17 @@ public:
 
     ExecutionPauser(ExecutionState& state, Object* sourceObject, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
+    enum PauseReason {
+        Yield,
+        YieldDelegate,
+        Await,
+        AsyncGeneratorInitialize
+    };
+
     // yield is implemented throw this type of by this class
     // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
     struct PauseValue : public gc {
+        PauseReason m_pauseReason;
         bool m_isDelegateOperation;
         Value m_value;
 
@@ -66,13 +74,6 @@ public:
     };
 
     static Value start(ExecutionState& state, ExecutionPauser* self, Object* source, const Value& resumeValue, bool isAbruptReturn, bool isAbruptThrow, StartFrom from);
-
-    enum PauseReason {
-        Yield,
-        YieldDelegate,
-        Await
-    };
-
     static void pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, PauseReason reason);
 
     void* operator new(size_t size);

@@ -141,7 +141,7 @@
 #ifdef _WIN32
 #define OS_WINDOWS 1
 #elif _WIN64
-#define OS_WINODWS 1
+#define OS_WINDOWS 1
 #elif __APPLE__
 #include "TargetConditionals.h"
 #if TARGET_IPHONE_SIMULATOR

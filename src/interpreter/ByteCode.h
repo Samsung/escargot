@@ -1674,6 +1674,7 @@ public:
         Yield,
         YieldDelegate,
         Await,
+        AsyncGeneratorInitialize
     };
 
     struct ExecutionPauseYieldData {
@@ -1693,6 +1694,10 @@ public:
     struct ExecutionPauseAwaitData {
         ByteCodeRegisterIndex m_awaitIndex;
         ByteCodeRegisterIndex m_dstIndex;
+        size_t m_tailDataLength;
+    };
+
+    struct ExecutionPauseAsyncGeneratorInitializeData {
         size_t m_tailDataLength;
     };
 
@@ -1717,11 +1722,19 @@ public:
     {
     }
 
+    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseAsyncGeneratorInitializeData data)
+        : ByteCode(Opcode::ExecutionPauseOpcode, loc)
+        , m_reason(Reason::AsyncGeneratorInitialize)
+        , m_asyncGeneratorInitializeData(data)
+    {
+    }
+
     Reason m_reason;
     union {
         ExecutionPauseYieldData m_yieldData;
         ExecutionPauseYieldDelegateData m_yieldDelegateData;
         ExecutionPauseAwaitData m_awaitData;
+        ExecutionPauseAsyncGeneratorInitializeData m_asyncGeneratorInitializeData;
     };
 
 #ifndef NDEBUG

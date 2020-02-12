@@ -224,10 +224,10 @@ class TestResult(object):
     return 'Test262:AsyncTestComplete' not in self.stdout
 
   def HasUnexpectedOutcome(self):
-    if self.case.IsAsyncTest():
-       return self.AsyncHasFailed() or self.HasFailed()
-    elif self.case.IsNegative():
+    if self.case.IsNegative():
        return not (self.HasFailed() and self.case.NegativeMatch(self.GetErrorOutput()))
+    elif self.case.IsAsyncTest():
+       return self.AsyncHasFailed() or self.HasFailed()
     else:
        return self.HasFailed()
 
