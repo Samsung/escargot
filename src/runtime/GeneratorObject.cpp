@@ -59,7 +59,7 @@ void* GeneratorObject::operator new(size_t size)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorvalidate
-GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator)
+GeneratorObject* GeneratorObject::generatorValidate(ExecutionState& state, const Value& generator)
 {
     if (!generator.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotObject);
@@ -79,7 +79,7 @@ GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresume
-Value generatorResume(ExecutionState& state, const Value& generator, const Value& value)
+Value GeneratorObject::generatorResume(ExecutionState& state, const Value& generator, const Value& value)
 {
     GeneratorObject* gen = generatorValidate(state, generator);
 
@@ -93,7 +93,7 @@ Value generatorResume(ExecutionState& state, const Value& generator, const Value
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorresumeabrupt
-Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type)
+Value GeneratorObject::generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type)
 {
     GeneratorObject* gen = generatorValidate(state, generator);
 

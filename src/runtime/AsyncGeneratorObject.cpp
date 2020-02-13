@@ -77,7 +77,7 @@ Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& s
     // Set F.[[Generator]].[[AsyncGeneratorState]] to "completed".
     F->m_sourceObject->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
     // Return ! AsyncGeneratorResolve(F.[[Generator]], value, true).
-    return asyncGeneratorResolve(state, F->m_sourceObject, value, true);
+    return AsyncGeneratorObject::asyncGeneratorResolve(state, F->m_sourceObject, value, true);
 }
 
 static Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -93,7 +93,7 @@ Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& st
     // Set F.[[Generator]].[[AsyncGeneratorState]] to "completed".
     F->m_sourceObject->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
     // Return ! AsyncGeneratorReject(F.[[Generator]], reason).
-    return asyncGeneratorReject(state, F->m_sourceObject, reason);
+    return AsyncGeneratorObject::asyncGeneratorReject(state, F->m_sourceObject, reason);
 }
 
 static Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
@@ -103,7 +103,7 @@ static Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionSt
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorenqueue
-Value asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, AsyncGeneratorObject::AsyncGeneratorEnqueueType type, const Value& value)
+Value AsyncGeneratorObject::asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, AsyncGeneratorObject::AsyncGeneratorEnqueueType type, const Value& value)
 {
     // Let promiseCapability be ! NewPromiseCapability(%Promise%).
     PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
@@ -130,14 +130,14 @@ Value asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, Async
     // If state is not "executing", then
     if (generatorObject->asyncGeneratorState() != AsyncGeneratorObject::Executing) {
         // Perform ! AsyncGeneratorResumeNext(generator).
-        asyncGeneratorResumeNext(state, generatorObject);
+        AsyncGeneratorObject::asyncGeneratorResumeNext(state, generatorObject);
     }
     // Return promiseCapability.[[Promise]].
     return promiseCapability.m_promise;
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorresumenext
-Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* generator)
+Value AsyncGeneratorObject::asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* generator)
 {
     // Assert: generator is an AsyncGenerator instance.
     // Let state be generator.[[AsyncGeneratorState]].
@@ -175,7 +175,7 @@ Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* gene
                 // Set generator.[[AsyncGeneratorState]] to "awaiting-return".
                 generator->m_asyncGeneratorState = AsyncGeneratorObject::AwaitingReturn;
                 // Let promise be ? PromiseResolve(%Promise%, « completion.[[Value]] »).
-                auto promise = promiseResolve(state, state.context()->globalObject()->promise(), next.m_value);
+                auto promise = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), next.m_value)->asPromiseObject();
                 // Let stepsFulfilled be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Fulfilled Functions.
                 // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[Generator]] »).
                 // Set onFulfilled.[[Generator]] to generator.
@@ -185,20 +185,20 @@ Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* gene
                 // Set onRejected.[[Generator]] to generator.
                 FunctionObject* onRejected = new ScriptAsyncGeneratorFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorRejectedFunction, 1), generator);
                 // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
-                promise.asObject()->asPromiseObject()->then(state, onFulfilled, onRejected);
+                promise->then(state, onFulfilled, onRejected);
                 // Return undefined.
                 return Value();
             } else {
                 // Assert: completion.[[Type]] is throw.
                 // Perform ! AsyncGeneratorReject(generator, completion.[[Value]]).
-                asyncGeneratorReject(state, generator, next.m_value);
+                AsyncGeneratorObject::asyncGeneratorReject(state, generator, next.m_value);
                 // Return undefined.
                 return Value();
             }
         }
     } else if (generatorState == AsyncGeneratorObject::Completed) {
         // Else if state is "completed", return ! AsyncGeneratorResolve(generator, undefined, true).
-        return asyncGeneratorResolve(state, generator, Value(), true);
+        return AsyncGeneratorObject::asyncGeneratorResolve(state, generator, Value(), true);
     }
 
     // Assert: state is either "suspendedStart" or "suspendedYield".
@@ -220,7 +220,7 @@ Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* gene
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorresolve
-Value asyncGeneratorResolve(ExecutionState& state, AsyncGeneratorObject* generator, const Value& value, bool done)
+Value AsyncGeneratorObject::asyncGeneratorResolve(ExecutionState& state, AsyncGeneratorObject* generator, const Value& value, bool done)
 {
     // Assert: generator is an AsyncGenerator instance.
     // Let queue be generator.[[AsyncGeneratorQueue]].
@@ -237,13 +237,13 @@ Value asyncGeneratorResolve(ExecutionState& state, AsyncGeneratorObject* generat
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iteratorResult »).
     Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &iteratorResult);
     // Perform ! AsyncGeneratorResumeNext(generator).
-    asyncGeneratorResumeNext(state, generator);
+    AsyncGeneratorObject::asyncGeneratorResumeNext(state, generator);
     // Return undefined.
     return Value();
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorreject
-Value asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generator, Value exception)
+Value AsyncGeneratorObject::asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generator, Value exception)
 {
     // Assert: generator is an AsyncGenerator instance.
     // Let queue be generator.[[AsyncGeneratorQueue]].
@@ -258,7 +258,7 @@ Value asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generato
     // Perform ! Call(promiseCapability.[[Reject]], undefined, « exception »).
     Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exception);
     // Perform ! AsyncGeneratorResumeNext(generator).
-    asyncGeneratorResumeNext(state, generator);
+    AsyncGeneratorObject::asyncGeneratorResumeNext(state, generator);
     // Return undefined.
     return Value();
 }

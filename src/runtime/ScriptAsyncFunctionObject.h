@@ -58,13 +58,13 @@ public:
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
+    // http://www.ecma-international.org/ecma-262/10.0/#await
+    static PromiseObject* awaitOperationBeforePause(ExecutionState& state, ExecutionPauser* pauser, const Value& awaitValue, Object* source);
+
 private:
     SmallValue m_thisValue;
     Object* m_homeObject;
 };
-
-// http://www.ecma-international.org/ecma-262/10.0/#await
-void await(ExecutionState& state, ExecutionPauser* pauser, const Value& awaitValue, Object* source);
 }
 
 #endif

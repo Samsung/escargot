@@ -24,6 +24,8 @@
 
 namespace Escargot {
 
+class PromiseObject;
+
 struct PromiseReaction {
 public:
     struct Capability {
@@ -35,7 +37,7 @@ public:
         {
         }
 
-        Capability(Value promise, Object* resolveFunction, Object* rejectFunction)
+        Capability(Object* promise, Object* resolveFunction, Object* rejectFunction)
             : m_promise(promise)
             , m_resolveFunction(resolveFunction)
             , m_rejectFunction(rejectFunction)
@@ -49,7 +51,7 @@ public:
         {
         }
 
-        Value m_promise;
+        Object* m_promise;
         Object* m_resolveFunction;
         Object* m_rejectFunction;
     };
@@ -105,10 +107,7 @@ public:
     }
 
     PromiseReaction::Capability createResolvingFunctions(ExecutionState& state);
-    static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
     PromiseReaction::Capability newPromiseResultCapability(ExecutionState& state);
-
-    static Object* resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee);
 
     PromiseState state() { return m_state; }
     Value promiseResult()
@@ -125,6 +124,14 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
+    static Object* resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee);
+    static Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+    // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
+    // The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
+    static Object* promiseResolve(ExecutionState& state, Object* C, const Value& x);
+    static Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+
 private:
     PromiseState m_state;
     SmallValue m_promiseResult;
@@ -133,15 +140,6 @@ private:
 
 protected:
 };
-
-Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-// http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
-// The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
-Value promiseResolve(ExecutionState& state, Object* C, const Value& x);
-// http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
-Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 }
 
 #endif // __EscargotPromiseObject__

@@ -1138,6 +1138,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(IteratorTestDone)
+            :
+        {
+            IteratorTestDone* code = (IteratorTestDone*)programCounter;
+            iteratorTestDoneOperation(*state, programCounter, registerFile);
+            ADD_PROGRAM_COUNTER(IteratorTestDone);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(LoadRegexp)
             :
         {
@@ -1252,7 +1261,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BindingRestElement* code = (BindingRestElement*)programCounter;
 
             Object* result;
-            Value& iterOrEnum = registerFile[code->m_iterOrEnumIndex];
+            const Value& iterOrEnum = registerFile[code->m_iterOrEnumIndex];
 
             if (UNLIKELY(iterOrEnum.asPointerValue()->isEnumerateObject())) {
                 ASSERT(iterOrEnum.asPointerValue()->isEnumerateObject());
@@ -1260,7 +1269,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 result = new Object(*state);
                 enumObj->fillRestElement(*state, result);
             } else {
-                result = restBindOperation(*state, iterOrEnum);
+                result = restBindOperation(*state, iterOrEnum.asPointerValue()->asIteratorRecord());
             }
 
             registerFile[code->m_dstIndex] = result;
@@ -2870,11 +2879,15 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
 
         ExecutionPauser::pause(state, ret, programCounter + sizeof(ExecutionPause), code->m_yieldData.m_tailDataLength, nextProgramCounter, dstIdx, ExecutionPauser::PauseReason::Yield);
     } else if (code->m_reason == ExecutionPause::YieldDelegate) {
-        // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
-        const Value iteratorRecord = registerFile[code->m_yieldDelegateData.m_iterIntex];
-        Object* iterator = iteratorRecord.asObject()->getOwnProperty(state, state.context()->staticStrings().iterator).value(state, iteratorRecord).asObject();
+        // https://www.ecma-international.org/ecma-262/10.0/#sec-generator-function-definitions-runtime-semantics-evaluation
+
+        ExecutionPauser* executionPauser = state.executionPauser();
+        bool isAsyncGeneratorFunction = executionPauser->sourceObject()->isAsyncGeneratorObject();
+        IteratorRecord* iteratorRecord = registerFile[code->m_yieldDelegateData.m_iterIntex].asPointerValue()->asIteratorRecord();
+        Object* iterator = iteratorRecord->m_iterator;
+
         GeneratorObject::GeneratorState resultState = GeneratorObject::GeneratorState::SuspendedYield;
-        Value nextResult;
+        Object* nextResult = nullptr;
         bool done = true;
         Value nextValue;
         try {
@@ -2903,8 +2916,8 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
             }
 
-            nextValue = IteratorObject::iteratorValue(state, innerResult);
-            done = IteratorObject::iteratorComplete(state, innerResult);
+            nextValue = IteratorObject::iteratorValue(state, innerResult.asObject());
+            done = IteratorObject::iteratorComplete(state, innerResult.asObject());
             break;
         }
         case GeneratorObject::GeneratorState::SuspendedYield: {
@@ -2922,8 +2935,8 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
                 if (!innerResult.isObject()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
                 }
-                nextValue = IteratorObject::iteratorValue(state, innerResult);
-                done = IteratorObject::iteratorComplete(state, innerResult);
+                nextValue = IteratorObject::iteratorValue(state, innerResult.asObject());
+                done = IteratorObject::iteratorComplete(state, innerResult.asObject());
             } else {
                 IteratorObject::iteratorClose(state, iteratorRecord, Value(), false);
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "yield* violation");
@@ -2943,35 +2956,17 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldDelegateData.m_tailDataLength;
         ExecutionPauser::pause(state, nextResult, programCounter + sizeof(ExecutionPause), code->m_yieldDelegateData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::YieldDelegate);
     } else if (code->m_reason == ExecutionPause::Await) {
-        ExecutionState* p = &state;
-        ExecutionPauser* executionPauser;
-        while (true) {
-            executionPauser = p->pauseSource();
-            if (executionPauser) {
-                break;
-            }
-            p = p->parent();
-        }
-
+        ExecutionPauser* executionPauser = state.executionPauser();
         const Value& awaitValue = registerFile[code->m_awaitData.m_awaitIndex];
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_awaitData.m_tailDataLength;
         size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
         size_t tailDataLength = code->m_awaitData.m_tailDataLength;
         ByteCodeRegisterIndex dstRegisterIndex = code->m_awaitData.m_dstIndex;
 
-        await(state, executionPauser, awaitValue, executionPauser->sourceObject());
+        ScriptAsyncFunctionObject::awaitOperationBeforePause(state, executionPauser, awaitValue, executionPauser->sourceObject());
         ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter, dstRegisterIndex, ExecutionPauser::PauseReason::Await);
     } else if (code->m_reason == ExecutionPause::AsyncGeneratorInitialize) {
-        ExecutionState* p = &state;
-        ExecutionPauser* executionPauser;
-        while (true) {
-            executionPauser = p->pauseSource();
-            if (executionPauser) {
-                break;
-            }
-            p = p->parent();
-        }
-
+        ExecutionPauser* executionPauser = state.executionPauser();
         size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_asyncGeneratorInitializeData.m_tailDataLength;
         ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::AsyncGeneratorInitialize);
@@ -3197,14 +3192,14 @@ NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& s
     ArrayObject* spreadArray = ArrayObject::createSpreadArray(state);
     ASSERT(spreadArray->isFastModeArray());
 
-    Value iteratorRecord = IteratorObject::getIterator(state, registerFile[code->m_argumentIndex]);
+    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, registerFile[code->m_argumentIndex]);
     size_t i = 0;
     while (true) {
-        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (next.isFalse()) {
+        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+        if (!next.hasValue()) {
             break;
         }
-        Value value = IteratorObject::iteratorValue(state, next);
+        Value value = IteratorObject::iteratorValue(state, next.value());
         spreadArray->setIndexedProperty(state, Value(i++), value);
     }
     registerFile[code->m_registerIndex] = spreadArray;
@@ -3302,18 +3297,18 @@ NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryT
 NEVER_INLINE void ByteCodeInterpreter::getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile)
 {
     const Value& obj = registerFile[code->m_objectRegisterIndex];
-    registerFile[code->m_registerIndex] = IteratorObject::getIterator(state, obj);
+    registerFile[code->m_registerIndex] = IteratorObject::getIterator(state, obj, code->m_isSyncIterator);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer)
 {
     IteratorStep* code = (IteratorStep*)programCounter;
-    Value nextResult = IteratorObject::iteratorStep(state, registerFile[code->m_iterRegisterIndex]);
+    auto nextResult = IteratorObject::iteratorStep(state, registerFile[code->m_iterRegisterIndex].asPointerValue()->asIteratorRecord());
 
-    if (nextResult.isFalse()) {
+    if (!nextResult.hasValue()) {
         programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
     } else {
-        registerFile[code->m_registerIndex] = IteratorObject::iteratorValue(state, nextResult);
+        registerFile[code->m_registerIndex] = IteratorObject::iteratorValue(state, nextResult.value());
         ADD_PROGRAM_COUNTER(IteratorStep);
     }
 }
@@ -3321,8 +3316,8 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorStepOperation(ExecutionState& sta
 NEVER_INLINE void ByteCodeInterpreter::iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile)
 {
     bool exceptionWasThrown = state.hasRareData() && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->back() && state.rareData()->m_controlFlowRecord->back()->reason() == ControlFlowRecord::NeedsThrow;
-    const Value& iteratorRecord = registerFile[code->m_iterRegisterIndex];
-    Object* iterator = iteratorRecord.asObject()->getOwnProperty(state, state.context()->staticStrings().iterator).value(state, iteratorRecord).asObject();
+    IteratorRecord* iteratorRecord = registerFile[code->m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
+    Object* iterator = iteratorRecord->m_iterator;
     Value returnFunction = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
     if (returnFunction.isUndefined()) {
         return;
@@ -3355,26 +3350,27 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorBindOperation(ExecutionState& sta
     auto strings = &state.context()->staticStrings();
 
     IteratorBind* code = (IteratorBind*)programCounter;
-    Value nextResult, value;
-    Value iteratorRecord = registerFile[code->m_iterRegisterIndex];
+    Optional<Object*> nextResult;
+    Value value;
+    IteratorRecord* iteratorRecord = registerFile[code->m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
 
-    if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isFalse()) {
+    if (!iteratorRecord->m_done) {
         try {
             nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
         } catch (const Value& e) {
             Value exceptionValue = e;
-            iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+            iteratorRecord->m_done = true;
             state.throwException(exceptionValue);
         }
 
-        if (nextResult.isFalse()) {
-            iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+        if (!nextResult.hasValue()) {
+            iteratorRecord->m_done = true;
         } else {
             try {
-                value = IteratorObject::iteratorValue(state, nextResult);
+                value = IteratorObject::iteratorValue(state, nextResult.value());
             } catch (const Value& e) {
                 Value exceptionValue = e;
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 state.throwException(exceptionValue);
             }
         }
@@ -3384,38 +3380,45 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorBindOperation(ExecutionState& sta
     ADD_PROGRAM_COUNTER(IteratorBind);
 }
 
-NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& state, Value& iteratorRecord)
+NEVER_INLINE void ByteCodeInterpreter::iteratorTestDoneOperation(ExecutionState& state, size_t programCounter, Value* registerFile)
+{
+    IteratorTestDone* code = (IteratorTestDone*)programCounter;
+    registerFile[code->m_dstRegisterIndex] = Value(registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord()->m_done);
+}
+
+NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
     auto strings = &state.context()->staticStrings();
 
     Object* result = new ArrayObject(state);
-    Value nextResult, value;
+    Optional<Object*> nextResult;
+    Value value;
     size_t index = 0;
 
     while (true) {
-        if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isFalse()) {
+        if (!iteratorRecord->m_done) {
             try {
                 nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
             } catch (const Value& e) {
                 Value exceptionValue = e;
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 state.throwException(exceptionValue);
             }
 
-            if (nextResult.isFalse()) {
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+            if (!nextResult.hasValue()) {
+                iteratorRecord->m_done = true;
             }
         }
 
-        if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isTrue()) {
+        if (iteratorRecord->m_done) {
             break;
         }
 
         try {
-            value = IteratorObject::iteratorValue(state, nextResult);
+            value = IteratorObject::iteratorValue(state, nextResult.value());
         } catch (const Value& e) {
             Value exceptionValue = e;
-            iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+            iteratorRecord->m_done = true;
             state.throwException(exceptionValue);
         }
 

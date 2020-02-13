@@ -138,11 +138,11 @@ static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_
 }
 
 // http://www.ecma-international.org/ecma-262/10.0/#await
-void await(ExecutionState& state, ExecutionPauser* executionPauser, const Value& awaitValue, Object* source)
+PromiseObject* ScriptAsyncFunctionObject::awaitOperationBeforePause(ExecutionState& state, ExecutionPauser* executionPauser, const Value& awaitValue, Object* source)
 {
     // Let asyncContext be the running execution context.
     // Let promise be ? PromiseResolve(%Promise%, « value »).
-    PromiseObject* promise = promiseResolve(state, state.context()->globalObject()->promise(), awaitValue).asObject()->asPromiseObject();
+    PromiseObject* promise = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), awaitValue)->asPromiseObject();
     // Let stepsFulfilled be the algorithm steps defined in Await Fulfilled Functions.
     // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[AsyncContext]] »).
     // Set onFulfilled.[[AsyncContext]] to asyncContext.
@@ -155,9 +155,7 @@ void await(ExecutionState& state, ExecutionPauser* executionPauser, const Value&
 
     // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
     promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
-    // Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
-    // Set the code evaluation state of asyncContext such that when evaluation is resumed with a Completion completion, the following steps of the algorithm that invoked Await will be performed, with completion available.
-    // Return.
-    // NOTE: This returns to the evaluation of the operation that had most previously resumed evaluation of asyncContext.
+
+    return promise;
 }
 }

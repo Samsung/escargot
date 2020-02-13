@@ -153,6 +153,7 @@ public:
         , m_asyncFunction(nullptr)
         , m_asyncFunctionPrototype(nullptr)
         , m_asyncIteratorPrototype(nullptr)
+        , m_asyncFromSyncIteratorPrototype(nullptr)
         , m_asyncGenerator(nullptr)
         , m_asyncGeneratorPrototype(nullptr)
         , m_asyncGeneratorFunction(nullptr)
@@ -200,6 +201,7 @@ public:
         installGenerator(state);
         installAsyncFunction(state);
         installAsyncIterator(state);
+        installAsyncFromSyncIterator(state);
         installAsyncGeneratorFunction(state);
         installOthers(state);
     }
@@ -234,6 +236,7 @@ public:
     void installGenerator(ExecutionState& state);
     void installAsyncFunction(ExecutionState& state);
     void installAsyncIterator(ExecutionState& state);
+    void installAsyncFromSyncIterator(ExecutionState& state);
     void installAsyncGeneratorFunction(ExecutionState& state);
     void installOthers(ExecutionState& state);
 
@@ -650,6 +653,16 @@ public:
         return m_asyncFunctionPrototype;
     }
 
+    Object* asyncIteratorPrototype()
+    {
+        return m_asyncIteratorPrototype;
+    }
+
+    Object* asyncFromSyncIteratorPrototype()
+    {
+        return m_asyncFromSyncIteratorPrototype;
+    }
+
     Object* asyncGenerator()
     {
         return m_asyncGenerator;
@@ -853,6 +866,7 @@ private:
     Object* m_asyncFunctionPrototype; // %AsyncFunctionPrototype%
 
     Object* m_asyncIteratorPrototype; // %AsyncIteratorPrototype%
+    Object* m_asyncFromSyncIteratorPrototype; // %AsyncFromSyncIteratorPrototype%
 
     Object* m_asyncGenerator; // %AsyncGenerator%
     Object* m_asyncGeneratorPrototype; // %AsyncGeneratorPrototype%

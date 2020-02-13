@@ -1,0 +1,270 @@
+/*
+ * Copyright (c) 2020-present Samsung Electronics Co., Ltd
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ *  USA
+ */
+
+#include "Escargot.h"
+#include "runtime/GlobalObject.h"
+#include "runtime/Context.h"
+#include "runtime/VMInstance.h"
+#include "runtime/AsyncFromSyncIteratorObject.h"
+#include "runtime/PromiseObject.h"
+#include "runtime/ErrorObject.h"
+#include "runtime/IteratorObject.h"
+
+namespace Escargot {
+
+class ScriptAsyncFromSyncIteratorHelperFunctionObject : public NativeFunctionObject {
+public:
+    ScriptAsyncFromSyncIteratorHelperFunctionObject(ExecutionState& state, NativeFunctionInfo info, bool done)
+        : NativeFunctionObject(state, info)
+        , m_done(done)
+    {
+    }
+
+    bool m_done;
+};
+
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-async-from-sync-iterator-value-unwrap-functions
+static Value asyncFromSyncIteratorValueUnwrapLogic(ExecutionState& state, ScriptAsyncFromSyncIteratorHelperFunctionObject* activeFunctionObject, const Value& value)
+{
+    // Let F be the active function object.
+    ScriptAsyncFromSyncIteratorHelperFunctionObject* F = activeFunctionObject;
+    // Return ! CreateIterResultObject(value, F.[[Done]]).
+    return IteratorObject::createIterResultObject(state, value, F->m_done);
+}
+
+static Value asyncFromSyncIteratorValueUnwrap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    return asyncFromSyncIteratorValueUnwrapLogic(state, (ScriptAsyncFromSyncIteratorHelperFunctionObject*)state.resolveCallee(), argv[0]);
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-asyncfromsynciteratorcontinuation
+static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* result, PromiseReaction::Capability promiseCapability)
+{
+    // Let done be IteratorComplete(result).
+    bool done;
+    try {
+        done = IteratorObject::iteratorComplete(state, result);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(done, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+    // Let value be IteratorValue(result).
+    Value value;
+    try {
+        value = IteratorObject::iteratorValue(state, result);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(done, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+    // Let valueWrapper be ? PromiseResolve(%Promise%, « value »).
+    auto valueWrapper = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), value)->asPromiseObject();
+    // Let steps be the algorithm steps defined in Async-from-Sync Iterator Value Unwrap Functions.
+    // Let onFulfilled be CreateBuiltinFunction(steps, « [[Done]] »).
+    // Set onFulfilled.[[Done]] to done.
+    auto onFulfilled = new ScriptAsyncFromSyncIteratorHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), asyncFromSyncIteratorValueUnwrap, 1), done);
+    // Perform ! PerformPromiseThen(valueWrapper, onFulfilled, undefined, promiseCapability).
+    valueWrapper->then(state, onFulfilled, Value(), promiseCapability);
+    // Return promiseCapability.[[Promise]].
+    return promiseCapability.m_promise;
+}
+
+static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.next
+    // Let O be the this value.
+    Value& O = thisValue;
+    // Let promiseCapability be ! NewPromiseCapability(%Promise%).
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
+    if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
+        // Let invalidIteratorError be a newly created TypeError object.
+        Value invalidIteratorError = new TypeErrorObject(state, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+    // Let syncIteratorRecord be O.[[SyncIteratorRecord]].
+    auto syncIteratorRecord = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord();
+    Object* result;
+    try {
+        // Let result be IteratorNext(syncIteratorRecord, value).
+        result = IteratorObject::iteratorNext(state, syncIteratorRecord, argv[0]);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(result, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+    // Return ! AsyncFromSyncIteratorContinuation(result, promiseCapability).
+    return asyncFromSyncIteratorContinuation(state, result, promiseCapability);
+}
+
+static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.return
+    Value value = argv[0];
+    // Let O be the this value.
+    Value& O = thisValue;
+    // Let promiseCapability be ! NewPromiseCapability(%Promise%).
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
+    if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
+        // Let invalidIteratorError be a newly created TypeError object.
+        Value invalidIteratorError = new TypeErrorObject(state, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+    // Let syncIterator be O.[[SyncIteratorRecord]].[[Iterator]].
+    Object* syncIterator = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord()->m_iterator;
+    // Let return be GetMethod(syncIterator, "return").
+    Value returnVariable;
+    try {
+        returnVariable = Object::getMethod(state, syncIterator, state.context()->staticStrings().stringReturn);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(return, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+
+    // If return is undefined, then
+    if (returnVariable.isUndefined()) {
+        // Let iterResult be ! CreateIterResultObject(value, true).
+        Value iterResult = IteratorObject::createIterResultObject(state, value, true);
+        // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
+        Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &iterResult);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
+    // Let result be Call(return, syncIterator, « value »).
+    Value result;
+    try {
+        result = Object::call(state, returnVariable, syncIterator, 1, &value);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(return, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+
+    // If Type(result) is not Object, then
+    if (!result.isObject()) {
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+        Value typeError = new TypeErrorObject(state, String::fromASCII("result of iterator is not Object"));
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+    // Return ! AsyncFromSyncIteratorContinuation(result, promiseCapability).
+    return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability);
+}
+
+static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.throw
+    Value value = argv[0];
+    // Let O be the this value.
+    Value& O = thisValue;
+    // Let promiseCapability be ! NewPromiseCapability(%Promise%).
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
+    if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
+        // Let invalidIteratorError be a newly created TypeError object.
+        Value invalidIteratorError = new TypeErrorObject(state, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
+    // Let syncIterator be O.[[SyncIteratorRecord]].[[Iterator]].
+    Object* syncIterator = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord()->m_iterator;
+    // Let throw be GetMethod(syncIterator, "throw").
+    Value throwVariable;
+    try {
+        throwVariable = Object::getMethod(state, syncIterator, state.context()->staticStrings().stringThrow);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(return, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+
+    // If throw is undefined, then
+    if (throwVariable.isUndefined()) {
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « value »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &value);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
+    // Let result be Call(throw, syncIterator, « value »).
+    Value result;
+    try {
+        result = Object::call(state, throwVariable, syncIterator, 1, &value);
+    } catch (const Value& thrownValue) {
+        // IfAbruptRejectPromise(result, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+
+    // If Type(result) is not Object, then
+    if (!result.isObject()) {
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+        Value typeError = new TypeErrorObject(state, String::fromASCII("result of iterator is not Object"));
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+    // Return ! AsyncFromSyncIteratorContinuation(result, promiseCapability).
+    return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability);
+}
+
+void GlobalObject::installAsyncFromSyncIterator(ExecutionState& state)
+{
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%-object
+    m_asyncFromSyncIteratorPrototype = new Object(state);
+    m_asyncFromSyncIteratorPrototype->markThisObjectDontNeedStructureTransitionTable();
+
+    m_asyncFromSyncIteratorPrototype->setPrototype(state, m_asyncIteratorPrototype);
+
+    m_asyncFromSyncIteratorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                        ObjectPropertyDescriptor(String::fromASCII("Async-from-Sync Iterator"), ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_asyncFromSyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinAsyncFromSyncIteratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncFromSyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
+                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinAsyncFromSyncIteratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncFromSyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
+                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinAsyncFromSyncIteratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+}
+
+} // namespace Escargot

@@ -71,11 +71,11 @@ public:
         return &m_executionPauser;
     }
 
-private:
-    friend Value generatorExecute(ExecutionState& state, GeneratorObject* gen, Value resumeValue, bool isAbruptReturn, bool isAbruptThrow);
-    friend Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
-    friend Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type);
+    static GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator);
+    static Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
+    static Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type);
 
+private:
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
@@ -90,10 +90,6 @@ private:
     GeneratorState m_generatorState;
     ExecutionPauser m_executionPauser;
 };
-
-GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator);
-Value generatorResume(ExecutionState& state, const Value& generator, const Value& value);
-Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type);
 }
 
 #endif

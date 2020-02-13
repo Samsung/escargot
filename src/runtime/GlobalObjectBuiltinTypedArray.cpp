@@ -164,15 +164,17 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
 static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, const Value& method)
 {
-    Value iteratorRecord = IteratorObject::getIterator(state, items, true, method);
+    auto iteratorRecord = IteratorObject::getIterator(state, items, true, method);
     ValueVectorWithInlineStorage values;
-    Value next(Value::True);
+    Optional<Object*> next;
 
-    while (!next.isFalse()) {
+    while (true) {
         next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (!next.isFalse()) {
-            Value nextValue = IteratorObject::iteratorValue(state, next);
+        if (next.hasValue()) {
+            Value nextValue = IteratorObject::iteratorValue(state, next.value());
             values.pushBack(nextValue);
+        } else {
+            break;
         }
     }
 

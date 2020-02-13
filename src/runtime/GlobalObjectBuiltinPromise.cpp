@@ -76,7 +76,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
 
     // Let iteratorRecord be GetIterator(iterable).
     // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
-    Value iteratorRecord;
+    IteratorRecord* iteratorRecord;
     try {
         iteratorRecord = IteratorObject::getIterator(state, argv[0]);
     } catch (const Value& v) {
@@ -102,19 +102,19 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         // Repeat
         while (true) {
             // Let next be IteratorStep(iteratorRecord).
-            Value next;
+            Optional<Object*> next;
             try {
                 next = IteratorObject::iteratorStep(state, iteratorRecord);
             } catch (const Value& e) {
                 // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 // ReturnIfAbrupt(next).
                 state.throwException(e);
             }
             // If next is false,
-            if (next.isFalse()) {
+            if (!next.hasValue()) {
                 // set iteratorRecord.[[done]] to true.
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 // Set remainingElementsCount.[[value]] to remainingElementsCount.[[value]] − 1.
                 int64_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asNumber();
                 remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
@@ -132,10 +132,10 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             // Let nextValue be IteratorValue(next).
             Value nextValue;
             try {
-                nextValue = IteratorObject::iteratorValue(state, next);
+                nextValue = IteratorObject::iteratorValue(state, next.value());
             } catch (const Value& e) {
                 // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 // ReturnIfAbrupt(nextValue).
                 state.throwException(e);
             }
@@ -145,7 +145,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             Value nextPromise = Object::call(state, C->get(state, ObjectPropertyName(state, strings->resolve)).value(state, C), C, 1, &nextValue);
 
             // Let resolveElement be a new built-in function object as defined in Promise.all Resolve Element Functions.
-            FunctionObject* resolveElement = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
+            FunctionObject* resolveElement = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, PromiseObject::promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
             resolveElement->deleteOwnProperty(state, strings->name);
             Object* internalSlot = new Object(state);
             resolveElement->setInternalSlot(internalSlot);
@@ -180,7 +180,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         // If iteratorRecord.[[Done]] is false, set result to IteratorClose(iteratorRecord, result).
         // IfAbruptRejectPromise(result, promiseCapability).
         try {
-            if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isFalse()) {
+            if (!iteratorRecord->m_done) {
                 result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
             }
         } catch (const Value& v) {
@@ -215,7 +215,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
 
     // Let iteratorRecord be GetIterator(iterable).
     // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
-    Value iteratorRecord;
+    IteratorRecord* iteratorRecord;
     try {
         iteratorRecord = IteratorObject::getIterator(state, argv[0]);
     } catch (const Value& v) {
@@ -233,19 +233,19 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         // Repeat
         while (true) {
             // Let next be IteratorStep(iteratorRecord).
-            Value next;
+            Optional<Object*> next;
             try {
                 next = IteratorObject::iteratorStep(state, iteratorRecord);
             } catch (const Value& e) {
                 // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
                 // ReturnIfAbrupt(next).
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 state.throwException(e);
             }
             // If next is false, then
-            if (next.isFalse()) {
+            if (!next.hasValue()) {
                 // Set iteratorRecord.[[done]] to true.
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 // Return resultCapability.[[Promise]].
                 result = promiseCapability.m_promise;
                 break;
@@ -254,10 +254,10 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
             // Let nextValue be IteratorValue(next).
             Value nextValue;
             try {
-                nextValue = IteratorObject::iteratorValue(state, next);
+                nextValue = IteratorObject::iteratorValue(state, next.value());
             } catch (const Value& e) {
                 // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
-                iteratorRecord.asObject()->setThrowsException(state, ObjectPropertyName(strings->done), Value(true), iteratorRecord);
+                iteratorRecord->m_done = true;
                 // ReturnIfAbrupt(next).
                 state.throwException(e);
             }
@@ -275,7 +275,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         // If iteratorRecord.[[Done]] is false, set result to IteratorClose(iteratorRecord, result).
         // IfAbruptRejectPromise(result, promiseCapability).
         try {
-            if (iteratorRecord.asObject()->getOwnProperty(state, strings->done).value(state, iteratorRecord).isFalse()) {
+            if (!iteratorRecord->m_done) {
                 result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
             }
         } catch (const Value& v) {
@@ -313,7 +313,7 @@ static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Promise.string(), false, state.context()->staticStrings().resolve.string(), "%s: PromiseResolve called on non-object");
     }
     // Return ? PromiseResolve(C, x).
-    return promiseResolve(state, C.asObject(), argv[0]);
+    return PromiseObject::promiseResolve(state, C.asObject(), argv[0]);
 }
 
 static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)

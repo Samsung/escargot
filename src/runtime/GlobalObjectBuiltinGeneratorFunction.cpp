@@ -38,17 +38,17 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
 
 static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return generatorResume(state, thisValue, argc > 0 ? argv[0] : Value());
+    return GeneratorObject::generatorResume(state, thisValue, argc > 0 ? argv[0] : Value());
 }
 
 static Value builtinGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Return);
+    return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Return);
 }
 
 static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Throw);
+    return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Throw);
 }
 
 void GlobalObject::installGenerator(ExecutionState& state)

@@ -224,7 +224,7 @@ public:
             m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
 
             size_t iPosition = codeBlock->currentCodeSize();
-            codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index)), &newContext, this);
+            codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), true), &newContext, this);
             codeBlock->peekCode<GetIterator>(iPosition)->m_objectRegisterIndex = rightIdx;
 
             size_t literalIdx = newContext.getRegister();

@@ -30,6 +30,25 @@ class MapIteratorObject;
 class SetIteratorObject;
 class IteratorObject;
 
+class IteratorRecord : public PointerValue {
+public:
+    Object* m_iterator;
+    SmallValue m_nextMethod;
+    bool m_done;
+
+    virtual bool isIteratorRecord() const override
+    {
+        return true;
+    }
+
+    IteratorRecord(Object* iterator, SmallValue nextMethod, bool done)
+        : m_iterator(iterator)
+        , m_nextMethod(nextMethod)
+        , m_done(done)
+    {
+    }
+};
+
 class IteratorObject : public Object {
 public:
     explicit IteratorObject(ExecutionState& state);
@@ -75,17 +94,18 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    static Value getIterator(ExecutionState& state, const Value& obj, const bool sync = true, const Value& func = Value(Value::EmptyValue));
-    static Value iteratorNext(ExecutionState& state, const Value& iteratorRecord, const Value& value = Value(Value::EmptyValue));
-    static bool iteratorComplete(ExecutionState& state, const Value& iterResult);
-    static Value iteratorValue(ExecutionState& state, const Value& iterResult);
-    static Value iteratorStep(ExecutionState& state, const Value& iteratorRecord);
-    static Value iteratorClose(ExecutionState& state, const Value& iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
-    static Value createIterResultObject(ExecutionState& state, const Value& value, bool done);
+    static IteratorRecord* getIterator(ExecutionState& state, const Value& obj, const bool sync = true, const Value& func = Value(Value::EmptyValue));
+    static Object* iteratorNext(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& value = Value(Value::EmptyValue));
+    static bool iteratorComplete(ExecutionState& state, Object* iterResult);
+    static Value iteratorValue(ExecutionState& state, Object* iterResult);
+    // this function return empty Optional value instead of Value(false)
+    static Optional<Object*> iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord);
+    static Value iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
+    static Value asyncIteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
+    static Object* createIterResultObject(ExecutionState& state, const Value& value, bool done);
 
     // TODO
     static Value createListIteratorRecord(ExecutionState& state, const Value& list);
-    // static Value asyncIteratorClose(ExecutionState& state, const Value& iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
 
 protected:
 };

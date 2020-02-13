@@ -217,7 +217,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             A = new ArrayObject(state);
         }
         // Let iteratorRecord be ? GetIterator(items, sync, usingIterator).
-        Value iteratorRecord = IteratorObject::getIterator(state, items, true, usingIterator);
+        IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, items, true, usingIterator);
 
         // Let k be 0.
         int64_t k = 0;
@@ -233,16 +233,16 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             // Let Pk be ! ToString(k).
             ObjectPropertyName pk(state, k);
             // Let next be ? IteratorStep(iteratorRecord).
-            Value next = IteratorObject::iteratorStep(state, iteratorRecord);
+            Optional<Object*> next = IteratorObject::iteratorStep(state, iteratorRecord);
             // If next is false, then
-            if (next.isFalse()) {
+            if (!next.hasValue()) {
                 // Perform ? Set(A, "length", k, true).
                 A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
                 // Return A.
                 return A;
             }
             // Let nextValue be ? IteratorValue(next).
-            Value nextValue = IteratorObject::iteratorValue(state, next);
+            Value nextValue = IteratorObject::iteratorValue(state, next.value());
             Value mappedValue;
             // If mapping is true, then
             if (mapping) {

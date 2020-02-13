@@ -56,14 +56,14 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
     }
 
     // Let iteratorRecord be ? GetIterator(iterable).
-    Value iteratorRecord = IteratorObject::getIterator(state, iterable);
+    auto iteratorRecord = IteratorObject::getIterator(state, iterable);
     while (true) {
-        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (next.isFalse()) {
+        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+        if (!next.hasValue()) {
             return map;
         }
 
-        Value nextItem = IteratorObject::iteratorValue(state, next);
+        Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
             TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);

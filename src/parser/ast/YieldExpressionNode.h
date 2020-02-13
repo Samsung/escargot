@@ -52,7 +52,8 @@ public:
 
             if (m_isDelegate) {
                 size_t iteratorIdx = context->getRegister();
-                codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), argIdx, iteratorIdx), context, this);
+                bool isSyncIterator = !codeBlock->m_codeBlock->isAsync();
+                codeBlock->pushCode(GetIterator(ByteCodeLOC(m_loc.index), argIdx, iteratorIdx, isSyncIterator), context, this);
                 size_t loopStart = codeBlock->currentCodeSize();
 
                 size_t valueIdx = context->getRegister();
@@ -73,6 +74,15 @@ public:
                 codeBlock->peekCode<ExecutionPause>(iterStepPos)->m_yieldDelegateData.m_endPosition = codeBlock->currentCodeSize();
                 context->giveUpRegister(); // for drop iteratorIdx
             } else {
+                if (codeBlock->m_codeBlock->isAsync() && codeBlock->m_codeBlock->isGenerator()) {
+                    ExecutionPause::ExecutionPauseAwaitData data;
+                    data.m_awaitIndex = argIdx;
+                    data.m_dstIndex = dstRegister;
+                    data.m_tailDataLength = tailDataLength;
+                    codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
+                    codeBlock->pushPauseStatementExtraData(context);
+                }
+
                 ExecutionPause::ExecutionPauseYieldData data;
                 data.m_yieldIndex = argIdx;
                 data.m_dstIndex = dstRegister;

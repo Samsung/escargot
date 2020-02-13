@@ -121,6 +121,7 @@ struct GlobalVariableAccessCacheItem;
     F(IteratorStep, 1, 0)                                   \
     F(IteratorClose, 1, 0)                                  \
     F(IteratorBind, 1, 0)                                   \
+    F(IteratorTestDone, 1, 0)                               \
     F(LoadRegexp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
     F(ObjectDefineGetterSetter, 0, 0)                       \
@@ -1999,18 +2000,23 @@ public:
 
 class GetIterator : public ByteCode {
 public:
-    explicit GetIterator(const ByteCodeLOC& loc)
+    explicit GetIterator(const ByteCodeLOC& loc, bool isSyncIterator)
         : ByteCode(Opcode::GetIteratorOpcode, loc)
+        , m_isSyncIterator(true)
+        , m_registerIndex(REGISTER_LIMIT)
+        , m_objectRegisterIndex(REGISTER_LIMIT)
     {
-        m_registerIndex = m_objectRegisterIndex = REGISTER_LIMIT;
     }
 
-    GetIterator(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t registerIndex)
+    GetIterator(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t registerIndex, bool isSyncIterator)
         : ByteCode(Opcode::GetIteratorOpcode, loc)
+        , m_isSyncIterator(isSyncIterator)
         , m_registerIndex(registerIndex)
         , m_objectRegisterIndex(objectRegisterIndex)
     {
     }
+
+    bool m_isSyncIterator;
 
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_objectRegisterIndex;
@@ -2092,6 +2098,26 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("iterator bind(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
+    }
+#endif
+};
+
+class IteratorTestDone : public ByteCode {
+public:
+    explicit IteratorTestDone(const ByteCodeLOC& loc, ByteCodeRegisterIndex iteratorRecordRegisterIndex, ByteCodeRegisterIndex dst)
+        : ByteCode(Opcode::IteratorTestDoneOpcode, loc)
+        , m_iteratorRecordRegisterIndex(iteratorRecordRegisterIndex)
+        , m_dstRegisterIndex(dst)
+    {
+    }
+
+    ByteCodeRegisterIndex m_iteratorRecordRegisterIndex;
+    ByteCodeRegisterIndex m_dstRegisterIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("iterator test done iteratorRecord(%d)->m_done -> r%d", (int)m_iteratorRecordRegisterIndex, (int)m_dstRegisterIndex);
     }
 #endif
 };

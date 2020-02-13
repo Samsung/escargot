@@ -271,6 +271,8 @@ public:
     Value makeSuperPropertyReference();
     Value getSuperConstructor();
 
+    ExecutionPauser* executionPauser();
+
 private:
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
