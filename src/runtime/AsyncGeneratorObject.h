@@ -75,6 +75,15 @@ public:
         return &m_executionPauser;
     }
 
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorenqueue
+    static Value asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, AsyncGeneratorObject::AsyncGeneratorEnqueueType type, const Value& value);
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorresumenext
+    static Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* generator);
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorresolve
+    static Value asyncGeneratorResolve(ExecutionState& state, AsyncGeneratorObject* generator, const Value& value, bool done);
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorreject
+    static Value asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generator, Value exception);
+
 private:
     static inline void fillGCDescriptor(GC_word* desc)
     {
@@ -114,16 +123,6 @@ private:
     // [[AsyncGeneratorQueue]]
     Vector<AsyncGeneratorQueueData, GCUtil::gc_malloc_allocator<AsyncGeneratorQueueData>> m_asyncGeneratorQueue;
 };
-
-// https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorenqueue
-Value asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, AsyncGeneratorObject::AsyncGeneratorEnqueueType type, const Value& value);
-
-// https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorresumenext
-Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* generator);
-// https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorresolve
-Value asyncGeneratorResolve(ExecutionState& state, AsyncGeneratorObject* generator, const Value& value, bool done);
-// https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorreject
-Value asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generator, Value exception);
 }
 
 #endif

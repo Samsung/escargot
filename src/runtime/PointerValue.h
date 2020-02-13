@@ -50,6 +50,7 @@ class ArrayBufferObject;
 class ArrayBufferView;
 class DoubleInSmallValue;
 class JSGetterSetter;
+class IteratorRecord;
 class GlobalRegExpFunctionObject;
 class IteratorObject;
 class MapObject;
@@ -58,6 +59,7 @@ class WeakMapObject;
 class WeakSetObject;
 class GeneratorObject;
 class AsyncGeneratorObject;
+class AsyncFromSyncIteratorObject;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
@@ -262,6 +264,11 @@ public:
         return false;
     }
 
+    virtual bool isIteratorRecord() const
+    {
+        return false;
+    }
+
     virtual bool isGlobalRegExpFunctionObject()
     {
         return false;
@@ -338,6 +345,11 @@ public:
     }
 
     virtual bool isAsyncGeneratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isAsyncFromSyncIteratorObject() const
     {
         return false;
     }
@@ -519,6 +531,12 @@ public:
         return (JSGetterSetter*)this;
     }
 
+    IteratorRecord* asIteratorRecord()
+    {
+        ASSERT(isIteratorRecord());
+        return (IteratorRecord*)this;
+    }
+
     GlobalRegExpFunctionObject* asGlobalRegExpFunctionObject()
     {
         ASSERT(isGlobalRegExpFunctionObject());
@@ -565,6 +583,12 @@ public:
     {
         ASSERT(isAsyncGeneratorObject());
         return (AsyncGeneratorObject*)this;
+    }
+
+    AsyncFromSyncIteratorObject* asAsyncFromSyncIteratorObject()
+    {
+        ASSERT(isAsyncFromSyncIteratorObject());
+        return (AsyncFromSyncIteratorObject*)this;
     }
 
     bool hasTag(const size_t tag) const

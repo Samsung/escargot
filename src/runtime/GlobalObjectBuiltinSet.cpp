@@ -57,18 +57,18 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
     }
     // Let iteratorRecord be ? GetIterator(iterable).
-    Value iteratorRecord = IteratorObject::getIterator(state, iterable);
+    auto iteratorRecord = IteratorObject::getIterator(state, iterable);
 
     // Repeat
     while (true) {
         // Let next be ? IteratorStep(iteratorRecord).
-        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
+        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
         // If next is false, return set.
-        if (next.isFalse()) {
+        if (!next.hasValue()) {
             return set;
         }
         // Let nextValue be ? IteratorValue(next).
-        Value nextValue = IteratorObject::iteratorValue(state, next);
+        Value nextValue = IteratorObject::iteratorValue(state, next.value());
 
         // Let status be Call(adder, set, « nextValue »).
         try {

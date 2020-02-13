@@ -151,7 +151,8 @@ private:
     static void iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
     static void iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile);
     static void iteratorBindOperation(ExecutionState& state, size_t& programCounter, Value* registerFile);
-    static Object* restBindOperation(ExecutionState& state, Value& iteratorRecord);
+    static void iteratorTestDoneOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
+    static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 };

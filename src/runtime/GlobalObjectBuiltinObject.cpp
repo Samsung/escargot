@@ -339,14 +339,14 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
     Value iterable = argv[0];
     Object* obj = new Object(state);
 
-    Value iteratorRecord = IteratorObject::getIterator(state, iterable);
+    auto iteratorRecord = IteratorObject::getIterator(state, iterable);
     while (true) {
-        Value next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (next.isFalse()) {
+        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+        if (!next.hasValue()) {
             return obj;
         }
 
-        Value nextItem = IteratorObject::iteratorValue(state, next);
+        Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
             TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);

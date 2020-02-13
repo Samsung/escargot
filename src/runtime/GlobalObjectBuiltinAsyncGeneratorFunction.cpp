@@ -36,17 +36,17 @@ static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValu
 
 static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Next, argv[0]);
+    return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Next, argv[0]);
 }
 
 static Value builtinAsyncGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Return, argv[0]);
+    return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Return, argv[0]);
 }
 
 static Value builtinAsyncGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    return asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Throw, argv[0]);
+    return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Throw, argv[0]);
 }
 
 void GlobalObject::installAsyncGeneratorFunction(ExecutionState& state)

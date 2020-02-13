@@ -23,6 +23,8 @@
 #include "runtime/VMInstance.h"
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/AsyncFromSyncIteratorObject.h"
+#include "runtime/ScriptAsyncFunctionObject.h"
 
 namespace Escargot {
 
@@ -42,45 +44,56 @@ Value IteratorObject::next(ExecutionState& state)
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-getiterator
-Value IteratorObject::getIterator(ExecutionState& state, const Value& obj, const bool sync, const Value& func)
+IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& obj, const bool sync, const Value& func)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     Value method = func;
+    // If method is not present, then
     if (method.isEmpty()) {
-        if (sync) {
-            method = Object::getMethod(state, obj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+        // If hint is async, then
+        if (!sync) {
+            // Set method to ? GetMethod(obj, @@asyncIterator).
+            method = Object::getMethod(state, obj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator));
+            // If method is undefined, then
+            if (method.isUndefined()) {
+                // Let syncMethod be ? GetMethod(obj, @@iterator).
+                auto syncMethod = Object::getMethod(state, obj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+                // Let syncIteratorRecord be ? GetIterator(obj, sync, syncMethod).
+                auto syncIteratorRecord = getIterator(state, obj, true, syncMethod);
+                // Return ? CreateAsyncFromSyncIterator(syncIteratorRecord).
+                return AsyncFromSyncIteratorObject::createAsyncFromSyncIterator(state, syncIteratorRecord);
+            }
         } else {
-            // async iterator is not yet supported
-            RELEASE_ASSERT_NOT_REACHED();
+            // Otherwise, set method to ? GetMethod(obj, @@iterator).
+            method = Object::getMethod(state, obj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
         }
     }
 
+    // Let iterator be ? Call(method, obj).
     Value iterator = Object::call(state, method, obj, 0, nullptr);
+
+    // If Type(iterator) is not Object, throw a TypeError exception.
     if (!iterator.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result of GetIterator is not an object");
     }
 
-    Value nextMethod = iterator.asObject()->get(state, ObjectPropertyName(strings->next)).value(state, obj);
+    // Let nextMethod be ? GetV(iterator, "next").
+    Value nextMethod = iterator.asObject()->get(state, ObjectPropertyName(strings->next)).value(state, iterator);
 
     // Let iteratorRecord be Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
-    Object* iteratorRecord = new Object(state);
-    iteratorRecord->defineOwnProperty(state, ObjectPropertyName(strings->iterator), ObjectPropertyDescriptor(iterator, ObjectPropertyDescriptor::AllPresent));
-    iteratorRecord->defineOwnProperty(state, ObjectPropertyName(strings->nextMethod), ObjectPropertyDescriptor(nextMethod, ObjectPropertyDescriptor::AllPresent));
-    iteratorRecord->defineOwnProperty(state, ObjectPropertyName(strings->done), ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::AllPresent));
-
-    return iteratorRecord;
+    // Return iteratorRecord
+    return new IteratorRecord(iterator.asObject(), nextMethod, false);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratornext
-Value IteratorObject::iteratorNext(ExecutionState& state, const Value& iteratorRecord, const Value& value)
+Object* IteratorObject::iteratorNext(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& value)
 {
-    ASSERT(iteratorRecord.isObject());
     auto strings = &state.context()->staticStrings();
 
-    Object* record = iteratorRecord.asObject();
+    IteratorRecord* record = iteratorRecord;
     Value result;
-    Value nextMethod = record->getOwnProperty(state, strings->nextMethod).value(state, record);
-    Value iterator = record->getOwnProperty(state, strings->iterator).value(state, record);
+    Value nextMethod = record->m_nextMethod;
+    Value iterator = record->m_iterator;
     if (value.isEmpty()) {
         result = Object::call(state, nextMethod, iterator, 0, nullptr);
     } else {
@@ -92,43 +105,38 @@ Value IteratorObject::iteratorNext(ExecutionState& state, const Value& iteratorR
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
     }
 
-    return result;
+    return result.asObject();
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorcomplete
-bool IteratorObject::iteratorComplete(ExecutionState& state, const Value& iterResult)
+bool IteratorObject::iteratorComplete(ExecutionState& state, Object* iterResult)
 {
-    ASSERT(iterResult.isObject());
-    Value result = iterResult.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().done)).value(state, iterResult);
-
+    Value result = iterResult->get(state, ObjectPropertyName(state.context()->staticStrings().done)).value(state, iterResult);
     return result.toBoolean(state);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorvalue
-Value IteratorObject::iteratorValue(ExecutionState& state, const Value& iterResult)
+Value IteratorObject::iteratorValue(ExecutionState& state, Object* iterResult)
 {
-    ASSERT(iterResult.isObject());
-    return iterResult.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().value)).value(state, iterResult);
+    return iterResult->get(state, ObjectPropertyName(state.context()->staticStrings().value)).value(state, iterResult);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorstep
-Value IteratorObject::iteratorStep(ExecutionState& state, const Value& iteratorRecord)
+Optional<Object*> IteratorObject::iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
-    Value result = IteratorObject::iteratorNext(state, iteratorRecord);
+    Object* result = IteratorObject::iteratorNext(state, iteratorRecord);
     bool done = IteratorObject::iteratorComplete(state, result);
 
-    return done ? Value(Value::False) : result;
+    return done ? nullptr : result;
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorclose
-Value IteratorObject::iteratorClose(ExecutionState& state, const Value& iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType)
+Value IteratorObject::iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType)
 {
-    ASSERT(iteratorRecord.isObject());
-
     auto strings = &state.context()->staticStrings();
 
-    Object* record = iteratorRecord.asObject();
-    Value iterator = record->getOwnProperty(state, strings->iterator).value(state, record);
+    IteratorRecord* record = iteratorRecord;
+    Value iterator = record->m_iterator;
     Value returnFunction = Object::getMethod(state, iterator, ObjectPropertyName(strings->stringReturn));
     if (returnFunction.isUndefined()) {
         if (hasThrowOnCompletionType) {
@@ -163,7 +171,7 @@ Value IteratorObject::iteratorClose(ExecutionState& state, const Value& iterator
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-createiterresultobject
-Value IteratorObject::createIterResultObject(ExecutionState& state, const Value& value, bool done)
+Object* IteratorObject::createIterResultObject(ExecutionState& state, const Value& value, bool done)
 {
     Object* obj = new Object(state);
     obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));

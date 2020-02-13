@@ -46,7 +46,7 @@ SandBox::SandBoxResult PromiseReactionJob::run()
             Value arguments[] = { m_argument };
             Value res = Object::call(state, m_reaction.m_handler, Value(), 1, arguments);
             // m_reaction.m_capability can be null when there was no result capability when promise.then()
-            if (m_reaction.m_capability.m_promise.isEmpty()) {
+            if (m_reaction.m_capability.m_promise == nullptr) {
                 return Value();
             }
             Value value[] = { res };

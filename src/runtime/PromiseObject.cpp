@@ -31,6 +31,10 @@
 
 namespace Escargot {
 
+// http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
+static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+static Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+
 PromiseObject::PromiseObject(ExecutionState& state)
     : Object(state)
     , m_state(PromiseState::Pending)
@@ -97,7 +101,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     Object* internalSlot = executor->ensureInternalSlot(state);
 
     Value arguments[] = { executor };
-    Value promise = Object::construct(state, constructor, 1, arguments);
+    Object* promise = Object::construct(state, constructor, 1, arguments);
     ASSERT(internalSlot == executor->internalSlot());
 
     Value resolveFunction = internalSlot->get(state, strings->resolve).value(state, internalSlot);
@@ -159,7 +163,7 @@ Optional<PromiseObject*> PromiseObject::then(ExecutionState& state, Value onFulf
     Object* onFulfilled = onFulfilledValue.isCallable() ? onFulfilledValue.asObject() : (Object*)(1);
     Object* onRejected = onRejectedValue.isCallable() ? onRejectedValue.asObject() : (Object*)(2);
 
-    PromiseReaction::Capability capability = resultCapability.hasValue() ? resultCapability.value() : PromiseReaction::Capability(Value(Value::EmptyValue), nullptr, nullptr);
+    PromiseReaction::Capability capability = resultCapability.hasValue() ? resultCapability.value() : PromiseReaction::Capability(nullptr, nullptr, nullptr);
 
     switch (this->state()) {
     case PromiseObject::PromiseState::Pending: {
@@ -181,7 +185,7 @@ Optional<PromiseObject*> PromiseObject::then(ExecutionState& state, Value onFulf
     }
 
     if (resultCapability) {
-        return capability.m_promise.asPointerValue()->asPromiseObject();
+        return capability.m_promise->asPromiseObject();
     } else {
         return nullptr;
     }
@@ -196,7 +200,7 @@ void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject
 
 // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
 // The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
-Value promiseResolve(ExecutionState& state, Object* C, const Value& x)
+Object* PromiseObject::promiseResolve(ExecutionState& state, Object* C, const Value& x)
 {
     // Assert: Type(C) is Object.
     // If IsPromise(x) is true, then
@@ -218,7 +222,7 @@ Value promiseResolve(ExecutionState& state, Object* C, const Value& x)
 }
 
 // $25.4.1.5.1 Internal GetCapabilitiesExecutor Function
-Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
     Object* executor = state.resolveCallee();
@@ -238,7 +242,7 @@ Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, si
 }
 
 // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
-Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
     Object* callee = state.resolveCallee();
@@ -282,7 +286,7 @@ Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t arg
 }
 
 // $25.4.1.3.1 Internal Promise Reject Function
-Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
     Object* callee = state.resolveCallee();
@@ -298,7 +302,7 @@ Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc,
 }
 
 // $25.4.4.1.2 Internal Promise.all Resolve Element Function
-Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
     Object* callee = state.resolveCallee();

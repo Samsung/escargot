@@ -159,6 +159,18 @@ Value ExecutionState::getSuperConstructor()
     return superConstructor;
 }
 
+ExecutionPauser* ExecutionState::executionPauser()
+{
+    ExecutionState* p = this;
+    while (true) {
+        auto ps = p->pauseSource();
+        if (ps) {
+            return ps;
+        }
+        p = p->parent();
+    }
+}
+
 // callee is (generator || async) && isNotInEvalCode
 bool ExecutionState::inPauserScope()
 {

@@ -507,6 +507,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case IteratorTestDoneOpcode: {
+                IteratorTestDone* cd = (IteratorTestDone*)currentCode;
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorRecordRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case BindingRestElementOpcode: {
                 BindingRestElement* cd = (BindingRestElement*)currentCode;
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterOrEnumIndex, stackBase, stackBaseWillBe, stackVariableSize);
@@ -680,6 +686,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     idx += ((ExecutionPause*)currentCode)->m_yieldDelegateData.m_tailDataLength;
                 } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Await) {
                     idx += ((ExecutionPause*)currentCode)->m_awaitData.m_tailDataLength;
+                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::AsyncGeneratorInitialize) {
+                    idx += ((ExecutionPause*)currentCode)->m_asyncGeneratorInitializeData.m_tailDataLength;
                 } else {
                     ASSERT_NOT_REACHED();
                 }

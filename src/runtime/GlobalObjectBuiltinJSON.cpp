@@ -317,7 +317,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value value = argv[0];
     Value replacer = argv[1];
     Value space = argv[2];
-    String* indent = new ASCIIString("");
+    String* indent = String::emptyString;
     ValueVectorWithInlineStorage stack;
     ObjectPropertyNameVector propertyList;
     bool propertyListTouched = false;
@@ -332,7 +332,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
             ArrayObject* arrObject = replacer.asObject()->asArrayObject();
 
             std::vector<Value::ValueIndex> indexes;
-            arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool { //Value key, HiddenClassPropertyInfo* propertyInfo) {
+            arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                 Value::ValueIndex idx = P.toPlainValue(state).toIndex(state);
                 if (idx != Value::InvalidIndexValue) {
                     std::vector<Value::ValueIndex>* indexes = (std::vector<Value::ValueIndex>*)data;
