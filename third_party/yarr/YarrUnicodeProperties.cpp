@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "WTFBridge.h"
@@ -51,22 +51,12 @@ struct HashTable {
 
     ALWAYS_INLINE int entry(WTF::String& key) const
     {
-        int indexEntry = key.hashValue() & indexMask;
-        int valueIndex = index[indexEntry].value;
-
-        if (valueIndex == -1)
-            return -1;
-
-        while (true) {
-            if (key.impl()->equals(values[valueIndex].key, strlen(values[valueIndex].key)))
-                return values[valueIndex].index;
-
-            indexEntry = index[indexEntry].next;
-            if (indexEntry == -1)
-                return -1;
-            valueIndex = index[indexEntry].value;
-            ASSERT(valueIndex != -1);
-        };
+        for(int i = 0 ; i < numberOfValues; i++)
+        {
+            if (key.impl()->equals(values[i].key, strlen(values[i].key)))
+                return values[i].index;
+        }
+        return -1;
     }
 };
 
@@ -96,7 +86,7 @@ Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodeProper
     propertyIndex = binaryPropertyHashTable.entry(unicodePropertyValue);
     if (propertyIndex == -1)
         propertyIndex = generalCategoryHashTable.entry(unicodePropertyValue);
-    
+
     if (propertyIndex == -1)
         return nullptr;
 
