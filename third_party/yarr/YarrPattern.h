@@ -353,8 +353,11 @@ struct TermChain {
 };
 
 
-struct YarrPattern {
-    JS_EXPORT_PRIVATE YarrPattern(const String& pattern, RegExpFlags, ErrorCode&, void* stackLimit = nullptr);
+struct YarrPattern : public gc {
+    static YarrPattern* createYarrPattern(const String& pattern, RegExpFlags flags, ErrorCode& error, void* stackLimit = nullptr)
+    {
+        return new YarrPattern(pattern, flags, error, stackLimit);
+    }
 
     void reset()
     {
@@ -511,10 +514,24 @@ struct YarrPattern {
     PatternDisjunction* m_body;
     Vector<std::unique_ptr<PatternDisjunction>, 4> m_disjunctions;
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
-    Vector<String> m_captureGroupNames;
+    ::Escargot::Vector<String, GCUtil::gc_malloc_allocator<String>> m_captureGroupNames;
     HashMap<String, unsigned> m_namedGroupToParenIndex;
 
 private:
+    JS_EXPORT_PRIVATE YarrPattern(const String& pattern, RegExpFlags, ErrorCode&, void* stackLimit = nullptr);
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word obj_bitmap[GC_BITMAP_SIZE(YarrPattern)] = { 0 };
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(YarrPattern, m_captureGroupNames));
+            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(YarrPattern));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+
     ErrorCode compile(const String& patternString, void* stackLimit);
 
     CharacterClass* anycharCached { nullptr };
