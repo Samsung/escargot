@@ -150,11 +150,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    void setBytecodePattern(JSC::Yarr::BytecodePattern* pattern)
-    {
-        m_bytecodePattern = pattern;
-    }
-
     void setOption(const Option& option);
     void internalInit(ExecutionState& state, String* source);
 

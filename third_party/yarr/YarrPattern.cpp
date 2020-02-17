@@ -580,12 +580,13 @@ public:
             m_pattern.m_numSubpatterns++;
             if (optGroupName) {
                 while (m_pattern.m_captureGroupNames.size() < subpatternId)
-                    m_pattern.m_captureGroupNames.append(String());
-                m_pattern.m_captureGroupNames.append(optGroupName.value());
+                    m_pattern.m_captureGroupNames.push_back(String());
+                m_pattern.m_captureGroupNames.push_back(optGroupName.value());
                 m_pattern.m_namedGroupToParenIndex.add(optGroupName.value(), subpatternId);
             }
-        } else
+        } else {
             ASSERT(!optGroupName);
+        }
 
         auto parenthesesDisjunction = std::make_unique<PatternDisjunction>(m_alternative);
         m_alternative->m_terms.append(PatternTerm(PatternTerm::TypeParenthesesSubpattern, subpatternId, parenthesesDisjunction.get(), capture, false));
