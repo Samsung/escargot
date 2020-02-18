@@ -487,30 +487,39 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case GetIteratorOpcode: {
-                GetIterator* cd = (GetIterator*)currentCode;
+            case IteratorOperationOpcode: {
+                IteratorOperation* cd = (IteratorOperation*)currentCode;
+                if (cd->m_operation == IteratorOperation::Operation::GetIterator) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_getIteratorData.m_srcObjectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_getIteratorData.m_dstIteratorRecordIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_getIteratorData.m_dstIteratorObjectIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorStep) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorStepData.m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorClose) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorCloseData.m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorCloseData.m_execeptionRegisterIndexIfExists, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorBind) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorBindData.m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorTestDone) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorTestDoneData.m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorNext) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorNextData.m_iteratorRecordRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorNextData.m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorNextData.m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorTestResultIsObject) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorTestResultIsObjectData.m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorValue) {
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorValueData.m_srcRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorValueData.m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else {
+                    ASSERT_NOT_REACHED();
+                }
+                break;
+            }
+            case GetMethodOpcode: {
+                GetMethod* cd = (GetMethod*)currentCode;
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case IteratorStepOpcode: {
-                IteratorStep* cd = (IteratorStep*)currentCode;
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case IteratorCloseOpcode: {
-                IteratorClose* cd = (IteratorClose*)currentCode;
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case IteratorBindOpcode: {
-                IteratorBind* cd = (IteratorBind*)currentCode;
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                break;
-            }
-            case IteratorTestDoneOpcode: {
-                IteratorTestDone* cd = (IteratorTestDone*)currentCode;
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorRecordRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
             case BindingRestElementOpcode: {
@@ -600,16 +609,15 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 if (cd->m_reason == ExecutionPause::Reason::Yield) {
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldData.m_yieldIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldData.m_dstStateIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     code += cd->m_yieldData.m_tailDataLength;
-                } else if (cd->m_reason == ExecutionPause::Reason::YieldDelegate) {
-                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldDelegateData.m_iterIntex, stackBase, stackBaseWillBe, stackVariableSize);
-                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldDelegateData.m_valueIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_yieldDelegateData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                    code += cd->m_yieldDelegateData.m_tailDataLength;
                 } else if (cd->m_reason == ExecutionPause::Reason::Await) {
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_awaitIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_dstStateIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     code += cd->m_awaitData.m_tailDataLength;
+                } else if (cd->m_reason == ExecutionPause::Reason::AsyncGeneratorInitialize) {
+                    code += cd->m_asyncGeneratorInitializeData.m_tailDataLength;
                 }
                 break;
             }
@@ -682,8 +690,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             if (currentCode->m_orgOpcode == ExecutionPauseOpcode) {
                 if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Yield) {
                     idx += ((ExecutionPause*)currentCode)->m_yieldData.m_tailDataLength;
-                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::YieldDelegate) {
-                    idx += ((ExecutionPause*)currentCode)->m_yieldDelegateData.m_tailDataLength;
                 } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Await) {
                     idx += ((ExecutionPause*)currentCode)->m_awaitData.m_tailDataLength;
                 } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::AsyncGeneratorInitialize) {

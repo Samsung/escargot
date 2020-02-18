@@ -37,16 +37,20 @@ public:
 
     enum PauseReason {
         Yield,
-        YieldDelegate,
         Await,
         AsyncGeneratorInitialize
+    };
+
+    enum ResumeState {
+        Normal,
+        Throw,
+        Return
     };
 
     // yield is implemented throw this type of by this class
     // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
     struct PauseValue : public gc {
         PauseReason m_pauseReason;
-        bool m_isDelegateOperation;
         Value m_value;
 
         void* operator new(size_t size)
@@ -74,7 +78,7 @@ public:
     };
 
     static Value start(ExecutionState& state, ExecutionPauser* self, Object* source, const Value& resumeValue, bool isAbruptReturn, bool isAbruptThrow, StartFrom from);
-    static void pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, PauseReason reason);
+    static void pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, ByteCodeRegisterIndex dstStateRegisterIndex, PauseReason reason);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -93,7 +97,8 @@ private:
     size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
     SmallValue m_resumeValue;
-    uint16_t m_resumeValueIndex;
+    ByteCodeRegisterIndex m_resumeValueIndex;
+    ByteCodeRegisterIndex m_resumeStateIndex;
     PromiseReaction::Capability m_promiseCapability; // async function needs this
 };
 }

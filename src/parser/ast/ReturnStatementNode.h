@@ -61,6 +61,15 @@ public:
         }
     }
 
+    static void generateReturnCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, Node* srcNode, ByteCodeLOC loc, size_t srcRegister)
+    {
+        if (context->tryCatchWithBlockStatementCount() != 0) {
+            codeBlock->pushCode(ReturnFunctionSlowCase(loc, srcRegister), context, srcNode);
+        } else {
+            codeBlock->pushCode(End(loc, srcRegister), context, srcNode);
+        }
+    }
+
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);

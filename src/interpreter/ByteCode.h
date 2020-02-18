@@ -117,11 +117,8 @@ struct GlobalVariableAccessCacheItem;
     F(GetEnumerateKey, 1, 0)                                \
     F(CheckLastEnumerateKey, 0, 0)                          \
     F(MarkEnumerateKey, 2, 0)                               \
-    F(GetIterator, 1, 0)                                    \
-    F(IteratorStep, 1, 0)                                   \
-    F(IteratorClose, 1, 0)                                  \
-    F(IteratorBind, 1, 0)                                   \
-    F(IteratorTestDone, 1, 0)                               \
+    F(IteratorOperation, 0, 0)                              \
+    F(GetMethod, 0, 0)                                      \
     F(LoadRegexp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
     F(ObjectDefineGetterSetter, 0, 0)                       \
@@ -1673,28 +1670,22 @@ class ExecutionPause : public ByteCode {
 public:
     enum Reason {
         Yield,
-        YieldDelegate,
         Await,
         AsyncGeneratorInitialize
     };
 
     struct ExecutionPauseYieldData {
+        bool m_needsToWrapYieldValueWithIterResultObject;
         ByteCodeRegisterIndex m_yieldIndex;
         ByteCodeRegisterIndex m_dstIndex;
-        size_t m_tailDataLength;
-    };
-
-    struct ExecutionPauseYieldDelegateData {
-        ByteCodeRegisterIndex m_iterIntex;
-        ByteCodeRegisterIndex m_valueIndex;
-        ByteCodeRegisterIndex m_dstIndex;
-        size_t m_endPosition;
+        ByteCodeRegisterIndex m_dstStateIndex;
         size_t m_tailDataLength;
     };
 
     struct ExecutionPauseAwaitData {
         ByteCodeRegisterIndex m_awaitIndex;
         ByteCodeRegisterIndex m_dstIndex;
+        ByteCodeRegisterIndex m_dstStateIndex;
         size_t m_tailDataLength;
     };
 
@@ -1706,13 +1697,6 @@ public:
         : ByteCode(Opcode::ExecutionPauseOpcode, loc)
         , m_reason(Reason::Yield)
         , m_yieldData(yieldData)
-    {
-    }
-
-    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseYieldDelegateData yieldDelegateData)
-        : ByteCode(Opcode::ExecutionPauseOpcode, loc)
-        , m_reason(Reason::YieldDelegate)
-        , m_yieldDelegateData(yieldDelegateData)
     {
     }
 
@@ -1733,7 +1717,6 @@ public:
     Reason m_reason;
     union {
         ExecutionPauseYieldData m_yieldData;
-        ExecutionPauseYieldDelegateData m_yieldDelegateData;
         ExecutionPauseAwaitData m_awaitData;
         ExecutionPauseAsyncGeneratorInitializeData m_asyncGeneratorInitializeData;
     };
@@ -1741,7 +1724,15 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("execution pause");
+        printf("execution pause ");
+
+        if (m_reason == Reason::Yield) {
+            printf("yield r%d r%d r%d", (int)m_yieldData.m_yieldIndex, (int)m_yieldData.m_dstIndex, (int)m_yieldData.m_dstStateIndex);
+        } else if (m_reason == Reason::Await) {
+            printf("await r%d r%d r%d", (int)m_awaitData.m_awaitIndex, (int)m_awaitData.m_dstIndex, (int)m_awaitData.m_dstStateIndex);
+        } else if (m_reason == Reason::AsyncGeneratorInitialize) {
+            printf("async generator initialize ");
+        }
     }
 #endif
 };
@@ -1998,126 +1989,179 @@ public:
 #endif
 };
 
-class GetIterator : public ByteCode {
+class IteratorOperation : public ByteCode {
 public:
-    explicit GetIterator(const ByteCodeLOC& loc, bool isSyncIterator)
-        : ByteCode(Opcode::GetIteratorOpcode, loc)
-        , m_isSyncIterator(true)
-        , m_registerIndex(REGISTER_LIMIT)
-        , m_objectRegisterIndex(REGISTER_LIMIT)
+    enum Operation {
+        GetIterator,
+        IteratorStep,
+        IteratorClose,
+        IteratorBind,
+        IteratorTestDone,
+        IteratorNext,
+        IteratorTestResultIsObject,
+        IteratorValue
+    };
+
+    struct GetIteratorData {
+        bool m_isSyncIterator;
+        ByteCodeRegisterIndex m_srcObjectRegisterIndex;
+        ByteCodeRegisterIndex m_dstIteratorRecordIndex;
+        ByteCodeRegisterIndex m_dstIteratorObjectIndex;
+    };
+
+    struct IteratorStepData {
+        ByteCodeRegisterIndex m_registerIndex;
+        ByteCodeRegisterIndex m_iterRegisterIndex;
+        size_t m_forOfEndPosition;
+    };
+
+    struct IteratorCloseData {
+        ByteCodeRegisterIndex m_iterRegisterIndex;
+        ByteCodeRegisterIndex m_execeptionRegisterIndexIfExists;
+    };
+
+    struct IteratorBindData {
+        ByteCodeRegisterIndex m_registerIndex;
+        ByteCodeRegisterIndex m_iterRegisterIndex;
+    };
+
+    struct IteratorTestDoneData {
+        bool m_isIteratorRecord;
+        ByteCodeRegisterIndex m_iteratorRecordOrObjectRegisterIndex;
+        ByteCodeRegisterIndex m_dstRegisterIndex;
+    };
+
+    struct IteratorNextData {
+        ByteCodeRegisterIndex m_iteratorRecordRegisterIndex;
+        ByteCodeRegisterIndex m_valueRegisterIndex;
+        ByteCodeRegisterIndex m_returnRegisterIndex;
+    };
+
+    struct IteratorTestResultIsObjectData {
+        ByteCodeRegisterIndex m_valueRegisterIndex;
+    };
+
+    struct IteratorValueData {
+        ByteCodeRegisterIndex m_srcRegisterIndex;
+        ByteCodeRegisterIndex m_dstRegisterIndex;
+    };
+
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const GetIteratorData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::GetIterator)
+        , m_getIteratorData(data)
     {
     }
 
-    GetIterator(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t registerIndex, bool isSyncIterator)
-        : ByteCode(Opcode::GetIteratorOpcode, loc)
-        , m_isSyncIterator(isSyncIterator)
-        , m_registerIndex(registerIndex)
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorStepData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorStep)
+        , m_iteratorStepData(data)
+    {
+    }
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorCloseData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorClose)
+        , m_iteratorCloseData(data)
+    {
+    }
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorBindData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorBind)
+        , m_iteratorBindData(data)
+    {
+    }
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorTestDoneData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorTestDone)
+        , m_iteratorTestDoneData(data)
+    {
+    }
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorNextData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorNext)
+        , m_iteratorNextData(data)
+    {
+    }
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorTestResultIsObjectData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorTestResultIsObject)
+        , m_iteratorTestResultIsObjectData(data)
+    {
+    }
+
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorValueData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorValue)
+        , m_iteratorValueData(data)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        if (m_operation == Operation::GetIterator) {
+            printf("get iterator(r%d) -> r%d", (int)m_getIteratorData.m_srcObjectRegisterIndex, (int)m_getIteratorData.m_dstIteratorRecordIndex);
+        } else if (m_operation == Operation::IteratorStep) {
+            printf("iterator step(r%d) -> r%d", (int)m_iteratorStepData.m_iterRegisterIndex, (int)m_iteratorStepData.m_registerIndex);
+        } else if (m_operation == Operation::IteratorClose) {
+            printf("iterator close(r%d, r%d)", (int)m_iteratorCloseData.m_iterRegisterIndex, (int)m_iteratorCloseData.m_execeptionRegisterIndexIfExists);
+        } else if (m_operation == Operation::IteratorBind) {
+            printf("iterator bind(r%d) -> r%d", (int)m_iteratorBindData.m_iterRegisterIndex, (int)m_iteratorBindData.m_registerIndex);
+        } else if (m_operation == Operation::IteratorTestDone) {
+            printf("iterator test done iteratorRecord(%d)->m_done -> r%d", (int)m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex,
+                   (int)m_iteratorTestDoneData.m_dstRegisterIndex);
+        } else if (m_operation == Operation::IteratorNext) {
+            printf("iterator next r%d.[[next]](r%d) -> r%d", (int)m_iteratorNextData.m_iteratorRecordRegisterIndex,
+                   (int)m_iteratorNextData.m_valueRegisterIndex, (int)m_iteratorNextData.m_returnRegisterIndex);
+        } else if (m_operation == Operation::IteratorTestResultIsObject) {
+            printf("iterator test result is object r%d", (int)m_iteratorTestResultIsObjectData.m_valueRegisterIndex);
+        } else if (m_operation == Operation::IteratorValue) {
+            printf("iterator value r%d -> r%d", (int)m_iteratorValueData.m_srcRegisterIndex, (int)m_iteratorValueData.m_dstRegisterIndex);
+        } else {
+            ASSERT_NOT_REACHED();
+        }
+    }
+
+#endif
+
+    Operation m_operation;
+    union {
+        GetIteratorData m_getIteratorData;
+        IteratorStepData m_iteratorStepData;
+        IteratorCloseData m_iteratorCloseData;
+        IteratorBindData m_iteratorBindData;
+        IteratorTestDoneData m_iteratorTestDoneData;
+        IteratorNextData m_iteratorNextData;
+        IteratorTestResultIsObjectData m_iteratorTestResultIsObjectData;
+        IteratorValueData m_iteratorValueData;
+    };
+};
+
+class GetMethod : public ByteCode {
+public:
+    explicit GetMethod(const ByteCodeLOC& loc, ByteCodeRegisterIndex objectRegisterIndex, ByteCodeRegisterIndex resultRegisterIndex, AtomicString propertyName)
+        : ByteCode(Opcode::GetMethodOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
+        , m_resultRegisterIndex(resultRegisterIndex)
+        , m_propertyName(propertyName)
     {
     }
 
-    bool m_isSyncIterator;
-
-    ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_objectRegisterIndex;
+    ByteCodeRegisterIndex m_resultRegisterIndex;
+    AtomicString m_propertyName;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("get iterator(r%d) -> r%d", (int)m_objectRegisterIndex, (int)m_registerIndex);
-    }
-#endif
-};
-
-class IteratorStep : public ByteCode {
-public:
-    explicit IteratorStep(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::IteratorStepOpcode, loc)
-    {
-        m_forOfEndPosition = SIZE_MAX;
-        m_registerIndex = m_iterRegisterIndex = REGISTER_LIMIT;
-    }
-
-    explicit IteratorStep(const ByteCodeLOC& loc, size_t dstIndex, size_t iterIndex)
-        : ByteCode(Opcode::IteratorStepOpcode, loc)
-        , m_registerIndex(dstIndex)
-        , m_iterRegisterIndex(iterIndex)
-        , m_forOfEndPosition(SIZE_MAX)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-    ByteCodeRegisterIndex m_iterRegisterIndex;
-    size_t m_forOfEndPosition;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("iterator step(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
-    }
-#endif
-};
-
-class IteratorClose : public ByteCode {
-public:
-    explicit IteratorClose(const ByteCodeLOC& loc, size_t iterIndex)
-        : ByteCode(Opcode::IteratorCloseOpcode, loc)
-    {
-        m_iterRegisterIndex = iterIndex;
-    }
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("iterator close(r%d)", (int)m_iterRegisterIndex);
-    }
-#endif
-
-    ByteCodeRegisterIndex m_iterRegisterIndex;
-};
-
-class IteratorBind : public ByteCode {
-public:
-    explicit IteratorBind(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::IteratorBindOpcode, loc)
-    {
-        m_registerIndex = m_iterRegisterIndex = REGISTER_LIMIT;
-    }
-
-    explicit IteratorBind(const ByteCodeLOC& loc, size_t dstIndex, size_t iterIndex)
-        : ByteCode(Opcode::IteratorBindOpcode, loc)
-        , m_registerIndex(dstIndex)
-        , m_iterRegisterIndex(iterIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-    ByteCodeRegisterIndex m_iterRegisterIndex;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("iterator bind(r%d) -> r%d", (int)m_iterRegisterIndex, (int)m_registerIndex);
-    }
-#endif
-};
-
-class IteratorTestDone : public ByteCode {
-public:
-    explicit IteratorTestDone(const ByteCodeLOC& loc, ByteCodeRegisterIndex iteratorRecordRegisterIndex, ByteCodeRegisterIndex dst)
-        : ByteCode(Opcode::IteratorTestDoneOpcode, loc)
-        , m_iteratorRecordRegisterIndex(iteratorRecordRegisterIndex)
-        , m_dstRegisterIndex(dst)
-    {
-    }
-
-    ByteCodeRegisterIndex m_iteratorRecordRegisterIndex;
-    ByteCodeRegisterIndex m_dstRegisterIndex;
-
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        printf("iterator test done iteratorRecord(%d)->m_done -> r%d", (int)m_iteratorRecordRegisterIndex, (int)m_dstRegisterIndex);
+        printf("get method r%d.%s -> r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_resultRegisterIndex);
     }
 #endif
 };

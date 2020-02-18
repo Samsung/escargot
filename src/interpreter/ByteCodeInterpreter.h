@@ -63,10 +63,6 @@ class GlobalObject;
 class UnaryTypeof;
 class GetObject;
 class SetObjectOperation;
-class GetIterator;
-class IteratorStep;
-class IteratorClose;
-class IteratorBind;
 class EnumerateObject;
 class CheckLastEnumerateKey;
 class MarkEnumerateKey;
@@ -147,11 +143,8 @@ private:
 
     static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
 
-    static void getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile);
-    static void iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
-    static void iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile);
-    static void iteratorBindOperation(ExecutionState& state, size_t& programCounter, Value* registerFile);
-    static void iteratorTestDoneOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
+    static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
+    static void getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
     static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);

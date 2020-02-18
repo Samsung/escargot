@@ -31,7 +31,6 @@
 namespace Escargot {
 
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Yield == (int)ExecutionPause::Yield, "");
-COMPILE_ASSERT((int)ExecutionPauser::PauseReason::YieldDelegate == (int)ExecutionPause::YieldDelegate, "");
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Await == (int)ExecutionPause::Await, "");
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::AsyncGeneratorInitialize == (int)ExecutionPause::AsyncGeneratorInitialize, "");
 
@@ -66,6 +65,7 @@ ExecutionPauser::ExecutionPauser(ExecutionState& state, Object* sourceObject, Ex
     , m_extraDataByteCodePosition(0)
     , m_resumeByteCodePosition(SIZE_MAX)
     , m_resumeValueIndex(REGISTER_LIMIT)
+    , m_resumeStateIndex(REGISTER_LIMIT)
 {
 }
 
@@ -97,8 +97,19 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     if (from == StartFrom::Generator) {
         source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::Executing;
     }
+
     if (self->m_resumeValueIndex != REGISTER_LIMIT) {
         self->m_registerFile[self->m_resumeValueIndex] = resumeValue;
+    }
+
+    if (self->m_resumeStateIndex != REGISTER_LIMIT) {
+        if (isAbruptThrow) {
+            self->m_registerFile[self->m_resumeStateIndex] = Value(ResumeState::Throw);
+        } else if (isAbruptReturn) {
+            self->m_registerFile[self->m_resumeStateIndex] = Value(ResumeState::Return);
+        } else {
+            self->m_registerFile[self->m_resumeStateIndex] = Value(ResumeState::Normal);
+        }
     }
 
     self->m_resumeValue = resumeValue;
@@ -157,7 +168,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         auto pauseReason = exitValue->m_pauseReason;
         delete exitValue;
 
-        if (pauseReason == ExecutionPauser::PauseReason::YieldDelegate || pauseReason == ExecutionPauser::PauseReason::AsyncGeneratorInitialize) {
+        if (pauseReason == ExecutionPauser::PauseReason::AsyncGeneratorInitialize) {
             return result;
         }
 
@@ -165,7 +176,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             if (source->asGeneratorObject()->m_generatorState >= GeneratorObject::GeneratorState::CompletedReturn) {
                 return IteratorObject::createIterResultObject(state, result, true);
             }
-            return IteratorObject::createIterResultObject(state, result, false);
+            return result;
         } else if (from == StartFrom::Async) {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
             // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
@@ -198,7 +209,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     return result;
 }
 
-void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, PauseReason reason)
+void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, ByteCodeRegisterIndex dstStateRegisterIndex, PauseReason reason)
 {
     ExecutionState* originalState = &state;
     ExecutionPauser* self;
@@ -214,13 +225,13 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     self->m_executionState = &state;
     self->m_byteCodePosition = nextProgramCounter;
     self->m_resumeValueIndex = dstRegisterIndex;
+    self->m_resumeStateIndex = dstStateRegisterIndex;
 
     bool isGenerator = pauser->isGeneratorObject();
     bool isAsync = pauser->isScriptAsyncFunctionObject();
     bool isAsyncGenerator = pauser->isAsyncGeneratorObject();
 
-
-    if (reason == PauseReason::Yield || reason == PauseReason::YieldDelegate) {
+    if (reason == PauseReason::Yield) {
         if (isGenerator) {
             pauser->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::SuspendedYield;
         } else if (isAsyncGenerator) {

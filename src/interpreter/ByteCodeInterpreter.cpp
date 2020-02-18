@@ -1104,46 +1104,20 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(GetIterator)
+        DEFINE_OPCODE(IteratorOperation)
             :
         {
-            GetIterator* code = (GetIterator*)programCounter;
-            getIteratorOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(GetIterator);
+            IteratorOperation* code = (IteratorOperation*)programCounter;
+            iteratorOperation(*state, programCounter, registerFile, codeBuffer);
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(IteratorStep)
+        DEFINE_OPCODE(GetMethod)
             :
         {
-            IteratorStep* code = (IteratorStep*)programCounter;
-            iteratorStepOperation(*state, programCounter, registerFile, codeBuffer);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(IteratorClose)
-            :
-        {
-            IteratorClose* code = (IteratorClose*)programCounter;
-            iteratorCloseOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(IteratorClose);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(IteratorBind)
-            :
-        {
-            IteratorBind* code = (IteratorBind*)programCounter;
-            iteratorBindOperation(*state, programCounter, registerFile);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(IteratorTestDone)
-            :
-        {
-            IteratorTestDone* code = (IteratorTestDone*)programCounter;
-            iteratorTestDoneOperation(*state, programCounter, registerFile);
-            ADD_PROGRAM_COUNTER(IteratorTestDone);
+            GetMethod* code = (GetMethod*)programCounter;
+            getMethodOperation(*state, programCounter, registerFile);
+            ADD_PROGRAM_COUNTER(GetMethod);
             NEXT_INSTRUCTION();
         }
 
@@ -1291,15 +1265,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ExecutionPause* code = (ExecutionPause*)programCounter;
-            if (code->m_reason == ExecutionPause::Reason::Yield || code->m_reason == ExecutionPause::Reason::Await || code->m_reason == ExecutionPause::Reason::AsyncGeneratorInitialize) {
-                executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
-            } else if (code->m_reason == ExecutionPause::Reason::YieldDelegate) {
-                Value result = executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
-                if (result.isEmpty()) {
-                    NEXT_INSTRUCTION();
-                }
-                return result;
-            }
+            executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
             ASSERT_NOT_REACHED();
         }
 
@@ -2873,103 +2839,28 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
         // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
         auto yieldIndex = code->m_yieldData.m_yieldIndex;
         Value ret = yieldIndex == REGISTER_LIMIT ? Value() : registerFile[yieldIndex];
-        auto dstIdx = code->m_yieldData.m_dstIndex;
+
+        if (code->m_yieldData.m_needsToWrapYieldValueWithIterResultObject) {
+            ret = IteratorObject::createIterResultObject(state, ret, false);
+        }
 
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldData.m_tailDataLength;
 
-        ExecutionPauser::pause(state, ret, programCounter + sizeof(ExecutionPause), code->m_yieldData.m_tailDataLength, nextProgramCounter, dstIdx, ExecutionPauser::PauseReason::Yield);
-    } else if (code->m_reason == ExecutionPause::YieldDelegate) {
-        // https://www.ecma-international.org/ecma-262/10.0/#sec-generator-function-definitions-runtime-semantics-evaluation
-
-        ExecutionPauser* executionPauser = state.executionPauser();
-        bool isAsyncGeneratorFunction = executionPauser->sourceObject()->isAsyncGeneratorObject();
-        IteratorRecord* iteratorRecord = registerFile[code->m_yieldDelegateData.m_iterIntex].asPointerValue()->asIteratorRecord();
-        Object* iterator = iteratorRecord->m_iterator;
-
-        GeneratorObject::GeneratorState resultState = GeneratorObject::GeneratorState::SuspendedYield;
-        Object* nextResult = nullptr;
-        bool done = true;
-        Value nextValue;
-        try {
-            nextResult = IteratorObject::iteratorNext(state, iteratorRecord);
-            if (iterator->isGeneratorObject()) {
-                resultState = iterator->asGeneratorObject()->m_generatorState;
-            }
-        } catch (const Value& v) {
-            resultState = GeneratorObject::GeneratorState::CompletedThrow;
-            nextValue = v;
-        }
-
-        switch (resultState) {
-        case GeneratorObject::GeneratorState::CompletedReturn: {
-            Value ret = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
-
-            nextValue = IteratorObject::iteratorValue(state, nextResult);
-
-            if (ret.isUndefined()) {
-                return nextValue;
-            }
-
-            Value innerResult = Object::call(state, ret, iterator, 1, &nextValue);
-
-            if (!innerResult.isObject()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
-            }
-
-            nextValue = IteratorObject::iteratorValue(state, innerResult.asObject());
-            done = IteratorObject::iteratorComplete(state, innerResult.asObject());
-            break;
-        }
-        case GeneratorObject::GeneratorState::SuspendedYield: {
-            done = IteratorObject::iteratorComplete(state, nextResult);
-            nextValue = IteratorObject::iteratorValue(state, nextResult);
-            break;
-        }
-        default: {
-            ASSERT(resultState == GeneratorObject::GeneratorState::CompletedThrow);
-            Value throwMethod = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringThrow)).value(state, iterator);
-
-            if (!throwMethod.isUndefined()) {
-                Value innerResult;
-                innerResult = Object::call(state, throwMethod, iterator, 1, &nextValue);
-                if (!innerResult.isObject()) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
-                }
-                nextValue = IteratorObject::iteratorValue(state, innerResult.asObject());
-                done = IteratorObject::iteratorComplete(state, innerResult.asObject());
-            } else {
-                IteratorObject::iteratorClose(state, iteratorRecord, Value(), false);
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "yield* violation");
-            }
-        }
-        }
-
-        // yield
-        registerFile[code->m_yieldDelegateData.m_dstIndex] = nextValue;
-        if (done) {
-            programCounter = jumpTo(codeBuffer, code->m_yieldDelegateData.m_endPosition);
-            return Value(Value::EmptyValue);
-        }
-
-        registerFile[code->m_yieldDelegateData.m_valueIndex] = nextValue;
-
-        size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldDelegateData.m_tailDataLength;
-        ExecutionPauser::pause(state, nextResult, programCounter + sizeof(ExecutionPause), code->m_yieldDelegateData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::YieldDelegate);
+        ExecutionPauser::pause(state, ret, programCounter + sizeof(ExecutionPause), code->m_yieldData.m_tailDataLength, nextProgramCounter, code->m_yieldData.m_dstIndex, code->m_yieldData.m_dstStateIndex, ExecutionPauser::PauseReason::Yield);
     } else if (code->m_reason == ExecutionPause::Await) {
         ExecutionPauser* executionPauser = state.executionPauser();
         const Value& awaitValue = registerFile[code->m_awaitData.m_awaitIndex];
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_awaitData.m_tailDataLength;
         size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
         size_t tailDataLength = code->m_awaitData.m_tailDataLength;
-        ByteCodeRegisterIndex dstRegisterIndex = code->m_awaitData.m_dstIndex;
 
         ScriptAsyncFunctionObject::awaitOperationBeforePause(state, executionPauser, awaitValue, executionPauser->sourceObject());
-        ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter, dstRegisterIndex, ExecutionPauser::PauseReason::Await);
+        ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter, code->m_awaitData.m_dstIndex, code->m_awaitData.m_dstStateIndex, ExecutionPauser::PauseReason::Await);
     } else if (code->m_reason == ExecutionPause::AsyncGeneratorInitialize) {
         ExecutionPauser* executionPauser = state.executionPauser();
         size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_asyncGeneratorInitializeData.m_tailDataLength;
-        ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, ExecutionPauser::PauseReason::AsyncGeneratorInitialize);
+        ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, REGISTER_LIMIT, ExecutionPauser::PauseReason::AsyncGeneratorInitialize);
     }
 
     ASSERT_NOT_REACHED();
@@ -3020,16 +2911,20 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
     // update program counter
     programCounter = data->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
 
-    if (needsReturn) {
-        if (state->rareData() && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size()) {
-            state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->m_controlFlowRecord->size());
+    if (state->executionPauser()->m_resumeStateIndex == REGISTER_LIMIT) {
+        if (needsReturn) {
+            if (state->rareData() && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size()) {
+                state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->m_controlFlowRecord->size());
+            }
+            return data->m_resumeValue;
+        } else if (needsThrow) {
+            state->throwException(data->m_resumeValue);
         }
-        return data->m_resumeValue;
-    } else if (needsThrow) {
-        state->throwException(data->m_resumeValue);
-    }
 
-    return Value(Value::EmptyValue);
+        return Value(Value::EmptyValue);
+    } else {
+        return Value(Value::EmptyValue);
+    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile)
@@ -3294,96 +3189,123 @@ NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryT
     registerFile[code->m_dstIndex] = val;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::getIteratorOperation(ExecutionState& state, GetIterator* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer)
 {
-    const Value& obj = registerFile[code->m_objectRegisterIndex];
-    registerFile[code->m_registerIndex] = IteratorObject::getIterator(state, obj, code->m_isSyncIterator);
-}
-
-NEVER_INLINE void ByteCodeInterpreter::iteratorStepOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer)
-{
-    IteratorStep* code = (IteratorStep*)programCounter;
-    auto nextResult = IteratorObject::iteratorStep(state, registerFile[code->m_iterRegisterIndex].asPointerValue()->asIteratorRecord());
-
-    if (!nextResult.hasValue()) {
-        programCounter = jumpTo(codeBuffer, code->m_forOfEndPosition);
-    } else {
-        registerFile[code->m_registerIndex] = IteratorObject::iteratorValue(state, nextResult.value());
-        ADD_PROGRAM_COUNTER(IteratorStep);
-    }
-}
-
-NEVER_INLINE void ByteCodeInterpreter::iteratorCloseOperation(ExecutionState& state, IteratorClose* code, Value* registerFile)
-{
-    bool exceptionWasThrown = state.hasRareData() && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->back() && state.rareData()->m_controlFlowRecord->back()->reason() == ControlFlowRecord::NeedsThrow;
-    IteratorRecord* iteratorRecord = registerFile[code->m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
-    Object* iterator = iteratorRecord->m_iterator;
-    Value returnFunction = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
-    if (returnFunction.isUndefined()) {
-        return;
-    }
-
-    Value innerResult;
-    bool innerResultHasException = false;
-    try {
-        innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
-    } catch (const Value& e) {
-        innerResult = e;
-        innerResultHasException = true;
-    }
-
-    if (exceptionWasThrown) {
-        return;
-    }
-
-    if (innerResultHasException) {
-        state.throwException(innerResult);
-    }
-
-    if (!innerResult.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
-    }
-}
-
-NEVER_INLINE void ByteCodeInterpreter::iteratorBindOperation(ExecutionState& state, size_t& programCounter, Value* registerFile)
-{
-    auto strings = &state.context()->staticStrings();
-
-    IteratorBind* code = (IteratorBind*)programCounter;
-    Optional<Object*> nextResult;
-    Value value;
-    IteratorRecord* iteratorRecord = registerFile[code->m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
-
-    if (!iteratorRecord->m_done) {
-        try {
-            nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
-        } catch (const Value& e) {
-            Value exceptionValue = e;
-            iteratorRecord->m_done = true;
-            state.throwException(exceptionValue);
+    IteratorOperation* code = (IteratorOperation*)programCounter;
+    if (code->m_operation == IteratorOperation::Operation::GetIterator) {
+        const Value& obj = registerFile[code->m_getIteratorData.m_srcObjectRegisterIndex];
+        registerFile[code->m_getIteratorData.m_dstIteratorRecordIndex] = IteratorObject::getIterator(state, obj, code->m_getIteratorData.m_isSyncIterator);
+        if (code->m_getIteratorData.m_dstIteratorObjectIndex != REGISTER_LIMIT) {
+            registerFile[code->m_getIteratorData.m_dstIteratorObjectIndex] = registerFile[code->m_getIteratorData.m_dstIteratorRecordIndex].asPointerValue()->asIteratorRecord()->m_iterator;
         }
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorStep) {
+        auto nextResult = IteratorObject::iteratorStep(state, registerFile[code->m_iteratorStepData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord());
 
         if (!nextResult.hasValue()) {
-            iteratorRecord->m_done = true;
+            programCounter = jumpTo(codeBuffer, code->m_iteratorStepData.m_forOfEndPosition);
         } else {
+            registerFile[code->m_iteratorStepData.m_registerIndex] = IteratorObject::iteratorValue(state, nextResult.value());
+            ADD_PROGRAM_COUNTER(IteratorOperation);
+        }
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorClose) {
+        if (code->m_iteratorCloseData.m_execeptionRegisterIndexIfExists != REGISTER_LIMIT) {
+            IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
+            IteratorObject::iteratorClose(state, iteratorRecord, registerFile[code->m_iteratorCloseData.m_execeptionRegisterIndexIfExists], true);
+        } else {
+            bool exceptionWasThrown = state.hasRareData() && state.rareData()->m_controlFlowRecord && state.rareData()->m_controlFlowRecord->back() && state.rareData()->m_controlFlowRecord->back()->reason() == ControlFlowRecord::NeedsThrow;
+            IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
+            Object* iterator = iteratorRecord->m_iterator;
+            Value returnFunction = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
+            if (returnFunction.isUndefined()) {
+                ADD_PROGRAM_COUNTER(IteratorOperation);
+                return;
+            }
+
+            Value innerResult;
+            bool innerResultHasException = false;
             try {
-                value = IteratorObject::iteratorValue(state, nextResult.value());
+                innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
+            } catch (const Value& e) {
+                innerResult = e;
+                innerResultHasException = true;
+            }
+
+            if (exceptionWasThrown) {
+                ADD_PROGRAM_COUNTER(IteratorOperation);
+                return;
+            }
+
+            if (innerResultHasException) {
+                state.throwException(innerResult);
+            }
+
+            if (!innerResult.isObject()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
+            }
+        }
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorBind) {
+        auto strings = &state.context()->staticStrings();
+
+        Optional<Object*> nextResult;
+        Value value;
+        IteratorRecord* iteratorRecord = registerFile[code->m_iteratorBindData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
+
+        if (!iteratorRecord->m_done) {
+            try {
+                nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
             } catch (const Value& e) {
                 Value exceptionValue = e;
                 iteratorRecord->m_done = true;
                 state.throwException(exceptionValue);
             }
-        }
-    }
 
-    registerFile[code->m_registerIndex] = value;
-    ADD_PROGRAM_COUNTER(IteratorBind);
+            if (!nextResult.hasValue()) {
+                iteratorRecord->m_done = true;
+            } else {
+                try {
+                    value = IteratorObject::iteratorValue(state, nextResult.value());
+                } catch (const Value& e) {
+                    Value exceptionValue = e;
+                    iteratorRecord->m_done = true;
+                    state.throwException(exceptionValue);
+                }
+            }
+        }
+
+        registerFile[code->m_iteratorBindData.m_registerIndex] = value;
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorTestDone) {
+        if (code->m_iteratorTestDoneData.m_isIteratorRecord) {
+            registerFile[code->m_iteratorTestDoneData.m_dstRegisterIndex] = Value(
+                registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex].asPointerValue()->asIteratorRecord()->m_done);
+        } else {
+            registerFile[code->m_iteratorTestDoneData.m_dstRegisterIndex] = Value(
+                registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex].asObject()->get(state, state.context()->staticStrings().done).value(state, registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex]).toBoolean(state));
+        }
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorNext) {
+        auto record = registerFile[code->m_iteratorNextData.m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
+        registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorTestResultIsObject) {
+        if (!registerFile[code->m_iteratorTestResultIsObjectData.m_valueRegisterIndex].isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
+        }
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorValue) {
+        registerFile[code->m_iteratorValueData.m_dstRegisterIndex] = IteratorObject::iteratorValue(state, registerFile[code->m_iteratorValueData.m_srcRegisterIndex].asObject());
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else {
+        ASSERT_NOT_REACHED();
+    }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::iteratorTestDoneOperation(ExecutionState& state, size_t programCounter, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile)
 {
-    IteratorTestDone* code = (IteratorTestDone*)programCounter;
-    registerFile[code->m_dstRegisterIndex] = Value(registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord()->m_done);
+    GetMethod* code = (GetMethod*)programCounter;
+    registerFile[code->m_resultRegisterIndex] = Object::getMethod(state, registerFile[code->m_objectRegisterIndex], code->m_propertyName);
 }
 
 NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord)
