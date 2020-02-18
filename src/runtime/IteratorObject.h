@@ -101,7 +101,6 @@ public:
     // this function return empty Optional value instead of Value(false)
     static Optional<Object*> iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord);
     static Value iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
-    static Value asyncIteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
     static Object* createIterResultObject(ExecutionState& state, const Value& value, bool done);
 
     // TODO

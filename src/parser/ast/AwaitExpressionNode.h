@@ -43,6 +43,7 @@ public:
         ExecutionPause::ExecutionPauseAwaitData data;
         data.m_awaitIndex = dstRegister;
         data.m_dstIndex = dstRegister;
+        data.m_dstStateIndex = REGISTER_LIMIT;
         data.m_tailDataLength = tailDataLength;
         codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
         codeBlock->pushPauseStatementExtraData(context);
