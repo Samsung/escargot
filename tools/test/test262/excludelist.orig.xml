@@ -1923,7 +1923,6 @@
     <test id="built-ins/RegExp/prototype/source/value-line-terminator"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/source/value-slash"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/sticky/cross-realm"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/test/y-set-lastindex"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/unicode/cross-realm"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/u180e"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/Symbol.toStringTag"><reason>TODO</reason></test>

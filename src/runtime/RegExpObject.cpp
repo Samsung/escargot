@@ -337,6 +337,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     size_t start = startIndex;
     unsigned result = 0;
     bool isGlobal = option() & RegExpObject::Option::Global;
+    bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
     bool reachToEnd = false;
     unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int, state);
@@ -378,7 +379,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
 
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
-                if (isGlobal) {
+                if (isGlobal || isSticky) {
                     setLastIndex(state, Value(outputBuf[1]));
                 }
                 if (!lastParenInvalid && subPatternNum) {

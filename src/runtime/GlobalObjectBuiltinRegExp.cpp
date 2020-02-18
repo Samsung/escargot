@@ -91,9 +91,6 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
         int e = result.m_matchResults[0][0].m_end;
-        if (option & (RegExpObject::Option::Global | RegExpObject::Option::Sticky))
-            regexp->setLastIndex(state, Value(e));
-
         if (option & RegExpObject::Option::Unicode) {
             char16_t utfRes = str->charAt(e);
             size_t eUTF = str->find(new ASCIIString((const char*)&utfRes), 0);
