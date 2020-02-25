@@ -217,6 +217,7 @@ public:
 
     void setParent(ExecutionState* parent)
     {
+        ASSERT(parent != this);
         if (parent) {
             m_stackLimit = parent->stackLimit();
         }
