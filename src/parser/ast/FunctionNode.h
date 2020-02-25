@@ -82,11 +82,11 @@ public:
 
     void addExecutionPauseIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
-        if (codeBlock->m_codeBlock->isGenerator() && codeBlock->m_codeBlock->isAsync()) {
+        if (codeBlock->m_codeBlock->isGenerator()) {
             codeBlock->updateMaxPauseStatementExtraDataLength(context);
             size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
 
-            ExecutionPause::ExecutionPauseAsyncGeneratorInitializeData data;
+            ExecutionPause::ExecutionPauseGeneratorsInitializeData data;
             data.m_tailDataLength = tailDataLength;
 
             codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);

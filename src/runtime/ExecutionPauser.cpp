@@ -32,7 +32,7 @@ namespace Escargot {
 
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Yield == (int)ExecutionPause::Yield, "");
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Await == (int)ExecutionPause::Await, "");
-COMPILE_ASSERT((int)ExecutionPauser::PauseReason::AsyncGeneratorInitialize == (int)ExecutionPause::AsyncGeneratorInitialize, "");
+COMPILE_ASSERT((int)ExecutionPauser::PauseReason::GeneratorsInitialize == (int)ExecutionPause::GeneratorsInitialize, "");
 
 void* ExecutionPauser::operator new(size_t size)
 {
@@ -107,10 +107,6 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 
     ExecutionPauserExecutionStateParentBinder parentBinder(state, originalState);
 
-    if (from == StartFrom::Generator) {
-        source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::Executing;
-    }
-
     if (self->m_resumeValueIndex != REGISTER_LIMIT) {
         self->m_registerFile[self->m_resumeValueIndex] = resumeValue;
     }
@@ -181,7 +177,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         auto pauseReason = exitValue->m_pauseReason;
         delete exitValue;
 
-        if (pauseReason == ExecutionPauser::PauseReason::AsyncGeneratorInitialize) {
+        if (pauseReason == ExecutionPauser::PauseReason::GeneratorsInitialize) {
             return result;
         }
 
@@ -251,7 +247,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
             returnValue = AsyncGeneratorObject::asyncGeneratorResolve(state, pauser->asAsyncGeneratorObject(), returnValue, false);
         }
     } else {
-        ASSERT(reason == PauseReason::Await || reason == PauseReason::AsyncGeneratorInitialize);
+        ASSERT(reason == PauseReason::Await || reason == PauseReason::GeneratorsInitialize);
     }
 
     // we need to reset parent here beacuse asyncGeneratorResolve access parent

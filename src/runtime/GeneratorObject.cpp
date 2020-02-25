@@ -89,6 +89,7 @@ Value GeneratorObject::generatorResume(ExecutionState& state, const Value& gener
 
     ASSERT(gen->m_generatorState == GeneratorObject::GeneratorState::SuspendedStart || gen->m_generatorState == GeneratorObject::GeneratorState::SuspendedYield);
 
+    gen->m_generatorState = GeneratorObject::GeneratorState::Executing;
     return ExecutionPauser::start(state, gen->executionPauser(), gen, value, false, false, ExecutionPauser::Generator);
 }
 
@@ -110,6 +111,7 @@ Value GeneratorObject::generatorResumeAbrupt(ExecutionState& state, const Value&
 
     ASSERT(gen->generatorState() == GeneratorObject::GeneratorState::SuspendedYield);
 
+    gen->m_generatorState = GeneratorObject::GeneratorState::Executing;
     return ExecutionPauser::start(state, gen->executionPauser(), gen, value, type == GeneratorObject::GeneratorAbruptType::Return, type == GeneratorObject::GeneratorAbruptType::Throw, ExecutionPauser::Generator);
 }
 }

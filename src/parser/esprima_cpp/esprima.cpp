@@ -1689,7 +1689,7 @@ public:
             kind = PropertyNode::Kind::Init;
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder);
-            valueNode = this->parseGeneratorMethod(builder, this->createNode());
+            valueNode = this->parseGeneratorMethod(builder, node);
             method = true;
         } else {
             if (!keyNode) {

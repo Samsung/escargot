@@ -1671,7 +1671,7 @@ public:
     enum Reason {
         Yield,
         Await,
-        AsyncGeneratorInitialize
+        GeneratorsInitialize
     };
 
     struct ExecutionPauseYieldData {
@@ -1689,7 +1689,7 @@ public:
         size_t m_tailDataLength;
     };
 
-    struct ExecutionPauseAsyncGeneratorInitializeData {
+    struct ExecutionPauseGeneratorsInitializeData {
         size_t m_tailDataLength;
     };
 
@@ -1707,9 +1707,9 @@ public:
     {
     }
 
-    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseAsyncGeneratorInitializeData data)
+    ExecutionPause(const ByteCodeLOC& loc, ExecutionPauseGeneratorsInitializeData data)
         : ByteCode(Opcode::ExecutionPauseOpcode, loc)
-        , m_reason(Reason::AsyncGeneratorInitialize)
+        , m_reason(Reason::GeneratorsInitialize)
         , m_asyncGeneratorInitializeData(data)
     {
     }
@@ -1718,7 +1718,7 @@ public:
     union {
         ExecutionPauseYieldData m_yieldData;
         ExecutionPauseAwaitData m_awaitData;
-        ExecutionPauseAsyncGeneratorInitializeData m_asyncGeneratorInitializeData;
+        ExecutionPauseGeneratorsInitializeData m_asyncGeneratorInitializeData;
     };
 
 #ifndef NDEBUG
@@ -1730,8 +1730,8 @@ public:
             printf("yield r%d r%d r%d", (int)m_yieldData.m_yieldIndex, (int)m_yieldData.m_dstIndex, (int)m_yieldData.m_dstStateIndex);
         } else if (m_reason == Reason::Await) {
             printf("await r%d r%d r%d", (int)m_awaitData.m_awaitIndex, (int)m_awaitData.m_dstIndex, (int)m_awaitData.m_dstStateIndex);
-        } else if (m_reason == Reason::AsyncGeneratorInitialize) {
-            printf("async generator initialize ");
+        } else if (m_reason == Reason::GeneratorsInitialize) {
+            printf("generators initialize ");
         }
     }
 #endif

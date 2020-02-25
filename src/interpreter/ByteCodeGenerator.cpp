@@ -616,7 +616,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_awaitData.m_dstStateIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     code += cd->m_awaitData.m_tailDataLength;
-                } else if (cd->m_reason == ExecutionPause::Reason::AsyncGeneratorInitialize) {
+                } else if (cd->m_reason == ExecutionPause::Reason::GeneratorsInitialize) {
                     code += cd->m_asyncGeneratorInitializeData.m_tailDataLength;
                 }
                 break;
@@ -692,7 +692,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     idx += ((ExecutionPause*)currentCode)->m_yieldData.m_tailDataLength;
                 } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Await) {
                     idx += ((ExecutionPause*)currentCode)->m_awaitData.m_tailDataLength;
-                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::AsyncGeneratorInitialize) {
+                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::GeneratorsInitialize) {
                     idx += ((ExecutionPause*)currentCode)->m_asyncGeneratorInitializeData.m_tailDataLength;
                 } else {
                     ASSERT_NOT_REACHED();
