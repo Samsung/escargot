@@ -38,7 +38,7 @@ public:
     enum PauseReason {
         Yield,
         Await,
-        AsyncGeneratorInitialize
+        GeneratorsInitialize
     };
 
     enum ResumeState {

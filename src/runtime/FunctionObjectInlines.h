@@ -220,16 +220,20 @@ public:
             }
 
             // Return ObjectCreate(proto, internalSlotsList).
+            Object* generatorObject;
             if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
                 GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk, proto);
                 newState->setPauseSource(gen->executionPauser());
-                return gen;
+                ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Generator);
+                generatorObject = gen;
             } else {
                 AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, newState, registerFile, blk, proto);
                 newState->setPauseSource(gen->executionPauser());
                 ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::AsyncGenerator);
-                return gen;
+                generatorObject = gen;
             }
+
+            return generatorObject;
         }
 
 
