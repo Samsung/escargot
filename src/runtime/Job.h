@@ -65,6 +65,7 @@ private:
     Context* m_relatedContext;
 };
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-promisereactionjob
 class PromiseReactionJob : public Job {
 public:
     PromiseReactionJob(Context* relatedContext, PromiseReaction reaction, Value argument)
@@ -81,6 +82,7 @@ private:
     Value m_argument;
 };
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-promiseresolvethenablejob
 class PromiseResolveThenableJob : public Job {
 public:
     PromiseResolveThenableJob(Context* relatedContext, PromiseObject* promise, Object* thenable, Object* then)

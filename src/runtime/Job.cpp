@@ -26,6 +26,7 @@ namespace Escargot {
 
 SandBox::SandBoxResult PromiseReactionJob::run()
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-promisereactionjob
     SandBox sandbox(relatedContext());
     ExecutionState state(relatedContext());
     return sandbox.run([&]() -> Value {
@@ -62,6 +63,7 @@ SandBox::SandBoxResult PromiseReactionJob::run()
 
 SandBox::SandBoxResult PromiseResolveThenableJob::run()
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-promiseresolvethenablejob
     SandBox sandbox(relatedContext());
     ExecutionState state(relatedContext());
     return sandbox.run([&]() -> Value {
@@ -76,11 +78,6 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
             return Value();
         });
         if (!res.error.isEmpty()) {
-            Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, capability.m_resolveFunction);
-            if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).asBoolean())
-                return Value();
-            alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
-
             Value reason[] = { res.error };
             return Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
         }

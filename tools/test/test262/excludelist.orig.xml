@@ -571,7 +571,6 @@
     <test id="built-ins/ArrayIteratorPrototype/next/detach-typedarray-in-progress"><reason>TODO</reason></test>
     <test id="built-ins/AsyncFunction/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorFunction/proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncGeneratorPrototype/throw/request-queue-order-state-executing"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/Symbol.toStringTag"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/add/bad-range"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/add/bigint/bad-range"><reason>TODO</reason></test>
@@ -3719,11 +3718,8 @@
     <test id="language/expressions/async-generator/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/named-yield-promise-reject-next-for-await-of-async-iterator"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/named-yield-promise-reject-next-for-await-of-sync-iterator"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-yield-star-next-then-returns-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/yield-promise-reject-next-for-await-of-async-iterator"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/yield-promise-reject-next-for-await-of-sync-iterator"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/yield-star-next-then-returns-abrupt"><reason>TODO</reason></test>
-    <test id="language/expressions/await/await-awaits-thenables-that-throw"><reason>TODO</reason></test>
     <test id="language/expressions/await/for-await-of-interleaved"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint-and-number"><reason>TODO</reason></test>
@@ -7294,7 +7290,6 @@
     <test id="language/statements/async-generator/yield-promise-reject-next-for-await-of-async-iterator"><reason>TODO</reason></test>
     <test id="language/statements/async-generator/yield-promise-reject-next-for-await-of-sync-iterator"><reason>TODO</reason></test>
     <test id="language/statements/async-generator/yield-star-async-from-sync-iterator-inaccessible"><reason>TODO</reason></test>
-    <test id="language/statements/async-generator/yield-star-next-then-returns-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/block/tco-stmt"><reason>TODO</reason></test>
     <test id="language/statements/block/tco-stmt-list"><reason>TODO</reason></test>
     <test id="language/statements/class/async-gen-method-static/yield-promise-reject-next"><reason>TODO</reason></test>
