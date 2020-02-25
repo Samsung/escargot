@@ -1171,11 +1171,7 @@
     <test id="built-ins/Function/prototype/toString/proxy-function-expression"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/proxy-generator-function"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/proxy-method-definition"><reason>TODO</reason></test>
-    <test id="built-ins/GeneratorFunction/length"><reason>TODO</reason></test>
     <test id="built-ins/GeneratorFunction/proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/GeneratorPrototype/next/length"><reason>TODO</reason></test>
-    <test id="built-ins/GeneratorPrototype/return/length"><reason>TODO</reason></test>
-    <test id="built-ins/GeneratorPrototype/throw/length"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/replacer-array-proxy-revoked-realm"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint-cross-realm"><reason>TODO</reason></test>
