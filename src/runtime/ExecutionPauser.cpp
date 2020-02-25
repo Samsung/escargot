@@ -74,21 +74,34 @@ public:
     ExecutionPauserExecutionStateParentBinder(ExecutionState& state, ExecutionState* originalState)
         : m_originalState(originalState)
     {
-        originalState->setParent(&state);
+        m_oldParent = m_originalState->parent();
+
+
+        ExecutionState* pstate = m_originalState;
+        while (pstate) {
+            if (pstate == &state) {
+                // AsyncGeneratorObject::asyncGeneratorResolve can make loop
+                return;
+            }
+            pstate = pstate->parent();
+        }
+
+        m_originalState->setParent(&state);
     }
 
     ~ExecutionPauserExecutionStateParentBinder()
     {
-        m_originalState->setParent(nullptr);
+        m_originalState->setParent(m_oldParent);
     }
 
     ExecutionState* m_originalState;
+    ExecutionState* m_oldParent;
 };
 
 Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Object* source, const Value& resumeValue, bool isAbruptReturn, bool isAbruptThrow, StartFrom from)
 {
     ExecutionState* originalState = self->m_executionState;
-    while (originalState->parent()) {
+    while (!originalState->pauseSource()) {
         originalState = originalState->parent();
     }
 
@@ -216,7 +229,6 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     while (true) {
         self = originalState->pauseSource();
         if (self) {
-            originalState->rareData()->m_parent = nullptr;
             break;
         }
         originalState = originalState->parent();
@@ -241,6 +253,9 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     } else {
         ASSERT(reason == PauseReason::Await || reason == PauseReason::AsyncGeneratorInitialize);
     }
+
+    // we need to reset parent here beacuse asyncGeneratorResolve access parent
+    originalState->rareData()->m_parent = nullptr;
 
     // some case(async generator), the function execution ended before pause
     if (self->m_byteCodeBlock) {
