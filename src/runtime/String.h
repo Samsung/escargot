@@ -77,6 +77,14 @@ class RopeString;
 class StringView;
 class Context;
 
+class StringWriteOption {
+public:
+    enum {
+        NoOptions = 0,
+        ReplaceInvalidUtf8 = 1 << 3
+    };
+};
+
 struct StringBufferAccessData {
     bool has8BitContent;
     size_t length;
@@ -137,9 +145,10 @@ struct StringBufferAccessData {
     }
 
     template <typename OutputType>
-    OutputType toUTF8String() const
+    OutputType toUTF8String(int options = StringWriteOption::NoOptions) const
     {
         OutputType ret;
+        const bool replaceInvalidUtf8 = options == StringWriteOption::ReplaceInvalidUtf8;
         const auto& accessData = *this;
         for (size_t i = 0; i < accessData.length; i++) {
             char32_t ch = (uint16_t)accessData.charAt(i);
@@ -149,16 +158,23 @@ struct StringBufferAccessData {
                 char32_t finalCh;
                 if (U16_IS_LEAD(ch)) {
                     if (i + 1 == accessData.length) {
-                        finalCh = ch;
+                        if (replaceInvalidUtf8) {
+                            finalCh = 0xFFFD;
+                        } else {
+                            finalCh = ch;
+                        }
                     } else {
-                        char16_t c2;
-                        if (U16_IS_TRAIL(c2 = accessData.charAt(i + 1))) {
+                        char16_t c2 = accessData.charAt(i + 1);
+                        finalCh = ch;
+                        if (U16_IS_TRAIL(c2)) {
                             finalCh = U16_GET_SUPPLEMENTARY(ch, c2);
                             i++;
-                        } else {
+                        } else if (replaceInvalidUtf8) {
                             finalCh = 0xFFFD;
                         }
                     }
+                } else if (replaceInvalidUtf8 && U16_IS_TRAIL(ch)) {
+                    finalCh = 0xFFFD;
                 } else {
                     finalCh = ch;
                 }
@@ -424,7 +440,7 @@ public:
     // NOTE these function generates new copy of string data
     virtual UTF16StringData toUTF16StringData() const = 0;
     virtual UTF8StringData toUTF8StringData() const = 0;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const = 0;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const = 0;
     static String* emptyString;
 
     uint64_t tryToUseAsIndex() const;
@@ -578,7 +594,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const;
 
     void* operator new(size_t size);
     void* operator new(size_t size, GCPlacement p)
@@ -666,7 +682,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -717,7 +733,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const;
     virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

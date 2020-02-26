@@ -450,9 +450,9 @@ StringRef* StringRef::substring(size_t from, size_t to)
     return toRef(toImpl(this)->substring(from, to));
 }
 
-std::string StringRef::toStdUTF8String()
+std::string StringRef::toStdUTF8String(int options)
 {
-    return toImpl(this)->toNonGCUTF8StringData();
+    return toImpl(this)->toNonGCUTF8StringData(options);
 }
 
 StringRef::StringBufferAccessDataRef StringRef::stringBufferAccessData()

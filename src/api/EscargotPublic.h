@@ -794,7 +794,12 @@ public:
 
     StringRef* substring(size_t from, size_t to);
 
-    std::string toStdUTF8String();
+    enum WriteOptions {
+        NoOptions = 0,
+        ReplaceInvalidUtf8 = 1 << 3
+    };
+
+    std::string toStdUTF8String(int options = NoOptions);
 
     // don't store this sturct or string buffer
     // this is only for temporary access

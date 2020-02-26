@@ -98,7 +98,7 @@ public:
         return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
     }
 
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const override
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override
     {
         return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
     }

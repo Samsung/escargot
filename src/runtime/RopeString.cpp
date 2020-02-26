@@ -160,7 +160,7 @@ void RopeString::flattenRopeString()
     }
 }
 
-UTF8StringDataNonGCStd RopeString::toNonGCUTF8StringData() const
+UTF8StringDataNonGCStd RopeString::toNonGCUTF8StringData(int options) const
 {
     return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
 }
