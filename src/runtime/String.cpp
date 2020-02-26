@@ -366,7 +366,7 @@ UTF8StringData ASCIIString::toUTF8StringData() const
     return UTF8StringData((const char*)ASCIIString::characters8(), ASCIIString::length());
 }
 
-UTF8StringDataNonGCStd ASCIIString::toNonGCUTF8StringData() const
+UTF8StringDataNonGCStd ASCIIString::toNonGCUTF8StringData(int options) const
 {
     return UTF8StringDataNonGCStd((const char*)ASCIIString::characters8(), ASCIIString::length());
 }
@@ -399,7 +399,7 @@ UTF8StringData Latin1String::toUTF8StringData() const
     return ret;
 }
 
-UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData() const
+UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData(int options) const
 {
     UTF8StringDataNonGCStd ret;
     size_t len = length();
@@ -426,9 +426,9 @@ UTF8StringData UTF16String::toUTF8StringData() const
     return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
 }
 
-UTF8StringDataNonGCStd UTF16String::toNonGCUTF8StringData() const
+UTF8StringDataNonGCStd UTF16String::toNonGCUTF8StringData(int options) const
 {
-    return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
+    return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>(options);
 }
 
 enum Flags : unsigned {

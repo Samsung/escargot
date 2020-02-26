@@ -108,7 +108,7 @@ void CompressibleString::initBufferAccessData(void* data, size_t len, bool is8bi
     m_context->vmInstance()->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
 }
 
-UTF8StringDataNonGCStd CompressibleString::toNonGCUTF8StringData() const
+UTF8StringDataNonGCStd CompressibleString::toNonGCUTF8StringData(int options) const
 {
     return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
 }

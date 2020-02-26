@@ -46,7 +46,7 @@ public:
 
     virtual UTF16StringData toUTF16StringData() const override;
     virtual UTF8StringData toUTF8StringData() const override;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData() const override;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
     virtual bool isRopeString() override
     {
