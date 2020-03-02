@@ -3400,7 +3400,6 @@ public:
     }
 
     // ECMA-262 13.6 If statement
-
     template <class ASTBuilder>
     ASTNode parseIfStatement(ASTBuilder& builder)
     {
@@ -3419,12 +3418,16 @@ public:
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
         this->context->allowLexicalDeclaration = false;
 
-        consequent = this->parseStatement(builder, allowFunctionDeclaration);
+        ParserBlockContext blockContext;
+        bool shouldOpenBlock = allowFunctionDeclaration && this->matchKeyword(KeywordKind::FunctionKeyword);
+
+        consequent = shouldOpenBlock ? this->parseSingleStatementNodeAsBlockStatement(builder, allowFunctionDeclaration) : this->parseStatement(builder, allowFunctionDeclaration);
 
         this->context->allowLexicalDeclaration = false;
         if (this->matchKeyword(ElseKeyword)) {
             this->nextToken();
-            alternate = this->parseStatement(builder, allowFunctionDeclaration);
+            shouldOpenBlock = allowFunctionDeclaration && this->matchKeyword(KeywordKind::FunctionKeyword);
+            alternate = shouldOpenBlock ? this->parseSingleStatementNodeAsBlockStatement(builder, allowFunctionDeclaration) : this->parseStatement(builder, allowFunctionDeclaration);
         }
 
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
@@ -4068,6 +4071,21 @@ public:
         this->expectKeyword(KeywordKind::DebuggerKeyword);
         this->consumeSemicolon();
         return this->finalize(node, builder.createDebuggerStatementNode());
+    }
+
+    template <class ASTBuilder>
+    ASTNode parseSingleStatementNodeAsBlockStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true)
+    {
+        ParserBlockContext blockContext;
+        openBlock(blockContext);
+
+        ASTStatementContainer block = builder.createStatementContainer();
+        block->appendChild(this->parseStatement(builder, allowFunctionDeclaration), nullptr);
+
+        closeBlock(blockContext);
+
+        MetaNode node = this->createNode();
+        return this->finalize(node, builder.createBlockStatementNode(block, blockContext.childLexicalBlockIndex));
     }
 
     // ECMA-262 13 Statements
