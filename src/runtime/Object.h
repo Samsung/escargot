@@ -757,6 +757,12 @@ public:
         return (ArrayBufferObject*)this;
     }
 
+    SharedArrayBufferObject* asSharedArrayBufferObject()
+    {
+        ASSERT(isSharedArrayBufferObject());
+        return (SharedArrayBufferObject*)this;
+    }
+
     ArrayBufferView* asArrayBufferView()
     {
         ASSERT(isArrayBufferView());

@@ -47,6 +47,7 @@ class BoundFunctionObject;
 class PromiseObject;
 class ProxyObject;
 class ArrayBufferObject;
+class SharedArrayBufferObject;
 class ArrayBufferView;
 class DoubleInSmallValue;
 class JSGetterSetter;
@@ -245,6 +246,11 @@ public:
     }
 
     virtual bool isArrayBufferObject() const
+    {
+        return false;
+    }
+
+    virtual bool isSharedArrayBufferObject() const
     {
         return false;
     }
@@ -511,6 +517,12 @@ public:
     {
         ASSERT(isArrayBufferObject());
         return (ArrayBufferObject*)this;
+    }
+
+    SharedArrayBufferObject* asSharedArrayBufferObject()
+    {
+        ASSERT(isSharedArrayBufferObject());
+        return (SharedArrayBufferObject*)this;
     }
 
     ArrayBufferView* asArrayBufferView()

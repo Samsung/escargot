@@ -618,9 +618,19 @@ public:
         return m_platform->onArrayBufferObjectDataBufferMalloc(toRef(whereObjectMade), toRef(obj), sizeInByte);
     }
 
+    virtual void* onSharedArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) override
+    {
+        return m_platform->onSharedArrayBufferObjectDataBufferMalloc(toRef(whereObjectMade), toRef(obj), sizeInByte);
+    }
+
     virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) override
     {
         m_platform->onArrayBufferObjectDataBufferFree(toRef(whereObjectMade), toRef(obj), buffer);
+    }
+
+    virtual void onSharedArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) override
+    {
+        m_platform->onSharedArrayBufferObjectDataBufferFree(toRef(whereObjectMade), toRef(obj), buffer);
     }
 
     virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) override
@@ -1410,9 +1420,19 @@ FunctionObjectRef* GlobalObjectRef::arrayBuffer()
     return toRef(toImpl(this)->arrayBuffer());
 }
 
+FunctionObjectRef* GlobalObjectRef::sharedArrayBuffer()
+{
+    return toRef(toImpl(this)->sharedArrayBuffer());
+}
+
 ObjectRef* GlobalObjectRef::arrayBufferPrototype()
 {
     return toRef(toImpl(this)->arrayBufferPrototype());
+}
+
+ObjectRef* GlobalObjectRef::sharedArrayBufferPrototype()
+{
+    return toRef(toImpl(this)->sharedArrayBufferPrototype());
 }
 
 FunctionObjectRef* GlobalObjectRef::dataView()
@@ -2174,6 +2194,15 @@ void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset
 }
 
 void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength)
+{
+    toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength);
+}
+void ArrayBufferViewRef::setBuffer(SharedArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength)
+{
+    toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength, arrayLength);
+}
+
+void ArrayBufferViewRef::setBuffer(SharedArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength)
 {
     toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength);
 }

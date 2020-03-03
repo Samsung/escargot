@@ -15,6 +15,11 @@ non262/Array/regress-313153.js
 non262/Array/regress-387501.js
 non262/Array/regress-415540.js
 non262/Array/toLocaleString.js
+non262/extensions/sharedtypedarray.js
+non262/TypedArray/from_errors.js
+non262/TypedArray/from_basics.js
+non262/TypedArray/from_realms.js
+non262/TypedArray/from_constructor.js
 non262/TypedObject/architecture.js
 non262/TypedObject/arrayequiv.js
 non262/TypedObject/arrayofstructs.js

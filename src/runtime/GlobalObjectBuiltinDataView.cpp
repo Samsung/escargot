@@ -22,6 +22,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "TypedArrayObject.h"
+#include "SharedArrayBufferObject.h"
 #include "DataViewObject.h"
 #include "NativeFunctionObject.h"
 
@@ -42,12 +43,11 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
     if (!isNewExpression) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInDataViewConstructor);
     }
-    if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBufferObject())) {
+    if (!(argv[0].isObject() && (argv[0].asPointerValue()->isArrayBufferObject() || argv[0].asPointerValue()->isSharedArrayBufferObject()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotArrayBufferObject);
     }
-
-    ArrayBufferObject* buffer = argv[0].asObject()->asArrayBufferObject();
     double byteOffset = 0;
+    ArrayBufferView* obj = new DataViewObject(state);
     if (argc >= 2) {
         Value& val = argv[1];
         double numberOffset = val.toNumber(state);
@@ -56,32 +56,48 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
         }
     }
+    if (argv[0].asObject()->isArrayBufferObject()) {
+        ArrayBufferObject* buffer = argv[0].asObject()->asArrayBufferObject();
+        if (buffer->isArrayBufferObject() && buffer->isDetachedBuffer()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
+        }
 
-    if (buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
-    }
+        double bufferByteLength = buffer->byteLength();
 
-    double bufferByteLength = buffer->byteLength();
+        if (byteOffset > bufferByteLength) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+        }
 
-    if (byteOffset > bufferByteLength) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
-    }
+        double byteLength = bufferByteLength - byteOffset;
 
-    double byteLength = bufferByteLength - byteOffset;
-
-    if (argc >= 3) {
-        Value& val = argv[2];
-        if (!val.isUndefined()) {
-            byteLength = val.toLength(state);
-            if (byteOffset + byteLength > bufferByteLength) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+        if (argc >= 3) {
+            Value& val = argv[2];
+            if (!val.isUndefined()) {
+                byteLength = val.toLength(state);
+                if (byteOffset + byteLength > bufferByteLength) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                }
             }
         }
+
+        obj->setBuffer(buffer, byteOffset, byteLength);
+    } else {
+        SharedArrayBufferObject* buffer = argv[0].asObject()->asSharedArrayBufferObject();
+        double bufferByteLength = buffer->byteLength();
+        double byteLength = bufferByteLength - byteOffset;
+
+        if (argc >= 3) {
+            Value& val = argv[2];
+            if (!val.isUndefined()) {
+                byteLength = val.toLength(state);
+                if (byteOffset + byteLength > bufferByteLength) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                }
+            }
+        }
+
+        obj->setBuffer(buffer, byteOffset, byteLength);
     }
-
-    ArrayBufferView* obj = new DataViewObject(state);
-    obj->setBuffer(buffer, byteOffset, byteLength);
-
     return obj;
 }
 

@@ -135,7 +135,10 @@ public:
 
     bool isDetachedBuffer()
     {
-        if (data() == NULL)
+        if (this->isSharedArrayBufferObject()) {
+            return false;
+        }
+        if (data() == NULL || data() == 0)
             return true;
         return false;
     }
@@ -149,7 +152,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-private:
+protected:
     Context* m_context;
     uint8_t* m_data;
     unsigned m_bytelength;

@@ -47,6 +47,9 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
     ASSERT(isDetachedBuffer());
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
+    if (ArrayBufferObject::maxArrayBufferSize <= bytelength) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().ArrayBuffer.string(), "byteLength is highter then limit");
+    }
     if (bytelength > (GC_get_heap_size() / ratio)) {
         size_t n = 0;
         size_t times = bytelength / (GC_get_heap_size() / ratio) / 3;
@@ -73,6 +76,7 @@ void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
     if (m_data) {
         m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
     }
+    ASSERT(!this->isSharedArrayBufferObject());
     m_data = NULL;
     m_bytelength = 0;
 }

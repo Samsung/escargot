@@ -33,7 +33,9 @@ public:
     virtual ~Platform() {}
     // ArrayBuffer
     virtual void* onArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) = 0;
+    virtual void* onSharedArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) = 0;
     virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
+    virtual void onSharedArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
 
     // Promise
     virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) = 0;

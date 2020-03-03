@@ -312,6 +312,7 @@ namespace Escargot {
     F(Float32Array)               \
     F(Float64Array)               \
     F(ArrayBuffer)                \
+    F(SharedArrayBuffer)          \
     F(isView)                     \
     F(DataView)                   \
     F(BYTES_PER_ELEMENT)          \

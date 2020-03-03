@@ -22,6 +22,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "TypedArrayObject.h"
+#include "SharedArrayBufferObject.h"
 #include "IteratorObject.h"
 #include "NativeFunctionObject.h"
 #include "interpreter/ByteCode.h"
@@ -50,12 +51,48 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
     return obj;
 }
 
+static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (!isNewExpression) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor);
+    }
+
+    SharedArrayBufferObject* obj = new SharedArrayBufferObject(state);
+    if (argc >= 1) {
+        Value& val = argv[0];
+        double numberLength = val.toNumber(state);
+        double byteLength = Value(numberLength).toLength(state);
+        if (numberLength != byteLength) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
+        }
+        obj->allocateBuffer(state, byteLength);
+    } else {
+        obj->allocateBuffer(state, 0);
+    }
+    return obj;
+}
+
 static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    if (UNLIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isSharedArrayBufferObject())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "The target is a SharedArrayBuffer not a ArrayBuffer");
+    }
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isArrayBufferObject())) {
+        if (thisValue.asObject()->asArrayBufferObject()->isDetachedBuffer()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get ArrayBuffer.prototype.byteLength called on incompatible receiver");
+        }
         return Value(thisValue.asObject()->asArrayBufferObject()->byteLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get ArrayBuffer.prototype.byteLength called on incompatible receiver");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static Value builtinSharedArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isSharedArrayBufferObject())) {
+        return Value(thisValue.asObject()->asSharedArrayBufferObject()->byteLength());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get SharedArrayBuffer.prototype.byteLength called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -64,7 +101,7 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
 {
     Object* thisObject = thisValue.toObject(state);
     Value end = argv[1];
-    if (!thisObject->isArrayBufferObject())
+    if (!thisObject->isArrayBufferObject() || thisObject->isSharedArrayBufferObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), errorMessage_GlobalObject_ThisNotArrayBufferObject);
     ArrayBufferObject* obj = thisObject->asArrayBufferObject();
     if (obj->isDetachedBuffer())
@@ -78,11 +115,44 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
     Value constructor = thisObject->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
     Value arguments[] = { Value(newLen) };
     Value newValue = Object::construct(state, constructor, 1, arguments);
-    if (!newValue.isObject() || !newValue.asObject()->isArrayBufferObject()) {
+    if (!newValue.isObject() || !newValue.asObject()->isArrayBufferObject() || newValue.asObject()->isSharedArrayBufferObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
 
     ArrayBufferObject* newObject = newValue.asObject()->asArrayBufferObject();
+    if (newObject->isDetachedBuffer()) // 18
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+    if (newObject == obj) // 19
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+    if (newObject->byteLength() < newLen) // 20
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+    if (obj->isDetachedBuffer()) // 22
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+
+    newObject->fillData(obj->data() + first, newLen);
+    return newObject;
+}
+
+static Value builtinSharedArrayBufferByteSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+{
+    Object* thisObject = thisValue.toObject(state);
+    Value end = argv[1];
+    if (!thisObject->isSharedArrayBufferObject())
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), errorMessage_GlobalObject_ThisNotArrayBufferObject);
+    SharedArrayBufferObject* obj = thisObject->asSharedArrayBufferObject();
+    double len = obj->byteLength();
+    double relativeStart = argv[0].toInteger(state);
+    unsigned first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+    double relativeEnd = end.isUndefined() ? len : end.toInteger(state);
+    unsigned final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+    unsigned newLen = std::max((int)final_ - (int)first, 0);
+    Value constructor = thisObject->speciesConstructor(state, state.context()->globalObject()->sharedArrayBuffer());
+    Value arguments[] = { Value(newLen) };
+    Value newValue = Object::construct(state, constructor, 1, arguments);
+    if (!newValue.isObject() || !newValue.asObject()->isSharedArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+    }
+    SharedArrayBufferObject* newObject = newValue.asObject()->asSharedArrayBufferObject();
     if (newObject->isDetachedBuffer()) // 18
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     if (newObject == obj) // 19
@@ -120,12 +190,15 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value&
     }
 
     auto wrapper = thisObject->asArrayBufferView();
-    ArrayBufferObject* buffer = wrapper->buffer();
-    if (!buffer || buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
-        return nullptr;
+    if (wrapper->buffer()->isArrayBufferObject()) {
+        ArrayBufferObject* buffer = wrapper->buffer();
+        if (!buffer || buffer->isDetachedBuffer()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, errorMessage_GlobalObject_DetachedBuffer);
+            return nullptr;
+        }
+        return buffer;
     }
-    return buffer;
+    return wrapper->buffer();
 }
 
 static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedArrayType type)
@@ -337,7 +410,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             if (numlen != elemlen)
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_FirstArgumentInvalidLength);
             obj->allocateTypedArray(state, elemlen);
-        } else if (val.isPointerValue() && val.asPointerValue()->isArrayBufferObject()) {
+        } else if (val.isPointerValue() && (val.asPointerValue()->isArrayBufferObject() || val.asPointerValue()->isSharedArrayBufferObject())) {
             // $22.2.1.5 %TypedArray%(buffer [, byteOffset [, length] ] )
             unsigned elementSize = obj->elementSize();
             int64_t offset = 0;
@@ -351,7 +424,61 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             if (offset % elementSize != 0) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
             }
-            ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
+            if (val.asPointerValue()->isArrayBufferObject()) {
+                ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
+                unsigned bufferByteLength = buffer->byteLength();
+                if (argc >= 3) {
+                    lenVal = argv[2];
+                }
+                unsigned newByteLength;
+                if (lenVal.isUndefined()) {
+                    if (bufferByteLength % elementSize != 0)
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    if (bufferByteLength < offset)
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    newByteLength = bufferByteLength - offset;
+                } else {
+                    int length = lenVal.toLength(state);
+                    newByteLength = length * elementSize;
+                    if (offset + newByteLength > bufferByteLength)
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                }
+                obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
+            } else {
+                SharedArrayBufferObject* buffer = val.asObject()->asSharedArrayBufferObject();
+                unsigned bufferByteLength = buffer->byteLength();
+                if (argc >= 3) {
+                    lenVal = argv[2];
+                }
+                unsigned newByteLength;
+                if (lenVal.isUndefined()) {
+                    if (bufferByteLength % elementSize != 0)
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    if (bufferByteLength < offset)
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                    newByteLength = bufferByteLength - offset;
+                } else {
+                    int length = lenVal.toLength(state);
+                    newByteLength = length * elementSize;
+                    if (offset + newByteLength > bufferByteLength)
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                }
+                obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
+            }
+        } else if (val.isPointerValue() && val.asPointerValue()->isSharedArrayBufferObject()) {
+            unsigned elementSize = obj->elementSize();
+            int64_t offset = 0;
+            Value lenVal;
+            if (argc >= 2) {
+                offset = argv[1].toInt32(state);
+            }
+            if (offset < 0) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+            }
+            if (offset % elementSize != 0) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+            }
+            SharedArrayBufferObject* buffer = val.asObject()->asSharedArrayBufferObject();
             unsigned bufferByteLength = buffer->byteLength();
             if (argc >= 3) {
                 lenVal = argv[2];
@@ -1682,6 +1809,44 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     defineOwnProperty(state, ObjectPropertyName(strings->ArrayBuffer),
                       ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // %SharedArrayBuffer%
+
+    m_sharedArrayBuffer = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().SharedArrayBuffer, builtinSharedArrayBufferConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_sharedArrayBuffer->markThisObjectDontNeedStructureTransitionTable();
+    m_sharedArrayBuffer->setPrototype(state, m_functionPrototype);
+    m_sharedArrayBuffer->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isView),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isView, builtinArrayBufferIsView, 1, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
+    m_sharedArrayBufferPrototype = m_objectPrototype;
+    m_sharedArrayBufferPrototype = new SharedArrayBufferObject(state);
+    m_sharedArrayBufferPrototype->setPrototype(state, m_objectPrototype);
+    m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                   ObjectPropertyDescriptor(Value(state.context()->staticStrings().SharedArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    defineOwnProperty(state, ObjectPropertyName(strings->SharedArrayBuffer),
+                      ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    {
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
+    }
+
+    {
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinSharedArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+        m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
+                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferByteSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    }
+
+    m_sharedArrayBuffer->setFunctionPrototype(state, m_sharedArrayBufferPrototype);
 
     // %TypedArray%
     FunctionObject* typedArrayFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->TypedArray, builtinTypedArrayConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);

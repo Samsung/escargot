@@ -21,7 +21,7 @@
 #include "VMInstance.h"
 #include "BumpPointerAllocator.h"
 #include "runtime/ArrayObject.h"
-#include "runtime/ArrayBufferObject.h"
+#include "runtime/SharedArrayBufferObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/JobQueue.h"
 #include "runtime/CompressibleString.h"

@@ -54,6 +54,7 @@ class GlobalObjectRef;
 class FunctionObjectRef;
 class ArrayObjectRef;
 class ArrayBufferObjectRef;
+class SharedArrayBufferObjectRef;
 class ArrayBufferViewRef;
 class Int8ArrayObjectRef;
 class Uint8ArrayObjectRef;
@@ -649,6 +650,7 @@ public:
     bool isGlobalObject();
     bool isErrorObject();
     bool isArrayBufferObject();
+    bool isSharedArrayBufferObject();
     bool isArrayBufferView();
     bool isInt8ArrayObject();
     bool isUint8ArrayObject();
@@ -711,6 +713,7 @@ public:
     GlobalObjectRef* asGlobalObject();
     ErrorObjectRef* asErrorObject();
     ArrayBufferObjectRef* asArrayBufferObject();
+    SharedArrayBufferObjectRef* asSharedArrayBufferObject();
     ArrayBufferViewRef* asArrayBufferView();
     Int8ArrayObjectRef* asInt8ArrayObject();
     Uint8ArrayObjectRef* asUint8ArrayObject();
@@ -1041,7 +1044,9 @@ public:
     ObjectRef* promisePrototype();
 
     FunctionObjectRef* arrayBuffer();
+    FunctionObjectRef* sharedArrayBuffer();
     ObjectRef* arrayBufferPrototype();
+    ObjectRef* sharedArrayBufferPrototype();
     FunctionObjectRef* dataView();
     ObjectRef* dataViewPrototype();
     ObjectRef* int8Array();
@@ -1226,11 +1231,16 @@ public:
     bool isDetachedBuffer();
 };
 
+class ESCARGOT_EXPORT SharedArrayBufferObjectRef : public ArrayBufferObjectRef {
+};
+
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
     ArrayBufferObjectRef* buffer();
     void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength);
     void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength);
+    void setBuffer(SharedArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength);
+    void setBuffer(SharedArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength);
     uint8_t* rawBuffer();
     unsigned byteLength();
     unsigned byteOffset();
@@ -1388,7 +1398,15 @@ public:
     {
         return calloc(sizeInByte, 1);
     }
+    virtual void* onSharedArrayBufferObjectDataBufferMalloc(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, size_t sizeInByte)
+    {
+        return calloc(sizeInByte, 1);
+    }
     virtual void onArrayBufferObjectDataBufferFree(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
+    {
+        return free(buffer);
+    }
+    virtual void onSharedArrayBufferObjectDataBufferFree(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
     {
         return free(buffer);
     }

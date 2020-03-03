@@ -115,6 +115,7 @@ public:
         , m_reflect(nullptr)
         , m_arrayBuffer(nullptr)
         , m_arrayBufferPrototype(nullptr)
+        , m_sharedArrayBufferPrototype(nullptr)
         , m_dataView(nullptr)
         , m_dataViewPrototype(nullptr)
         , m_typedArray(nullptr)
@@ -485,9 +486,17 @@ public:
     {
         return m_arrayBuffer;
     }
+    FunctionObject* sharedArrayBuffer()
+    {
+        return m_sharedArrayBuffer;
+    }
     Object* arrayBufferPrototype()
     {
         return m_arrayBufferPrototype;
+    }
+    Object* sharedArrayBufferPrototype()
+    {
+        return m_sharedArrayBufferPrototype;
     }
     FunctionObject* dataView()
     {
@@ -824,6 +833,8 @@ private:
 
     FunctionObject* m_arrayBuffer;
     Object* m_arrayBufferPrototype;
+    FunctionObject* m_sharedArrayBuffer;
+    Object* m_sharedArrayBufferPrototype;
     FunctionObject* m_dataView;
     Object* m_dataViewPrototype;
     FunctionObject* m_typedArray;
