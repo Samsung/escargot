@@ -46,13 +46,13 @@ class RegExpObject : public Object {
 
 public:
     enum Option {
-        None = 0,
-        Global = 1,
-        IgnoreCase = 2,
-        MultiLine = 4,
-        Sticky = 8,
-        Unicode = 16,
-        DotAll = 32,
+        None = 0 << 0,
+        Global = 1 << 0,
+        IgnoreCase = 1 << 1,
+        MultiLine = 1 << 2,
+        Sticky = 1 << 3,
+        Unicode = 1 << 4,
+        DotAll = 1 << 5,
     };
 
     struct RegExpCacheKey {

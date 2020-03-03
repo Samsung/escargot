@@ -1202,12 +1202,13 @@ public:
 class ESCARGOT_EXPORT RegExpObjectRef : public ObjectRef {
 public:
     enum RegExpObjectOption {
-        None = 1,
-        Global = 1 << 1,
-        IgnoreCase = 1 << 2,
-        MultiLine = 1 << 3,
-        Sticky = 1 << 4,
-        Unicode = 1 << 5,
+        None = 0 << 0,
+        Global = 1 << 0,
+        IgnoreCase = 1 << 1,
+        MultiLine = 1 << 2,
+        Sticky = 1 << 3,
+        Unicode = 1 << 4,
+        DotAll = 1 << 5,
     };
 
     static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, ValueRef* option);
