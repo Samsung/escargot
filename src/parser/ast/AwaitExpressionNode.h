@@ -46,7 +46,6 @@ public:
         data.m_dstStateIndex = REGISTER_LIMIT;
         data.m_tailDataLength = tailDataLength;
         codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
-        codeBlock->pushPauseStatementExtraData(context);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override

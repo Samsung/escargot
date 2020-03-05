@@ -518,8 +518,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_getIteratorData.m_srcObjectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_getIteratorData.m_dstIteratorRecordIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_getIteratorData.m_dstIteratorObjectIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                } else if (cd->m_operation == IteratorOperation::Operation::IteratorStep) {
-                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorStepData.m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 } else if (cd->m_operation == IteratorOperation::Operation::IteratorClose) {
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorCloseData.m_iterRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorCloseData.m_execeptionRegisterIndexIfExists, stackBase, stackBaseWillBe, stackVariableSize);
@@ -536,6 +534,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 } else if (cd->m_operation == IteratorOperation::Operation::IteratorValue) {
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorValueData.m_srcRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                     ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorValueData.m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else if (cd->m_operation == IteratorOperation::Operation::IteratorCheckOngoingExceptionOnAsyncIteratorClose) {
                 } else {
                     ASSERT_NOT_REACHED();
                 }

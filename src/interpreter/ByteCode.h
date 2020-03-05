@@ -2024,13 +2024,14 @@ class IteratorOperation : public ByteCode {
 public:
     enum Operation {
         GetIterator,
-        IteratorStep,
         IteratorClose,
         IteratorBind,
         IteratorTestDone,
         IteratorNext,
         IteratorTestResultIsObject,
-        IteratorValue
+        IteratorValue,
+        // https://www.ecma-international.org/ecma-262/10.0/#sec-asynciteratorclose (8)
+        IteratorCheckOngoingExceptionOnAsyncIteratorClose
     };
 
     struct GetIteratorData {
@@ -2077,18 +2078,14 @@ public:
         ByteCodeRegisterIndex m_dstRegisterIndex;
     };
 
+    struct IteratorCheckOngoingExceptionOnAsyncIteratorCloseData {
+    };
+
 
     explicit IteratorOperation(const ByteCodeLOC& loc, const GetIteratorData& data)
         : ByteCode(Opcode::IteratorOperationOpcode, loc)
         , m_operation(Operation::GetIterator)
         , m_getIteratorData(data)
-    {
-    }
-
-    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorStepData& data)
-        : ByteCode(Opcode::IteratorOperationOpcode, loc)
-        , m_operation(Operation::IteratorStep)
-        , m_iteratorStepData(data)
     {
     }
 
@@ -2134,13 +2131,18 @@ public:
     {
     }
 
+    explicit IteratorOperation(const ByteCodeLOC& loc, const IteratorCheckOngoingExceptionOnAsyncIteratorCloseData& data)
+        : ByteCode(Opcode::IteratorOperationOpcode, loc)
+        , m_operation(Operation::IteratorCheckOngoingExceptionOnAsyncIteratorClose)
+        , m_iteratorCheckOngoingExceptionOnAsyncIteratorCloseData(data)
+    {
+    }
+
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         if (m_operation == Operation::GetIterator) {
             printf("get iterator(r%d) -> r%d", (int)m_getIteratorData.m_srcObjectRegisterIndex, (int)m_getIteratorData.m_dstIteratorRecordIndex);
-        } else if (m_operation == Operation::IteratorStep) {
-            printf("iterator step(r%d) -> r%d", (int)m_iteratorStepData.m_iterRegisterIndex, (int)m_iteratorStepData.m_registerIndex);
         } else if (m_operation == Operation::IteratorClose) {
             printf("iterator close(r%d, r%d)", (int)m_iteratorCloseData.m_iterRegisterIndex, (int)m_iteratorCloseData.m_execeptionRegisterIndexIfExists);
         } else if (m_operation == Operation::IteratorBind) {
@@ -2155,6 +2157,8 @@ public:
             printf("iterator test result is object r%d", (int)m_iteratorTestResultIsObjectData.m_valueRegisterIndex);
         } else if (m_operation == Operation::IteratorValue) {
             printf("iterator value r%d -> r%d", (int)m_iteratorValueData.m_srcRegisterIndex, (int)m_iteratorValueData.m_dstRegisterIndex);
+        } else if (m_operation == Operation::IteratorCheckOngoingExceptionOnAsyncIteratorClose) {
+            printf("iterator check ongoing exception");
         } else {
             ASSERT_NOT_REACHED();
         }
@@ -2165,13 +2169,13 @@ public:
     Operation m_operation;
     union {
         GetIteratorData m_getIteratorData;
-        IteratorStepData m_iteratorStepData;
         IteratorCloseData m_iteratorCloseData;
         IteratorBindData m_iteratorBindData;
         IteratorTestDoneData m_iteratorTestDoneData;
         IteratorNextData m_iteratorNextData;
         IteratorTestResultIsObjectData m_iteratorTestResultIsObjectData;
         IteratorValueData m_iteratorValueData;
+        IteratorCheckOngoingExceptionOnAsyncIteratorCloseData m_iteratorCheckOngoingExceptionOnAsyncIteratorCloseData;
     };
 };
 
@@ -2453,6 +2457,10 @@ public:
 
         // TODO throw exception
         RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < REGISTER_LIMIT);
+
+        if (std::is_same<CodeType, ExecutionPause>::value) {
+            pushPauseStatementExtraData(context);
+        }
     }
 
     struct ByteCodeLexicalBlockContext {
