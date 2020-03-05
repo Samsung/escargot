@@ -72,13 +72,23 @@ static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* re
     try {
         value = IteratorObject::iteratorValue(state, result);
     } catch (const Value& thrownValue) {
-        // IfAbruptRejectPromise(done, promiseCapability).
+        // IfAbruptRejectPromise(value, promiseCapability).
         Value argv = thrownValue;
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
         return promiseCapability.m_promise;
     }
     // Let valueWrapper be ? PromiseResolve(%Promise%, « value »).
-    auto valueWrapper = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), value)->asPromiseObject();
+    PromiseObject* valueWrapper = nullptr;
+    try {
+        valueWrapper = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), value)->asPromiseObject();
+    } catch (const Value& thrownValue) {
+        // * added step from 2020 (esid: language/statements/for-await-of/async-from-sync-iterator-continuation-abrupt-completion-get-constructor.js)
+        // IfAbruptRejectPromise(valueWrapper, promiseCapability).
+        Value argv = thrownValue;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        return promiseCapability.m_promise;
+    }
+
     // Let steps be the algorithm steps defined in Async-from-Sync Iterator Value Unwrap Functions.
     // Let onFulfilled be CreateBuiltinFunction(steps, « [[Done]] »).
     // Set onFulfilled.[[Done]] to done.

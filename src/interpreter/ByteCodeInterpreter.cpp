@@ -2284,6 +2284,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
             newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
         }
+
         interpret(newState, byteCodeBlock, code->m_tryCatchEndPosition, registerFile);
     }
 
@@ -3227,15 +3228,6 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, 
             registerFile[code->m_getIteratorData.m_dstIteratorObjectIndex] = registerFile[code->m_getIteratorData.m_dstIteratorRecordIndex].asPointerValue()->asIteratorRecord()->m_iterator;
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
-    } else if (code->m_operation == IteratorOperation::Operation::IteratorStep) {
-        auto nextResult = IteratorObject::iteratorStep(state, registerFile[code->m_iteratorStepData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord());
-
-        if (!nextResult.hasValue()) {
-            programCounter = jumpTo(codeBuffer, code->m_iteratorStepData.m_forOfEndPosition);
-        } else {
-            registerFile[code->m_iteratorStepData.m_registerIndex] = IteratorObject::iteratorValue(state, nextResult.value());
-            ADD_PROGRAM_COUNTER(IteratorOperation);
-        }
     } else if (code->m_operation == IteratorOperation::Operation::IteratorClose) {
         if (code->m_iteratorCloseData.m_execeptionRegisterIndexIfExists != REGISTER_LIMIT) {
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
@@ -3315,7 +3307,11 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, 
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorNext) {
         auto record = registerFile[code->m_iteratorNextData.m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
-        registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
+        if (code->m_iteratorNextData.m_valueRegisterIndex == REGISTER_LIMIT) {
+            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 0, nullptr);
+        } else {
+            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
+        }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorTestResultIsObject) {
         if (!registerFile[code->m_iteratorTestResultIsObjectData.m_valueRegisterIndex].isObject()) {
@@ -3324,6 +3320,12 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, 
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorValue) {
         registerFile[code->m_iteratorValueData.m_dstRegisterIndex] = IteratorObject::iteratorValue(state, registerFile[code->m_iteratorValueData.m_srcRegisterIndex].asObject());
+        ADD_PROGRAM_COUNTER(IteratorOperation);
+    } else if (code->m_operation == IteratorOperation::Operation::IteratorCheckOngoingExceptionOnAsyncIteratorClose) {
+        ControlFlowRecord* record = state.rareData()->m_controlFlowRecord->back();
+        if (record && record->reason() == ControlFlowRecord::NeedsThrow) {
+            state.context()->throwException(state, record->value());
+        }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else {
         ASSERT_NOT_REACHED();

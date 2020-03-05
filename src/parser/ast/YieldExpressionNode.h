@@ -88,7 +88,7 @@ public:
 
             // If generatorKind is async, then set innerResult to ? Await(innerResult).
             if (isAsyncGenerator) {
-                pushAwait(codeBlock, context, valueIdx, valueIdx, tailDataLength);
+                pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
             }
 
             size_t iterationDoneStart = codeBlock->currentCodeSize();
@@ -124,7 +124,7 @@ public:
                 iteratorValueData.m_srcRegisterIndex = valueIdx;
                 iteratorValueData.m_dstRegisterIndex = valueIdx;
                 codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorValueData), context, this);
-                pushAwait(codeBlock, context, valueIdx, valueIdx, tailDataLength);
+                pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
                 pushYield(codeBlock, context, valueIdx, valueIdx, stateIdx, tailDataLength, isAsyncGenerator, false);
             } else {
                 // Else, set received to GeneratorYield(innerResult).
@@ -151,7 +151,7 @@ public:
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, throwRegister, valueIdx, valueIdx, 1), context, this);
             // If generatorKind is async, then set innerResult to ? Await(innerResult).
             if (isAsyncGenerator) {
-                pushAwait(codeBlock, context, valueIdx, valueIdx, tailDataLength);
+                pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
             }
 
             // NOTE below lines are same with <<received.[[Type]] is normal>> path
@@ -174,16 +174,22 @@ public:
                 // AsyncIteratorClose ( iteratorRecord, completion )
                 // Let iterator be iteratorRecord.[[Iterator]].
                 // Let return be ? GetMethod(iterator, "return").
-                size_t returnRegister = context->getRegister();
-                codeBlock->pushCode(GetMethod(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, codeBlock->m_codeBlock->context()->staticStrings().stringReturn), context, this);
+                size_t returnOrInnerResultRegister = context->getRegister();
+                codeBlock->pushCode(GetMethod(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnOrInnerResultRegister, codeBlock->m_codeBlock->context()->staticStrings().stringReturn), context, this);
                 // NOTE yield expression doesn't use completion value of AsyncIteratorClose
                 // If return is undefined, return Completion(completion).
                 size_t returnUndefinedTestRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, Value()), context, this);
                 size_t returnUndefinedCompareJump = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnRegister, false, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, false, false), context, this);
                 context->giveUpRegister(); // drop returnUndefinedTestRegister
 
+                // Let innerResult be Call(return, iterator, « »).
+                // If innerResult.[[Type]] is normal, set   to Await(innerResult.[[Value]]).
+                // If completion.[[Type]] is throw, return Completion(completion).
+                // If innerResult.[[Type]] is throw, return Completion(innerResult).
+                // If Type(innerResult.[[Value]]) is not Object, throw a TypeError exception.
+                // Return Completion(completion).
                 /*
                 we can write rest of AsyncIterator code as like this
                 throwTest = false;
@@ -197,7 +203,11 @@ public:
                   innerResult = await innerResult;
                 }
 
-                throw innerResult;
+                if (!throwTest || awaitReturnsThrow) {
+                  throw innerResult;
+                }
+
+                %IteratorOperation(TestResultIsObject)%
                 */
 
                 // throwTest = false
@@ -208,26 +218,48 @@ public:
                 TryStatementNode::TryStatementByteCodeContext callingReturnContext;
                 TryStatementNode::generateTryStatementStartByteCode(codeBlock, context, this, callingReturnContext);
                 // innerResult = call(..)
-                codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, REGISTER_LIMIT, returnRegister, 0), context, this);
+                codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnOrInnerResultRegister, REGISTER_LIMIT, returnOrInnerResultRegister, 0), context, this);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(true)), context, this);
                 // } catch () {}
                 TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, context, this, callingReturnContext);
                 TryStatementNode::generateTryFinalizerStatementStartByteCode(codeBlock, context, this, callingReturnContext, false);
                 TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, context, this, callingReturnContext, false);
 
-                // if (temp) {
+                size_t awaitStateRegister = context->getRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), awaitStateRegister, Value(ExecutionPauser::ResumeState::Normal)), context, this);
+
+                // if (throwTest) {
                 size_t tempTestPos = codeBlock->currentCodeSize();
                 codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), throwTestRegister), context, this);
                 // innerResult = await innerResult;
-                pushAwait(codeBlock, context, returnRegister, returnRegister, tailDataLength);
+                pushAwait(codeBlock, context, returnOrInnerResultRegister, returnOrInnerResultRegister, awaitStateRegister, tailDataLength);
                 // }
                 codeBlock->peekCode<JumpIfFalse>(tempTestPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
-                // throw innerResult;
-                codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), returnRegister), context, this);
+                // if (!throwTest || awaitReturnsThrow) {
+                size_t throwTestIsTrueJumpPos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), throwTestRegister), context, this);
 
+                // we don't needThrowTestRegister from here
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
+
+                size_t awaitNotReturnsThrowPos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwTestRegister, awaitStateRegister, false, false), context, this);
+
+                // throw innerResult;
+                codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), returnOrInnerResultRegister), context, this);
+                // }
+                codeBlock->peekCode<JumpIfFalse>(throwTestIsTrueJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+                codeBlock->peekCode<JumpIfEqual>(awaitNotReturnsThrowPos)->m_jumpPosition = codeBlock->currentCodeSize();
+
+                // %IteratorOperation(TestResultIsObject)%
+                IteratorOperation::IteratorTestResultIsObjectData iteratorTestResultIsObjectData;
+                iteratorTestResultIsObjectData.m_valueRegisterIndex = returnOrInnerResultRegister;
+                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestResultIsObjectData), context, this);
+
+                context->giveUpRegister(); // drop awaitStateRegister
                 context->giveUpRegister(); // drop throwTestRegister
-                context->giveUpRegister(); // drop returnRegister
+                context->giveUpRegister(); // drop returnOrInnerResultRegister
 
                 codeBlock->peekCode<Jump>(returnUndefinedCompareJump)->m_jumpPosition = codeBlock->currentCodeSize();
             } else {
@@ -257,7 +289,7 @@ public:
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), returnRegister), context, this);
             // If generatorKind is async, then set received.[[Value]] to ? Await(received.[[Value]]).
             if (isAsyncGenerator) {
-                pushAwait(codeBlock, context, valueIdx, valueIdx, tailDataLength);
+                pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
             }
             // Return Completion(received).
             ReturnStatementNode::generateReturnCode(codeBlock, context, this, ByteCodeLOC(m_loc.index), valueIdx);
@@ -267,7 +299,7 @@ public:
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, valueIdx, valueIdx, 1), context, this);
             // If generatorKind is async, then set innerReturnResult to ? Await(innerReturnResult).
             if (isAsyncGenerator) {
-                pushAwait(codeBlock, context, valueIdx, valueIdx, tailDataLength);
+                pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
             }
 
             // If Type(innerReturnResult) is not Object, throw a TypeError exception.
@@ -298,7 +330,7 @@ public:
                 iteratorValueData.m_srcRegisterIndex = valueIdx;
                 iteratorValueData.m_dstRegisterIndex = valueIdx;
                 codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorValueData), context, this);
-                pushAwait(codeBlock, context, valueIdx, valueIdx, tailDataLength);
+                pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
                 pushYield(codeBlock, context, valueIdx, valueIdx, stateIdx, tailDataLength, isAsyncGenerator, false);
             } else {
                 // Else, set received to GeneratorYield(innerReturnResult).
@@ -329,7 +361,7 @@ public:
             }
 
             if (isAsyncGenerator) {
-                pushAwait(codeBlock, context, argIdx, dstRegister, tailDataLength);
+                pushAwait(codeBlock, context, argIdx, dstRegister, REGISTER_LIMIT, tailDataLength);
                 pushYield(codeBlock, context, dstRegister, dstRegister, REGISTER_LIMIT, tailDataLength, isAsyncGenerator, false);
             } else {
                 pushYield(codeBlock, context, argIdx, dstRegister, REGISTER_LIMIT, tailDataLength, isAsyncGenerator, true);
@@ -354,7 +386,6 @@ public:
         data.m_tailDataLength = tailDataLength;
         data.m_needsToWrapYieldValueWithIterResultObject = needsToWrapYieldValueWithIterResultObject;
         codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
-        codeBlock->pushPauseStatementExtraData(context);
 
         if (isAsyncGenerator) {
             // https://www.ecma-international.org/ecma-262/10.0/#sec-asyncgeneratoryield
@@ -377,7 +408,6 @@ public:
                 data.m_dstStateIndex = dstStateRegister;
                 data.m_tailDataLength = tailDataLength;
                 codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
-                codeBlock->pushPauseStatementExtraData(context);
 
                 // If awaited.[[Type]] is throw, return Completion(awaited).
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
@@ -407,7 +437,6 @@ public:
                 data.m_dstStateIndex = dstStateRegister;
                 data.m_tailDataLength = tailDataLength;
                 codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
-                codeBlock->pushPauseStatementExtraData(context);
 
                 // If awaited.[[Type]] is throw, return Completion(awaited).
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
@@ -434,15 +463,14 @@ public:
         }
     }
 
-    void pushAwait(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex valueIndex, ByteCodeRegisterIndex dstRegister, size_t tailDataLength)
+    void pushAwait(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex valueIndex, ByteCodeRegisterIndex dstRegister, ByteCodeRegisterIndex dstStateRegister, size_t tailDataLength)
     {
         ExecutionPause::ExecutionPauseAwaitData data;
         data.m_awaitIndex = valueIndex;
         data.m_dstIndex = dstRegister;
-        data.m_dstStateIndex = REGISTER_LIMIT;
+        data.m_dstStateIndex = dstStateRegister;
         data.m_tailDataLength = tailDataLength;
         codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
-        codeBlock->pushPauseStatementExtraData(context);
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override

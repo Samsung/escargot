@@ -3520,8 +3520,17 @@ public:
         ForStatementType type = statementTypeFor;
         bool prevInLoop = this->context->inLoop;
         bool isLexicalDeclaration = false;
+        bool seenAwait = false;
 
         this->expectKeyword(ForKeyword);
+
+        if (this->context->await) {
+            seenAwait = this->matchContextualKeyword("await");
+            if (seenAwait) {
+                this->nextToken();
+            }
+        }
+
         this->expect(LeftParenthesis);
 
         ParserBlockContext headBlockContext;
@@ -3547,6 +3556,9 @@ public:
                     if (std::get<0>(declarations) && (std::get<1>(declarations) || this->context->strict)) {
                         this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
                     }
+                    if (seenAwait) {
+                        this->throwUnexpectedToken(this->lookahead);
+                    }
                     left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->nextToken();
                     type = statementTypeForIn;
@@ -3555,6 +3567,9 @@ public:
                     this->nextToken();
                     type = statementTypeForOf;
                 } else {
+                    if (seenAwait) {
+                        this->throwUnexpectedToken(this->lookahead);
+                    }
                     init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->expect(SemiColon);
                 }
@@ -3568,6 +3583,9 @@ public:
                 this->nextToken();
 
                 if (!this->context->strict && this->matchKeyword(InKeyword)) {
+                    if (seenAwait) {
+                        this->throwUnexpectedToken(this->lookahead);
+                    }
                     this->nextToken();
                     left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource(this->scanner->sourceAsNormalView))));
                     init = nullptr;
@@ -3585,6 +3603,9 @@ public:
                     this->context->allowIn = previousAllowIn;
 
                     if (declarationList.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
+                        if (seenAwait) {
+                            this->throwUnexpectedToken(this->lookahead);
+                        }
                         left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                         this->nextToken();
                         type = statementTypeForIn;
@@ -3593,6 +3614,9 @@ public:
                         this->nextToken();
                         type = statementTypeForOf;
                     } else {
+                        if (seenAwait) {
+                            this->throwUnexpectedToken(this->lookahead);
+                        }
                         init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                         this->expect(SemiColon);
                     }
@@ -3612,6 +3636,9 @@ public:
                     if (initNodeType == ASTNodeType::Literal || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple) || initNodeType == ASTNodeType::ThisExpression) {
                         this->throwError(Messages::InvalidLHSInForIn);
                     }
+                    if (seenAwait) {
+                        this->throwUnexpectedToken(this->lookahead);
+                    }
 
                     this->nextToken();
                     init = builder.reinterpretExpressionAsPattern(init);
@@ -3629,6 +3656,9 @@ public:
                     init = nullptr;
                     type = statementTypeForOf;
                 } else {
+                    if (seenAwait) {
+                        this->throwUnexpectedToken(this->lookahead);
+                    }
                     if (this->match(Comma)) {
                         ASTNodeList initSeq;
                         initSeq.append(this->allocator, init);
@@ -3681,7 +3711,37 @@ public:
         this->context->allowLexicalDeclaration = false;
         this->context->inIteration = true;
         ASTNode body = nullptr;
-        body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
+
+        // ExpressionStatement doesn't have a lookahead restriction for `let {`.
+        // ExpressionStatement[Yield, Await] :
+        //          [lookahead ∉ { {, function, async [no LineTerminator here] function, class, let [ }]
+        // Expression[+In, ?Yield, ?Await] ;
+        if (this->matchKeyword(KeywordKind::LetKeyword)) {
+            Scanner::ScannerResult prevToken;
+            this->nextToken(&prevToken);
+
+            /* for (; false; ) let {} */
+            if (this->match(PunctuatorKind::LeftBrace)) {
+                body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
+            } else {
+                /* for (;false;) let ; */
+                if (this->match(PunctuatorKind::SemiColon)) {
+                    this->nextToken();
+                    body = builder.createEmptyStatementNode();
+                }
+                /*
+                for (;false;) let
+                x = 0;
+                */
+                else if (this->lookahead.lineNumber != prevToken.lineNumber) {
+                    body = builder.createEmptyStatementNode();
+                } else {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+            }
+        } else {
+            body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
+        }
 
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
@@ -3698,12 +3758,13 @@ public:
         }
 
         if (type == statementTypeForIn) {
-            ASTNode forInNode = builder.createForInOfStatementNode(left, right, body, true, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+            ASSERT(!seenAwait);
+            ASTNode forInNode = builder.createForInOfStatementNode(left, right, body, true, isLexicalDeclaration, false, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
             return this->finalize(node, forInNode);
         }
 
         ASSERT(type == statementTypeForOf);
-        ASTNode forOfNode = builder.createForInOfStatementNode(left, right, body, false, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+        ASTNode forOfNode = builder.createForInOfStatementNode(left, right, body, false, isLexicalDeclaration, seenAwait, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
         return this->finalize(node, forOfNode);
     }
 

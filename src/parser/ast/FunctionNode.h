@@ -90,7 +90,6 @@ public:
             data.m_tailDataLength = tailDataLength;
 
             codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
-            codeBlock->pushPauseStatementExtraData(context);
         }
     }
 
