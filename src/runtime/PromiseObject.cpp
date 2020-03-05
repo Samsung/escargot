@@ -34,7 +34,7 @@ namespace Escargot {
 
 // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
 static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-static Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
 
 PromiseObject::PromiseObject(ExecutionState& state)
     : Object(state)
@@ -63,50 +63,53 @@ void* PromiseObject::operator new(size_t size)
 
 PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionState& state)
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-createresolvingfunctions
     const StaticStrings* strings = &state.context()->staticStrings();
 
-    Object* resolveFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, promiseResolveFunctions, 1, NativeFunctionInfo::Strict));
-    Object* rejectFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, promiseRejectFunction, 1, NativeFunctionInfo::Strict));
-
-    resolveFunction->deleteOwnProperty(state, strings->name);
-    rejectFunction->deleteOwnProperty(state, strings->name);
-
-    Object* resolveFunctionInternalSlot = new Object(state);
-    Object* rejectFunctionInternalSlot = new Object(state);
-
+    // Let alreadyResolved be a new Record { [[Value]]: false }.
     Object* alreadyResolved = new Object(state);
     alreadyResolved->defineOwnProperty(state, ObjectPropertyName(strings->value), ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::AllPresent));
 
-    ObjectPropertyDescriptor::PresentAttribute attrPromise = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent);
-    ObjectPropertyDescriptor::PresentAttribute attrAlreadyResolved = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::EnumerablePresent);
-    resolveFunctionInternalSlot->defineOwnProperty(state, strings->Promise, ObjectPropertyDescriptor(Value(this), attrPromise));
-    resolveFunctionInternalSlot->defineOwnProperty(state, strings->alreadyResolved, ObjectPropertyDescriptor(Value(alreadyResolved), attrAlreadyResolved));
-    rejectFunctionInternalSlot->defineOwnProperty(state, strings->Promise, ObjectPropertyDescriptor(Value(this), attrPromise));
-    rejectFunctionInternalSlot->defineOwnProperty(state, strings->alreadyResolved, ObjectPropertyDescriptor(Value(alreadyResolved), attrAlreadyResolved));
+    // Let resolve be CreateBuiltinFunction(stepsResolve, « [[Promise]], [[AlreadyResolved]] »).
+    ExtendedNativeFunctionObject* resolve = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), promiseResolveFunctions, 1, NativeFunctionInfo::Strict));
+    resolve->setInternalSlot(BuiltinFunctionSlot::Promise, this);
+    resolve->setInternalSlot(BuiltinFunctionSlot::AlreadyResolved, alreadyResolved);
 
-    resolveFunction->setInternalSlot(resolveFunctionInternalSlot);
-    rejectFunction->setInternalSlot(rejectFunctionInternalSlot);
+    // Let reject be CreateBuiltinFunction(stepsReject, « [[Promise]], [[AlreadyResolved]] »).
+    ExtendedNativeFunctionObject* reject = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), promiseRejectFunctions, 1, NativeFunctionInfo::Strict));
+    reject->setInternalSlot(BuiltinFunctionSlot::Promise, this);
+    reject->setInternalSlot(BuiltinFunctionSlot::AlreadyResolved, alreadyResolved);
 
-    return PromiseReaction::Capability(this, resolveFunction, rejectFunction);
+    // Return a new Record { [[Resolve]]: resolve, [[Reject]]: reject }.
+    return PromiseReaction::Capability(this, resolve, reject);
 }
 
 PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& state, Object* constructor)
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-newpromisecapability
     const StaticStrings* strings = &state.context()->staticStrings();
 
-    if (!constructor->isConstructor())
+    // If IsConstructor(C) is false, throw a TypeError exception.
+    if (!constructor->isConstructor()) {
         state.throwException(new TypeErrorObject(state, new ASCIIString("Constructor is not a function object")));
+    }
 
-    // FIXME: Let executor be a new built-in function object as defined in GetCapabilitiesExecutor Functions (25.4.1.5.1).
-    Object* executor = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, getCapabilitiesExecutorFunction, 2, NativeFunctionInfo::Strict));
-    Object* internalSlot = executor->ensureInternalSlot(state);
+    // Let promiseCapability be a new PromiseCapability { [[Promise]]: undefined, [[Resolve]]: undefined, [[Reject]]: undefined }.
+    Object* capability = new Object(state);
+    capability->defineOwnProperty(state, ObjectPropertyName(strings->Promise), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+    capability->defineOwnProperty(state, ObjectPropertyName(strings->resolve), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+    capability->defineOwnProperty(state, ObjectPropertyName(strings->reject), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
 
+    // Let executor be CreateBuiltinFunction(steps, « [[Capability]] »).
+    ExtendedNativeFunctionObject* executor = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), getCapabilitiesExecutorFunction, 2, NativeFunctionInfo::Strict));
+    executor->setInternalSlot(BuiltinFunctionSlot::Capability, capability);
+
+    // Let promise be ? Construct(C, « executor »).
     Value arguments[] = { executor };
     Object* promise = Object::construct(state, constructor, 1, arguments);
-    ASSERT(internalSlot == executor->internalSlot());
 
-    Value resolveFunction = internalSlot->get(state, strings->resolve).value(state, internalSlot);
-    Value rejectFunction = internalSlot->get(state, strings->reject).value(state, internalSlot);
+    Value resolveFunction = capability->get(state, strings->resolve).value(state, capability);
+    Value rejectFunction = capability->get(state, strings->reject).value(state, capability);
 
     if (!resolveFunction.isCallable() || !rejectFunction.isCallable())
         state.throwException(new TypeErrorObject(state, new ASCIIString("Promise resolve or reject function is not callable")));
@@ -114,23 +117,18 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     return PromiseReaction::Capability(promise, resolveFunction.asObject(), rejectFunction.asObject());
 }
 
-Object* PromiseObject::resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee)
-{
-    const StaticStrings* strings = &state.context()->staticStrings();
-    Object* internalSlot = callee->internalSlot();
-    Value alreadyResolved = internalSlot->get(state, strings->alreadyResolved).value(state, internalSlot);
-    return alreadyResolved.asObject();
-}
-
+// https://www.ecma-international.org/ecma-262/10.0/#sec-fulfillpromise
 void PromiseObject::fulfill(ExecutionState& state, Value value)
 {
     m_state = PromiseState::FulFilled;
     m_promiseResult = value;
     triggerPromiseReactions(state, m_fulfillReactions);
+
     m_fulfillReactions.clear();
     m_rejectReactions.clear();
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-rejectpromise
 void PromiseObject::reject(ExecutionState& state, Value reason)
 {
     m_state = PromiseState::Rejected;
@@ -222,37 +220,56 @@ Object* PromiseObject::promiseResolve(ExecutionState& state, Object* C, const Va
     return capability.m_promise;
 }
 
-// $25.4.1.5.1 Internal GetCapabilitiesExecutor Function
+// https://www.ecma-international.org/ecma-262/10.0/#sec-getcapabilitiesexecutor-functions
 Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* executor = state.resolveCallee();
-    executor->deleteOwnProperty(state, strings->name);
-    Object* executorInternalSlot = executor->ensureInternalSlot(state);
-    if (!executorInternalSlot->getOwnProperty(state, strings->resolve).value(state, executorInternalSlot).isUndefined()
-        || !executorInternalSlot->getOwnProperty(state, strings->reject).value(state, executorInternalSlot).isUndefined())
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Executor function has already called")));
 
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* executor = state.resolveCallee()->asExtendedNativeFunctionObject();
+
+    // Let promiseCapability be F.[[Capability]].
+    Value capabilityValue = executor->getInternalSlot(PromiseObject::BuiltinFunctionSlot::Capability);
+    Object* capability = capabilityValue.asObject();
+
+    // If promiseCapability.[[Resolve]] is not undefined, throw a TypeError exception.
+    // If promiseCapability.[[Reject]] is not undefined, throw a TypeError exception.
+    if (!capability->getOwnProperty(state, strings->resolve).value(state, capability).isUndefined()
+        || !capability->getOwnProperty(state, strings->reject).value(state, capability).isUndefined()) {
+        state.throwException(new TypeErrorObject(state, new ASCIIString("Executor function has already called")));
+    }
+
+    // Set promiseCapability.[[Resolve]] to resolve.
+    // Set promiseCapability.[[Reject]] to reject.
     Value resolve = argv[0];
     Value reject = argv[1];
-
-    executorInternalSlot->defineOwnProperty(state, strings->resolve, ObjectPropertyDescriptor(resolve, ObjectPropertyDescriptor::AllPresent));
-    executorInternalSlot->defineOwnProperty(state, strings->reject, ObjectPropertyDescriptor(reject, ObjectPropertyDescriptor::AllPresent));
+    capability->defineOwnProperty(state, strings->resolve, ObjectPropertyDescriptor(resolve, ObjectPropertyDescriptor::AllPresent));
+    capability->defineOwnProperty(state, strings->reject, ObjectPropertyDescriptor(reject, ObjectPropertyDescriptor::AllPresent));
 
     return Value();
 }
 
-// http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
+// https://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
 static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
-    Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, callee);
-    Object* internalSlot = callee->internalSlot();
-    PromiseObject* promise = internalSlot->getOwnProperty(state, strings->Promise).value(state, internalSlot).asObject()->asPromiseObject();
-    if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).asBoolean())
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
+
+    // Let promise be F.[[Promise]].
+    Value promiseValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
+    PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
+
+    // Let alreadyResolved be F.[[AlreadyResolved]].
+    Value alreadyResolvedValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
+    Object* alreadyResolved = alreadyResolvedValue.asObject();
+
+    // If alreadyResolved.[[Value]] is true, return undefined.
+    if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).isTrue()) {
         return Value();
-    alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
+    }
+    // Set alreadyResolved.[[Value]] to true.
+    alreadyResolved->defineOwnProperty(state, ObjectPropertyName(strings->value), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
 
     Value resolutionValue = argv[0];
     if (resolutionValue == Value(promise)) {
@@ -280,84 +297,103 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
         state.context()->vmInstance()->enqueuePromiseJob(promise, new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
     } else {
         promise->fulfill(state, resolution);
-        return Value();
     }
 
     return Value();
 }
 
-// $25.4.1.3.1 Internal Promise Reject Function
-static Value promiseRejectFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+// https://www.ecma-international.org/ecma-262/10.0/#sec-promise-reject-functions
+static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
-    Object* alreadyResolved = PromiseObject::resolvingFunctionAlreadyResolved(state, callee);
-    Object* internalSlot = callee->internalSlot();
-    PromiseObject* promise = internalSlot->getOwnProperty(state, strings->Promise).value(state, internalSlot).asObject()->asPromiseObject();
-    if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).asBoolean())
-        return Value();
-    alreadyResolved->setThrowsException(state, strings->value, Value(true), alreadyResolved);
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
 
+    // Let promise be F.[[Promise]].
+    Value promiseValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
+    PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
+
+    // Let alreadyResolved be F.[[AlreadyResolved]].
+    Value alreadyResolvedValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
+    Object* alreadyResolved = alreadyResolvedValue.asObject();
+
+    // If alreadyResolved.[[Value]] is true, return undefined.
+    if (alreadyResolved->getOwnProperty(state, strings->value).value(state, alreadyResolved).isTrue()) {
+        return Value();
+    }
+
+    // Set alreadyResolved.[[Value]] to true.
+    alreadyResolved->defineOwnProperty(state, ObjectPropertyName(strings->value), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+
+    // Return RejectPromise(promise, reason).
     promise->reject(state, argv[0]);
     return Value();
 }
 
-// $25.4.4.1.2 Internal Promise.all Resolve Element Function
+// https://www.ecma-international.org/ecma-262/10.0/#sec-promise.all-resolve-element-functions
 Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     auto strings = &state.context()->staticStrings();
-    Object* callee = state.resolveCallee();
-    Value x = argv[0];
-    Object* internalSlot = callee->internalSlot();
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
 
-    Object* alreadyCalled = internalSlot->getOwnProperty(state, strings->alreadyCalled).value(state, internalSlot).asObject();
-    if (alreadyCalled->getOwnProperty(state, strings->value).value(state, alreadyCalled).asBoolean())
+    // Let alreadyCalled be F.[[AlreadyCalled]].
+    Value alreadyCalled = callee->getInternalSlot(BuiltinFunctionSlot::AlreadyCalled);
+
+    // If alreadyCalled.[[Value]] is true, return undefined.
+    if (alreadyCalled.asObject()->getOwnProperty(state, strings->value).value(state, alreadyCalled).asBoolean()) {
         return Value();
-    alreadyCalled->setThrowsException(state, strings->value, Value(true), alreadyCalled);
+    }
+    // Set alreadyCalled.[[Value]] to true.
+    alreadyCalled.asObject()->setThrowsException(state, strings->value, Value(true), alreadyCalled);
 
-    uint32_t index = internalSlot->getOwnProperty(state, strings->index).value(state, internalSlot).asUInt32();
-    ArrayObject* values = internalSlot->getOwnProperty(state, strings->values).value(state, internalSlot).asObject()->asArrayObject();
-    Object* resolveFunction = internalSlot->getOwnProperty(state, strings->resolve).value(state, internalSlot).asObject();
-    Object* remainingElementsCount = internalSlot->getOwnProperty(state, strings->remainingElements).value(state, internalSlot).asObject();
+    Value index = callee->getInternalSlot(BuiltinFunctionSlot::Index);
+    Value values = callee->getInternalSlot(BuiltinFunctionSlot::Values);
+    Value resolveFunction = callee->getInternalSlot(BuiltinFunctionSlot::Resolve);
+    Value remainingElementsCount = callee->getInternalSlot(BuiltinFunctionSlot::RemainingElements);
 
-    values->setThrowsException(state, ObjectPropertyName(state, Value(index)), x, values);
-    uint32_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asUInt32();
-    remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
-    if (remainingElements == 1) {
+    // Set values[index] to x.
+    values.asObject()->setThrowsException(state, ObjectPropertyName(state, index.asUInt32()), argv[0], values);
+
+    // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+    uint32_t elementsCount = remainingElementsCount.asObject()->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asUInt32();
+    remainingElementsCount.asObject()->setThrowsException(state, strings->value, Value(elementsCount - 1), remainingElementsCount);
+
+    if (elementsCount == 1) {
         Value arguments[] = { values };
-        Object::call(state, resolveFunction, Value(), 1, arguments);
+        return Object::call(state, resolveFunction, Value(), 1, arguments);
     }
     return Value();
 }
 
 
-Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let F be the active function object.
     Object* F = state.resolveCallee();
     // Return the resolve's member value
-    return F->asExtendedNativeFunctionObject()->getInternalValues()->at(0);
+    return F->asExtendedNativeFunctionObject()->getInternalSlot(PromiseObject::BuiltinFunctionSlot::ValueOrReason);
 }
 
 
-Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
     // Let F be the active function object.
     Object* F = state.resolveCallee();
     // Throw the resolve's member value
-    state.throwException(F->asExtendedNativeFunctionObject()->getInternalValues()->at(0));
+    state.throwException(F->asExtendedNativeFunctionObject()->getInternalSlot(PromiseObject::BuiltinFunctionSlot::ValueOrReason));
     return Value();
 }
 
 
 Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-thenfinallyfunctions
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
-    Object* F = state.resolveCallee();
+    ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
     // Let onFinally be F.[[OnFinally]].
-    SmallValueVector* internals = F->asExtendedNativeFunctionObject()->getInternalValues();
-    Value onFinally = internals->at(1);
+    Value onFinally = F->getInternalSlot(BuiltinFunctionSlot::OnFinally);
 
     // Assert: IsCallable(onFinally) is true.
     // Let result be ? Call(onFinally, undefined).
@@ -366,19 +402,18 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
 
     // Let C be F.[[Constructor]].
     // Assert: IsConstructor(C) is true.
-    Value C = internals->at(0);
+    Value C = F->getInternalSlot(BuiltinFunctionSlot::Constructor);
     ASSERT(C.isConstructor());
 
     // Let promise be ? PromiseResolve(C, result).
     Value promise = PromiseObject::promiseResolve(state, C.asObject(), result);
 
     // Let valueThunk be equivalent to a function that returns value.
-    SmallValueVector valueArgs;
-    valueArgs.push_back(argv[0]);
-    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), ValueThunkHelper, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
-    // Return ? Invoke(promise, "then", « valueThunk »).
-    Value then = promise.asObject()->asPromiseObject()->get(state, strings->then).value(state, promise.asObject()->asPromiseObject());
+    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), ValueThunkHelper, 1, NativeFunctionInfo::Strict));
+    valueThunk->setInternalSlot(BuiltinFunctionSlot::ValueOrReason, argv[0]);
 
+    // Return ? Invoke(promise, "then", « valueThunk »).
+    Value then = promise.asObject()->get(state, strings->then).value(state, promise);
     Value argument[1] = { Value(valueThunk) };
 
     return Object::call(state, then, promise, 1, argument);
@@ -387,12 +422,12 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
 
 Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-catchfinallyfunctions
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
-    Object* F = state.resolveCallee();
+    ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
     // Let onFinally be F.[[OnFinally]].
-    SmallValueVector* internals = F->asExtendedNativeFunctionObject()->getInternalValues();
-    Value onFinally = internals->at(1);
+    Value onFinally = F->getInternalSlot(BuiltinFunctionSlot::OnFinally);
 
     // Assert: IsCallable(onFinally) is true.
     // Let result be ? Call(onFinally, undefined).
@@ -401,18 +436,18 @@ Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue,
 
     // Let C be F.[[Constructor]].
     // Assert: IsConstructor(C) is true.
-    Value C = internals->at(0);
+    Value C = F->getInternalSlot(BuiltinFunctionSlot::Constructor);
     ASSERT(C.isConstructor());
 
     // Let promise be ? PromiseResolve(C, result).
     Value promise = PromiseObject::promiseResolve(state, C.asObject(), result);
 
     // Let thrower be equivalent to a function that throws reason.
-    SmallValueVector valueArgs;
-    valueArgs.push_back(argv[0]);
-    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), ValueThunkThrower, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
+    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), ValueThunkThrower, 1, NativeFunctionInfo::Strict));
+    valueThunk->setInternalSlot(BuiltinFunctionSlot::ValueOrReason, argv[0]);
+
     // Return ? Invoke(promise, "then", « thrower »).
-    Value then = promise.asObject()->asPromiseObject()->get(state, strings->then).value(state, promise.asObject()->asPromiseObject());
+    Value then = promise.asObject()->get(state, strings->then).value(state, promise);
     Value argument[1] = { Value(valueThunk) };
 
     return Object::call(state, then, promise, 1, argument);

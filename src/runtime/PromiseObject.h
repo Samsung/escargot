@@ -81,6 +81,21 @@ public:
         Rejected
     };
 
+    enum BuiltinFunctionSlot : size_t {
+        Promise = 0,
+        AlreadyResolved = 1,
+        Capability = 0,
+        ValueOrReason = 0,
+        Constructor = 0,
+        OnFinally = 1,
+        AlreadyCalled = 0,
+        Index = 1,
+        Values = 2,
+        Resolve = 3, // TODO merge to Capability
+        Reject = 4, // TODO merge to Capability
+        RemainingElements = 5,
+    };
+
     explicit PromiseObject(ExecutionState& state);
 
     virtual bool isPromiseObject() const
@@ -125,7 +140,6 @@ public:
     void* operator new[](size_t size) = delete;
 
     static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
-    static Object* resolvingFunctionAlreadyResolved(ExecutionState& state, Object* callee);
     static Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
     // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
     // The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
@@ -139,8 +153,6 @@ private:
     SmallValue m_promiseResult;
     Reactions m_fulfillReactions;
     Reactions m_rejectReactions;
-
-protected:
 };
 }
 #endif // __EscargotPromiseObject__

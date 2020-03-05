@@ -1090,11 +1090,8 @@
     <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value_getter"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/Object.prototype.toString.call-bigint"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toString/proxy-array"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toString/proxy-function"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-builtin"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-proxy-function"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-override-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-override-instances"><reason>TODO</reason></test>
     <test id="built-ins/Object/setPrototypeOf/bigint"><reason>TODO</reason></test>
@@ -1102,7 +1099,6 @@
     <test id="built-ins/Promise/all/invoke-resolve-get-error-close"><reason>TODO</reason></test>
     <test id="built-ins/Promise/all/invoke-resolve-get-once-multiple-calls"><reason>TODO</reason></test>
     <test id="built-ins/Promise/all/invoke-resolve-get-once-no-calls"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/all/resolve-element-function-name"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettled/call-resolve-element"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettled/call-resolve-element-after-return"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettled/call-resolve-element-items"><reason>TODO</reason></test>
@@ -1192,7 +1188,6 @@
     <test id="built-ins/Promise/allSettled/resolves-to-array"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettled/returns-promise"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettled/species-get-error"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/executor-function-name"><reason>TODO</reason></test>
     <test id="built-ins/Promise/get-prototype-abrupt"><reason>TODO</reason></test>
     <test id="built-ins/Promise/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/Promise/prototype/no-promise-state"><reason>TODO</reason></test>
@@ -1201,8 +1196,6 @@
     <test id="built-ins/Promise/race/invoke-resolve-get-error-close"><reason>TODO</reason></test>
     <test id="built-ins/Promise/race/invoke-resolve-get-once-multiple-calls"><reason>TODO</reason></test>
     <test id="built-ins/Promise/race/invoke-resolve-get-once-no-calls"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/reject-function-name"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/resolve-function-name"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/apply/arguments-realm"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/apply/null-handler-realm"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/apply/trap-is-not-callable-realm"><reason>TODO</reason></test>
