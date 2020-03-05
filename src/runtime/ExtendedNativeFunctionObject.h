@@ -26,20 +26,61 @@ namespace Escargot {
 
 class ExtendedNativeFunctionObject : public NativeFunctionObject {
 public:
-    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, SmallValueVector&& values);
+    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
+        : NativeFunctionObject(state, info)
+    {
+    }
 
     virtual bool isExtendedNativeFunctionObject() const
     {
         return true;
     }
 
-    SmallValueVector* getInternalValues()
+    void setInternalSlot(const size_t idx, const Value& value)
     {
-        return &m_values;
+        ASSERT(idx < slotCount());
+        internalSlots()[idx] = value;
     }
 
-private:
-    SmallValueVector m_values;
+    SmallValue& getInternalSlot(const size_t idx)
+    {
+        ASSERT(idx < slotCount());
+        return internalSlots()[idx];
+    }
+
+protected:
+#ifndef NDEBUG
+    virtual size_t slotCount() const = 0;
+#endif
+    virtual SmallValue* internalSlots() = 0;
+};
+
+template <const size_t slotNumber>
+class ExtendedNativeFunctionObjectImpl : public ExtendedNativeFunctionObject {
+public:
+    ExtendedNativeFunctionObjectImpl(ExecutionState& state, NativeFunctionInfo info)
+        : ExtendedNativeFunctionObject(state, info)
+#ifndef NDEBUG
+        , m_slotCount(slotNumber)
+#endif
+    {
+    }
+
+protected:
+    virtual SmallValue* internalSlots() override
+    {
+        return m_values;
+    }
+
+#ifndef NDEBUG
+    virtual size_t slotCount() const override
+    {
+        return m_slotCount;
+    }
+
+    size_t m_slotCount;
+#endif
+    SmallValue m_values[slotNumber];
 };
 }
 

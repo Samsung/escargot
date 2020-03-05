@@ -27,7 +27,7 @@
 #include "runtime/SandBox.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/IteratorObject.h"
-#include "ExtendedNativeFunctionObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 
 namespace Escargot {
 
@@ -146,10 +146,8 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             Value nextPromise = Object::call(state, C->get(state, ObjectPropertyName(state, strings->resolve)).value(state, C), C, 1, &nextValue);
 
             // Let resolveElement be a new built-in function object as defined in Promise.all Resolve Element Functions.
-            FunctionObject* resolveElement = new NativeFunctionObject(state, NativeFunctionInfo(strings->Empty, PromiseObject::promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
-            resolveElement->deleteOwnProperty(state, strings->name);
-            Object* internalSlot = new Object(state);
-            resolveElement->setInternalSlot(internalSlot);
+            ExtendedNativeFunctionObject* resolveElement = new ExtendedNativeFunctionObjectImpl<6>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
+
             // Set the [[AlreadyCalled]] internal slot of resolveElement to a new Record {[[value]]: false }.
             // Set the [[Index]] internal slot of resolveElement to index.
             // Set the [[Values]] internal slot of resolveElement to values.
@@ -158,12 +156,12 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             Object* alreadyCalled = new Object(state);
             alreadyCalled->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::AllPresent));
 
-            internalSlot->defineOwnProperty(state, strings->alreadyCalled, ObjectPropertyDescriptor(alreadyCalled, ObjectPropertyDescriptor::AllPresent));
-            internalSlot->defineOwnProperty(state, strings->index, ObjectPropertyDescriptor(Value(index), ObjectPropertyDescriptor::AllPresent));
-            internalSlot->defineOwnProperty(state, strings->values, ObjectPropertyDescriptor(values, ObjectPropertyDescriptor::AllPresent));
-            internalSlot->defineOwnProperty(state, strings->resolve, ObjectPropertyDescriptor(promiseCapability.m_resolveFunction, ObjectPropertyDescriptor::AllPresent));
-            internalSlot->defineOwnProperty(state, strings->reject, ObjectPropertyDescriptor(promiseCapability.m_rejectFunction, ObjectPropertyDescriptor::AllPresent));
-            internalSlot->defineOwnProperty(state, strings->remainingElements, ObjectPropertyDescriptor(Value(remainingElementsCount), ObjectPropertyDescriptor::AllPresent));
+            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyCalled, alreadyCalled);
+            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Index, Value(index));
+            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Values, values);
+            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Resolve, promiseCapability.m_resolveFunction);
+            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Reject, promiseCapability.m_rejectFunction);
+            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::RemainingElements, remainingElementsCount);
 
             // Set remainingElementsCount.[[value]] to remainingElementsCount.[[value]] + 1.
             int64_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asNumber();
@@ -330,24 +328,32 @@ static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-promise.prototype.finally
     auto strings = &state.context()->staticStrings();
-    if (!thisValue.isObject())
+
+    if (!thisValue.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->stringFinally.string(), "%s: not a Promise object");
+    }
+
     Object* thisObject = thisValue.asObject();
-    Value onFinally = argv[0];
-    ExtendedNativeFunctionObject* thenFinally;
-    ExtendedNativeFunctionObject* catchFinally;
-    Value arguments[] = { onFinally, onFinally };
     Value C = thisObject->speciesConstructor(state, state.context()->globalObject()->promise());
+
+    Value onFinally = argv[0];
+    Value arguments[] = { onFinally, onFinally };
+
     if (onFinally.isCallable()) {
-        SmallValueVector valueArgs;
-        valueArgs.push_back(C);
-        valueArgs.push_back(onFinally);
-        thenFinally = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), PromiseObject::promiseThenFinally, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
-        catchFinally = new ExtendedNativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::emptyString), PromiseObject::promiseCatchFinally, 1, NativeFunctionInfo::Strict), std::move(valueArgs));
+        ExtendedNativeFunctionObject* thenFinally = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseThenFinally, 1, NativeFunctionInfo::Strict));
+        thenFinally->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Constructor, C);
+        thenFinally->setInternalSlot(PromiseObject::BuiltinFunctionSlot::OnFinally, onFinally);
+
+        ExtendedNativeFunctionObject* catchFinally = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseCatchFinally, 1, NativeFunctionInfo::Strict));
+        catchFinally->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Constructor, C);
+        catchFinally->setInternalSlot(PromiseObject::BuiltinFunctionSlot::OnFinally, onFinally);
+
         arguments[0] = thenFinally;
         arguments[1] = catchFinally;
     }
+
     Value then = thisObject->get(state, strings->then).value(state, thisObject);
     return Object::call(state, then, thisObject, 2, arguments);
 }
