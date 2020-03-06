@@ -44,6 +44,11 @@ public:
         ByteCodeGenerateContext newContext(*context);
 
         size_t doStart = codeBlock->currentCodeSize();
+        if (context->shouldCareScriptExecutionResult()) {
+            // IterationStatement : do Statement while ( Expression ) ;
+            // 1. Let V = undefined.
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this);
+        }
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test

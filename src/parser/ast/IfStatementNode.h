@@ -41,6 +41,10 @@ public:
         insertBreakpoint(context);
 #endif /* ESCARGOT_DEBUGGER */
 
+        if (context->shouldCareScriptExecutionResult()) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+        }
+
         context->getRegister(); // ExeuctionResult of m_consequente|m_alternate should not be overwritten by m_test
         size_t jPos = 0;
         if (m_test->isRelationOperation()) {
@@ -66,12 +70,7 @@ public:
         }
         codeBlock->peekCode<JumpByteCode>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
-        if (!m_alternate) {
-            if (context->shouldCareScriptExecutionResult()) {
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), context->getRegister(), Value()), context, this);
-                context->giveUpRegister();
-            }
-        } else {
+        if (m_alternate) {
             m_alternate->generateStatementByteCode(codeBlock, context);
             Jump* j2 = codeBlock->peekCode<Jump>(jPos2);
             j2->m_jumpPosition = codeBlock->currentCodeSize();

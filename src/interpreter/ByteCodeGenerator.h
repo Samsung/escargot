@@ -285,7 +285,7 @@ struct ByteCodeGenerateContext {
 
     bool shouldCareScriptExecutionResult()
     {
-        return m_isGlobalScope | m_isEvalCode;
+        return (m_isGlobalScope | m_isEvalCode) && m_baseRegisterCount == 0;
     }
 
     void addLexicallyDeclaredNames(AtomicString name)

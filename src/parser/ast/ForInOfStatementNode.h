@@ -125,6 +125,11 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         // https://www.ecma-international.org/ecma-262/10.0/#sec-runtime-semantics-forin-div-ofbodyevaluation-lhs-stmt-iterator-lhskind-labelset
+        if (context->shouldCareScriptExecutionResult()) {
+            // 13.7.5.13 Runtime Semantics: ForIn/OfBodyEvaluation
+            // 2. Let V = undefined.
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+        }
 
         bool canSkipCopyToRegisterBefore = context->m_canSkipCopyToRegister;
         context->m_canSkipCopyToRegister = false;
