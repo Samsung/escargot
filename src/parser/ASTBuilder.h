@@ -507,7 +507,8 @@ public:
         return SyntaxNode(type);
     }
 
-    SyntaxNode createForInOfStatementNode(SyntaxNode left, SyntaxNode right, SyntaxNode body, bool forIn, bool hasLexicalDeclarationOnInit, bool isForAwaitOf, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
+    SyntaxNode createForInOfStatementNode(SyntaxNode left, SyntaxNode right, SyntaxNode body, bool forIn, bool hasLexicalDeclarationOnInit, bool isForAwaitOf,
+                                          LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex headRightLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
     {
         if (forIn) {
             return SyntaxNode(ASTNodeType::ForInStatement);
@@ -646,9 +647,9 @@ public:
         return new (m_allocator) ClassType(id, superClass, classBody, classBodyLexicalBlockIndex, classSrc);
     }
 
-    ForInOfStatementNode* createForInOfStatementNode(Node* left, Node* right, Node* body, bool forIn, bool hasLexicalDeclarationOnInit, bool isForAwaitOf, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
+    ForInOfStatementNode* createForInOfStatementNode(Node* left, Node* right, Node* body, bool forIn, bool hasLexicalDeclarationOnInit, bool isForAwaitOf, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex headRightLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
     {
-        return new (m_allocator) ForInOfStatementNode(left, right, body, forIn, hasLexicalDeclarationOnInit, isForAwaitOf, headLexicalBlockIndex, iterationLexicalBlockIndex);
+        return new (m_allocator) ForInOfStatementNode(left, right, body, forIn, hasLexicalDeclarationOnInit, isForAwaitOf, headLexicalBlockIndex, headRightLexicalBlockIndex, iterationLexicalBlockIndex);
     }
 
     FunctionNode* createFunctionNode(StatementContainer* params, BlockStatementNode* body, NumeralLiteralVector&& numeralLiteralVector)

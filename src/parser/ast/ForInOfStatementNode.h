@@ -28,7 +28,7 @@ namespace Escargot {
 
 class ForInOfStatementNode : public StatementNode {
 public:
-    ForInOfStatementNode(Node* left, Node* right, Node* body, bool forIn, bool hasLexicalDeclarationOnInit, bool isForAwaitOf, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
+    ForInOfStatementNode(Node* left, Node* right, Node* body, bool forIn, bool hasLexicalDeclarationOnInit, bool isForAwaitOf, LexicalBlockIndex headLexicalBlockIndex, LexicalBlockIndex headRightLexicalBlockIndex, LexicalBlockIndex iterationLexicalBlockIndex)
         : StatementNode()
         , m_left(left)
         , m_right(right)
@@ -37,6 +37,7 @@ public:
         , m_hasLexicalDeclarationOnInit(hasLexicalDeclarationOnInit)
         , m_isForAwaitOf(isForAwaitOf)
         , m_headLexicalBlockIndex(headLexicalBlockIndex)
+        , m_headRightLexicalBlockIndex(headRightLexicalBlockIndex)
         , m_iterationLexicalBlockIndex(iterationLexicalBlockIndex)
     {
     }
@@ -166,8 +167,20 @@ public:
             auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredRegisterFileSizeInValueSize;
             codeBlock->m_requiredRegisterFileSizeInValueSize = 0;
 
+            size_t headRightLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
+            ByteCodeBlock::ByteCodeLexicalBlockContext headRightBlockContext;
+            if (m_headRightLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+                newContext.m_lexicalBlockIndex = m_headRightLexicalBlockIndex;
+                InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_headRightLexicalBlockIndex);
+                headRightBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+            }
             size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
             m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
+            if (m_headRightLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+                codeBlock->finalizeLexicalBlock(&newContext, headRightBlockContext);
+                newContext.m_lexicalBlockIndex = headRightLexicalBlockIndexBefore;
+            }
+
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this);
             size_t literalIdx = newContext.getLastRegisterIndex();
             newContext.giveUpRegister();
@@ -232,8 +245,19 @@ public:
             forOfEndCheckRegisterHeadStartPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this);
 
+            size_t headRightLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
+            ByteCodeBlock::ByteCodeLexicalBlockContext headRightBlockContext;
+            if (m_headRightLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+                newContext.m_lexicalBlockIndex = m_headRightLexicalBlockIndex;
+                InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_headRightLexicalBlockIndex);
+                headRightBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+            }
             size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
             m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
+            if (m_headRightLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+                codeBlock->finalizeLexicalBlock(&newContext, headRightBlockContext);
+                newContext.m_lexicalBlockIndex = headRightLexicalBlockIndexBefore;
+            }
 
             size_t getIteratorOperationPosition = codeBlock->currentCodeSize();
 
@@ -519,6 +543,7 @@ private:
     bool m_hasLexicalDeclarationOnInit;
     bool m_isForAwaitOf;
     LexicalBlockIndex m_headLexicalBlockIndex;
+    LexicalBlockIndex m_headRightLexicalBlockIndex;
     LexicalBlockIndex m_iterationLexicalBlockIndex;
 };
 }

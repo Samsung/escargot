@@ -892,6 +892,9 @@
   'global-accessors': [SKIP],
   'accessors-on-global-object': [SKIP],
 
+  # Unicode spec changed
+  'whitespaces': [SKIP],
+
 }],  # 'escargot == True'
 
 ]
