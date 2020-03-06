@@ -30,6 +30,10 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH 125
 #define ESCARGOT_DEBUGGER_VERSION 1
 #define ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY 10
+#define ESCARGOT_DEBUGGER_ALWAYS_STOP ((ExecutionState*)0x1)
+
+class ExecutionState;
+class InterpretedCodeBlock;
 
 class Debugger : public gc {
     friend Debugger* createDebugger(const char* options, bool* debuggerEnabled);
@@ -68,8 +72,9 @@ public:
     enum {
         ESCARGOT_MESSAGE_FUNCTION_RELEASED = 0,
         ESCARGOT_MESSAGE_UPDATE_BREAKPOINT = 1,
-        ESCARGOT_MESSAGE_STEP = 2,
-        ESCARGOT_MESSAGE_CONTINUE = 3,
+        ESCARGOT_MESSAGE_CONTINUE = 2,
+        ESCARGOT_MESSAGE_STEP = 3,
+        ESCARGOT_MESSAGE_NEXT = 4,
     };
 
     struct BreakpointLocation {
@@ -88,32 +93,41 @@ public:
         return m_enabled;
     }
 
-    inline void processDisabledBreakpoint(void* byteCodeStart, uint32_t offset)
+    inline void processDisabledBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state)
     {
-        if (!m_stop) {
+        if (m_stopState != ESCARGOT_DEBUGGER_ALWAYS_STOP && m_stopState != state) {
             m_delay = (uint8_t)(m_delay - 1);
             if (m_delay == 0) {
-                processIncomingMessages();
+                processIncomingMessages(state);
             }
         }
 
-        if (m_stop) {
-            stopAtBreakpoint(byteCodeStart, offset);
+        if (m_stopState == ESCARGOT_DEBUGGER_ALWAYS_STOP || m_stopState == state) {
+            stopAtBreakpoint(byteCodeStart, offset, state);
+        }
+    }
+
+    inline void beforeReturn(ExecutionState* state)
+    {
+        if (m_stopState == state) {
+            // Stop at the next breakpoint if a "next" operation targets the current function
+            m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
         }
     }
 
     void sendType(uint8_t type);
     void sendString(uint8_t type, StringView* string);
     void sendPointer(uint8_t type, const void* ptr);
+    void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
     void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
-    void stopAtBreakpoint(void* byteCodeStart, uint32_t offset);
+    void stopAtBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
 
 protected:
     Debugger()
         : m_enabled(false)
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
-        , m_stop(true)
+        , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
     {
     }
 
@@ -122,7 +136,7 @@ protected:
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
     virtual void close(void) = 0;
 
-    bool processIncomingMessages();
+    bool processIncomingMessages(ExecutionState* state);
 
     bool* m_debuggerEnabled;
     bool m_enabled;
@@ -139,13 +153,19 @@ private:
         uint8_t pointerSize;
     };
 
+    struct FunctionInfo {
+        uint8_t byteCodeStart[sizeof(void*)];
+        uint8_t startLine[sizeof(uint32_t)];
+        uint8_t startColumn[sizeof(uint32_t)];
+    };
+
     struct BreakpointOffset {
         uint8_t byteCodeStart[sizeof(void*)];
         uint8_t offset[sizeof(uint32_t)];
     };
 
     uint8_t m_delay;
-    bool m_stop;
+    ExecutionState* m_stopState;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
 };
 

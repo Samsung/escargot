@@ -800,6 +800,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(End)
             :
         {
+#ifdef ESCARGOT_DEBUGGER
+            Debugger* debugger = state->context()->debugger();
+            if (debugger && debugger->enabled()) {
+                debugger->beforeReturn(state);
+            }
+#endif /* ESCARGOT_DEBUGGER */
+
             End* code = (End*)programCounter;
             return registerFile[code->m_registerIndex];
         }
@@ -1320,7 +1327,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 #ifdef ESCARGOT_DEBUGGER
             Debugger* debugger = state->context()->debugger();
             if (debugger && debugger->enabled()) {
-                debugger->processDisabledBreakpoint(codeBuffer, (uint32_t)(programCounter - (size_t)codeBuffer));
+                debugger->processDisabledBreakpoint(codeBuffer, (uint32_t)(programCounter - (size_t)codeBuffer), state);
             }
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -1334,7 +1341,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 #ifdef ESCARGOT_DEBUGGER
             Debugger* debugger = state->context()->debugger();
             if (debugger && debugger->enabled()) {
-                debugger->stopAtBreakpoint(codeBuffer, (uint32_t)(programCounter - (size_t)codeBuffer));
+                debugger->stopAtBreakpoint(codeBuffer, (uint32_t)(programCounter - (size_t)codeBuffer), state);
             }
 #endif /* ESCARGOT_DEBUGGER */
 
