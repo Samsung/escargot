@@ -40,11 +40,29 @@ public:
         insertBreakpoint(context);
 #endif /* ESCARGOT_DEBUGGER */
 
+        bool shouldCareScriptExecutionResult = context->shouldCareScriptExecutionResult();
+        if (shouldCareScriptExecutionResult) {
+            // WithStatement : with ( Expression ) Statement
+            // [...]
+            // 8. Let C be the result of evaluating Statement.
+            // 9. Set the running execution context’s Lexical Environment to oldEnv.
+            // 10. If C.[[type]] is normal and C.[[value]] is empty, return
+            //     NormalCompletion(undefined).
+            // 11. Return Completion(C).
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+        }
+
         size_t start = codeBlock->currentCodeSize();
+        if (shouldCareScriptExecutionResult) {
+            context->getRegister();
+        }
         auto r = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, r);
         size_t withPos = codeBlock->currentCodeSize();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::With, withPos));
+        if (shouldCareScriptExecutionResult) {
+            context->giveUpRegister();
+        }
         codeBlock->pushCode(WithOperation(ByteCodeLOC(m_loc.index), r), context, this);
         context->giveUpRegister();
 

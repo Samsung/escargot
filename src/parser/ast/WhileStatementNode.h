@@ -41,6 +41,12 @@ public:
         insertBreakpoint(context);
 #endif /* ESCARGOT_DEBUGGER */
 
+        if (context->shouldCareScriptExecutionResult()) {
+            // IterationStatement : while ( Expression ) Statement
+            // 1. Let V = undefined.
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+        }
+
         ByteCodeGenerateContext newContext(*context);
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test

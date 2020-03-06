@@ -52,6 +52,8 @@ public:
         insertBreakpoint(context);
 #endif /* ESCARGOT_DEBUGGER */
 
+        bool shouldCareScriptExecutionResult = context->shouldCareScriptExecutionResult();
+
         // TODO remove iterationLexicalBlock if there is no capture from child blocks or self
         size_t headLexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext headBlockContext;
@@ -67,6 +69,12 @@ public:
 
         if (m_init && m_init->type() != ASTNodeType::RegExpLiteral) {
             m_init->generateStatementByteCode(codeBlock, &newContext);
+        }
+
+        if (shouldCareScriptExecutionResult) {
+            // 13.7.4.8 Runtime Semantics: ForBodyEvaluation
+            // 1. Let V = undefined.
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this);
         }
 
         // per iteration block
@@ -114,6 +122,10 @@ public:
         size_t testIndex = 0;
         size_t testPos = 0;
         if (m_test) {
+            // test dosen't affect script result
+            if (shouldCareScriptExecutionResult) {
+                newContext.getRegister();
+            }
             if (m_test->isRelationOperation()) {
                 m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
                 testPos = codeBlock->lastCodePosition<JumpIfRelation>();
@@ -125,6 +137,9 @@ public:
                 m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
                 codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
                 testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+                newContext.giveUpRegister();
+            }
+            if (shouldCareScriptExecutionResult) {
                 newContext.giveUpRegister();
             }
         }
@@ -170,10 +185,13 @@ public:
 
         size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
-            if (!context->shouldCareScriptExecutionResult()) {
+            if (!shouldCareScriptExecutionResult) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);
             } else {
+                // update dosen't affect script result
+                newContext.getRegister();
                 m_update->generateExpressionByteCode(codeBlock, &newContext, newContext.getRegister());
+                newContext.giveUpRegister();
                 newContext.giveUpRegister();
             }
         }

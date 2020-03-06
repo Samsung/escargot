@@ -134,6 +134,10 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
+        if (context->shouldCareScriptExecutionResult()) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+        }
+
         TryStatementByteCodeContext ctx;
         generateTryStatementStartByteCode(codeBlock, context, this, ctx);
 
