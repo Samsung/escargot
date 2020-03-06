@@ -1072,9 +1072,6 @@
     <test id="built-ins/NativeErrors/TypeError/prototype/not-error-object"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/URIError/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/URIError/prototype/not-error-object"><reason>TODO</reason></test>
-    <test id="built-ins/Number/S9.3.1_A2_U180E"><reason>TODO</reason></test>
-    <test id="built-ins/Number/S9.3.1_A3_T1_U180E"><reason>TODO</reason></test>
-    <test id="built-ins/Number/S9.3.1_A3_T2_U180E"><reason>TODO</reason></test>
     <test id="built-ins/Number/bigint-conversion"><reason>TODO</reason></test>
     <test id="built-ins/Number/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/Number/prototype/toExponential/range"><reason>TODO</reason></test>
@@ -1713,7 +1710,6 @@
     <test id="built-ins/RegExp/prototype/source/value-slash"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/sticky/cross-realm"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/unicode/cross-realm"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/u180e"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/Symbol.toStringTag"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/ancestry"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/next/custom-regexpexec"><reason>TODO</reason></test>
@@ -1821,7 +1817,6 @@
     <test id="built-ins/String/prototype/toLowerCase/special_casing_conditional"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/toString/non-generic-realm"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/toUpperCase/special_casing"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/trim/u180e"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/valueOf/non-generic-realm"><reason>TODO</reason></test>
     <test id="built-ins/String/raw/name"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/asyncIterator/cross-realm"><reason>TODO</reason></test>
@@ -2786,8 +2781,6 @@
     <test id="built-ins/WeakSet/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/global/global-object"><reason>TODO</reason></test>
     <test id="built-ins/global/property-descriptor"><reason>TODO</reason></test>
-    <test id="built-ins/parseFloat/S15.1.2.3_A2_T10_U180E"><reason>TODO</reason></test>
-    <test id="built-ins/parseInt/S15.1.2.2_A2_T10_U180E"><reason>TODO</reason></test>
     <test id="harness/deepEqual-primitives-bigint"><reason>TODO</reason></test>
     <test id="intl402/Array/prototype/toLocaleString/calls-toLocaleString-number-elements"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/builtin"><reason>TODO</reason></test>
@@ -8798,15 +8791,6 @@
     <test id="language/statements/class/subclass/class-definition-null-proto-this"><reason>TODO</reason></test>
     <test id="language/statements/class/super/in-constructor-superproperty-evaluation"><reason>TODO</reason></test>
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
-    <test id="language/statements/for-in/head-lhs-let"><reason>TODO</reason></test>
-    <test id="language/statements/for-in/head-var-bound-names-let"><reason>TODO</reason></test>
-    <test id="language/statements/for-in/scope-body-lex-open"><reason>TODO</reason></test>
-    <test id="language/statements/for-in/scope-head-lex-close"><reason>TODO</reason></test>
-    <test id="language/statements/for-in/scope-head-lex-open"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/head-var-bound-names-let"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/scope-body-lex-open"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/scope-head-lex-close"><reason>TODO</reason></test>
-    <test id="language/statements/for/head-lhs-let"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-const-body"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-let-body"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-lhs-body"><reason>TODO</reason></test>
@@ -8820,14 +8804,9 @@
     <test id="language/statements/generators/scope-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/statements/generators/scope-param-rest-elem-var-close"><reason>TODO</reason></test>
     <test id="language/statements/generators/scope-param-rest-elem-var-open"><reason>TODO</reason></test>
-    <test id="language/statements/if/let-block-with-newline"><reason>TODO</reason></test>
-    <test id="language/statements/if/let-identifier-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/if/tco-else-body"><reason>TODO</reason></test>
     <test id="language/statements/if/tco-if-body"><reason>TODO</reason></test>
-    <test id="language/statements/labeled/let-block-with-newline"><reason>TODO</reason></test>
-    <test id="language/statements/labeled/let-identifier-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/labeled/tco"><reason>TODO</reason></test>
-    <test id="language/statements/let/syntax/escaped-let"><reason>TODO</reason></test>
     <test id="language/statements/return/tco"><reason>TODO</reason></test>
     <test id="language/statements/switch/tco-case-body"><reason>TODO</reason></test>
     <test id="language/statements/switch/tco-case-body-dflt"><reason>TODO</reason></test>
@@ -8839,12 +8818,12 @@
     <test id="language/statements/try/tco-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-catch-finally"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-finally"><reason>TODO</reason></test>
-    <test id="language/statements/while/let-block-with-newline"><reason>TODO</reason></test>
-    <test id="language/statements/while/let-identifier-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/while/tco-body"><reason>TODO</reason></test>
-    <test id="language/statements/with/let-block-with-newline"><reason>TODO</reason></test>
-    <test id="language/statements/with/let-identifier-with-newline"><reason>TODO</reason></test>
     <test id="language/types/reference/get-value-prop-base-primitive-realm"><reason>TODO</reason></test>
     <test id="language/types/reference/put-value-prop-base-primitive-realm"><reason>TODO</reason></test>
+<<<<<<< HEAD
     <test id="language/white-space/mongolian-vowel-separator-eval"><reason>TODO</reason></test>
 </excludeList>
+=======
+</excludeList>
+>>>>>>> Fix bugs

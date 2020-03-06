@@ -1114,9 +1114,7 @@ public:
             if (!this->context->strict && !this->context->allowYield && this->matchKeyword(YieldKeyword)) {
                 return this->parseIdentifierName(builder);
             } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
-                ALLOC_TOKEN(token);
-                this->nextToken(token);
-                throwUnexpectedToken(*token);
+                return this->parseIdentifierName(builder);
             } else {
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
@@ -2971,7 +2969,8 @@ public:
                 statement = this->parseVariableStatement(builder, KeywordKind::ConstKeyword);
                 break;
             case LetKeyword:
-                statement = this->isLexicalDeclaration() ? this->parseLexicalDeclaration(builder, false) : this->parseStatement(builder);
+                // The `let` contextual keyword must not contain Unicode escape sequences
+                statement = (this->isLexicalDeclaration() && (this->lookahead.end - this->lookahead.start == 3)) ? this->parseLexicalDeclaration(builder, false) : this->parseStatement(builder);
                 break;
             case ClassKeyword:
                 statement = this->parseClassDeclaration(builder);
@@ -3574,54 +3573,83 @@ public:
                     this->expect(SemiColon);
                 }
             } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
-                isLexicalDeclaration = true;
-                const bool previousAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
-                this->context->allowLexicalDeclaration = true;
-
-                Scanner::ScannerResult keyword = this->lookahead;
-                KeywordKind kind = keyword.valueKeywordKind;
+                Marker letContstMarker = this->lastMarker;
+                Scanner::ScannerResult keywordToken = this->lookahead;
+                KeywordKind kind = keywordToken.valueKeywordKind;
                 this->nextToken();
 
-                if (!this->context->strict && this->matchKeyword(InKeyword)) {
-                    if (seenAwait) {
-                        this->throwUnexpectedToken(this->lookahead);
-                    }
+                // for (let = 1;...)
+                if (!this->context->strict && kind == LetKeyword && !this->matchKeyword(InKeyword) && !this->matchKeyword(YieldKeyword) && this->lookahead.type != Token::IdentifierToken
+                    && !this->match(PunctuatorKind::LeftSquareBracket) && !this->match(PunctuatorKind::LeftBrace)) {
+                    this->scanner->index = letContstMarker.index;
+                    this->scanner->lineNumber = letContstMarker.lineNumber;
+                    this->scanner->lineStart = letContstMarker.lineStart;
                     this->nextToken();
-                    left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keyword.relatedSource(this->scanner->sourceAsNormalView))));
-                    init = nullptr;
-                    type = statementTypeForIn;
-                } else {
-                    const bool previousAllowIn = this->context->allowIn;
+
+                    bool previousAllowIn = this->context->allowIn;
                     this->context->allowIn = false;
-
-                    DeclarationOptions opt;
-                    opt.inFor = true;
-                    opt.kind = kind;
-
-                    auto declarations = this->parseVariableDeclarationList(builder, opt);
-                    ASTNodeList declarationList = std::get<2>(declarations);
+                    ASTNodeType initNodeType;
+                    init = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+                    initNodeType = init->type();
                     this->context->allowIn = previousAllowIn;
 
-                    if (declarationList.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
-                        if (seenAwait) {
-                            this->throwUnexpectedToken(this->lookahead);
+                    if (this->match(Comma)) {
+                        ASTNodeList initSeq;
+                        initSeq.append(this->allocator, init);
+                        while (this->match(Comma)) {
+                            this->nextToken();
+                            initSeq.append(this->allocator, this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>));
                         }
-                        left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
-                        this->nextToken();
-                        type = statementTypeForIn;
-                    } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
-                        left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
-                        this->nextToken();
-                        type = statementTypeForOf;
-                    } else {
-                        if (seenAwait) {
-                            this->throwUnexpectedToken(this->lookahead);
-                        }
-                        init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
-                        this->expect(SemiColon);
+                        init = this->finalize(this->startNode(&keywordToken), builder.createSequenceExpressionNode(initSeq));
                     }
+                    this->expect(SemiColon);
+                } else {
+                    const bool previousAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
+                    this->context->allowLexicalDeclaration = true;
+
+                    if (!this->context->strict && this->matchKeyword(InKeyword)) {
+                        if (seenAwait) {
+                            this->throwUnexpectedToken(this->lookahead);
+                        }
+                        this->nextToken();
+                        left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keywordToken.relatedSource(this->scanner->sourceAsNormalView))));
+                        init = nullptr;
+                        type = statementTypeForIn;
+                    } else {
+                        isLexicalDeclaration = true;
+                        const bool previousAllowIn = this->context->allowIn;
+                        this->context->allowIn = false;
+
+                        DeclarationOptions opt;
+                        opt.inFor = true;
+                        opt.kind = kind;
+
+                        auto declarations = this->parseVariableDeclarationList(builder, opt);
+                        ASTNodeList declarationList = std::get<2>(declarations);
+                        this->context->allowIn = previousAllowIn;
+
+                        if (declarationList.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
+                            if (seenAwait) {
+                                this->throwUnexpectedToken(this->lookahead);
+                            }
+                            left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
+                            this->nextToken();
+                            type = statementTypeForIn;
+                        } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
+                            left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
+                            this->nextToken();
+                            type = statementTypeForOf;
+                        } else {
+                            if (seenAwait) {
+                                this->throwUnexpectedToken(this->lookahead);
+                            }
+                            init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
+                            this->expect(SemiColon);
+                        }
+                    }
+                    this->context->allowLexicalDeclaration = previousAllowLexicalDeclaration;
                 }
-                this->context->allowLexicalDeclaration = previousAllowLexicalDeclaration;
+
             } else {
                 ALLOC_TOKEN(initStartToken);
                 *initStartToken = this->lookahead;
@@ -3674,6 +3702,7 @@ public:
             this->context->firstCoverInitializedNameError.reset();
         }
 
+        ParserBlockContext headRightBlockContext;
         ParserBlockContext iterationBlockContext;
 
         if (type == statementTypeFor) {
@@ -3686,14 +3715,21 @@ public:
             if (!this->match(RightParenthesis)) {
                 update = this->parseExpression(builder);
             }
-        } else if (type == statementTypeForIn) {
-            ASSERT(left);
-            right = this->parseExpression(builder);
-            openBlock(iterationBlockContext);
         } else {
-            ASSERT(type == statementTypeForOf);
             ASSERT(left);
-            right = this->parseAssignmentExpression<ASTBuilder, false>(builder);
+            if (isLexicalDeclaration) {
+                auto oldBlockContext = this->currentBlockContext;
+                openBlock(headRightBlockContext);
+                this->currentBlockContext->m_names = oldBlockContext->m_names;
+            }
+            if (type == statementTypeForIn) {
+                right = this->parseExpression(builder);
+            } else {
+                right = this->parseAssignmentExpression<ASTBuilder, false>(builder);
+            }
+            if (isLexicalDeclaration) {
+                closeBlock(headRightBlockContext);
+            }
             openBlock(iterationBlockContext);
         }
 
@@ -3712,36 +3748,7 @@ public:
         this->context->inIteration = true;
         ASTNode body = nullptr;
 
-        // ExpressionStatement doesn't have a lookahead restriction for `let {`.
-        // ExpressionStatement[Yield, Await] :
-        //          [lookahead ∉ { {, function, async [no LineTerminator here] function, class, let [ }]
-        // Expression[+In, ?Yield, ?Await] ;
-        if (this->matchKeyword(KeywordKind::LetKeyword)) {
-            Scanner::ScannerResult prevToken;
-            this->nextToken(&prevToken);
-
-            /* for (; false; ) let {} */
-            if (this->match(PunctuatorKind::LeftBrace)) {
-                body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
-            } else {
-                /* for (;false;) let ; */
-                if (this->match(PunctuatorKind::SemiColon)) {
-                    this->nextToken();
-                    body = builder.createEmptyStatementNode();
-                }
-                /*
-                for (;false;) let
-                x = 0;
-                */
-                else if (this->lookahead.lineNumber != prevToken.lineNumber) {
-                    body = builder.createEmptyStatementNode();
-                } else {
-                    this->throwUnexpectedToken(this->lookahead);
-                }
-            }
-        } else {
-            body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
-        }
+        body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
 
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
@@ -3759,12 +3766,12 @@ public:
 
         if (type == statementTypeForIn) {
             ASSERT(!seenAwait);
-            ASTNode forInNode = builder.createForInOfStatementNode(left, right, body, true, isLexicalDeclaration, false, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+            ASTNode forInNode = builder.createForInOfStatementNode(left, right, body, true, isLexicalDeclaration, false, headBlockContext.childLexicalBlockIndex, headRightBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
             return this->finalize(node, forInNode);
         }
 
         ASSERT(type == statementTypeForOf);
-        ASTNode forOfNode = builder.createForInOfStatementNode(left, right, body, false, isLexicalDeclaration, seenAwait, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
+        ASTNode forOfNode = builder.createForInOfStatementNode(left, right, body, false, isLexicalDeclaration, seenAwait, headBlockContext.childLexicalBlockIndex, headRightBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
         return this->finalize(node, forOfNode);
     }
 

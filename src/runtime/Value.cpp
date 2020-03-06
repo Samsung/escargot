@@ -546,7 +546,6 @@ double Value::toNumberSlowCase(ExecutionState& state) const
                 case 0x0020:
                 case 0x00A0:
                 case 0x1680:
-                case 0x180E:
                 case 0x2000:
                 case 0x2001:
                 case 0x2002:
