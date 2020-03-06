@@ -53,8 +53,9 @@ ESCARGOT_MESSAGE_EXCEPTION_HIT = 21
 # Messages sent by the debugger client to Escargot.
 ESCARGOT_MESSAGE_FUNCTION_RELEASED = 0
 ESCARGOT_MESSAGE_UPDATE_BREAKPOINT = 1
-ESCARGOT_MESSAGE_STEP = 2
-ESCARGOT_MESSAGE_CONTINUE = 3
+ESCARGOT_MESSAGE_CONTINUE = 2
+ESCARGOT_MESSAGE_STEP = 3
+ESCARGOT_MESSAGE_NEXT = 4
 
 
 def arguments_parse():
@@ -91,6 +92,11 @@ class Breakpoint(object):
     def __str__(self):
         result = self.function.source_name or "<unknown>"
         result += ":%d" % (self.line)
+
+        if self.function.is_func:
+            result += " (in "
+            result += self.function.name or "function"
+            result += "() at line:%d, col:%d)" % (self.function.line, self.function.column)
         return result
 
     def __repr__(self):
@@ -99,14 +105,16 @@ class Breakpoint(object):
 
 class EscargotFunction(object):
     # pylint: disable=too-many-instance-attributes,too-many-arguments
-    def __init__(self, byte_code_ptr, source, source_name, name, locations):
-        self.byte_code_ptr = byte_code_ptr
+    def __init__(self, is_func, function_info, source, source_name, name, locations):
+        self.is_func = is_func
+        self.byte_code_ptr = function_info[0]
         self.source = re.split("\r\n|[\r\n]", source)
         self.source_name = source_name
         self.name = name
         self.lines = {}
         self.offsets = {}
-        self.line = locations[0][0]
+        self.line = function_info[1]
+        self.column = function_info[2]
         self.first_breakpoint_line = locations[0][0]
         self.first_breakpoint_offset = locations[0][1]
 
@@ -241,7 +249,7 @@ class Debugger(object):
 
         self.idx_format = "I"
 
-#        logging.debug("Compressed pointer size: %d", self.cp_size)
+        logging.debug("Pointer size: %d", self.pointer_size)
 
     def __del__(self):
         if self.channel is not None:
@@ -261,7 +269,7 @@ class Debugger(object):
             if not self.non_interactive:
                 if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
                     sys.stdin.readline()
-                    self.stop()
+                    self.step()
 
             if data == b'':
                 action_type = DebuggerAction.PROMPT if self.prompt else DebuggerAction.WAIT
@@ -336,6 +344,10 @@ class Debugger(object):
     def step(self):
         self.prompt = False
         self._exec_command(ESCARGOT_MESSAGE_STEP)
+
+    def next(self):
+        self.prompt = False
+        self._exec_command(ESCARGOT_MESSAGE_NEXT)
 
     def set_break(self, args):
         if not args:
@@ -432,6 +444,7 @@ class Debugger(object):
     def _parse_source(self, data):
         source = ""
         source_name = ""
+        is_func = False
         name = ""
         locations = []
 
@@ -496,11 +509,12 @@ class Debugger(object):
                     buffer_size -= 8
 
             elif buffer_type == ESCARGOT_MESSAGE_FUNCTION_PTR:
-                byte_code_ptr = struct.unpack(self.byte_order + self.pointer_format, data[1:])
-                logging.debug("Pointer %s received %d", source_name, byte_code_ptr[0])
+                function_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format, data[1:])
+                logging.debug("Pointer %s received %d", source_name, function_info[0])
 
-                function_list.append(EscargotFunction(byte_code_ptr[0], source, source_name, name, locations))
+                function_list.append(EscargotFunction(is_func, function_info, source, source_name, name, locations))
 
+                is_func = True
                 name = ""
                 locations = []
 

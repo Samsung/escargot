@@ -360,7 +360,7 @@ void ScriptParser::recursivelyGenerateByteCode(InterpretedCodeBlock* topCodeBloc
             }
 
             if (m_context->debugger()->enabled()) {
-                m_context->debugger()->sendPointer(Debugger::ESCARGOT_MESSAGE_FUNCTION_PTR, codeBlock->m_byteCodeBlock->m_code.data());
+                m_context->debugger()->sendFunctionInfo(codeBlock);
             }
         }
 
@@ -423,7 +423,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, programNode->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
 
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-            m_context->debugger()->sendPointer(Debugger::ESCARGOT_MESSAGE_FUNCTION_PTR, topCodeBlock->m_byteCodeBlock->m_code.data());
+            m_context->debugger()->sendFunctionInfo(topCodeBlock);
         }
 
         // reset ASTAllocator

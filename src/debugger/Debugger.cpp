@@ -71,6 +71,20 @@ void Debugger::sendPointer(uint8_t type, const void* ptr)
     send(type, (void*)&ptr, sizeof(void*));
 }
 
+void Debugger::sendFunctionInfo(InterpretedCodeBlock* codeBlock)
+{
+    char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
+    uint32_t startLine = (uint32_t)codeBlock->functionStart().line;
+    uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
+    FunctionInfo functionInfo;
+
+    memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(char*));
+    memcpy(&functionInfo.startLine, &startLine, sizeof(uint32_t));
+    memcpy(&functionInfo.startColumn, &startColumn, sizeof(uint32_t));
+
+    send(ESCARGOT_MESSAGE_FUNCTION_PTR, (void*)&functionInfo, sizeof(FunctionInfo));
+}
+
 void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations)
 {
     const size_t maxPacketLength = (ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1) / sizeof(BreakpointLocation);
@@ -88,7 +102,7 @@ void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>
     send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation));
 }
 
-void Debugger::stopAtBreakpoint(void* byteCodeStart, uint32_t offset)
+void Debugger::stopAtBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state)
 {
     BreakpointOffset breakpointOffset;
 
@@ -101,7 +115,9 @@ void Debugger::stopAtBreakpoint(void* byteCodeStart, uint32_t offset)
         return;
     }
 
-    while (processIncomingMessages())
+    m_stopState = nullptr;
+
+    while (processIncomingMessages(state))
         ;
 
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
@@ -114,7 +130,7 @@ void Debugger::releaseFunction(const void* ptr)
     sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
 }
 
-bool Debugger::processIncomingMessages()
+bool Debugger::processIncomingMessages(ExecutionState* state)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
     size_t length;
@@ -182,18 +198,25 @@ bool Debugger::processIncomingMessages()
 #endif
             return true;
         }
-        case ESCARGOT_MESSAGE_STEP: {
-            if (length != 1) {
-                break;
-            }
-            m_stop = true;
-            return false;
-        }
         case ESCARGOT_MESSAGE_CONTINUE: {
             if (length != 1) {
                 break;
             }
-            m_stop = false;
+            m_stopState = nullptr;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_STEP: {
+            if (length != 1) {
+                break;
+            }
+            m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_NEXT: {
+            if (length != 1) {
+                break;
+            }
+            m_stopState = state;
             return false;
         }
         }

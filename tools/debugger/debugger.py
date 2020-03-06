@@ -133,6 +133,8 @@ class DebuggerPrompt(Cmd):
             line_num = src_check_args(args)
             if line_num >= 0:
                 write(self.debugger.print_source(line_num, 0))
+        else:
+            write(self.debugger.print_source(0, 0))
     do_source = do_src
 
     def do_scroll(self, _):
