@@ -130,11 +130,11 @@ public:
         return m_promiseResult;
     }
 
-    PromiseObject* then(ExecutionState& state, Value handler);
-    PromiseObject* catchOperation(ExecutionState& state, Value handler);
+    Object* then(ExecutionState& state, Value handler);
+    Object* catchOperation(ExecutionState& state, Value handler);
     // http://www.ecma-international.org/ecma-262/10.0/#sec-performpromisethen
     // You can get return value when you give resultCapability
-    Optional<PromiseObject*> then(ExecutionState& state, Value onFulfilled, Value onRejected, Optional<PromiseReaction::Capability> resultCapability = Optional<PromiseReaction::Capability>());
+    Optional<Object*> then(ExecutionState& state, Value onFulfilled, Value onRejected, Optional<PromiseReaction::Capability> resultCapability = Optional<PromiseReaction::Capability>());
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

@@ -62,7 +62,7 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
 
 static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
 {
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-promise.all
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-promise.all
     auto strings = &state.context()->staticStrings();
 
     // Let C be the this value.
@@ -383,10 +383,8 @@ void GlobalObject::installPromise(ExecutionState& state)
         m_promise->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_promisePrototype = m_objectPrototype;
-    m_promisePrototype = new PromiseObject(state);
+    m_promisePrototype = new Object(state);
     m_promisePrototype->markThisObjectDontNeedStructureTransitionTable();
-    m_promisePrototype->setPrototype(state, m_objectPrototype);
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

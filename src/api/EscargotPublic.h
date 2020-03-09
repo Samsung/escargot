@@ -1302,9 +1302,9 @@ public:
     PromiseState state();
     ValueRef* promiseResult();
 
-    PromiseObjectRef* then(ExecutionStateRef* state, ValueRef* handler);
-    PromiseObjectRef* catchOperation(ExecutionStateRef* state, ValueRef* handler);
-    PromiseObjectRef* then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected);
+    ObjectRef* then(ExecutionStateRef* state, ValueRef* handler);
+    ObjectRef* catchOperation(ExecutionStateRef* state, ValueRef* handler);
+    ObjectRef* then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected);
     void fulfill(ExecutionStateRef* state, ValueRef* value);
     void reject(ExecutionStateRef* state, ValueRef* reason);
 };
