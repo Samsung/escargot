@@ -1187,9 +1187,6 @@
     <test id="built-ins/Promise/allSettled/returns-promise"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettled/species-get-error"><reason>TODO</reason></test>
     <test id="built-ins/Promise/proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/prototype/no-promise-state"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/prototype/then/capability-executor-called-twice"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/prototype/then/deferred-is-resolved-value"><reason>TODO</reason></test>
     <test id="built-ins/Promise/race/invoke-resolve-get-error-close"><reason>TODO</reason></test>
     <test id="built-ins/Promise/race/invoke-resolve-get-once-multiple-calls"><reason>TODO</reason></test>
     <test id="built-ins/Promise/race/invoke-resolve-get-once-no-calls"><reason>TODO</reason></test>

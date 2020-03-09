@@ -2280,17 +2280,17 @@ ValueRef* PromiseObjectRef::promiseResult()
     return toRef(toImpl(this)->promiseResult());
 }
 
-PromiseObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* handler)
+ObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* handler)
 {
     return toRef(toImpl(this)->then(*toImpl(state), toImpl(handler)));
 }
 
-PromiseObjectRef* PromiseObjectRef::catchOperation(ExecutionStateRef* state, ValueRef* handler)
+ObjectRef* PromiseObjectRef::catchOperation(ExecutionStateRef* state, ValueRef* handler)
 {
     return toRef(toImpl(this)->catchOperation(*toImpl(state), toImpl(handler)));
 }
 
-PromiseObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected)
+ObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected)
 {
     return toRef(toImpl(this)->then(*toImpl(state), toImpl(onFulfilled), toImpl(onRejected), toImpl(this)->newPromiseResultCapability(*toImpl(state))).value());
 }

@@ -154,17 +154,17 @@ PromiseReaction::Capability PromiseObject::newPromiseResultCapability(ExecutionS
     return PromiseObject::newPromiseCapability(state, C.toObject(state));
 }
 
-PromiseObject* PromiseObject::then(ExecutionState& state, Value handler)
+Object* PromiseObject::then(ExecutionState& state, Value handler)
 {
     return then(state, handler, Value(), newPromiseResultCapability(state)).value();
 }
 
-PromiseObject* PromiseObject::catchOperation(ExecutionState& state, Value handler)
+Object* PromiseObject::catchOperation(ExecutionState& state, Value handler)
 {
     return then(state, Value(), handler, newPromiseResultCapability(state)).value();
 }
 
-Optional<PromiseObject*> PromiseObject::then(ExecutionState& state, Value onFulfilledValue, Value onRejectedValue, Optional<PromiseReaction::Capability> resultCapability)
+Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledValue, Value onRejectedValue, Optional<PromiseReaction::Capability> resultCapability)
 {
     Object* onFulfilled = onFulfilledValue.isCallable() ? onFulfilledValue.asObject() : (Object*)(1);
     Object* onRejected = onRejectedValue.isCallable() ? onRejectedValue.asObject() : (Object*)(2);
@@ -191,7 +191,7 @@ Optional<PromiseObject*> PromiseObject::then(ExecutionState& state, Value onFulf
     }
 
     if (resultCapability) {
-        return capability.m_promise->asPromiseObject();
+        return capability.m_promise;
     } else {
         return nullptr;
     }
