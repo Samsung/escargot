@@ -54,9 +54,28 @@ public:
         m_line = line;
     }
 
+    virtual bool isEmptyStatement(void)
+    {
+        return false;
+    }
+
     inline void insertBreakpoint(ByteCodeGenerateContext* context)
     {
         context->insertBreakpoint(m_line, this);
+    }
+
+    void insertEmptyStatementBreakpoint(ByteCodeGenerateContext* context, Node* node)
+    {
+        // The first statement of a loop always stops (even if it is an empty statement).
+        // Otherwise the debugger may not be able to track the iterations of a loop.
+        context->m_breakpointContext->m_lastBreakpointLine = 0;
+
+        if (node->type() == ASTNodeType::EmptyStatement || node->type() == ASTNodeType::BlockStatement) {
+            StatementNode* statementNode = reinterpret_cast<StatementNode*>(node);
+            if (statementNode->isEmptyStatement()) {
+                context->insertBreakpoint(statementNode->m_line, node);
+            }
+        }
     }
 #endif /* ESCARGOT_DEBUGGER */
 

@@ -74,6 +74,9 @@ public:
 
         newContext.giveUpRegister();
 
+#ifdef ESCARGOT_DEBUGGER
+        insertEmptyStatementBreakpoint(context, m_body);
+#endif /* ESCARGOT_DEBUGGER */
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), whileStart), &newContext, this);

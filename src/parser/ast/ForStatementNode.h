@@ -146,6 +146,9 @@ public:
 
         newContext.giveUpRegister();
 
+#ifdef ESCARGOT_DEBUGGER
+        insertEmptyStatementBreakpoint(context, m_body);
+#endif /* ESCARGOT_DEBUGGER */
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         // replace env if needed

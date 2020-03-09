@@ -151,6 +151,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
 #ifdef ESCARGOT_DEBUGGER
     ByteCodeBreakpointContext breakpointContext;
+    breakpointContext.m_lastBreakpointLine = 0;
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 

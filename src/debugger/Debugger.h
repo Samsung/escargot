@@ -107,11 +107,11 @@ public:
         }
     }
 
-    inline void beforeReturn(ExecutionState* state)
+    static inline void updateStopState(Debugger* debugger, ExecutionState* state, ExecutionState* newState)
     {
-        if (m_stopState == state) {
+        if (debugger != nullptr && debugger->m_stopState == state) {
             // Stop at the next breakpoint if a "next" operation targets the current function
-            m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+            debugger->m_stopState = newState;
         }
     }
 
