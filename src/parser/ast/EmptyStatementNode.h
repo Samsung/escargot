@@ -36,6 +36,13 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
     }
+
+#ifdef ESCARGOT_DEBUGGER
+    virtual bool isEmptyStatement(void)
+    {
+        return true;
+    }
+#endif /* ESCARGOT_DEBUGGER */
 };
 }
 

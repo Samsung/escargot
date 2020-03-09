@@ -801,10 +801,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
 #ifdef ESCARGOT_DEBUGGER
-            Debugger* debugger = state->context()->debugger();
-            if (debugger && debugger->enabled()) {
-                debugger->beforeReturn(state);
-            }
+            Debugger::updateStopState(state->context()->debugger(), state, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
 
             End* code = (End*)programCounter;
@@ -2214,6 +2211,10 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state->context()->debugger(), state, newState);
+#endif /* ESCARGOT_DEBUGGER */
+
     if (!LIKELY(inPauserResumeProcess)) {
         if (!state->ensureRareData()->m_controlFlowRecord) {
             state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -2229,6 +2230,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
             clearStack<512>();
             if (UNLIKELY(code->m_isTryResumeProcess)) {
+#ifdef ESCARGOT_DEBUGGER
+                Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
+#endif /* ESCARGOT_DEBUGGER */
                 state = newState->parent();
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
                 newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
@@ -2237,6 +2241,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             newState->m_inTryStatement = oldInTryStatement;
         } catch (const Value& val) {
             if (UNLIKELY(code->m_isTryResumeProcess)) {
+#ifdef ESCARGOT_DEBUGGER
+                Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
+#endif /* ESCARGOT_DEBUGGER */
                 state = newState->parent();
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
                 newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
@@ -2286,6 +2293,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     } else if (code->m_hasFinalizer) {
         if (UNLIKELY(code->m_isTryResumeProcess || code->m_isCatchResumeProcess)) {
+#ifdef ESCARGOT_DEBUGGER
+            Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
+#endif /* ESCARGOT_DEBUGGER */
             state = newState->parent();
             code = (TryOperation*)(codeBuffer + newState->rareData()->m_programCounterWhenItStoppedByYield);
             newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
@@ -2296,6 +2306,10 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     }
 
     clearStack<512>();
+
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state->context()->debugger(), newState, state);
+#endif /* ESCARGOT_DEBUGGER */
 
     ControlFlowRecord* record = state->rareData()->m_controlFlowRecord->back();
     state->rareData()->m_controlFlowRecord->erase(state->rareData()->m_controlFlowRecord->size() - 1);
@@ -2488,6 +2502,10 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state->context()->debugger(), state, newState);
+#endif /* ESCARGOT_DEBUGGER */
+
     size_t newPc = programCounter + sizeof(WithOperation);
     char* codeBuffer = byteCodeBlock->m_code.data();
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
@@ -2496,6 +2514,10 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
         state = newState->parent();
         code = (WithOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
+
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state->context()->debugger(), newState, state);
+#endif /* ESCARGOT_DEBUGGER */
 
     ControlFlowRecord* record = state->rareData()->m_controlFlowRecord->back();
     state->rareData()->m_controlFlowRecord->erase(state->rareData()->m_controlFlowRecord->size() - 1);
@@ -2596,6 +2618,10 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, newEnv, state->inStrictMode());
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state->context()->debugger(), state, newState);
+#endif /* ESCARGOT_DEBUGGER */
+
     if (!LIKELY(inPauserResumeProcess)) {
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
@@ -2606,6 +2632,10 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         state = newState->parent();
         code = (BlockOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
+
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state->context()->debugger(), newState, state);
+#endif /* ESCARGOT_DEBUGGER */
 
     ControlFlowRecord* record = state->rareData()->m_controlFlowRecord->back();
     state->rareData()->m_controlFlowRecord->erase(state->rareData()->m_controlFlowRecord->size() - 1);

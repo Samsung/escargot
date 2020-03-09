@@ -93,6 +93,9 @@ public:
             }
         }
 
+#ifdef ESCARGOT_DEBUGGER
+        insertEmptyStatementBreakpoint(context, m_body);
+#endif /* ESCARGOT_DEBUGGER */
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {

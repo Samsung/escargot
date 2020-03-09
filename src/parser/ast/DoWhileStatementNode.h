@@ -49,6 +49,10 @@ public:
             // 1. Let V = undefined.
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this);
         }
+
+#ifdef ESCARGOT_DEBUGGER
+        insertEmptyStatementBreakpoint(context, m_body);
+#endif /* ESCARGOT_DEBUGGER */
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test

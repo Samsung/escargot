@@ -72,6 +72,20 @@ public:
         m_container->iterateChildren(fn);
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    virtual bool isEmptyStatement(void)
+    {
+        StatementNode* node = firstChild();
+        while (node) {
+            if (!node->isEmptyStatement()) {
+                return false;
+            }
+            node = node->nextSibling();
+        }
+
+        return true;
+    }
+#endif /* ESCARGOT_DEBUGGER */
 
 private:
     StatementContainer* m_container;
