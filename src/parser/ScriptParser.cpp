@@ -476,8 +476,10 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
     printf(" ");
 
         PRINT_TAB()
-        printf("CodeBlock %p %s %s(%d:%d -> %d:%d, block %d, body %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
-               cb->m_isStrict ? "Strict" : "",
+        printf("CodeBlock %p %s %s%s%s(%d:%d -> %d:%d, block %d, body %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
+               cb->m_isStrict ? "Strict " : "",
+               cb->m_isGenerator ? "Generator " : "",
+               cb->m_isAsync ? "Async" : "",
                (int)cb->m_functionStart.line,
                (int)cb->m_functionStart.column,
                (int)cb->m_bodyEndLOC.line,
