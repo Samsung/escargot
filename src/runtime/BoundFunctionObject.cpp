@@ -67,7 +67,7 @@ Value BoundFunctionObject::call(ExecutionState& state, const Value& thisValue, c
 // https://www.ecma-international.org/ecma-262/6.0/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
 Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget)
 {
-    ASSERT(isConstructor());
+    ASSERT(m_boundTargetFunction && m_boundTargetFunction->isConstructor());
 
     // Let target be the value of F’s [[BoundTargetFunction]] internal slot.
     // Let boundArgs be the value of F’s [[BoundArguments]] internal slot.

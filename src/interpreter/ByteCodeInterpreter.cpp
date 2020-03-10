@@ -889,7 +889,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             NewOperation* code = (NewOperation*)programCounter;
-            registerFile[code->m_resultIndex] = Object::construct(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            registerFile[code->m_resultIndex] = constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
             ADD_PROGRAM_COUNTER(NewOperation);
             NEXT_INSTRUCTION();
         }
@@ -1229,7 +1229,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             {
                 ValueVector spreadArgs;
                 spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                registerFile[code->m_resultIndex] = Object::construct(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+                registerFile[code->m_resultIndex] = constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
             }
 
             ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
@@ -2645,6 +2645,18 @@ NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     // https://www.ecma-international.org/ecma-262/5.1/#sec-11.8.7
     // Return the result of calling the [[HasProperty]] internal method of rval with argument ToString(lval).
     return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
+{
+    if (!constructor.isConstructor()) {
+        if (constructor.isFunction()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
+    }
+
+    return constructor.asPointerValue()->construct(state, argc, argv, constructor.asObject());
 }
 
 NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
