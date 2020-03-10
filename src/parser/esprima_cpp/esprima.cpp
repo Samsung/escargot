@@ -1544,6 +1544,7 @@ public:
         extractNamesFromFunctionParams(params);
 
         this->context->await = isAsyncFunction;
+        this->context->allowYield = isGenerator;
         this->parsePropertyMethod(newBuilder, params);
 
         this->context->allowNewTarget = previousAllowNewTarget;
@@ -1716,7 +1717,7 @@ public:
                     this->addImplicitName(valueNode, keyNode->asIdentifier()->name());
                 }
             } else if (this->match(LeftParenthesis)) {
-                valueNode = this->parsePropertyMethodFunction(builder, false, false, isAsync, node);
+                valueNode = this->parsePropertyMethodFunction(builder, false, isGenerator, isAsync, node);
                 method = true;
             } else {
                 if (token->type != Token::IdentifierToken) {
