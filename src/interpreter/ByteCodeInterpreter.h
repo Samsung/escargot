@@ -115,6 +115,7 @@ private:
     static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);
+    static Value constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv);
     static void callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
 
