@@ -24,16 +24,22 @@
 
 namespace Escargot {
 
-#define DEFINE_FN(Type, type, siz)                                                                              \
-    template <>                                                                                                 \
-    void TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectPrototypeFiller(ExecutionState& state)           \
-    {                                                                                                           \
-        setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->type##ArrayPrototype()); \
-    }                                                                                                           \
-    template <>                                                                                                 \
-    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty(ExecutionState& state)              \
-    {                                                                                                           \
-        return #Type "Array";                                                                                   \
+#define DEFINE_FN(Type, type, siz)                                                                                                      \
+    template <>                                                                                                                         \
+    void TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectPrototypeFiller(ExecutionState& state)                                   \
+    {                                                                                                                                   \
+        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->type##ArrayPrototype());                 \
+    }                                                                                                                                   \
+    template <>                                                                                                                         \
+    void TypedArrayObject<Type##Adaptor, siz>::setPrototypeFromConstructor(ExecutionState& state, Object* newTarget)                    \
+    {                                                                                                                                   \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->type##ArrayPrototype()); \
+        Object::setPrototypeForIntrinsicObjectCreation(state, proto);                                                                   \
+    }                                                                                                                                   \
+    template <>                                                                                                                         \
+    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty(ExecutionState& state)                                      \
+    {                                                                                                                                   \
+        return #Type "Array";                                                                                                           \
     }
 
 DEFINE_FN(Int8, int8, 1);

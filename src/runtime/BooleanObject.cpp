@@ -30,6 +30,13 @@ BooleanObject::BooleanObject(ExecutionState& state, bool value)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->booleanPrototype());
 }
 
+BooleanObject::BooleanObject(ExecutionState& state, Object* proto, bool value)
+    : Object(state)
+    , m_primitiveValue(value)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
+
 void* BooleanObject::operator new(size_t size)
 {
     static bool typeInited = false;

@@ -36,17 +36,15 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
 
     // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
     // Set map's [[MapData]] internal slot to a new empty List.
-    WeakMapObject* map = new WeakMapObject(state);
-    // If iterable is not present, or is either undefined or null, return map.
-    Value iterable;
-    if (argc > 0) {
-        iterable = argv[0];
-    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->weakMapPrototype());
+    WeakMapObject* map = new WeakMapObject(state, proto);
 
     // If iterable is not present, or is either undefined or null, return map.
-    if (iterable.isUndefinedOrNull()) {
+    if (argc == 0 || argv[0].isUndefinedOrNull()) {
         return map;
     }
+
+    Value iterable = argv[0];
 
     // Let adder be ? Get(map, "set").
     Value adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);

@@ -36,17 +36,15 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
 
     // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
     // Set map's [[MapData]] internal slot to a new empty List.
-    MapObject* map = new MapObject(state);
-    // If iterable is not present, let iterable be undefined.
-    Value iterable;
-    if (argc > 0) {
-        iterable = argv[0];
-    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->mapPrototype());
+    MapObject* map = new MapObject(state, proto);
 
     // If iterable is not present, or is either undefined or null, return map.
-    if (iterable.isUndefinedOrNull()) {
+    if (argc == 0 || argv[0].isUndefinedOrNull()) {
         return map;
     }
+
+    Value iterable = argv[0];
 
     // Let adder be ? Get(map, "set").
     Value adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);

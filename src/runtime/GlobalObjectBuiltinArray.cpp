@@ -51,7 +51,16 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
         }
     }
 
+    // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
+    if (newTarget.isUndefined()) {
+        newTarget = state.resolveCallee();
+    }
+
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, "%ArrayPrototype%").
+    // Let array be ! ArrayCreate(0, proto).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->arrayPrototype());
     ArrayObject* array = new ArrayObject(state, (uint64_t)size);
+    array->setPrototype(state, proto);
 
     if (interpretArgumentsAsElements) {
         Value val = argv[0];

@@ -44,7 +44,10 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise executor is not a function object");
     }
 
-    PromiseObject* promise = new PromiseObject(state);
+    // Let promise be ? OrdinaryCreateFromConstructor(NewTarget, "%PromisePrototype%", « [[PromiseState]], [[PromiseResult]], [[PromiseFulfillReactions]], [[PromiseRejectReactions]], [[PromiseIsHandled]] »).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->promisePrototype());
+    PromiseObject* promise = new PromiseObject(state, proto);
+
     PromiseReaction::Capability capability = promise->createResolvingFunctions(state);
 
     SandBox sb(state.context());

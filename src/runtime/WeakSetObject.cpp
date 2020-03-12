@@ -30,6 +30,12 @@ WeakSetObject::WeakSetObject(ExecutionState& state)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->weakSetPrototype());
 }
 
+WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
+    : Object(state)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
+
 void* WeakSetObject::operator new(size_t size)
 {
     static bool typeInited = false;

@@ -37,7 +37,8 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
 
     // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%SetPrototype%", « [[SetData]] »).
     // Set set's [[SetData]] internal slot to a new empty List.
-    SetObject* set = new SetObject(state);
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->setPrototype());
+    SetObject* set = new SetObject(state, proto);
 
     // If iterable is not present, let iterable be undefined.
     Value iterable;

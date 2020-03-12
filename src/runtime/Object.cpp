@@ -440,6 +440,13 @@ Object::Object(ExecutionState& state)
     initPlainObject(state);
 }
 
+Object::Object(ExecutionState& state, Object* proto)
+    : m_structure(state.context()->defaultStructureForObject())
+{
+    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+    m_prototype = proto;
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-isconcatspreadable
 bool Object::isConcatSpreadable(ExecutionState& state)
 {
@@ -1042,6 +1049,26 @@ Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyN
     }
     // 6. Return func.
     return Optional<Object*>(func.asObject());
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-getprototypefromconstructor
+Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* constructor, const Value& intrinsicDefaultProto)
+{
+    // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
+    // Assert: IsCallable(constructor) is true.
+    ASSERT(constructor->isCallable());
+
+    // Let proto be ? Get(constructor, "prototype").
+    Value proto = constructor->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, constructor);
+
+    // If Type(proto) is not Object, then
+    if (!proto.isObject()) {
+        // Let realm be ? GetFunctionRealm(constructor).
+        // Set proto to realm's intrinsic object named intrinsicDefaultProto.
+        proto = intrinsicDefaultProto;
+    }
+    // Return proto.
+    return proto.asObject();
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-call

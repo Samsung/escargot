@@ -33,6 +33,7 @@ class SetObject : public Object {
 public:
     typedef TightVector<SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> SetObjectData;
     explicit SetObject(ExecutionState& state);
+    explicit SetObject(ExecutionState& state, Object* proto);
 
     virtual bool isSetObject() const override
     {

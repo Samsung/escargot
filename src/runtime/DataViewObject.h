@@ -35,6 +35,12 @@ public:
         Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->dataViewPrototype());
     }
 
+    explicit DataViewObject(ExecutionState& state, Object* proto)
+        : ArrayBufferView(state)
+    {
+        Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+    }
+
     virtual TypedArrayType typedArrayType()
     {
         RELEASE_ASSERT_NOT_REACHED();

@@ -38,7 +38,8 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
 
     // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakSetPrototype%", « [[WeakSetData]] »).
     // Set set's [[WeakSetData]] internal slot to a new empty List.
-    WeakSetObject* set = new WeakSetObject(state);
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->weakSetPrototype());
+    WeakSetObject* set = new WeakSetObject(state, proto);
 
     // If iterable is not present, let iterable be undefined.
     Value iterable;

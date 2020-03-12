@@ -33,6 +33,13 @@ NumberObject::NumberObject(ExecutionState& state, double value)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->numberPrototype());
 }
 
+NumberObject::NumberObject(ExecutionState& state, Object* proto, double value)
+    : Object(state)
+    , m_primitiveValue(value)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
+
 void* NumberObject::operator new(size_t size)
 {
     static bool typeInited = false;

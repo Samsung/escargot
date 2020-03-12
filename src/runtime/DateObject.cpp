@@ -162,6 +162,14 @@ DateObject::DateObject(ExecutionState& state)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->datePrototype());
 }
 
+DateObject::DateObject(ExecutionState& state, Object* proto)
+    : Object(state)
+    , m_primitiveValue(TIME64NAN)
+    , m_cachedLocal()
+    , m_isCacheDirty(false)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
 
 void DateObject::initCachedUTC(ExecutionState& state, DateObject* d)
 {

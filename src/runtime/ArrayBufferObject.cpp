@@ -24,6 +24,15 @@
 
 namespace Escargot {
 
+ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Value constructor)
+{
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
+    Object* proto = Object::getPrototypeFromConstructor(state, constructor.asObject(), state.context()->globalObject()->arrayBufferPrototype());
+    ArrayBufferObject* obj = new ArrayBufferObject(state, proto);
+
+    return obj;
+}
+
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
     , m_context(state.context())
@@ -31,6 +40,24 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
     , m_bytelength(0)
 {
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->arrayBufferPrototype());
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
+                                            void*) {
+        ArrayBufferObject* self = (ArrayBufferObject*)obj;
+        if (self->m_data) {
+            self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
+        }
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+    , m_context(state.context())
+    , m_data(nullptr)
+    , m_bytelength(0)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {

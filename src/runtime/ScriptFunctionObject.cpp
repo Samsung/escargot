@@ -136,26 +136,13 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
     // Let kind be F’s [[ConstructorKind]] internal slot.
     ASSERT(constructorKind() == ConstructorKind::Base); // this is always `Base` because we define ScriptClassConsturctor::construct
 
-    CodeBlock* cb = codeBlock();
-    FunctionObject* constructor = this;
-    // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-    // OrdinaryCreateFromConstructor -> Let proto be GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
-    // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be Get(constructor, "prototype").
-    Value proto = newTarget->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, newTarget);
-
-    // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> If Type(proto) is not Object, then
-    // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let realm be GetFunctionRealm(constructor).
-    // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> ReturnIfAbrupt(realm).
-    // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be realm’s intrinsic object named intrinsicDefaultProto.
-    if (!proto.isObject()) {
-        proto = codeBlock()->context()->globalObject()->objectPrototype();
-    }
-
+    // Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->objectPrototype());
     Object* thisArgument = new Object(state);
     // Set the [[Prototype]] internal slot of obj to proto.
     thisArgument->setPrototype(state, proto);
-    // ReturnIfAbrupt(thisArgument).
 
+    // ReturnIfAbrupt(thisArgument).
     return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 

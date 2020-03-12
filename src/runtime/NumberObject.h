@@ -30,6 +30,7 @@ namespace Escargot {
 class NumberObject : public Object {
 public:
     NumberObject(ExecutionState& state, double value = 0);
+    NumberObject(ExecutionState& state, Object* proto, double value);
 
     double primitiveValue()
     {

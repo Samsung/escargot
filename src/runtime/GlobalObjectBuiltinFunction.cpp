@@ -50,7 +50,16 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
 
-    return new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
+    if (newTarget.isUndefined()) {
+        newTarget = state.resolveCallee();
+    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->functionPrototype());
+
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+    result->setPrototype(state, proto);
+
+    return result;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring

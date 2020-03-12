@@ -48,8 +48,10 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
         return s;
     }
 
-    // TODO StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%StringPrototype%")).
+    // StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%StringPrototype%")).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->stringPrototype());
     StringObject* resultString = new StringObject(state);
+    resultString->setPrototype(state, proto);
     resultString->setPrimitiveValue(state, s);
 
     return resultString;

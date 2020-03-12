@@ -84,8 +84,8 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, si
     if (newTarget.isUndefined()) {
         return Value(num);
     } else {
-        NumberObject* numObj = new NumberObject(state);
-        numObj->setPrimitiveValue(state, num);
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->numberPrototype());
+        NumberObject* numObj = new NumberObject(state, proto, num);
         return numObj;
     }
 }
