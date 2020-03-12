@@ -28,7 +28,7 @@
 
 namespace Escargot {
 
-static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value pattern = argv[0];
     Value flags = argv[1];
@@ -70,7 +70,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     return regexp;
 }
 
-static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, exec);
     if (!thisObject->isRegExpObject()) {
@@ -128,10 +128,10 @@ static Value regExpExec(ExecutionState& state, Object* R, String* S)
         }
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), errorMessage_GlobalObject_ThisNotObject);
     }
-    return builtinRegExpExec(state, R, 1, arg, false);
+    return builtinRegExpExec(state, R, 1, arg, Value());
 }
 
-static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
     if (!thisObject->isRegExpObject()) {
@@ -158,7 +158,7 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
     return Value(testResult);
 }
 
-static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotObject);
@@ -182,7 +182,7 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
     return builder.finalize(&state);
 }
 
-static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isPointerValue() || !thisValue.asPointerValue()->isObject() || !thisValue.asPointerValue()->asObject()->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'This' is not a RegExp object");
@@ -206,7 +206,7 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
 
     return retVal;
 }
-static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // $21.2.5.9 RegExp.prototype[@@search]
     RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, search);
@@ -229,7 +229,7 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
 }
 
 // $21.2.5.11 RegExp.prototype[@@split]
-static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
@@ -372,7 +372,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     return A;
 }
 
-static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ASSERT(argc == 0 || argv != nullptr);
     Value rx = thisValue;
@@ -481,7 +481,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     return Value(builder.finalize(&state));
 }
 
-static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value rx = thisValue;
 
@@ -551,7 +551,7 @@ static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisVa
     return Value((bool)(thisValue.asObject()->asRegExpObject()->option() & option));
 }
 
-static Value builtinRegExpFlagsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpFlagsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-object");
@@ -560,27 +560,27 @@ static Value builtinRegExpFlagsGetter(ExecutionState& state, Value thisValue, si
     return Value(thisValue.asObject()->optionString(state));
 }
 
-static Value builtinRegExpGlobalGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpGlobalGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Global);
 }
 
-static Value builtinRegExpDotAllGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpDotAllGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::DotAll);
 }
 
-static Value builtinRegExpIgnoreCaseGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpIgnoreCaseGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::IgnoreCase);
 }
 
-static Value builtinRegExpMultiLineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpMultiLineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::MultiLine);
 }
 
-static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
@@ -589,12 +589,12 @@ static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, s
     return Value(thisValue.asObject()->asRegExpObject()->source());
 }
 
-static Value builtinRegExpStickyGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpStickyGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Sticky);
 }
 
-static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }

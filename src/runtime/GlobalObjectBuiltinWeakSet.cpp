@@ -29,10 +29,10 @@
 namespace Escargot {
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-weakset-constructor
-Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
@@ -92,7 +92,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
     }                                                                                                                                                                                                                                          \
     WeakSetObject* NAME = thisValue.asObject()->asWeakSetObject();
 
-static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, WeakSet, add);
     if (!argv[0].isObject()) {
@@ -103,7 +103,7 @@ static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t ar
     return S;
 }
 
-static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, WeakSet, stringDelete);
     if (!argv[0].isObject()) {
@@ -113,7 +113,7 @@ static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t
     return Value(S->deleteOperation(state, argv[0].asObject()));
 }
 
-static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, WeakSet, has);
     if (!argv[0].isObject()) {

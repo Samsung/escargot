@@ -26,10 +26,12 @@
 
 namespace Escargot {
 
-static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ErrorObject* obj = new ErrorObject(state, String::emptyString);
-    if (isNewExpression) {
+
+    // TODO
+    if (!newTarget.isUndefined()) {
     }
 
     Value message = argv[0];
@@ -41,7 +43,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
 }
 
 #define DEFINE_ERROR_CTOR(errorname)                                                                                                                                                                                                                                  \
-    static Value builtin##errorname##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)                                                                                                                         \
+    static Value builtin##errorname##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)                                                                                                                              \
     {                                                                                                                                                                                                                                                                 \
         ErrorObject* obj = new errorname##ErrorObject(state, String::emptyString);                                                                                                                                                                                    \
         Value message = argv[0];                                                                                                                                                                                                                                      \
@@ -59,13 +61,13 @@ DEFINE_ERROR_CTOR(Range);
 DEFINE_ERROR_CTOR(URI);
 DEFINE_ERROR_CTOR(Eval);
 
-static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     state.throwException(new TypeErrorObject(state, String::fromUTF8("", 0)));
     return Value();
 }
 
-static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, state.context()->staticStrings().Error.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotObject);

@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-static Value builtinAsyncIteratorIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncIteratorIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return thisValue;
 }

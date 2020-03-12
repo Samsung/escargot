@@ -49,7 +49,7 @@ static Value asyncFromSyncIteratorValueUnwrapLogic(ExecutionState& state, Script
     return IteratorObject::createIterResultObject(state, value, F->m_done);
 }
 
-static Value asyncFromSyncIteratorValueUnwrap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value asyncFromSyncIteratorValueUnwrap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return asyncFromSyncIteratorValueUnwrapLogic(state, (ScriptAsyncFromSyncIteratorHelperFunctionObject*)state.resolveCallee(), argv[0]);
 }
@@ -99,7 +99,7 @@ static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* re
     return promiseCapability.m_promise;
 }
 
-static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.next
     // Let O be the this value.
@@ -131,7 +131,7 @@ static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisV
     return asyncFromSyncIteratorContinuation(state, result, promiseCapability);
 }
 
-static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.return
     Value value = argv[0];
@@ -194,7 +194,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
     return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability);
 }
 
-static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.throw
     Value value = argv[0];

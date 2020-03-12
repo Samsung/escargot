@@ -29,7 +29,7 @@
 namespace Escargot {
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.apply
-static Value builtinReflectApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -63,12 +63,12 @@ static Value builtinReflectApply(ExecutionState& state, Value thisValue, size_t 
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.construct
-static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
     Value argList = argv[1];
-    Value newTarget = argc > 2 ? argv[2] : target;
+    Value newTargetArg = argc > 2 ? argv[2] : target;
 
     // 1. If IsConstructor(target) is false, throw a TypeError exception.
     if (!target.isConstructor()) {
@@ -77,7 +77,7 @@ static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, siz
 
     // 2. If newTarget is not present, let newTarget be target.
     // 3. Else, if IsConstructor(newTarget) is false, throw a TypeError exception.
-    if (!newTarget.isConstructor()) {
+    if (!newTargetArg.isConstructor()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: The new target of Reflect.construct should be a constructor");
     }
 
@@ -103,7 +103,7 @@ static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, siz
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.defineproperty
-static Value builtinReflectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -124,7 +124,7 @@ static Value builtinReflectDefineProperty(ExecutionState& state, Value thisValue
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.deleteproperty
-static Value builtinReflectDeleteProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectDeleteProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -142,7 +142,7 @@ static Value builtinReflectDeleteProperty(ExecutionState& state, Value thisValue
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.get
-static Value builtinReflectGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -165,7 +165,7 @@ static Value builtinReflectGet(ExecutionState& state, Value thisValue, size_t ar
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.getownpropertydescriptor
-static Value builtinReflectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -186,7 +186,7 @@ static Value builtinReflectGetOwnPropertyDescriptor(ExecutionState& state, Value
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.getprototypeof
-static Value builtinReflectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -201,7 +201,7 @@ static Value builtinReflectGetPrototypeOf(ExecutionState& state, Value thisValue
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.has
-static Value builtinReflectHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -219,7 +219,7 @@ static Value builtinReflectHas(ExecutionState& state, Value thisValue, size_t ar
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.isextensible
-static Value builtinReflectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -234,7 +234,7 @@ static Value builtinReflectIsExtensible(ExecutionState& state, Value thisValue, 
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.preventextensions
-static Value builtinReflectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -249,7 +249,7 @@ static Value builtinReflectPreventExtensions(ExecutionState& state, Value thisVa
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.ownkeys
-static Value builtinReflectOwnKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectOwnKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -267,7 +267,7 @@ static Value builtinReflectOwnKeys(ExecutionState& state, Value thisValue, size_
 
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.set
-static Value builtinReflectSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];
@@ -289,7 +289,7 @@ static Value builtinReflectSet(ExecutionState& state, Value thisValue, size_t ar
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.setprototypeof
-static Value builtinReflectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinReflectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Value target = argv[0];

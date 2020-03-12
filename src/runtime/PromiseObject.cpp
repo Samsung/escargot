@@ -33,8 +33,8 @@
 namespace Escargot {
 
 // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
-static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
+static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
 
 PromiseObject::PromiseObject(ExecutionState& state)
     : Object(state)
@@ -221,7 +221,7 @@ Object* PromiseObject::promiseResolve(ExecutionState& state, Object* C, const Va
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-getcapabilitiesexecutor-functions
-Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
 
@@ -250,7 +250,7 @@ Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Valu
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
-static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
@@ -303,7 +303,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-promise-reject-functions
-static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
@@ -331,7 +331,7 @@ static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-promise.all-resolve-element-functions
-Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
@@ -367,7 +367,7 @@ Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Val
 }
 
 
-static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let F be the active function object.
     Object* F = state.resolveCallee();
@@ -376,7 +376,7 @@ static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t arg
 }
 
 
-static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let F be the active function object.
     Object* F = state.resolveCallee();
@@ -386,7 +386,7 @@ static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t ar
 }
 
 
-Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-thenfinallyfunctions
     auto strings = &state.context()->staticStrings();
@@ -420,7 +420,7 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
 }
 
 
-Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-catchfinallyfunctions
     auto strings = &state.context()->staticStrings();

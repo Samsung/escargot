@@ -29,14 +29,14 @@
 
 namespace Escargot {
 
-static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return Value();
 }
 
-static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (isNewExpression && UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
+    if (!newTarget.isUndefined() && UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
         Value checkMSG = state.context()->securityPolicyCheckCallback()(state, false);
         if (!checkMSG.isEmpty()) {
             ASSERT(checkMSG.isString());
@@ -54,7 +54,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
-static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // FIXME: If Type(func) is Object and is either a built-in function object or has an [[ECMAScriptCode]] internal slot, then
     if (LIKELY(thisValue.isFunction())) {
@@ -90,7 +90,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     return Value();
 }
 
-static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
@@ -120,7 +120,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
     return Object::call(state, thisValue, thisArg, arrlen, arguments);
 }
 
-static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
@@ -136,7 +136,7 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.bind
-static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // If IsCallable(Target) is false, throw a TypeError exception.
     if (!thisValue.isCallable()) {
@@ -190,7 +190,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     return new BoundFunctionObject(state, target, boundThis, boundArgc, boundArgv, Value(length), Value(builder.finalize(&state)));
 }
 
-static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject()) {
         return Value(false);

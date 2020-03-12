@@ -33,30 +33,29 @@
 
 namespace Escargot {
 
-static Value builtinStringConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (isNewExpression) {
-        StringObject* stringObject = new StringObject(state);
-        if (argc == 0) {
-            stringObject->setPrimitiveValue(state, String::emptyString);
-        } else {
-            stringObject->setPrimitiveValue(state, argv[0].toString(state));
-        }
-        return stringObject;
-    } else {
-        // called as function
-        if (argc == 0)
-            return String::emptyString;
+    String* s = String::emptyString;
+    if (argc > 0) {
         Value value = argv[0];
-        // If NewTarget is undefined and Type(value) is Symbol, return SymbolDescriptiveString(value).
-        if (value.isSymbol()) {
+        if (newTarget.isUndefined() && value.isSymbol()) {
             return value.asSymbol()->symbolDescriptiveString();
+        } else {
+            s = value.toString(state);
         }
-        return value.toString(state);
     }
+    if (newTarget.isUndefined()) {
+        return s;
+    }
+
+    // TODO StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%StringPrototype%")).
+    StringObject* resultString = new StringObject(state);
+    resultString->setPrimitiveValue(state, s);
+
+    return resultString;
 }
 
-static Value builtinStringToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (thisValue.isObject() && thisValue.asObject()->isStringObject()) {
         return thisValue.asObject()->asStringObject()->primitiveValue();
@@ -69,7 +68,7 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
     String* searchStr = argv[0].toString(state);
@@ -94,7 +93,7 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
         return Value(result);
 }
 
-static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let S be ToString(O).
     RESOLVE_THIS_BINDING_TO_STRING(S, String, lastIndexOf);
@@ -123,7 +122,7 @@ static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, si
     return Value(result);
 }
 
-static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(S, String, localeCompare);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
@@ -146,7 +145,7 @@ static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, 
 #endif
 }
 
-static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, substring);
     if (argc == 0) {
@@ -174,7 +173,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
     }
 }
 
-static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), "%s: called on undefined or null");
@@ -200,7 +199,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
 }
 
 #if defined(ENABLE_ICU)
-static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     enum NormalizationForm {
         NFC,
@@ -277,7 +276,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
 }
 #endif // ENABLE_ICU
 
-static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, repeat);
     Value argument = argv[0];
@@ -301,7 +300,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     return builder.finalize();
 }
 
-static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ASSERT(argc == 0 || argv != nullptr);
     if (thisValue.isUndefinedOrNull()) {
@@ -350,7 +349,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     return Value(newString);
 }
 
-static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Call CheckObjectCoercible passing the this value as its argument.
     // Let string be the result of calling ToString, giving it the this value as its argument.
@@ -374,7 +373,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     return Object::call(state, func, rx, 1, parameter);
 }
 
-static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, split);
     Value separator = argv[0];
@@ -515,7 +514,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     return A;
 }
 
-static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
     int position = argv[0].toInteger(state);
@@ -536,7 +535,7 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.codepointat
-static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, codePointAt);
     int position = argv[0].toInteger(state);
@@ -572,7 +571,7 @@ static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, si
     return Value(cp);
 }
 
-static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charAt);
 
@@ -604,7 +603,7 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
     }
 }
 
-static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (argc == 1) {
         char16_t c = argv[0].toUint32(state) & 0xFFFF;
@@ -621,7 +620,7 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
     return Value();
 }
 
-static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     StringBuilder builder;
     for (size_t nextIndex = 0; nextIndex < argc; nextIndex++) {
@@ -649,7 +648,7 @@ static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, 
     return builder.finalize(&state);
 }
 
-static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
     for (size_t i = 0; i < argc; i++) {
@@ -659,7 +658,7 @@ static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t 
     return Value(str);
 }
 
-static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, slice);
     size_t len = str->length();
@@ -671,7 +670,7 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
     return str->substring(from, from + span);
 }
 
-static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
     if (str->has8BitContent()) {
@@ -728,7 +727,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
     return new UTF16String(std::move(newStr));
 }
 
-static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toUpperCase);
     if (str->has8BitContent()) {
@@ -784,16 +783,16 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
     return new UTF16String(std::move(newStr));
 }
 
-static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleLowerCase);
-    return builtinStringToLowerCase(state, thisValue, argc, argv, isNewExpression);
+    return builtinStringToLowerCase(state, thisValue, argc, argv, newTarget);
 }
 
-static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleUpperCase);
-    return builtinStringToUpperCase(state, thisValue, argc, argv, isNewExpression);
+    return builtinStringToUpperCase(state, thisValue, argc, argv, newTarget);
 }
 
 enum StringTrimWhere : unsigned {
@@ -832,28 +831,28 @@ static Value builtinStringTrimString(ExecutionState& state, Value thisValue, Str
     return new StringView(str, s, e + 1);
 }
 
-static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let S be this value.
     // Return ? TrimString(S, "start+end").
     return builtinStringTrimString(state, thisValue, STARTEND);
 }
 
-static Value builtinStringTrimStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringTrimStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let S be this value.
     // Return ? TrimString(S, "start").
     return builtinStringTrimString(state, thisValue, START);
 }
 
-static Value builtinStringTrimEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringTrimEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let S be this value.
     // Return ? TrimString(S, "end").
     return builtinStringTrimString(state, thisValue, END);
 }
 
-static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (thisValue.isString()) {
         return Value(thisValue);
@@ -864,7 +863,7 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
@@ -908,7 +907,7 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
     return Value(true);
 }
 
-static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
@@ -955,7 +954,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
 }
 
 // ( template, ...substitutions )
-static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value argTemplate = argv[0];
     // Let substitutions be a List consisting of all of the arguments passed to this function, starting with the second argument. If fewer than two arguments were passed, the List is empty.
@@ -1014,7 +1013,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
 
 // https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padstart
 // 21.1.3.14String.prototype.padStart( maxLength [ , fillString ] )
-static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
@@ -1068,7 +1067,7 @@ static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_
 
 // https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padend
 // 21.1.3.13String.prototype.padEnd( maxLength [ , fillString ] )
-static Value builtinStringPadEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringPadEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
@@ -1186,7 +1185,7 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-additional-properties-of-the-string.prototype-object
 
-static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
     if (argc < 1) {
@@ -1213,10 +1212,10 @@ static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t 
 }
 
 
-#define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                             \
-    static Value builtinString##fnName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression) \
-    {                                                                                                                          \
-        return createHTML(state, thisValue, P0, P1, P2, state.context()->staticStrings().fnName);                              \
+#define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                        \
+    static Value builtinString##fnName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget) \
+    {                                                                                                                     \
+        return createHTML(state, thisValue, P0, P1, P2, state.context()->staticStrings().fnName);                         \
     }
 
 // String.prototype.anchor (name)
@@ -1261,7 +1260,7 @@ DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sup, state.context()->staticStrings().sup
 
 #undef DEFINE_STRING_ADDITIONAL_HTML_FUNCTION
 
-static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
@@ -1297,7 +1296,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     return Value(true);
 }
 
-static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isStringIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
@@ -1306,7 +1305,7 @@ static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, s
     return iter->next(state);
 }
 
-static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).

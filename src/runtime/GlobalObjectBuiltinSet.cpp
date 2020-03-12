@@ -28,10 +28,10 @@
 
 namespace Escargot {
 
-Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
@@ -91,33 +91,33 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
     }                                                                                                                                                                                                                                          \
     SetObject* NAME = thisValue.asObject()->asSetObject();
 
-static Value builtinSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, add);
     S->add(state, argv[0]);
     return S;
 }
 
-static Value builtinSetClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, clear);
     S->clear(state);
     return Value();
 }
 
-static Value builtinSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, stringDelete);
     return Value(S->deleteOperation(state, argv[0]));
 }
 
-static Value builtinSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, has);
     return Value(S->has(state, argv[0]));
 }
 
-static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let S be the this value.
     // If Type(S) is not Object, throw a TypeError exception.
@@ -151,25 +151,25 @@ static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t ar
     return Value();
 }
 
-static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
     return S->values(state);
 }
 
-static Value builtinSetEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, entries);
     return S->entries(state);
 }
 
-static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, size);
     return Value(S->size(state));
 }
 
-static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isSetIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SetIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);

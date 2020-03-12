@@ -58,9 +58,9 @@
 
 namespace Escargot {
 
-static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (isNewExpression) {
+    if (!newTarget.isUndefined()) {
         // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.3.1
         Value locales, options;
         // If locales is not provided, then let locales be undefined.
@@ -102,7 +102,7 @@ static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisVal
     }
 }
 
-static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
@@ -117,7 +117,7 @@ static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, 
     return Value(IntlCollator::compare(state, colllator, x, y));
 }
 
-static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
@@ -139,7 +139,7 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
     return fn;
 }
 
-static Value builtinIntlCollatorResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlCollatorResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
@@ -158,7 +158,7 @@ static Value builtinIntlCollatorResolvedOptions(ExecutionState& state, Value thi
     return result;
 }
 
-static Value builtinIntlCollatorSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlCollatorSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // If options is not provided, then let options be undefined.
     Value locales = argv[0];
@@ -175,9 +175,9 @@ static Value builtinIntlCollatorSupportedLocalesOf(ExecutionState& state, Value 
 }
 
 
-static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         // If locales is not provided, then let locales be undefined.
         // If options is not provided, then let options be undefined.
         Value locales, options;
@@ -215,7 +215,7 @@ static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value t
     }
 }
 
-static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
@@ -234,7 +234,7 @@ static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisVa
     return Value(new UTF16String(result.data(), result.length()));
 }
 
-static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
@@ -268,7 +268,7 @@ static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* re
     }
 }
 
-static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
@@ -295,7 +295,7 @@ static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Val
     return Value(result);
 }
 
-static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // If options is not provided, then let options be undefined.
     Value locales = argv[0];
@@ -311,7 +311,7 @@ static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, 
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
 
-static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
@@ -326,7 +326,7 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
     return new UTF16String(result.data(), result.length());
 }
 
-static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
@@ -348,9 +348,9 @@ static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value th
     return fn;
 }
 
-static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (isNewExpression) {
+    if (!newTarget.isUndefined()) {
         // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.3.1
         Value locales, options;
         // If locales is not provided, then let locales be undefined.
@@ -392,7 +392,7 @@ static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thi
     }
 }
 
-static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
@@ -415,7 +415,7 @@ static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value
     return result;
 }
 
-static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // If options is not provided, then let options be undefined.
     Value locales = argv[0];
@@ -431,7 +431,7 @@ static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Va
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
 
-static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ASSERT(argv != nullptr);
     // Let ll be ? CanonicalizeLocaleList(locales).

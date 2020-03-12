@@ -25,18 +25,19 @@
 
 namespace Escargot {
 
-static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     bool primitiveVal = (argv[0].isUndefined()) ? false : argv[0].toBoolean(state);
-    if (isNewExpression) {
+    if (newTarget.isUndefined()) {
+        return Value(primitiveVal);
+    } else {
         BooleanObject* boolObj = new BooleanObject(state);
         boolObj->setPrimitiveValue(state, primitiveVal);
         return boolObj;
-    } else
-        return Value(primitiveVal);
+    }
 }
 
-static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (thisValue.isBoolean()) {
         return Value(thisValue);
@@ -47,7 +48,7 @@ static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (thisValue.isBoolean()) {
         return Value(thisValue.toString(state));

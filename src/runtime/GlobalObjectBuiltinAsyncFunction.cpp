@@ -27,7 +27,7 @@
 
 namespace Escargot {
 
-static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
