@@ -1713,7 +1713,7 @@ public:
                 this->nextToken();
                 valueNode = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, true>);
 
-                if (!computed && keyNode->isIdentifier()) {
+                if (!computed && !isProto && keyNode->isIdentifier()) {
                     this->addImplicitName(valueNode, keyNode->asIdentifier()->name());
                 }
             } else if (this->match(LeftParenthesis)) {
@@ -1768,7 +1768,7 @@ public:
             }
         }
 
-        if (!computed && keyNode->isIdentifier()) {
+        if (!computed && !isProto && keyNode->isIdentifier()) {
             this->addImplicitName(valueNode, keyNode->asIdentifier()->name());
         }
 
