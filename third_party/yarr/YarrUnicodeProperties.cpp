@@ -31,7 +31,8 @@
 
 using namespace WTF;
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 struct HashIndex {
     int16_t value;
@@ -51,8 +52,7 @@ struct HashTable {
 
     ALWAYS_INLINE int entry(WTF::String& key) const
     {
-        for(int i = 0 ; i < numberOfValues; i++)
-        {
+        for (int i = 0; i < numberOfValues; i++) {
             if (key.impl()->equals(values[i].key, strlen(values[i].key)))
                 return values[i].index;
         }
@@ -99,5 +99,5 @@ std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterC
 
     return createFunctions[unicodePropertyIndex]();
 }
-
-} } // namespace JSC::Yarr
+}
+} // namespace JSC::Yarr

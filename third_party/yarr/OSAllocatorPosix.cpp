@@ -57,7 +57,8 @@ void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, 
     madvise(result, bytes, MADV_DONTNEED);
 #elif defined(HAVE_MADV_FREE_REUSE)
     // To support the "reserve then commit" model, we have to initially decommit.
-    while (madvise(result, bytes, MADV_FREE_REUSABLE) == -1 && errno == EAGAIN) { }
+    while (madvise(result, bytes, MADV_FREE_REUSABLE) == -1 && errno == EAGAIN) {
+    }
 #endif
 
 #endif // OS(QNX)
@@ -157,7 +158,8 @@ void OSAllocator::commit(void* address, size_t bytes, bool writable, bool execut
 #elif defined(HAVE_MADV_FREE_REUSE)
     UNUSED_PARAM(writable);
     UNUSED_PARAM(executable);
-    while (madvise(address, bytes, MADV_FREE_REUSE) == -1 && errno == EAGAIN) { }
+    while (madvise(address, bytes, MADV_FREE_REUSE) == -1 && errno == EAGAIN) {
+    }
 #else
     // Non-MADV_FREE_REUSE reservations automatically commit on demand.
     UNUSED_PARAM(address);
@@ -175,11 +177,14 @@ void OSAllocator::decommit(void* address, size_t bytes)
 #elif defined(OS_LINUX)
     madvise(address, bytes, MADV_DONTNEED);
 #elif defined(HAVE_MADV_FREE_REUSE)
-    while (madvise(address, bytes, MADV_FREE_REUSABLE) == -1 && errno == EAGAIN) { }
+    while (madvise(address, bytes, MADV_FREE_REUSABLE) == -1 && errno == EAGAIN) {
+    }
 #elif defined(HAVE_MADV_FREE)
-    while (madvise(address, bytes, MADV_FREE) == -1 && errno == EAGAIN) { }
+    while (madvise(address, bytes, MADV_FREE) == -1 && errno == EAGAIN) {
+    }
 #elif defined(HAVE_MADV_DONTNEED)
-    while (madvise(address, bytes, MADV_DONTNEED) == -1 && errno == EAGAIN) { }
+    while (madvise(address, bytes, MADV_DONTNEED) == -1 && errno == EAGAIN) {
+    }
 #else
     UNUSED_PARAM(address);
     UNUSED_PARAM(bytes);

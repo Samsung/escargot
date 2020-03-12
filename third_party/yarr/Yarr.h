@@ -30,7 +30,8 @@
 #include <limits.h>
 #include "YarrErrorCode.h"
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 #define YarrStackSpaceForBackTrackInfoPatternCharacter 2 // Only for !fixed quantifiers.
 #define YarrStackSpaceForBackTrackInfoCharacterClass 2 // Only for !fixed quantifiers.
@@ -73,5 +74,5 @@ enum class BuiltInCharacterClassID : unsigned {
 };
 
 struct BytecodePattern;
-
-} } // namespace JSC::Yarr
+}
+} // namespace JSC::Yarr

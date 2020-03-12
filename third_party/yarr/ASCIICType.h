@@ -6,13 +6,13 @@
  * are met:
  *
  * 1.  Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer. 
+ *     notice, this list of conditions and the following disclaimer.
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution. 
+ *     documentation and/or other materials provided with the distribution.
  * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission. 
+ *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -47,42 +47,50 @@
 
 namespace WTF {
 
-template<typename CharType> inline bool isASCII(CharType c)
+template <typename CharType>
+inline bool isASCII(CharType c)
 {
     return !(c & ~0x7F);
 }
 
-template<typename CharType> inline bool isASCIIAlpha(CharType c)
+template <typename CharType>
+inline bool isASCIIAlpha(CharType c)
 {
     return (c | 0x20) >= 'a' && (c | 0x20) <= 'z';
 }
 
-template<typename CharType> inline bool isASCIIDigit(CharType c)
+template <typename CharType>
+inline bool isASCIIDigit(CharType c)
 {
     return c >= '0' && c <= '9';
 }
 
-template<typename CharType> inline bool isASCIIAlphanumeric(CharType c)
+template <typename CharType>
+inline bool isASCIIAlphanumeric(CharType c)
 {
     return isASCIIDigit(c) || isASCIIAlpha(c);
 }
 
-template<typename CharType> inline bool isASCIIHexDigit(CharType c)
+template <typename CharType>
+inline bool isASCIIHexDigit(CharType c)
 {
     return isASCIIDigit(c) || ((c | 0x20) >= 'a' && (c | 0x20) <= 'f');
 }
 
-template<typename CharType> inline bool isASCIILower(CharType c)
+template <typename CharType>
+inline bool isASCIILower(CharType c)
 {
     return c >= 'a' && c <= 'z';
 }
 
-template<typename CharType> inline bool isASCIIOctalDigit(CharType c)
+template <typename CharType>
+inline bool isASCIIOctalDigit(CharType c)
 {
     return (c >= '0') & (c <= '7');
 }
 
-template<typename CharType> inline bool isASCIIPrintable(CharType c)
+template <typename CharType>
+inline bool isASCIIPrintable(CharType c)
 {
     return c >= ' ' && c <= '~';
 }
@@ -100,22 +108,26 @@ template<typename CharType> inline bool isASCIIPrintable(CharType c)
  0C  \f             0
  0B  \v             0
  */
-template<typename CharType> inline bool isASCIISpace(CharType c)
+template <typename CharType>
+inline bool isASCIISpace(CharType c)
 {
     return c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
 }
 
-template<typename CharType> inline bool isASCIIUpper(CharType c)
+template <typename CharType>
+inline bool isASCIIUpper(CharType c)
 {
     return c >= 'A' && c <= 'Z';
 }
 
-template<typename CharType> inline CharType toASCIILower(CharType c)
+template <typename CharType>
+inline CharType toASCIILower(CharType c)
 {
     return c | ((c >= 'A' && c <= 'Z') << 5);
 }
 
-template<typename CharType> inline CharType toASCIILowerUnchecked(CharType character)
+template <typename CharType>
+inline CharType toASCIILowerUnchecked(CharType character)
 {
     // This function can be used for comparing any input character
     // to a lowercase English character. The isASCIIAlphaCaselessEqual
@@ -125,18 +137,21 @@ template<typename CharType> inline CharType toASCIILowerUnchecked(CharType chara
     return character | 0x20;
 }
 
-template<typename CharType> inline CharType toASCIIUpper(CharType c)
+template <typename CharType>
+inline CharType toASCIIUpper(CharType c)
 {
     return c & ~((c >= 'a' && c <= 'z') << 5);
 }
 
-template<typename CharType> inline int toASCIIHexValue(CharType c)
+template <typename CharType>
+inline int toASCIIHexValue(CharType c)
 {
     ASSERT(isASCIIHexDigit(c));
     return c < 'A' ? c - '0' : (c - 'A' + 10) & 0xF;
 }
 
-template<typename CharType> inline int toASCIIHexValue(CharType upperValue, CharType lowerValue)
+template <typename CharType>
+inline int toASCIIHexValue(CharType upperValue, CharType lowerValue)
 {
     ASSERT(isASCIIHexDigit(upperValue) && isASCIIHexDigit(lowerValue));
     return ((toASCIIHexValue(upperValue) << 4) & 0xF0) | toASCIIHexValue(lowerValue);
@@ -154,14 +169,14 @@ inline char upperNibbleToASCIIHexDigit(char c)
     return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
 }
 
-template<typename CharType> inline bool isASCIIAlphaCaselessEqual(CharType cssCharacter, char character)
+template <typename CharType>
+inline bool isASCIIAlphaCaselessEqual(CharType cssCharacter, char character)
 {
     // This function compares a (preferrably) constant ASCII
     // lowercase letter to any input character.
     ASSERT(character >= 'a' && character <= 'z');
     return LIKELY(toASCIILowerUnchecked(cssCharacter) == character);
 }
-
 }
 
 using WTF::isASCII;

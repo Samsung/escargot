@@ -28,7 +28,8 @@
 
 #include "YarrParser.h"
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 class SyntaxChecker {
 public:
@@ -58,5 +59,5 @@ ErrorCode checkSyntax(const String& pattern, const String& flags)
     SyntaxChecker syntaxChecker;
     return parse(syntaxChecker, pattern, flags.contains('u'));
 }
-
-}} // JSC::Yarr
+}
+} // JSC::Yarr

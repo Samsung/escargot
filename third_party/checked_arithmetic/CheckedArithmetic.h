@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef CheckedArithmetic_h
@@ -64,11 +64,13 @@
  *
  */
 
-template <typename T, typename U> struct IsSameType {
+template <typename T, typename U>
+struct IsSameType {
     static const bool value = false;
 };
 
-template <typename T> struct IsSameType<T, T> {
+template <typename T>
+struct IsSameType<T, T> {
     static const bool value = true;
 };
 
@@ -79,8 +81,7 @@ protected:
         CRASH();
     }
 
-    void clearOverflow() { }
-
+    void clearOverflow() {}
 public:
     bool hasOverflowed() const { return false; }
 };
@@ -104,17 +105,21 @@ protected:
 
 public:
     bool hasOverflowed() const { return m_overflowed; }
-
 private:
     unsigned char m_overflowed;
 };
 
-template <typename T, class OverflowHandler = CrashOnOverflow> class Checked;
-template <typename T> struct RemoveChecked;
-template <typename T> struct RemoveChecked<Checked<T> >;
+template <typename T, class OverflowHandler = CrashOnOverflow>
+class Checked;
+template <typename T>
+struct RemoveChecked;
+template <typename T>
+struct RemoveChecked<Checked<T> >;
 
-template <typename Target, typename Source, bool targetSigned = std::numeric_limits<Target>::is_signed, bool sourceSigned = std::numeric_limits<Source>::is_signed> struct BoundsChecker;
-template <typename Target, typename Source> struct BoundsChecker<Target, Source, false, false> {
+template <typename Target, typename Source, bool targetSigned = std::numeric_limits<Target>::is_signed, bool sourceSigned = std::numeric_limits<Source>::is_signed>
+struct BoundsChecker;
+template <typename Target, typename Source>
+struct BoundsChecker<Target, Source, false, false> {
     static bool inBounds(Source value)
     {
         // Same signedness so implicit type conversion will always increase precision
@@ -123,7 +128,8 @@ template <typename Target, typename Source> struct BoundsChecker<Target, Source,
     }
 };
 
-template <typename Target, typename Source> struct BoundsChecker<Target, Source, true, true> {
+template <typename Target, typename Source>
+struct BoundsChecker<Target, Source, true, true> {
     static bool inBounds(Source value)
     {
         // Same signedness so implicit type conversion will always increase precision
@@ -132,7 +138,8 @@ template <typename Target, typename Source> struct BoundsChecker<Target, Source,
     }
 };
 
-template <typename Target, typename Source> struct BoundsChecker<Target, Source, false, true> {
+template <typename Target, typename Source>
+struct BoundsChecker<Target, Source, false, true> {
     static bool inBounds(Source value)
     {
         // Target is unsigned so any value less than zero is clearly unsafe
@@ -140,7 +147,7 @@ template <typename Target, typename Source> struct BoundsChecker<Target, Source,
             return false;
         // If our (unsigned) Target is the same or greater width we can
         // convert value to type Target without losing precision
-        if (sizeof(Target) >= sizeof(Source)) 
+        if (sizeof(Target) >= sizeof(Source))
             return static_cast<Target>(value) <= std::numeric_limits<Target>::max();
         // The signed Source type has greater precision than the target so
         // max(Target) -> Source will widen.
@@ -148,11 +155,12 @@ template <typename Target, typename Source> struct BoundsChecker<Target, Source,
     }
 };
 
-template <typename Target, typename Source> struct BoundsChecker<Target, Source, true, false> {
+template <typename Target, typename Source>
+struct BoundsChecker<Target, Source, true, false> {
     static bool inBounds(Source value)
     {
         // Signed target with an unsigned source
-        if (sizeof(Target) <= sizeof(Source)) 
+        if (sizeof(Target) <= sizeof(Source))
             return value <= static_cast<Source>(std::numeric_limits<Target>::max());
         // Target is Wider than Source so we're guaranteed to fit any value in
         // unsigned Source
@@ -160,76 +168,96 @@ template <typename Target, typename Source> struct BoundsChecker<Target, Source,
     }
 };
 
-template <typename Target, typename Source, bool CanElide = IsSameType<Target, Source>::value || (sizeof(Target) > sizeof(Source)) > struct BoundsCheckElider;
-template <typename Target, typename Source> struct BoundsCheckElider<Target, Source, true> {
+template <typename Target, typename Source, bool CanElide = IsSameType<Target, Source>::value || (sizeof(Target) > sizeof(Source))>
+struct BoundsCheckElider;
+template <typename Target, typename Source>
+struct BoundsCheckElider<Target, Source, true> {
     static bool inBounds(Source) { return true; }
 };
-template <typename Target, typename Source> struct BoundsCheckElider<Target, Source, false> : public BoundsChecker<Target, Source> {
+template <typename Target, typename Source>
+struct BoundsCheckElider<Target, Source, false> : public BoundsChecker<Target, Source> {
 };
 
-template <typename Target, typename Source> static inline bool isInBounds(Source value)
+template <typename Target, typename Source>
+static inline bool isInBounds(Source value)
 {
     return BoundsCheckElider<Target, Source>::inBounds(value);
 }
 
-template <typename T> struct RemoveChecked {
+template <typename T>
+struct RemoveChecked {
     typedef T CleanType;
-    static const CleanType DefaultValue = 0;    
+    static const CleanType DefaultValue = 0;
 };
 
-template <typename T> struct RemoveChecked<Checked<T, CrashOnOverflow> > {
+template <typename T>
+struct RemoveChecked<Checked<T, CrashOnOverflow> > {
     typedef typename RemoveChecked<T>::CleanType CleanType;
     static const CleanType DefaultValue = 0;
 };
 
-template <typename T> struct RemoveChecked<Checked<T, RecordOverflow> > {
+template <typename T>
+struct RemoveChecked<Checked<T, RecordOverflow> > {
     typedef typename RemoveChecked<T>::CleanType CleanType;
     static const CleanType DefaultValue = 0;
 };
 
 // The ResultBase and SignednessSelector are used to workaround typeof not being
 // available in MSVC
-template <typename U, typename V, bool uIsBigger = (sizeof(U) > sizeof(V)), bool sameSize = (sizeof(U) == sizeof(V))> struct ResultBase;
-template <typename U, typename V> struct ResultBase<U, V, true, false> {
+template <typename U, typename V, bool uIsBigger = (sizeof(U) > sizeof(V)), bool sameSize = (sizeof(U) == sizeof(V))>
+struct ResultBase;
+template <typename U, typename V>
+struct ResultBase<U, V, true, false> {
     typedef U ResultType;
 };
 
-template <typename U, typename V> struct ResultBase<U, V, false, false> {
+template <typename U, typename V>
+struct ResultBase<U, V, false, false> {
     typedef V ResultType;
 };
 
-template <typename U> struct ResultBase<U, U, false, true> {
+template <typename U>
+struct ResultBase<U, U, false, true> {
     typedef U ResultType;
 };
 
-template <typename U, typename V, bool uIsSigned = std::numeric_limits<U>::is_signed, bool vIsSigned = std::numeric_limits<V>::is_signed> struct SignednessSelector;
-template <typename U, typename V> struct SignednessSelector<U, V, true, true> {
+template <typename U, typename V, bool uIsSigned = std::numeric_limits<U>::is_signed, bool vIsSigned = std::numeric_limits<V>::is_signed>
+struct SignednessSelector;
+template <typename U, typename V>
+struct SignednessSelector<U, V, true, true> {
     typedef U ResultType;
 };
 
-template <typename U, typename V> struct SignednessSelector<U, V, false, false> {
+template <typename U, typename V>
+struct SignednessSelector<U, V, false, false> {
     typedef U ResultType;
 };
 
-template <typename U, typename V> struct SignednessSelector<U, V, true, false> {
+template <typename U, typename V>
+struct SignednessSelector<U, V, true, false> {
     typedef V ResultType;
 };
 
-template <typename U, typename V> struct SignednessSelector<U, V, false, true> {
+template <typename U, typename V>
+struct SignednessSelector<U, V, false, true> {
     typedef U ResultType;
 };
 
-template <typename U, typename V> struct ResultBase<U, V, false, true> {
+template <typename U, typename V>
+struct ResultBase<U, V, false, true> {
     typedef typename SignednessSelector<U, V>::ResultType ResultType;
 };
 
-template <typename U, typename V> struct Result : ResultBase<typename RemoveChecked<U>::CleanType, typename RemoveChecked<V>::CleanType> {
+template <typename U, typename V>
+struct Result : ResultBase<typename RemoveChecked<U>::CleanType, typename RemoveChecked<V>::CleanType> {
 };
 
-template <typename LHS, typename RHS, typename ResultType = typename Result<LHS, RHS>::ResultType, 
-    bool lhsSigned = std::numeric_limits<LHS>::is_signed, bool rhsSigned = std::numeric_limits<RHS>::is_signed> struct ArithmeticOperations;
+template <typename LHS, typename RHS, typename ResultType = typename Result<LHS, RHS>::ResultType,
+          bool lhsSigned = std::numeric_limits<LHS>::is_signed, bool rhsSigned = std::numeric_limits<RHS>::is_signed>
+struct ArithmeticOperations;
 
-template <typename LHS, typename RHS, typename ResultType> struct ArithmeticOperations<LHS, RHS, ResultType, true, true> {
+template <typename LHS, typename RHS, typename ResultType>
+struct ArithmeticOperations<LHS, RHS, ResultType, true, true> {
     // LHS and RHS are signed types
 
     // Helper function
@@ -295,10 +323,10 @@ template <typename LHS, typename RHS, typename ResultType> struct ArithmeticOper
     }
 
     static inline bool equals(LHS lhs, RHS rhs) { return lhs == rhs; }
-
 };
 
-template <typename LHS, typename RHS, typename ResultType> struct ArithmeticOperations<LHS, RHS, ResultType, false, false> {
+template <typename LHS, typename RHS, typename ResultType>
+struct ArithmeticOperations<LHS, RHS, ResultType, false, false> {
     // LHS and RHS are unsigned types so bounds checks are nice and easy
     static inline bool add(LHS lhs, RHS rhs, ResultType& result)
     {
@@ -328,10 +356,10 @@ template <typename LHS, typename RHS, typename ResultType> struct ArithmeticOper
     }
 
     static inline bool equals(LHS lhs, RHS rhs) { return lhs == rhs; }
-
 };
 
-template <typename ResultType> struct ArithmeticOperations<int, unsigned, ResultType, true, false> {
+template <typename ResultType>
+struct ArithmeticOperations<int, unsigned, ResultType, true, false> {
     static inline bool add(int64_t lhs, int64_t rhs, ResultType& result)
     {
         int64_t temp = lhs + rhs;
@@ -342,7 +370,7 @@ template <typename ResultType> struct ArithmeticOperations<int, unsigned, Result
         result = static_cast<ResultType>(temp);
         return true;
     }
-    
+
     static inline bool sub(int64_t lhs, int64_t rhs, ResultType& result)
     {
         int64_t temp = lhs - rhs;
@@ -371,12 +399,13 @@ template <typename ResultType> struct ArithmeticOperations<int, unsigned, Result
     }
 };
 
-template <typename ResultType> struct ArithmeticOperations<unsigned, int, ResultType, false, true> {
+template <typename ResultType>
+struct ArithmeticOperations<unsigned, int, ResultType, false, true> {
     static inline bool add(int64_t lhs, int64_t rhs, ResultType& result)
     {
         return ArithmeticOperations<int, unsigned, ResultType>::add(rhs, lhs, result);
     }
-    
+
     static inline bool sub(int64_t lhs, int64_t rhs, ResultType& result)
     {
         return ArithmeticOperations<int, unsigned, ResultType>::sub(lhs, rhs, result);
@@ -393,34 +422,39 @@ template <typename ResultType> struct ArithmeticOperations<unsigned, int, Result
     }
 };
 
-template <typename U, typename V, typename R> static inline bool safeAdd(U lhs, V rhs, R& result)
+template <typename U, typename V, typename R>
+static inline bool safeAdd(U lhs, V rhs, R& result)
 {
     return ArithmeticOperations<U, V, R>::add(lhs, rhs, result);
 }
 
-template <typename U, typename V, typename R> static inline bool safeSub(U lhs, V rhs, R& result)
+template <typename U, typename V, typename R>
+static inline bool safeSub(U lhs, V rhs, R& result)
 {
     return ArithmeticOperations<U, V, R>::sub(lhs, rhs, result);
 }
 
-template <typename U, typename V, typename R> static inline bool safeMultiply(U lhs, V rhs, R& result)
+template <typename U, typename V, typename R>
+static inline bool safeMultiply(U lhs, V rhs, R& result)
 {
     return ArithmeticOperations<U, V, R>::multiply(lhs, rhs, result);
 }
 
-template <typename U, typename V> static inline bool safeEquals(U lhs, V rhs)
+template <typename U, typename V>
+static inline bool safeEquals(U lhs, V rhs)
 {
     return ArithmeticOperations<U, V>::equals(lhs, rhs);
 }
 
 enum ResultOverflowedTag { ResultOverflowed };
-    
+
 // FIXME: Needed to workaround http://llvm.org/bugs/show_bug.cgi?id=10801
 static inline bool workAroundClangBug() { return true; }
-
-template <typename T, class OverflowHandler> class Checked : public OverflowHandler {
+template <typename T, class OverflowHandler>
+class Checked : public OverflowHandler {
 public:
-    template <typename _T, class _OverflowHandler> friend class Checked;
+    template <typename _T, class _OverflowHandler>
+    friend class Checked;
     Checked()
         : m_value(0)
     {
@@ -434,29 +468,33 @@ public:
             this->overflowed();
     }
 
-    template <typename U> Checked(U value)
+    template <typename U>
+    Checked(U value)
     {
         if (!isInBounds<T>(value))
             this->overflowed();
         m_value = static_cast<T>(value);
     }
-    
-    template <typename V> Checked(const Checked<T, V>& rhs)
+
+    template <typename V>
+    Checked(const Checked<T, V>& rhs)
         : m_value(rhs.m_value)
     {
         if (rhs.hasOverflowed())
             this->overflowed();
     }
-    
-    template <typename U> Checked(const Checked<U, OverflowHandler>& rhs)
+
+    template <typename U>
+    Checked(const Checked<U, OverflowHandler>& rhs)
         : OverflowHandler(rhs)
     {
         if (!isInBounds<T>(rhs.m_value))
             this->overflowed();
         m_value = static_cast<T>(rhs.m_value);
     }
-    
-    template <typename U, typename V> Checked(const Checked<U, V>& rhs)
+
+    template <typename U, typename V>
+    Checked(const Checked<U, V>& rhs)
     {
         if (rhs.hasOverflowed())
             this->overflowed();
@@ -464,7 +502,7 @@ public:
             this->overflowed();
         m_value = static_cast<T>(rhs.m_value);
     }
-    
+
     const Checked& operator=(Checked rhs)
     {
         this->clearOverflow();
@@ -473,17 +511,19 @@ public:
         m_value = static_cast<T>(rhs.m_value);
         return *this;
     }
-    
-    template <typename U> const Checked& operator=(U value)
+
+    template <typename U>
+    const Checked& operator=(U value)
     {
         return *this = Checked(value);
     }
-    
-    template <typename U, typename V> const Checked& operator=(const Checked<U, V>& rhs)
+
+    template <typename U, typename V>
+    const Checked& operator=(const Checked<U, V>& rhs)
     {
         return *this = Checked(rhs);
     }
-    
+
     // prefix
     const Checked& operator++()
     {
@@ -492,7 +532,7 @@ public:
         m_value++;
         return *this;
     }
-    
+
     const Checked& operator--()
     {
         if (m_value == std::numeric_limits<T>::min())
@@ -500,7 +540,7 @@ public:
         m_value--;
         return *this;
     }
-    
+
     // postfix operators
     const Checked operator++(int)
     {
@@ -508,14 +548,14 @@ public:
             this->overflowed();
         return Checked(m_value++);
     }
-    
+
     const Checked operator--(int)
     {
         if (m_value == std::numeric_limits<T>::min())
             this->overflowed();
         return Checked(m_value--);
     }
-    
+
     // Boolean operators
     bool operator!() const
     {
@@ -524,7 +564,7 @@ public:
         return !m_value;
     }
 
-    typedef void* (Checked::*UnspecifiedBoolType);
+    typedef void*(Checked::*UnspecifiedBoolType);
     operator UnspecifiedBoolType*() const
     {
         if (this->hasOverflowed())
@@ -539,7 +579,7 @@ public:
             CRASH();
         return m_value;
     }
-    
+
     bool safeGet(T& value) const
     {
         value = m_value;
@@ -547,21 +587,24 @@ public:
     }
 
     // Mutating assignment
-    template <typename U> const Checked operator+=(U rhs)
+    template <typename U>
+    const Checked operator+=(U rhs)
     {
         if (!safeAdd(m_value, rhs, m_value))
             this->overflowed();
         return *this;
     }
 
-    template <typename U> const Checked operator-=(U rhs)
+    template <typename U>
+    const Checked operator-=(U rhs)
     {
         if (!safeSub(m_value, rhs, m_value))
             this->overflowed();
         return *this;
     }
 
-    template <typename U> const Checked operator*=(U rhs)
+    template <typename U>
+    const Checked operator*=(U rhs)
     {
         if (!safeMultiply(m_value, rhs, m_value))
             this->overflowed();
@@ -582,22 +625,25 @@ public:
     {
         return *this *= (double)rhs;
     }
-    
-    template <typename U, typename V> const Checked operator+=(Checked<U, V> rhs)
+
+    template <typename U, typename V>
+    const Checked operator+=(Checked<U, V> rhs)
     {
         if (rhs.hasOverflowed())
             this->overflowed();
         return *this += rhs.m_value;
     }
 
-    template <typename U, typename V> const Checked operator-=(Checked<U, V> rhs)
+    template <typename U, typename V>
+    const Checked operator-=(Checked<U, V> rhs)
     {
         if (rhs.hasOverflowed())
             this->overflowed();
         return *this -= rhs.m_value;
     }
 
-    template <typename U, typename V> const Checked operator*=(Checked<U, V> rhs)
+    template <typename U, typename V>
+    const Checked operator*=(Checked<U, V> rhs)
     {
         if (rhs.hasOverflowed())
             this->overflowed();
@@ -605,24 +651,28 @@ public:
     }
 
     // Equality comparisons
-    template <typename V> bool operator==(Checked<T, V> rhs)
+    template <typename V>
+    bool operator==(Checked<T, V> rhs)
     {
         return unsafeGet() == rhs.unsafeGet();
     }
 
-    template <typename U> bool operator==(U rhs)
+    template <typename U>
+    bool operator==(U rhs)
     {
         if (this->hasOverflowed())
             this->overflowed();
         return safeEquals(m_value, rhs);
     }
-    
-    template <typename U, typename V> const Checked operator==(Checked<U, V> rhs)
+
+    template <typename U, typename V>
+    const Checked operator==(Checked<U, V> rhs)
     {
         return unsafeGet() == Checked(rhs.unsafeGet());
     }
 
-    template <typename U> bool operator!=(U rhs)
+    template <typename U>
+    bool operator!=(U rhs)
     {
         return !(*this == rhs);
     }
@@ -640,7 +690,8 @@ private:
     T m_value;
 };
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator+(Checked<U, OverflowHandler> lhs, Checked<V, OverflowHandler> rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator+(Checked<U, OverflowHandler> lhs, Checked<V, OverflowHandler> rhs)
 {
     U x = 0;
     V y = 0;
@@ -652,7 +703,8 @@ template <typename U, typename V, typename OverflowHandler> static inline Checke
     return result;
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator-(Checked<U, OverflowHandler> lhs, Checked<V, OverflowHandler> rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator-(Checked<U, OverflowHandler> lhs, Checked<V, OverflowHandler> rhs)
 {
     U x = 0;
     V y = 0;
@@ -664,7 +716,8 @@ template <typename U, typename V, typename OverflowHandler> static inline Checke
     return result;
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator*(Checked<U, OverflowHandler> lhs, Checked<V, OverflowHandler> rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator*(Checked<U, OverflowHandler> lhs, Checked<V, OverflowHandler> rhs)
 {
     U x = 0;
     V y = 0;
@@ -676,32 +729,38 @@ template <typename U, typename V, typename OverflowHandler> static inline Checke
     return result;
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator+(Checked<U, OverflowHandler> lhs, V rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator+(Checked<U, OverflowHandler> lhs, V rhs)
 {
     return lhs + Checked<V, OverflowHandler>(rhs);
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator-(Checked<U, OverflowHandler> lhs, V rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator-(Checked<U, OverflowHandler> lhs, V rhs)
 {
     return lhs - Checked<V, OverflowHandler>(rhs);
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator*(Checked<U, OverflowHandler> lhs, V rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator*(Checked<U, OverflowHandler> lhs, V rhs)
 {
     return lhs * Checked<V, OverflowHandler>(rhs);
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator+(U lhs, Checked<V, OverflowHandler> rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator+(U lhs, Checked<V, OverflowHandler> rhs)
 {
     return Checked<U, OverflowHandler>(lhs) + rhs;
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator-(U lhs, Checked<V, OverflowHandler> rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator-(U lhs, Checked<V, OverflowHandler> rhs)
 {
     return Checked<U, OverflowHandler>(lhs) - rhs;
 }
 
-template <typename U, typename V, typename OverflowHandler> static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator*(U lhs, Checked<V, OverflowHandler> rhs)
+template <typename U, typename V, typename OverflowHandler>
+static inline Checked<typename Result<U, V>::ResultType, OverflowHandler> operator*(U lhs, Checked<V, OverflowHandler> rhs)
 {
     return Checked<U, OverflowHandler>(lhs) * rhs;
 }

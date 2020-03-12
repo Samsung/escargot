@@ -32,7 +32,8 @@ class BumpPointerAllocator;
 }
 using WTF::BumpPointerAllocator;
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 class ByteDisjunction;
 
@@ -326,6 +327,7 @@ struct ByteTerm {
 
 class ByteDisjunction {
     WTF_MAKE_FAST_ALLOCATED;
+
 public:
     ByteDisjunction(unsigned numSubpatterns, unsigned frameSize)
         : m_numSubpatterns(numSubpatterns)
@@ -334,14 +336,14 @@ public:
     }
 
     size_t estimatedSizeInBytes() const { return terms.capacity() * sizeof(ByteTerm); }
-
     Vector<ByteTerm> terms;
     unsigned m_numSubpatterns;
     unsigned m_frameSize;
 };
 
-struct  BytecodePattern : public gc {
+struct BytecodePattern : public gc {
     WTF_MAKE_FAST_ALLOCATED;
+
 public:
     BytecodePattern(std::unique_ptr<ByteDisjunction> body, Vector<std::unique_ptr<ByteDisjunction>>& parenthesesInfoToAdopt, YarrPattern& pattern, BumpPointerAllocator* allocator)
         : m_body(WTFMove(body))
@@ -362,10 +364,11 @@ public:
         m_userCharacterClasses.swap(pattern.m_userCharacterClasses);
         m_userCharacterClasses.shrinkToFit();
 
-        GC_REGISTER_FINALIZER_NO_ORDER(this, [] (void* obj, void* cd) {
+        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void* cd) {
             BytecodePattern* pattern = (BytecodePattern*)obj;
             pattern->clear();
-        }, NULL, NULL, NULL);
+        },
+                                       NULL, NULL, NULL);
     }
 
     ~BytecodePattern()
@@ -387,13 +390,11 @@ public:
     }
 
     size_t estimatedSizeInBytes() const { return m_body->estimatedSizeInBytes(); }
-
     bool ignoreCase() const { return m_flags & FlagIgnoreCase; }
     bool multiline() const { return m_flags & FlagMultiline; }
     bool sticky() const { return m_flags & FlagSticky; }
     bool unicode() const { return m_flags & FlagUnicode; }
     bool dotAll() const { return m_flags & FlagDotAll; }
-
     std::unique_ptr<ByteDisjunction> m_body;
     RegExpFlags m_flags;
     // Each BytecodePattern is associated with a RegExp, each RegExp is associated
@@ -412,5 +413,5 @@ JS_EXPORT_PRIVATE std::unique_ptr<BytecodePattern> byteCompile(YarrPattern&, Bum
 JS_EXPORT_PRIVATE unsigned interpret(BytecodePattern*, const String& input, unsigned start, unsigned* output);
 unsigned interpret(BytecodePattern*, const LChar* input, unsigned length, unsigned start, unsigned* output);
 unsigned interpret(BytecodePattern*, const UChar* input, unsigned length, unsigned start, unsigned* output);
-
-} } // namespace JSC::Yarr
+}
+} // namespace JSC::Yarr

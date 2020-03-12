@@ -33,7 +33,8 @@
 
 using namespace WTF;
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 #include "RegExpJitTables.h"
 
@@ -72,8 +73,8 @@ public:
     void appendInverted(const CharacterClass* other)
     {
         auto addSortedInverted = [&](UChar32 min, UChar32 max,
-            const Vector<UChar32>& srcMatches, const Vector<CharacterRange>& srcRanges,
-            Vector<UChar32>& destMatches, Vector<CharacterRange>& destRanges) {
+                                     const Vector<UChar32>& srcMatches, const Vector<CharacterRange>& srcRanges,
+                                     Vector<UChar32>& destMatches, Vector<CharacterRange>& destRanges) {
 
             auto addSortedMatchOrRange = [&](UChar32 lo, UChar32 hiPlusOne) {
                 if (lo < hiPlusOne) {
@@ -172,9 +173,9 @@ public:
 
             if (m_isCaseInsensitive) {
                 if ((asciiLo <= 'Z') && (asciiHi >= 'A'))
-                    addSortedRange(m_ranges, std::max(asciiLo, 'A')+('a'-'A'), std::min(asciiHi, 'Z')+('a'-'A'));
+                    addSortedRange(m_ranges, std::max(asciiLo, 'A') + ('a' - 'A'), std::min(asciiHi, 'Z') + ('a' - 'A'));
                 if ((asciiLo <= 'z') && (asciiHi >= 'a'))
-                    addSortedRange(m_ranges, std::max(asciiLo, 'a')+('A'-'a'), std::min(asciiHi, 'z')+('A'-'a'));
+                    addSortedRange(m_ranges, std::max(asciiLo, 'a') + ('A' - 'a'), std::min(asciiHi, 'z') + ('A' - 'a'));
             }
         }
         if (isASCII(hi))
@@ -229,7 +230,6 @@ public:
             ++info;
             lo = info->begin;
         };
-
     }
 
     std::unique_ptr<CharacterClass> charClass()
@@ -269,7 +269,7 @@ private:
         while (range) {
             unsigned index = range >> 1;
 
-            int val = matches[pos+index] - ch;
+            int val = matches[pos + index] - ch;
             if (!val)
                 return;
             else if (val > 0) {
@@ -297,8 +297,8 @@ private:
                     addSortedRange(isASCII(ch) ? m_ranges : m_rangesUnicode, lo, hi);
                     return;
                 }
-                pos += (index+1);
-                range -= (index+1);
+                pos += (index + 1);
+                range -= (index + 1);
             }
         }
 
@@ -358,7 +358,6 @@ private:
             } else
                 break;
         }
-
     }
 
     void coalesceTables()
@@ -456,18 +455,16 @@ public:
         m_unmatchedNamedForwardReferences.clear();
         bool unique = true;
         for (auto& entry : m_pattern.m_namedForwardReferences) {
-            for(auto& entry2 : m_pattern.m_captureGroupNames){
-              if (entry.equals(entry2)){
-                unique = false;
-              }
-              if(unique) {
-                m_unmatchedNamedForwardReferences.append(entry);
-                unique = true;
-              }
+            for (auto& entry2 : m_pattern.m_captureGroupNames) {
+                if (entry.equals(entry2)) {
+                    unique = false;
+                }
+                if (unique) {
+                    m_unmatchedNamedForwardReferences.append(entry);
+                    unique = true;
+                }
+            }
         }
-    }
-
-
     }
 
     void assertionBOL()
@@ -688,20 +685,20 @@ public:
 
     bool isValidNamedForwardReference(const String& subpatternName)
     {
-      for (auto& entry : m_unmatchedNamedForwardReferences) {
-          if (entry.equals(subpatternName)){
-            return false;
-          }
+        for (auto& entry : m_unmatchedNamedForwardReferences) {
+            if (entry.equals(subpatternName)) {
+                return false;
+            }
         }
         return true;
     }
 
     void atomNamedForwardReference(const String& subpatternName)
     {
-        for(auto& entry : m_pattern.m_namedForwardReferences) {
-          if(entry.equals(subpatternName)) {
-            return;
-          }
+        for (auto& entry : m_pattern.m_namedForwardReferences) {
+            if (entry.equals(subpatternName)) {
+                return;
+            }
         }
         m_pattern.m_namedForwardReferences.add(subpatternName);
         m_alternative->m_terms.append(PatternTerm::ForwardReference());
@@ -1064,7 +1061,7 @@ public:
             if ((firstNonAnchorTerm.type != PatternTerm::TypeCharacterClass)
                 || (firstNonAnchorTerm.characterClass != dotCharacterClass)
                 || !((firstNonAnchorTerm.quantityType == QuantifierGreedy)
-                    || (firstNonAnchorTerm.quantityType == QuantifierNonGreedy)))
+                     || (firstNonAnchorTerm.quantityType == QuantifierNonGreedy)))
                 return;
 
             firstExpressionTerm = termIndex + 1;
@@ -1104,7 +1101,7 @@ private:
     {
         if (!m_stackLimit)
             return true;
-        // ASSERT(Thread::current().stack().isGrowingDownward());
+// ASSERT(Thread::current().stack().isGrowingDownward());
 #ifndef STACK_GROWS_DOWN
 #error "ASSERT(Thread::current().stack().isGrowingDownward());"
 #endif
@@ -1118,8 +1115,8 @@ private:
     CharacterClassConstructor m_characterClassConstructor;
     Vector<String> m_unmatchedNamedForwardReferences;
     void* m_stackLimit;
-    bool m_invertCharacterClass { false };
-    bool m_invertParentheticalAssertion { false };
+    bool m_invertCharacterClass{ false };
+    bool m_invertParentheticalAssertion{ false };
 };
 
 ErrorCode YarrPattern::compile(const String& patternString, void* stackLimit)
@@ -1175,10 +1172,11 @@ YarrPattern::YarrPattern(const String& pattern, RegExpFlags flags, ErrorCode& er
 {
     error = compile(pattern, stackLimit);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [] (void* obj, void* cd) {
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void* cd) {
         YarrPattern* pattern = (YarrPattern*)obj;
         pattern->reset();
-    }, NULL, NULL, NULL);
+    },
+                                   NULL, NULL, NULL);
 }
 
 std::unique_ptr<CharacterClass> anycharCreate()
@@ -1190,5 +1188,5 @@ std::unique_ptr<CharacterClass> anycharCreate()
     characterClass->m_anyCharacter = true;
     return characterClass;
 }
-
-} } // namespace JSC::Yarr
+}
+} // namespace JSC::Yarr

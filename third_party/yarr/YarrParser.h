@@ -29,13 +29,14 @@
 #include "YarrPattern.h"
 #include "YarrUnicodeProperties.h"
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 // The Parser class should not be used directly - only via the Yarr::parse() method.
-template<class Delegate, typename CharType>
+template <class Delegate, typename CharType>
 class Parser {
 private:
-    template<class FriendDelegate>
+    template <class FriendDelegate>
     friend ErrorCode parse(FriendDelegate&, const String& pattern, bool isUnicode, unsigned backReferenceLimit);
 
     /*
@@ -118,13 +119,13 @@ private:
                 m_state = Empty;
                 return;
 
-                // See coment in atomBuiltInCharacterClass below.
-                // This too is technically an error, per ECMA-262, and again we
-                // we chose to allow this.  Note a subtlely here that while we
-                // diverge from the spec's definition of CharacterRange we do
-                // remain in compliance with the grammar.  For example, consider
-                // the expression /[\d-a-z]/.  We comply with the grammar in
-                // this case by not allowing a-z to be matched as a range.
+            // See coment in atomBuiltInCharacterClass below.
+            // This too is technically an error, per ECMA-262, and again we
+            // we chose to allow this.  Note a subtlely here that while we
+            // diverge from the spec's definition of CharacterRange we do
+            // remain in compliance with the grammar.  For example, consider
+            // the expression /[\d-a-z]/.  We comply with the grammar in
+            // this case by not allowing a-z to be matched as a range.
             case AfterCharacterClassHyphen:
                 m_delegate.atomCharacterClassAtom(ch);
                 m_state = Empty;
@@ -150,14 +151,14 @@ private:
                 m_delegate.atomCharacterClassBuiltIn(classID, invert);
                 return;
 
-                // If we hit either of these cases, we have an invalid range that
-                // looks something like /[x-\d]/ or /[\d-\d]/.
-                // According to ECMA-262 this should be a syntax error, but
-                // empirical testing shows this to break teh webz.  Instead we
-                // comply with to the ECMA-262 grammar, and assume the grammar to
-                // have matched the range correctly, but tweak our interpretation
-                // of CharacterRange.  Effectively we implicitly handle the hyphen
-                // as if it were escaped, e.g. /[\w-_]/ is treated as /[\w\-_]/.
+            // If we hit either of these cases, we have an invalid range that
+            // looks something like /[x-\d]/ or /[\d-\d]/.
+            // According to ECMA-262 this should be a syntax error, but
+            // empirical testing shows this to break teh webz.  Instead we
+            // comply with to the ECMA-262 grammar, and assume the grammar to
+            // have matched the range correctly, but tweak our interpretation
+            // of CharacterRange.  Effectively we implicitly handle the hyphen
+            // as if it were escaped, e.g. /[\w-_]/ is treated as /[\w\-_]/.
             case CachedCharacterHyphen:
                 m_delegate.atomCharacterClassAtom(m_character);
                 m_delegate.atomCharacterClassAtom('-');
@@ -192,7 +193,6 @@ private:
         NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(String) { RELEASE_ASSERT_NOT_REACHED(); }
         NO_RETURN_DUE_TO_ASSERT bool isValidNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
         NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
-
     private:
         Delegate& m_delegate;
         ErrorCode& m_errorCode;
@@ -248,7 +248,7 @@ private:
      * parsed was an atom (outside of a characted class \b and \B will be
      * interpreted as assertions).
      */
-    template<bool inCharacterClass, class EscapeDelegate>
+    template <bool inCharacterClass, class EscapeDelegate>
     bool parseEscape(EscapeDelegate& delegate)
     {
         ASSERT(!hasError(m_errorCode));
@@ -476,9 +476,9 @@ private:
                     }
 
                     if (delegate.isValidNamedForwardReference(groupName.value())) {
-                           delegate.atomNamedForwardReference(groupName.value());
-                           break;
-                       }
+                        delegate.atomNamedForwardReference(groupName.value());
+                        break;
+                    }
                 }
             } else {
                 if (m_isUnicode) {
@@ -725,7 +725,6 @@ private:
         if (m_isUnicode) {
             m_isLookaheadExistOnParentheses.push_back(isLookhead);
         }
-
     }
 
     /*
@@ -802,8 +801,7 @@ private:
                 lastTokenWasAnAtom = false;
                 break;
 
-            case ')':
-            {
+            case ')': {
                 bool isLookahead = parseParenthesesEnd();
                 lastTokenWasAnAtom = true;
 
@@ -904,8 +902,8 @@ private:
 
                 restoreState(state);
             }
-            // if we did not find a complete quantifer, fall through to the default case.
-            FALLTHROUGH;
+                // if we did not find a complete quantifer, fall through to the default case.
+                FALLTHROUGH;
 
             defaultCase:
             default:
@@ -1085,7 +1083,7 @@ private:
     {
         unsigned n = consumeDigit();
         // check for overflow.
-        for (unsigned newValue; peekIsDigit() && ((newValue = n * 10 + peekDigit()) >= n); ) {
+        for (unsigned newValue; peekIsDigit() && ((newValue = n * 10 + peekDigit()) >= n);) {
             n = newValue;
             consume();
         }
@@ -1137,11 +1135,10 @@ private:
             ParseState state = saveState();
             UChar32 surrogate2 = consume();
             if (U16_IS_TRAIL(surrogate2)) {
-                  ch = U16_GET_SUPPLEMENTARY(ch, surrogate2);
-                }
-            else
-                 restoreState(state);
-           }
+                ch = U16_GET_SUPPLEMENTARY(ch, surrogate2);
+            } else
+                restoreState(state);
+        }
 
 
         if (isIdentifierStart(ch)) {
@@ -1156,7 +1153,7 @@ private:
                     if (U16_IS_TRAIL(surrogate2))
                         ch = U16_GET_SUPPLEMENTARY(ch, surrogate2);
                     else
-                      restoreState(state);
+                        restoreState(state);
                 }
                 if (ch == '>')
                     return Optional<String>(identifierBuilder.toString());
@@ -1229,13 +1226,13 @@ private:
 
     Delegate& m_delegate;
     unsigned m_backReferenceLimit;
-    ErrorCode m_errorCode { ErrorCode::NoError };
+    ErrorCode m_errorCode{ ErrorCode::NoError };
     const CharType* m_data;
     unsigned m_size;
-    unsigned m_index { 0 };
+    unsigned m_index{ 0 };
     bool m_isUnicode;
-    unsigned m_parenthesesNestingDepth { 0 };
-    unsigned m_squareBracketsNestingDepth { 0 };
+    unsigned m_parenthesesNestingDepth{ 0 };
+    unsigned m_squareBracketsNestingDepth{ 0 };
     std::vector<bool> m_isLookaheadExistOnParentheses; // this is used only unicode flag is true
     HashSet<String> m_captureGroupNames;
 
@@ -1305,12 +1302,12 @@ private:
  * will be greater than the subpatternId passed to end.
  */
 
-template<class Delegate>
+template <class Delegate>
 ErrorCode parse(Delegate& delegate, const String& pattern, bool isUnicode, unsigned backReferenceLimit = quantifyInfinite)
 {
     if (pattern.is8Bit())
         return Parser<Delegate, LChar>(delegate, pattern, isUnicode, backReferenceLimit).parse();
     return Parser<Delegate, UChar>(delegate, pattern, isUnicode, backReferenceLimit).parse();
 }
-
-} } // namespace JSC::Yarr
+}
+} // namespace JSC::Yarr
