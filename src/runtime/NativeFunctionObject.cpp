@@ -149,7 +149,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     }
 
     if (isConstruct) {
-        Value result = code->m_fn(newState, receiver, argc, argv, isConstruct);
+        Value result = code->m_fn(newState, receiver, argc, argv, newTarget);
         if (UNLIKELY(!result.isObject())) {
             ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
         }
@@ -172,7 +172,8 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         }
         return result;
     } else {
-        return code->m_fn(newState, receiver, argc, argv, isConstruct);
+        ASSERT(!newTarget);
+        return code->m_fn(newState, receiver, argc, argv, Value());
     }
 }
 

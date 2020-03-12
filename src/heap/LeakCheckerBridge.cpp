@@ -32,7 +32,7 @@
 namespace Escargot {
 
 /* Usage in JS: registerLeakCheck( object: PointerValue, description: String ); */
-Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isPointerValue())
         state.throwException(new ErrorObject(state, new ASCIIString("builtinRegisterLeakCheck should get pointer-type argument")));
@@ -47,14 +47,14 @@ Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t ar
 }
 
 /* Usage in JS: dumpBackTrace( phase: String ); */
-Value builtinDumpBackTrace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinDumpBackTrace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     GCUtil::GCLeakChecker::dumpBackTrace(argv[0].toString(state)->toUTF8StringData().data());
     return Value();
 }
 
 /* Usage in JS: setPhaseName( phase: String ); */
-Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     GCUtil::GCLeakChecker::setGCPhaseName(argv[0].toString(state)->toUTF8StringData().data());
     return Value();

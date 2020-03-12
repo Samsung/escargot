@@ -27,7 +27,7 @@
 
 namespace Escargot {
 
-static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
@@ -36,17 +36,17 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
     return new ScriptGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
-static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return GeneratorObject::generatorResume(state, thisValue, argc > 0 ? argv[0] : Value());
 }
 
-static Value builtinGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Return);
 }
 
-static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Throw);
 }

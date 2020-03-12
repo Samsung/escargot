@@ -27,9 +27,9 @@
 namespace Escargot {
 
 class ExecutionState;
-Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-Value builtinDumpBackTrace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
-Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
+Value builtinDumpBackTrace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
+Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
 }
 
 #endif // PROFILE_BDWGC

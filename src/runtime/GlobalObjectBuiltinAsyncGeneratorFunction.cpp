@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
@@ -34,17 +34,17 @@ static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValu
     return new ScriptAsyncGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
-static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Next, argv[0]);
 }
 
-static Value builtinAsyncGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Return, argv[0]);
 }
 
-static Value builtinAsyncGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinAsyncGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Throw, argv[0]);
 }

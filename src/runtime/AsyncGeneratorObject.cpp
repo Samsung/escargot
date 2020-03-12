@@ -80,7 +80,7 @@ Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& s
     return AsyncGeneratorObject::asyncGeneratorResolve(state, F->m_sourceObject, value, true);
 }
 
-static Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ScriptAsyncGeneratorFunctionHelperFunctionObject* self = (ScriptAsyncGeneratorFunctionHelperFunctionObject*)state.resolveCallee();
     return asyncGeneratorResumeNextReturnProcessorFulfilledFunction(state, self, argv[0]);
@@ -96,7 +96,7 @@ Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& st
     return AsyncGeneratorObject::asyncGeneratorReject(state, F->m_sourceObject, reason);
 }
 
-static Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ScriptAsyncGeneratorFunctionHelperFunctionObject* self = (ScriptAsyncGeneratorFunctionHelperFunctionObject*)state.resolveCallee();
     return asyncGeneratorResumeNextReturnProcessorRejectedFunction(state, self, argv[0]);

@@ -28,9 +28,9 @@
 
 namespace Escargot {
 
-Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
@@ -97,7 +97,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
     }                                                                                                                                                                                                                                          \
     WeakMapObject* NAME = thisValue.asObject()->asWeakMapObject();
 
-static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, stringDelete);
     if (!argv[0].isObject()) {
@@ -107,7 +107,7 @@ static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t
     return Value(M->deleteOperation(state, argv[0].asObject()));
 }
 
-static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, get);
     if (!argv[0].isObject()) {
@@ -117,7 +117,7 @@ static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t ar
     return M->get(state, argv[0].asObject());
 }
 
-static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, has);
     if (!argv[0].isObject()) {
@@ -127,7 +127,7 @@ static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t ar
     return Value(M->has(state, argv[0].asObject()));
 }
 
-static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, set);
     if (!argv[0].isObject()) {

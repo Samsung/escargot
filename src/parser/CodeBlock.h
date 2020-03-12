@@ -36,7 +36,7 @@ class InterpretedCodeBlock;
 class Script;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
-typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
 
 struct NativeFunctionInfo {
     enum Flags {

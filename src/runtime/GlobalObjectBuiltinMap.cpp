@@ -28,9 +28,9 @@
 
 namespace Escargot {
 
-Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
@@ -97,39 +97,39 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
     }                                                                                                                                                                                                                                          \
     MapObject* NAME = thisValue.asObject()->asMapObject();
 
-static Value builtinMapClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, clear);
     M->clear(state);
     return Value();
 }
 
-static Value builtinMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, stringDelete);
     return Value(M->deleteOperation(state, argv[0]));
 }
 
-static Value builtinMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, get);
     return M->get(state, argv[0]);
 }
 
-static Value builtinMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, has);
     return Value(M->has(state, argv[0]));
 }
 
-static Value builtinMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, set);
     M->set(state, argv[0], argv[1]);
     return M;
 }
 
-static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, forEach);
     // Let M be the this value.
@@ -161,31 +161,31 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
     return Value();
 }
 
-static Value builtinMapKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, keys);
     return M->keys(state);
 }
 
-static Value builtinMapValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, values);
     return M->values(state);
 }
 
-static Value builtinMapEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, entries);
     return M->entries(state);
 }
 
-static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, size);
     return Value(M->size(state));
 }
 
-static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isMapIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().MapIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);

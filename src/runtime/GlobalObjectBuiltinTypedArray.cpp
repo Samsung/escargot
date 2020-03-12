@@ -29,9 +29,9 @@
 
 namespace Escargot {
 
-static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor);
     }
 
@@ -50,7 +50,7 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
     return obj;
 }
 
-static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isArrayBufferObject())) {
         return Value(thisValue.asObject()->asArrayBufferObject()->byteLength());
@@ -60,7 +60,7 @@ static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thi
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer.prototype.slice
-static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Object* thisObject = thisValue.toObject(state);
     Value end = argv[1];
@@ -96,7 +96,7 @@ static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue,
     return newObject;
 }
 
-static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(false);
@@ -156,7 +156,7 @@ static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedA
     return Value();
 }
 
-Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return Value();
 }
@@ -182,7 +182,7 @@ static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const 
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.from
-static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value C = thisValue;
     Value source = argv[0];
@@ -257,7 +257,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-%typedarray%.of
-static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     size_t len = argc;
     Value C = thisValue;
@@ -278,7 +278,7 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
     return newObj;
 }
 
-static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
@@ -287,7 +287,7 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
@@ -296,7 +296,7 @@ static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value this
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->arrayLength());
@@ -305,7 +305,7 @@ static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValu
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
         if (thisValue.asObject()->asArrayBufferView()->buffer()) {
@@ -317,10 +317,10 @@ static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValu
 }
 
 template <typename TA, int typedArrayElementSize, typename TypeAdaptor>
-Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // if NewTarget is undefined, throw a TypeError
-    if (!isNewExpression) {
+    if (newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInTypedArrayConstructor);
     }
 
@@ -507,7 +507,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return obj;
 }
 
-static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, copyWithin);
@@ -573,7 +573,7 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
     return O;
 }
 
-static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // NOTE: Same algorithm as Array.prototype.indexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -638,7 +638,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
     return Value(-1);
 }
 
-static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // NOTE: Same algorithm as Array.prototype.lastIndexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -700,7 +700,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
     return Value(-1);
 }
 
-static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
     if (!thisBinded->isTypedArrayObject() || argc < 1) {
@@ -783,7 +783,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     }
 }
 
-static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
@@ -833,7 +833,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
-static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, sort);
@@ -881,7 +881,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     return O;
 }
 
-static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be the this value.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, subarray);
@@ -927,7 +927,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     return Object::construct(state, constructor, 3, args);
 }
 
-static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, NULLABLE Value* argv, bool isNewExpression)
+static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
@@ -973,7 +973,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     return Value(true);
 }
 
-static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, fill);
@@ -1012,7 +1012,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
     return O;
 }
 
-static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, filter);
@@ -1074,7 +1074,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     return A;
 }
 
-static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
@@ -1119,7 +1119,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 
-static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
@@ -1164,7 +1164,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     return Value(-1);
 }
 
-static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, forEach);
@@ -1202,7 +1202,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     return Value();
 }
 
-static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, join);
@@ -1251,7 +1251,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     return builder.finalize(&state);
 }
 
-static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, map);
@@ -1296,7 +1296,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     return A;
 }
 
-static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduce);
@@ -1338,7 +1338,7 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     return accumulator;
 }
 
-static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduceRight);
@@ -1391,7 +1391,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     return accumulator;
 }
 
-static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reverse);
@@ -1426,7 +1426,7 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     return O;
 }
 
-static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, slice);
@@ -1489,7 +1489,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     return A;
 }
 
-static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toLocaleString);
@@ -1570,7 +1570,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     return R;
 }
 
-static Value builtinTypedArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toString);
     validateTypedArray(state, O, state.context()->staticStrings().toString.string());
@@ -1612,28 +1612,28 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     return taConstructor;
 }
 
-static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, keys);
     validateTypedArray(state, M, state.context()->staticStrings().keys.string());
     return M->keys(state);
 }
 
-static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, values);
     validateTypedArray(state, M, state.context()->staticStrings().values.string());
     return M->values(state);
 }
 
-static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, entries);
     validateTypedArray(state, M, state.context()->staticStrings().entries.string());
     return M->entries(state);
 }
 
-static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value O = thisValue;
     if (!O.isObject()) {

@@ -109,7 +109,7 @@ static void awaitFulfilledFunctions(ExecutionState& state, ScriptAsyncFunctionHe
     // Return undefined.
 }
 
-static Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ScriptAsyncFunctionHelperFunctionObject* self = (ScriptAsyncFunctionHelperFunctionObject*)state.resolveCallee();
     awaitFulfilledFunctions(state, self, argv[0]);
@@ -130,7 +130,7 @@ static void awaitRejectedFunctions(ExecutionState& state, ScriptAsyncFunctionHel
     // Return undefined.
 }
 
-static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     ScriptAsyncFunctionHelperFunctionObject* self = (ScriptAsyncFunctionHelperFunctionObject*)state.resolveCallee();
     awaitRejectedFunctions(state, self, argv[0]);

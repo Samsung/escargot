@@ -30,12 +30,12 @@ namespace Escargot {
 typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> ObjectPropertyVector;
 typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> ObjectStructurePropertyVector;
 
-static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return thisValue.toObject(state)->getPrototype(state);
 }
 
-static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value value = argv[0];
     Object* thisObject = thisValue.toObject(state);
@@ -49,7 +49,7 @@ static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue
     return Value();
 }
 
-static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value value = argv[0];
     if (value.isUndefined() || value.isNull()) {
@@ -59,13 +59,13 @@ static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, si
     }
 }
 
-static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(ret, Object, valueOf);
     return ret;
 }
 
-static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         return argv[0];
@@ -75,7 +75,7 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
     return o;
 }
 
-static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (thisValue.isUndefined()) {
         return new ASCIIString("[object Undefined]");
@@ -103,7 +103,7 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     return AtomicString(state, builder.finalize()).string();
 }
 
-static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value key = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
     Object* obj = thisValue.toObject(state);
@@ -135,7 +135,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     return object;
 }
 
-static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject() && !argv[0].isNull())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), errorMessage_GlobalObject_FirstArgumentNotObjectAndNotNull);
@@ -150,12 +150,12 @@ static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t 
     return obj;
 }
 
-static Value builtinObjectDefineProperties(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectDefineProperties(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return objectDefineProperties(state, argv[0], argv[1]);
 }
 
-static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Object.defineProperty ( O, P, Attributes )
     // If Type(O) is not Object, throw a TypeError exception.
@@ -178,7 +178,7 @@ static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue,
     return O;
 }
 
-static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Object.prototype.isPrototypeOf (V)
     // If V is not an object, return false.
@@ -204,7 +204,7 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
     }
 }
 
-static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let P be toPropertyKey(V).
     Value P = argv[0].toPropertyKey(state);
@@ -223,7 +223,7 @@ static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value this
     return Value(desc.isEnumerable());
 }
 
-static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
@@ -239,12 +239,12 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
     return Object::call(state, toString, Value(O), 0, nullptr);
 }
 
-static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return argv[0].toObject(state)->getPrototype(state);
 }
 
-static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
     // 19.1.2.18 Object.setPrototypeOf ( O, proto )
@@ -282,7 +282,7 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
     return object;
 }
 
-static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         // If Type(O) is not Object, return O. (ES6)
@@ -331,7 +331,7 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     return O;
 }
 
-static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (argv[0].isUndefinedOrNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
@@ -374,7 +374,7 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
     return obj;
 }
 
-static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Object.getOwnPropertyDescriptor ( O, P )
 
@@ -392,7 +392,7 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
 }
 // 19.1.2.9Object.getOwnPropertyDescriptors ( O )
 //https://www.ecma-international.org/ecma-262/8.0/#sec-object.getownpropertydescriptors
-static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Object* obj = argv[0].toObject(state);
     auto ownKeys = obj->ownPropertyKeys(state);
@@ -446,21 +446,21 @@ static ArrayObject* getOwnPropertyKeys(ExecutionState& state, Value o, GetOwnPro
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
-static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertynames
     Object* O = argv[0].toObject(state);
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::String);
 }
 
-static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertysymbols
     Object* O = argv[0].toObject(state);
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::Symbol);
 }
 
-static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(Value::False);
@@ -469,7 +469,7 @@ static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, s
     return Value(argv[0].asObject()->isExtensible(state));
 }
 
-static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(Value::True);
@@ -498,7 +498,7 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
-static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(Value::True);
@@ -529,7 +529,7 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
-static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     if (!argv[0].isObject()) {
         return argv[0];
@@ -564,7 +564,7 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     return O;
 }
 
-static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // Object.assign ( target, ...sources )
     // Let to be ? ToObject(target).
@@ -609,7 +609,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
     return to;
 }
 
-static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // 19.1.2.10 Object.is ( value1, value2 )
 
@@ -617,7 +617,7 @@ static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc
     return Value(argv[0].equalsToByTheSameValueAlgorithm(state, argv[1]));
 }
 
-static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // 19.1.2.16 Object.keys ( O )
 
@@ -629,7 +629,7 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
-static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // 19.1.2.21 Object.values ( O )
 
@@ -641,7 +641,7 @@ static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t 
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
-static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     // 19.1.2.5 Object.entries ( O )
 

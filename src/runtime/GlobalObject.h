@@ -40,7 +40,7 @@ class FunctionObject;
     }                                                                                                                                                                                                                                 \
     String* NAME = thisValue.toString(state);
 
-Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression);
+Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
 
 class GlobalObject : public Object {
 public:

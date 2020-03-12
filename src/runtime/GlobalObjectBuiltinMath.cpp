@@ -29,12 +29,12 @@
 
 namespace Escargot {
 
-static Value builtinMathAbs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAbs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     return Value(std::abs(argv[0].toNumber(state)));
 }
 
-static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     bool is_NaN = false;
     if (argc == 0) {
@@ -58,7 +58,7 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
     return Value();
 }
 
-static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     bool is_NaN = false;
     if (argc == 0) {
@@ -81,7 +81,7 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
     return Value();
 }
 
-static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     if (x == static_cast<int64_t>(x)) {
@@ -95,92 +95,92 @@ static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t arg
         return Value(floor(x + 0.5));
 }
 
-static Value builtinMathSin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathSin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value x = argv[0];
     return Value(ieee754::sin(x.toNumber(state)));
 }
 
-static Value builtinMathSinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathSinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::sinh(x));
 }
 
-static Value builtinMathCos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathCos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value x = argv[0];
     return Value(ieee754::cos(x.toNumber(state)));
 }
 
-static Value builtinMathCosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathCosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::cosh(x));
 }
 
-static Value builtinMathAcos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAcos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::acos(x));
 }
 
-static Value builtinMathAcosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAcosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::acosh(x));
 }
 
-static Value builtinMathAsin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAsin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::asin(x));
 }
 
-static Value builtinMathAsinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAsinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::asinh(x));
 }
 
-static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::atan(x));
 }
 
-static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     double y = argv[1].toNumber(state);
     return Value(ieee754::atan2(x, y));
 }
 
-static Value builtinMathAtanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathAtanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::atanh(x));
 }
 
-static Value builtinMathTan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathTan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::tan(x));
 }
 
-static Value builtinMathTanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathTanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::tanh(x));
 }
 
-static Value builtinMathTrunc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathTrunc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(trunc(x));
 }
 
-static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     if (std::isnan(x))
@@ -197,13 +197,13 @@ static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc
         return Value(1);
 }
 
-static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     Value x = argv[0];
     return Value(sqrt(x.toNumber(state)));
 }
 
-static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     double y = argv[1].toNumber(state);
@@ -282,13 +282,13 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
     return Value(pow(x, y));
 }
 
-static Value builtinMathCbrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathCbrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::cbrt(x));
 }
 
-static Value builtinMathCeil(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathCeil(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
 
@@ -297,7 +297,7 @@ static Value builtinMathCeil(ExecutionState& state, Value thisValue, size_t argc
     return Value(ieee754::ceil(x));
 }
 
-static Value builtinMathClz32(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathClz32(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     uint32_t x = argv[0].toUint32(state);
     int clz32 = 0;
@@ -310,19 +310,19 @@ static Value builtinMathClz32(ExecutionState& state, Value thisValue, size_t arg
     return Value(clz32);
 }
 
-static Value builtinMathFloor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathFloor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(floor(x));
 }
 
-static Value builtinMathFround(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathFround(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(static_cast<double>(static_cast<float>(x)));
 }
 
-static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double maxValue = 0;
     bool has_nan = false;
@@ -363,50 +363,50 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
     return Value(std::sqrt(sum) * maxValue);
 }
 
-static Value builtinMathIMul(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathIMul(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     int32_t x = argv[0].toInt32(state);
     int32_t y = argv[1].toInt32(state);
     return Value(x * y);
 }
 
-static Value builtinMathLog(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathLog(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::log(x));
 }
 
-static Value builtinMathLog1p(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathLog1p(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::log1p(x));
 }
 
-static Value builtinMathLog10(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathLog10(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::log10(x));
 }
 
-static Value builtinMathLog2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathLog2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::log2(x));
 }
 
-static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     std::uniform_real_distribution<double> distribution;
     return Value(distribution(state.context()->vmInstance()->randEngine()));
 }
 
-static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::exp(x));
 }
 
-static Value builtinMathExpm1(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinMathExpm1(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     double x = argv[0].toNumber(state);
     return Value(ieee754::expm1(x));

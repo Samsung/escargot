@@ -189,7 +189,7 @@ String* codePointTo4digitString(int codepoint)
     return ret.finalize();
 }
 
-static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
 
@@ -309,7 +309,7 @@ static void builtinJSONArrayReplacerHelper(ExecutionState& state, ObjectProperty
     propertyList.push_back(ObjectPropertyName(state, Value(item)));
 }
 
-static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t argc, Value* argv, bool isNewExpression)
+static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
     auto strings = &state.context()->staticStrings();
 
