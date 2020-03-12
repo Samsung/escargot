@@ -219,9 +219,6 @@
     <test id="annexB/language/eval-code/indirect/global-switch-dflt-eval-global-skip-early-err-for-of"><reason>TODO</reason></test>
     <test id="annexB/language/eval-code/indirect/global-switch-dflt-eval-global-skip-early-err-switch"><reason>TODO</reason></test>
     <test id="annexB/language/eval-code/indirect/global-switch-dflt-eval-global-skip-early-err-try"><reason>TODO</reason></test>
-    <test id="annexB/language/expressions/object/__proto__-duplicate-computed"><reason>TODO</reason></test>
-    <test id="annexB/language/expressions/object/__proto__-fn-name"><reason>TODO</reason></test>
-    <test id="annexB/language/expressions/object/__proto__-value-non-object"><reason>TODO</reason></test>
     <test id="annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-no-skip-try"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
@@ -2983,7 +2980,6 @@
     <test id="intl402/language-tags-invalid"><reason>TODO</reason></test>
     <test id="intl402/language-tags-with-underscore"><reason>TODO</reason></test>
     <test id="intl402/supportedLocalesOf-returned-array-elements-are-not-frozen"><reason>TODO</reason></test>
-    <test id="language/arguments-object/arguments-caller"><reason>TODO</reason></test>
     <test id="language/arguments-object/cls-decl-async-private-gen-meth-args-trailing-comma-multiple"><reason>TODO</reason></test>
     <test id="language/arguments-object/cls-decl-async-private-gen-meth-args-trailing-comma-null"><reason>TODO</reason></test>
     <test id="language/arguments-object/cls-decl-async-private-gen-meth-args-trailing-comma-single-args"><reason>TODO</reason></test>
@@ -5477,7 +5473,6 @@
     <test id="language/expressions/multiplication/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/multiplication/bigint-wrapped-values"><reason>TODO</reason></test>
     <test id="language/expressions/new/non-ctor-err-realm"><reason>TODO</reason></test>
-    <test id="language/expressions/object/computed-__proto__"><reason>TODO</reason></test>
     <test id="language/expressions/object/scope-gen-meth-param-elem-var-close"><reason>TODO</reason></test>
     <test id="language/expressions/object/scope-gen-meth-param-elem-var-open"><reason>TODO</reason></test>
     <test id="language/expressions/object/scope-gen-meth-param-rest-elem-var-close"><reason>TODO</reason></test>

@@ -68,7 +68,7 @@ void* ArgumentsObject::operator new(size_t size)
 
 
 ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
-    : Object(state, isMapped ? ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3 : ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4, true)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, true)
     , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)
     , m_sourceFunctionObject(sourceFunctionObject)
     , m_argc((argc << 1) | 1)
@@ -149,11 +149,9 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* so
 
         // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = state.context()->globalObject()->arrayPrototypeValues();
-        // Perform DefinePropertyOrThrow(obj, "caller", PropertyDescriptor {[[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
         auto thrower = state.context()->globalObject()->throwerGetterSetterData();
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(thrower);
         // Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3] = Value(thrower);
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(thrower);
     }
 }
 
