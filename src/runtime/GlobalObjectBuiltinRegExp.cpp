@@ -34,18 +34,24 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     Value flags = argv[1];
     String* source = pattern.isUndefined() ? String::emptyString : pattern.toString(state);
     String* option = flags.isUndefined() ? String::emptyString : flags.toString(state);
+
     // Let patternIsRegExp be IsRegExp(pattern).
     bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExp(state);
-    if (patternIsRegExp) {
+
+    if (newTarget.isUndefined()) {
+        // Let newTarget be the active function object.
+        newTarget = state.resolveCallee();
         // If patternIsRegExp is true and flags is undefined, then
-        if (flags.isUndefined()) {
+        if (patternIsRegExp && flags.isUndefined()) {
             // Let patternConstructor be Get(pattern, "constructor").
             Value patternConstructor = pattern.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, pattern);
             // If SameValue(patternConstructor, newTarget), then return pattern.
-            if (patternConstructor == state.resolveCallee())
+            if (patternConstructor == newTarget) {
                 return pattern;
+            }
         }
     }
+
     // If Type(pattern) is Object and pattern has a [[RegExpMatcher]] internal slot, then
     if (pattern.isObject() && pattern.asObject()->isRegExpObject()) {
         RegExpObject* patternRegExp = pattern.asObject()->asRegExpObject();
@@ -63,7 +69,9 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         }
     }
 
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->regexpPrototype());
     RegExpObject* regexp = new RegExpObject(state);
+    regexp->setPrototype(state, proto);
 
     // TODO http://www.ecma-international.org/ecma-262/6.0/index.html#sec-escaperegexppattern
     regexp->init(state, source, option);

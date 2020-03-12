@@ -36,7 +36,9 @@ public:
     };
 
     typedef TightVector<WeakSetObjectDataItem*, GCUtil::gc_malloc_allocator<WeakSetObjectDataItem*>> WeakSetObjectData;
+
     explicit WeakSetObject(ExecutionState& state);
+    explicit WeakSetObject(ExecutionState& state, Object* proto);
 
     virtual bool isWeakSetObject() const
     {

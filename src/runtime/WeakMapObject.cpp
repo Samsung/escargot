@@ -30,6 +30,12 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->weakMapPrototype());
 }
 
+WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
+    : Object(state)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
+
 void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
 {
     static bool typeInited = false;

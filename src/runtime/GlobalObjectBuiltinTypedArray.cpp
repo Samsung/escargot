@@ -35,7 +35,7 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInArrayBufferConstructor);
     }
 
-    ArrayBufferObject* obj = new ArrayBufferObject(state);
+    ArrayBufferObject* obj = ArrayBufferObject::allocateArrayBuffer(state, newTarget);
     if (argc >= 1) {
         Value& val = argv[0];
         double numberLength = val.toNumber(state);
@@ -325,6 +325,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     }
 
     TA* obj = new TA(state);
+    obj->setPrototypeFromConstructor(state, newTarget.asObject());
     if (argc == 0) {
         // $22.2.1.1 %TypedArray% ()
         obj->allocateTypedArray(state, 0);

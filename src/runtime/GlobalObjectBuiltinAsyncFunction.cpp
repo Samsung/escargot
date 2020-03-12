@@ -32,7 +32,16 @@ static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, true, false);
-    return new ScriptAsyncFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
+
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
+    if (newTarget.isUndefined()) {
+        newTarget = state.resolveCallee();
+    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->asyncFunctionPrototype());
+
+    ScriptAsyncFunctionObject* result = new ScriptAsyncFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
+    result->setPrototype(state, proto);
+    return result;
 }
 
 void GlobalObject::installAsyncFunction(ExecutionState& state)

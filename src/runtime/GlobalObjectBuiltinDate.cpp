@@ -74,7 +74,8 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         d.setTimeValue(DateObject::currentTime());
         return d.toFullString(state);
     } else {
-        DateObject* thisObject = new DateObject(state);
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->datePrototype());
+        DateObject* thisObject = new DateObject(state, proto);
 
         if (argc == 0) {
             thisObject->setTimeValue(DateObject::currentTime());

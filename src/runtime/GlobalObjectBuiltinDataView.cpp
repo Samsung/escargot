@@ -79,7 +79,8 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         }
     }
 
-    ArrayBufferView* obj = new DataViewObject(state);
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->dataViewPrototype());
+    ArrayBufferView* obj = new DataViewObject(state, proto);
     obj->setBuffer(buffer, byteOffset, byteLength);
 
     return obj;

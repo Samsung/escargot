@@ -160,6 +160,17 @@ ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->errorPrototype());
 }
 
+ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : Object(state)
+    , m_stackTraceData(nullptr)
+{
+    if (errorMessage->length()) {
+        defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
+                                                       ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    }
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
+
 ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
 {
     if (code == ReferenceError)
@@ -184,10 +195,20 @@ ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, String* errorM
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->referenceErrorPrototype());
 }
 
+ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+
 TypeErrorObject::TypeErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->typeErrorPrototype());
+}
+
+TypeErrorObject::TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
 }
 
 RangeErrorObject::RangeErrorObject(ExecutionState& state, String* errorMessage)
@@ -196,10 +217,20 @@ RangeErrorObject::RangeErrorObject(ExecutionState& state, String* errorMessage)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->rangeErrorPrototype());
 }
 
+RangeErrorObject::RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+
 SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->syntaxErrorPrototype());
+}
+
+SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
 }
 
 URIErrorObject::URIErrorObject(ExecutionState& state, String* errorMessage)
@@ -208,9 +239,19 @@ URIErrorObject::URIErrorObject(ExecutionState& state, String* errorMessage)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->uriErrorPrototype());
 }
 
+URIErrorObject::URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+
 EvalErrorObject::EvalErrorObject(ExecutionState& state, String* errorMessage)
     : ErrorObject(state, errorMessage)
 {
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->evalErrorPrototype());
+}
+
+EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
 }
 } // namespace Escargot

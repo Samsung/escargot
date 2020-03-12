@@ -43,6 +43,13 @@ PromiseObject::PromiseObject(ExecutionState& state)
     Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->promisePrototype());
 }
 
+PromiseObject::PromiseObject(ExecutionState& state, Object* proto)
+    : Object(state)
+    , m_state(PromiseState::Pending)
+{
+    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
+}
+
 void* PromiseObject::operator new(size_t size)
 {
     static bool typeInited = false;

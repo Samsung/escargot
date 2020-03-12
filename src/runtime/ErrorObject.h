@@ -131,7 +131,10 @@ public:
     }
     static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
     static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
+
     ErrorObject(ExecutionState& state, String* errorMessage);
+    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+
     virtual bool isErrorObject() const
     {
         return true;
@@ -181,31 +184,37 @@ private:
 class ReferenceErrorObject : public ErrorObject {
 public:
     ReferenceErrorObject(ExecutionState& state, String* errorMessage);
+    ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 
 class TypeErrorObject : public ErrorObject {
 public:
     TypeErrorObject(ExecutionState& state, String* errorMessage);
+    TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 
 class SyntaxErrorObject : public ErrorObject {
 public:
     SyntaxErrorObject(ExecutionState& state, String* errorMessage);
+    SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 
 class RangeErrorObject : public ErrorObject {
 public:
     RangeErrorObject(ExecutionState& state, String* errorMessage);
+    RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 
 class URIErrorObject : public ErrorObject {
 public:
     URIErrorObject(ExecutionState& state, String* errorMessage);
+    URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 
 class EvalErrorObject : public ErrorObject {
 public:
     EvalErrorObject(ExecutionState& state, String* errorMessage);
+    EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 }
 

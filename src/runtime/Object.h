@@ -715,10 +715,12 @@ class Object : public PointerValue {
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
     friend struct ObjectRareData;
-    static Object* createBuiltinObjectPrototype(ExecutionState& state);
 
 public:
     explicit Object(ExecutionState& state);
+    explicit Object(ExecutionState& state, Object* proto);
+
+    static Object* createBuiltinObjectPrototype(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
 
     virtual bool isObjectByVTable() const override
@@ -1032,6 +1034,8 @@ public:
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
     static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
     Optional<Object*> getMethod(ExecutionState& state, const ObjectPropertyName& propertyName); // returns nullptr or callable
+
+    static Object* getPrototypeFromConstructor(ExecutionState& state, Object* constructor, const Value& intrinsicDefaultProto);
 
     bool hasInstance(ExecutionState& state, const Value O);
 

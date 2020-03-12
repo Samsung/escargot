@@ -28,11 +28,12 @@ namespace Escargot {
 
 static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    ErrorObject* obj = new ErrorObject(state, String::emptyString);
-
-    // TODO
-    if (!newTarget.isUndefined()) {
+    if (newTarget.isUndefined()) {
+        newTarget = state.resolveCallee();
     }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->errorPrototype());
+    ErrorObject* obj = new ErrorObject(state, proto, String::emptyString);
 
     Value message = argv[0];
     if (!message.isUndefined()) {
@@ -42,10 +43,14 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     return obj;
 }
 
-#define DEFINE_ERROR_CTOR(errorname)                                                                                                                                                                                                                                  \
-    static Value builtin##errorname##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)                                                                                                                              \
+#define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                              \
+    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)                                                                                                                              \
     {                                                                                                                                                                                                                                                                 \
-        ErrorObject* obj = new errorname##ErrorObject(state, String::emptyString);                                                                                                                                                                                    \
+        if (newTarget.isUndefined()) {                                                                                                                                                                                                                                \
+            newTarget = state.resolveCallee();                                                                                                                                                                                                                        \
+        }                                                                                                                                                                                                                                                             \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->lowerCaseErrorName##ErrorPrototype());                                                                                                      \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                                             \
         Value message = argv[0];                                                                                                                                                                                                                                      \
         if (!message.isUndefined()) {                                                                                                                                                                                                                                 \
             obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,                                                                                                                                                      \
@@ -54,12 +59,12 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         return obj;                                                                                                                                                                                                                                                   \
     }
 
-DEFINE_ERROR_CTOR(Reference);
-DEFINE_ERROR_CTOR(Type);
-DEFINE_ERROR_CTOR(Syntax);
-DEFINE_ERROR_CTOR(Range);
-DEFINE_ERROR_CTOR(URI);
-DEFINE_ERROR_CTOR(Eval);
+DEFINE_ERROR_CTOR(Reference, reference);
+DEFINE_ERROR_CTOR(Type, type);
+DEFINE_ERROR_CTOR(Syntax, syntax);
+DEFINE_ERROR_CTOR(Range, range);
+DEFINE_ERROR_CTOR(URI, uri);
+DEFINE_ERROR_CTOR(Eval, eval);
 
 static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {

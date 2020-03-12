@@ -31,7 +31,16 @@ static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValu
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, true, false);
-    return new ScriptAsyncGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
+
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
+    if (newTarget.isUndefined()) {
+        newTarget = state.resolveCallee();
+    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->asyncGenerator());
+
+    ScriptAsyncGeneratorFunctionObject* result = new ScriptAsyncGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
+    result->setPrototype(state, proto);
+    return result;
 }
 
 static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)

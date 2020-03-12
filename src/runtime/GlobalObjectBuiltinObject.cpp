@@ -51,10 +51,19 @@ static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue
 
 static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
+    // If NewTarget is neither undefined nor the active function, then
+    if (!newTarget.isUndefined() && newTarget != state.resolveCallee()) {
+        // Return ? OrdinaryCreateFromConstructor(NewTarget, "%ObjectPrototype%").
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->objectPrototype());
+        return new Object(state, proto);
+    }
+
     Value value = argv[0];
     if (value.isUndefined() || value.isNull()) {
+        // If value is null, undefined or not supplied, return ObjectCreate(%ObjectPrototype%).
         return new Object(state);
     } else {
+        // Return ! ToObject(value).
         return value.toObject(state);
     }
 }

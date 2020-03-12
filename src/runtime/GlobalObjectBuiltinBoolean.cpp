@@ -27,12 +27,12 @@ namespace Escargot {
 
 static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    bool primitiveVal = (argv[0].isUndefined()) ? false : argv[0].toBoolean(state);
+    bool primitiveVal = argv[0].toBoolean(state);
     if (newTarget.isUndefined()) {
         return Value(primitiveVal);
     } else {
-        BooleanObject* boolObj = new BooleanObject(state);
-        boolObj->setPrimitiveValue(state, primitiveVal);
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->booleanPrototype());
+        BooleanObject* boolObj = new BooleanObject(state, proto, primitiveVal);
         return boolObj;
     }
 }

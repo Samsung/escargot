@@ -27,6 +27,7 @@ namespace Escargot {
 class BooleanObject : public Object {
 public:
     BooleanObject(ExecutionState& state, bool value = false);
+    BooleanObject(ExecutionState& state, Object* proto, bool value);
 
     bool primitiveValue()
     {

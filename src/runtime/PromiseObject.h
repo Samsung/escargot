@@ -97,6 +97,7 @@ public:
     };
 
     explicit PromiseObject(ExecutionState& state);
+    explicit PromiseObject(ExecutionState& state, Object* proto);
 
     virtual bool isPromiseObject() const
     {
