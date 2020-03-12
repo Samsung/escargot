@@ -33,9 +33,10 @@
 
 using namespace WTF;
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
-template<typename CharType>
+template <typename CharType>
 class Interpreter {
 public:
     struct ParenthesesDisjunctionContext;
@@ -60,8 +61,7 @@ public:
         --backTrack->matchAmount;
     }
 
-    struct DisjunctionContext
-    {
+    struct DisjunctionContext {
         DisjunctionContext()
             : term(0)
         {
@@ -91,8 +91,7 @@ public:
         allocatorPool = allocatorPool->dealloc(context);
     }
 
-    struct ParenthesesDisjunctionContext
-    {
+    struct ParenthesesDisjunctionContext {
         ParenthesesDisjunctionContext(unsigned* output, ByteTerm& term)
             : next(0)
         {
@@ -184,13 +183,13 @@ public:
             if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
                 if (atEnd())
                     return -1;
-                
+
                 result = U16_GET_SUPPLEMENTARY(result, input[p + 1]);
                 next();
             }
             return result;
         }
-        
+
         int readSurrogatePairChecked(unsigned negativePositionOffset)
         {
             RELEASE_ASSERT(pos >= negativePositionOffset);
@@ -1003,7 +1002,7 @@ public:
                     // The match failed; try to find an alternate point to carry on from.
                     resetMatches(term, context);
                     freeParenthesesDisjunctionContext(context);
-                    
+
                     if (fixedMatchResult != JSRegExpNoMatch)
                         return fixedMatchResult;
                     JSRegExpResult backtrackResult = parenthesesDoBacktrack(term, backTrack);
@@ -1221,7 +1220,9 @@ public:
         unsigned matchEnd = input.getPos();
 
         for (; (matchEnd != input.end())
-             && (!testCharacterClass(pattern->newlineCharacterClass, input.reread(matchEnd))); matchEnd++) { }
+             && (!testCharacterClass(pattern->newlineCharacterClass, input.reread(matchEnd)));
+             matchEnd++) {
+        }
 
         if (((matchBegin && term.anchors.m_bol)
              || ((matchEnd != input.end()) && term.anchors.m_eol))
@@ -1233,8 +1234,16 @@ public:
         return true;
     }
 
-#define MATCH_NEXT() { ++context->term; goto matchAgain; }
-#define BACKTRACK() { --context->term; goto backtrack; }
+#define MATCH_NEXT()     \
+    {                    \
+        ++context->term; \
+        goto matchAgain; \
+    }
+#define BACKTRACK()      \
+    {                    \
+        --context->term; \
+        goto backtrack;  \
+    }
 #define currentTerm() (disjunction->terms[context->term])
     JSRegExpResult matchDisjunction(ByteDisjunction* disjunction, DisjunctionContext* context, bool btrack = false)
     {
@@ -1340,7 +1349,7 @@ public:
                 ASSERT(U_IS_BMP(currentTerm().atom.patternCharacter));
 
                 unsigned position = input.getPos(); // May need to back out reading a surrogate pair.
-                
+
                 for (unsigned matchAmount = 0; matchAmount < currentTerm().atom.quantityMaxCount; ++matchAmount) {
                     if (!checkCasedCharacter(currentTerm().atom.casedCharacter.lo, currentTerm().atom.casedCharacter.hi, currentTerm().inputPosition - matchAmount)) {
                         input.setPos(position);
@@ -1379,7 +1388,7 @@ public:
 
             // Case insensitive matching of unicode characters is handled as TypeCharacterClass.
             ASSERT(!unicode || U_IS_BMP(currentTerm().atom.patternCharacter));
-            
+
             backTrack->matchAmount = 0;
             MATCH_NEXT();
         }
@@ -1397,7 +1406,7 @@ public:
 
             if (result == JSRegExpMatch) {
                 MATCH_NEXT();
-            }  else if (result != JSRegExpNoMatch)
+            } else if (result != JSRegExpNoMatch)
                 return result;
 
             BACKTRACK();
@@ -1435,7 +1444,7 @@ public:
         case ByteTerm::TypeUncheckInput:
             input.uncheckInput(currentTerm().checkInputCount);
             MATCH_NEXT();
-                
+
         case ByteTerm::TypeDotStarEnclosure:
             if (matchDotStarEnclosure(currentTerm(), context))
                 return JSRegExpMatch;
@@ -1639,7 +1648,7 @@ class ByteCompiler {
     struct ParenthesesStackEntry {
         unsigned beginTerm;
         unsigned savedAlternativeIndex;
-        ParenthesesStackEntry(unsigned beginTerm, unsigned savedAlternativeIndex/*, unsigned subpatternId, bool capture = false*/)
+        ParenthesesStackEntry(unsigned beginTerm, unsigned savedAlternativeIndex /*, unsigned subpatternId, bool capture = false*/)
             : beginTerm(beginTerm)
             , savedAlternativeIndex(savedAlternativeIndex)
         {
@@ -1671,7 +1680,7 @@ public:
     {
         m_bodyDisjunction->terms.append(ByteTerm::UncheckInput(count));
     }
-    
+
     void assertionBOL(unsigned inputPosition)
     {
         m_bodyDisjunction->terms.append(ByteTerm::BOL(inputPosition));
@@ -2041,12 +2050,12 @@ public:
                     break;
 
                 case PatternTerm::TypeCharacterClass:
-                    atomCharacterClass(term.characterClass, term.invert(), currentCountAlreadyChecked- term.inputPosition, term.frameLocation, term.quantityMaxCount, term.quantityType);
+                    atomCharacterClass(term.characterClass, term.invert(), currentCountAlreadyChecked - term.inputPosition, term.frameLocation, term.quantityMaxCount, term.quantityType);
                     break;
 
                 case PatternTerm::TypeBackReference:
                     atomBackReference(term.backReferenceSubpatternId, currentCountAlreadyChecked - term.inputPosition, term.frameLocation, term.quantityMaxCount, term.quantityType);
-                        break;
+                    break;
 
                 case PatternTerm::TypeForwardReference:
                     break;
@@ -2110,6 +2119,7 @@ public:
             }
         }
     }
+
 private:
     YarrPattern& m_pattern;
     std::unique_ptr<ByteDisjunction> m_bodyDisjunction;
@@ -2149,6 +2159,5 @@ COMPILE_ASSERT(sizeof(BackTrackInfoAlternative) == (YarrStackSpaceForBackTrackIn
 COMPILE_ASSERT(sizeof(BackTrackInfoParentheticalAssertion) == (YarrStackSpaceForBackTrackInfoParentheticalAssertion * sizeof(uintptr_t)), CheckYarrStackSpaceForBackTrackInfoParentheticalAssertion);
 COMPILE_ASSERT(sizeof(BackTrackInfoParenthesesOnce) == (YarrStackSpaceForBackTrackInfoParenthesesOnce * sizeof(uintptr_t)), CheckYarrStackSpaceForBackTrackInfoParenthesesOnce);
 COMPILE_ASSERT(sizeof(Interpreter<UChar>::BackTrackInfoParentheses) <= (YarrStackSpaceForBackTrackInfoParentheses * sizeof(uintptr_t)), CheckYarrStackSpaceForBackTrackInfoParentheses);
-
-
-} }
+}
+}

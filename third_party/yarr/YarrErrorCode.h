@@ -25,7 +25,8 @@
 
 #pragma once
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 enum class ErrorCode : unsigned {
     NoError = 0,
@@ -60,5 +61,5 @@ inline bool hasError(ErrorCode errorCode)
 {
     return errorCode != ErrorCode::NoError;
 }
-
-} } // namespace JSC::Yarr
+}
+} // namespace JSC::Yarr

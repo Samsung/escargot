@@ -31,7 +31,8 @@
 
 #include <stddef.h>
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 enum RegExpFlags {
     NoFlags = 0,
@@ -49,8 +50,8 @@ struct YarrPattern;
 struct PatternDisjunction;
 
 struct CharacterRange {
-    UChar32 begin { 0 };
-    UChar32 end { 0x10ffff };
+    UChar32 begin{ 0 };
+    UChar32 end{ 0x10ffff };
 
     CharacterRange(UChar32 begin, UChar32 end)
         : begin(begin)
@@ -61,6 +62,7 @@ struct CharacterRange {
 
 struct CharacterClass {
     WTF_MAKE_FAST_ALLOCATED;
+
 public:
     // All CharacterClass instances have to have the full set of matches and ranges,
     // they may have an optional m_table for faster lookups (which must match the
@@ -121,8 +123,8 @@ struct PatternTerm {
         TypeParentheticalAssertion,
         TypeDotStarEnclosure,
     } type;
-    bool m_capture :1;
-    bool m_invert :1;
+    bool m_capture : 1;
+    bool m_invert : 1;
     union {
         UChar32 patternCharacter;
         CharacterClass* characterClass;
@@ -264,6 +266,7 @@ struct PatternTerm {
 
 struct PatternAlternative {
     WTF_MAKE_FAST_ALLOCATED;
+
 public:
     PatternAlternative(PatternDisjunction* disjunction)
         : m_parent(disjunction)
@@ -307,6 +310,7 @@ public:
 
 struct PatternDisjunction {
     WTF_MAKE_FAST_ALLOCATED;
+
 public:
     PatternDisjunction(PatternAlternative* parent = 0)
         : m_parent(parent)
@@ -346,7 +350,8 @@ std::unique_ptr<CharacterClass> nonwordUnicodeIgnoreCaseCharCreate();
 struct TermChain {
     TermChain(PatternTerm term)
         : term(term)
-    {}
+    {
+    }
 
     PatternTerm term;
     Vector<TermChain> hotTerms;
@@ -400,22 +405,21 @@ struct YarrPattern : public gc {
             return false;
         bool notContains = true;
         for (auto& entry : m_namedForwardReferences) {
-            for(auto& entry2 : m_captureGroupNames){
-              if (entry.equals(entry2)){
-                  notContains = false;
-                  break;
+            for (auto& entry2 : m_captureGroupNames) {
+                if (entry.equals(entry2)) {
+                    notContains = false;
+                    break;
+                }
             }
-          }
-        if(notContains)
-        {
-          return true;
+            if (notContains) {
+                return true;
+            }
+            notContains = true;
         }
-        notContains = true;
+
+
+        return false;
     }
-
-
-      return false;
-  }
     bool containsUnsignedLengthPattern()
     {
         return m_containsUnsignedLengthPattern;
@@ -523,16 +527,15 @@ struct YarrPattern : public gc {
     bool sticky() const { return m_flags & FlagSticky; }
     bool unicode() const { return m_flags & FlagUnicode; }
     bool dotAll() const { return m_flags & FlagDotAll; }
-
     bool m_containsBackreferences : 1;
     bool m_containsBOL : 1;
     bool m_containsUnsignedLengthPattern : 1;
     bool m_hasCopiedParenSubexpressions : 1;
     bool m_saveInitialStartValue : 1;
     RegExpFlags m_flags;
-    unsigned m_numSubpatterns { 0 };
-    unsigned m_maxBackReference { 0 };
-    unsigned m_initialStartValueFrameLocation { 0 };
+    unsigned m_numSubpatterns{ 0 };
+    unsigned m_maxBackReference{ 0 };
+    unsigned m_initialStartValueFrameLocation{ 0 };
     PatternDisjunction* m_body;
     Vector<std::unique_ptr<PatternDisjunction>, 4> m_disjunctions;
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
@@ -557,79 +560,79 @@ private:
 
     ErrorCode compile(const String& patternString, void* stackLimit);
 
-    CharacterClass* anycharCached { nullptr };
-    CharacterClass* newlineCached { nullptr };
-    CharacterClass* digitsCached { nullptr };
-    CharacterClass* spacesCached { nullptr };
-    CharacterClass* wordcharCached { nullptr };
-    CharacterClass* wordUnicodeIgnoreCaseCharCached { nullptr };
-    CharacterClass* nondigitsCached { nullptr };
-    CharacterClass* nonspacesCached { nullptr };
-    CharacterClass* nonwordcharCached { nullptr };
-    CharacterClass* nonwordUnicodeIgnoreCasecharCached { nullptr };
+    CharacterClass* anycharCached{ nullptr };
+    CharacterClass* newlineCached{ nullptr };
+    CharacterClass* digitsCached{ nullptr };
+    CharacterClass* spacesCached{ nullptr };
+    CharacterClass* wordcharCached{ nullptr };
+    CharacterClass* wordUnicodeIgnoreCaseCharCached{ nullptr };
+    CharacterClass* nondigitsCached{ nullptr };
+    CharacterClass* nonspacesCached{ nullptr };
+    CharacterClass* nonwordcharCached{ nullptr };
+    CharacterClass* nonwordUnicodeIgnoreCasecharCached{ nullptr };
     HashMap<unsigned, CharacterClass*> unicodePropertiesCached;
 };
 
-    struct BackTrackInfoPatternCharacter {
-        uintptr_t begin; // Only needed for unicode patterns
-        uintptr_t matchAmount;
+struct BackTrackInfoPatternCharacter {
+    uintptr_t begin; // Only needed for unicode patterns
+    uintptr_t matchAmount;
 
-        static unsigned beginIndex() { return offsetof(BackTrackInfoPatternCharacter, begin) / sizeof(uintptr_t); }
-        static unsigned matchAmountIndex() { return offsetof(BackTrackInfoPatternCharacter, matchAmount) / sizeof(uintptr_t); }
+    static unsigned beginIndex() { return offsetof(BackTrackInfoPatternCharacter, begin) / sizeof(uintptr_t); }
+    static unsigned matchAmountIndex() { return offsetof(BackTrackInfoPatternCharacter, matchAmount) / sizeof(uintptr_t); }
+};
+
+struct BackTrackInfoCharacterClass {
+    uintptr_t begin; // Only needed for unicode patterns
+    uintptr_t matchAmount;
+
+    static unsigned beginIndex() { return offsetof(BackTrackInfoCharacterClass, begin) / sizeof(uintptr_t); }
+    static unsigned matchAmountIndex() { return offsetof(BackTrackInfoCharacterClass, matchAmount) / sizeof(uintptr_t); }
+};
+
+struct BackTrackInfoBackReference {
+    uintptr_t begin; // Not really needed for greedy quantifiers.
+    uintptr_t matchAmount; // Not really needed for fixed quantifiers.
+
+    unsigned beginIndex() { return offsetof(BackTrackInfoBackReference, begin) / sizeof(uintptr_t); }
+    unsigned matchAmountIndex() { return offsetof(BackTrackInfoBackReference, matchAmount) / sizeof(uintptr_t); }
+};
+
+struct BackTrackInfoAlternative {
+    union {
+        uintptr_t offset;
     };
+};
 
-    struct BackTrackInfoCharacterClass {
-        uintptr_t begin; // Only needed for unicode patterns
-        uintptr_t matchAmount;
+struct BackTrackInfoParentheticalAssertion {
+    uintptr_t begin;
 
-        static unsigned beginIndex() { return offsetof(BackTrackInfoCharacterClass, begin) / sizeof(uintptr_t); }
-        static unsigned matchAmountIndex() { return offsetof(BackTrackInfoCharacterClass, matchAmount) / sizeof(uintptr_t); }
-    };
+    static unsigned beginIndex() { return offsetof(BackTrackInfoParentheticalAssertion, begin) / sizeof(uintptr_t); }
+};
 
-    struct BackTrackInfoBackReference {
-        uintptr_t begin; // Not really needed for greedy quantifiers.
-        uintptr_t matchAmount; // Not really needed for fixed quantifiers.
+struct BackTrackInfoParenthesesOnce {
+    uintptr_t begin;
+    uintptr_t returnAddress;
 
-        unsigned beginIndex() { return offsetof(BackTrackInfoBackReference, begin) / sizeof(uintptr_t); }
-        unsigned matchAmountIndex() { return offsetof(BackTrackInfoBackReference, matchAmount) / sizeof(uintptr_t); }
-    };
+    static unsigned beginIndex() { return offsetof(BackTrackInfoParenthesesOnce, begin) / sizeof(uintptr_t); }
+    static unsigned returnAddressIndex() { return offsetof(BackTrackInfoParenthesesOnce, returnAddress) / sizeof(uintptr_t); }
+};
 
-    struct BackTrackInfoAlternative {
-        union {
-            uintptr_t offset;
-        };
-    };
+struct BackTrackInfoParenthesesTerminal {
+    uintptr_t begin;
 
-    struct BackTrackInfoParentheticalAssertion {
-        uintptr_t begin;
+    static unsigned beginIndex() { return offsetof(BackTrackInfoParenthesesTerminal, begin) / sizeof(uintptr_t); }
+};
 
-        static unsigned beginIndex() { return offsetof(BackTrackInfoParentheticalAssertion, begin) / sizeof(uintptr_t); }
-    };
+struct BackTrackInfoParentheses {
+    uintptr_t begin;
+    uintptr_t returnAddress;
+    uintptr_t matchAmount;
+    uintptr_t parenContextHead;
 
-    struct BackTrackInfoParenthesesOnce {
-        uintptr_t begin;
-        uintptr_t returnAddress;
-
-        static unsigned beginIndex() { return offsetof(BackTrackInfoParenthesesOnce, begin) / sizeof(uintptr_t); }
-        static unsigned returnAddressIndex() { return offsetof(BackTrackInfoParenthesesOnce, returnAddress) / sizeof(uintptr_t); }
-    };
-
-    struct BackTrackInfoParenthesesTerminal {
-        uintptr_t begin;
-
-        static unsigned beginIndex() { return offsetof(BackTrackInfoParenthesesTerminal, begin) / sizeof(uintptr_t); }
-    };
-
-    struct BackTrackInfoParentheses {
-        uintptr_t begin;
-        uintptr_t returnAddress;
-        uintptr_t matchAmount;
-        uintptr_t parenContextHead;
-
-        static unsigned beginIndex() { return offsetof(BackTrackInfoParentheses, begin) / sizeof(uintptr_t); }
-        static unsigned returnAddressIndex() { return offsetof(BackTrackInfoParentheses, returnAddress) / sizeof(uintptr_t); }
-        static unsigned matchAmountIndex() { return offsetof(BackTrackInfoParentheses, matchAmount) / sizeof(uintptr_t); }
-        static unsigned parenContextHeadIndex() { return offsetof(BackTrackInfoParentheses, parenContextHead) / sizeof(uintptr_t); }
-    };
-
-} } // namespace JSC::Yarr
+    static unsigned beginIndex() { return offsetof(BackTrackInfoParentheses, begin) / sizeof(uintptr_t); }
+    static unsigned returnAddressIndex() { return offsetof(BackTrackInfoParentheses, returnAddress) / sizeof(uintptr_t); }
+    static unsigned matchAmountIndex() { return offsetof(BackTrackInfoParentheses, matchAmount) / sizeof(uintptr_t); }
+    static unsigned parenContextHeadIndex() { return offsetof(BackTrackInfoParentheses, parenContextHead) / sizeof(uintptr_t); }
+};
+}
+} // namespace JSC::Yarr

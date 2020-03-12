@@ -37,18 +37,15 @@ WTF_EXPORT_PRIVATE size_t pageMask();
 inline bool isPageAligned(void* address) { return !(reinterpret_cast<intptr_t>(address) & (pageSize() - 1)); }
 inline bool isPageAligned(size_t size) { return !(size & (pageSize() - 1)); }
 inline bool isPowerOfTwo(size_t size) { return !(size & (size - 1)); }
-
 class PageBlock {
 public:
     PageBlock();
     PageBlock(const PageBlock&);
     PageBlock(void*, size_t, bool hasGuardPages);
-    
+
     void* base() const { return m_base; }
     size_t size() const { return m_size; }
-
     operator bool() const { return !!m_realBase; }
-
     bool contains(void* containedBase, size_t containedSize)
     {
         return containedBase >= m_base

@@ -23,8 +23,9 @@ import sys
 from argparse import ArgumentParser
 from difflib import unified_diff
 #from check_license import CheckLicenser
-from os.path import join, relpath, splitext
+from os.path import abspath, dirname, join, relpath, splitext
 
+DEFAULT_DIR = dirname(dirname(abspath(__file__)))
 
 TERM_RED = '\033[1;31m'
 TERM_GREEN = '\033[1;32m'
@@ -34,7 +35,7 @@ TERM_EMPTY = '\033[0m'
 
 
 clang_format_exts = ['.cpp', '.h']
-skip_dirs = ['node_modules', 'out', 'test', 'third_party', '.git', 'CMakeFiles']
+skip_dirs = ['build', 'CMakeFiles', 'docs', 'out', 'test', 'tools', 'double_conversion', 'GCutil', 'lz4', 'rapidjson', 'windows', '.git']
 skip_files = []
 
 
@@ -52,15 +53,13 @@ def is_checked_by_clang(file):
 
 
 def check_tidy(src_dir, update, clang_format, stats):
-    print('%sprocessing directory: %s%s' % (TERM_PURPLE, src_dir, TERM_EMPTY))
+    print('processing directory: %s' % src_dir)
 
     for dirpath, _, filenames in os.walk(src_dir):
         if any(d in relpath(dirpath, src_dir) for d in skip_dirs):
             continue
 
         for file in [join(dirpath, name) for name in filenames if is_checked_by_clang(name)]:
-            print(file)
-
             def report_error(msg, line=None):
                 print('%s%s:%s %s%s' % (TERM_YELLOW, file, '%d:' % line if line else '', msg, TERM_EMPTY))
                 stats.errors += 1
@@ -107,14 +106,13 @@ def main():
                         help='path to clang-format (default: %(default)s)')
     parser.add_argument('--update', action='store_true',
                         help='reformat files')
-    parser.add_argument('dir', nargs='*', default=['.'],
-                        help='directory to process (default: .)')
+    parser.add_argument('--dir', metavar='PATH', default=DEFAULT_DIR,
+                        help='directory to process (default: %(default)s)')
     args = parser.parse_args()
 
     stats = Stats()
 
-    for dir in args.dir:
-        check_tidy(dir, args.update, args.clang_format, stats)
+    check_tidy(args.dir, args.update, args.clang_format, stats)
 
     print()
     print('* Total number of files: %d' % stats.files)

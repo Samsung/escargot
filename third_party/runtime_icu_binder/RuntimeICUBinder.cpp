@@ -203,7 +203,7 @@ static std::string extractLocaleName(std::string input)
 
 std::string ICU::findSystemLocale()
 {
-    char* c = getenv("LANG");
+    char *c = getenv("LANG");
     if (c && strlen(c)) {
         return extractLocaleName(c);
     }

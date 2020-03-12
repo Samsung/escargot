@@ -6,10 +6,10 @@
 * are met:
 *
 * 1.  Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer. 
+*     notice, this list of conditions and the following disclaimer.
 * 2.  Redistributions in binary form must reproduce the above copyright
 *     notice, this list of conditions and the following disclaimer in the
-*     documentation and/or other materials provided with the distribution. 
+*     documentation and/or other materials provided with the distribution.
 *
 * THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -28,7 +28,8 @@
 #include "WTFBridge.h"
 #include "YarrCanonicalize.h"
 
-namespace JSC { namespace Yarr {
+namespace JSC {
+namespace Yarr {
 
 const UChar32 unicodeCharacterSet0[] = { 0x004b, 0x006b, 0x212a, 0 };
 const UChar32 unicodeCharacterSet1[] = { 0x0053, 0x0073, 0x017f, 0 };
@@ -587,5 +588,5 @@ const CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES] = 
     { 0x1e922, 0x1e943, 0x0022, CanonicalizeRangeHi },
     { 0x1e944, 0x10ffff, 0x0000, CanonicalizeUnique },
 };
-
-} } // JSC::Yarr
+}
+} // JSC::Yarr

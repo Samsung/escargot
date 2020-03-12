@@ -76,7 +76,7 @@ public:
     // Reallocate an existing, committed allocation.
     // The prior allocation must be fully comitted, and the new size will also be fully committed.
     // This interface is provided since it may be possible to optimize this operation on some platforms.
-    template<typename T>
+    template <typename T>
     static T* reallocateCommitted(T*, size_t oldSize, size_t newSize, Usage = UnknownUsage, bool writable = true, bool executable = false);
 };
 
@@ -106,7 +106,7 @@ inline void OSAllocator::decommitAndRelease(void* base, size_t size)
     decommitAndRelease(base, size, base, size);
 }
 
-template<typename T>
+template <typename T>
 inline T* OSAllocator::reallocateCommitted(T* oldBase, size_t oldSize, size_t newSize, Usage usage, bool writable, bool executable)
 {
     void* newBase = reserveAndCommit(newSize, usage, writable, executable);
