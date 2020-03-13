@@ -22,6 +22,8 @@
 #include "DebuggerTcp.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
+#include "runtime/SandBox.h"
+#include "parser/Script.h"
 
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
@@ -155,7 +157,9 @@ bool Debugger::processIncomingMessages(ExecutionState* state)
             break;
         }
         case ESCARGOT_MESSAGE_UPDATE_BREAKPOINT: {
-            ASSERT(length == 1 + 1 + sizeof(uintptr_t) + sizeof(uint32_t));
+            if (length != 1 + 1 + sizeof(uintptr_t) + sizeof(uint32_t)) {
+                break;
+            }
 
             uintptr_t ptr;
             uint32_t offset;
@@ -219,6 +223,19 @@ bool Debugger::processIncomingMessages(ExecutionState* state)
             m_stopState = state;
             return false;
         }
+        case ESCARGOT_MESSAGE_GET_BACKTRACE: {
+            if (length != 1 + sizeof(uint32_t) + sizeof(uint32_t) + 1) {
+                break;
+            }
+
+            uint32_t minDepth;
+            uint32_t maxDepth;
+            memcpy(&minDepth, buffer + 1, sizeof(uint32_t));
+            memcpy(&maxDepth, buffer + 1 + sizeof(uint32_t), sizeof(uint32_t));
+
+            getBacktrace(state, minDepth, maxDepth, buffer[1 + sizeof(uint32_t) + sizeof(uint32_t)] != 0);
+            return true;
+        }
         }
 
         ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
@@ -227,6 +244,50 @@ bool Debugger::processIncomingMessages(ExecutionState* state)
     }
 
     return enabled();
+}
+
+void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
+{
+    StringBuilder builder;
+    SandBox::StackTraceDataVector stackTraceData;
+
+    SandBox::createStackTraceData(stackTraceData, *state);
+
+    uint32_t total = (uint32_t)stackTraceData.size();
+
+    if (maxDepth == 0 || maxDepth > total) {
+        maxDepth = total;
+    }
+
+    if (minDepth >= total) {
+        minDepth = total;
+    }
+
+    for (uint32_t i = minDepth; i < maxDepth; i++) {
+        if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+            size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+
+            ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
+            builder.appendString(byteCodeBlock->m_codeBlock->script()->src());
+            builder.appendChar(':');
+            builder.appendString(String::fromDouble(loc.line));
+            builder.appendChar(':');
+            builder.appendString(String::fromDouble(loc.column));
+        } else {
+            builder.appendString(stackTraceData[i].second.src);
+        }
+        builder.appendChar('\0');
+    }
+
+    if (enabled() && getTotal) {
+        send(ESCARGOT_MESSAGE_BACKTRACE_TOTAL, &total, sizeof(uint32_t));
+    }
+
+    StringView* backtrace = new StringView(builder.finalize());
+    if (enabled()) {
+        sendString(ESCARGOT_MESSAGE_BACKTRACE_8BIT, backtrace);
+    }
 }
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)

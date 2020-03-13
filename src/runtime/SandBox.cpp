@@ -99,7 +99,7 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
     return result;
 }
 
-void SandBox::throwException(ExecutionState& state, Value exception)
+void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state)
 {
     ExecutionState* pstate = &state;
     while (pstate) {
@@ -120,8 +120,8 @@ void SandBox::throwException(ExecutionState& state, Value exception)
 
         bool alreadyExists = false;
 
-        for (size_t i = 0; i < m_stackTraceData.size(); i++) {
-            if (m_stackTraceData[i].first == es) {
+        for (size_t i = 0; i < stackTraceData.size(); i++) {
+            if (stackTraceData[i].first == es) {
                 alreadyExists = true;
                 break;
             }
@@ -148,7 +148,7 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                     data.isAssociatedWithJavaScriptCode = true;
                     data.isConstructor = false;
 
-                    m_stackTraceData.pushBack(std::make_pair(es, data));
+                    stackTraceData.pushBack(std::make_pair(es, data));
                 }
             } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
                 CodeBlock* cb = pstate->codeBlock();
@@ -162,7 +162,7 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                 data.isAssociatedWithJavaScriptCode = true;
                 data.isConstructor = false;
 
-                m_stackTraceData.pushBack(std::make_pair(es, data));
+                stackTraceData.pushBack(std::make_pair(es, data));
             } else if (callee) {
                 CodeBlock* cb = callee->codeBlock();
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
@@ -193,10 +193,9 @@ void SandBox::throwException(ExecutionState& state, Value exception)
                 data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
                 data.isConstructor = callee->isConstructor();
                 data.sourceCode = String::emptyString;
-                m_stackTraceData.pushBack(std::make_pair(es, data));
+                stackTraceData.pushBack(std::make_pair(es, data));
             }
         }
-
 
         if (pstate->m_inTryStatement) {
             break;
@@ -204,6 +203,11 @@ void SandBox::throwException(ExecutionState& state, Value exception)
 
         pstate = pstate->parent();
     }
+}
+
+void SandBox::throwException(ExecutionState& state, Value exception)
+{
+    createStackTraceData(m_stackTraceData, state);
 
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)

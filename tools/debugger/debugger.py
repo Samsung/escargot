@@ -71,10 +71,6 @@ class DebuggerPrompt(Cmd):
         """ Lists the available breakpoints """
         write(self.debugger.breakpoint_list())
 
-    def do_list(self, _):
-        """ Lists the available breakpoints """
-        write(self.debugger.breakpoint_list())
-
     def do_delete(self, args):
         """ Delete the given breakpoint, use 'delete all|active|pending' to clear all the given breakpoints """
         write(self.debugger.delete(args))
@@ -149,6 +145,12 @@ class DebuggerPrompt(Cmd):
                 break
             else:
                 print("Invalid key")
+
+    def do_backtrace(self, args):
+        """ Get backtrace data from debugger """
+        write(self.debugger.backtrace(args))
+        self.stop = True
+    do_bt = do_backtrace
 
     def do_dump(self, args):
         """ Dump all of the debugger data """

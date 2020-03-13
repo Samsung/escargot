@@ -183,7 +183,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
         ast->generateStatementByteCode(block, &ctx);
 
 #ifdef ESCARGOT_DEBUGGER
-        if (c->debugger() && c->debugger()->enabled()) {
+        if (c->debugger() && c->debugger()->enabled() && !c->debugger()->computeLocation()) {
             c->debugger()->sendBreakpointLocations(breakpointContext.m_breakpointLocations);
         }
 #endif /* ESCARGOT_DEBUGGER */

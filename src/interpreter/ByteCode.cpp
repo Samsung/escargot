@@ -134,6 +134,13 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
         return;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    if (c->debugger()) {
+        ASSERT(!c->debugger()->computeLocation());
+        c->debugger()->setComputeLocation(true);
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
     GC_disable();
 
     ByteCodeBlock* block;
@@ -154,6 +161,12 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
     // reset ASTAllocator
     c->astAllocator().reset();
     GC_enable();
+
+#ifdef ESCARGOT_DEBUGGER
+    if (c->debugger()) {
+        c->debugger()->setComputeLocation(false);
+    }
+#endif /* ESCARGOT_DEBUGGER */
 }
 
 ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb)
