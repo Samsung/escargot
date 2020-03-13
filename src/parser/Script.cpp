@@ -447,11 +447,48 @@ Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
     return resultValue;
 }
 
+// https://www.ecma-international.org/ecma-262/9.0/#sec-candeclareglobalfunction
+static bool canDeclareGlobalFunction(ExecutionState& state, Object* globalObject, AtomicString N)
+{
+    // Let envRec be the global Environment Record for which the method was invoked.
+    // Let ObjRec be envRec.[[ObjectRecord]].
+    // Let globalObject be the binding object for ObjRec.
+    // Let existingProp be ? globalObject.[[GetOwnProperty]](N).
+    auto existingProp = globalObject->getOwnProperty(state, N);
+    // If existingProp is undefined, return ? IsExtensible(globalObject).
+    if (!existingProp.hasValue()) {
+        return globalObject->isExtensible(state);
+    }
+    // If existingProp.[[Configurable]] is true, return true.
+    if (existingProp.isConfigurable()) {
+        return true;
+    }
+    // If IsDataDescriptor(existingProp) is true and existingProp has attribute values { [[Writable]]: true, [[Enumerable]]: true }, return true.
+    if (existingProp.isDataProperty() && existingProp.isWritable() && existingProp.isEnumerable()) {
+        return true;
+    }
+    // Return false.
+    return false;
+}
+
+static void testDeclareGlobalFunctions(ExecutionState& state, InterpretedCodeBlock* topCodeBlock, Object* globalObject)
+{
+    auto c = topCodeBlock->firstChild();
+    while (c) {
+        if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
+            if (!canDeclareGlobalFunction(state, globalObject, c->functionName())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Identifier '%s' has already been declared", c->functionName());
+            }
+        }
+        c = c->nextSibling();
+    }
+}
+
 Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool inStrictMode)
 {
     if (UNLIKELY(isExecuted())) {
         if (!m_canExecuteAgain) {
-            ESCARGOT_LOG_ERROR("You cannot re-execute is type of Script object");
+            ESCARGOT_LOG_ERROR("You cannot re-execute this type of Script object");
             RELEASE_ASSERT_NOT_REACHED();
         }
         m_topCodeBlock = state.context()->scriptParser().initializeScript(m_sourceCode, m_src, m_moduleData).script->m_topCodeBlock;
@@ -479,13 +516,15 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         codeExecutionState = newVariableState;
     }
 
+    testDeclareGlobalFunctions(state, m_topCodeBlock, context()->globalObject());
+
     const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t len = vec.size();
     for (size_t i = 0; i < len; i++) {
         // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
         // Step 2. If code is eval code, then let configurableBindings be true.
         if (vec[i].m_isVarDeclaration) {
-            codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, vec[i].m_name, isExecuteOnEvalFunction, vec[i].m_isMutable, true);
+            codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, vec[i].m_name, isExecuteOnEvalFunction, vec[i].m_isMutable, true, m_topCodeBlock);
         }
     }
 
@@ -576,9 +615,14 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         e = e->outerEnvironment();
         recordToAddVariable = e->record();
     }
+
+    if (recordToAddVariable->isGlobalEnvironmentRecord()) {
+        testDeclareGlobalFunctions(state, m_topCodeBlock, context()->globalObject());
+    }
+
     for (size_t i = 0; i < vecLen; i++) {
         if (vec[i].m_isVarDeclaration) {
-            recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true);
+            recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true, true, m_topCodeBlock);
         }
     }
 

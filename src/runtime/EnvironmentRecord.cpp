@@ -38,7 +38,7 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, Interpre
     ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
 }
 
-void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
+void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration, Optional<InterpretedCodeBlock*> relatedCodeBlock)
 {
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
@@ -50,10 +50,26 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
         ASSERT(isMutable);
         auto desc = m_globalObject->getOwnProperty(state, name);
         ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
-        if (canDelete)
+        if (canDelete) {
             attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
+        }
         if (!desc.hasValue()) {
             m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(Value(), attribute));
+        } else {
+            // we should update record of property
+            ASSERT(relatedCodeBlock);
+            auto c = relatedCodeBlock->firstChild();
+            while (c) {
+                if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
+                    if (desc.isDataProperty()) {
+                        m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(desc.value(state, m_globalObject), attribute));
+                    } else {
+                        m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(attribute));
+                    }
+                    break;
+                }
+                c = c->nextSibling();
+            }
         }
     } else {
         IdentifierRecord r;
@@ -174,7 +190,7 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
     }
 }
 
-void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
+void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration, Optional<InterpretedCodeBlock*> relatedCodeBlock)
 {
     if (isVarDeclaration) {
         ASSERT(m_isVarDeclarationTarget);
@@ -300,7 +316,7 @@ FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnv
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
-void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
+void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration, Optional<InterpretedCodeBlock*> relatedCodeBlock)
 {
     ASSERT(isVarDeclaration);
 
@@ -405,7 +421,7 @@ EnvironmentRecord::BindingSlot ModuleEnvironmentRecord::hasBinding(ExecutionStat
     return BindingSlot(this, SIZE_MAX, false);
 }
 
-void ModuleEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration)
+void ModuleEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration, Optional<InterpretedCodeBlock*> relatedCodeBlock)
 {
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {

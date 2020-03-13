@@ -103,6 +103,12 @@ public:
         m_value = (size_t)AtomicString().string();
     }
 
+    ASTBlockScopeContextNameInfo(AtomicString name, bool isConstBinding)
+    {
+        m_value = (size_t)name.string();
+        m_value |= isConstBinding ? 1 : 0;
+    }
+
     AtomicString name() const
     {
         return AtomicString((String *)((size_t)m_value & ~1));
@@ -186,7 +192,6 @@ struct ASTFunctionScopeContext {
     bool m_hasSuperOrNewTarget : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
-    bool m_needsToComputeLexicalBlockStuffs : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
@@ -418,10 +423,7 @@ struct ASTFunctionScopeContext {
             }
         }
 
-        ASTBlockScopeContextNameInfo info;
-        info.setName(name);
-        info.setIsConstBinding(isConstBinding);
-        blockContext->m_names.push_back(info);
+        blockContext->m_names.push_back(ASTBlockScopeContextNameInfo(name, isConstBinding));
         return true;
     }
 
@@ -504,7 +506,6 @@ struct ASTFunctionScopeContext {
         , m_hasSuperOrNewTarget(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
-        , m_needsToComputeLexicalBlockStuffs(false)
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
         , m_nodeType(ASTNodeType::Program)

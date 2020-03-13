@@ -338,7 +338,6 @@ protected:
     bool m_isGenerator : 1;
     bool m_isAsync : 1;
     bool m_needsVirtualIDOperation : 1;
-    bool m_hasImplicitFunctionName : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_allowSuperCall : 1;
