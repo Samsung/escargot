@@ -70,7 +70,7 @@ public:
         return BindingSlot(this, SIZE_MAX, false);
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true)
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr)
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -215,7 +215,7 @@ public:
         return true;
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr) override
     {
         ASSERT(isVarDeclaration);
         auto desc = m_bindingObject->getOwnProperty(state, name);
@@ -299,7 +299,7 @@ public:
         return true;
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr) override;
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
@@ -557,7 +557,7 @@ public:
         return BindingSlot(this, SIZE_MAX, false);
     }
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr) override;
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;
@@ -1025,7 +1025,7 @@ public:
     }
 
 
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr) override;
     virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v) override;
@@ -1075,7 +1075,7 @@ public:
     }
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override;
-    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration) override;
+    virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr) override;
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override;

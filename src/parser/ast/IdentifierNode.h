@@ -148,7 +148,7 @@ public:
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
-            addLexicalVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization, true);
+            addLexicalVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization, true);
 
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {

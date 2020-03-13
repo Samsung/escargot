@@ -3055,9 +3055,9 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
     if (!willBeObject.asObject()->isScriptClassConstructorPrototypeObject() && (code->m_propertyName == state.context()->staticStrings().__proto__)) {
-        const Value v = registerFile[code->m_loadRegisterIndex];
+        const Value& v = registerFile[code->m_loadRegisterIndex];
         if (v.isObject() || v.isNull()) {
-            willBeObject.asObject()->setPrototype(state, registerFile[code->m_loadRegisterIndex]);
+            willBeObject.asObject()->setPrototype(state, v);
         }
     } else {
         willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));

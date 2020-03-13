@@ -3271,15 +3271,11 @@ public:
                         if (isExplicitVariableDeclaration) {
                             this->currentScopeContext->insertVarName(name, blockIndex, true, kind == VarKeyword);
                             return;
-                        } else if (this->context->catchClauseSimplyDeclaredVariableNames[i].second + 1 == this->lexicalBlockIndex) {
-                            // try {} catch(e) { function e() {} }
-                            this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
                         }
                     }
                 }
             }
             /* code end */
-
 
             if (!this->currentScopeContext->canDeclareName(name, blockIndex, kind == VarKeyword, isExplicitVariableDeclaration)) {
                 this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
@@ -3288,7 +3284,6 @@ public:
                 this->currentScopeContext->insertVarName(name, blockIndex, true, true);
             } else {
                 this->currentScopeContext->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
-                this->currentScopeContext->m_needsToComputeLexicalBlockStuffs = true;
             }
         }
 
@@ -4527,10 +4522,54 @@ public:
         MetaNode paramsStart = this->createNode();
         this->expect(LeftParenthesis);
 
-        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
+        // https://www.ecma-international.org/ecma-262/10.0/#sec-web-compat-functiondeclarationinstantiation
+        bool isTopScope = (!this->lexicalBlockIndex || this->currentScopeContext->m_functionBodyBlockIndex == this->lexicalBlockIndex);
+        if (this->context->strict) {
+            if (isTopScope) {
+                addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
+            } else {
+                addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword);
+            }
+        } else {
+            // appendixB B.3.3.1~B.3.3.3
+            if (UNLIKELY(this->currentScopeContext->hasNameAtBlock(fnName, this->lexicalBlockIndex))) {
+                bool isCatchClauseVariableName = false;
+
+                for (size_t i = 0; i < this->context->catchClauseSimplyDeclaredVariableNames.size(); i++) {
+                    if (this->context->catchClauseSimplyDeclaredVariableNames[i].first == fnName) {
+                        isCatchClauseVariableName = true;
+                        // try {} catch(e) { function e() {} }
+                        if ((this->context->catchClauseSimplyDeclaredVariableNames[i].second + 1) == this->lexicalBlockIndex) {
+                            this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), fnName.string());
+                        }
+
+                        auto blockInfo = this->currentScopeContext->findBlockFromBackward(this->context->catchClauseSimplyDeclaredVariableNames[i].second);
+                        for (size_t i = 0; i < blockInfo->m_names.size(); i++) {
+                            if (blockInfo->m_names[i].name() == fnName) {
+                                blockInfo->m_names.erase(i);
+                                break;
+                            }
+                        }
+
+                        this->currentScopeContext->insertVarName(fnName, this->lexicalBlockIndex, true, true);
+                        break;
+                    }
+                }
+
+                if (!isCatchClauseVariableName && !this->currentScopeContext->blockHasName(fnName, this->lexicalBlockIndex)) {
+                    addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword, false);
+                }
+            } else {
+                addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
+            }
+        }
         this->insertUsingName(fnName);
 
         BEGIN_FUNCTION_SCANNING(fnName);
+
+        if (!isTopScope) {
+            this->currentScopeContext->insertVarName(fnName, 0, false);
+        }
 
         this->currentScopeContext->m_isAsync = isAsync;
         this->currentScopeContext->m_isGenerator = isGenerator;

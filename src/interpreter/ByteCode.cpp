@@ -207,7 +207,6 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
 void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
 {
     InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
-
     InterpretedCodeBlock* child = codeBlock->firstChild();
     while (child) {
         if (child->isFunctionDeclaration() && child->asInterpretedCodeBlock()->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
@@ -221,7 +220,20 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
 
             auto dstIndex = id->getRegister(this, context);
             pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, SIZE_MAX, child), context, node);
-            context->m_isFunctionDeclarationBindingInitialization = true;
+
+            // We would not use InitializeByName where `global + eval`
+            // ex) eval("delete f; function f() {}")
+            if (codeBlock->isStrict() || !codeBlock->isEvalCode() || codeBlock->isEvalCodeInFunction()) {
+                context->m_isFunctionDeclarationBindingInitialization = true;
+            }
+
+            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                if (bi->m_identifiers[i].m_name == child->functionName()) {
+                    context->m_isLexicallyDeclaredBindingInitialization = true;
+                    break;
+                }
+            }
+
             id->generateStoreByteCode(this, context, dstIndex, true);
             context->giveUpRegister();
 
