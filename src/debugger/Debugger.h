@@ -66,6 +66,12 @@ public:
         ESCARGOT_MESSAGE_FUNCTION_PTR = 19,
         ESCARGOT_MESSAGE_BREAKPOINT_HIT = 20,
         ESCARGOT_MESSAGE_EXCEPTION_HIT = 21,
+        ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 22,
+        // These four must be in the same order.
+        ESCARGOT_MESSAGE_BACKTRACE_8BIT = 23,
+        ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 24,
+        ESCARGOT_MESSAGE_BACKTRACE_16BIT = 25,
+        ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 26,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -75,6 +81,7 @@ public:
         ESCARGOT_MESSAGE_CONTINUE = 2,
         ESCARGOT_MESSAGE_STEP = 3,
         ESCARGOT_MESSAGE_NEXT = 4,
+        ESCARGOT_MESSAGE_GET_BACKTRACE = 5,
     };
 
     struct BreakpointLocation {
@@ -91,6 +98,16 @@ public:
     bool enabled()
     {
         return m_enabled;
+    }
+
+    bool computeLocation(void)
+    {
+        return m_computeLocation;
+    }
+
+    void setComputeLocation(bool value)
+    {
+        m_computeLocation = value;
     }
 
     inline void processDisabledBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state)
@@ -127,6 +144,7 @@ protected:
     Debugger()
         : m_enabled(false)
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
+        , m_computeLocation(false)
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
     {
     }
@@ -137,6 +155,7 @@ protected:
     virtual void close(void) = 0;
 
     bool processIncomingMessages(ExecutionState* state);
+    void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
 
     bool* m_debuggerEnabled;
     bool m_enabled;
@@ -165,6 +184,7 @@ private:
     };
 
     uint8_t m_delay;
+    bool m_computeLocation;
     ExecutionState* m_stopState;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
 };

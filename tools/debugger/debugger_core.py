@@ -48,6 +48,11 @@ ESCARGOT_MESSAGE_BREAKPOINT_LOCATION = 18
 ESCARGOT_MESSAGE_FUNCTION_PTR = 19
 ESCARGOT_MESSAGE_BREAKPOINT_HIT = 20
 ESCARGOT_MESSAGE_EXCEPTION_HIT = 21
+ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 22
+ESCARGOT_MESSAGE_BACKTRACE_8BIT = 23
+ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 24
+ESCARGOT_MESSAGE_BACKTRACE_16BIT = 25
+ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 26
 
 
 # Messages sent by the debugger client to Escargot.
@@ -56,6 +61,7 @@ ESCARGOT_MESSAGE_UPDATE_BREAKPOINT = 1
 ESCARGOT_MESSAGE_CONTINUE = 2
 ESCARGOT_MESSAGE_STEP = 3
 ESCARGOT_MESSAGE_NEXT = 4
+ESCARGOT_MESSAGE_GET_BACKTRACE = 5
 
 
 def arguments_parse():
@@ -319,6 +325,36 @@ class Debugger(object):
                 self.prompt = True
                 return DebuggerAction(DebuggerAction.TEXT, result)
 
+            elif buffer_type == ESCARGOT_MESSAGE_BACKTRACE_TOTAL:
+                total = struct.unpack(self.byte_order + self.idx_format, data[1:])[0]
+                result += "Total number of frames: %d\n" % (total)
+                return DebuggerAction(DebuggerAction.TEXT, result)
+
+            elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE_8BIT,
+                                 ESCARGOT_MESSAGE_BACKTRACE_8BIT_END,
+                                 ESCARGOT_MESSAGE_BACKTRACE_16BIT,
+                                 ESCARGOT_MESSAGE_BACKTRACE_16BIT_END]:
+
+                backtrace = b'';
+
+                while buffer_type in [ESCARGOT_MESSAGE_BACKTRACE_8BIT, ESCARGOT_MESSAGE_BACKTRACE_16BIT]:
+                    backtrace += data[1:]
+                    data = self.channel.get_message(True)
+                    buffer_type = ord(data[0])
+
+                if buffer_type not in [ESCARGOT_MESSAGE_BACKTRACE_8BIT_END, ESCARGOT_MESSAGE_BACKTRACE_16BIT_END]:
+                    raise Exception("Unexpected message")
+
+                backtrace += data[1:]
+
+                if buffer_type == ESCARGOT_MESSAGE_BACKTRACE_8BIT_END:
+                    backtrace = self.encode8(backtrace)
+                else:
+                    backtrace = self.encode16(backtrace)
+
+                self.prompt = True
+                return DebuggerAction(DebuggerAction.TEXT, backtrace.replace("\0", "\n"))
+
             else:
                 raise Exception("Unknown message")
 
@@ -439,6 +475,47 @@ class Debugger(object):
                 msg += "%s%4d%s   %s\n" % (self.green, i + 1, self.nocolor, lines[i])
 
         return msg
+
+    def backtrace(self, args):
+        max_depth = 0
+        min_depth = 0
+        get_total = 0
+
+        if args:
+            args = args.split(" ")
+            try:
+                if "t" in args:
+                    get_total = 1
+                    args.remove("t")
+
+                if len(args) >= 2:
+                    min_depth = int(args[0])
+                    max_depth = int(args[1])
+                    if max_depth <= 0 or min_depth < 0:
+                        return "Error: Positive integer number expected\n"
+                    if min_depth > max_depth:
+                        return "Error: Start depth needs to be lower than or equal to max depth\n"
+                elif len(args) >= 1:
+                    max_depth = int(args[0])
+                    if max_depth <= 0:
+                        return "Error: Positive integer number expected\n"
+
+            except ValueError as val_errno:
+                return "Error: Positive integer number expected, %s\n" % (val_errno)
+
+        self.frame_index = min_depth
+
+        message = struct.pack(self.byte_order + "BB" + self.idx_format + self.idx_format + "B",
+                              1 + 4 + 4 + 1,
+                              ESCARGOT_MESSAGE_GET_BACKTRACE,
+                              min_depth,
+                              max_depth,
+                              get_total)
+
+        self.channel.send_message(self.byte_order, message)
+
+        self.prompt = False
+        return ""
 
     # pylint: disable=too-many-branches,too-many-locals,too-many-statements
     def _parse_source(self, data):
