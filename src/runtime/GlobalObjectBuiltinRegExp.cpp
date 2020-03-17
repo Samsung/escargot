@@ -202,7 +202,11 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
         } else {
             RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
             RegExpObject* patternRegExp = argv[0].asPointerValue()->asObject()->asRegExpObject();
-            retVal->initWithOption(state, patternRegExp->source(), patternRegExp->option());
+            if (patternRegExp->regexpOptionString() != nullptr) {
+                retVal->init(state, patternRegExp->source(), patternRegExp->regexpOptionString());
+            } else {
+                retVal->init(state, patternRegExp->source());
+            }
             return retVal;
         }
     }
@@ -211,7 +215,6 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     String* pattern_str = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
     String* flags_str = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
     retVal->init(state, pattern_str, flags_str);
-
     return retVal;
 }
 static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)

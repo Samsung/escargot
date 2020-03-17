@@ -163,33 +163,37 @@ static String* escapeSlashInPattern(String* patternStr)
     }
 }
 
-void RegExpObject::internalInit(ExecutionState& state, String* source)
+void RegExpObject::internalInit(ExecutionState& state, String* source, String* options)
 {
     String* defaultRegExpString = state.context()->staticStrings().defaultRegExpString.string();
 
     String* previousSource = m_source;
-    // Last index should always be 0 on RegExp initialization
-    m_lastIndex = Value(0);
+    RegExpObject::Option previousOptions = m_option;
+    if (options->length() != 0) {
+        parseOption(state, options);
+    } else {
+        m_option = RegExpObject::Option::None;
+    }
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapeSlashInPattern(m_source);
 
     auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
     if (entry.m_yarrError) {
-        if (previousSource != defaultRegExpString) {
-            m_source = previousSource;
-        }
-
+        m_source = previousSource;
+        m_option = previousOptions;
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_yarrError);
     }
-
+    setLastIndex(state, Value(0));
     m_yarrPattern = entry.m_yarrPattern;
     m_bytecodePattern = entry.m_bytecodePattern;
 }
 
 void RegExpObject::init(ExecutionState& state, String* source, String* option)
 {
-    parseOption(state, option);
-    this->internalInit(state, source);
+    if (option == String::emptyString)
+        this->internalInit(state, source);
+    else
+        this->internalInit(state, source, option);
 }
 
 void RegExpObject::initWithOption(ExecutionState& state, String* source, Option option)
@@ -224,47 +228,50 @@ bool RegExpObject::isRegExpObject()
     return true;
 }
 
-void RegExpObject::parseOption(ExecutionState& state, const String* optionString)
+void RegExpObject::parseOption(ExecutionState& state, String* optionString)
 {
-    this->m_option = RegExpObject::Option::None;
+    Option tempOption = RegExpObject::Option::None;
+
 
     auto bufferAccessData = optionString->bufferAccessData();
     for (size_t i = 0; i < bufferAccessData.length; i++) {
         switch (bufferAccessData.charAt(i)) {
         case 'g':
-            if (this->m_option & Option::Global)
+            if (tempOption & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
-            this->m_option = (Option)(this->m_option | Option::Global);
+            tempOption = (Option)(tempOption | Option::Global);
             break;
         case 'i':
-            if (this->m_option & Option::IgnoreCase)
+            if (tempOption & Option::IgnoreCase)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'i' flags");
-            this->m_option = (Option)(this->m_option | Option::IgnoreCase);
+            tempOption = (Option)(tempOption | Option::IgnoreCase);
             break;
         case 'm':
-            if (this->m_option & Option::MultiLine)
+            if (tempOption & Option::MultiLine)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'm' flags");
-            this->m_option = (Option)(this->m_option | Option::MultiLine);
+            tempOption = (Option)(tempOption | Option::MultiLine);
             break;
         case 'u':
-            if (this->m_option & Option::Unicode)
+            if (tempOption & Option::Unicode)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'u' flags");
-            this->m_option = (Option)(this->m_option | Option::Unicode);
+            tempOption = (Option)(tempOption | Option::Unicode);
             break;
         case 'y':
-            if (this->m_option & Option::Sticky)
+            if (tempOption & Option::Sticky)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
-            this->m_option = (Option)(this->m_option | Option::Sticky);
+            tempOption = (Option)(tempOption | Option::Sticky);
             break;
         case 's':
-            if (this->m_option & Option::DotAll)
+            if (tempOption & Option::DotAll)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 's' flags");
-            this->m_option = (Option)(this->m_option | Option::DotAll);
+            tempOption = (Option)(tempOption | Option::DotAll);
             break;
         default:
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
         }
     }
+    m_option = tempOption;
+    m_optionString = optionString;
 }
 
 void RegExpObject::setOption(const Option& option)
