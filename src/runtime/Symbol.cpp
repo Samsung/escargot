@@ -53,7 +53,8 @@ String* Symbol::symbolDescriptiveString() const
 {
     StringBuilder sb;
     sb.appendString("Symbol(");
-    sb.appendString(description());
+    if (description().hasValue())
+        sb.appendString(description().value());
     sb.appendString(")");
     return sb.finalize();
 }

@@ -479,7 +479,10 @@ SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* des
 
 StringRef* SymbolRef::description()
 {
-    return toRef(toImpl(this)->description());
+    if (toImpl(this)->description().hasValue()) {
+        return toRef(toImpl(this)->description().value());
+    }
+    return toRef(String::emptyString);
 }
 
 StringRef* SymbolRef::symbolDescriptiveString()

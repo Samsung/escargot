@@ -3025,10 +3025,10 @@ static Value createObjectPropertyFunctionName(ExecutionState& state, const Value
     StringBuilder builder;
     if (name.isSymbol()) {
         builder.appendString(prefix);
-        if (name.asSymbol()->description()->length() > 0) {
+        if (name.asSymbol()->description().hasValue()) {
             // add symbol name if it is not an empty symbol
             builder.appendString("[");
-            builder.appendString(name.asSymbol()->description());
+            builder.appendString(name.asSymbol()->description().value());
             builder.appendString("]");
         }
     } else {

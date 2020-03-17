@@ -33,7 +33,7 @@ Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, size_t ar
     if (!newTarget.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "illegal constructor Symbol");
     }
-    String* descString = String::emptyString;
+    Optional<String*> descString = nullptr;
     // If description is undefined, let descString be undefined.
     if (!(argc == 0 || argv[0].isUndefined())) {
         // Else, let descString be ? ToString(description).
@@ -93,11 +93,33 @@ Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, V
     for (size_t i = 0; i < list.size(); i++) {
         // If SameValue(e.[[Symbol]], sym) is true, return e.[[Key]].
         if (list[i].symbol == sym) {
-            return list[i].key;
+            return list[i].key.value();
         }
     }
     // Assert: GlobalSymbolRegistry does not currently contain an entry for sym.
     // Return undefined.
+    return Value();
+}
+
+static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+{
+    if (thisValue.isSymbol()) {
+        if (!thisValue.asSymbol()->description().hasValue()) {
+            return Value();
+        }
+
+        return thisValue.asSymbol()->description().value();
+
+    } else if (thisValue.isObject() && thisValue.asObject()->isSymbolObject()) {
+        if (!thisValue.asObject()->asSymbolObject()->primitiveValue()->description().hasValue()) {
+            return Value();
+        }
+
+        return thisValue.asObject()->asSymbolObject()->primitiveValue()->description().value();
+
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-Symbol object");
+    }
     return Value();
 }
 
@@ -132,6 +154,14 @@ void GlobalObject::installSymbol(ExecutionState& state)
 
     m_symbolPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                         ObjectPropertyDescriptor(state.context()->staticStrings().Symbol.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getDescription, builtinSymbolDescriptionGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_symbolPrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().description), desc);
+    }
+
 
 #define DECLARE_GLOBAL_SYMBOLS(name)                                                                                                                                                   \
     m_symbol->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name), ObjectPropertyDescriptor(Value(state.context()->vmInstance()->globalSymbols().name), \
