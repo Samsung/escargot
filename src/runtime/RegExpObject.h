@@ -89,7 +89,7 @@ public:
     RegExpObject(ExecutionState& state, String* source, String* option);
     RegExpObject(ExecutionState& state, String* source, unsigned int option);
 
-    void init(ExecutionState& state, String* source, String* option);
+    void init(ExecutionState& state, String* source, String* option = String::emptyString);
     void initWithOption(ExecutionState& state, String* source, Option option);
 
     double computedLastIndex(ExecutionState& state)
@@ -108,6 +108,11 @@ public:
     String* source()
     {
         return m_source;
+    }
+
+    String* regexpOptionString()
+    {
+        return m_optionString;
     }
 
     Option option()
@@ -151,11 +156,11 @@ public:
 
 private:
     void setOption(const Option& option);
-    void internalInit(ExecutionState& state, String* source);
+    void internalInit(ExecutionState& state, String* source, String* options = String::emptyString);
 
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
 
-    void parseOption(ExecutionState& state, const String* optionString);
+    void parseOption(ExecutionState& state, String* optionString);
 
 
     String* m_source;
