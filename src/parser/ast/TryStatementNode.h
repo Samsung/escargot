@@ -82,7 +82,20 @@ public:
 
         // cached variable is treated as let variable initialization in default
         if (handler->param() != nullptr) {
-            context->m_isLexicallyDeclaredBindingInitialization = true;
+            /*
+            handler parameter sometimes loses its lexical variable
+            ex)
+            try {
+              throw null;
+            } catch (f) {
+
+            {
+              function f() { return 123; }
+            }
+
+            }
+            */
+            context->m_isLexicallyDeclaredBindingInitialization = handler->paramLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX;
             handler->param()->generateResolveAddressByteCode(codeBlock, context);
             handler->param()->generateStoreByteCode(codeBlock, context, catchedValueRegister, false);
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);

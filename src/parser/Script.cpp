@@ -532,8 +532,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         InterpretedCodeBlock* child = m_topCodeBlock->firstChild();
         while (child) {
             if (child->isFunctionDeclaration()) {
-                if (!state.context()->globalObject()->defineOwnProperty(state, child->functionName(),
-                                                                        ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
+                if (child->lexicalBlockIndexFunctionLocatedIn() == 0 && !state.context()->globalObject()->defineOwnProperty(state, child->functionName(), ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
                 }
             }
@@ -595,6 +594,14 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         }
         if (e->record()->isGlobalEnvironmentRecord()) {
             break;
+        }
+
+        // https://www.ecma-international.org/ecma-262/10.0/#sec-variablestatements-in-catch-blocks
+        if (e->record()->isDeclarativeEnvironmentRecord() && e->record()->asDeclarativeEnvironmentRecord()->isDeclarativeEnvironmentRecordNotIndexed()) {
+            if (e->record()->asDeclarativeEnvironmentRecord()->asDeclarativeEnvironmentRecordNotIndexed()->isCatchClause()) {
+                e = e->outerEnvironment();
+                continue;
+            }
         }
 
         for (size_t i = 0; i < vecLen; i++) {

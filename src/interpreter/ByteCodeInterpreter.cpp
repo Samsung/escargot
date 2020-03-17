@@ -152,7 +152,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             GetGlobalVariable* code = (GetGlobalVariable*)programCounter;
             ASSERT(byteCodeBlock->m_codeBlock->context() == state->context());
             Context* ctx = state->context();
-            GlobalObject* globalObject = state->context()->globalObject();
+            GlobalObject* globalObject = ctx->globalObject();
             auto slot = code->m_slot;
             auto idx = slot->m_lexicalIndexCache;
             bool isCacheWork = false;
@@ -185,7 +185,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             SetGlobalVariable* code = (SetGlobalVariable*)programCounter;
             ASSERT(byteCodeBlock->m_codeBlock->context() == state->context());
             Context* ctx = state->context();
-            GlobalObject* globalObject = state->context()->globalObject();
+            GlobalObject* globalObject = ctx->globalObject();
             auto slot = code->m_slot;
             auto idx = slot->m_lexicalIndexCache;
 
@@ -2594,7 +2594,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         if (LIKELY(shouldUseIndexedStorage)) {
             newRecord = new DeclarativeEnvironmentRecordIndexed(*state, code->m_blockInfo);
         } else {
-            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state);
+            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, code->m_blockInfo->m_nodeType == ASTNodeType::CatchClause);
 
             auto& iv = code->m_blockInfo->m_identifiers;
             auto siz = iv.size();
