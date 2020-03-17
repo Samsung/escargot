@@ -4088,6 +4088,7 @@ public:
 
             ParserBlockContext catchBlockContext;
             openBlock(catchBlockContext);
+            this->currentBlockContext->m_nodeType = ASTNodeType::CatchClause;
 
             SmallScannerResultVector params;
             ASTNode param = this->parsePattern(builder, params, KeywordKind::LetKeyword);
@@ -4560,7 +4561,43 @@ public:
                     addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword, false);
                 }
             } else {
-                addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
+                if (isTopScope) {
+                    addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
+                } else {
+                    size_t r = this->currentScopeContext->findVarName(fnName);
+                    if (r == SIZE_MAX) {
+                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
+                    } else if (this->currentScopeContext->m_varNames[r].isParameterName()) {
+                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword, false);
+                    } else {
+                        KeywordKind kk = KeywordKind::VarKeyword;
+                        auto c = this->currentScopeContext->m_firstChild;
+                        while (c) {
+                            if (c->m_functionName == fnName && c->m_nodeType == FunctionDeclaration
+                                && c->m_lexicalBlockIndexFunctionLocatedIn > this->currentScopeContext->m_functionBodyBlockIndex
+                                && c->m_lexicalBlockIndexFunctionLocatedIn != this->lexicalBlockIndex) {
+                                auto declaredBlockIndex = c->m_lexicalBlockIndexFunctionLocatedIn;
+                                auto blockIndex = this->lexicalBlockIndex;
+                                while (true) {
+                                    if (blockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                                        break;
+                                    }
+                                    if (blockIndex == declaredBlockIndex) {
+                                        kk = KeywordKind::LetKeyword;
+                                        break;
+                                    }
+                                    blockIndex = this->currentScopeContext->findBlock(blockIndex)->m_parentBlockIndex;
+                                }
+                                if (kk == KeywordKind::LetKeyword) {
+                                    break;
+                                }
+                            }
+                            c = c->m_nextSibling;
+                        }
+
+                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, kk, false);
+                    }
+                }
             }
         }
         this->insertUsingName(fnName);

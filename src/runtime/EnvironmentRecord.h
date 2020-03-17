@@ -527,9 +527,10 @@ private:
 // DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, bool isVarDeclarationTarget = false)
+    DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, bool isVarDeclarationTarget = false, bool isCatchClause = false)
         : DeclarativeEnvironmentRecord()
         , m_isVarDeclarationTarget(isVarDeclarationTarget)
+        , m_isCatchClause(isCatchClause)
     {
     }
 
@@ -545,6 +546,11 @@ public:
     virtual bool isVarDeclarationTarget() override
     {
         return m_isVarDeclarationTarget;
+    }
+
+    bool isCatchClause()
+    {
+        return m_isCatchClause;
     }
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
@@ -572,6 +578,7 @@ public:
 
 private:
     bool m_isVarDeclarationTarget : 1;
+    bool m_isCatchClause : 1;
     SmallValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
