@@ -199,6 +199,7 @@ namespace Escargot {
     F(multiline)                  \
     F(sticky)                     \
     F(unicode)                    \
+    F(description)                \
     F(implements)                 \
     F(interface)                  \
     F(package)                    \
@@ -616,6 +617,7 @@ public:
     AtomicString getDotAll;
     AtomicString getIgnoreCase;
     AtomicString getMultiline;
+    AtomicString getDescription;
     AtomicString getSource;
     AtomicString getSticky;
     AtomicString getUnicode;

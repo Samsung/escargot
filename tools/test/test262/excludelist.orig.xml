@@ -923,12 +923,6 @@
     <test id="built-ins/String/prototype/toLowerCase/special_casing_conditional"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/toUpperCase/special_casing"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/matchAll/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/prototype/description/description-symboldescriptivestring"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/prototype/description/descriptor"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/prototype/description/get"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/prototype/description/this-val-non-symbol"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/prototype/description/this-val-symbol"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/prototype/description/wrapper"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/extensible"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/frozen"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/length"><reason>TODO</reason></test>

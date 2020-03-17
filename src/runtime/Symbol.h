@@ -29,13 +29,13 @@ class VMInstance;
 
 class Symbol : public PointerValue {
 public:
-    explicit Symbol(String* desc = String::emptyString)
+    explicit Symbol(Optional<String*> desc = nullptr)
         : m_tag(POINTER_VALUE_SYMBOL_TAG_IN_DATA)
         , m_description(desc)
     {
     }
 
-    String* description() const
+    Optional<String*> description() const
     {
         return m_description;
     }
@@ -46,7 +46,7 @@ public:
 
 private:
     size_t m_tag;
-    String* m_description;
+    Optional<String*> m_description;
 };
 }
 

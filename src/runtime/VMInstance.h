@@ -60,7 +60,7 @@ struct GlobalSymbols {
 };
 
 struct GlobalSymbolRegistryItem {
-    String* key;
+    Optional<String*> key;
     Symbol* symbol;
 };
 
