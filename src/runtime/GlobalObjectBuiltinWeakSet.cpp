@@ -127,11 +127,10 @@ static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t ar
 void GlobalObject::installWeakSet(ExecutionState& state)
 {
     m_weakSet = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_weakSet->markThisObjectDontNeedStructureTransitionTable();
-    m_weakSet->setPrototype(state, m_functionPrototype);
-    m_weakSetPrototype = m_objectPrototype;
-    m_weakSetPrototype = new WeakSetPrototypeObject(state);
-    m_weakSetPrototype->markThisObjectDontNeedStructureTransitionTable();
+    m_weakSet->setGlobalIntrinsicObject(state);
+
+    m_weakSetPrototype = new WeakSetPrototypeObject(state, m_objectPrototype);
+    m_weakSetPrototype->setGlobalIntrinsicObject(state, true);
     m_weakSetPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakSetPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),

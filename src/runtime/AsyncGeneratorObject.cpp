@@ -28,20 +28,11 @@
 
 namespace Escargot {
 
-AsyncGeneratorObject::AsyncGeneratorObject(ExecutionState& state)
-    : AsyncGeneratorObject(state, nullptr, nullptr, nullptr, Value(Value::Null))
-{
-    Object* prototype = new Object(state);
-    prototype->setPrototype(state, state.context()->globalObject()->asyncGeneratorPrototype());
-    setPrototype(state, prototype);
-}
-
-AsyncGeneratorObject::AsyncGeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk, const Value& prototype)
-    : Object(state)
+AsyncGeneratorObject::AsyncGeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
+    : Object(state, proto)
     , m_asyncGeneratorState(SuspendedStart)
     , m_executionPauser(state, this, executionState, registerFile, blk)
 {
-    setPrototype(state, prototype);
 }
 
 void* AsyncGeneratorObject::operator new(size_t size)
@@ -110,7 +101,7 @@ Value AsyncGeneratorObject::asyncGeneratorEnqueue(ExecutionState& state, const V
     // If Type(generator) is not Object, or if generator does not have an [[AsyncGeneratorState]] internal slot, then
     if (!generator.isObject() || !generator.asObject()->isAsyncGeneratorObject()) {
         // Let badGeneratorError be a newly created TypeError object.
-        TypeErrorObject* badGeneratorError = new TypeErrorObject(state, String::fromASCII("This value is not Async Generator Object."));
+        ErrorObject* badGeneratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("This value is not Async Generator Object."));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « badGeneratorError »).
         Value argv(badGeneratorError);
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);

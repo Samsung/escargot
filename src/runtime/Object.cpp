@@ -423,28 +423,42 @@ void ObjectPropertyDescriptor::completePropertyDescriptor(ObjectPropertyDescript
 
 size_t g_objectTag;
 
-Object::Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea)
+Object::Object(ExecutionState& state)
+    : m_structure(state.context()->defaultStructureForObject())
+    , m_prototype(state.context()->globalObject()->objectPrototype())
+{
+    ASSERT(!!m_prototype);
+    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-objectcreate
+Object::Object(ExecutionState& state, Object* proto)
+    : m_structure(state.context()->defaultStructureForObject())
+    , m_prototype(proto)
+{
+    // proto has been marked as a prototype object
+    ASSERT(!!proto);
+    ASSERT(proto->rareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
+    // create a new ordinary object
+    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+}
+
+Object::Object(ExecutionState& state, Object* proto, size_t defaultSpace)
+    : m_structure(state.context()->defaultStructureForObject())
+    , m_prototype(proto)
+{
+    // proto has been marked as a prototype object
+    ASSERT(!!proto);
+    ASSERT(proto->rareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
+    m_values.resizeWithUninitializedValues(0, defaultSpace);
+}
+
+// this constructor is used only for initialization of GlobalObject
+Object::Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin)
     : m_structure(state.context()->defaultStructureForObject())
     , m_prototype(nullptr)
 {
     m_values.resizeWithUninitializedValues(0, defaultSpace);
-    if (initPlainArea) {
-        initPlainObject(state);
-    }
-}
-
-Object::Object(ExecutionState& state)
-    : m_structure(state.context()->defaultStructureForObject())
-{
-    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
-    initPlainObject(state);
-}
-
-Object::Object(ExecutionState& state, Object* proto)
-    : m_structure(state.context()->defaultStructureForObject())
-{
-    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
-    m_prototype = proto;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-isconcatspreadable
@@ -464,38 +478,38 @@ bool Object::isConcatSpreadable(ExecutionState& state)
     return isArray(state);
 }
 
-void Object::initPlainObject(ExecutionState& state)
-{
-    m_prototype = state.context()->globalObject()->objectPrototype()->asObject();
-}
-
 Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 {
-    Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false);
-    obj->m_structure = state.context()->defaultStructureForObject();
-    obj->m_prototype = nullptr;
-    g_objectTag = *((size_t*)obj);
+    Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__);
+    obj->setPrototype(state, Value(Value::Null));
+    obj->markThisObjectDontNeedStructureTransitionTable();
+    obj->ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
+
     return obj;
 }
 
 Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
 {
-    Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, false);
+    Object* obj = new Object(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
     obj->m_structure = state.context()->defaultStructureForFunctionPrototypeObject();
-    obj->m_prototype = state.context()->globalObject()->objectPrototype()->asObject();
     obj->m_values[0] = Value(function);
 
     return obj;
 }
 
-void Object::setPrototypeForIntrinsicObjectCreation(ExecutionState& state, Object* o)
+void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
 {
-    o->ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
+    // For initialization of GlobalObject's intrinsic objects
+    // These objects have fixed properties, so transition table is not used for memory optimization
+    ASSERT(m_prototype);
+    ASSERT(!rareData());
+    ASSERT(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty());
+    ASSERT(!structure()->hasIndexPropertyName());
 
-    if (rareData()) {
-        rareData()->m_prototype = o;
-    } else {
-        m_prototype = o;
+    markThisObjectDontNeedStructureTransitionTable();
+
+    if (isPrototype) {
+        ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
     }
 }
 
@@ -558,10 +572,9 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
 
 void Object::markAsPrototypeObject(ExecutionState& state)
 {
-    ensureObjectRareData();
-    rareData()->m_isEverSetAsPrototypeObject = true;
+    ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
 
-    if (!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName()) {
+    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName())) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
     }
 }
@@ -1066,6 +1079,8 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
         // Let realm be ? GetFunctionRealm(constructor).
         // Set proto to realm's intrinsic object named intrinsicDefaultProto.
         proto = intrinsicDefaultProto;
+    } else {
+        proto.asObject()->markAsPrototypeObject(state);
     }
     // Return proto.
     return proto.asObject();

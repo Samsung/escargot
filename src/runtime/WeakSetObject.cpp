@@ -25,15 +25,13 @@
 namespace Escargot {
 
 WeakSetObject::WeakSetObject(ExecutionState& state)
-    : Object(state)
+    : WeakSetObject(state, state.context()->globalObject()->weakSetPrototype())
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->weakSetPrototype());
 }
 
 WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
-    : Object(state)
+    : Object(state, proto)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 void* WeakSetObject::operator new(size_t size)

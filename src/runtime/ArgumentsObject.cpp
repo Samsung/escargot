@@ -67,8 +67,8 @@ void* ArgumentsObject::operator new(size_t size)
 }
 
 
-ArgumentsObject::ArgumentsObject(ExecutionState& state, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3, true)
+ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
     , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)
     , m_sourceFunctionObject(sourceFunctionObject)
     , m_argc((argc << 1) | 1)

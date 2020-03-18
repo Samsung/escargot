@@ -26,8 +26,7 @@ namespace Escargot {
 
 Object* ScriptGeneratorFunctionObject::createFunctionPrototypeObject(ExecutionState& state)
 {
-    Object* prototype = new Object(state);
-    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
+    Object* prototype = new Object(state, state.context()->globalObject()->generatorPrototype());
     return prototype;
 }
 

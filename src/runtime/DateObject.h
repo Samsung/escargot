@@ -187,8 +187,8 @@ protected:
 
 class DatePrototypeObject : public DateObject {
 public:
-    DatePrototypeObject(ExecutionState& state)
-        : DateObject(state)
+    DatePrototypeObject(ExecutionState& state, Object* proto)
+        : DateObject(state, proto)
     {
     }
 

@@ -29,19 +29,27 @@ namespace Escargot {
 size_t g_arrayObjectTag;
 
 ArrayObject::ArrayObject(ExecutionState& state)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)
+    : ArrayObject(state, state.context()->globalObject()->arrayPrototype())
+{
+}
+
+ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
     , m_fastModeData(nullptr)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->arrayPrototype());
-
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
         ensureObjectRareData()->m_isFastModeArrayObject = false;
     }
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, double length)
-    : ArrayObject(state)
+    : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), length)
+{
+}
+
+ArrayObject::ArrayObject(ExecutionState& state, Object* proto, double length)
+    : ArrayObject(state, proto)
 {
     // If length is -0, let length be +0.
     if (length == 0 && std::signbit(length)) {
@@ -56,7 +64,12 @@ ArrayObject::ArrayObject(ExecutionState& state, double length)
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
-    : ArrayObject(state)
+    : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), size)
+{
+}
+
+ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& size)
+    : ArrayObject(state, proto)
 {
     if (UNLIKELY(size > ((1LL << 32LL) - 1LL))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
@@ -66,7 +79,12 @@ ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size)
-    : ArrayObject(state, size)
+    : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), src, size)
+{
+}
+
+ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const Value* src, const uint64_t& size)
+    : ArrayObject(state, proto, size)
 {
     // Let array be ! ArrayCreate(0).
     // Let n be 0.
@@ -567,12 +585,16 @@ bool ArrayObject::preventExtensions(ExecutionState& state)
 }
 
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
-    : IteratorObject(state)
+    : ArrayIteratorObject(state, state.context()->globalObject()->arrayIteratorPrototype(), a, type)
+{
+}
+
+ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* proto, Object* a, Type type)
+    : IteratorObject(state, proto)
     , m_array(a)
     , m_iteratorNextIndex(0)
     , m_type(type)
 {
-    Object::setPrototype(state, state.context()->globalObject()->arrayIteratorPrototype());
 }
 
 void* ArrayIteratorObject::operator new(size_t size)

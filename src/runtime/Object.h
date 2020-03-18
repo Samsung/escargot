@@ -717,6 +717,8 @@ class Object : public PointerValue {
     friend struct ObjectRareData;
 
 public:
+    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
+
     explicit Object(ExecutionState& state);
     explicit Object(ExecutionState& state, Object* proto);
 
@@ -1058,6 +1060,7 @@ public:
     IteratorObject* entries(ExecutionState& state);
 
     Value speciesConstructor(ExecutionState& state, const Value& defaultConstructor);
+    void markAsPrototypeObject(ExecutionState& state);
 
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
@@ -1067,8 +1070,9 @@ protected:
         GC_set_bit(desc, GC_WORD_OFFSET(Object, m_values));
     }
 
-    Object(ExecutionState& state, size_t defaultSpace, bool initPlainArea);
-    void initPlainObject(ExecutionState& state);
+    explicit Object(ExecutionState& state, Object* proto, size_t defaultSpace);
+    explicit Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin);
+
     ObjectRareData* rareData() const
     {
         if ((size_t)m_prototype > 2 && g_objectRareDataTag == *((size_t*)(m_prototype))) {
@@ -1169,9 +1173,8 @@ protected:
         }
     }
 
-    void setPrototypeForIntrinsicObjectCreation(ExecutionState& state, Object* obj);
+    void setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype = false);
 
-    void markAsPrototypeObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 };
 }

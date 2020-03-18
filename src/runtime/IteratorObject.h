@@ -52,6 +52,7 @@ public:
 class IteratorObject : public Object {
 public:
     explicit IteratorObject(ExecutionState& state);
+    explicit IteratorObject(ExecutionState& state, Object* proto);
 
     virtual bool isIteratorObject() const
     {

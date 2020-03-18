@@ -49,7 +49,7 @@ public:
     friend class IdentifierNode;
 
     explicit GlobalObject(ExecutionState& state)
-        : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, false)
+        : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__)
         , m_context(state.context())
         , m_object(nullptr)
         , m_objectPrototypeToString(nullptr)
@@ -159,11 +159,9 @@ public:
         , m_asyncGeneratorFunction(nullptr)
     {
         m_objectPrototype = Object::createBuiltinObjectPrototype(state);
-        m_objectPrototype->markAsPrototypeObject(state);
-        m_objectPrototype->markThisObjectDontNeedStructureTransitionTable();
-        Object::setPrototype(state, m_objectPrototype);
 
-        m_structure = m_structure->convertToNonTransitionStructure();
+        Object::setPrototype(state, m_objectPrototype);
+        Object::setGlobalIntrinsicObject(state);
     }
 
     virtual bool isGlobalObject() const override

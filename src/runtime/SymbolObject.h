@@ -27,7 +27,8 @@ namespace Escargot {
 
 class SymbolObject : public Object {
 public:
-    SymbolObject(ExecutionState& state, Symbol* s);
+    explicit SymbolObject(ExecutionState& state, Symbol* s);
+    explicit SymbolObject(ExecutionState& state, Object* proto, Symbol* s);
 
     Symbol* primitiveValue()
     {

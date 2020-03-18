@@ -25,15 +25,13 @@
 namespace Escargot {
 
 MapObject::MapObject(ExecutionState& state)
-    : Object(state)
+    : MapObject(state, state.context()->globalObject()->mapPrototype())
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->mapPrototype());
 }
 
 MapObject::MapObject(ExecutionState& state, Object* proto)
-    : Object(state)
+    : Object(state, proto)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 void* MapObject::operator new(size_t size)
@@ -152,12 +150,16 @@ MapIteratorObject* MapObject::entries(ExecutionState& state)
 }
 
 MapIteratorObject::MapIteratorObject(ExecutionState& state, MapObject* map, Type type)
-    : IteratorObject(state)
+    : MapIteratorObject(state, state.context()->globalObject()->mapIteratorPrototype(), map, type)
+{
+}
+
+MapIteratorObject::MapIteratorObject(ExecutionState& state, Object* proto, MapObject* map, Type type)
+    : IteratorObject(state, proto)
     , m_map(map)
     , m_iteratorIndex(0)
     , m_type(type)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->mapIteratorPrototype());
 }
 
 void* MapIteratorObject::operator new(size_t size)

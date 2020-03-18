@@ -2149,25 +2149,29 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
 
     bool isGenerator = cb->isGenerator();
     bool isAsync = cb->isAsync();
+    Object* proto = state.context()->globalObject()->functionPrototype();
 
     if (UNLIKELY(isGenerator && isAsync)) {
+        proto = state.context()->globalObject()->asyncGenerator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
-        registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+        registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isGenerator)) {
+        proto = state.context()->globalObject()->generator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
-        registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+        registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isAsync)) {
+        proto = state.context()->globalObject()->asyncFunctionPrototype();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
-        registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+        registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (cb->isArrowFunctionExpression()) {
-        registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
+        registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
     } else if (cb->isClassMethod() || cb->isClassStaticMethod()) {
-        registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
+        registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
     } else {
-        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, code->m_codeBlock, outerLexicalEnvironment, true, false, false);
+        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, true, false, false);
     }
 }
 
@@ -2384,29 +2388,30 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
         }
     }
 
+    constructorParent.asObject()->markAsPrototypeObject(state);
+
     ScriptClassConstructorPrototypeObject* proto = new ScriptClassConstructorPrototypeObject(state);
     proto->setPrototype(state, protoParent);
 
     ScriptClassConstructorFunctionObject* constructor;
 
     if (code->m_codeBlock) {
-        constructor = new ScriptClassConstructorFunctionObject(state, code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc);
+        constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc);
     } else {
         if (!heritagePresent) {
             Value argv[] = { String::emptyString, String::emptyString };
             auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
             functionSource.codeBlock->setAsClassConstructor();
-            constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
         } else {
             Value argv[] = { new ASCIIString("...args"), new ASCIIString("super(...args)") };
             auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
             functionSource.codeBlock->setAsClassConstructor();
             functionSource.codeBlock->setAsDerivedClassConstructor();
-            constructor = new ScriptClassConstructorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
         }
     }
 
-    constructor->setPrototype(state, constructorParent);
     constructor->asFunctionObject()->setFunctionPrototype(state, proto);
 
     // Perform CreateMethodProperty(proto, "constructor", F).

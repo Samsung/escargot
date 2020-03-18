@@ -45,8 +45,7 @@ public:
         Throw
     };
 
-    GeneratorObject(ExecutionState& state);
-    GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk, const Value& prototype);
+    GeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
     virtual const char* internalClassProperty(ExecutionState& state) override
     {

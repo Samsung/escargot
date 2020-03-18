@@ -29,16 +29,9 @@ namespace Escargot {
 
 class DataViewObject : public ArrayBufferView {
 public:
-    explicit DataViewObject(ExecutionState& state)
-        : ArrayBufferView(state)
-    {
-        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->dataViewPrototype());
-    }
-
     explicit DataViewObject(ExecutionState& state, Object* proto)
-        : ArrayBufferView(state)
+        : ArrayBufferView(state, proto)
     {
-        Object::setPrototypeForIntrinsicObjectCreation(state, proto);
     }
 
     virtual TypedArrayType typedArrayType()

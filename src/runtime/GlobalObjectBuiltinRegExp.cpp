@@ -70,11 +70,9 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->regexpPrototype());
-    RegExpObject* regexp = new RegExpObject(state);
-    regexp->setPrototype(state, proto);
+    RegExpObject* regexp = new RegExpObject(state, proto, source, option);
 
     // TODO http://www.ecma-international.org/ecma-262/6.0/index.html#sec-escaperegexppattern
-    regexp->init(state, source, option);
     return regexp;
 }
 
@@ -612,9 +610,10 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
 
 class RegExpObjectPrototype : public RegExpObject {
 public:
-    RegExpObjectPrototype(ExecutionState& state)
-        : RegExpObject(state, false)
+    RegExpObjectPrototype(ExecutionState& state, Object* proto)
+        : RegExpObject(state, proto, false)
     {
+        init(state, String::emptyString, String::emptyString);
     }
 
     virtual bool isRegExpPrototypeObject() const override
@@ -632,8 +631,7 @@ public:
 void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new GlobalRegExpFunctionObject(state);
-    m_regexp->markThisObjectDontNeedStructureTransitionTable();
-    m_regexp->setPrototype(state, m_functionPrototype);
+    m_regexp->setGlobalIntrinsicObject(state);
 
     {
         JSGetterSetter gs(
@@ -642,10 +640,8 @@ void GlobalObject::installRegExp(ExecutionState& state)
         m_regexp->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_regexpPrototype = m_objectPrototype;
-    m_regexpPrototype = new RegExpObjectPrototype(state);
-    m_regexpPrototype->markThisObjectDontNeedStructureTransitionTable();
-    m_regexpPrototype->setPrototype(state, m_objectPrototype);
+    m_regexpPrototype = new RegExpObjectPrototype(state, m_objectPrototype);
+    m_regexpPrototype->setGlobalIntrinsicObject(state, true);
     m_regexpPrototype->deleteOwnProperty(state, state.context()->staticStrings().lastIndex);
 
     {

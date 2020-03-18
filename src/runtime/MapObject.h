@@ -32,6 +32,7 @@ class MapObject : public Object {
 
 public:
     typedef TightVector<std::pair<SmallValue, SmallValue>, GCUtil::gc_malloc_allocator<std::pair<SmallValue, SmallValue>>> MapObjectData;
+
     explicit MapObject(ExecutionState& state);
     explicit MapObject(ExecutionState& state, Object* proto);
 
@@ -76,7 +77,9 @@ public:
         TypeValue,
         TypeKeyValue
     };
+
     MapIteratorObject(ExecutionState& state, MapObject* map, Type type);
+    MapIteratorObject(ExecutionState& state, Object* proto, MapObject* map, Type type);
 
     virtual bool isMapIteratorObject() const override
     {

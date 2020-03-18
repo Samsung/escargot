@@ -89,7 +89,7 @@ public:
 class FunctionObjectProcessCallGenerator {
 private:
     // https://www.ecma-international.org/ecma-262/10.0/#sec-getprototypefromconstructor
-    static Value getPrototypeFromConstructor(ExecutionState& state, FunctionObject* constructor, const Value& intrinsicDefaultProto)
+    static Object* getPrototypeFromConstructor(ExecutionState& state, FunctionObject* constructor, const Value& intrinsicDefaultProto)
     {
         // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
         // Assert: IsCallable(constructor) is true.
@@ -100,9 +100,11 @@ private:
             // Let realm be ? GetFunctionRealm(constructor).
             // Set proto to realm's intrinsic object named intrinsicDefaultProto.
             proto = intrinsicDefaultProto;
+        } else {
+            proto.asObject()->markAsPrototypeObject(state);
         }
         // Return proto.
-        return proto;
+        return proto.asObject();
     }
 
 public:
@@ -212,7 +214,7 @@ public:
 
             // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
             // let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
-            Value proto(Value::ForceUninitialized);
+            Object* proto = nullptr;
             if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
                 proto = getPrototypeFromConstructor(state, constructor, constructor->getFunctionRealm(state)->globalObject()->generatorPrototype());
             } else {
@@ -222,12 +224,12 @@ public:
             // Return ObjectCreate(proto, internalSlotsList).
             Object* generatorObject;
             if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
-                GeneratorObject* gen = new GeneratorObject(state, newState, registerFile, blk, proto);
+                GeneratorObject* gen = new GeneratorObject(state, proto, newState, registerFile, blk);
                 newState->setPauseSource(gen->executionPauser());
                 ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Generator);
                 generatorObject = gen;
             } else {
-                AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, newState, registerFile, blk, proto);
+                AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, proto, newState, registerFile, blk);
                 newState->setPauseSource(gen->executionPauser());
                 ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::AsyncGenerator);
                 generatorObject = gen;

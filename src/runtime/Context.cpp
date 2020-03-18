@@ -86,8 +86,9 @@ Context::Context(VMInstance* instance)
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
 
-    ArrayObject temp(stateForInit);
-    g_arrayObjectTag = *((size_t*)&temp);
+    // initialize object tag values after installation of builtins
+    g_arrayObjectTag = ArrayObject(stateForInit, m_globalObject->arrayPrototype()).getTag();
+    g_objectTag = Object(stateForInit).getTag();
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)

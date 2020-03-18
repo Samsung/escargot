@@ -64,8 +64,8 @@ private:
 
 class WeakSetPrototypeObject : public WeakSetObject {
 public:
-    explicit WeakSetPrototypeObject(ExecutionState& state)
-        : WeakSetObject(state)
+    explicit WeakSetPrototypeObject(ExecutionState& state, Object* proto)
+        : WeakSetObject(state, proto)
     {
     }
 

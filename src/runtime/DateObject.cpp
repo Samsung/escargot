@@ -154,21 +154,16 @@ static const char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 static const char* invalidDate = "Invalid Date";
 
 DateObject::DateObject(ExecutionState& state)
-    : Object(state)
-    , m_primitiveValue(TIME64NAN)
-    , m_cachedLocal()
-    , m_isCacheDirty(false)
+    : DateObject(state, state.context()->globalObject()->datePrototype())
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->datePrototype());
 }
 
 DateObject::DateObject(ExecutionState& state, Object* proto)
-    : Object(state)
+    : Object(state, proto)
     , m_primitiveValue(TIME64NAN)
     , m_cachedLocal()
     , m_isCacheDirty(false)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 void DateObject::initCachedUTC(ExecutionState& state, DateObject* d)

@@ -20,6 +20,7 @@
 #ifndef __EscargotAsyncFromSyncIteratorObject__
 #define __EscargotAsyncFromSyncIteratorObject__
 
+#include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/IteratorObject.h"
 
@@ -30,12 +31,12 @@ class IteratorRecord;
 // https://www.ecma-international.org/ecma-262/10.0/#sec-async-from-sync-iterator-objects
 class AsyncFromSyncIteratorObject : public Object {
 public:
-    AsyncFromSyncIteratorObject(ExecutionState& state, IteratorRecord* syncIteratorRecord);
+    AsyncFromSyncIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* syncIteratorRecord);
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-createasyncfromsynciterator
     static IteratorRecord* createAsyncFromSyncIterator(ExecutionState& state, IteratorRecord* syncIteratorRecord)
     {
-        return IteratorObject::getIterator(state, new AsyncFromSyncIteratorObject(state, syncIteratorRecord), false);
+        return IteratorObject::getIterator(state, new AsyncFromSyncIteratorObject(state, state.context()->globalObject()->asyncFromSyncIteratorPrototype(), syncIteratorRecord), false);
     }
 
     virtual bool isAsyncFromSyncIteratorObject() const override

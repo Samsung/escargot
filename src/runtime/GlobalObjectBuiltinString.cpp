@@ -50,11 +50,7 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
 
     // StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%StringPrototype%")).
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->stringPrototype());
-    StringObject* resultString = new StringObject(state);
-    resultString->setPrototype(state, proto);
-    resultString->setPrimitiveValue(state, s);
-
-    return resultString;
+    return new StringObject(state, proto, s);
 }
 
 static Value builtinStringToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
@@ -1320,13 +1316,12 @@ void GlobalObject::installString(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_string = new NativeFunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_string->markThisObjectDontNeedStructureTransitionTable();
-    m_string->setPrototype(state, m_functionPrototype);
-    m_stringPrototype = m_objectPrototype;
-    m_stringPrototype = new StringObject(state, String::emptyString);
-    m_stringPrototype->markThisObjectDontNeedStructureTransitionTable();
-    m_stringPrototype->setPrototype(state, m_objectPrototype);
+    m_string->setGlobalIntrinsicObject(state);
+
+    m_stringPrototype = new StringObject(state, m_objectPrototype, String::emptyString);
+    m_stringPrototype->setGlobalIntrinsicObject(state, true);
     m_string->setFunctionPrototype(state, m_stringPrototype);
+
     m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
@@ -1490,8 +1485,8 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
-    m_stringIteratorPrototype = m_iteratorPrototype;
-    m_stringIteratorPrototype = new StringIteratorObject(state, nullptr);
+    m_stringIteratorPrototype = new StringIteratorObject(state, m_iteratorPrototype, nullptr);
+    m_stringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinStringIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -19,22 +19,21 @@
 
 #include "Escargot.h"
 #include "TypedArrayObject.h"
-#include "Context.h"
 #include "GlobalObject.h"
 
 namespace Escargot {
 
 #define DEFINE_FN(Type, type, siz)                                                                                                      \
     template <>                                                                                                                         \
-    void TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectPrototypeFiller(ExecutionState& state)                                   \
+    Object* TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectDefaultPrototype(ExecutionState& state)                               \
     {                                                                                                                                   \
-        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->type##ArrayPrototype());                 \
+        return state.context()->globalObject()->type##ArrayPrototype();                                                                 \
     }                                                                                                                                   \
     template <>                                                                                                                         \
     void TypedArrayObject<Type##Adaptor, siz>::setPrototypeFromConstructor(ExecutionState& state, Object* newTarget)                    \
     {                                                                                                                                   \
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->type##ArrayPrototype()); \
-        Object::setPrototypeForIntrinsicObjectCreation(state, proto);                                                                   \
+        Object::setPrototype(state, proto);                                                                                             \
     }                                                                                                                                   \
     template <>                                                                                                                         \
     const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty(ExecutionState& state)                                      \

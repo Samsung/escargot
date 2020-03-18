@@ -85,9 +85,11 @@ public:
         JSC::Yarr::BytecodePattern* m_bytecodePattern;
     };
 
-    explicit RegExpObject(ExecutionState& state, bool hasLastIndex = true);
     RegExpObject(ExecutionState& state, String* source, String* option);
+    RegExpObject(ExecutionState& state, Object* proto, String* source, String* option);
+
     RegExpObject(ExecutionState& state, String* source, unsigned int option);
+    RegExpObject(ExecutionState& state, Object* proto, String* source, unsigned int option);
 
     void init(ExecutionState& state, String* source, String* option = String::emptyString);
     void initWithOption(ExecutionState& state, String* source, Option option);
@@ -153,6 +155,9 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+protected:
+    explicit RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex = true);
 
 private:
     void setOption(const Option& option);

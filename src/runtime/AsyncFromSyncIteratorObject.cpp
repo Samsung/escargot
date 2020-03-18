@@ -25,10 +25,9 @@
 
 namespace Escargot {
 
-AsyncFromSyncIteratorObject::AsyncFromSyncIteratorObject(ExecutionState& state, IteratorRecord* syncIteratorRecord)
-    : Object(state)
+AsyncFromSyncIteratorObject::AsyncFromSyncIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* syncIteratorRecord)
+    : Object(state, proto)
     , m_syncIteratorRecord(syncIteratorRecord)
 {
-    setPrototype(state, state.context()->globalObject()->asyncFromSyncIteratorPrototype());
 }
 }

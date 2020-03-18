@@ -63,7 +63,7 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
+            ErrorObject* errorobj = ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("TypeError"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
         }
 
@@ -195,8 +195,7 @@ static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size
 void GlobalObject::installMap(ExecutionState& state)
 {
     m_map = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Map, builtinMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_map->markThisObjectDontNeedStructureTransitionTable();
-    m_map->setPrototype(state, m_functionPrototype);
+    m_map->setGlobalIntrinsicObject(state);
 
     {
         JSGetterSetter gs(
@@ -205,9 +204,8 @@ void GlobalObject::installMap(ExecutionState& state)
         m_map->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_mapPrototype = m_objectPrototype;
-    m_mapPrototype = new MapObject(state);
-    m_mapPrototype->markThisObjectDontNeedStructureTransitionTable();
+    m_mapPrototype = new MapObject(state, m_objectPrototype);
+    m_mapPrototype->setGlobalIntrinsicObject(state, true);
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_map, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().clear),
@@ -250,8 +248,8 @@ void GlobalObject::installMap(ExecutionState& state)
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
-    m_mapIteratorPrototype = m_iteratorPrototype;
-    m_mapIteratorPrototype = new MapIteratorObject(state, nullptr, MapIteratorObject::TypeKey);
+    m_mapIteratorPrototype = new MapIteratorObject(state, m_iteratorPrototype, nullptr, MapIteratorObject::TypeKey);
+    m_mapIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_mapIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinMapIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

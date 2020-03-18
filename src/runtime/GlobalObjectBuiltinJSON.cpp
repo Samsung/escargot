@@ -668,7 +668,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 void GlobalObject::installJSON(ExecutionState& state)
 {
     m_json = new Object(state);
-    m_json->markThisObjectDontNeedStructureTransitionTable();
+    m_json->setGlobalIntrinsicObject(state);
     m_json->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().JSON.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 

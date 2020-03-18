@@ -24,8 +24,8 @@
 #include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
-ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
-    : ScriptFunctionObject(state, codeBlock, outerEnvironment, 2)
+ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
+    : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, 2)
     , m_homeObject(homeObject)
     , m_classSourceCode(classSourceCode)
 {
@@ -107,21 +107,9 @@ Object* ScriptClassConstructorFunctionObject::construct(ExecutionState& state, c
     // If kind is "base", then
     if (kind == ConstructorKind::Base) {
         // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-        // OrdinaryCreateFromConstructor -> Let proto be GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
-        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be Get(constructor, "prototype").
-        Value proto = newTarget->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, newTarget);
-
-        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> If Type(proto) is not Object, then
-        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let realm be GetFunctionRealm(constructor).
-        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> ReturnIfAbrupt(realm).
-        // OrdinaryCreateFromConstructor -> GetPrototypeFromConstructor -> Let proto be realm’s intrinsic object named intrinsicDefaultProto.
-        if (!proto.isObject()) {
-            proto = codeBlock()->context()->globalObject()->objectPrototype();
-        }
-
-        thisArgument = new Object(state);
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->objectPrototype());
         // Set the [[Prototype]] internal slot of obj to proto.
-        thisArgument->setPrototype(state, proto);
+        thisArgument = new Object(state, proto);
         // ReturnIfAbrupt(thisArgument).
     }
 

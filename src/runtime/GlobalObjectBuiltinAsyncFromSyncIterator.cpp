@@ -109,7 +109,7 @@ static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisV
     // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
     if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
         // Let invalidIteratorError be a newly created TypeError object.
-        Value invalidIteratorError = new TypeErrorObject(state, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        Value invalidIteratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
         // Return promiseCapability.[[Promise]].
@@ -142,7 +142,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
     // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
     if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
         // Let invalidIteratorError be a newly created TypeError object.
-        Value invalidIteratorError = new TypeErrorObject(state, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        Value invalidIteratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
         // Return promiseCapability.[[Promise]].
@@ -185,7 +185,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
     // If Type(result) is not Object, then
     if (!result.isObject()) {
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        Value typeError = new TypeErrorObject(state, String::fromASCII("result of iterator is not Object"));
+        Value typeError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("result of iterator is not Object"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
         // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
@@ -205,7 +205,7 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
     // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
     if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
         // Let invalidIteratorError be a newly created TypeError object.
-        Value invalidIteratorError = new TypeErrorObject(state, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        Value invalidIteratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
         // Return promiseCapability.[[Promise]].
@@ -247,7 +247,7 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
     // If Type(result) is not Object, then
     if (!result.isObject()) {
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        Value typeError = new TypeErrorObject(state, String::fromASCII("result of iterator is not Object"));
+        Value typeError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("result of iterator is not Object"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
         // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
@@ -259,10 +259,8 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
 void GlobalObject::installAsyncFromSyncIterator(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%-object
-    m_asyncFromSyncIteratorPrototype = new Object(state);
-    m_asyncFromSyncIteratorPrototype->markThisObjectDontNeedStructureTransitionTable();
-
-    m_asyncFromSyncIteratorPrototype->setPrototype(state, m_asyncIteratorPrototype);
+    m_asyncFromSyncIteratorPrototype = new Object(state, m_asyncIteratorPrototype);
+    m_asyncFromSyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_asyncFromSyncIteratorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                         ObjectPropertyDescriptor(String::fromASCII("Async-from-Sync Iterator"), ObjectPropertyDescriptor::ConfigurablePresent));

@@ -39,20 +39,17 @@ static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t
     }
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->asyncFunctionPrototype());
 
-    ScriptAsyncFunctionObject* result = new ScriptAsyncFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
-    result->setPrototype(state, proto);
-    return result;
+    return new ScriptAsyncFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
 void GlobalObject::installAsyncFunction(ExecutionState& state)
 {
     m_asyncFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().AsyncFunction, builtinAsyncFunction, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_asyncFunction->markThisObjectDontNeedStructureTransitionTable();
+    m_asyncFunction->setGlobalIntrinsicObject(state);
     m_asyncFunction->setPrototype(state, m_function);
 
-    m_asyncFunctionPrototype = new Object(state);
-    m_asyncFunctionPrototype->setPrototype(state, m_functionPrototype);
-
+    m_asyncFunctionPrototype = new Object(state, m_functionPrototype);
+    m_asyncFunctionPrototype->setGlobalIntrinsicObject(state, true);
     m_asyncFunction->setFunctionPrototype(state, m_asyncFunctionPrototype);
 
     m_asyncFunctionPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),

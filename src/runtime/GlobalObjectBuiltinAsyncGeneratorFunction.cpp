@@ -38,9 +38,7 @@ static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValu
     }
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->asyncGenerator());
 
-    ScriptAsyncGeneratorFunctionObject* result = new ScriptAsyncGeneratorFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment);
-    result->setPrototype(state, proto);
-    return result;
+    return new ScriptAsyncGeneratorFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
 static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
@@ -62,12 +60,12 @@ void GlobalObject::installAsyncGeneratorFunction(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorfunction
     m_asyncGeneratorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().AsyncGeneratorFunction, builtinAsyncGeneratorFunction, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_asyncGeneratorFunction->markThisObjectDontNeedStructureTransitionTable();
+    m_asyncGeneratorFunction->setGlobalIntrinsicObject(state);
     m_asyncGeneratorFunction->setPrototype(state, m_function);
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-properties-of-asyncgeneratorfunction-prototype
-    m_asyncGenerator = new Object(state);
-    m_asyncGenerator->setPrototype(state, m_functionPrototype);
+    m_asyncGenerator = new Object(state, m_functionPrototype);
+    m_asyncGenerator->setGlobalIntrinsicObject(state, true);
 
     m_asyncGeneratorFunction->setFunctionPrototype(state, m_asyncGenerator);
 
@@ -78,9 +76,8 @@ void GlobalObject::installAsyncGeneratorFunction(ExecutionState& state)
                                         ObjectPropertyDescriptor(state.context()->staticStrings().AsyncGeneratorFunction.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-properties-of-asyncgenerator-prototype
-    m_asyncGeneratorPrototype = new Object(state);
-    m_asyncGeneratorPrototype->markThisObjectDontNeedStructureTransitionTable();
-    m_asyncGeneratorPrototype->setPrototype(state, m_asyncIteratorPrototype);
+    m_asyncGeneratorPrototype = new Object(state, m_asyncIteratorPrototype);
+    m_asyncGeneratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_asyncGenerator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_asyncGeneratorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
     m_asyncGeneratorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_asyncGenerator, ObjectPropertyDescriptor::ConfigurablePresent));
