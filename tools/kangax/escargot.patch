@@ -1,0 +1,23 @@
+diff --git a/environments.json b/environments.json
+index f7b14fd7..eca521de 100644
+--- a/environments.json
++++ b/environments.json
+@@ -3204,6 +3204,18 @@
+       "es6"
+     ]
+   },
++  "escargot": {
++    "full": "Escargot Master",
++    "family": "Escargot",
++    "short": "Esc",
++    "platformtype": "engine",
++    "release": "2019-11-15",
++    "obsolete": false,
++    "test_suites": [
++      "es6",
++      "es2016plus"
++    ]
++  },
+   "nashorn1_8": {
+     "full": "Oracle Nashorn 1.8",
+     "family": "Nashorn",
