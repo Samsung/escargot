@@ -376,8 +376,7 @@ void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_promise = new NativeFunctionObject(state, NativeFunctionInfo(strings->Promise, builtinPromiseConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_promise->markThisObjectDontNeedStructureTransitionTable();
-    m_promise->setPrototype(state, m_functionPrototype);
+    m_promise->setGlobalIntrinsicObject(state);
 
     {
         JSGetterSetter gs(
@@ -387,7 +386,8 @@ void GlobalObject::installPromise(ExecutionState& state)
     }
 
     m_promisePrototype = new Object(state);
-    m_promisePrototype->markThisObjectDontNeedStructureTransitionTable();
+    m_promisePrototype->setGlobalIntrinsicObject(state, true);
+
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

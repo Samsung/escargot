@@ -37,17 +37,14 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
 static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
 
 PromiseObject::PromiseObject(ExecutionState& state)
-    : Object(state)
-    , m_state(PromiseState::Pending)
+    : PromiseObject(state, state.context()->globalObject()->promisePrototype())
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->promisePrototype());
 }
 
 PromiseObject::PromiseObject(ExecutionState& state, Object* proto)
-    : Object(state)
+    : Object(state, proto)
     , m_state(PromiseState::Pending)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 void* PromiseObject::operator new(size_t size)
@@ -98,7 +95,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
 
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!constructor->isConstructor()) {
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Constructor is not a function object")));
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
     }
 
     // Let promiseCapability be a new PromiseCapability { [[Promise]]: undefined, [[Resolve]]: undefined, [[Reject]]: undefined }.
@@ -118,8 +115,9 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     Value resolveFunction = capability->get(state, strings->resolve).value(state, capability);
     Value rejectFunction = capability->get(state, strings->reject).value(state, capability);
 
-    if (!resolveFunction.isCallable() || !rejectFunction.isCallable())
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Promise resolve or reject function is not callable")));
+    if (!resolveFunction.isCallable() || !rejectFunction.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve or reject function is not callable");
+    }
 
     return PromiseReaction::Capability(promise, resolveFunction.asObject(), rejectFunction.asObject());
 }
@@ -243,7 +241,7 @@ Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Valu
     // If promiseCapability.[[Reject]] is not undefined, throw a TypeError exception.
     if (!capability->getOwnProperty(state, strings->resolve).value(state, capability).isUndefined()
         || !capability->getOwnProperty(state, strings->reject).value(state, capability).isUndefined()) {
-        state.throwException(new TypeErrorObject(state, new ASCIIString("Executor function has already called")));
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Executor function has already called");
     }
 
     // Set promiseCapability.[[Resolve]] to resolve.
@@ -280,7 +278,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
 
     Value resolutionValue = argv[0];
     if (resolutionValue == Value(promise)) {
-        promise->reject(state, new TypeErrorObject(state, new ASCIIString("Self resolution error")));
+        promise->reject(state, ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("Self resolution error")));
         return Value();
     }
 

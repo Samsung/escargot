@@ -32,6 +32,7 @@ class SetObject : public Object {
 
 public:
     typedef TightVector<SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> SetObjectData;
+
     explicit SetObject(ExecutionState& state);
     explicit SetObject(ExecutionState& state, Object* proto);
 
@@ -70,8 +71,8 @@ private:
 
 class SetPrototypeObject : public SetObject {
 public:
-    explicit SetPrototypeObject(ExecutionState& state)
-        : SetObject(state)
+    explicit SetPrototypeObject(ExecutionState& state, Object* proto)
+        : SetObject(state, proto)
     {
     }
 
@@ -88,7 +89,9 @@ public:
         TypeValue,
         TypeKeyValue
     };
-    SetIteratorObject(ExecutionState& state, SetObject* map, Type type);
+
+    SetIteratorObject(ExecutionState& state, SetObject* set, Type type);
+    SetIteratorObject(ExecutionState& state, Object* proto, SetObject* set, Type type);
 
     virtual bool isSetIteratorObject() const override
     {

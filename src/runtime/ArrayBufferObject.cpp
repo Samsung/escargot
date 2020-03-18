@@ -34,31 +34,16 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
 }
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
-    , m_context(state.context())
-    , m_data(nullptr)
-    , m_bytelength(0)
+    : ArrayBufferObject(state, state.context()->globalObject()->arrayBufferPrototype())
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->arrayBufferPrototype());
-
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
-                                            void*) {
-        ArrayBufferObject* self = (ArrayBufferObject*)obj;
-        if (self->m_data) {
-            self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
-        }
-    },
-                                   nullptr, nullptr, nullptr);
 }
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_context(state.context())
     , m_data(nullptr)
     , m_bytelength(0)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
-
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;

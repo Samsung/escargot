@@ -44,6 +44,8 @@ class ArrayBufferObject : public Object {
 
 public:
     explicit ArrayBufferObject(ExecutionState& state);
+    explicit ArrayBufferObject(ExecutionState& state, Object* proto);
+
     static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Value constructor);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
@@ -152,8 +154,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    explicit ArrayBufferObject(ExecutionState& state, Object* proto);
-
     Context* m_context;
     uint8_t* m_data;
     unsigned m_bytelength;

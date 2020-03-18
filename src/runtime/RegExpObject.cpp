@@ -31,35 +31,29 @@
 namespace Escargot {
 
 RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
-    , m_source(NULL)
-    , m_optionString(NULL)
-    , m_option(None)
-    , m_yarrPattern(NULL)
-    , m_bytecodePattern(NULL)
-    , m_lastIndex(Value(0))
-    , m_lastExecutedString(NULL)
+    : RegExpObject(state, state.context()->globalObject()->regexpPrototype(), source, option)
 {
-    initRegExpObject(state, true);
+}
+
+RegExpObject::RegExpObject(ExecutionState& state, Object* proto, String* source, String* option)
+    : RegExpObject(state, proto, true)
+{
     init(state, source, option);
 }
 
 RegExpObject::RegExpObject(ExecutionState& state, String* source, unsigned int option)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5, true)
-    , m_source(NULL)
-    , m_optionString(NULL)
-    , m_option(None)
-    , m_yarrPattern(NULL)
-    , m_bytecodePattern(NULL)
-    , m_lastIndex(Value(0))
-    , m_lastExecutedString(NULL)
+    : RegExpObject(state, state.context()->globalObject()->regexpPrototype(), source, option)
 {
-    initRegExpObject(state, true);
+}
+
+RegExpObject::RegExpObject(ExecutionState& state, Object* proto, String* source, unsigned int option)
+    : RegExpObject(state, proto, true)
+{
     initWithOption(state, source, (Option)option);
 }
 
-RegExpObject::RegExpObject(ExecutionState& state, bool hasLastIndex)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4), true)
+RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4))
     , m_source(NULL)
     , m_optionString(NULL)
     , m_option(None)
@@ -69,7 +63,6 @@ RegExpObject::RegExpObject(ExecutionState& state, bool hasLastIndex)
     , m_lastExecutedString(NULL)
 {
     initRegExpObject(state, hasLastIndex);
-    init(state, String::emptyString, String::emptyString);
 }
 
 void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
@@ -78,12 +71,10 @@ void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
         for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 5; i++)
             m_values[i] = Value();
         m_structure = state.context()->defaultStructureForRegExpObject();
-        setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->regexpPrototype());
     } else {
         for (size_t i = 0; i < ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 4; i++)
             m_values[i] = Value();
         m_structure = state.context()->defaultStructureForObject();
-        setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->regexpPrototype());
     }
 }
 

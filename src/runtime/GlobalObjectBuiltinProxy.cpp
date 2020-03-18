@@ -105,7 +105,7 @@ void GlobalObject::installProxy(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     m_proxy = new NativeFunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), NativeFunctionObject::__ForBuiltinProxyConstructor__);
-    m_proxy->markThisObjectDontNeedStructureTransitionTable();
+    m_proxy->setGlobalIntrinsicObject(state);
 
     m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

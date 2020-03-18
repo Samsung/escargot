@@ -24,18 +24,11 @@
 
 namespace Escargot {
 
-// function for derived classes. derived class MUST initlize member variable of FunctionObject.
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, size_t defaultSpace)
-    : FunctionObject(state, defaultSpace)
-{
-}
-
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock)
-    : FunctionObject(state, codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = codeBlock;
     initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
@@ -43,15 +36,14 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
-    : FunctionObject(state, info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new CodeBlock(state.context(), info);
     initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin)
-    : FunctionObject(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
+    : FunctionObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = codeBlock;
     ASSERT(!NativeFunctionObject::isConstructor());
@@ -59,12 +51,11 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltinConstructor)
-    : FunctionObject(state, codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = codeBlock;
 
     initStructureAndValues(state, codeBlock->isNativeFunctionConstructor(), false, false);
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     if (NativeFunctionObject::isConstructor())
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
@@ -72,12 +63,11 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* cod
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor)
-    : FunctionObject(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
 {
     m_codeBlock = new CodeBlock(state.context(), info);
 
     initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
     ASSERT(NativeFunctionObject::isConstructor());
@@ -85,7 +75,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
-    : FunctionObject(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = new CodeBlock(state.context(), info);
 
@@ -93,7 +83,6 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionLength()));
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
 
     ASSERT(NativeFunctionObject::isConstructor());
     ASSERT(codeBlock()->hasCallNativeFunctionCode());

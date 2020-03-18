@@ -24,12 +24,16 @@
 namespace Escargot {
 
 StringObject::StringObject(ExecutionState& state, String* value)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
+    : StringObject(state, state.context()->globalObject()->stringPrototype(), value)
+{
+}
+
+StringObject::StringObject(ExecutionState& state, Object* proto, String* value)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
     , m_primitiveValue(value)
 {
     m_structure = state.context()->defaultStructureForStringObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER] = Value();
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->stringPrototype());
 }
 
 void* StringObject::operator new(size_t size)
@@ -125,11 +129,15 @@ ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, 
 }
 
 StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
-    : IteratorObject(state)
+    : StringIteratorObject(state, state.context()->globalObject()->stringIteratorPrototype(), s)
+{
+}
+
+StringIteratorObject::StringIteratorObject(ExecutionState& state, Object* proto, String* s)
+    : IteratorObject(state, proto)
     , m_string(s)
     , m_iteratorNextIndex(0)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->stringIteratorPrototype());
 }
 
 void* StringIteratorObject::operator new(size_t size)

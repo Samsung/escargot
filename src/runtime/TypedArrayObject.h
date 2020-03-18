@@ -20,6 +20,7 @@
 #ifndef __EscargotTypedArrayObject__
 #define __EscargotTypedArrayObject__
 
+#include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
@@ -30,12 +31,14 @@ namespace Escargot {
 
 class ArrayBufferView : public Object {
 public:
-    explicit ArrayBufferView(ExecutionState& state)
-        : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, true)
+    explicit ArrayBufferView(ExecutionState& state, Object* proto)
+        : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        , m_buffer(nullptr)
+        , m_rawBuffer(nullptr)
+        , m_byteLength(0)
+        , m_byteOffset(0)
+        , m_arrayLength(0)
     {
-        m_rawBuffer = nullptr;
-        m_buffer = nullptr;
-        m_arrayLength = m_byteOffset = m_byteLength = 0;
     }
 
     virtual TypedArrayType typedArrayType() = 0;
@@ -270,13 +273,12 @@ struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
 
 template <typename TypeAdaptor, int typedArrayElementSize>
 class TypedArrayObject : public ArrayBufferView {
-    void typedArrayObjectPrototypeFiller(ExecutionState& state);
+    Object* typedArrayObjectDefaultPrototype(ExecutionState& state);
 
 public:
     explicit TypedArrayObject(ExecutionState& state)
-        : ArrayBufferView(state)
+        : ArrayBufferView(state, typedArrayObjectDefaultPrototype(state))
     {
-        typedArrayObjectPrototypeFiller(state);
     }
 
     void setPrototypeFromConstructor(ExecutionState& state, Object* newTarget);

@@ -28,6 +28,7 @@ namespace Escargot {
 class StringObject : public Object {
 public:
     StringObject(ExecutionState& state, String* value = String::emptyString);
+    StringObject(ExecutionState& state, Object* proto, String* value = String::emptyString);
 
     String* primitiveValue()
     {
@@ -73,6 +74,7 @@ private:
 class StringIteratorObject : public IteratorObject {
 public:
     StringIteratorObject(ExecutionState& state, String* string);
+    StringIteratorObject(ExecutionState& state, Object* proto, String* string);
 
     virtual bool isStringIteratorObject() const override
     {

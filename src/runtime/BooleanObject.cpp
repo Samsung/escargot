@@ -24,17 +24,14 @@
 namespace Escargot {
 
 BooleanObject::BooleanObject(ExecutionState& state, bool value)
-    : Object(state)
-    , m_primitiveValue(value)
+    : BooleanObject(state, state.context()->globalObject()->booleanPrototype(), value)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->booleanPrototype());
 }
 
 BooleanObject::BooleanObject(ExecutionState& state, Object* proto, bool value)
-    : Object(state)
+    : Object(state, proto)
     , m_primitiveValue(value)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 void* BooleanObject::operator new(size_t size)

@@ -133,66 +133,59 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* ob
         str.replace(str.begin() + idx, str.begin() + idx + 2, replacer->toUTF16StringData().data());
     }
     errorMessage = new UTF16String(str.data(), str.length());
-    if (code == ReferenceError)
-        state.throwException(new ReferenceErrorObject(state, errorMessage));
-    else if (code == TypeError)
-        state.throwException(new TypeErrorObject(state, errorMessage));
-    else if (code == SyntaxError)
-        state.throwException(new SyntaxErrorObject(state, errorMessage));
-    else if (code == RangeError)
-        state.throwException(new RangeErrorObject(state, errorMessage));
-    else if (code == URIError)
-        state.throwException(new URIErrorObject(state, errorMessage));
-    else if (code == EvalError)
-        state.throwException(new EvalErrorObject(state, errorMessage));
-    else
-        state.throwException(new ErrorObject(state, errorMessage));
-}
-
-ErrorObject::ErrorObject(ExecutionState& state, String* errorMessage)
-    : Object(state)
-    , m_stackTraceData(nullptr)
-{
-    if (errorMessage->length()) {
-        defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
-                                                       ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    switch (code) {
+    case ReferenceError:
+        state.throwException(new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage));
+        break;
+    case TypeError:
+        state.throwException(new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage));
+        break;
+    case SyntaxError:
+        state.throwException(new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage));
+        break;
+    case RangeError:
+        state.throwException(new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage));
+        break;
+    case URIError:
+        state.throwException(new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage));
+        break;
+    case EvalError:
+        state.throwException(new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage));
+        break;
+    default:
+        state.throwException(new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage));
+        break;
     }
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->errorPrototype());
 }
 
 ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
-    : Object(state)
+    : Object(state, proto)
     , m_stackTraceData(nullptr)
 {
     if (errorMessage->length()) {
         defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
                                                        ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
 {
-    if (code == ReferenceError)
-        return new ReferenceErrorObject(state, errorMessage);
-    else if (code == TypeError)
-        return new TypeErrorObject(state, errorMessage);
-    else if (code == SyntaxError)
-        return new SyntaxErrorObject(state, errorMessage);
-    else if (code == RangeError)
-        return new RangeErrorObject(state, errorMessage);
-    else if (code == URIError)
-        return new URIErrorObject(state, errorMessage);
-    else if (code == EvalError)
-        return new EvalErrorObject(state, errorMessage);
-    else
-        return new ErrorObject(state, errorMessage);
-}
-
-ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, String* errorMessage)
-    : ErrorObject(state, errorMessage)
-{
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->referenceErrorPrototype());
+    switch (code) {
+    case ReferenceError:
+        return new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage);
+    case TypeError:
+        return new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage);
+    case SyntaxError:
+        return new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage);
+    case RangeError:
+        return new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage);
+    case URIError:
+        return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
+    case EvalError:
+        return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
+    default:
+        return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
+    }
 }
 
 ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
@@ -200,21 +193,9 @@ ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, Object* proto,
 {
 }
 
-TypeErrorObject::TypeErrorObject(ExecutionState& state, String* errorMessage)
-    : ErrorObject(state, errorMessage)
-{
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->typeErrorPrototype());
-}
-
 TypeErrorObject::TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
     : ErrorObject(state, proto, errorMessage)
 {
-}
-
-RangeErrorObject::RangeErrorObject(ExecutionState& state, String* errorMessage)
-    : ErrorObject(state, errorMessage)
-{
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->rangeErrorPrototype());
 }
 
 RangeErrorObject::RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
@@ -222,32 +203,14 @@ RangeErrorObject::RangeErrorObject(ExecutionState& state, Object* proto, String*
 {
 }
 
-SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, String* errorMessage)
-    : ErrorObject(state, errorMessage)
-{
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->syntaxErrorPrototype());
-}
-
 SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
     : ErrorObject(state, proto, errorMessage)
 {
 }
 
-URIErrorObject::URIErrorObject(ExecutionState& state, String* errorMessage)
-    : ErrorObject(state, errorMessage)
-{
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->uriErrorPrototype());
-}
-
 URIErrorObject::URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
     : ErrorObject(state, proto, errorMessage)
 {
-}
-
-EvalErrorObject::EvalErrorObject(ExecutionState& state, String* errorMessage)
-    : ErrorObject(state, errorMessage)
-{
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->evalErrorPrototype());
 }
 
 EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage)

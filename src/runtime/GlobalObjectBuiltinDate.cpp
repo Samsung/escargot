@@ -554,12 +554,10 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
 void GlobalObject::installDate(ExecutionState& state)
 {
     m_date = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_date->markThisObjectDontNeedStructureTransitionTable();
-    m_date->setPrototype(state, m_functionPrototype);
-    m_datePrototype = m_objectPrototype;
-    m_datePrototype = new DatePrototypeObject(state);
-    m_datePrototype->markThisObjectDontNeedStructureTransitionTable();
-    m_datePrototype->setPrototype(state, m_objectPrototype);
+    m_date->setGlobalIntrinsicObject(state);
+
+    m_datePrototype = new DatePrototypeObject(state, m_objectPrototype);
+    m_datePrototype->setGlobalIntrinsicObject(state, true);
 
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

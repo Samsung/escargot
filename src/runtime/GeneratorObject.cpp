@@ -27,20 +27,11 @@
 
 namespace Escargot {
 
-GeneratorObject::GeneratorObject(ExecutionState& state)
-    : GeneratorObject(state, nullptr, nullptr, nullptr, Value(Value::Null))
-{
-    Object* prototype = new Object(state);
-    prototype->setPrototype(state, state.context()->globalObject()->generatorPrototype());
-    setPrototype(state, prototype);
-}
-
-GeneratorObject::GeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk, const Value& prototype)
-    : Object(state)
+GeneratorObject::GeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
+    : Object(state, proto)
     , m_generatorState(GeneratorState::SuspendedStart)
     , m_executionPauser(state, this, executionState, registerFile, blk)
 {
-    setPrototype(state, prototype);
 }
 
 void* GeneratorObject::operator new(size_t size)

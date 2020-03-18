@@ -25,15 +25,13 @@
 namespace Escargot {
 
 SetObject::SetObject(ExecutionState& state)
-    : Object(state)
+    : SetObject(state, state.context()->globalObject()->setPrototype())
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->setPrototype());
 }
 
 SetObject::SetObject(ExecutionState& state, Object* proto)
-    : Object(state)
+    : Object(state, proto)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, proto);
 }
 
 void* SetObject::operator new(size_t size)
@@ -137,12 +135,16 @@ SetIteratorObject* SetObject::entries(ExecutionState& state)
 }
 
 SetIteratorObject::SetIteratorObject(ExecutionState& state, SetObject* set, Type type)
-    : IteratorObject(state)
+    : SetIteratorObject(state, state.context()->globalObject()->setIteratorPrototype(), set, type)
+{
+}
+
+SetIteratorObject::SetIteratorObject(ExecutionState& state, Object* proto, SetObject* set, Type type)
+    : IteratorObject(state, proto)
     , m_set(set)
     , m_iteratorIndex(0)
     , m_type(type)
 {
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->setIteratorPrototype());
 }
 
 void* SetIteratorObject::operator new(size_t size)

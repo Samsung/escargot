@@ -335,10 +335,9 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
     GC_add_event_callback(gcEventCallback, this);
 
+    // initialize tag values
     g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
-
     g_objectRareDataTag = ObjectRareData(nullptr).getTag();
-
     g_symbolTag = Symbol(nullptr).getTag();
 
 #define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(String::fromASCII("Symbol." #name));

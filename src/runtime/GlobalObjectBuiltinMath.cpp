@@ -415,7 +415,7 @@ static Value builtinMathExpm1(ExecutionState& state, Value thisValue, size_t arg
 void GlobalObject::installMath(ExecutionState& state)
 {
     m_math = new Object(state);
-    m_math->markThisObjectDontNeedStructureTransitionTable();
+    m_math->setGlobalIntrinsicObject(state);
 
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().Math.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

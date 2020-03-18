@@ -2004,32 +2004,32 @@ ErrorObjectRef* ErrorObjectRef::create(ExecutionStateRef* state, ErrorObjectRef:
 
 ReferenceErrorObjectRef* ReferenceErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef(new ReferenceErrorObject(*toImpl(state), toImpl(errorMessage)));
+    return toRef((ReferenceErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::ReferenceError, toImpl(errorMessage)));
 }
 
 TypeErrorObjectRef* TypeErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef(new TypeErrorObject(*toImpl(state), toImpl(errorMessage)));
+    return toRef((TypeErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::TypeError, toImpl(errorMessage)));
 }
 
 SyntaxErrorObjectRef* SyntaxErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef(new SyntaxErrorObject(*toImpl(state), toImpl(errorMessage)));
+    return toRef((SyntaxErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::SyntaxError, toImpl(errorMessage)));
 }
 
 RangeErrorObjectRef* RangeErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef(new RangeErrorObject(*toImpl(state), toImpl(errorMessage)));
+    return toRef((RangeErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::RangeError, toImpl(errorMessage)));
 }
 
 URIErrorObjectRef* URIErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef(new URIErrorObject(*toImpl(state), toImpl(errorMessage)));
+    return toRef((URIErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::URIError, toImpl(errorMessage)));
 }
 
 EvalErrorObjectRef* EvalErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef(new EvalErrorObject(*toImpl(state), toImpl(errorMessage)));
+    return toRef((EvalErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::EvalError, toImpl(errorMessage)));
 }
 
 DateObjectRef* DateObjectRef::create(ExecutionStateRef* state)

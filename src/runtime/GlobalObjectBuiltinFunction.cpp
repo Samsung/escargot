@@ -56,8 +56,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     }
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->functionPrototype());
 
-    ScriptFunctionObject* result = new ScriptFunctionObject(state, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
-    result->setPrototype(state, proto);
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
 
     return result;
 }
@@ -209,18 +208,14 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
 
 void GlobalObject::installFunction(ExecutionState& state)
 {
-    FunctionObject* emptyFunction = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict)),
-                                                             NativeFunctionObject::__ForGlobalBuiltin__);
-
-    m_functionPrototype = emptyFunction;
-    m_functionPrototype->setPrototype(state, m_objectPrototype);
-    m_functionPrototype->markThisObjectDontNeedStructureTransitionTable();
+    m_functionPrototype = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict)),
+                                                   NativeFunctionObject::__ForGlobalBuiltin__);
+    m_functionPrototype->setGlobalIntrinsicObject(state, true);
 
     m_function = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_function->markThisObjectDontNeedStructureTransitionTable();
+    m_function->setGlobalIntrinsicObject(state);
+    m_function->setFunctionPrototype(state, m_functionPrototype);
 
-    m_function->setPrototype(state, emptyFunction);
-    m_function->setFunctionPrototype(state, emptyFunction);
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                                           ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

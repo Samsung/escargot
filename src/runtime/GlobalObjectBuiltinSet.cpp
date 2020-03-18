@@ -182,8 +182,7 @@ static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size
 void GlobalObject::installSet(ExecutionState& state)
 {
     m_set = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Set, builtinSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_set->markThisObjectDontNeedStructureTransitionTable();
-    m_set->setPrototype(state, m_functionPrototype);
+    m_set->setGlobalIntrinsicObject(state);
 
     {
         JSGetterSetter gs(
@@ -192,9 +191,8 @@ void GlobalObject::installSet(ExecutionState& state)
         m_set->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_setPrototype = m_objectPrototype;
-    m_setPrototype = new SetPrototypeObject(state);
-    m_setPrototype->markThisObjectDontNeedStructureTransitionTable();
+    m_setPrototype = new SetPrototypeObject(state, m_objectPrototype);
+    m_setPrototype->setGlobalIntrinsicObject(state, true);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_setPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().clear),
@@ -231,8 +229,8 @@ void GlobalObject::installSet(ExecutionState& state)
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
-    m_setIteratorPrototype = m_iteratorPrototype;
-    m_setIteratorPrototype = new SetIteratorObject(state, nullptr, SetIteratorObject::TypeKey);
+    m_setIteratorPrototype = new SetIteratorObject(state, m_iteratorPrototype, nullptr, SetIteratorObject::TypeKey);
+    m_setIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_setIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinSetIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

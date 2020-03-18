@@ -39,7 +39,7 @@ public:
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptClassConstructorFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode);
+    ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode);
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;

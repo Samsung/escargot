@@ -63,7 +63,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
+            ErrorObject* errorobj = ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("TypeError"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
         }
 
@@ -139,11 +139,10 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 void GlobalObject::installWeakMap(ExecutionState& state)
 {
     m_weakMap = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_weakMap->markThisObjectDontNeedStructureTransitionTable();
-    m_weakMap->setPrototype(state, m_functionPrototype);
-    m_weakMapPrototype = m_objectPrototype;
-    m_weakMapPrototype = new WeakMapObject(state);
-    m_weakMapPrototype->markThisObjectDontNeedStructureTransitionTable();
+    m_weakMap->setGlobalIntrinsicObject(state);
+
+    m_weakMapPrototype = new WeakMapObject(state, m_objectPrototype);
+    m_weakMapPrototype->setGlobalIntrinsicObject(state, true);
     m_weakMapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakMapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),

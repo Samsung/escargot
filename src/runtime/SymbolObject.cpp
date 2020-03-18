@@ -24,11 +24,15 @@
 namespace Escargot {
 
 SymbolObject::SymbolObject(ExecutionState& state, Symbol* value)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1, true)
+    : SymbolObject(state, state.context()->globalObject()->symbolPrototype(), value)
+{
+}
+
+SymbolObject::SymbolObject(ExecutionState& state, Object* proto, Symbol* value)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
     , m_primitiveValue(value)
 {
     m_structure = state.context()->defaultStructureForSymbolObject();
-    Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->symbolPrototype());
 }
 
 void* SymbolObject::operator new(size_t size)

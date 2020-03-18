@@ -357,7 +357,7 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            TypeErrorObject* errorobj = new TypeErrorObject(state, new ASCIIString("TypeError"));
+            ErrorObject* errorobj = ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("TypeError"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
         }
 
@@ -666,11 +666,10 @@ void GlobalObject::installObject(ExecutionState& state)
 {
     const StaticStrings& strings = state.context()->staticStrings();
 
-    FunctionObject* emptyFunction = m_functionPrototype;
     m_object = new NativeFunctionObject(state, NativeFunctionInfo(strings.Object, builtinObjectConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_object->markThisObjectDontNeedStructureTransitionTable();
-    m_object->setPrototype(state, emptyFunction);
+    m_object->setGlobalIntrinsicObject(state);
     m_object->setFunctionPrototype(state, m_objectPrototype);
+
     // $19.1.2.2 Object.create (O [,Properties])
     m_objectCreate = new NativeFunctionObject(state, NativeFunctionInfo(strings.create, builtinObjectCreate, 2, NativeFunctionInfo::Strict));
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.create),

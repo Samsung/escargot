@@ -53,7 +53,6 @@ public:
 protected:
     template <bool isConstruct>
     ALWAYS_INLINE Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Object* newTarget);
-    NativeFunctionObject(ExecutionState& state, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
 };
 }
 

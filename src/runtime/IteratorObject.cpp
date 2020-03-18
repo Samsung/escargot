@@ -29,7 +29,12 @@
 namespace Escargot {
 
 IteratorObject::IteratorObject(ExecutionState& state)
-    : Object(state)
+    : IteratorObject(state, state.context()->globalObject()->objectPrototype())
+{
+}
+
+IteratorObject::IteratorObject(ExecutionState& state, Object* proto)
+    : Object(state, proto)
 {
 }
 

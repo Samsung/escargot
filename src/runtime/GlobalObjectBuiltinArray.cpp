@@ -59,8 +59,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%ArrayPrototype%").
     // Let array be ! ArrayCreate(0, proto).
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->arrayPrototype());
-    ArrayObject* array = new ArrayObject(state, (uint64_t)size);
-    array->setPrototype(state, proto);
+    ArrayObject* array = new ArrayObject(state, proto, (uint64_t)size);
 
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
@@ -236,7 +235,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             if (k >= ((1LL << 53LL) - 1LL)) {
                 // Let error be ThrowCompletion(a newly created TypeError object).
                 // Return ? IteratorClose(iteratorRecord, error).
-                Value throwCompletion = new TypeErrorObject(state, new ASCIIString("Got invalid index"));
+                Value throwCompletion = ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("Got invalid index"));
                 return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
             }
             // Let Pk be ! ToString(k).
@@ -1886,8 +1885,8 @@ static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, si
 
 class ArrayIteratorPrototypeObject : public ArrayIteratorObject {
 public:
-    explicit ArrayIteratorPrototypeObject(ExecutionState& state, Object* array, ArrayIteratorObject::Type type)
-        : ArrayIteratorObject(state, array, type)
+    explicit ArrayIteratorPrototypeObject(ExecutionState& state, Object* proto, Object* array, ArrayIteratorObject::Type type)
+        : ArrayIteratorObject(state, proto, array, type)
     {
     }
 
@@ -1900,8 +1899,7 @@ public:
 void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_array->markThisObjectDontNeedStructureTransitionTable();
-    m_array->setPrototype(state, m_functionPrototype);
+    m_array->setGlobalIntrinsicObject(state);
 
     {
         JSGetterSetter gs(
@@ -1910,10 +1908,9 @@ void GlobalObject::installArray(ExecutionState& state)
         m_array->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_arrayPrototype = m_objectPrototype;
-    m_arrayPrototype = new ArrayObjectPrototype(state);
-    m_arrayPrototype->markThisObjectDontNeedStructureTransitionTable();
-    m_arrayPrototype->setPrototype(state, m_objectPrototype);
+    m_arrayPrototype = new ArrayObjectPrototype(state, m_objectPrototype);
+    m_arrayPrototype->setGlobalIntrinsicObject(state, true);
+
     m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isArray),
@@ -2017,8 +2014,8 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 
-    m_arrayIteratorPrototype = m_iteratorPrototype;
-    m_arrayIteratorPrototype = new ArrayIteratorPrototypeObject(state, nullptr, ArrayIteratorObject::TypeKey);
+    m_arrayIteratorPrototype = new ArrayIteratorPrototypeObject(state, m_iteratorPrototype, nullptr, ArrayIteratorObject::TypeKey);
+    m_arrayIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinArrayIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -38,25 +38,15 @@
 
 namespace Escargot {
 
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator, bool isAsync)
-    : ScriptFunctionObject(state, codeBlock, outerEnv,
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator, bool isAsync)
+    : ScriptFunctionObject(state, proto, codeBlock, outerEnv,
                            ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
 {
     initStructureAndValues(state, isConstructor, isGenerator, isAsync);
-
-    if (UNLIKELY(isGenerator && isAsync)) {
-        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncGenerator());
-    } else if (UNLIKELY(isGenerator)) {
-        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->generator());
-    } else if (UNLIKELY(isAsync)) {
-        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->asyncFunctionPrototype());
-    } else {
-        Object::setPrototypeForIntrinsicObjectCreation(state, state.context()->globalObject()->functionPrototype());
-    }
 }
 
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount)
-    : FunctionObject(state, defaultPropertyCount)
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount)
+    : FunctionObject(state, proto, defaultPropertyCount)
 {
     m_codeBlock = codeBlock;
     m_outerEnvironment = outerEnvironment;
@@ -138,9 +128,8 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
 
     // Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->objectPrototype());
-    Object* thisArgument = new Object(state);
     // Set the [[Prototype]] internal slot of obj to proto.
-    thisArgument->setPrototype(state, proto);
+    Object* thisArgument = new Object(state, proto);
 
     // ReturnIfAbrupt(thisArgument).
     return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
@@ -152,7 +141,7 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
         return;
     }
 
-    auto newArgumentsObject = new ArgumentsObject(state, this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
+    auto newArgumentsObject = new ArgumentsObject(state, state.context()->globalObject()->objectPrototype(), this, argc, argv, environmentRecordWillArgumentsObjectBeLocatedIn, isMapped);
     environmentRecordWillArgumentsObjectBeLocatedIn->m_argumentsObject = newArgumentsObject;
 
     AtomicString arguments = state.context()->staticStrings().arguments;

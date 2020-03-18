@@ -34,8 +34,9 @@ namespace Escargot {
 /* Usage in JS: registerLeakCheck( object: PointerValue, description: String ); */
 Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!argv[0].isPointerValue())
-        state.throwException(new ErrorObject(state, new ASCIIString("builtinRegisterLeakCheck should get pointer-type argument")));
+    if (!argv[0].isPointerValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::None, "builtinRegisterLeakCheck should get pointer-type argument");
+    }
 
     PointerValue* ptr = argv[0].asPointerValue();
     std::string description = argv[1].toString(state)->toUTF8StringData().data();

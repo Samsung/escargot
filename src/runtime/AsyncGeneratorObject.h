@@ -49,8 +49,7 @@ public:
         SuspendedYield
     };
 
-    AsyncGeneratorObject(ExecutionState& state);
-    AsyncGeneratorObject(ExecutionState& state, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk, const Value& prototype);
+    AsyncGeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
     virtual const char* internalClassProperty(ExecutionState& state) override
     {
