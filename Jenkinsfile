@@ -129,6 +129,9 @@ def isPr() {
                     'Escargot-debugger-test-64bit' : {
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/debugger_out_linux64/escargot" escargot-debugger'
                     },
+                    'kangax test-suites' : {
+                        sh 'python tools/kangax/run-kangax.py --engine="${WORKSPACE}/build/out_linux64/escargot"' 
+                    },
                 )
             }
         }
