@@ -912,8 +912,6 @@
     <test id="built-ins/SharedArrayBuffer/undefined-newtarget-throws"><reason>TODO</reason></test>
     <test id="built-ins/SharedArrayBuffer/zero-length"><reason>TODO</reason></test>
     <test id="built-ins/String/proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/Symbol.iterator/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/indexOf/position-tointeger"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/indexOf/position-tointeger-bigint"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/indexOf/searchstring-tostring-bigint"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/matchAll/length"><reason>TODO</reason></test>
@@ -942,7 +940,6 @@
     <test id="built-ins/String/prototype/toLowerCase/special_casing"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/toLowerCase/special_casing_conditional"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/toUpperCase/special_casing"><reason>TODO</reason></test>
-    <test id="built-ins/String/raw/name"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/matchAll/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/prototype/description/description-symboldescriptivestring"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/prototype/description/descriptor"><reason>TODO</reason></test>
