@@ -85,7 +85,12 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
     } else {
         pos = val.toInteger(state);
     }
-
+    if (pos == std::numeric_limits<double>::infinity() || std::isnan(pos)) {
+        pos = std::numeric_limits<double>::quiet_NaN();
+    }
+    if (pos == -std::numeric_limits<double>::infinity()) {
+        pos = 0;
+    }
     size_t len = str->length();
     size_t start = std::min((size_t)std::max(pos, (double)0), len);
     size_t result = str->find(searchStr, start);
@@ -311,7 +316,6 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
-    bool isReplaceRegExp = searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject();
 
     if (!searchValue.isUndefinedOrNull()) {
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
@@ -1443,7 +1447,7 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinStringIterator, 0, NativeFunctionInfo::Strict)),
-                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, argLength)                                                                                                                                                    \
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->fnName),                                                                                                                  \
@@ -1486,7 +1490,7 @@ void GlobalObject::installString(ExecutionState& state)
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCodePoint, builtinStringFromCodePoint, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_string->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->raw),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringRaw, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->raw, builtinStringRaw, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
