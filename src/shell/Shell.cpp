@@ -289,9 +289,33 @@ static ValueRef* builtinAddPromiseReactions(ExecutionStateRef* state, ValueRef* 
     return ValueRef::createUndefined();
 }
 
-static ValueRef* builtinDrainCreateNewGlobalObject(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+static ValueRef* builtinCreateNewGlobalObject(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     return ContextRef::create(state->context()->vmInstance())->globalObject();
+}
+
+PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance);
+
+static ValueRef* builtin262CreateRealm(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    auto newContext = createEscargotContext(state->context()->vmInstance());
+    return newContext->globalObject()->get(state, StringRef::createFromASCII("$262"));
+}
+
+static ValueRef* builtin262DetachArrayBuffer(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argv[0]->isArrayBufferObject()) {
+        argv[0]->asArrayBufferObject()->detachArrayBuffer(state);
+    }
+
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    StringRef* src = argv[0]->toString(state);
+    auto script = state->context()->scriptParser()->initializeScript(src, StringRef::createFromASCII("$262.evalScript input"), false).fetchScriptThrowsExceptionIfParseError(state);
+    return script->execute(state);
 }
 #endif
 
@@ -351,18 +375,50 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
         }
 
         {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createNewGlobalObject"), builtinDrainCreateNewGlobalObject, 0, true, false);
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createNewGlobalObject"), builtinCreateNewGlobalObject, 0, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("createNewGlobalObject"), buildFunctionObjectRef, true, true, true);
         }
 
         {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "newGlobal"), builtinDrainCreateNewGlobalObject, 0, true, false);
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "newGlobal"), builtinCreateNewGlobalObject, 0, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("newGlobal"), buildFunctionObjectRef, true, true, true);
         }
-#endif
 
+        // https://github.com/tc39/test262/blob/master/INTERPRETING.md
+        {
+            ObjectRef* dollor262Object = ObjectRef::create(state);
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createRealm"), builtin262CreateRealm, 0, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("createRealm"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "detachArrayBuffer"), builtin262DetachArrayBuffer, 1, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("detachArrayBuffer"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "evalScript"), builtin262EvalScript, 1, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("evalScript"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("global"), context->globalObject(), true, true, true);
+            }
+
+            {
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("IsHTMLDDA"), ValueRef::create(false), true, true, true);
+            }
+
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("$262"), dollor262Object, true, false, true);
+        }
+#endif
         return ValueRef::createUndefined();
     });
 
