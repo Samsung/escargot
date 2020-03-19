@@ -1,0 +1,5 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_continue.js:21
+(escargot-debugger) continue
+Connection closed.

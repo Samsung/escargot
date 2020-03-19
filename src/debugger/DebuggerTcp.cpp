@@ -418,7 +418,7 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
             return false;
         }
 
-        if (receivedLength == 0) {
+        if (receivedLength == 0 && m_receiveBufferFill < (2 + sizeof(uint32_t))) {
             return false;
         }
 

@@ -1,0 +1,15 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_step.js:37
+(escargot-debugger) step
+Stopped at tools/debugger/tests/do_step.js:27 (in f1() at line:20, col:1)
+(escargot-debugger) step
+Stopped at tools/debugger/tests/do_step.js:24 (in g() at line:22, col:3)
+(escargot-debugger) next
+Stopped at tools/debugger/tests/do_step.js:28 (in f1() at line:20, col:1)
+(escargot-debugger) next
+Stopped at tools/debugger/tests/do_step.js:29 (in f1() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step.js:38
+(escargot-debugger) n
+Connection closed.

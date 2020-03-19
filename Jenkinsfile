@@ -58,14 +58,17 @@ def isPr() {
             stage('Prepare build(gcc)') {
             parallel (
                 '32bit' : {
-                    sh 'LDFLAGS=" -L/usr/icu32/lib/  -Wl,-rpath=/usr/icu32/lib/" cmake  -H./ -Bbuild/out_linux -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja'
-                    sh 'LDFLAGS=" -L/usr/icu32/lib/  -Wl,-rpath=/usr/icu32/lib/" cmake  -H./ -Bbuild/out_linux_release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja'
+                    sh 'LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" cmake -H./ -Bbuild/out_linux -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja'
+                    sh 'LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" cmake -H./ -Bbuild/out_linux_release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja'
                     sh 'gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c'
                 },
                 '64bit' : {
-                    sh 'cmake  -H./ -Bbuild/out_linux64 -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja'
-                    sh 'cmake  -H./ -Bbuild/out_linux64_release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja'
+                    sh 'cmake -H./ -Bbuild/out_linux64 -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja'
+                    sh 'cmake -H./ -Bbuild/out_linux64_release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja'
                     sh 'gcc -shared -fPIC -o backtrace-hooking-64.so tools/test/test262/backtrace-hooking.c'
+                },
+                'debugger-binary' : {
+                  sh 'cmake -H./ -Bbuild/debugger_out_linux64 -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=shell_test -GNinja'
                 }
             )
             }
@@ -75,6 +78,7 @@ def isPr() {
                 sh 'cd build/out_linux64/; ninja'
                 sh 'cd build/out_linux_release/; ninja'
                 sh 'cd build/out_linux64_release/; ninja'
+                sh 'cd build/debugger_out_linux64/; ninja'
             }
 
             stage('Running test') {
@@ -121,6 +125,9 @@ def isPr() {
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js'
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" v8 spidermonkey regression-tests new-es intl'
+                    },
+                    'Escargot-debugger-test-64bit' : {
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/debugger_out_linux64/escargot" escargot-debugger'
                     },
                 )
             }
