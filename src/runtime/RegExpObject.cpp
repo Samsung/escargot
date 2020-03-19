@@ -489,7 +489,14 @@ ArrayObject* RegExpObject::createMatchedArray(ExecutionState& state, String* str
 
 ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)
 {
-    ArrayObject* arr = new ArrayObject(state);
+    uint64_t len = 0;
+    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
+        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+            len++;
+        }
+    }
+
+    ArrayObject* arr = new ArrayObject(state, len);
 
     arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.m_matchResults[0][0].m_start)));
     arr->defineOwnPropertyThrowsException(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
@@ -498,12 +505,13 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
     for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
         for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
             if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
-                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+                arr->defineOwnIndexedPropertyWithExpandedLength(state, idx++, Value());
             } else {
-                arr->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(idx++)), ObjectPropertyDescriptor(Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)), ObjectPropertyDescriptor::AllPresent));
+                arr->defineOwnIndexedPropertyWithExpandedLength(state, idx++, Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)));
             }
         }
     }
+
     if (m_yarrPattern->m_namedGroupToParenIndex.empty()) {
         arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
     } else {
