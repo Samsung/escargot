@@ -48,11 +48,19 @@ ESCARGOT_MESSAGE_BREAKPOINT_LOCATION = 18
 ESCARGOT_MESSAGE_FUNCTION_PTR = 19
 ESCARGOT_MESSAGE_BREAKPOINT_HIT = 20
 ESCARGOT_MESSAGE_EXCEPTION_HIT = 21
-ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 22
-ESCARGOT_MESSAGE_BACKTRACE_8BIT = 23
-ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 24
-ESCARGOT_MESSAGE_BACKTRACE_16BIT = 25
-ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 26
+ESCARGOT_MESSAGE_EVAL_RESULT_8BIT = 22
+ESCARGOT_MESSAGE_EVAL_RESULT_8BIT_END = 23
+ESCARGOT_MESSAGE_EVAL_RESULT_16BIT = 24
+ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END = 25
+ESCARGOT_MESSAGE_EVAL_FAILED_8BIT = 26
+ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END = 27
+ESCARGOT_MESSAGE_EVAL_FAILED_16BIT = 28
+ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END = 29
+ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 30
+ESCARGOT_MESSAGE_BACKTRACE_8BIT = 31
+ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 32
+ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33
+ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34
 
 
 # Messages sent by the debugger client to Escargot.
@@ -61,7 +69,11 @@ ESCARGOT_MESSAGE_UPDATE_BREAKPOINT = 1
 ESCARGOT_MESSAGE_CONTINUE = 2
 ESCARGOT_MESSAGE_STEP = 3
 ESCARGOT_MESSAGE_NEXT = 4
-ESCARGOT_MESSAGE_GET_BACKTRACE = 5
+ESCARGOT_MESSAGE_EVAL_8BIT_START = 5
+ESCARGOT_MESSAGE_EVAL_8BIT = 6
+ESCARGOT_MESSAGE_EVAL_16BIT_START = 7
+ESCARGOT_MESSAGE_EVAL_16BIT = 8
+ESCARGOT_MESSAGE_GET_BACKTRACE = 9
 
 
 def arguments_parse():
@@ -244,7 +256,8 @@ class Debugger(object):
 
         print("Connection created!!!")
 
-        self.pointer_size = ord(result[1])
+        self.max_message_size = ord(result[1])
+        self.pointer_size = ord(result[2])
 
         if self.pointer_size == 8:
             self.pointer_format = "Q"
@@ -289,7 +302,8 @@ class Debugger(object):
 
             logging.debug("Main buffer type: %d, message size: %d", buffer_type, buffer_size)
 
-            if buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT,
+            if buffer_type in [ESCARGOT_MESSAGE_PARSE_ERROR,
+                               ESCARGOT_MESSAGE_SOURCE_8BIT,
                                ESCARGOT_MESSAGE_SOURCE_8BIT_END,
                                ESCARGOT_MESSAGE_SOURCE_16BIT,
                                ESCARGOT_MESSAGE_SOURCE_16BIT_END]:
@@ -355,8 +369,22 @@ class Debugger(object):
                 self.prompt = True
                 return DebuggerAction(DebuggerAction.TEXT, backtrace.replace("\0", "\n"))
 
+            elif buffer_type in [ESCARGOT_MESSAGE_EVAL_RESULT_8BIT,
+                                 ESCARGOT_MESSAGE_EVAL_RESULT_8BIT_END,
+                                 ESCARGOT_MESSAGE_EVAL_RESULT_16BIT,
+                                 ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END]:
+                self.prompt = True
+                return self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, "", data);
+
+            elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
+                                 ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
+                                 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
+                                 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
+                self.prompt = True
+                return self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, self.red + "Exception: ", data);
+
             else:
-                raise Exception("Unknown message")
+                raise Exception("Unknown message: %d" % (buffer_type))
 
     def set_colors(self):
         self.nocolor = '\033[0m'
@@ -476,6 +504,10 @@ class Debugger(object):
 
         return msg
 
+    def eval(self, code):
+        self._send_string(code, ESCARGOT_MESSAGE_EVAL_8BIT_START)
+        self.prompt = False
+
     def backtrace(self, args):
         max_depth = 0
         min_depth = 0
@@ -541,7 +573,7 @@ class Debugger(object):
                 break
 
             elif buffer_type == ESCARGOT_MESSAGE_PARSE_ERROR:
-                logging.error("Syntax error found")
+                logging.debug("Syntax error encountered")
                 return ""
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT, ESCARGOT_MESSAGE_SOURCE_8BIT_END]:
@@ -597,7 +629,7 @@ class Debugger(object):
 
             else:
                 logging.error("Parser error!")
-                raise Exception("Unexpected message")
+                raise Exception("Unexpected message: %d" % (buffer_type))
 
             data = self.channel.get_message(True)
 
@@ -695,3 +727,79 @@ class Debugger(object):
                 result += self._enable_breakpoint(function.lines[function.first_breakpoint_line])
 
         return result
+
+    def _send_string(self, args, message_type):
+        # 1: length of type byte
+        # 4: length of an uint32 value
+        message_header = 1 + 4
+
+        if not isinstance(args, unicode):
+            try:
+                args = args.decode("ascii")
+            except UnicodeDecodeError:
+                args = args.decode("utf-8")
+
+        try:
+            args = args.encode("latin1")
+        except UnicodeEncodeError:
+            args = args.encode("UTF-16LE" if self.little_endian else "UTF-16BE", "namereplace")
+            message_type += 2
+
+        size = len(args)
+        max_fragment = min(self.max_message_size - message_header, size)
+
+        message = struct.pack(self.byte_order + "BBI",
+                              max_fragment + message_header,
+                              message_type,
+                              size)
+
+        if size == max_fragment:
+            self.channel.send_message(self.byte_order, message + args)
+            return
+
+        self.channel.send_message(self.byte_order, message + args[0:max_fragment])
+        offset = max_fragment
+
+        # 1: length of type byte
+        message_header = 1
+        message_type += 1
+        print(message_type)
+
+        max_fragment = self.max_message_size - message_header
+        while offset < size:
+            next_fragment = min(max_fragment, size - offset)
+
+            message = struct.pack(self.byte_order + "BB",
+                                  next_fragment + message_header,
+                                  message_type)
+
+            prev_offset = offset
+            offset += next_fragment
+
+            self.channel.send_message(self.byte_order, message + args[prev_offset:offset])
+
+    def _receive_string(self, message_type, prefix, data):
+        result = b'';
+        buffer_type = ord(data[0])
+        end_type = message_type + 1;
+
+        if buffer_type > end_type:
+            end_type += 2
+
+        while buffer_type == end_type - 1:
+            result += data[1:]
+            data = self.channel.get_message(True)
+            buffer_type = ord(data[0])
+
+        if buffer_type != end_type:
+            raise Exception("Unexpected message")
+
+        result += data[1:]
+
+        if end_type == message_type + 1:
+            result = self.encode8(result)
+        else:
+            result = self.encode16(result)
+
+        self.prompt = True
+        return DebuggerAction(DebuggerAction.TEXT, "%s%s%s\n" % (prefix, result, self.nocolor))

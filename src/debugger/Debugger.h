@@ -30,9 +30,12 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH 125
 #define ESCARGOT_DEBUGGER_VERSION 1
 #define ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY 10
-#define ESCARGOT_DEBUGGER_ALWAYS_STOP ((ExecutionState*)0x1)
+#define ESCARGOT_DEBUGGER_IN_WAIT_MODE (nullptr)
+#define ESCARGOT_DEBUGGER_IN_EVAL_MODE ((ExecutionState*)0x1)
+#define ESCARGOT_DEBUGGER_ALWAYS_STOP ((ExecutionState*)0x2)
 
 class ExecutionState;
+class ByteCodeBlock;
 class InterpretedCodeBlock;
 
 class Debugger : public gc {
@@ -66,12 +69,22 @@ public:
         ESCARGOT_MESSAGE_FUNCTION_PTR = 19,
         ESCARGOT_MESSAGE_BREAKPOINT_HIT = 20,
         ESCARGOT_MESSAGE_EXCEPTION_HIT = 21,
-        ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 22,
         // These four must be in the same order.
-        ESCARGOT_MESSAGE_BACKTRACE_8BIT = 23,
-        ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 24,
-        ESCARGOT_MESSAGE_BACKTRACE_16BIT = 25,
-        ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 26,
+        ESCARGOT_MESSAGE_EVAL_RESULT_8BIT = 22,
+        ESCARGOT_MESSAGE_EVAL_RESULT_8BIT_END = 23,
+        ESCARGOT_MESSAGE_EVAL_RESULT_16BIT = 24,
+        ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END = 25,
+        // These four must be in the same order.
+        ESCARGOT_MESSAGE_EVAL_FAILED_8BIT = 26,
+        ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END = 27,
+        ESCARGOT_MESSAGE_EVAL_FAILED_16BIT = 28,
+        ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END = 29,
+        ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 30,
+        // These four must be in the same order.
+        ESCARGOT_MESSAGE_BACKTRACE_8BIT = 31,
+        ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 32,
+        ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33,
+        ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -81,7 +94,12 @@ public:
         ESCARGOT_MESSAGE_CONTINUE = 2,
         ESCARGOT_MESSAGE_STEP = 3,
         ESCARGOT_MESSAGE_NEXT = 4,
-        ESCARGOT_MESSAGE_GET_BACKTRACE = 5,
+        // These four must be in the same order.
+        ESCARGOT_MESSAGE_EVAL_8BIT_START = 5,
+        ESCARGOT_MESSAGE_EVAL_8BIT = 6,
+        ESCARGOT_MESSAGE_EVAL_16BIT_START = 7,
+        ESCARGOT_MESSAGE_EVAL_16BIT = 8,
+        ESCARGOT_MESSAGE_GET_BACKTRACE = 9,
     };
 
     struct BreakpointLocation {
@@ -110,17 +128,17 @@ public:
         m_computeLocation = value;
     }
 
-    inline void processDisabledBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state)
+    inline void processDisabledBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
     {
         if (m_stopState != ESCARGOT_DEBUGGER_ALWAYS_STOP && m_stopState != state) {
             m_delay = (uint8_t)(m_delay - 1);
             if (m_delay == 0) {
-                processIncomingMessages(state);
+                processIncomingMessages(state, byteCodeBlock);
             }
         }
 
         if (m_stopState == ESCARGOT_DEBUGGER_ALWAYS_STOP || m_stopState == state) {
-            stopAtBreakpoint(byteCodeStart, offset, state);
+            stopAtBreakpoint(byteCodeBlock, offset, state);
         }
     }
 
@@ -137,7 +155,7 @@ public:
     void sendPointer(uint8_t type, const void* ptr);
     void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
     void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
-    void stopAtBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state);
+    void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
 
 protected:
@@ -154,7 +172,8 @@ protected:
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
     virtual void close(void) = 0;
 
-    bool processIncomingMessages(ExecutionState* state);
+    bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
+    bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
 
     bool* m_debuggerEnabled;
@@ -169,6 +188,7 @@ private:
     };
 
     struct MessageConfiguration {
+        uint8_t maxMessageSize;
         uint8_t pointerSize;
     };
 
