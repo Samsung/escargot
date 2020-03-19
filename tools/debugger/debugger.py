@@ -146,6 +146,12 @@ class DebuggerPrompt(Cmd):
             else:
                 print("Invalid key")
 
+    def do_eval(self, args):
+        """ Evaluate JavaScript source code """
+        self.debugger.eval(args)
+        self.stop = True
+    do_e = do_eval
+
     def do_backtrace(self, args):
         """ Get backtrace data from debugger """
         write(self.debugger.backtrace(args))

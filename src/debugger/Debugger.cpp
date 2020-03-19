@@ -22,6 +22,7 @@
 #include "DebuggerTcp.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
+#include "runtime/GlobalObject.h"
 #include "runtime/SandBox.h"
 #include "parser/Script.h"
 
@@ -104,9 +105,18 @@ void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>
     send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation));
 }
 
-void Debugger::stopAtBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionState* state)
+void Debugger::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
+    if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
+        m_delay = (uint8_t)(m_delay - 1);
+        if (m_delay == 0) {
+            processIncomingMessages(state, byteCodeBlock);
+        }
+        return;
+    }
+
     BreakpointOffset breakpointOffset;
+    void* byteCodeStart = byteCodeBlock->m_code.data();
 
     memcpy(&breakpointOffset.byteCodeStart, (void*)&byteCodeStart, sizeof(void*));
     memcpy(&breakpointOffset.offset, &offset, sizeof(uint32_t));
@@ -119,7 +129,7 @@ void Debugger::stopAtBreakpoint(void* byteCodeStart, uint32_t offset, ExecutionS
 
     m_stopState = nullptr;
 
-    while (processIncomingMessages(state))
+    while (processIncomingMessages(state, byteCodeBlock))
         ;
 
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
@@ -132,7 +142,7 @@ void Debugger::releaseFunction(const void* ptr)
     sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
 }
 
-bool Debugger::processIncomingMessages(ExecutionState* state)
+bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
     size_t length;
@@ -203,28 +213,36 @@ bool Debugger::processIncomingMessages(ExecutionState* state)
             return true;
         }
         case ESCARGOT_MESSAGE_CONTINUE: {
-            if (length != 1) {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
             m_stopState = nullptr;
             return false;
         }
         case ESCARGOT_MESSAGE_STEP: {
-            if (length != 1) {
+            if (length != 1 || m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
                 break;
             }
             m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
             return false;
         }
         case ESCARGOT_MESSAGE_NEXT: {
-            if (length != 1) {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
             m_stopState = state;
             return false;
         }
+        case ESCARGOT_MESSAGE_EVAL_8BIT_START:
+        case ESCARGOT_MESSAGE_EVAL_16BIT_START: {
+            if ((length <= 1 + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            return doEval(state, byteCodeBlock, buffer, length);
+        }
         case ESCARGOT_MESSAGE_GET_BACKTRACE: {
-            if (length != 1 + sizeof(uint32_t) + sizeof(uint32_t) + 1) {
+            if ((length != 1 + sizeof(uint32_t) + sizeof(uint32_t) + 1) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
 
@@ -244,6 +262,82 @@ bool Debugger::processIncomingMessages(ExecutionState* state)
     }
 
     return enabled();
+}
+
+bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length)
+{
+    uint8_t type = (uint8_t)(buffer[0] + 1);
+    uint32_t size;
+    char* data;
+
+    memcpy(&size, buffer + 1, sizeof(uint32_t));
+
+    if (size > ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1 - sizeof(uint32_t)) {
+        if (length != ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH) {
+            goto error;
+        }
+
+        data = (char*)GC_MALLOC_ATOMIC(size);
+        char* ptr = data;
+        char* end = data + size;
+
+        length = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1 - sizeof(uint32_t);
+        memcpy(ptr, buffer + 1 + sizeof(uint32_t), length);
+        ptr += length;
+
+        do {
+            if (receive(buffer, length)) {
+                if (buffer[0] != type || (length > (size_t)(end - ptr + 1))) {
+                    goto error;
+                }
+
+                memcpy(ptr, buffer + 1, length - 1);
+                ptr += length - 1;
+            } else if (!enabled()) {
+                return false;
+            }
+        } while (ptr < end);
+    } else {
+        if (size + 1 + sizeof(uint32_t) != length) {
+            goto error;
+        }
+
+        data = (char*)buffer + 1 + sizeof(uint32_t);
+    }
+
+    String* str;
+
+    if (type == ESCARGOT_MESSAGE_EVAL_8BIT) {
+        str = new Latin1String(data, size);
+    } else {
+        str = new UTF16String((char16_t*)data, size / 2);
+    }
+
+    type = ESCARGOT_MESSAGE_EVAL_RESULT_8BIT;
+    m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
+
+    try {
+        Value asValue(str);
+        Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), true));
+        str = result.toStringWithoutException(*state);
+    } catch (const Value& val) {
+        type = ESCARGOT_MESSAGE_EVAL_FAILED_8BIT;
+        str = val.toStringWithoutException(*state);
+    }
+
+    m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
+
+    if (enabled()) {
+        StringView* strView = new StringView(str);
+        sendString(type, strView);
+    }
+
+    return true;
+
+error:
+    ESCARGOT_LOG_ERROR("Invalid eval message received. Closing connection.\n");
+    close();
+    return false;
 }
 
 void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
@@ -311,6 +405,7 @@ Debugger* createDebugger(const char* options, bool* debuggerEnabled)
         if (debugger->send(Debugger::ESCARGOT_MESSAGE_VERSION, &version, sizeof(version))) {
             Debugger::MessageConfiguration configuration;
 
+            configuration.maxMessageSize = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH;
             configuration.pointerSize = (uint8_t)sizeof(void*);
 
             debugger->send(Debugger::ESCARGOT_MESSAGE_CONFIGURATION, &configuration, sizeof(configuration));

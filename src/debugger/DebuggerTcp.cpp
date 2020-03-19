@@ -408,11 +408,11 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
 {
     size_t receivedLength;
 
-    if (m_messageLength == 0 || m_receiveBufferFill < 2 + m_messageLength) {
+    if (m_messageLength == 0 || m_receiveBufferFill < 2 + sizeof(uint32_t) + m_messageLength) {
         /* Cannot extract a whole message from the buffer. */
         if (!tcpReceive(m_socket,
                         m_receiveBuffer + m_receiveBufferFill,
-                        ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH + 2 - m_receiveBufferFill,
+                        ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH + 2 + sizeof(uint32_t) - m_receiveBufferFill,
                         &receivedLength)) {
             close();
             return false;

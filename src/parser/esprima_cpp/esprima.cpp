@@ -306,6 +306,11 @@ public:
     {
         this->currentScopeContext = ctx;
         this->lastUsingName = AtomicString();
+#ifdef ESCARGOT_DEBUGGER
+        if (this->escargotContext->debugger() && this->escargotContext->debugger()->enabled()) {
+            ctx->m_hasEval = true;
+        }
+#endif /* ESCARGOT_DEBUGGER */
     }
 
     ASTFunctionScopeContext* pushScopeContext(AtomicString functionName)
