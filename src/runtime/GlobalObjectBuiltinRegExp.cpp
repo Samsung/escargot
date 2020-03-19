@@ -707,8 +707,9 @@ void GlobalObject::installRegExp(ExecutionState& state)
 
     const StaticStrings* strings = &state.context()->staticStrings();
     // $21.2.5.2 RegExp.prototype.exec
+    m_regexpExecMethod = new NativeFunctionObject(state, NativeFunctionInfo(strings->exec, builtinRegExpExec, 1, NativeFunctionInfo::Strict));
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->exec),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->exec, builtinRegExpExec, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                        ObjectPropertyDescriptor(m_regexpExecMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $21.2.5.13 RegExp.prototype.test
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->test),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

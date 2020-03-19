@@ -92,6 +92,7 @@ public:
         , m_regexpPrototype(nullptr)
         , m_regexpSplitMethod(nullptr)
         , m_regexpReplaceMethod(nullptr)
+        , m_regexpExecMethod(nullptr)
         , m_math(nullptr)
         , m_eval(nullptr)
         , m_throwTypeError(nullptr)
@@ -425,6 +426,10 @@ public:
     FunctionObject* regexpReplaceMethod()
     {
         return m_regexpReplaceMethod;
+    }
+    FunctionObject* regexpExecMethod()
+    {
+        return m_regexpExecMethod;
     }
     Object* json()
     {
@@ -787,6 +792,7 @@ private:
     Object* m_regexpPrototype;
     FunctionObject* m_regexpSplitMethod;
     FunctionObject* m_regexpReplaceMethod;
+    FunctionObject* m_regexpExecMethod;
 
     Object* m_math;
 

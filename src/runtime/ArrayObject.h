@@ -104,6 +104,16 @@ public:
         return "Array";
     }
 
+    void defineOwnIndexedPropertyWithExpandedLength(ExecutionState& state, const size_t& index, const Value& value)
+    {
+        ASSERT(index < getArrayLength(state));
+        if (LIKELY(isFastModeArray())) {
+            setFastModeArrayValueWithoutExpanding(state, index, value);
+        } else {
+            defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
