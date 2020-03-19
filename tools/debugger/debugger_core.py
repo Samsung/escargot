@@ -274,11 +274,11 @@ class Debugger(object):
         if self.channel is not None:
             self.channel.close()
 
-    def encode8(self, string):
-        return string.encode("latin1")
+    def dencode8(self, string):
+        return string.decode("latin1")
 
-    def encode16(self, string):
-        return string.encode("UTF-16LE" if self.little_endian else "UTF-16BE", "namereplace")
+    def dencode16(self, string):
+        return string.decode("UTF-16LE" if self.little_endian else "UTF-16BE", "namereplace")
 
     # pylint: disable=too-many-branches,too-many-locals,too-many-statements,too-many-return-statements
     def process_messages(self):
@@ -412,6 +412,10 @@ class Debugger(object):
     def next(self):
         self.prompt = False
         self._exec_command(ESCARGOT_MESSAGE_NEXT)
+
+    def quit(self):
+        self.prompt = False
+        self._exec_command(ESCARGOT_MESSAGE_CONTINUE)
 
     def set_break(self, args):
         if not args:
@@ -579,32 +583,32 @@ class Debugger(object):
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT, ESCARGOT_MESSAGE_SOURCE_8BIT_END]:
                 source += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_SOURCE_8BIT_END:
-                    source = self.encode8(source)
+                    source = self.dencode8(source)
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_16BIT, ESCARGOT_MESSAGE_SOURCE_16BIT_END]:
                 source += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_SOURCE_16BIT_END:
-                    source = self.encode16(source)
+                    source = self.dencode16(source)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_8BIT, ESCARGOT_MESSAGE_FILE_NAME_8BIT_END]:
                 source_name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_8BIT_END:
-                    source_name = self.encode8(source_name)
+                    source_name = self.dencode8(source_name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_16BIT, ESCARGOT_MESSAGE_FILE_NAME_16BIT_END]:
                 source_name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_16BIT_END:
-                    source_name = self.encode16(source_name)
+                    source_name = self.dencode16(source_name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END]:
                 name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END:
-                    name = self.encode8(name)
+                    name = self.dencode8(name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END]:
                 name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END:
-                    name = self.encode16(name)
+                    name = self.dencode16(name)
 
             elif buffer_type == ESCARGOT_MESSAGE_BREAKPOINT_LOCATION:
                 logging.debug("Breakpoint %s received", source_name)

@@ -19,6 +19,7 @@ from __future__ import print_function
 import os
 import traceback
 import sys
+import time
 
 from argparse import ArgumentParser
 from difflib import unified_diff
@@ -502,6 +503,28 @@ def run_intl(engine, arch):
 
     if fails > 0:
         raise Exception('Intl tests failed')
+
+@runner('escargot-debugger', default=True)
+def run_escargot_debugger(engine, arch):
+    ESCARGOT_DEBUGGER_TEST_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'tests')
+    ESCARGOT_DEBUGGER_CLIENT = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
+    ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
+    print('Running Escargot-debugger test:')
+    fails = 0
+    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER],stdout=PIPE)
+    for files in os.listdir(ESCARGOT_DEBUGGER_TEST_DIR):
+        if files.endswith(".cmd"):
+            test_case, _ = os.path.splitext(files)
+            test_case_path = os.path.join(ESCARGOT_DEBUGGER_TEST_DIR, test_case)
+            proc = Popen([ESCARGOT_DEBUGGER_TESTER, engine, os.path.relpath(test_case_path, PROJECT_SOURCE_DIR), ESCARGOT_DEBUGGER_CLIENT])
+            proc.communicate()
+            if not proc.returncode:
+                 print('%sOK: %s%s' % (COLOR_GREEN, test_case_path, COLOR_RESET))
+            else:
+                 print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, test_case_path, COLOR_RESET))
+                 fails += 1
+    if fails > 0:
+        raise Exception('Escargot-Debugger tests failed')
 
 def main():
     parser = ArgumentParser(description='Escargot Test Suite Runner')

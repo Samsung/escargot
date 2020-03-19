@@ -52,6 +52,7 @@ class DebuggerPrompt(Cmd):
         self.debugger.quit()
         self.quit = True
         self.stop = True
+    do_EOF = do_quit
 
     def do_display(self, args):
         """ Toggle source code display after breakpoints """

@@ -1,0 +1,12 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_list.js:20
+(escargot-debugger) b do_list.js:20
+Breakpoint 1 at tools/debugger/tests/do_list.js:20
+(escargot-debugger) b do_list.js:21
+Breakpoint 2 at tools/debugger/tests/do_list.js:21
+(escargot-debugger) list
+=== Active breakpoints ===
+ 1: tools/debugger/tests/do_list.js:20
+ 2: tools/debugger/tests/do_list.js:21
+(escargot-debugger) quit
