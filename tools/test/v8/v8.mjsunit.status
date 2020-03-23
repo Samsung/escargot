@@ -641,6 +641,7 @@
   'es6/proxies-revocable' : [SKIP],
   'es6/proxies-set' : [SKIP],
   'es6/proxies-with' : [SKIP],
+  'es6/proxies-ownkeys': [SKIP],
   'es6/proxies-with-unscopables' : [SKIP],
   'es6/reflect-construct' : [SKIP],
   'es6/reflect-define-property' : [SKIP],

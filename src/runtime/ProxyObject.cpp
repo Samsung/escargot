@@ -512,6 +512,14 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     trapResultArray = Object::call(state, trap, handler, 1, arguments);
     auto trapResult = Object::createListFromArrayLike(state, trapResultArray, ((uint8_t)ElementTypes::String | (uint8_t)ElementTypes::Symbol));
 
+    // If trapResult contains any duplicate entries, throw a TypeError exception
+    for (size_t i = 0; i < trapResult.size(); i++) {
+        for (size_t j = i + 1; j < trapResult.size(); j++) {
+            if (trapResult[i].equalsTo(state, trapResult[j])) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s Contains duplacted entries.");
+            }
+        }
+    }
     // 11. Let extensibleTarget be IsExtensible(target).
     // 12. ReturnIfAbrupt(extensibleTarget).
     bool extensibleTarget = target.asObject()->isExtensible(state);
