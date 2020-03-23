@@ -32,8 +32,6 @@ class CompressibleString : public String {
     friend class VMInstance;
 
 public:
-    CompressibleString(Context* context);
-
     // 8bit string constructor
     CompressibleString(Context* context, const char* str, size_t len);
     CompressibleString(Context* context, const LChar* str, size_t len);
@@ -88,6 +86,8 @@ public:
     void decompress();
 
 private:
+    CompressibleString(Context* context);
+
     void initBufferAccessData(void* data, size_t len, bool is8bit);
 
     size_t decomressedBufferSize()

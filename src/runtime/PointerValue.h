@@ -64,15 +64,16 @@ class AsyncFromSyncIteratorObject;
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
-// finding what is type of PointerValue operation is used in SmallValue <-> Value and interpreter
-// Only Object, String are seen in regular runtime-code
-// We figure what type of PointerValue by POINTER_VALUE_STRING_TAG_IN_DATA
+// Finding the type of PointerValue operation is widely used during the runtime
+// Only Object, String and Symbol are seen in regular runtime-code
+// We can figure out fastly what the type of PointerValue by tag value
 //   - Every data area of Object starts with [<vtable>, m_structure...]
-//   - Every data area of String starts with [<vtable>, POINTER_VALUE_STRING_TAG_IN_DATA ...]
-// finding what is type of PointerValue(Object, String) without accessing vtable provides gives better performance
-// but, it uses more memory for String,Symbol type
+//   - Every data area of String starts with [<vtable>, m_tag ...]
+//   - Every data area of Symbol starts with [<vtable>, m_tag ...]
+// Finding what is the type of PointerValue(Object, String, Symbol) without accessing vtable gives better performance
+// but, it uses more memory for String, Symbol type
 // POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
-// so, we can remove POINTER_VALUE_STRING_SYMBOL_TAG_IN_DATA in very small device future
+// so, we can remove each m_tag value in very small device future
 
 class PointerValue : public gc {
     friend class ByteCodeInterpreter;
@@ -80,34 +81,20 @@ class PointerValue : public gc {
 
 public:
     virtual ~PointerValue() {}
-    bool isString() const
-    {
-        return isStringByDataTag();
-    }
 
-    virtual bool isStringByVTable() const
-    {
-        return false;
-    }
-
-    bool isSymbol() const
-    {
-        return isSymbolByDataTag();
-    }
-
-    virtual bool isSymbolByVTable() const
-    {
-        return false;
-    }
-
-    bool isObject() const
+    inline bool isObject() const
     {
         return isObjectByDataTag();
     }
 
-    virtual bool isObjectByVTable() const
+    inline bool isString() const
     {
-        return false;
+        return isStringByDataTag();
+    }
+
+    inline bool isSymbol() const
+    {
+        return isSymbolByDataTag();
     }
 
     virtual bool isFunctionObject() const
@@ -377,13 +364,13 @@ public:
 
     String* asString()
     {
-        ASSERT(isStringByVTable());
+        ASSERT(isString());
         return (String*)this;
     }
 
     Symbol* asSymbol()
     {
-        ASSERT(isSymbolByVTable());
+        ASSERT(isSymbol());
         return (Symbol*)this;
     }
 
@@ -618,22 +605,22 @@ public:
         return tag == *((size_t*)(this) + 1);
     }
 
-    size_t getTagInFirstDataArea() const
+    inline size_t getTagInFirstDataArea() const
     {
         return *((size_t*)(this) + 1);
     }
 
-    bool isObjectByDataTag() const
+    inline bool isObjectByDataTag() const
     {
         return !(getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA));
     }
 
-    bool isStringByDataTag() const
+    inline bool isStringByDataTag() const
     {
         return getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA;
     }
 
-    bool isSymbolByDataTag() const
+    inline bool isSymbolByDataTag() const
     {
         return getTagInFirstDataArea() & POINTER_VALUE_SYMBOL_TAG_IN_DATA;
     }

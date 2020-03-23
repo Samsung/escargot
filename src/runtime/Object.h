@@ -725,11 +725,6 @@ public:
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
 
-    virtual bool isObjectByVTable() const override
-    {
-        return true;
-    }
-
     virtual bool isOrdinary() const
     {
         return true;
