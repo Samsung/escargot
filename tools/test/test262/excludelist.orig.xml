@@ -647,8 +647,6 @@
     <test id="built-ins/Number/prototype/toPrecision/range"><reason>TODO</reason></test>
     <test id="built-ins/Object/bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/create/properties-arg-to-object-bigint"><reason>TODO</reason></test>
-    <test id="built-ins/Object/getOwnPropertyNames/proxy-invariant-duplicate-symbol-entry"><reason>TODO</reason></test>
-    <test id="built-ins/Object/getOwnPropertySymbols/proxy-invariant-duplicate-string-entry"><reason>TODO</reason></test>
     <test id="built-ins/Object/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value_getter"><reason>TODO</reason></test>
@@ -757,11 +755,9 @@
     <test id="built-ins/Proxy/construct/trap-is-undefined-proto-from-newtarget-realm"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible"><reason>TODO</reason></test>
+    <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/get-fn-realm"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/get-fn-realm-recursive"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/ownKeys/return-duplicate-entries-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/revocable/revocation-function-name"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/set/call-parameters-prototype-index"><reason>TODO</reason></test>
     <test id="built-ins/Reflect/get/return-value-from-receiver"><reason>TODO</reason></test>
