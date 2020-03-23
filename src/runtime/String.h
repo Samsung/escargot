@@ -248,11 +248,6 @@ public:
         FromExternalMemory
     };
 
-    virtual bool isStringByVTable() const override
-    {
-        return true;
-    }
-
     virtual bool isStringView()
     {
         return false;

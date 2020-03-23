@@ -35,11 +35,6 @@ public:
     {
     }
 
-    virtual bool isSymbolByVTable() const override
-    {
-        return true;
-    }
-
     String* description() const
     {
         return m_description;
