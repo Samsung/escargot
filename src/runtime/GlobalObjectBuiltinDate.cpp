@@ -174,56 +174,46 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     return Value(d.primitiveValue());
 }
 
+#define RESOLVE_THIS_BINDING_TO_DATE(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
+    if (!thisValue.isObject() || !thisValue.asObject()->isDateObject()) {                                                                                                                                                           \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_ThisNotDateObject); \
+    }                                                                                                                                                                                                                               \
+    DateObject* NAME = thisValue.asObject()->asDateObject();
+
 static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, getTime);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().getTime.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    return Value(thisObject->asDateObject()->primitiveValue());
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getTime);
+    return Value(thisObject->primitiveValue());
 }
 
 static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, valueOf);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().valueOf.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    double val = thisObject->asDateObject()->primitiveValue();
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, valueOf);
+    double val = thisObject->primitiveValue();
     return Value(val);
 }
 
 static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    return thisObject->asDateObject()->toFullString(state);
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
+    return thisObject->toFullString(state);
 }
 
 static Value builtinDateToDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    return thisObject->asDateObject()->toDateString(state);
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
+    return thisObject->toDateString(state);
 }
 
 static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-
-    return thisObject->asDateObject()->toTimeString(state);
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
+    return thisObject->toTimeString(state);
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 #define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT)                                                                                   \
-    double x = thisObject->asDateObject()->primitiveValue();                                                                              \
+    double x = thisObject->primitiveValue();                                                                                              \
     if (std::isnan(x)) {                                                                                                                  \
         return new ASCIIString("Invalid Date");                                                                                           \
     }                                                                                                                                     \
@@ -242,59 +232,44 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
 
 static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     INTL_DATE_TIME_FORMAT_FORMAT("any", "all")
 #else
-    return thisObject->asDateObject()->toLocaleFullString(state);
+    return thisObject->toLocaleFullString(state);
 #endif
 }
 
 static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     INTL_DATE_TIME_FORMAT_FORMAT("date", "date")
 #else
-    return thisObject->asDateObject()->toLocaleDateString(state);
+    return thisObject->toLocaleDateString(state);
 #endif
 }
 
 static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     INTL_DATE_TIME_FORMAT_FORMAT("time", "time")
 #else
-    return thisObject->asDateObject()->toLocaleTimeString(state);
+    return thisObject->toLocaleTimeString(state);
 #endif
 }
 
 static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toUTCString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toUTCString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    return thisObject->asDateObject()->toUTCString(state, state.context()->staticStrings().toUTCString.string());
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toUTCString);
+    return thisObject->toUTCString(state, state.context()->staticStrings().toUTCString.string());
 }
 
 static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toISOString);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    return thisObject->asDateObject()->toISOString(state);
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toISOString);
+    return thisObject->toISOString(state);
 }
 
 static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
@@ -310,16 +285,13 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     return Object::call(state, isoFunc, thisObject, 0, nullptr);
 }
 
-#define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                                                                                                                \
-    static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)                                                                                                           \
-    {                                                                                                                                                                                                                              \
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, get##Name);                                                                                                                                                               \
-        if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {                                                                                                                                                  \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().get##Name.string(), errorMessage_GlobalObject_ThisNotDateObject); \
-        }                                                                                                                                                                                                                          \
-        if (!(thisObject->asDateObject()->isValid()))                                                                                                                                                                              \
-            return Value(std::numeric_limits<double>::quiet_NaN());                                                                                                                                                                \
-        return Value(thisObject->asDateObject()->get##Name(state));                                                                                                                                                                \
+#define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                      \
+    static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget) \
+    {                                                                                                                    \
+        RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, get##Name);                                                       \
+        if (!(thisObject->isValid()))                                                                                    \
+            return Value(std::numeric_limits<double>::quiet_NaN());                                                      \
+        return Value(thisObject->get##Name(state));                                                                      \
     }
 
 FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_GETTER);
@@ -333,11 +305,8 @@ enum DateSetterType : unsigned {
 
 static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterType, size_t length, bool utc, Value thisValue, size_t argc, Value* argv, const AtomicString& name)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, name);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, name.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    DateObject* d = thisObject->asDateObject();
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, name);
+    DateObject* d = thisObject;
 
     if (setterType == DateSetterType::Day && length == 3) {
         // setFullYear, setUTCFullYear case
@@ -421,41 +390,31 @@ FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_SETTER);
 
 static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, setTime);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setTime.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setTime);
     if (argc > 0) {
-        thisObject->asDateObject()->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
-        return Value(thisObject->asDateObject()->primitiveValue());
+        thisObject->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
+        return Value(thisObject->primitiveValue());
     } else {
         double value = std::numeric_limits<double>::quiet_NaN();
-        thisObject->asDateObject()->setTimeValueAsNaN();
+        thisObject->setTimeValueAsNaN();
         return Value(value);
     }
 }
 
 static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, getYear);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().getYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    if (!(thisObject->asDateObject()->isValid())) {
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getYear);
+    if (!(thisObject->isValid())) {
         return Value(std::numeric_limits<double>::quiet_NaN());
     }
-    int ret = thisObject->asDateObject()->getFullYear(state) - 1900;
+    int ret = thisObject->getFullYear(state) - 1900;
     return Value(ret);
 }
 
 static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, setYear);
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().setYear.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-
-    DateObject* d = thisObject->asDateObject();
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setYear);
+    DateObject* d = thisObject;
 
     if (!(d->isValid())) {
         d->setTimeValue(DateObject::timeClip(state, 0));
@@ -505,19 +464,10 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
-                                       state.context()->staticStrings().getTimezoneOffset.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
-    }
-    Object* thisObject = thisValue.toObject(state);
-    ;
-    if (!thisObject->isDateObject() || thisObject->isDatePrototypeObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
-                                       state.context()->staticStrings().getTimezoneOffset.string(), errorMessage_GlobalObject_ThisNotDateObject);
-    }
-    if (!(thisObject->asDateObject()->isValid()))
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getTimezoneOffset);
+    if (!(thisObject->isValid()))
         return Value(std::numeric_limits<double>::quiet_NaN());
-    return Value(thisObject->asDateObject()->getTimezoneOffset(state));
+    return Value(thisObject->getTimezoneOffset(state));
 }
 
 static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
@@ -556,7 +506,7 @@ void GlobalObject::installDate(ExecutionState& state)
     m_date = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7), NativeFunctionObject::__ForBuiltinConstructor__);
     m_date->setGlobalIntrinsicObject(state);
 
-    m_datePrototype = new DatePrototypeObject(state, m_objectPrototype);
+    m_datePrototype = new Object(state);
     m_datePrototype->setGlobalIntrinsicObject(state, true);
 
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

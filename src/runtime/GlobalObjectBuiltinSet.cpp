@@ -87,7 +87,7 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
 }
 
 #define RESOLVE_THIS_BINDING_TO_SET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
-    if (!thisValue.isObject() || !thisValue.asObject()->isSetObject() || thisValue.asObject()->isSetPrototypeObject()) {                                                                                                                       \
+    if (!thisValue.isObject() || !thisValue.asObject()->isSetObject()) {                                                                                                                                                                       \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                          \
     SetObject* NAME = thisValue.asObject()->asSetObject();
@@ -191,7 +191,7 @@ void GlobalObject::installSet(ExecutionState& state)
         m_set->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_setPrototype = new SetPrototypeObject(state, m_objectPrototype);
+    m_setPrototype = new Object(state);
     m_setPrototype->setGlobalIntrinsicObject(state, true);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

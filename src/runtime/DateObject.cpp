@@ -1416,17 +1416,4 @@ void* DateObject::operator new(size_t size)
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
-
-void* DatePrototypeObject::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(DatePrototypeObject)] = { 0 };
-        DatePrototypeObject::fillGCDescriptor(obj_bitmap);
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(DatePrototypeObject));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
 }

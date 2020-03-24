@@ -81,7 +81,6 @@ class PointerValue : public gc {
 
 public:
     virtual ~PointerValue() {}
-
     inline bool isObject() const
     {
         return isObjectByDataTag();
@@ -182,17 +181,7 @@ public:
         return false;
     }
 
-    virtual bool isDatePrototypeObject() const
-    {
-        return false;
-    }
-
-    virtual bool isRegExpObject()
-    {
-        return false;
-    }
-
-    virtual bool isRegExpPrototypeObject() const
+    virtual bool isRegExpObject() const
     {
         return false;
     }
@@ -277,22 +266,12 @@ public:
         return false;
     }
 
-    virtual bool isSetPrototypeObject() const
-    {
-        return false;
-    }
-
     virtual bool isWeakMapObject() const
     {
         return false;
     }
 
     virtual bool isWeakSetObject() const
-    {
-        return false;
-    }
-
-    virtual bool isWeakSetPrototypeObject() const
     {
         return false;
     }

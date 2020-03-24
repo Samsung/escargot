@@ -184,32 +184,5 @@ protected:
     static void getYMDFromTime(time64_t t, struct timeinfo& cachedLocal);
     static bool inLeapYear(int year);
 };
-
-class DatePrototypeObject : public DateObject {
-public:
-    DatePrototypeObject(ExecutionState& state, Object* proto)
-        : DateObject(state, proto)
-    {
-    }
-
-    virtual bool isDatePrototypeObject() const override
-    {
-        return true;
-    }
-
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Object";
-    }
-
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
-private:
-    static inline void fillGCDescriptor(GC_word* desc)
-    {
-        DateObject::fillGCDescriptor(desc);
-    }
-};
 } // namespace Escargot
 #endif

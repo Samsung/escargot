@@ -533,9 +533,9 @@ public:
     }
 };
 
-class TypedArrayObjectPrototype : public Object {
+class TypedArrayPrototypeObject : public Object {
 public:
-    TypedArrayObjectPrototype(ExecutionState& state)
+    TypedArrayPrototypeObject(ExecutionState& state)
         : Object(state)
     {
     }
