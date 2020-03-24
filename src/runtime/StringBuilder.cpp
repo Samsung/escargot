@@ -105,7 +105,7 @@ String* StringBuilder::finalize(ExecutionState* state)
 
 
     if (state && UNLIKELY(m_contentLength > STRING_MAXIMUM_LENGTH)) {
-        ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
+        ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, ErrorObject::Messages::String_InvalidStringLength);
     }
 
     if (m_has8BitContent) {

@@ -1091,7 +1091,7 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
 Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     if (!callee.isPointerValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
     }
     // Return F.[[Call]](V, argumentsList).
     return callee.asPointerValue()->call(state, thisValue, argc, argv);
@@ -1135,7 +1135,7 @@ bool Object::hasInstance(ExecutionState& state, Value O)
     Value P = C->get(state, state.context()->staticStrings().prototype).value(state, C);
     // If Type(P) is not Object, throw a TypeError exception.
     if (!P.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_InvalidPrototypeProperty);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::InstanceOf_InvalidPrototypeProperty);
     }
     // Repeat
     O = O.asObject()->getPrototype(state);
@@ -1231,30 +1231,30 @@ bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensib
 void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
     }
 }
 
 void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver)) && state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
     }
 }
 
 void Object::throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_RedefineNotConfigurable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_RedefineNotConfigurable);
 }
 
 void Object::throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
 }
 
 void Object::throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotConfigurable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotConfigurable);
 }
 
 ArrayObject* Object::createArrayFromList(ExecutionState& state, const uint64_t& size, const Value* buffer)
@@ -1287,7 +1287,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
 
     // Honorate "length" property: If length>2^32-1, throw a RangeError exception.
     if (len > ((1LL << 32LL) - 1LL)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
     // 6. Let list be an empty List.

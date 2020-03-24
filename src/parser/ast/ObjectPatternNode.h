@@ -110,7 +110,7 @@ public:
             context->giveUpRegister(); // for drop cmpIndex
 
             codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_Can_Not_Be_Destructed), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, ErrorObject::Messages::Can_Not_Be_Destructed), context, this);
             codeBlock->peekCode<JumpIfTrue>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
         }
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);

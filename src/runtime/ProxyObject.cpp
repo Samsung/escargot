@@ -947,7 +947,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
 Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size_t argc, NULLABLE Value* argv)
 {
     if (UNLIKELY(!m_isCallable)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     auto strings = &state.context()->staticStrings();

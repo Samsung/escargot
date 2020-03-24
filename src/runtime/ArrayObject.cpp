@@ -58,7 +58,7 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, double length)
     }
     // If length>2^32-1, throw a RangeError exception.
     if (UNLIKELY(length > ((1LL << 32LL) - 1LL))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
     setArrayLength(state, Value(length));
@@ -73,7 +73,7 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& s
     : ArrayObject(state, proto)
 {
     if (UNLIKELY(size > ((1LL << 32LL) - 1LL))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
     setArrayLength(state, size, true);
@@ -149,7 +149,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             newLen = desc.value().toUint32(state);
             // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
             if (newLen != desc.value().toNumber(state)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
             }
         }
         if (!isLengthPropertyWritable() && desc.isValuePresent() && m_arrayLength != newLen) {
@@ -370,7 +370,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
     uint32_t newLen = newLength.toUint32(state);
     // If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
     if (newLen != newLength.toNumber(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, errorMessage_GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
     bool ret;
@@ -627,7 +627,7 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     if (a->isTypedArrayObject()) {
         // If IsDetachedBuffer(a.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
         if (a->asArrayBufferView()->buffer()->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_DetachedBuffer);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
             return std::make_pair(Value(), false);
         }
         // Let len be a.[[ArrayLength]].

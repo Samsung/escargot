@@ -100,14 +100,14 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         }
     }
 
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     return Value();
 }
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
     Value argArray = argv[1];
@@ -128,7 +128,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
             }
         }
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_SecondArgumentNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_SecondArgumentNotObject);
     }
 
     return Object::call(state, thisValue, thisArg, arrlen, arguments);
@@ -137,7 +137,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
 static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
     size_t arrlen = argc > 0 ? argc - 1 : 0;
@@ -154,7 +154,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
 {
     // If IsCallable(Target) is false, throw a TypeError exception.
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
 
     // Let Target be the this value.

@@ -46,7 +46,7 @@ static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_
     } else if (thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
         return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotBoolean);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -57,7 +57,7 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
     } else if (thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
         return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue()).toString(state);
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotBoolean);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
     RELEASE_ASSERT_NOT_REACHED();
 }
 

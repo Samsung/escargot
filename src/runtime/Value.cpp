@@ -148,10 +148,10 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
     } else if (isSymbol()) {
         object = new SymbolObject(state, asSymbol());
     } else if (isNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_NullToObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::NullToObject);
     } else {
         ASSERT(isUndefined());
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_UndefinedToObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::UndefinedToObject);
     }
     return object;
 }
@@ -201,7 +201,7 @@ Value Value::ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint prefer
     }
 
     // Throw a TypeError exception.
-    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_ObjectToPrimitiveValue);
+    ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -231,7 +231,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
             return result;
         }
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_ObjectToPrimitiveValue);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
     }
     // If hint is "default", let hint be "number".
     if (preferredType == PreferDefault) {
@@ -458,7 +458,7 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
 {
     // If Type(C) is not Object, throw a TypeError exception.
     if (!other.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
     }
     Object* C = other.asObject();
     // Let instOfHandler be GetMethod(C,@@hasInstance).
@@ -472,7 +472,7 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
 
     // If IsCallable(C) is false, throw a TypeError exception.
     if (!C->isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_InstanceOf_NotFunction);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
     }
     // Return OrdinaryHasInstance(C, O).
     return C->hasInstance(state, *this);
