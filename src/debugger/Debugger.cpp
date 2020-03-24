@@ -22,6 +22,8 @@
 #include "DebuggerTcp.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
+#include "runtime/Environment.h"
+#include "runtime/EnvironmentRecord.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/SandBox.h"
 #include "parser/Script.h"
@@ -254,6 +256,13 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
             getBacktrace(state, minDepth, maxDepth, buffer[1 + sizeof(uint32_t) + sizeof(uint32_t)] != 0);
             return true;
         }
+        case ESCARGOT_MESSAGE_GET_SCOPE_CHAIN: {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+            getScopeChain(state);
+            return true;
+        }
         }
 
         ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
@@ -382,6 +391,50 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     if (enabled()) {
         sendString(ESCARGOT_MESSAGE_BACKTRACE_8BIT, backtrace);
     }
+}
+
+void Debugger::getScopeChain(ExecutionState* state)
+{
+    const size_t maxMessageLength = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1;
+    uint8_t buffer[maxMessageLength];
+    size_t nextScope = 0;
+
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv) {
+        EnvironmentRecord* record = lexEnv->record();
+        uint8_t type;
+
+        if (nextScope >= maxMessageLength) {
+            if (!send(ESCARGOT_MESSAGE_SCOPE_CHAIN, buffer, maxMessageLength)) {
+                return;
+            }
+            nextScope = 0;
+        }
+
+
+        if (record->isGlobalEnvironmentRecord()) {
+            type = ESCARGOT_RECORD_GLOBAL_ENVIRONMENT;
+        } else if (record->isDeclarativeEnvironmentRecord()) {
+            DeclarativeEnvironmentRecord* declarativeRecord = record->asDeclarativeEnvironmentRecord();
+            if (declarativeRecord->isFunctionEnvironmentRecord()) {
+                type = ESCARGOT_RECORD_FUNCTION_ENVIRONMENT;
+            } else {
+                type = ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT;
+            }
+        } else if (record->isObjectEnvironmentRecord()) {
+            type = ESCARGOT_RECORD_OBJECT_ENVIRONMENT;
+        } else if (record->isModuleEnvironmentRecord()) {
+            type = ESCARGOT_RECORD_MODULE_ENVIRONMENT;
+        } else {
+            type = ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT;
+        }
+
+        buffer[nextScope++] = type;
+        lexEnv = lexEnv->outerEnvironment();
+    }
+
+    send(ESCARGOT_MESSAGE_SCOPE_CHAIN_END, buffer, nextScope);
 }
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)

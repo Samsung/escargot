@@ -61,6 +61,8 @@ ESCARGOT_MESSAGE_BACKTRACE_8BIT = 31
 ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 32
 ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33
 ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34
+ESCARGOT_MESSAGE_SCOPE_CHAIN = 35
+ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 36
 
 
 # Messages sent by the debugger client to Escargot.
@@ -74,6 +76,16 @@ ESCARGOT_MESSAGE_EVAL_8BIT = 6
 ESCARGOT_MESSAGE_EVAL_16BIT_START = 7
 ESCARGOT_MESSAGE_EVAL_16BIT = 8
 ESCARGOT_MESSAGE_GET_BACKTRACE = 9
+ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 10
+
+
+# Environment record types
+ESCARGOT_RECORD_GLOBAL_ENVIRONMENT = 0
+ESCARGOT_RECORD_FUNCTION_ENVIRONMENT = 1
+ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT = 2
+ESCARGOT_RECORD_OBJECT_ENVIRONMENT = 3
+ESCARGOT_RECORD_MODULE_ENVIRONMENT = 4
+ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT = 5
 
 
 def arguments_parse():
@@ -344,6 +356,20 @@ class Debugger(object):
                 result += "Total number of frames: %d\n" % (total)
                 return DebuggerAction(DebuggerAction.TEXT, result)
 
+            elif buffer_type in [ESCARGOT_MESSAGE_EVAL_RESULT_8BIT,
+                                 ESCARGOT_MESSAGE_EVAL_RESULT_8BIT_END,
+                                 ESCARGOT_MESSAGE_EVAL_RESULT_16BIT,
+                                 ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END]:
+                self.prompt = True
+                return self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, "", data);
+
+            elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
+                                 ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
+                                 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
+                                 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
+                self.prompt = True
+                return self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, self.red + "Exception: ", data);
+
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE_8BIT,
                                  ESCARGOT_MESSAGE_BACKTRACE_8BIT_END,
                                  ESCARGOT_MESSAGE_BACKTRACE_16BIT,
@@ -369,19 +395,38 @@ class Debugger(object):
                 self.prompt = True
                 return DebuggerAction(DebuggerAction.TEXT, backtrace.replace("\0", "\n"))
 
-            elif buffer_type in [ESCARGOT_MESSAGE_EVAL_RESULT_8BIT,
-                                 ESCARGOT_MESSAGE_EVAL_RESULT_8BIT_END,
-                                 ESCARGOT_MESSAGE_EVAL_RESULT_16BIT,
-                                 ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END]:
-                self.prompt = True
-                return self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, "", data);
+            elif buffer_type in [ESCARGOT_MESSAGE_SCOPE_CHAIN,
+                                 ESCARGOT_MESSAGE_SCOPE_CHAIN_END]:
+                scope_chain = ""
 
-            elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
-                                 ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
-                                 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
-                                 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
+                while buffer_type == ESCARGOT_MESSAGE_SCOPE_CHAIN:
+                    scope_chain += data[1:]
+                    data = self.channel.get_message(True)
+                    buffer_type = ord(data[0])
+
+                if buffer_type != ESCARGOT_MESSAGE_SCOPE_CHAIN_END:
+                    raise Exception("Unexpected message")
+
+                scope_chain += data[1:]
+                result = ""
+
+                for env_type in scope_chain:
+                    env_type = ord(env_type)
+                    if env_type == ESCARGOT_RECORD_GLOBAL_ENVIRONMENT:
+                        result += "Global Environment\n"
+                    elif env_type == ESCARGOT_RECORD_FUNCTION_ENVIRONMENT:
+                        result += "Function Environment\n"
+                    elif env_type == ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT:
+                        result += "Declarative Environment\n"
+                    elif env_type == ESCARGOT_RECORD_OBJECT_ENVIRONMENT:
+                        result += "Object Environment\n"
+                    elif env_type == ESCARGOT_RECORD_MODULE_ENVIRONMENT:
+                        result += "Module Environment\n"
+                    else:
+                        result += "Unknown Environment\n"
+
                 self.prompt = True
-                return self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, self.red + "Exception: ", data);
+                return DebuggerAction(DebuggerAction.TEXT, result)
 
             else:
                 raise Exception("Unknown message: %d" % (buffer_type))
@@ -552,6 +597,10 @@ class Debugger(object):
 
         self.prompt = False
         return ""
+
+    def scope_chain(self):
+        self.prompt = False
+        self._exec_command(ESCARGOT_MESSAGE_GET_SCOPE_CHAIN)
 
     # pylint: disable=too-many-branches,too-many-locals,too-many-statements
     def _parse_source(self, data):
