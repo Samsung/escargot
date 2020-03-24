@@ -141,9 +141,9 @@ private:
     SmallValue* m_fastModeData;
 };
 
-class ArrayObjectPrototype : public ArrayObject {
+class ArrayPrototypeObject : public ArrayObject {
 public:
-    ArrayObjectPrototype(ExecutionState& state, Object* proto)
+    ArrayPrototypeObject(ExecutionState& state, Object* proto)
         : ArrayObject(state, proto)
     {
     }

@@ -114,26 +114,14 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     return builder.finalize(&state);
 }
 
-class GlobalErrorObjectPrototype : public ErrorObject {
-public:
-    GlobalErrorObjectPrototype(ExecutionState& state, Object* proto)
-        : ErrorObject(state, proto, String::emptyString)
-    {
-    }
-
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Object";
-    }
-};
-
 void GlobalObject::installError(ExecutionState& state)
 {
     m_error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_error->setGlobalIntrinsicObject(state);
 
-    m_errorPrototype = new GlobalErrorObjectPrototype(state, m_objectPrototype);
+    m_errorPrototype = new Object(state);
     m_errorPrototype->setGlobalIntrinsicObject(state, true);
+
     m_error->setFunctionPrototype(state, m_errorPrototype);
 
     m_errorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

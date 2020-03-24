@@ -548,13 +548,16 @@ GlobalRegExpFunctionObject::GlobalRegExpFunctionObject(ExecutionState& state)
 
 static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisValue, unsigned int option)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_GlobalObject_ThisNotObject);
     }
 
-    // ES2017 compatibility
-    if (thisValue.asObject() == state.context()->globalObject()->regexpPrototype()) {
-        return Value();
+    if (!thisValue.asObject()->isRegExpObject()) {
+        if (thisValue.asObject() == state.context()->globalObject()->regexpPrototype()) {
+            return Value();
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_GlobalObject_ThisNotRegExpObject);
+        }
     }
 
     return Value((bool)(thisValue.asObject()->asRegExpObject()->option() & option));
@@ -591,8 +594,16 @@ static Value builtinRegExpMultiLineGetter(ExecutionState& state, Value thisValue
 
 static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_GlobalObject_ThisNotObject);
+    }
+
+    if (!thisValue.asObject()->isRegExpObject()) {
+        if (thisValue.asObject() == state.context()->globalObject()->regexpPrototype()) {
+            return Value(state.context()->staticStrings().defaultRegExpString.string());
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, errorMessage_GlobalObject_ThisNotRegExpObject);
+        }
     }
 
     return Value(thisValue.asObject()->asRegExpObject()->source());
@@ -608,26 +619,6 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }
 
-class RegExpObjectPrototype : public RegExpObject {
-public:
-    RegExpObjectPrototype(ExecutionState& state, Object* proto)
-        : RegExpObject(state, proto, false)
-    {
-        init(state, String::emptyString, String::emptyString);
-    }
-
-    virtual bool isRegExpPrototypeObject() const override
-    {
-        return true;
-    }
-
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Object";
-    }
-};
-
-
 void GlobalObject::installRegExp(ExecutionState& state)
 {
     m_regexp = new GlobalRegExpFunctionObject(state);
@@ -640,9 +631,8 @@ void GlobalObject::installRegExp(ExecutionState& state)
         m_regexp->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_regexpPrototype = new RegExpObjectPrototype(state, m_objectPrototype);
+    m_regexpPrototype = new Object(state);
     m_regexpPrototype->setGlobalIntrinsicObject(state, true);
-    m_regexpPrototype->deleteOwnProperty(state, state.context()->staticStrings().lastIndex);
 
     {
         Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getFlags, builtinRegExpFlagsGetter, 0, NativeFunctionInfo::Strict));

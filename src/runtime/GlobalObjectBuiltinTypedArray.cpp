@@ -1591,7 +1591,7 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     taConstructor->setGlobalIntrinsicObject(state);
 
     *proto = m_objectPrototype;
-    Object* taPrototype = new TypedArrayObjectPrototype(state);
+    Object* taPrototype = new TypedArrayPrototypeObject(state);
     taPrototype->setGlobalIntrinsicObject(state, true);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 

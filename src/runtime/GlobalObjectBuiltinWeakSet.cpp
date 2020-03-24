@@ -87,15 +87,15 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
     return set;
 }
 
-#define RESOLVE_THIS_BINDING_TO_SET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
-    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject() || thisValue.asObject()->isWeakSetPrototypeObject()) {                                                                                                               \
+#define RESOLVE_THIS_BINDING_TO_WEAKSET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
+    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject()) {                                                                                                                                                                   \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                          \
     WeakSetObject* NAME = thisValue.asObject()->asWeakSetObject();
 
 static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, WeakSet, add);
+    RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, add);
     if (!argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid value used as weak set key");
     }
@@ -106,7 +106,7 @@ static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, WeakSet, stringDelete);
+    RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, stringDelete);
     if (!argv[0].isObject()) {
         return Value(false);
     }
@@ -116,7 +116,7 @@ static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, WeakSet, has);
+    RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, has);
     if (!argv[0].isObject()) {
         return Value(false);
     }
@@ -129,8 +129,9 @@ void GlobalObject::installWeakSet(ExecutionState& state)
     m_weakSet = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakSet->setGlobalIntrinsicObject(state);
 
-    m_weakSetPrototype = new WeakSetPrototypeObject(state, m_objectPrototype);
+    m_weakSetPrototype = new Object(state);
     m_weakSetPrototype->setGlobalIntrinsicObject(state, true);
+
     m_weakSetPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakSetPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),

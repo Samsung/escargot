@@ -138,9 +138,12 @@ public:
     }
 
     void setLastIndex(ExecutionState& state, const Value& v);
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
 
-    virtual bool isRegExpObject();
+    virtual bool isRegExpObject() const override
+    {
+        return true;
+    }
 
     void createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result);
     ArrayObject* createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result);
@@ -148,7 +151,7 @@ public:
     void pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObject* array, size_t& index, const size_t limit, const RegexMatchResult& result, String* str);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state)
+    virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "RegExp";
     }
