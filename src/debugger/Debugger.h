@@ -85,6 +85,8 @@ public:
         ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 32,
         ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33,
         ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34,
+        ESCARGOT_MESSAGE_SCOPE_CHAIN = 35,
+        ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 36,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -100,6 +102,17 @@ public:
         ESCARGOT_MESSAGE_EVAL_16BIT_START = 7,
         ESCARGOT_MESSAGE_EVAL_16BIT = 8,
         ESCARGOT_MESSAGE_GET_BACKTRACE = 9,
+        ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 10,
+    };
+
+    // Environment record types
+    enum {
+        ESCARGOT_RECORD_GLOBAL_ENVIRONMENT = 0,
+        ESCARGOT_RECORD_FUNCTION_ENVIRONMENT = 1,
+        ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT = 2,
+        ESCARGOT_RECORD_OBJECT_ENVIRONMENT = 3,
+        ESCARGOT_RECORD_MODULE_ENVIRONMENT = 4,
+        ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT = 5,
     };
 
     struct BreakpointLocation {
@@ -175,6 +188,7 @@ protected:
     bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
     bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
+    void getScopeChain(ExecutionState* state);
 
     bool* m_debuggerEnabled;
     bool m_enabled;
