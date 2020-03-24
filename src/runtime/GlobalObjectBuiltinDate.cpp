@@ -176,10 +176,10 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     return Value(d.primitiveValue());
 }
 
-#define RESOLVE_THIS_BINDING_TO_DATE(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
-    if (!thisValue.isObject() || !thisValue.asObject()->isDateObject()) {                                                                                                                                                           \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_ThisNotDateObject); \
-    }                                                                                                                                                                                                                               \
+#define RESOLVE_THIS_BINDING_TO_DATE(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                              \
+    if (!thisValue.isObject() || !thisValue.asObject()->isDateObject()) {                                                                                                                                                                     \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisNotDateObject); \
+    }                                                                                                                                                                                                                                         \
     DateObject* NAME = thisValue.asObject()->asDateObject();
 
 static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -479,7 +479,7 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
     // If Type(O) is not Object, throw a TypeError exception.
     if (!O.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
-                                       state.context()->staticStrings().toPrimitive.string(), errorMessage_GlobalObject_ThisNotObject);
+                                       state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     bool tryFirstIsString = false;
     // If hint is the String value "string" or the String value "default", then
@@ -493,7 +493,7 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
     } else {
         // Else, throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Date.string(), true,
-                                       state.context()->staticStrings().toPrimitive.string(), errorMessage_GlobalObject_IllegalFirstArgument);
+                                       state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     // Return ? OrdinaryToPrimitive(O, tryFirst).
     if (tryFirstIsString) {

@@ -51,13 +51,13 @@ public:
         double getIndex = Value(numberIndex).toInteger(state);
 
         if (numberIndex != getIndex || getIndex < 0)
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
 
         ArrayBufferObject* buffer = this->buffer();
         if (!buffer || buffer->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
             return Value();
         }
 
@@ -67,7 +67,7 @@ public:
         unsigned elementSize = ArrayBufferView::getElementSize(type);
 
         if (getIndex + elementSize > viewSize)
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_RangeError);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
 
         unsigned bufferIndex = getIndex + viewOffset;
         switch (type) {
@@ -100,13 +100,13 @@ public:
         double getIndex = Value(numberIndex).toInteger(state);
 
         if (numberIndex != getIndex || getIndex < 0)
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
 
         ArrayBufferObject* buffer = this->buffer();
         if (!buffer || buffer->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_DetachedBuffer);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
             return Value();
         }
 
@@ -116,7 +116,7 @@ public:
         unsigned elementSize = this->getElementSize(type);
 
         if (getIndex + elementSize > viewSize)
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_RangeError);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
 
         unsigned bufferIndex = getIndex + viewOffset;
         switch (type) {

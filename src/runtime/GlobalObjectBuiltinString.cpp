@@ -68,7 +68,7 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
     if (thisValue.isString())
         return thisValue.toString(state);
 
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotString);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotString);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -312,7 +312,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
 static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value searchValue = argv[0];
@@ -1036,7 +1036,7 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
     } else if (thisValue.isObject() && thisValue.asObject()->isStringObject()) {
         return Value(thisValue.asPointerValue()->asStringObject()->primitiveValue());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotString);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotString);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -1304,7 +1304,7 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
     // Let S be ToString(str).
     // ReturnIfAbrupt(S).
     if (string.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     String* S = string.toString(state);
 
@@ -1476,7 +1476,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
 static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isStringIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     StringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asStringIteratorObject();
     return iter->next(state);

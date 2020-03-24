@@ -1228,7 +1228,7 @@ String* DateObject::toISOString(ExecutionState& state)
         }
         return new ASCIIString(buffer);
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), errorMessage_GlobalObject_InvalidDate);
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), ErrorObject::Messages::GlobalObject_InvalidDate);
     }
     RELEASE_ASSERT_NOT_REACHED();
 }

@@ -493,7 +493,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         for (size_t i = 0; i < stack.size(); i++) {
             Value& v = stack[i];
             if (v == Value(obj)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), errorMessage_GlobalObject_JAError);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
             }
         }
         // 2
@@ -512,7 +512,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 
         // Each array element requires at least 1 character for the value, and 1 character for the separator
         if (len / 2 > STRING_MAXIMUM_LENGTH) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->JSON.string(), false, strings->stringify.string(), errorMessage_GlobalObject_JAError);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
         }
 
         uint32_t index = 0;
@@ -570,7 +570,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         // 1
         for (size_t i = 0; i < stack.size(); i++) {
             if (stack[i] == value) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), errorMessage_GlobalObject_JOError);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
             }
         }
         // 2

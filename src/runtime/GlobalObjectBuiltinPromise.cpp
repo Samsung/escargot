@@ -73,7 +73,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), errorMessage_GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     Object* C = thisValue.asObject();
 
@@ -209,7 +209,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->race.string(), errorMessage_GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->race.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     Object* C = thisValue.asObject();
 

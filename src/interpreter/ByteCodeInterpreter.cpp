@@ -167,7 +167,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     const SmallValue& val = ctx->globalDeclarativeStorage()->at(idx);
                     isCacheWork = true;
                     if (UNLIKELY(val.isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                     }
                     registerFile[code->m_registerIndex] = val;
                 }
@@ -199,7 +199,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 } else if (slot->m_cachedStructure == nullptr) {
                     isCacheWork = true;
                     if (UNLIKELY(ctx->globalDeclarativeStorage()->at(idx).isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                     }
                     ctx->globalDeclarativeStorage()->at(idx) = registerFile[code->m_registerIndex];
                 }
@@ -622,7 +622,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
             if (UNLIKELY(!callee.isPointerValue())) {
-                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
             }
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
@@ -642,7 +642,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
             if (UNLIKELY(!callee.isPointerValue())) {
-                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
             }
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
@@ -1373,7 +1373,7 @@ NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordB
     }
 
     if (throwException)
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
 
     return NULL;
 }
@@ -1395,7 +1395,7 @@ NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, Lexica
     }
 
     if (throwException)
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
 
     return Value();
 }
@@ -1411,7 +1411,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, Lexica
         env = env->outerEnvironment();
     }
     if (state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, name, value, o);
@@ -1432,7 +1432,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, L
             }
             env = env->outerEnvironment();
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     }
 }
 
@@ -1469,7 +1469,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByNameWithAddress(ExecutionState& st
         }
     }
     if (state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, code->m_name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, code->m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
@@ -1886,7 +1886,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 {
     if (code->m_isLength && originalObject->hasTag(g_arrayObjectTag) && originalObject->asArrayObject()->isFastModeArray()) {
         if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, errorMessage_DefineProperty_NotWritable);
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }
         return;
     }
@@ -2028,7 +2028,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
             slot->m_cachedStructure = nullptr;
             auto v = (*state.context()->globalDeclarativeStorage())[i];
             if (UNLIKELY(v.isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             return v;
         }
@@ -2045,7 +2045,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
                 if (!virtialIdResult.isEmpty())
                     return virtialIdResult;
             }
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
             ASSERT_NOT_REACHED();
             return Value(Value::EmptyValue);
         }
@@ -2095,7 +2095,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
             slot->m_cachedStructure = nullptr;
             auto& place = (*ctx->globalDeclarativeStorage())[i];
             if (UNLIKELY(place.isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             place = value;
             return;
@@ -2106,7 +2106,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
     auto findResult = go->structure()->findProperty(slot->m_propertyName);
     if (UNLIKELY(findResult.first == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, errorMessage_IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
         }
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
@@ -2373,16 +2373,16 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
             protoParent = Value(Value::Null);
             constructorParent = state.context()->globalObject()->functionPrototype();
         } else if (!superClass.isConstructor()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Extends_Value_Is_Not_Object_Nor_Null);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Extends_Value_Is_Not_Object_Nor_Null);
         } else {
             if (superClass.isObject() && superClass.asObject()->isGeneratorObject()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Prototype_Is_Not_Object_Nor_Null);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
             }
 
             protoParent = superClass.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, Value());
 
             if (!protoParent.isObject() && !protoParent.isNull()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Class_Prototype_Is_Not_Object_Nor_Null);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
             }
 
             constructorParent = superClass;
@@ -2430,7 +2430,7 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
         Object* newTarget = state.getNewTarget();
         // If newTarget is undefined, throw a ReferenceError exception.
         if (!newTarget) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_New_Target_Is_Undefined);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
         }
         registerFile[code->m_dstIndex] = state.getSuperConstructor();
     } else {
@@ -2687,9 +2687,9 @@ NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state
 {
     if (!constructor.isConstructor()) {
         if (constructor.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
     }
 
     return constructor.asPointerValue()->construct(state, argc, argv, constructor.asObject());
@@ -2727,7 +2727,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = registerFile[code->m_receiverIndex];
         if (UNLIKELY(!callee.isPointerValue() || !receiver.isPointerValue())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
         auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
@@ -2809,7 +2809,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // https://www.ecma-international.org/ecma-262/6.0/#sec-call
         // If IsCallable(F) is false, throw a TypeError exception.
         if (UNLIKELY(!callee.isPointerValue())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
         {

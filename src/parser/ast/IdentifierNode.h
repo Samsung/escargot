@@ -60,7 +60,7 @@ public:
         }
 
         if (!find) {
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, errorMessage_IsNotInitialized, m_name), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this);
         }
     }
 
@@ -80,14 +80,14 @@ public:
             }
 
             if (!find) {
-                codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, errorMessage_IsNotInitialized, m_name), context, this);
+                codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this);
             }
         }
 
         // <const variable check>
         // every indexed variables are checked on bytecode generation time
         if (!isLexicallyDeclaredBindingInitialization && isVariableChainging && info.m_isResultSaved && !info.m_isMutable && info.m_type == InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, m_name), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this);
         }
     }
 
@@ -177,7 +177,7 @@ public:
                 if (info.m_type != InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared && !isVarDeclaredBindingInitialization) {
                     if (!info.m_isMutable) {
                         if (codeBlock->m_codeBlock->isStrict())
-                            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, m_name), context, this);
+                            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this);
                         return;
                     }
                 }

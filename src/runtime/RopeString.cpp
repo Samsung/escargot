@@ -79,7 +79,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     }
 
     if (state && UNLIKELY((llen + rlen) > STRING_MAXIMUM_LENGTH)) {
-        ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
+        ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, ErrorObject::Messages::String_InvalidStringLength);
     }
 
     RopeString* rope = new RopeString();

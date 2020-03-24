@@ -608,7 +608,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
             if (vec[i].m_isVarDeclaration) {
                 auto slot = e->record()->hasBinding(state, vec[i].m_name);
                 if (slot.m_isLexicallyDeclared && slot.m_index != SIZE_MAX) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, vec[i].m_name.string(), false, String::emptyString, errorMessage_DuplicatedIdentifier);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
                 }
             }
         }

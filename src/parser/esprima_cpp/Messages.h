@@ -42,58 +42,61 @@
 
 namespace Escargot {
 namespace esprima {
-namespace Messages {
-const char* UnexpectedToken = "Unexpected token %s";
-const char* UnexpectedNumber = "Unexpected number";
-const char* UnexpectedString = "Unexpected string";
-const char* UnexpectedIdentifier = "Unexpected identifier";
-const char* UnexpectedReserved = "Unexpected reserved word";
-const char* UnexpectedTemplate = "Unexpected quasi %s";
-const char* UnexpectedEOS = "Unexpected end of input";
-const char* NewlineAfterThrow = "Illegal newline after throw";
-const char* InvalidRegExp = "Invalid regular expression";
-const char* InvalidLHSInAssignment = "Invalid left-hand side in assignment";
-const char* InvalidLHSInForIn = "Invalid left-hand side in for-in";
-const char* InvalidLHSInForLoop = "Invalid left-hand side in for-loop";
-const char* MultipleDefaultsInSwitch = "More than one default clause in switch statement";
-const char* NoCatchOrFinally = "Missing catch or finally after try";
-const char* UnknownLabel = "Undefined label \'%s\'";
-const char* Redeclaration = "%s \'%s\' has already been declared";
-const char* IllegalContinue = "Illegal continue statement";
-const char* IllegalBreak = "Illegal break statement";
-const char* IllegalReturn = "Illegal return statement";
-const char* StrictModeWith = "Strict mode code may not include a with statement";
-const char* StrictCatchVariable = "Catch variable may not be eval or arguments in strict mode";
-const char* StrictVarName = "Variable name may not be eval or arguments in strict mode";
-const char* StrictParamName = "Parameter name eval or arguments is not allowed in strict mode";
-const char* StrictParamDupe = "Strict mode function may not have duplicate parameter names";
-const char* StrictFunctionName = "Function name may not be eval or arguments in strict mode";
-const char* StrictOctalLiteral = "Octal literals are not allowed in strict mode.";
-const char* StrictLeadingZeroLiteral = "Decimals with leading zeros are not allowed in strict mode.";
-const char* StrictDelete = "Delete of an unqualified identifier in strict mode.";
-const char* StrictLHSAssignment = "Assignment to eval or arguments is not allowed in strict mode";
-const char* StrictLHSPostfix = "Postfix increment/decrement may not have eval or arguments operand in strict mode";
-const char* StrictLHSPrefix = "Prefix increment/decrement may not have eval or arguments operand in strict mode";
-const char* StrictReservedWord = "Use of future reserved word in strict mode";
-const char* ParameterAfterRestParameter = "Rest parameter must be last formal parameter";
-const char* DefaultRestParameter = "Unexpected token =";
-const char* ObjectPatternAsRestParameter = "Unexpected token {";
-const char* DuplicateProtoProperty = "Duplicate __proto__ fields are not allowed in object literals";
-const char* ConstructorSpecialMethod = "Class constructor may not be an accessor";
-const char* ConstructorGenerator = "Class constructor may not be a generator";
-const char* DuplicateConstructor = "A class may only have one constructor";
-const char* StaticPrototype = "Classes may not have static property named prototype";
-const char* MissingFromClause = "Unexpected token";
-const char* NoAsAfterImportNamespace = "Unexpected token";
-const char* InvalidModuleSpecifier = "Unexpected token";
-const char* IllegalImportDeclaration = "Unexpected token";
-const char* IllegalExportDeclaration = "Unexpected token";
-const char* DuplicateBinding = "Duplicate binding %s";
-const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
-const char* BadGetterArity = "Getter must not have any formal parameters";
-const char* BadSetterArity = "Setter must have exactly one formal parameter";
-const char* BadSetterRestParameter = "Setter function argument must not be a rest parameter";
-} // namespace Messages
+
+class Messages {
+public:
+    static constexpr const char* UnexpectedToken = "Unexpected token %s";
+    static constexpr const char* UnexpectedNumber = "Unexpected number";
+    static constexpr const char* UnexpectedString = "Unexpected string";
+    static constexpr const char* UnexpectedIdentifier = "Unexpected identifier";
+    static constexpr const char* UnexpectedReserved = "Unexpected reserved word";
+    static constexpr const char* UnexpectedTemplate = "Unexpected quasi %s";
+    static constexpr const char* UnexpectedEOS = "Unexpected end of input";
+    static constexpr const char* NewlineAfterThrow = "Illegal newline after throw";
+    static constexpr const char* InvalidRegExp = "Invalid regular expression";
+    static constexpr const char* InvalidLHSInAssignment = "Invalid left-hand side in assignment";
+    static constexpr const char* InvalidLHSInForIn = "Invalid left-hand side in for-in";
+    static constexpr const char* InvalidLHSInForLoop = "Invalid left-hand side in for-loop";
+    static constexpr const char* MultipleDefaultsInSwitch = "More than one default clause in switch statement";
+    static constexpr const char* NoCatchOrFinally = "Missing catch or finally after try";
+    static constexpr const char* UnknownLabel = "Undefined label \'%s\'";
+    static constexpr const char* Redeclaration = "%s \'%s\' has already been declared";
+    static constexpr const char* IllegalContinue = "Illegal continue statement";
+    static constexpr const char* IllegalBreak = "Illegal break statement";
+    static constexpr const char* IllegalReturn = "Illegal return statement";
+    static constexpr const char* StrictModeWith = "Strict mode code may not include a with statement";
+    static constexpr const char* StrictCatchVariable = "Catch variable may not be eval or arguments in strict mode";
+    static constexpr const char* StrictVarName = "Variable name may not be eval or arguments in strict mode";
+    static constexpr const char* StrictParamName = "Parameter name eval or arguments is not allowed in strict mode";
+    static constexpr const char* StrictParamDupe = "Strict mode function may not have duplicate parameter names";
+    static constexpr const char* StrictFunctionName = "Function name may not be eval or arguments in strict mode";
+    static constexpr const char* StrictOctalLiteral = "Octal literals are not allowed in strict mode.";
+    static constexpr const char* StrictLeadingZeroLiteral = "Decimals with leading zeros are not allowed in strict mode.";
+    static constexpr const char* StrictDelete = "Delete of an unqualified identifier in strict mode.";
+    static constexpr const char* StrictLHSAssignment = "Assignment to eval or arguments is not allowed in strict mode";
+    static constexpr const char* StrictLHSPostfix = "Postfix increment/decrement may not have eval or arguments operand in strict mode";
+    static constexpr const char* StrictLHSPrefix = "Prefix increment/decrement may not have eval or arguments operand in strict mode";
+    static constexpr const char* StrictReservedWord = "Use of future reserved word in strict mode";
+    static constexpr const char* ParameterAfterRestParameter = "Rest parameter must be last formal parameter";
+    static constexpr const char* DefaultRestParameter = "Unexpected token =";
+    static constexpr const char* ObjectPatternAsRestParameter = "Unexpected token {";
+    static constexpr const char* DuplicateProtoProperty = "Duplicate __proto__ fields are not allowed in object literals";
+    static constexpr const char* ConstructorSpecialMethod = "Class constructor may not be an accessor";
+    static constexpr const char* ConstructorGenerator = "Class constructor may not be a generator";
+    static constexpr const char* DuplicateConstructor = "A class may only have one constructor";
+    static constexpr const char* StaticPrototype = "Classes may not have static property named prototype";
+    static constexpr const char* MissingFromClause = "Unexpected token";
+    static constexpr const char* NoAsAfterImportNamespace = "Unexpected token";
+    static constexpr const char* InvalidModuleSpecifier = "Unexpected token";
+    static constexpr const char* IllegalImportDeclaration = "Unexpected token";
+    static constexpr const char* IllegalExportDeclaration = "Unexpected token";
+    static constexpr const char* DuplicateBinding = "Duplicate binding %s";
+    static constexpr const char* ForInOfLoopInitializer = "%s loop variable declaration may not have an initializer";
+    static constexpr const char* BadGetterArity = "Getter must not have any formal parameters";
+    static constexpr const char* BadSetterArity = "Setter must have exactly one formal parameter";
+    static constexpr const char* BadSetterRestParameter = "Setter function argument must not be a rest parameter";
+};
+
 } // namespace esprima
 } // namespace Escargot
 

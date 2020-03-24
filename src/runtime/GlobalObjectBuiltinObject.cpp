@@ -141,7 +141,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     if (!object.isObject())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
     Object* props = properties.toObject(state);
     ObjectPropertyVector descriptors;
     props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
@@ -150,7 +150,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
         if (propDesc.hasValue() && desc.isEnumerable()) {
             Value propVal = propDesc.value(state, self);
             if (!propVal.isObject())
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_DescriptorNotObject);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_DescriptorNotObject);
             descriptors->push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
         }
         return true;
@@ -165,7 +165,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
 static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject() && !argv[0].isNull())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), errorMessage_GlobalObject_FirstArgumentNotObjectAndNotNull);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObjectAndNotNull);
     Object* obj = new Object(state);
     if (argv[0].isNull())
         obj->setPrototype(state, Value(Value::Null));
@@ -187,7 +187,7 @@ static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue,
     // Object.defineProperty ( O, P, Attributes )
     // If Type(O) is not Object, throw a TypeError exception.
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), errorMessage_GlobalObject_FirstArgumentNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
     }
     Object* O = argv[0].asObject();
 
@@ -260,7 +260,7 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
 
     // If IsCallable(toString) is false, throw a TypeError exception.
     if (!toString.isCallable())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), true, state.context()->staticStrings().toLocaleString.string(), errorMessage_GlobalObject_ToLocaleStringNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
 
     // Return the result of calling the [[Call]] internal method of toString passing O as the this value and no arguments.
     return Object::call(state, toString, Value(O), 0, nullptr);
@@ -361,7 +361,7 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
 static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argv[0].isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     Value iterable = argv[0];
     Object* obj = new Object(state);

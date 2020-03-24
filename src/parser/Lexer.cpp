@@ -28,11 +28,6 @@ using namespace Escargot::EscargotLexer;
 
 namespace Escargot {
 
-const char* Messages::InvalidHexEscapeSequence = "Invalid hexadecimal escape sequence";
-const char* Messages::UnexpectedTokenIllegal = "Unexpected token ILLEGAL";
-const char* Messages::UnterminatedRegExp = "Invalid regular expression: missing /";
-const char* Messages::TemplateOctalLiteral = "Octal literals are not allowed in template strings.";
-
 #define IDENT_RANGE_LONG 200
 
 /* The largest code-point that an UTF16 surrogate pair can represent is 0x10ffff,

@@ -40,10 +40,10 @@ namespace Escargot {
 Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInDataViewConstructor);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInDataViewConstructor);
     }
     if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBufferObject())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_ThisNotArrayBufferObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
 
     ArrayBufferObject* buffer = argv[0].asObject()->asArrayBufferObject();
@@ -53,7 +53,7 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         double numberOffset = val.toNumber(state);
         byteOffset = Value(numberOffset).toInteger(state);
         if (numberOffset != byteOffset || byteOffset < 0) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
 
@@ -64,7 +64,7 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
     double bufferByteLength = buffer->byteLength();
 
     if (byteOffset > bufferByteLength) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
 
     double byteLength = bufferByteLength - byteOffset;
@@ -74,7 +74,7 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         if (!val.isUndefined()) {
             byteLength = val.toLength(state);
             if (byteOffset + byteLength > bufferByteLength) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_InvalidArrayBufferOffset);
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
         }
     }
@@ -95,7 +95,7 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         if (!(thisObject->isDataViewObject())) {                                                                                         \
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(),            \
                                            true, state.context()->staticStrings().get##Name.string(),                                    \
-                                           errorMessage_GlobalObject_ThisNotDataViewObject);                                             \
+                                           ErrorObject::Messages::GlobalObject_ThisNotDataViewObject);                                   \
         }                                                                                                                                \
         if (argc < 2) {                                                                                                                  \
             return thisObject->asDataViewObject()->getViewValue(state, argv[0], Value(false), TypedArrayType::Name);                     \
@@ -111,7 +111,7 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         if (!(thisObject->isDataViewObject())) {                                                                                         \
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(),            \
                                            true, state.context()->staticStrings().set##Name.string(),                                    \
-                                           errorMessage_GlobalObject_ThisNotDataViewObject);                                             \
+                                           ErrorObject::Messages::GlobalObject_ThisNotDataViewObject);                                   \
         }                                                                                                                                \
         if (argc < 3) {                                                                                                                  \
             return thisObject->asDataViewObject()->setViewValue(state, argv[0], Value(false), TypedArrayType::Name, argv[1]);            \

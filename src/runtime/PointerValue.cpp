@@ -27,7 +27,7 @@ namespace Escargot {
 Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
     ASSERT(!isCallable());
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_NOT_Callable);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
     ASSERT_NOT_REACHED();
 
     // never get here. but I add return statement for removing compile warning
@@ -38,9 +38,9 @@ Object* PointerValue::construct(ExecutionState& state, const size_t argc, NULLAB
 {
     ASSERT(!isConstructor());
     if (isFunctionObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor_Function, asFunctionObject()->codeBlock()->functionName());
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor_Function, asFunctionObject()->codeBlock()->functionName());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
     ASSERT_NOT_REACHED();
 
     // never get here. but I add return statement for removing compile warning

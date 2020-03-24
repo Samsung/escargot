@@ -494,7 +494,7 @@ public:
         for (size_t i = 0; i < v.size(); i++) {
             if (!v[i].m_needToAllocateOnStack) {
                 if (cnt == idx) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, v[i].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, v[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                 }
                 cnt++;
             }
@@ -634,7 +634,7 @@ struct FunctionEnvironmentRecordPiece<true, false> {
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         if (!m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_Initialized_This_Binding);
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, ErrorObject::Messages::Initialized_This_Binding);
         }
 
         m_thisValue = thisValue;
@@ -643,7 +643,7 @@ struct FunctionEnvironmentRecordPiece<true, false> {
     Value getThisBinding(ExecutionState& state)
     {
         if (m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_UnInitialized_This_Binding);
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, ErrorObject::Messages::UnInitialized_This_Binding);
         }
         return m_thisValue;
     }
@@ -704,7 +704,7 @@ struct FunctionEnvironmentRecordPiece<true, true> {
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         if (!m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_Initialized_This_Binding);
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, ErrorObject::Messages::Initialized_This_Binding);
         }
 
         m_thisValue = thisValue;
@@ -713,7 +713,7 @@ struct FunctionEnvironmentRecordPiece<true, true> {
     Value getThisBinding(ExecutionState& state)
     {
         if (m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, errorMessage_UnInitialized_This_Binding);
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, ErrorObject::Messages::UnInitialized_This_Binding);
         }
         return m_thisValue;
     }
@@ -1130,18 +1130,18 @@ protected:
     void readCheck(ExecutionState& state, const size_t i)
     {
         if (UNLIKELY(m_moduleDeclarativeStorage[i].isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
     }
 
     void writeCheck(ExecutionState& state, const size_t i)
     {
         if (UNLIKELY(!m_moduleDeclarativeRecord[i].m_isMutable)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_AssignmentToConstantVariable, m_moduleDeclarativeRecord[i].m_name);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_moduleDeclarativeRecord[i].m_name);
         }
 
         if (UNLIKELY(!m_moduleDeclarativeRecord[i].m_isVarDeclaration && m_moduleDeclarativeStorage[i].isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, errorMessage_IsNotInitialized);
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
     }
 

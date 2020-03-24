@@ -85,7 +85,7 @@ public:
         }
         // If result.[[value]] is not undefined, throw a TypeError exception.
         if (!result.isUndefined()) {
-            ErrorObject::throwBuiltinError(callerState, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
+            ErrorObject::throwBuiltinError(callerState, ErrorObject::TypeError, ErrorObject::Messages::InvalidDerivedConstructorReturnValue);
         }
         // Else, ReturnIfAbrupt(result).
         // Return envRec.GetThisBinding().

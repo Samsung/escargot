@@ -142,7 +142,7 @@ public:
     ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
     {
         if (UNLIKELY(isDetachedBuffer())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), errorMessage_GlobalObject_DetachedBuffer);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
         }
     }
 

@@ -470,14 +470,14 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
         } else {
             size_t start = i;
             if (i + 2 >= strLen)
-                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
             char16_t next = uriString->charAt(i + 1);
             char16_t nextnext = uriString->charAt(i + 2);
 
             // char to hex
             unsigned char b = 0;
             if (!twocharToHexaDecimal(next, nextnext, &b))
-                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
             i += 2;
 
             // most significant bit in b is 0
@@ -502,7 +502,7 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                     n++;
                 }
                 if (n == 1 || n == 5 || (i + (3 * (n - 1)) >= strLen)) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                 }
                 unsigned char octets[4];
                 octets[0] = b;
@@ -510,7 +510,7 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                 int j = 1;
                 while (j < n) {
                     if (!codeUnitToHexaDecimal(uriString, ++i, &b)) // "%XY" type
-                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     i += 2;
                     octets[j] = b;
                     j++;
@@ -520,17 +520,17 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                 if (n == 2) {
                     v = (octets[0] & 0x1F) << 6 | (octets[1] & 0x3F);
                     if ((octets[0] == 0xC0) || (octets[0] == 0xC1)) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 } else if (n == 3) {
                     v = (octets[0] & 0x0F) << 12 | (octets[1] & 0x3F) << 6 | (octets[2] & 0x3F);
                     if ((0xD800 <= v && v <= 0xDFFF) || ((octets[0] == 0xE0) && ((octets[1] < 0xA0) || (octets[1] > 0xBF)))) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 } else if (n == 4) {
                     v = (octets[0] & 0x07) << 18 | (octets[1] & 0x3F) << 12 | (octets[2] & 0x3F) << 6 | (octets[3] & 0x3F);
                     if ((octets[0] == 0xF0) && ((octets[1] < 0x90) || (octets[1] > 0xBF))) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                        ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 }
                 if (v >= 0x10000) {
@@ -608,10 +608,10 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
                 convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x003F));
                 i++;
             } else {
-                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+                ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
             }
         } else if (0xDC00 <= t && t <= 0xDFFF) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, errorMessage_GlobalObject_MalformedURI);
+            ErrorObject::throwBuiltinError(state, ErrorObject::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
         } else {
             RELEASE_ASSERT_NOT_REACHED();
         }
@@ -699,7 +699,7 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
         }
 
         if (UNLIKELY(len > STRING_MAXIMUM_LENGTH)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, errorMessage_String_InvalidStringLength);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::String_InvalidStringLength);
         }
     }
 
@@ -808,7 +808,7 @@ static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t 
     Object* O = thisValue.toObject(state);
     // If IsCallable(getter) is false, throw a TypeError exception.
     if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), errorMessage_GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
     ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asObject(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
@@ -834,7 +834,7 @@ static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t 
     Object* O = thisValue.toObject(state);
     // If IsCallable(getter) is false, throw a TypeError exception.
     if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), errorMessage_GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
     ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asObject()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));

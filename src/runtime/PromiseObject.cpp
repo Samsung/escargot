@@ -95,7 +95,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
 
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!constructor->isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_Not_Constructor);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
     }
 
     // Let promiseCapability be a new PromiseCapability { [[Promise]]: undefined, [[Resolve]]: undefined, [[Reject]]: undefined }.

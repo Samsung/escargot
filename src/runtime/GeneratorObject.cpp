@@ -53,11 +53,11 @@ void* GeneratorObject::operator new(size_t size)
 GeneratorObject* GeneratorObject::generatorValidate(ExecutionState& state, const Value& generator)
 {
     if (!generator.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     if (!generator.asObject()->isGeneratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     GeneratorObject* gen = generator.asObject()->asGeneratorObject();

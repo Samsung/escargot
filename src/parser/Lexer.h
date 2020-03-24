@@ -221,12 +221,13 @@ public:
     static void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code);
 };
 
-namespace Messages {
-extern const char* InvalidHexEscapeSequence;
-extern const char* UnexpectedTokenIllegal;
-extern const char* UnterminatedRegExp;
-extern const char* TemplateOctalLiteral;
-}
+class Messages {
+public:
+    static constexpr const char* InvalidHexEscapeSequence = "Invalid hexadecimal escape sequence";
+    static constexpr const char* UnexpectedTokenIllegal = "Unexpected token ILLEGAL";
+    static constexpr const char* UnterminatedRegExp = "Invalid regular expression: missing /";
+    static constexpr const char* TemplateOctalLiteral = "Octal literals are not allowed in template strings.";
+};
 
 class Scanner {
 public:
