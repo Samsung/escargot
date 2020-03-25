@@ -89,7 +89,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
     return map;
 }
 
-#define RESOLVE_THIS_BINDING_TO_MAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
+#define RESOLVE_THIS_BINDING_TO_WEAKMAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
     if (!thisValue.isObject() || !thisValue.asObject()->isWeakMapObject()) {                                                                                                                                                                   \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                          \
@@ -97,7 +97,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, stringDelete);
+    RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, stringDelete);
     if (!argv[0].isObject()) {
         return Value(false);
     }
@@ -107,7 +107,7 @@ static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, get);
+    RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, get);
     if (!argv[0].isObject()) {
         return Value();
     }
@@ -117,7 +117,7 @@ static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, has);
+    RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, has);
     if (!argv[0].isObject()) {
         return Value(false);
     }
@@ -127,7 +127,7 @@ static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_MAP(M, WeakMap, set);
+    RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, set);
     if (!argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid value used as weak map key");
     }
@@ -141,7 +141,7 @@ void GlobalObject::installWeakMap(ExecutionState& state)
     m_weakMap = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakMap->setGlobalIntrinsicObject(state);
 
-    m_weakMapPrototype = new WeakMapObject(state, m_objectPrototype);
+    m_weakMapPrototype = new Object(state, m_objectPrototype);
     m_weakMapPrototype->setGlobalIntrinsicObject(state, true);
     m_weakMapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

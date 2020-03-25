@@ -74,7 +74,6 @@ private:
 class StringIteratorObject : public IteratorObject {
 public:
     StringIteratorObject(ExecutionState& state, String* string);
-    StringIteratorObject(ExecutionState& state, Object* proto, String* string);
 
     virtual bool isStringIteratorObject() const override
     {

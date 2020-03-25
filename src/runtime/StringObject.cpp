@@ -129,12 +129,7 @@ ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, 
 }
 
 StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
-    : StringIteratorObject(state, state.context()->globalObject()->stringIteratorPrototype(), s)
-{
-}
-
-StringIteratorObject::StringIteratorObject(ExecutionState& state, Object* proto, String* s)
-    : IteratorObject(state, proto)
+    : IteratorObject(state, state.context()->globalObject()->stringIteratorPrototype())
     , m_string(s)
     , m_iteratorNextIndex(0)
 {
