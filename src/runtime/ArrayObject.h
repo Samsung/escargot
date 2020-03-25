@@ -173,7 +173,6 @@ public:
     };
 
     ArrayIteratorObject(ExecutionState& state, Object* array, Type type);
-    ArrayIteratorObject(ExecutionState& state, Object* proto, Object* array, Type type);
 
     virtual bool isArrayIteratorObject() const override
     {

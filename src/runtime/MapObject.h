@@ -79,12 +79,12 @@ public:
     };
 
     MapIteratorObject(ExecutionState& state, MapObject* map, Type type);
-    MapIteratorObject(ExecutionState& state, Object* proto, MapObject* map, Type type);
 
     virtual bool isMapIteratorObject() const override
     {
         return true;
     }
+
     virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "Map Iterator";

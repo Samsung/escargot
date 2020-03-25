@@ -185,7 +185,7 @@ static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isMapIteratorObject()) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isMapIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().MapIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
     }
     MapIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asMapIteratorObject();
@@ -248,7 +248,7 @@ void GlobalObject::installMap(ExecutionState& state)
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
-    m_mapIteratorPrototype = new MapIteratorObject(state, m_iteratorPrototype, nullptr, MapIteratorObject::TypeKey);
+    m_mapIteratorPrototype = new Object(state, m_iteratorPrototype);
     m_mapIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_mapIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

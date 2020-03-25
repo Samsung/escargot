@@ -62,7 +62,6 @@
     <test id="built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/toindex-length"><reason>TODO</reason></test>
-    <test id="built-ins/ArrayIteratorPrototype/next/detach-typedarray-in-progress"><reason>TODO</reason></test>
     <test id="built-ins/AsyncFunction/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorFunction/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/Symbol.toStringTag"><reason>TODO</reason></test>
@@ -1778,9 +1777,6 @@
     <test id="built-ins/TypedArrayConstructors/prototype/toString/bigint-inherited"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/prototype/values/bigint-inherited"><reason>TODO</reason></test>
     <test id="built-ins/WeakMap/proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/delete/does-not-have-weakmapdata-internal-slot-weakmap-prototype"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/has/does-not-have-weakmapdata-internal-slot-weakmap-prototype"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/set/does-not-have-weakmapdata-internal-slot-weakmap-prototype"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/constructor"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/instance-extensible"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/length"><reason>TODO</reason></test>

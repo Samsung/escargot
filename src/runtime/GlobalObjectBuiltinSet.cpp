@@ -172,7 +172,7 @@ static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isSetIteratorObject()) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isSetIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SetIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
     }
     SetIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asSetIteratorObject();
@@ -229,7 +229,7 @@ void GlobalObject::installSet(ExecutionState& state)
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
-    m_setIteratorPrototype = new SetIteratorObject(state, m_iteratorPrototype, nullptr, SetIteratorObject::TypeKey);
+    m_setIteratorPrototype = new Object(state, m_iteratorPrototype);
     m_setIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_setIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

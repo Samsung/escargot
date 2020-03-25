@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "ArrayObject.h"
+#include "TypedArrayObject.h"
 #include "ErrorObject.h"
 #include "Context.h"
 #include "VMInstance.h"
@@ -585,12 +586,7 @@ bool ArrayObject::preventExtensions(ExecutionState& state)
 }
 
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
-    : ArrayIteratorObject(state, state.context()->globalObject()->arrayIteratorPrototype(), a, type)
-{
-}
-
-ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* proto, Object* a, Type type)
-    : IteratorObject(state, proto)
+    : IteratorObject(state, state.context()->globalObject()->arrayIteratorPrototype())
     , m_array(a)
     , m_iteratorNextIndex(0)
     , m_type(type)
@@ -626,11 +622,20 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     // Let itemKind be the value of the [[ArrayIterationKind]] internal slot of O.
     Type itemKind = m_type;
 
+    size_t len;
     // If a has a [[TypedArrayName]] internal slot, then
-    // Let len be the value of a's [[ArrayLength]] internal slot.
-    // Else,
-    // Let len be ? ToLength(? Get(a, "length")).
-    auto len = a->lengthES6(state);
+    if (a->isTypedArrayObject()) {
+        // If IsDetachedBuffer(a.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
+        if (a->asArrayBufferView()->buffer()->isDetachedBuffer()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_DetachedBuffer);
+            return std::make_pair(Value(), false);
+        }
+        // Let len be a.[[ArrayLength]].
+        len = a->asArrayBufferView()->arrayLength();
+    } else {
+        // Let len be ? ToLength(? Get(a, "length")).
+        len = a->lengthES6(state);
+    }
 
     // If index ≥ len, then
     if (index >= len) {
@@ -646,13 +651,16 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     // If itemKind is "key", return CreateIterResultObject(index, false).
     if (itemKind == Type::TypeKey) {
         return std::make_pair(Value(index), false);
-    } else if (itemKind == Type::TypeValue) {
-        return std::make_pair(Value(a->getIndexedProperty(state, Value(index)).value(state, a)), false);
     } else {
-        ArrayObject* result = new ArrayObject(state);
-        result->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(Value(index), ObjectPropertyDescriptor::AllPresent));
-        result->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(Value(a->getIndexedProperty(state, Value(index)).value(state, a)), ObjectPropertyDescriptor::AllPresent));
-        return std::make_pair(result, false);
+        Value elementValue = a->getIndexedProperty(state, Value(index)).value(state, a);
+        if (itemKind == Type::TypeValue) {
+            return std::make_pair(elementValue, false);
+        } else {
+            ASSERT(itemKind == Type::TypeKeyValue);
+            Value v[2] = { Value(index), elementValue };
+            Value resultValue = Object::createArrayFromList(state, 2, v);
+            return std::make_pair(resultValue, false);
+        }
     }
 }
 }

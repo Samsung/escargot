@@ -135,12 +135,7 @@ SetIteratorObject* SetObject::entries(ExecutionState& state)
 }
 
 SetIteratorObject::SetIteratorObject(ExecutionState& state, SetObject* set, Type type)
-    : SetIteratorObject(state, state.context()->globalObject()->setIteratorPrototype(), set, type)
-{
-}
-
-SetIteratorObject::SetIteratorObject(ExecutionState& state, Object* proto, SetObject* set, Type type)
-    : IteratorObject(state, proto)
+    : IteratorObject(state, state.context()->globalObject()->setIteratorPrototype())
     , m_set(set)
     , m_iteratorIndex(0)
     , m_type(type)

@@ -150,12 +150,7 @@ MapIteratorObject* MapObject::entries(ExecutionState& state)
 }
 
 MapIteratorObject::MapIteratorObject(ExecutionState& state, MapObject* map, Type type)
-    : MapIteratorObject(state, state.context()->globalObject()->mapIteratorPrototype(), map, type)
-{
-}
-
-MapIteratorObject::MapIteratorObject(ExecutionState& state, Object* proto, MapObject* map, Type type)
-    : IteratorObject(state, proto)
+    : IteratorObject(state, state.context()->globalObject()->mapIteratorPrototype())
     , m_map(map)
     , m_iteratorIndex(0)
     , m_type(type)

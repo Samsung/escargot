@@ -1876,25 +1876,13 @@ static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isArrayIteratorObject() || thisValue.asObject()->asIteratorObject()->isArrayIteratorPrototypeObject()) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isArrayIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
     }
+
     ArrayIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asArrayIteratorObject();
     return iter->next(state);
 }
-
-class ArrayIteratorPrototypeObject : public ArrayIteratorObject {
-public:
-    explicit ArrayIteratorPrototypeObject(ExecutionState& state, Object* proto, Object* array, ArrayIteratorObject::Type type)
-        : ArrayIteratorObject(state, proto, array, type)
-    {
-    }
-
-    virtual bool isArrayIteratorPrototypeObject() const override
-    {
-        return true;
-    }
-};
 
 void GlobalObject::installArray(ExecutionState& state)
 {
@@ -2014,7 +2002,7 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 
-    m_arrayIteratorPrototype = new ArrayIteratorPrototypeObject(state, m_iteratorPrototype, nullptr, ArrayIteratorObject::TypeKey);
+    m_arrayIteratorPrototype = new Object(state, m_iteratorPrototype);
     m_arrayIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

@@ -78,12 +78,12 @@ public:
     };
 
     SetIteratorObject(ExecutionState& state, SetObject* set, Type type);
-    SetIteratorObject(ExecutionState& state, Object* proto, SetObject* set, Type type);
 
     virtual bool isSetIteratorObject() const override
     {
         return true;
     }
+
     virtual const char* internalClassProperty(ExecutionState& state) override
     {
         return "Set Iterator";

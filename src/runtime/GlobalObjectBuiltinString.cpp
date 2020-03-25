@@ -1473,7 +1473,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
 
 static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isIteratorObject() || !thisValue.asObject()->asIteratorObject()->isStringIteratorObject()) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isStringIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
     }
     StringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asStringIteratorObject();
@@ -1662,7 +1662,7 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
-    m_stringIteratorPrototype = new StringIteratorObject(state, m_iteratorPrototype, nullptr);
+    m_stringIteratorPrototype = new Object(state, m_iteratorPrototype);
     m_stringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
