@@ -61,37 +61,41 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     return result;
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.tostring
+// https://www.ecma-international.org/ecma-262/10.0/index.html#sec-function.prototype.tostring
 static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
 {
-    // FIXME: If Type(func) is Object and is either a built-in function object or has an [[ECMAScriptCode]] internal slot, then
-    if (LIKELY(thisValue.isFunction())) {
-        FunctionObject* fn = thisValue.asFunction();
+    if (LIKELY(thisValue.isObject())) {
+        Object* func = thisValue.asObject();
 
-        if (fn->isScriptClassConstructorFunctionObject()) {
-            return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->classSourceCode();
-        } else {
-            StringBuilder builder;
-            if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
-                StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
-                while (src.length() && EscargotLexer::isWhiteSpaceOrLineTerminator(src[src.length() - 1])) {
-                    src = StringView(src, 0, src.length() - 1);
-                }
-                builder.appendString(new StringView(src));
+        if (LIKELY(func->isFunctionObject())) {
+            FunctionObject* fn = func->asFunctionObject();
+
+            if (fn->isScriptClassConstructorFunctionObject()) {
+                return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->classSourceCode();
             } else {
-                builder.appendString("function ");
-                builder.appendString(fn->codeBlock()->functionName().string());
-                builder.appendString("() { [native code] }");
-            }
+                StringBuilder builder;
+                if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
+                    StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
+                    size_t length = src.length();
+                    while (length > 0 && EscargotLexer::isWhiteSpaceOrLineTerminator(src[length - 1])) {
+                        length--;
+                    }
+                    builder.appendString(new StringView(src, 0, length));
+                } else {
+                    builder.appendString("function ");
+                    builder.appendString(fn->codeBlock()->functionName().string());
+                    builder.appendString("() { [native code] }");
+                }
 
+                return builder.finalize(&state);
+            }
+        }
+
+        if (func->isBoundFunctionObject() || func->isCallable()) {
+            StringBuilder builder;
+            builder.appendString("function () { [native code] }");
             return builder.finalize(&state);
         }
-    }
-
-    if (thisValue.isObject() && thisValue.asObject()->isBoundFunctionObject()) {
-        StringBuilder builder;
-        builder.appendString("function () { [native code] }");
-        return builder.finalize(&state);
     }
 
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotFunctionObject);

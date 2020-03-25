@@ -607,16 +607,6 @@
     <test id="built-ins/Function/prototype/toString/private-method-class-statement"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/private-static-method-class-expression"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/private-static-method-class-statement"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-arrow-function"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-async-function"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-async-generator-function"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-async-generator-method-definition"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-async-method-definition"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-bound-function"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-class"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-function-expression"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-generator-function"><reason>TODO</reason></test>
-    <test id="built-ins/Function/prototype/toString/proxy-method-definition"><reason>TODO</reason></test>
     <test id="built-ins/GeneratorFunction/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint-cross-realm"><reason>TODO</reason></test>
