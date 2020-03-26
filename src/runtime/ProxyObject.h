@@ -76,15 +76,6 @@ public:
         return m_isConstructible;
     }
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        if (!m_target) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy cannot be null");
-        }
-        return m_target->internalClassProperty(state);
-    }
-
     virtual Context* getFunctionRealm(ExecutionState& state) override;
 
     static ProxyObject* createProxy(ExecutionState& state, const Value& target, const Value& handler);

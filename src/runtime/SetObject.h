@@ -41,12 +41,6 @@ public:
         return true;
     }
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Set";
-    }
-
     void add(ExecutionState& state, const Value& key);
     void clear(ExecutionState& state);
     bool deleteOperation(ExecutionState& state, const Value& key);
@@ -84,10 +78,6 @@ public:
         return true;
     }
 
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Set Iterator";
-    }
     virtual std::pair<Value, bool> advance(ExecutionState& state) override;
 
     void* operator new(size_t size);

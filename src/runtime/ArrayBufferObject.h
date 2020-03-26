@@ -48,12 +48,6 @@ public:
 
     static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Value constructor);
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state)
-    {
-        return "ArrayBuffer";
-    }
-
     static const uint32_t maxArrayBufferSize = 210000000;
 
     // Clone srcBuffer's srcByteOffset ~ end.
