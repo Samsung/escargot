@@ -44,12 +44,6 @@ public:
         return true;
     }
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state)
-    {
-        return "Boolean";
-    }
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

@@ -93,12 +93,6 @@ public:
     static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
     static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Array";
-    }
-
     void defineOwnIndexedPropertyWithExpandedLength(ExecutionState& state, const size_t& index, const Value& value)
     {
         ASSERT(index < getArrayLength(state));
@@ -174,10 +168,6 @@ public:
         return true;
     }
 
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Array Iterator";
-    }
     virtual std::pair<Value, bool> advance(ExecutionState& state) override;
 
     void* operator new(size_t size);

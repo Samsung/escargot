@@ -36,11 +36,6 @@ namespace Escargot {
         Object::setPrototype(state, proto);                                                                                             \
     }                                                                                                                                   \
     template <>                                                                                                                         \
-    const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty(ExecutionState& state)                                      \
-    {                                                                                                                                   \
-        return #Type "Array";                                                                                                           \
-    }                                                                                                                                   \
-    template <>                                                                                                                         \
     String* TypedArrayObject<Type##Adaptor, siz>::typedArrayName(ExecutionState& state)                                                 \
     {                                                                                                                                   \
         return state.context()->staticStrings().Type##Array.string();                                                                   \

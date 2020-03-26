@@ -51,11 +51,6 @@ public:
 
     AsyncGeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "AsyncGenerator";
-    }
-
     virtual bool isAsyncGeneratorObject() const override
     {
         return true;

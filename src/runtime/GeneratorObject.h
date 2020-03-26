@@ -47,11 +47,6 @@ public:
 
     GeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Generator";
-    }
-
     virtual bool isGeneratorObject() const override
     {
         return true;

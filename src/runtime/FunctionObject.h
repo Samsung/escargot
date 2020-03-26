@@ -122,12 +122,6 @@ public:
         return codeBlock()->isDerivedClassConstructor() ? ConstructorKind::Derived : ConstructorKind::Base;
     }
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
-    virtual const char* internalClassProperty(ExecutionState& state) override
-    {
-        return "Function";
-    }
-
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects
     // internal [[homeObject]] slot
     virtual Object* homeObject()
