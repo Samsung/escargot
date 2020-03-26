@@ -30,6 +30,7 @@
 #include "NumberObject.h"
 #include "BooleanObject.h"
 #include "SymbolObject.h"
+#include "ProxyObject.h"
 #include "util/Util.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
@@ -1333,6 +1334,24 @@ uint64_t Object::lengthES6(ExecutionState& state)
     return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
 }
 
+bool Object::isArray(ExecutionState& state)
+{
+    if (isArrayObject()) {
+        return true;
+    }
+    if (isProxyObject()) {
+        ProxyObject* proxy = asProxyObject();
+        if (proxy->handler() == nullptr) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not null.");
+            return false;
+        }
+        if (proxy->target() == nullptr) {
+            return false;
+        }
+        return proxy->target()->isArray(state);
+    }
+    return false;
+}
 
 bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
 {

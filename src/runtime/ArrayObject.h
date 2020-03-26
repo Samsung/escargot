@@ -59,11 +59,6 @@ public:
         return true;
     }
 
-    virtual bool isArray(ExecutionState& state) const override
-    {
-        return true;
-    }
-
     virtual bool isInlineCacheable() override
     {
         return false;

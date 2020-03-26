@@ -118,7 +118,6 @@ public:
     virtual Value getPrototype(ExecutionState&) override;
     virtual Object* getPrototypeObject(ExecutionState&) override;
 
-    virtual bool isArray(ExecutionState&) const override;
     virtual bool isExtensible(ExecutionState&) override;
 
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;

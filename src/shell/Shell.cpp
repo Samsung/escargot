@@ -356,6 +356,10 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
         }
 
 #if defined(ESCARGOT_ENABLE_TEST)
+        // There is no specific standard for the [@@toStringTag] property of global object.
+        // But "global" string is added here to pass legacy TCs
+        context->globalObject()->defineDataProperty(state, context->vmInstance()->toStringTagSymbol(), ObjectRef::DataPropertyDescriptor(AtomicStringRef::create(context, "global")->string(), (ObjectRef::PresentAttribute)(ObjectRef::NonWritablePresent | ObjectRef::NonEnumerablePresent | ObjectRef::ConfigurablePresent)));
+
         {
             FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "uneval"), builtinUneval, 1, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);

@@ -97,18 +97,34 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     StringBuilder builder;
     builder.appendString("[object ");
 
-    if (thisObject->isArray(state)) {
-        builder.appendString("Array");
+    Value toStringTag = thisObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
+    if (toStringTag.isString()) {
+        builder.appendString(toStringTag.asString());
     } else {
-        Value toStringTag = thisObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
-        if (toStringTag.isString()) {
-            builder.appendString(toStringTag.asString());
+        if (thisObject->isArray(state)) {
+            builder.appendString("Array");
+        } else if (thisObject->isStringObject()) {
+            builder.appendString("String");
+        } else if (thisObject->isArgumentsObject()) {
+            builder.appendString("Arguments");
+        } else if (thisObject->isCallable()) {
+            builder.appendString("Function");
+        } else if (thisObject->isErrorObject()) {
+            builder.appendString("Error");
+        } else if (thisObject->isBooleanObject()) {
+            builder.appendString("Boolean");
+        } else if (thisObject->isNumberObject()) {
+            builder.appendString("Number");
+        } else if (thisObject->isDateObject()) {
+            builder.appendString("Date");
+        } else if (thisObject->isRegExpObject()) {
+            builder.appendString("RegExp");
         } else {
-            builder.appendString(thisObject->internalClassProperty(state));
+            builder.appendString("Object");
         }
     }
-
     builder.appendString("]");
+
     return AtomicString(state, builder.finalize()).string();
 }
 

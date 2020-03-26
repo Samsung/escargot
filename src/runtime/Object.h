@@ -789,12 +789,6 @@ public:
         return rareData() == nullptr ? true : rareData()->m_isExtensible;
     }
 
-    // http://www.ecma-international.org/ecma-262/6.0/index.html#is-array
-    virtual bool isArray(ExecutionState& state) const
-    {
-        return false;
-    }
-
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
     virtual bool preventExtensions(ExecutionState&)
     {
@@ -868,6 +862,9 @@ public:
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     virtual uint64_t length(ExecutionState& state);
     uint64_t lengthES6(ExecutionState& state);
+
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-isarray
+    bool isArray(ExecutionState& state);
 
     bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {

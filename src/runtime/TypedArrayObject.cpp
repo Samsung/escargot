@@ -39,6 +39,11 @@ namespace Escargot {
     const char* TypedArrayObject<Type##Adaptor, siz>::internalClassProperty(ExecutionState& state)                                      \
     {                                                                                                                                   \
         return #Type "Array";                                                                                                           \
+    }                                                                                                                                   \
+    template <>                                                                                                                         \
+    String* TypedArrayObject<Type##Adaptor, siz>::typedArrayName(ExecutionState& state)                                                 \
+    {                                                                                                                                   \
+        return state.context()->staticStrings().Type##Array.string();                                                                   \
     }
 
 DEFINE_FN(Int8, int8, 1);
