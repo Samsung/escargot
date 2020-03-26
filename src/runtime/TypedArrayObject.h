@@ -42,6 +42,11 @@ public:
     }
 
     virtual TypedArrayType typedArrayType() = 0;
+    virtual String* typedArrayName(ExecutionState& state)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
     ALWAYS_INLINE uint8_t* rawBuffer() { return m_rawBuffer; }
     ALWAYS_INLINE unsigned byteLength() { return m_byteLength; }
@@ -285,6 +290,7 @@ public:
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.6.2
     virtual const char* internalClassProperty(ExecutionState& state) override;
+    virtual String* typedArrayName(ExecutionState& state) override;
 
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {

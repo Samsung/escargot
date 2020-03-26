@@ -616,19 +616,6 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     return OwnPropertyKeyVector(trapResult.data(), trapResult.size());
 }
 
-bool ProxyObject::isArray(ExecutionState& state) const
-{
-    // 3.a. If handler is null, throw a TypeError exception.
-    if (m_handler == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
-    }
-
-    // 3.b Let target be the value of the [[ProxyTarget]] internal slot of argument.
-    // 3.c Return IsArray(target).
-    return m_target->isArray(state);
-}
-
 bool ProxyObject::isExtensible(ExecutionState& state)
 {
     auto strings = &state.context()->staticStrings();

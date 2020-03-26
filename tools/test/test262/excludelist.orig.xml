@@ -641,9 +641,7 @@
     <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value_getter"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/Object.prototype.toString.call-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-bigint"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-override-bigint"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toString/symbol-tag-override-instances"><reason>TODO</reason></test>
     <test id="built-ins/Object/setPrototypeOf/bigint"><reason>TODO</reason></test>
     <test id="built-ins/Promise/all/invoke-resolve-get-error-close"><reason>TODO</reason></test>
     <test id="built-ins/Promise/all/invoke-resolve-get-once-multiple-calls"><reason>TODO</reason></test>
@@ -744,9 +742,9 @@
     <test id="built-ins/Proxy/construct/trap-is-undefined-proto-from-newtarget-realm"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/get-fn-realm"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/get-fn-realm-recursive"><reason>TODO</reason></test>
+    <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/revocable/revocation-function-name"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/set/call-parameters-prototype-index"><reason>TODO</reason></test>
     <test id="built-ins/Reflect/get/return-value-from-receiver"><reason>TODO</reason></test>
