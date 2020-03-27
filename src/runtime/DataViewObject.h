@@ -47,10 +47,9 @@ public:
     // 24.2.1.1
     Value getViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type)
     {
-        double numberIndex = index.toNumber(state);
-        double getIndex = Value(numberIndex).toInteger(state);
+        double numberIndex = index.toIndex(state);
 
-        if (numberIndex != getIndex || getIndex < 0)
+        if (numberIndex == Value::InvalidIndexValue)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
@@ -66,10 +65,10 @@ public:
 
         unsigned elementSize = ArrayBufferView::getElementSize(type);
 
-        if (getIndex + elementSize > viewSize)
+        if (numberIndex + elementSize > viewSize)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
 
-        unsigned bufferIndex = getIndex + viewOffset;
+        unsigned bufferIndex = numberIndex + viewOffset;
         switch (type) {
         case TypedArrayType::Float32:
             return buffer->getValueFromBuffer<float>(state, bufferIndex, isLittleEndian);
@@ -96,14 +95,13 @@ public:
     // 24.2.1.2
     Value setViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type, Value val)
     {
-        double numberIndex = index.toNumber(state);
-        double getIndex = Value(numberIndex).toInteger(state);
+        double numberIndex = index.toIndex(state);
 
-        if (numberIndex != getIndex || getIndex < 0)
+        if (numberIndex == Value::InvalidIndexValue)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
 
+        double numberValue = val.toNumber(state);
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
-
         ArrayBufferObject* buffer = this->buffer();
         if (!buffer || buffer->isDetachedBuffer()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
@@ -115,10 +113,10 @@ public:
 
         unsigned elementSize = this->getElementSize(type);
 
-        if (getIndex + elementSize > viewSize)
+        if (numberIndex + elementSize > viewSize)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
 
-        unsigned bufferIndex = getIndex + viewOffset;
+        unsigned bufferIndex = numberIndex + viewOffset;
         switch (type) {
         case TypedArrayType::Float32:
             buffer->setValueInBuffer<Float32Adaptor>(state, bufferIndex, val, isLittleEndian);

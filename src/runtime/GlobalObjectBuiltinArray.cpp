@@ -413,7 +413,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
                     Data* e = (Data*)data;
                     int64_t* ret = &e->ret;
                     Value key = name.toPlainValue(state);
-                    index = key.toIndex(state);
+                    index = key.toNumber(state);
                     if ((uint64_t)index != Value::InvalidIndexValue) {
                         if (self->get(state, name).value(state, self).isUndefined()) {
                             return true;
