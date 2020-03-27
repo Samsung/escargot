@@ -50,30 +50,26 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
     double byteOffset = 0;
     if (argc >= 2) {
         Value& val = argv[1];
-        double numberOffset = val.toNumber(state);
-        byteOffset = Value(numberOffset).toInteger(state);
-        if (numberOffset != byteOffset || byteOffset < 0) {
+        byteOffset = val.toIndex(state);
+        if (byteOffset == Value::InvalidIndexValue) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
-
     if (buffer->isDetachedBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
     }
-
     double bufferByteLength = buffer->byteLength();
 
     if (byteOffset > bufferByteLength) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
-
     double byteLength = bufferByteLength - byteOffset;
 
     if (argc >= 3) {
         Value& val = argv[2];
         if (!val.isUndefined()) {
-            byteLength = val.toLength(state);
-            if (byteOffset + byteLength > bufferByteLength) {
+            byteLength = val.toIndex(state);
+            if (byteOffset + byteLength > bufferByteLength || byteLength == Value::InvalidIndexValue) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
         }
@@ -84,6 +80,10 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
     });
     ArrayBufferView* obj = new DataViewObject(state, proto);
     obj->setBuffer(buffer, byteOffset, byteLength);
+
+    if (obj->buffer()->isDetachedBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
+    }
 
     return obj;
 }
@@ -137,7 +137,7 @@ static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue,
 
 static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer() && !thisValue.asObject()->asDataViewObject()->buffer()->isDetachedBuffer())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteLength called on incompatible receiver");
@@ -146,7 +146,7 @@ static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisVa
 
 static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer() && !thisValue.asObject()->asDataViewObject()->buffer()->isDetachedBuffer())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteOffset called on incompatible receiver");
@@ -155,7 +155,7 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
 
 void GlobalObject::installDataView(ExecutionState& state)
 {
-    m_dataView = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_dataView = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_dataView->setGlobalIntrinsicObject(state);
 
     m_dataViewPrototype = new DataViewObject(state, m_objectPrototype);

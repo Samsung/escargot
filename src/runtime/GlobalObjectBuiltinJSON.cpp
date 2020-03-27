@@ -333,7 +333,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
 
             std::vector<Value::ValueIndex> indexes;
             arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                Value::ValueIndex idx = P.toPlainValue(state).toIndex(state);
+                Value::ValueIndex idx = P.toPlainValue(state).toNumber(state);
                 if (idx != Value::InvalidIndexValue) {
                     std::vector<Value::ValueIndex>* indexes = (std::vector<Value::ValueIndex>*)data;
                     indexes->push_back(idx);

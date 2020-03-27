@@ -798,14 +798,16 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& state) const // $7.1.15 
     int32_t i;
     if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
         return i;
-    } else {
-        auto newLen = toInteger(state);
-        if (newLen != toNumber(state) || std::isinf(newLen)) {
+    }
+    ValueIndex index = 0;
+    if (!isUndefined()) {
+        auto integerIndex = toInteger(state);
+        index = Value(integerIndex).toLength(state);
+        if (integerIndex < 0 || integerIndex != index) {
             return Value::InvalidIndexValue;
-        } else {
-            return newLen;
         }
     }
+    return index;
 }
 
 Value::ValueIndex Value::tryToUseAsIndex(ExecutionState& ec) const
