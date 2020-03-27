@@ -1,0 +1,58 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_variables.js:21
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:23
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:24
+(escargot-debugger) scope
+Declarative Environment
+Declarative Environment
+Global Environment
+(escargot-debugger) variables
+c: number: 8
+d: unaccessible
+(escargot-debugger) variables 1
+a: number: 6
+b: unaccessible
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:26
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:35
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:30 (in f() at line:29, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:32 (in f() at line:29, col:1)
+(escargot-debugger) scope
+Declarative Environment
+Function Environment
+Global Environment
+(escargot-debugger) variables
+c: undefined
+(escargot-debugger) variables 1
+a: number: 1
+b: number: 2
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:37
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:38
+(escargot-debugger) scope
+Object Environment
+Global Environment
+(escargot-debugger) variables
+p1: number: 1
+p2: number: 2
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:43
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:44
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_variables.js:45
+(escargot-debugger) scope
+Declarative Environment
+Global Environment
+(escargot-debugger) variables
+a1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567...: number: 1
+b: string: 12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678...
+(escargot-debugger) s
+Connection closed.

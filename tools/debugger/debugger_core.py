@@ -63,6 +63,11 @@ ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33
 ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34
 ESCARGOT_MESSAGE_SCOPE_CHAIN = 35
 ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 36
+ESCARGOT_MESSAGE_VARIABLE = 37
+ESCARGOT_MESSAGE_VARIABLE_8BIT = 38
+ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 39
+ESCARGOT_MESSAGE_VARIABLE_16BIT = 40
+ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 41
 
 
 # Messages sent by the debugger client to Escargot.
@@ -77,6 +82,7 @@ ESCARGOT_MESSAGE_EVAL_16BIT_START = 7
 ESCARGOT_MESSAGE_EVAL_16BIT = 8
 ESCARGOT_MESSAGE_GET_BACKTRACE = 9
 ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 10
+ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 11
 
 
 # Environment record types
@@ -86,6 +92,22 @@ ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT = 2
 ESCARGOT_RECORD_OBJECT_ENVIRONMENT = 3
 ESCARGOT_RECORD_MODULE_ENVIRONMENT = 4
 ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT = 5
+
+
+# Variable types
+ESCARGOT_VARIABLE_END = 0
+ESCARGOT_VARIABLE_UNACCESSIBLE = 1
+ESCARGOT_VARIABLE_UNDEFINED = 2
+ESCARGOT_VARIABLE_NULL = 3
+ESCARGOT_VARIABLE_TRUE = 4
+ESCARGOT_VARIABLE_FALSE = 5
+ESCARGOT_VARIABLE_NUMBER = 6
+ESCARGOT_VARIABLE_STRING = 7
+ESCARGOT_VARIABLE_OBJECT = 8
+ESCARGOT_VARIABLE_ARRAY = 9
+ESCARGOT_VARIABLE_FUNCTION = 10
+ESCARGOT_VARIABLE_LONG_NAME = 0x40
+ESCARGOT_VARIABLE_LONG_VALUE = 0x80
 
 
 def arguments_parse():
@@ -286,10 +308,10 @@ class Debugger(object):
         if self.channel is not None:
             self.channel.close()
 
-    def dencode8(self, string):
+    def decode8(self, string):
         return string.decode("latin1")
 
-    def dencode16(self, string):
+    def decode16(self, string):
         return string.decode("UTF-16LE" if self.little_endian else "UTF-16BE", "namereplace")
 
     # pylint: disable=too-many-branches,too-many-locals,too-many-statements,too-many-return-statements
@@ -361,14 +383,15 @@ class Debugger(object):
                                  ESCARGOT_MESSAGE_EVAL_RESULT_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END]:
                 self.prompt = True
-                return self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, "", data);
+                return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data));
 
             elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
                 self.prompt = True
-                return self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, self.red + "Exception: ", data);
+                result = self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data);
+                return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.no_color));
 
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE_8BIT,
                                  ESCARGOT_MESSAGE_BACKTRACE_8BIT_END,
@@ -388,9 +411,9 @@ class Debugger(object):
                 backtrace += data[1:]
 
                 if buffer_type == ESCARGOT_MESSAGE_BACKTRACE_8BIT_END:
-                    backtrace = self.encode8(backtrace)
+                    backtrace = self.decode8(backtrace)
                 else:
-                    backtrace = self.encode16(backtrace)
+                    backtrace = self.decode16(backtrace)
 
                 self.prompt = True
                 return DebuggerAction(DebuggerAction.TEXT, backtrace.replace("\0", "\n"))
@@ -427,6 +450,48 @@ class Debugger(object):
 
                 self.prompt = True
                 return DebuggerAction(DebuggerAction.TEXT, result)
+
+            elif buffer_type == ESCARGOT_MESSAGE_VARIABLE:
+                variable_full_type = ord(data[1])
+                variable_type = variable_full_type & 0x3f
+                variable_has_value = False
+
+                if variable_type == ESCARGOT_VARIABLE_END:
+                    self.prompt = True
+                    return DebuggerAction(DebuggerAction.WAIT, "")
+                elif variable_type == ESCARGOT_VARIABLE_UNACCESSIBLE:
+                    value_str = "unaccessible"
+                elif variable_type == ESCARGOT_VARIABLE_UNDEFINED:
+                    value_str = "undefined"
+                elif variable_type == ESCARGOT_VARIABLE_NULL:
+                    value_str = "null"
+                elif variable_type == ESCARGOT_VARIABLE_TRUE:
+                    value_str = "true"
+                elif variable_type == ESCARGOT_VARIABLE_FALSE:
+                    value_str = "false"
+                elif variable_type == ESCARGOT_VARIABLE_NUMBER:
+                    value_str = "number: "
+                    variable_has_value = True
+                elif variable_type == ESCARGOT_VARIABLE_STRING:
+                    value_str = "string: "
+                    variable_has_value = True
+                elif variable_type == ESCARGOT_VARIABLE_OBJECT:
+                    value_str = "object"
+                elif variable_type == ESCARGOT_VARIABLE_ARRAY:
+                    value_str = "array"
+                elif variable_type == ESCARGOT_VARIABLE_FUNCTION:
+                    value_str = "function"
+
+                name = self._receive_string(ESCARGOT_MESSAGE_VARIABLE_8BIT, self.channel.get_message(True));
+                if variable_full_type & ESCARGOT_VARIABLE_LONG_NAME != 0:
+                    name += "..."
+
+                if variable_has_value:
+                    value_str += self._receive_string(ESCARGOT_MESSAGE_VARIABLE_8BIT, self.channel.get_message(True));
+                    if variable_full_type & ESCARGOT_VARIABLE_LONG_VALUE:
+                        value_str += "..."
+
+                return DebuggerAction(DebuggerAction.TEXT, "%s: %s\n" % (name, value_str))
 
             else:
                 raise Exception("Unknown message: %d" % (buffer_type))
@@ -602,6 +667,27 @@ class Debugger(object):
         self.prompt = False
         self._exec_command(ESCARGOT_MESSAGE_GET_SCOPE_CHAIN)
 
+    def scope_variables(self, args):
+        index = 0
+        if args:
+            try:
+                index = int(args)
+                if index < 0:
+                    return "Error: A non negative integer number expected"
+
+            except ValueError as val_errno:
+                return "Error: Non negative integer number expected, %s\n" % (val_errno)
+
+        message = struct.pack(self.byte_order + "BB" + self.idx_format,
+                              1 + 4,
+                              ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES,
+                              index)
+
+        self.channel.send_message(self.byte_order, message)
+
+        self.prompt = False
+        return ""
+
     # pylint: disable=too-many-branches,too-many-locals,too-many-statements
     def _parse_source(self, data):
         source = ""
@@ -632,32 +718,32 @@ class Debugger(object):
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT, ESCARGOT_MESSAGE_SOURCE_8BIT_END]:
                 source += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_SOURCE_8BIT_END:
-                    source = self.dencode8(source)
+                    source = self.decode8(source)
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_16BIT, ESCARGOT_MESSAGE_SOURCE_16BIT_END]:
                 source += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_SOURCE_16BIT_END:
-                    source = self.dencode16(source)
+                    source = self.decode16(source)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_8BIT, ESCARGOT_MESSAGE_FILE_NAME_8BIT_END]:
                 source_name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_8BIT_END:
-                    source_name = self.dencode8(source_name)
+                    source_name = self.decode8(source_name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_16BIT, ESCARGOT_MESSAGE_FILE_NAME_16BIT_END]:
                 source_name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_16BIT_END:
-                    source_name = self.dencode16(source_name)
+                    source_name = self.decode16(source_name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END]:
                 name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END:
-                    name = self.dencode8(name)
+                    name = self.decode8(name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END]:
                 name += data[1:]
                 if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END:
-                    name = self.dencode16(name)
+                    name = self.decode16(name)
 
             elif buffer_type == ESCARGOT_MESSAGE_BREAKPOINT_LOCATION:
                 logging.debug("Breakpoint %s received", source_name)
@@ -831,7 +917,7 @@ class Debugger(object):
 
             self.channel.send_message(self.byte_order, message + args[prev_offset:offset])
 
-    def _receive_string(self, message_type, prefix, data):
+    def _receive_string(self, message_type, data):
         result = b'';
         buffer_type = ord(data[0])
         end_type = message_type + 1;
@@ -850,9 +936,8 @@ class Debugger(object):
         result += data[1:]
 
         if end_type == message_type + 1:
-            result = self.encode8(result)
+            result = self.decode8(result)
         else:
-            result = self.encode16(result)
+            result = self.decode16(result)
 
-        self.prompt = True
-        return DebuggerAction(DebuggerAction.TEXT, "%s%s%s\n" % (prefix, result, self.nocolor))
+        return result;

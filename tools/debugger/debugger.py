@@ -164,6 +164,11 @@ class DebuggerPrompt(Cmd):
         self.debugger.scope_chain()
         self.stop = True
 
+    def do_variables(self, args):
+        """ Get scope variables from debugger """
+        write(self.debugger.scope_variables(args))
+        self.stop = True
+
     def do_dump(self, args):
         """ Dump all of the debugger data """
         if args:

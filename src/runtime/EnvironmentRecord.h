@@ -194,6 +194,12 @@ public:
         return reinterpret_cast<DeclarativeEnvironmentRecord*>(this);
     }
 
+    ModuleEnvironmentRecord* asModuleEnvironmentRecord()
+    {
+        ASSERT(isModuleEnvironmentRecord());
+        return reinterpret_cast<ModuleEnvironmentRecord*>(this);
+    }
+
 protected:
 };
 
@@ -281,6 +287,9 @@ private:
 
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-global-environment-records
 class GlobalEnvironmentRecord : public EnvironmentRecord {
+#ifdef ESCARGOT_DEBUGGER
+    friend class Debugger;
+#endif /* ESCARGOT_DEBUGGER */
 public:
     GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, SmallValueVector* globalDeclarativeStorage);
     ~GlobalEnvironmentRecord() {}
@@ -526,6 +535,9 @@ private:
 // NOTE
 // DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
+#ifdef ESCARGOT_DEBUGGER
+    friend class Debugger;
+#endif /* ESCARGOT_DEBUGGER */
 public:
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, bool isVarDeclarationTarget = false, bool isCatchClause = false)
         : DeclarativeEnvironmentRecord()
@@ -828,6 +840,13 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    virtual IdentifierRecordVector* getRecordVector()
+    {
+        return NULL;
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
 private:
     // ArgumentsObject is constructed on EnsureArgumentsObject opcode
     union {
@@ -1031,6 +1050,12 @@ public:
         return EnvironmentRecord::BindingSlot(this, SIZE_MAX, false);
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    virtual IdentifierRecordVector* getRecordVector()
+    {
+        return &m_recordVector;
+    }
+#endif /* ESCARGOT_DEBUGGER */
 
     virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr) override;
     virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
@@ -1054,6 +1079,9 @@ public:
 };
 
 class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
+#ifdef ESCARGOT_DEBUGGER
+    friend class Debugger;
+#endif /* ESCARGOT_DEBUGGER */
 public:
     ModuleEnvironmentRecord(Script* script)
         : DeclarativeEnvironmentRecord()
