@@ -258,10 +258,6 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
     // Let toString be the result of calling the [[Get]] internal method of O passing "toString" as the argument.
     Value toString = O->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, O);
 
-    // If IsCallable(toString) is false, throw a TypeError exception.
-    if (!toString.isCallable())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
-
     // Return the result of calling the [[Call]] internal method of toString passing O as the this value and no arguments.
     return Object::call(state, toString, Value(O), 0, nullptr);
 }
