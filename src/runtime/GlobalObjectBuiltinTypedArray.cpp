@@ -1551,80 +1551,55 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
 static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toLocaleString);
+    RESOLVE_THIS_BINDING_TO_OBJECT(array, TypedArray, toLocaleString);
     // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().toLocaleString.string());
+    validateTypedArray(state, array, state.context()->staticStrings().toLocaleString.string());
 
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    uint64_t len = array->asArrayBufferView()->arrayLength();
 
-    if (!state.context()->toStringRecursionPreventer()->canInvokeToString(O)) {
+    if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
         return String::emptyString;
     }
-    ToStringRecursionPreventerItemAutoHolder holder(state, O);
+    ToStringRecursionPreventerItemAutoHolder holder(state, array);
 
     // Let separator be the String value for the list-separator String appropriate for the host environment’s current locale (this is derived in an implementation-defined way).
     String* separator = state.context()->staticStrings().asciiTable[(size_t)','].string();
 
-    // If len is zero, return the empty String.
-    if (len == 0) {
-        return String::emptyString;
-    }
+    // Let R be the empty String.
+    String* R = String::emptyString;
 
-    // Let firstElement be the result of calling the [[Get]] internal method of array with argument "0".
-    Value firstElement = O->getIndexedProperty(state, Value(0)).value(state, O);
-
-    // If firstElement is undefined or null, then
-    Value R;
-    RELEASE_ASSERT(!firstElement.isUndefinedOrNull());
-    // Let elementObj be ToObject(firstElement).
-    Object* elementObj = firstElement.toObject(state);
-    // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
-    Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
-    // If IsCallable(func) is false, throw a TypeError exception.
-    if (!func.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
-    }
-    // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-    R = Object::call(state, func, elementObj, 0, nullptr);
-
-    // Let k be 1.
-    int64_t k = 1;
+    // Let k be 0.
+    uint64_t k = 0;
 
     // Repeat, while k < len
     while (k < len) {
-        // Let S be a String value produced by concatenating R and separator.
-        StringBuilder builder;
-        builder.appendString(R.toString(state));
-        builder.appendString(separator);
-        String* S = builder.finalize(&state);
-
-        // Let nextElement be the result of calling the [[Get]] internal method of array with argument ToString(k).
-        Value nextElement = O->getIndexedProperty(state, Value(k)).value(state, O);
-
-        // If nextElement is undefined or null, then
-        RELEASE_ASSERT(!nextElement.isUndefinedOrNull());
-        // Let elementObj be ToObject(nextElement).
-        Object* elementObj = nextElement.toObject(state);
-        // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
-        Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
-        // If IsCallable(func) is false, throw a TypeError exception.
-        if (!func.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
+        // If k > 0, then
+        if (k > 0) {
+            // Set R to the string-concatenation of R and separator.
+            StringBuilder builder;
+            builder.appendString(R);
+            builder.appendString(separator);
+            R = builder.finalize(&state);
         }
-        // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-        R = Object::call(state, func, elementObj, 0, nullptr);
-
-        // Let R be a String value produced by concatenating S and R.
+        // Let nextElement be ? Get(array, ! ToString(k)).
+        Value nextElement = array->getIndexedProperty(state, Value(k)).value(state, array);
+        // If nextElement is not undefined or null, then
+        ASSERT(!nextElement.isUndefinedOrNull());
+        // Let S be ? ToString(? Invoke(nextElement, "toLocaleString")).
+        Value func = nextElement.toObject(state)->get(state, state.context()->staticStrings().toLocaleString).value(state, nextElement);
+        String* S = Object::call(state, func, nextElement, 0, nullptr).toString(state);
+        // Set R to the string-concatenation of R and S.
         StringBuilder builder2;
+        builder2.appendString(R);
         builder2.appendString(S);
-        builder2.appendString(R.toString(state));
         R = builder2.finalize(&state);
         // Increase k by 1.
         k++;
     }
+
     // Return R.
     return R;
 }

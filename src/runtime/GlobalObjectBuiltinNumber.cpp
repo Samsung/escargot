@@ -269,14 +269,8 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
     }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    Value locales, options;
-
-    if (argc >= 1) {
-        locales = argv[0];
-    }
-    if (argc >= 2) {
-        options = argv[1];
-    }
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
     Object* numberFormat = IntlNumberFormat::create(state, state.context(), locales, options);
     double x = 0;
     if (thisValue.isNumber()) {

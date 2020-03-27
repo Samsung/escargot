@@ -1281,75 +1281,45 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
     }
     ToStringRecursionPreventerItemAutoHolder holder(state, array);
 
-    // Let arrayLen be the result of calling the [[Get]] internal method of array with argument "length".
-    // Let len be ToUint32(arrayLen).
-    int64_t len = array->length(state);
+    // Let len be ? ToLength(? Get(array, "length")).
+    uint64_t len = array->lengthES6(state);
 
     // Let separator be the String value for the list-separator String appropriate for the host environment’s current locale (this is derived in an implementation-defined way).
     String* separator = state.context()->staticStrings().asciiTable[(size_t)','].string();
 
-    // If len is zero, return the empty String.
-    if (len == 0)
-        return String::emptyString;
+    // Let R be the empty String.
+    String* R = String::emptyString;
 
-    // Let firstElement be the result of calling the [[Get]] internal method of array with argument "0".
-    Value firstElement = array->get(state, ObjectPropertyName(state, Value(0))).value(state, array);
-
-    // If firstElement is undefined or null, then
-    Value R;
-    if (firstElement.isUndefinedOrNull()) {
-        // Let R be the empty String.
-        R = String::emptyString;
-    } else {
-        // Let elementObj be ToObject(firstElement).
-        Object* elementObj = firstElement.toObject(state);
-
-        // Let R be ? ToString(? Invoke(elementObj, "toLocaleString", « locales, options »)).
-        Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
-        if (!func.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
-        }
-        R = Object::call(state, func, elementObj, argc, argv).toString(state);
-    }
-
-    // Let k be 1.
-    int64_t k = 1;
+    // Let k be 0.
+    uint64_t k = 0;
 
     // Repeat, while k < len
     while (k < len) {
-        // Let S be a String value produced by concatenating R and separator.
-        StringBuilder builder;
-        builder.appendString(R.toString(state));
-        builder.appendString(separator);
-        String* S = builder.finalize(&state);
-
-        // Let nextElement be the result of calling the [[Get]] internal method of array with argument ToString(k).
-        Value nextElement = array->get(state, ObjectPropertyName(state, Value(k))).value(state, array);
-
-        // If nextElement is undefined or null, then
-        if (nextElement.isUndefinedOrNull()) {
-            // Let R be the empty String.
-            R = String::emptyString;
-        } else {
-            // Let elementObj be ToObject(nextElement).
-            Object* elementObj = nextElement.toObject(state);
-            // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
-            Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
-            // If IsCallable(func) is false, throw a TypeError exception.
-            if (!func.isCallable()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
-            }
-            // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-            R = Object::call(state, func, elementObj, 0, nullptr);
+        // If k > 0, then
+        if (k > 0) {
+            // Set R to the string-concatenation of R and separator.
+            StringBuilder builder;
+            builder.appendString(R);
+            builder.appendString(separator);
+            R = builder.finalize(&state);
         }
-        // Let R be a String value produced by concatenating S and R.
-        StringBuilder builder2;
-        builder2.appendString(S);
-        builder2.appendString(R.toString(state));
-        R = builder2.finalize(&state);
+        // Let nextElement be ? Get(array, ! ToString(k)).
+        Value nextElement = array->getIndexedProperty(state, Value(k)).value(state, array);
+        // If nextElement is not undefined or null, then
+        if (!nextElement.isUndefinedOrNull()) {
+            // Let S be ? ToString(? Invoke(nextElement, "toLocaleString", « locales, options »)).
+            Value func = nextElement.toObject(state)->get(state, state.context()->staticStrings().toLocaleString).value(state, nextElement);
+            String* S = Object::call(state, func, nextElement, argc, argv).toString(state);
+            // Set R to the string-concatenation of R and S.
+            StringBuilder builder;
+            builder.appendString(R);
+            builder.appendString(S);
+            R = builder.finalize(&state);
+        }
         // Increase k by 1.
         k++;
     }
+
     // Return R.
     return R;
 }
