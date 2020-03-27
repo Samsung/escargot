@@ -36,6 +36,11 @@ void Debugger::sendType(uint8_t type)
     send(type, nullptr, 0);
 }
 
+void Debugger::sendSubtype(uint8_t type, uint8_t subType)
+{
+    send(type, &subType, 1);
+}
+
 void Debugger::sendString(uint8_t type, StringView* string)
 {
     size_t length = string->length();
@@ -263,6 +268,17 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
             getScopeChain(state);
             return true;
         }
+        case ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES: {
+            if (length != 1 + sizeof(uint32_t) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            uint32_t index;
+            memcpy(&index, buffer + 1, sizeof(uint32_t));
+
+            getScopeVariables(state, index);
+            return true;
+        }
         }
 
         ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
@@ -412,20 +428,19 @@ void Debugger::getScopeChain(ExecutionState* state)
             nextScope = 0;
         }
 
-
         if (record->isGlobalEnvironmentRecord()) {
             type = ESCARGOT_RECORD_GLOBAL_ENVIRONMENT;
         } else if (record->isDeclarativeEnvironmentRecord()) {
             DeclarativeEnvironmentRecord* declarativeRecord = record->asDeclarativeEnvironmentRecord();
             if (declarativeRecord->isFunctionEnvironmentRecord()) {
                 type = ESCARGOT_RECORD_FUNCTION_ENVIRONMENT;
+            } else if (record->isModuleEnvironmentRecord()) {
+                type = ESCARGOT_RECORD_MODULE_ENVIRONMENT;
             } else {
                 type = ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT;
             }
         } else if (record->isObjectEnvironmentRecord()) {
             type = ESCARGOT_RECORD_OBJECT_ENVIRONMENT;
-        } else if (record->isModuleEnvironmentRecord()) {
-            type = ESCARGOT_RECORD_MODULE_ENVIRONMENT;
         } else {
             type = ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT;
         }
@@ -435,6 +450,159 @@ void Debugger::getScopeChain(ExecutionState* state)
     }
 
     send(ESCARGOT_MESSAGE_SCOPE_CHAIN_END, buffer, nextScope);
+}
+
+static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString name, Value value)
+{
+    uint8_t type = Debugger::ESCARGOT_VARIABLE_UNDEFINED;
+    StringView* valueView = nullptr;
+
+    if (value.isNull()) {
+        type = Debugger::ESCARGOT_VARIABLE_NULL;
+    } else if (value.isTrue()) {
+        type = Debugger::ESCARGOT_VARIABLE_TRUE;
+    } else if (value.isFalse()) {
+        type = Debugger::ESCARGOT_VARIABLE_FALSE;
+    } else if (value.isNumber()) {
+        type = Debugger::ESCARGOT_VARIABLE_NUMBER;
+
+        String* valueString = value.toString(*state);
+        valueView = new StringView(valueString);
+    } else if (value.isString()) {
+        type = Debugger::ESCARGOT_VARIABLE_STRING;
+
+        String* valueString = value.asString();
+        size_t valueLength = valueString->length();
+
+        if (valueLength >= ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
+            type |= Debugger::ESCARGOT_VARIABLE_LONG_VALUE;
+            valueLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
+        }
+
+        valueView = new StringView(valueString, 0, valueLength);
+    } else if (value.isFunction()) {
+        type = Debugger::ESCARGOT_VARIABLE_FUNCTION;
+    } else if (value.isObject()) {
+        type = Debugger::ESCARGOT_VARIABLE_OBJECT;
+
+        Object* valueObject = value.asObject();
+
+        if (valueObject->isArrayObject()) {
+            type = Debugger::ESCARGOT_VARIABLE_ARRAY;
+        }
+    }
+
+    size_t nameLength = name.string()->length();
+
+    if (nameLength > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
+        type |= Debugger::ESCARGOT_VARIABLE_LONG_NAME;
+        nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
+    }
+
+    debugger->sendSubtype(Debugger::ESCARGOT_MESSAGE_VARIABLE, type);
+
+    if (debugger->enabled()) {
+        StringView* nameView = new StringView(name.string(), 0, nameLength);
+        debugger->sendString(Debugger::ESCARGOT_MESSAGE_VARIABLE_8BIT, nameView);
+    }
+
+    if (valueView && debugger->enabled()) {
+        debugger->sendString(Debugger::ESCARGOT_MESSAGE_VARIABLE_8BIT, valueView);
+    }
+}
+
+static void sendUnaccessibleProperty(Debugger* debugger, AtomicString name)
+{
+    uint8_t type = Debugger::ESCARGOT_VARIABLE_UNACCESSIBLE;
+    size_t nameLength = name.string()->length();
+
+    if (nameLength > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
+        type |= Debugger::ESCARGOT_VARIABLE_LONG_NAME;
+        nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
+    }
+
+    debugger->sendSubtype(Debugger::ESCARGOT_MESSAGE_VARIABLE, type);
+
+    if (debugger->enabled()) {
+        StringView* nameView = new StringView(name.string(), 0, nameLength);
+        debugger->sendString(Debugger::ESCARGOT_MESSAGE_VARIABLE_8BIT, nameView);
+    }
+}
+
+static void sendObjectProperties(Debugger* debugger, ExecutionState* state, Object* object)
+{
+    Object::OwnPropertyKeyVector keys = object->ownPropertyKeys(*state);
+    size_t size = keys.size();
+
+    for (size_t i = 0; i < size; i++) {
+        ObjectPropertyName propertyName(*state, keys[i]);
+        AtomicString name(*state, keys[i].toStringWithoutException(*state));
+
+        try {
+            ObjectGetResult result = object->getOwnProperty(*state, propertyName);
+
+            sendProperty(debugger, state, name, result.value(*state, Value(object)));
+        } catch (const Value& val) {
+            sendUnaccessibleProperty(debugger, name);
+        }
+    }
+}
+
+static void sendRecordProperties(Debugger* debugger, ExecutionState* state, IdentifierRecordVector& identifiers, EnvironmentRecord* record)
+{
+    size_t size = identifiers.size();
+
+    for (size_t i = 0; i < size; i++) {
+        AtomicString name = identifiers[i].m_name;
+
+        try {
+            EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, name);
+            ASSERT(result.m_hasBindingValue);
+            sendProperty(debugger, state, name, result.m_value);
+        } catch (const Value& val) {
+            sendUnaccessibleProperty(debugger, name);
+        }
+    }
+}
+
+void Debugger::getScopeVariables(ExecutionState* state, uint32_t index)
+{
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv && index > 0) {
+        lexEnv = lexEnv->outerEnvironment();
+        index--;
+    }
+
+    if (!lexEnv) {
+        sendSubtype(ESCARGOT_MESSAGE_VARIABLE, ESCARGOT_VARIABLE_END);
+        return;
+    }
+
+    EnvironmentRecord* record = lexEnv->record();
+    if (record->isGlobalEnvironmentRecord()) {
+        GlobalEnvironmentRecord* global = record->asGlobalEnvironmentRecord();
+
+        sendRecordProperties(this, state, *global->m_globalDeclarativeRecord, record);
+        sendObjectProperties(this, state, global->m_globalObject);
+    } else if (record->isDeclarativeEnvironmentRecord()) {
+        DeclarativeEnvironmentRecord* declarativeRecord = record->asDeclarativeEnvironmentRecord();
+        if (declarativeRecord->isFunctionEnvironmentRecord()) {
+            IdentifierRecordVector* identifierRecordVector = declarativeRecord->asFunctionEnvironmentRecord()->getRecordVector();
+
+            if (identifierRecordVector != NULL) {
+                sendRecordProperties(this, state, *identifierRecordVector, record);
+            }
+        } else if (record->isModuleEnvironmentRecord()) {
+            sendRecordProperties(this, state, declarativeRecord->asModuleEnvironmentRecord()->m_moduleDeclarativeRecord, record);
+        } else if (declarativeRecord->isDeclarativeEnvironmentRecordNotIndexed()) {
+            sendRecordProperties(this, state, declarativeRecord->asDeclarativeEnvironmentRecordNotIndexed()->m_recordVector, record);
+        }
+    } else if (record->isObjectEnvironmentRecord()) {
+        sendObjectProperties(this, state, record->asObjectEnvironmentRecord()->bindingObject());
+    }
+
+    sendSubtype(ESCARGOT_MESSAGE_VARIABLE, ESCARGOT_VARIABLE_END);
 }
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)

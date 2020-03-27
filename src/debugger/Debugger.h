@@ -33,6 +33,7 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_IN_WAIT_MODE (nullptr)
 #define ESCARGOT_DEBUGGER_IN_EVAL_MODE ((ExecutionState*)0x1)
 #define ESCARGOT_DEBUGGER_ALWAYS_STOP ((ExecutionState*)0x2)
+#define ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH 128
 
 class ExecutionState;
 class ByteCodeBlock;
@@ -87,6 +88,12 @@ public:
         ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34,
         ESCARGOT_MESSAGE_SCOPE_CHAIN = 35,
         ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 36,
+        ESCARGOT_MESSAGE_VARIABLE = 37,
+        // These four must be in the same order.
+        ESCARGOT_MESSAGE_VARIABLE_8BIT = 38,
+        ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 39,
+        ESCARGOT_MESSAGE_VARIABLE_16BIT = 40,
+        ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 41,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -103,6 +110,7 @@ public:
         ESCARGOT_MESSAGE_EVAL_16BIT = 8,
         ESCARGOT_MESSAGE_GET_BACKTRACE = 9,
         ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 10,
+        ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 11,
     };
 
     // Environment record types
@@ -113,6 +121,23 @@ public:
         ESCARGOT_RECORD_OBJECT_ENVIRONMENT = 3,
         ESCARGOT_RECORD_MODULE_ENVIRONMENT = 4,
         ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT = 5,
+    };
+
+    // Variable types
+    enum {
+        ESCARGOT_VARIABLE_END = 0,
+        ESCARGOT_VARIABLE_UNACCESSIBLE = 1,
+        ESCARGOT_VARIABLE_UNDEFINED = 2,
+        ESCARGOT_VARIABLE_NULL = 3,
+        ESCARGOT_VARIABLE_TRUE = 4,
+        ESCARGOT_VARIABLE_FALSE = 5,
+        ESCARGOT_VARIABLE_NUMBER = 6,
+        ESCARGOT_VARIABLE_STRING = 7,
+        ESCARGOT_VARIABLE_OBJECT = 8,
+        ESCARGOT_VARIABLE_ARRAY = 9,
+        ESCARGOT_VARIABLE_FUNCTION = 10,
+        ESCARGOT_VARIABLE_LONG_NAME = 0x40,
+        ESCARGOT_VARIABLE_LONG_VALUE = 0x80,
     };
 
     struct BreakpointLocation {
@@ -164,6 +189,7 @@ public:
     }
 
     void sendType(uint8_t type);
+    void sendSubtype(uint8_t type, uint8_t subType);
     void sendString(uint8_t type, StringView* string);
     void sendPointer(uint8_t type, const void* ptr);
     void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
@@ -189,6 +215,7 @@ protected:
     bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
     void getScopeChain(ExecutionState* state);
+    void getScopeVariables(ExecutionState* state, uint32_t index);
 
     bool* m_debuggerEnabled;
     bool m_enabled;
