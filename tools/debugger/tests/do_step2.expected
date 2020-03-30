@@ -1,0 +1,27 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_step2.js:20
+(escargot-debugger) step
+Stopped at tools/debugger/tests/do_step2.js:21
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:20 (in arr() at line:20, col:11)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:27
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:28
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:29
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:35
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:36
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:37
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:39
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:40
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step2.js:41
+(escargot-debugger) s
+Connection closed.
