@@ -3140,6 +3140,11 @@ public:
         ASTNode idNode = nullptr;
         bool isIdentifier;
         AtomicString name;
+#ifdef ESCARGOT_DEBUGGER
+        size_t loc_index = this->lookahead.start;
+        size_t line = this->lookahead.lineNumber;
+        bool hasAssignment = false;
+#endif /* ESCARGOT_DEBUGGER */
 
         idNode = this->parsePattern(builder, params, kind, true);
         isIdentifier = (idNode->type() == Identifier);
@@ -3157,17 +3162,30 @@ public:
             if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
                 this->expect(Substitution);
                 init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+#ifdef ESCARGOT_DEBUGGER
+                hasAssignment = true;
+#endif /* ESCARGOT_DEBUGGER */
             }
         } else if ((!inFor && !isIdentifier) || this->match(Substitution)) {
             this->expect(Substitution);
             init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+#ifdef ESCARGOT_DEBUGGER
+            hasAssignment = true;
+#endif /* ESCARGOT_DEBUGGER */
         }
 
         if (init && isIdentifier) {
             this->addImplicitName(init, name);
         }
 
-        return this->finalize(node, builder.createVariableDeclaratorNode(kind, idNode, init));
+        ASTNode variableNode = this->finalize(node, builder.createVariableDeclaratorNode(kind, idNode, init));
+#ifdef ESCARGOT_DEBUGGER
+        if (!hasAssignment) {
+            line = 0;
+        }
+        variableNode->setBreakpointInfo(loc_index, line);
+#endif /* ESCARGOT_DEBUGGER */
+        return variableNode;
     }
 
     template <class ASTBuilder>
@@ -3307,6 +3325,7 @@ public:
 #ifdef ESCARGOT_DEBUGGER
         size_t loc_index = this->lookahead.start;
         size_t line = this->lookahead.lineNumber;
+        bool hasAssignment = false;
 #endif /* ESCARGOT_DEBUGGER */
 
         idNode = this->parsePattern(builder, params, options.kind, true);
@@ -3332,6 +3351,9 @@ public:
             this->nextToken();
             ASTNodeType type = ASTNodeType::ASTNodeTypeError;
             initNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+#ifdef ESCARGOT_DEBUGGER
+            hasAssignment = true;
+#endif /* ESCARGOT_DEBUGGER */
             if (isIdentifier) {
                 this->addImplicitName(initNode, name);
             }
@@ -3347,6 +3369,9 @@ public:
 
         ASTNode node = this->finalize(this->createNode(), builder.createVariableDeclaratorNode(options.kind, idNode, initNode));
 #ifdef ESCARGOT_DEBUGGER
+        if (!hasAssignment) {
+            line = 0;
+        }
         node->setBreakpointInfo(loc_index, line);
 #endif /* ESCARGOT_DEBUGGER */
         return node;
@@ -5799,9 +5824,18 @@ public:
             bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = true;
 
+#ifdef ESCARGOT_DEBUGGER
+            size_t loc_index = this->lookahead.start;
+            size_t line = this->lookahead.lineNumber;
+#endif /* ESCARGOT_DEBUGGER */
+
             Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
 
-            container->appendChild(this->finalize(nodeStart, builder.createReturnStatementNode(expr)), nullptr);
+            Node* node = this->finalize(nodeStart, builder.createReturnStatementNode(expr));
+#ifdef ESCARGOT_DEBUGGER
+            node->setBreakpointInfo(loc_index, line);
+#endif /* ESCARGOT_DEBUGGER */
+            container->appendChild(node, nullptr);
 
             /*
                if (this->context->strict && list.firstRestricted) {
