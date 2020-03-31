@@ -57,17 +57,15 @@ ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END = 27
 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT = 28
 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END = 29
 ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 30
-ESCARGOT_MESSAGE_BACKTRACE_8BIT = 31
-ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 32
-ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33
-ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34
-ESCARGOT_MESSAGE_SCOPE_CHAIN = 35
-ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 36
-ESCARGOT_MESSAGE_VARIABLE = 37
-ESCARGOT_MESSAGE_VARIABLE_8BIT = 38
-ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 39
-ESCARGOT_MESSAGE_VARIABLE_16BIT = 40
-ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 41
+ESCARGOT_MESSAGE_BACKTRACE = 31
+ESCARGOT_MESSAGE_BACKTRACE_END = 32
+ESCARGOT_MESSAGE_SCOPE_CHAIN = 33
+ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 34
+ESCARGOT_MESSAGE_VARIABLE = 35
+ESCARGOT_MESSAGE_VARIABLE_8BIT = 36
+ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 37
+ESCARGOT_MESSAGE_VARIABLE_16BIT = 38
+ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 39
 
 
 # Messages sent by the debugger client to Escargot.
@@ -393,30 +391,19 @@ class Debugger(object):
                 result = self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data);
                 return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.no_color));
 
-            elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE_8BIT,
-                                 ESCARGOT_MESSAGE_BACKTRACE_8BIT_END,
-                                 ESCARGOT_MESSAGE_BACKTRACE_16BIT,
-                                 ESCARGOT_MESSAGE_BACKTRACE_16BIT_END]:
+            elif buffer_type == ESCARGOT_MESSAGE_BACKTRACE:
+                backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format, data[1:])
+                function = self.function_list[backtrace_info[0]]
 
-                backtrace = b'';
+                result = "%s:%d:%d" % (function.source_name, backtrace_info[1], backtrace_info[2])
+                if function.name != "":
+                    result += " (in %s)" % (function.name)
 
-                while buffer_type in [ESCARGOT_MESSAGE_BACKTRACE_8BIT, ESCARGOT_MESSAGE_BACKTRACE_16BIT]:
-                    backtrace += data[1:]
-                    data = self.channel.get_message(True)
-                    buffer_type = ord(data[0])
+                return DebuggerAction(DebuggerAction.TEXT, result + "\n")
 
-                if buffer_type not in [ESCARGOT_MESSAGE_BACKTRACE_8BIT_END, ESCARGOT_MESSAGE_BACKTRACE_16BIT_END]:
-                    raise Exception("Unexpected message")
-
-                backtrace += data[1:]
-
-                if buffer_type == ESCARGOT_MESSAGE_BACKTRACE_8BIT_END:
-                    backtrace = self.decode8(backtrace)
-                else:
-                    backtrace = self.decode16(backtrace)
-
+            elif buffer_type == ESCARGOT_MESSAGE_BACKTRACE_END:
                 self.prompt = True
-                return DebuggerAction(DebuggerAction.TEXT, backtrace.replace("\0", "\n"))
+                return DebuggerAction(DebuggerAction.WAIT, "")
 
             elif buffer_type in [ESCARGOT_MESSAGE_SCOPE_CHAIN,
                                  ESCARGOT_MESSAGE_SCOPE_CHAIN_END]:
@@ -783,7 +770,9 @@ class Debugger(object):
     def _release_function(self, data):
         byte_code_ptr = struct.unpack(self.byte_order + self.pointer_format, data[1:])[0]
 
-        function = self.function_list[byte_code_ptr]
+        function = self.function_list.get(byte_code_ptr)
+        if function is None:
+            return
 
         for line, breakpoint in function.lines.items():
             self.line_list.delete(line, breakpoint)
