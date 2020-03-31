@@ -115,7 +115,7 @@ function runTest(parents, test, sublevel) {
 
         if (src.includes('asyncTestPassed')) {
             script += asyncTestHelperHead + m[1] + asyncTestHelperTail;
-            processArgs.unshift('--call-on-exit','onCloseAsyncCheck');
+            processArgs += '-e' + 'onCloseAsyncCheck()';
         } else {
             if (m) {
                 evalcode = '(function test() {' + m[1] + '})();';
