@@ -1626,6 +1626,14 @@ bool ContextRef::initDebugger(const char* options)
 #endif /* ESCARGOT_DEBUGGER */
 }
 
+void ContextRef::printDebugger(StringRef* output)
+{
+#ifdef ESCARGOT_DEBUGGER
+    StringView* outputStr = new StringView(toImpl(output));
+    toImpl(this)->printDebugger(outputStr);
+#endif /* ESCARGOT_DEBUGGER */
+}
+
 void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
     Context* ctx = toImpl(this);

@@ -10,3 +10,4 @@ Breakpoint 2 at tools/debugger/tests/do_list.js:21
  1: tools/debugger/tests/do_list.js:20
  2: tools/debugger/tests/do_list.js:21
 (escargot-debugger) quit
+Connection closed.

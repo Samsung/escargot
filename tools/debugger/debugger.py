@@ -52,7 +52,13 @@ class DebuggerPrompt(Cmd):
         self.debugger.quit()
         self.quit = True
         self.stop = True
-    do_EOF = do_quit
+
+    def do_EOF(self, _):
+        """ Exit Escargot debugger """
+        print("Unexpected end of input. Connection closed.")
+        self.debugger.quit()
+        self.quit = True
+        self.stop = True
 
     def do_display(self, args):
         """ Toggle source code display after breakpoints """
@@ -246,6 +252,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+        sys.exit("Connection closed.")
     except socket.error as error_msg:
         ERRNO = error_msg.errno
         MSG = str(error_msg)
