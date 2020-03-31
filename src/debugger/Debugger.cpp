@@ -367,12 +367,16 @@ error:
 
 void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
 {
-    StringBuilder builder;
+    BacktraceInfo backtraceInfo;
     SandBox::StackTraceDataVector stackTraceData;
 
     SandBox::createStackTraceData(stackTraceData, *state);
 
     uint32_t total = (uint32_t)stackTraceData.size();
+
+    if (getTotal && !send(ESCARGOT_MESSAGE_BACKTRACE_TOTAL, &total, sizeof(uint32_t))) {
+        return;
+    }
 
     if (maxDepth == 0 || maxDepth > total) {
         maxDepth = total;
@@ -387,26 +391,22 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
             ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
             size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
 
+            char* byteCode = byteCodeBlock->m_code.data();
+            memcpy(&backtraceInfo.byteCode, &byteCode, sizeof(void*));
+
             ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
-            builder.appendString(byteCodeBlock->m_codeBlock->script()->src());
-            builder.appendChar(':');
-            builder.appendString(String::fromDouble(loc.line));
-            builder.appendChar(':');
-            builder.appendString(String::fromDouble(loc.column));
-        } else {
-            builder.appendString(stackTraceData[i].second.src);
+            uint32_t data = (uint32_t)loc.line;
+            memcpy(&backtraceInfo.line, &data, sizeof(uint32_t));
+            data = (uint32_t)loc.column;
+            memcpy(&backtraceInfo.column, &data, sizeof(uint32_t));
+
+            if (!send(ESCARGOT_MESSAGE_BACKTRACE, &backtraceInfo, sizeof(BacktraceInfo))) {
+                return;
+            }
         }
-        builder.appendChar('\0');
     }
 
-    if (enabled() && getTotal) {
-        send(ESCARGOT_MESSAGE_BACKTRACE_TOTAL, &total, sizeof(uint32_t));
-    }
-
-    StringView* backtrace = new StringView(builder.finalize());
-    if (enabled()) {
-        sendString(ESCARGOT_MESSAGE_BACKTRACE_8BIT, backtrace);
-    }
+    sendType(ESCARGOT_MESSAGE_BACKTRACE_END);
 }
 
 void Debugger::getScopeChain(ExecutionState* state)

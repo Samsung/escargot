@@ -81,19 +81,16 @@ public:
         ESCARGOT_MESSAGE_EVAL_FAILED_16BIT = 28,
         ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END = 29,
         ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 30,
+        ESCARGOT_MESSAGE_BACKTRACE = 31,
+        ESCARGOT_MESSAGE_BACKTRACE_END = 32,
+        ESCARGOT_MESSAGE_SCOPE_CHAIN = 33,
+        ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 34,
+        ESCARGOT_MESSAGE_VARIABLE = 35,
         // These four must be in the same order.
-        ESCARGOT_MESSAGE_BACKTRACE_8BIT = 31,
-        ESCARGOT_MESSAGE_BACKTRACE_8BIT_END = 32,
-        ESCARGOT_MESSAGE_BACKTRACE_16BIT = 33,
-        ESCARGOT_MESSAGE_BACKTRACE_16BIT_END = 34,
-        ESCARGOT_MESSAGE_SCOPE_CHAIN = 35,
-        ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 36,
-        ESCARGOT_MESSAGE_VARIABLE = 37,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_VARIABLE_8BIT = 38,
-        ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 39,
-        ESCARGOT_MESSAGE_VARIABLE_16BIT = 40,
-        ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 41,
+        ESCARGOT_MESSAGE_VARIABLE_8BIT = 36,
+        ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 37,
+        ESCARGOT_MESSAGE_VARIABLE_16BIT = 38,
+        ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 39,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -242,6 +239,12 @@ private:
     struct BreakpointOffset {
         uint8_t byteCodeStart[sizeof(void*)];
         uint8_t offset[sizeof(uint32_t)];
+    };
+
+    struct BacktraceInfo {
+        uint8_t byteCode[sizeof(void*)];
+        uint8_t line[sizeof(uint32_t)];
+        uint8_t column[sizeof(uint32_t)];
     };
 
     uint8_t m_delay;
