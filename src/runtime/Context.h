@@ -237,6 +237,7 @@ public:
     }
 
     bool initDebugger(const char* options);
+    void printDebugger(StringView* output);
 #endif /* ESCARGOT_DEBUGGER */
 
 private:

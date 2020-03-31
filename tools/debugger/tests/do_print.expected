@@ -1,0 +1,8 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_print.js:20
+(escargot-debugger) c
+Print: start
+Print: middle
+Print: end
+Connection closed.

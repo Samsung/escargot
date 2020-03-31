@@ -24,3 +24,4 @@ tools/debugger/tests/do_backtrace.js:27:5 (in g)
 tools/debugger/tests/do_backtrace.js:27:5 (in g)
 tools/debugger/tests/do_backtrace.js:31:5 (in h)
 (escargot-debugger) c
+Connection closed.

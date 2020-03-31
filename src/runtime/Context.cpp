@@ -114,6 +114,14 @@ bool Context::initDebugger(const char* options)
     return m_debugger->enabled();
 }
 
+void Context::printDebugger(StringView* output)
+{
+    if (!m_debugger || !m_debugger->enabled()) {
+        return;
+    }
+    m_debugger->sendString(Debugger::ESCARGOT_MESSAGE_PRINT_8BIT, output);
+}
+
 #endif /* ESCARGOT_DEBUGGER */
 
 GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(AtomicString as)

@@ -75,10 +75,15 @@ static bool stringEndsWith(const std::string& str, const std::string& suffix)
 ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc >= 1) {
+        StringRef* printMsg;
         if (argv[0]->isSymbol()) {
-            puts(argv[0]->asSymbol()->symbolDescriptiveString()->toStdUTF8String().data());
+            printMsg = argv[0]->asSymbol()->symbolDescriptiveString();
+            puts(printMsg->toStdUTF8String().data());
+            state->context()->printDebugger(printMsg);
         } else {
-            puts(argv[0]->toString(state)->toStdUTF8String().data());
+            printMsg = argv[0]->toString(state);
+            puts(printMsg->toStdUTF8String().data());
+            state->context()->printDebugger(printMsg->toString(state));
         }
     } else {
         puts("undefined");
