@@ -11,4 +11,6 @@
     <test id="built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol"><reason>Not Working on 12.0 unicode and 12.1 unicode table</reason></test>
     <test id="built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol"><reason>Not Working on 12.0 unicode and 12.1 unicode table</reason></test>
     <test id="built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned"><reason>Not Working on 12.0 unicode and 12.1 unicode table</reason></test>
-
+    <test id="intl402/Collator/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
+    <test id="intl402/DateTimeFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
+    <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>

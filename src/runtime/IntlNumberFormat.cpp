@@ -126,16 +126,16 @@ static double getNumberOption(ExecutionState& state, Object* options, String* pr
 }
 
 
-Object* IntlNumberFormat::create(ExecutionState& state, Value locales, Value options)
+Object* IntlNumberFormat::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
-    Object* numberFormat = new Object(state);
-    initialize(state, numberFormat, locales, options);
+    Object* numberFormat = new Object(state, realm->globalObject()->objectPrototype());
+    initialize(state, numberFormat, realm, locales, options);
     return numberFormat;
 }
 
-void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options)
+void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, Context* realm, Value locales, Value options)
 {
-    numberFormat->setPrototype(state, state.context()->globalObject()->intlNumberFormat()->getFunctionPrototype(state));
+    numberFormat->setPrototype(state, realm->globalObject()->intlNumberFormat()->getFunctionPrototype(state));
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (numberFormat->hasInternalSlot() && numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {

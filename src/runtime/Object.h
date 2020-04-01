@@ -722,6 +722,9 @@ public:
     explicit Object(ExecutionState& state);
     explicit Object(ExecutionState& state, Object* proto);
 
+    enum PrototypeIsNullTag { PrototypeIsNull };
+    explicit Object(ExecutionState& state, PrototypeIsNullTag); // I added new function for reducing checking null for prototype
+
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);
 

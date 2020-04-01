@@ -444,6 +444,14 @@ Object::Object(ExecutionState& state, Object* proto)
     m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
 }
 
+Object::Object(ExecutionState& state, Object::PrototypeIsNullTag)
+    : m_structure(state.context()->defaultStructureForObject())
+    , m_prototype(nullptr)
+{
+    // create a new ordinary object
+    m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
+}
+
 Object::Object(ExecutionState& state, Object* proto, size_t defaultSpace)
     : m_structure(state.context()->defaultStructureForObject())
     , m_prototype(proto)

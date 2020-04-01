@@ -281,7 +281,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
     if (argc >= 2) {
         options = argv[1];
     }
-    Object* numberFormat = IntlNumberFormat::create(state, locales, options);
+    Object* numberFormat = IntlNumberFormat::create(state, state.context(), locales, options);
     double x = 0;
     if (thisValue.isNumber()) {
         x = thisValue.asNumber();
