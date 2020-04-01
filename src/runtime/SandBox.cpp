@@ -215,7 +215,7 @@ void SandBox::throwException(ExecutionState& state, Value exception)
     throw exception;
 }
 
-static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get Error.prototype.stack called on incompatible receiver");

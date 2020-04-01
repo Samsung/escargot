@@ -28,15 +28,17 @@
 
 namespace Escargot {
 
-Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
     // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
     // Set map's [[MapData]] internal slot to a new empty List.
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->mapPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->mapPrototype();
+    });
     MapObject* map = new MapObject(state, proto);
 
     // If iterable is not present, or is either undefined or null, return map.
@@ -95,39 +97,39 @@ Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc,
     }                                                                                                                                                                                                                                          \
     MapObject* NAME = thisValue.asObject()->asMapObject();
 
-static Value builtinMapClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, clear);
     M->clear(state);
     return Value();
 }
 
-static Value builtinMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, stringDelete);
     return Value(M->deleteOperation(state, argv[0]));
 }
 
-static Value builtinMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, get);
     return M->get(state, argv[0]);
 }
 
-static Value builtinMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, has);
     return Value(M->has(state, argv[0]));
 }
 
-static Value builtinMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, set);
     M->set(state, argv[0], argv[1]);
     return M;
 }
 
-static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, forEach);
     // Let M be the this value.
@@ -159,31 +161,31 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
     return Value();
 }
 
-static Value builtinMapKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, keys);
     return M->keys(state);
 }
 
-static Value builtinMapValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, values);
     return M->values(state);
 }
 
-static Value builtinMapEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, entries);
     return M->entries(state);
 }
 
-static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, size);
     return Value(M->size(state));
 }
 
-static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isMapIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().MapIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);

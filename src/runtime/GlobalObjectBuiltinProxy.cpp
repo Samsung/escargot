@@ -27,11 +27,11 @@
 namespace Escargot {
 
 // $26.2.1 The Proxy Constructor
-static Value builtinProxyConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinProxyConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
 
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: calling a builtin Proxy constructor without new is forbidden");
         return Value();
     }
@@ -43,7 +43,7 @@ static Value builtinProxyConstructor(ExecutionState& state, Value thisValue, siz
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-revocation-functions
-static Value builtinProxyRevoke(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinProxyRevoke(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
 
@@ -72,7 +72,7 @@ static Value builtinProxyRevoke(ExecutionState& state, Value thisValue, size_t a
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy.revocable
-static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
 

@@ -28,15 +28,17 @@
 
 namespace Escargot {
 
-Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
     // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
     // Set map's [[MapData]] internal slot to a new empty List.
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->weakMapPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->weakMapPrototype();
+    });
     WeakMapObject* map = new WeakMapObject(state, proto);
 
     // If iterable is not present, or is either undefined or null, return map.
@@ -95,7 +97,7 @@ Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t a
     }                                                                                                                                                                                                                                          \
     WeakMapObject* NAME = thisValue.asObject()->asWeakMapObject();
 
-static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, stringDelete);
     if (!argv[0].isObject()) {
@@ -105,7 +107,7 @@ static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t
     return Value(M->deleteOperation(state, argv[0].asObject()));
 }
 
-static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, get);
     if (!argv[0].isObject()) {
@@ -115,7 +117,7 @@ static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t ar
     return M->get(state, argv[0].asObject());
 }
 
-static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, has);
     if (!argv[0].isObject()) {
@@ -125,7 +127,7 @@ static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t ar
     return Value(M->has(state, argv[0].asObject()));
 }
 
-static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, set);
     if (!argv[0].isObject()) {

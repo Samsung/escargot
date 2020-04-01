@@ -23,23 +23,26 @@
 
 namespace Escargot {
 
-#define DEFINE_FN(Type, type, siz)                                                                                                      \
-    template <>                                                                                                                         \
-    Object* TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectDefaultPrototype(ExecutionState& state)                               \
-    {                                                                                                                                   \
-        return state.context()->globalObject()->type##ArrayPrototype();                                                                 \
-    }                                                                                                                                   \
-    template <>                                                                                                                         \
-    void TypedArrayObject<Type##Adaptor, siz>::setPrototypeFromConstructor(ExecutionState& state, Object* newTarget)                    \
-    {                                                                                                                                   \
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->type##ArrayPrototype()); \
-        Object::setPrototype(state, proto);                                                                                             \
-    }                                                                                                                                   \
-    template <>                                                                                                                         \
-    String* TypedArrayObject<Type##Adaptor, siz>::typedArrayName(ExecutionState& state)                                                 \
-    {                                                                                                                                   \
-        return state.context()->staticStrings().Type##Array.string();                                                                   \
+#define DEFINE_FN(Type, type, siz)                                                                                                              \
+    template <>                                                                                                                                 \
+    Object* TypedArrayObject<Type##Adaptor, siz>::typedArrayObjectDefaultPrototype(ExecutionState& state)                                       \
+    {                                                                                                                                           \
+        return state.context()->globalObject()->type##ArrayPrototype();                                                                         \
+    }                                                                                                                                           \
+    template <>                                                                                                                                 \
+    void TypedArrayObject<Type##Adaptor, siz>::setPrototypeFromConstructor(ExecutionState& state, Object* newTarget)                            \
+    {                                                                                                                                           \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* { \
+            return constructorRealm->globalObject()->type##ArrayPrototype();                                                                    \
+        });                                                                                                                                     \
+        Object::setPrototype(state, proto);                                                                                                     \
+    }                                                                                                                                           \
+    template <>                                                                                                                                 \
+    String* TypedArrayObject<Type##Adaptor, siz>::typedArrayName(ExecutionState& state)                                                         \
+    {                                                                                                                                           \
+        return state.context()->staticStrings().Type##Array.string();                                                                           \
     }
+
 
 DEFINE_FN(Int8, int8, 1);
 DEFINE_FN(Int16, int16, 2);

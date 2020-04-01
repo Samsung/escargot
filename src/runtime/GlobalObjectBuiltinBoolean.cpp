@@ -25,19 +25,21 @@
 
 namespace Escargot {
 
-static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     bool primitiveVal = argv[0].toBoolean(state);
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         return Value(primitiveVal);
     } else {
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->booleanPrototype());
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+            return constructorRealm->globalObject()->booleanPrototype();
+        });
         BooleanObject* boolObj = new BooleanObject(state, proto, primitiveVal);
         return boolObj;
     }
 }
 
-static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isBoolean()) {
         return Value(thisValue);
@@ -48,7 +50,7 @@ static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isBoolean()) {
         return Value(thisValue.toString(state));

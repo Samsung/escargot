@@ -27,17 +27,19 @@
 
 namespace Escargot {
 
-static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, true, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         newTarget = state.resolveCallee();
     }
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->asyncFunctionPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->asyncFunctionPrototype();
+    });
 
     return new ScriptAsyncFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }

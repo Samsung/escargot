@@ -27,10 +27,10 @@
 
 namespace Escargot {
 
-Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is not undefined, throw a TypeError exception.
-    if (!newTarget.isUndefined()) {
+    if (newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "illegal constructor Symbol");
     }
     Optional<String*> descString = nullptr;
@@ -56,32 +56,32 @@ Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);     \
     }
 
-Value builtinSymbolToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSymbolToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SYMBOL(S, Symbol, toString);
     return S->symbolDescriptiveString();
 }
 
-Value builtinSymbolValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSymbolValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SYMBOL(S, Symbol, valueOf);
     return Value(S);
 }
 
-Value builtinSymbolToPrimitive(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSymbolToPrimitive(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SYMBOL(S, Symbol, toPrimitive);
     return Value(S);
 }
 
-Value builtinSymbolFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSymbolFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let stringKey be ? ToString(key).
     String* stringKey = argv[0].toString(state);
     return Symbol::fromGlobalSymbolRegistry(state.context()->vmInstance(), stringKey);
 }
 
-Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If Type(sym) is not Symbol, throw a TypeError exception.
     if (!argv[0].isSymbol()) {
@@ -101,7 +101,7 @@ Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t argc, V
     return Value();
 }
 
-static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isSymbol()) {
         if (!thisValue.asSymbol()->description().hasValue()) {

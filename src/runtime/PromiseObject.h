@@ -135,13 +135,13 @@ public:
     void* operator new[](size_t size) = delete;
 
     static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
-    static Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
+    static Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
     // The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
     static Object* promiseResolve(ExecutionState& state, Object* C, const Value& x);
-    static Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
-    static Value promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
-    static Value promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
+    static Value promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+    static Value promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+    static Value promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
 private:
     PromiseState m_state;

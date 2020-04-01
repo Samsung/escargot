@@ -26,32 +26,34 @@
 
 namespace Escargot {
 
-static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, true, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         newTarget = state.resolveCallee();
     }
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->asyncGenerator());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->asyncGenerator();
+    });
 
     return new ScriptAsyncGeneratorFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
-static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinAsyncGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Next, argv[0]);
 }
 
-static Value builtinAsyncGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinAsyncGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Return, argv[0]);
 }
 
-static Value builtinAsyncGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinAsyncGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Throw, argv[0]);
 }

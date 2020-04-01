@@ -30,7 +30,7 @@
 
 namespace Escargot {
 
-Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     bool interpretArgumentsAsElements = false;
     uint32_t size = 0;
@@ -52,13 +52,15 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     }
 
     // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         newTarget = state.resolveCallee();
     }
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%ArrayPrototype%").
     // Let array be ! ArrayCreate(0, proto).
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->arrayPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->arrayPrototype();
+    });
     ArrayObject* array = new ArrayObject(state, proto, (uint64_t)size);
 
     if (interpretArgumentsAsElements) {
@@ -176,7 +178,7 @@ static int64_t flattenIntoArray(ExecutionState& state, Value target, Value sourc
     return targetIndex;
 }
 
-static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ASSERT(argv != nullptr);
 
@@ -184,7 +186,7 @@ static Value builtinArrayIsArray(ExecutionState& state, Value thisValue, size_t 
 }
 
 // Array.from ( items [ , mapfn [ , thisArg ] ] )#
-static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value items = argv[0];
     Value mapfn;
@@ -327,7 +329,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
 }
 
 // Array.of ( ...items )
-static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     size_t len = argc;
     Value C = thisValue;
@@ -352,7 +354,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
     return A;
 }
 
-static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, Array, join);
     int64_t len = thisBinded->lengthES6(state);
@@ -442,7 +444,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     return builder.finalize(&state);
 }
 
-static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reverse);
     int64_t len = O->lengthES6(state);
@@ -497,7 +499,7 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
     return O;
 }
 
-static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, sort);
     Value cmpfn = argv[0];
@@ -529,7 +531,7 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
     return thisObject;
 }
 
-static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // TODO(ES6): the number of actual arguments is used.
     // e.g. var arr = [1, 2, 3, 4, 5];
@@ -702,7 +704,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
 }
 
 
-static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, toString);
     Value toString = thisObject->get(state, state.context()->staticStrings().join).value(state, thisObject);
@@ -712,7 +714,7 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
     return Object::call(state, toString, thisObject, 0, nullptr);
 }
 
-static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
     Object* obj = arraySpeciesCreate(state, thisObject, 0);
@@ -765,7 +767,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
     return obj;
 }
 
-static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, slice);
     int64_t len = thisObject->lengthES6(state);
@@ -801,7 +803,7 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     return ArrayObject;
 }
 
-static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, forEach);
     int64_t len = thisObject->lengthES6(state);
@@ -836,7 +838,7 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
     return Value();
 }
 
-static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, indexOf);
@@ -907,7 +909,7 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
     return Value(-1);
 }
 
-static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, lastIndexOf);
@@ -966,7 +968,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     return Value(-1);
 }
 
-static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, every);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
@@ -1016,7 +1018,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
     return Value(true);
 }
 
-static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, fill);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
@@ -1050,7 +1052,7 @@ static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t arg
     return O;
 }
 
-static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, filter);
@@ -1114,7 +1116,7 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
     return A;
 }
 
-static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, map);
@@ -1166,7 +1168,7 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     return A;
 }
 
-static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, some);
@@ -1219,7 +1221,7 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
 }
 
 // Array.prototype.includes ( searchElement [ , fromIndex ] )
-static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, includes);
@@ -1268,7 +1270,7 @@ static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t
     return Value(false);
 }
 
-static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let array be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(array, Array, toLocaleString);
@@ -1352,7 +1354,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
     return R;
 }
 
-static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduce);
@@ -1402,7 +1404,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
     return accumulator;
 }
 
-static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduceRight);
@@ -1485,7 +1487,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
     return accumulator;
 }
 
-static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, pop);
@@ -1515,7 +1517,7 @@ static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc
     }
 }
 
-static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Array.prototype.push ( [ item1 [ , item2 [ , … ] ] ] )
     // Let O be the result of calling ToObject passing the this value as the argument.
@@ -1547,7 +1549,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-array.prototype.flat
 // Array.prototype.flat( [ depth ] )
-static Value builtinArrayFlat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFlat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, flat);
     int64_t sourceLen = O->lengthES6(state);
@@ -1563,7 +1565,7 @@ static Value builtinArrayFlat(ExecutionState& state, Value thisValue, size_t arg
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-array.prototype.flatmap
 // Array.prototype.flatMap ( mapperFunction [ , thisArg ] )
-static Value builtinArrayFlatMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFlatMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, flatMap);
     int64_t sourceLen = O->lengthES6(state);
@@ -1579,7 +1581,7 @@ static Value builtinArrayFlatMap(ExecutionState& state, Value thisValue, size_t 
     return A;
 }
 
-static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, shift);
@@ -1640,7 +1642,7 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
     return first;
 }
 
-static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, unshift);
@@ -1721,7 +1723,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
 }
 
 // Array.prototype.find ( predicate [ , thisArg ] )#
-static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, find);
@@ -1758,7 +1760,7 @@ static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t arg
 }
 
 // Array.prototype.findIndex ( predicate [ , thisArg ] )#
-static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findIndex);
@@ -1795,7 +1797,7 @@ static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_
 }
 
 // Array.prototype.copyWithin (target, start [ , end ] )
-static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, copyWithin);
@@ -1856,25 +1858,25 @@ static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size
     return O;
 }
 
-static Value builtinArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, keys);
     return M->keys(state);
 }
 
-static Value builtinArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, values);
     return M->values(state);
 }
 
-static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, entries);
     return M->entries(state);
 }
 
-static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isArrayIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);
@@ -1929,7 +1931,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().every),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().fill),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayFill, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().fill, builtinArrayFill, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().includes),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().includes, builtinArrayIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().filter),

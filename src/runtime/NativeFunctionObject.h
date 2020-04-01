@@ -52,7 +52,7 @@ public:
 
 protected:
     template <bool isConstruct>
-    ALWAYS_INLINE Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Object* newTarget);
+    ALWAYS_INLINE Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Optional<Object*> newTarget);
 };
 }
 

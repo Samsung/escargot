@@ -27,32 +27,34 @@
 
 namespace Escargot {
 
-static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, false, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         newTarget = state.resolveCallee();
     }
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->generator());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->generator();
+    });
 
     return new ScriptGeneratorFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
-static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinGeneratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return GeneratorObject::generatorResume(state, thisValue, argc > 0 ? argv[0] : Value());
 }
 
-static Value builtinGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinGeneratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Return);
 }
 
-static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Throw);
 }

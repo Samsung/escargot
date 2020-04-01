@@ -1523,7 +1523,7 @@ public:
     FunctionObjectRef::NativeFunctionPointer m_publicFn;
 };
 
-static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, Value newTarget)
+static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, Optional<Object*> newTarget)
 {
     CodeBlock* dataCb = state.resolveCallee()->codeBlock();
     CallPublicFunctionData* code = (CallPublicFunctionData*)(dataCb->nativeFunctionData());
@@ -1532,7 +1532,7 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
     for (size_t i = 0; i < calledArgc; i++) {
         newArgv[i] = toRef(calledArgv[i]);
     }
-    return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, newTarget.isUndefined() ? false : true));
+    return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, newTarget.hasValue()));
 }
 
 static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info, bool isBuiltin)

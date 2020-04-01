@@ -26,13 +26,15 @@
 
 namespace Escargot {
 
-static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         newTarget = state.resolveCallee();
     }
 
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->errorPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->errorPrototype();
+    });
     ErrorObject* obj = new ErrorObject(state, proto, String::emptyString);
 
     Value message = argv[0];
@@ -44,12 +46,14 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
 }
 
 #define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                              \
-    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)                                                                                                                              \
+    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                                  \
     {                                                                                                                                                                                                                                                                 \
-        if (newTarget.isUndefined()) {                                                                                                                                                                                                                                \
+        if (!newTarget.hasValue()) {                                                                                                                                                                                                                                  \
             newTarget = state.resolveCallee();                                                                                                                                                                                                                        \
         }                                                                                                                                                                                                                                                             \
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->lowerCaseErrorName##ErrorPrototype());                                                                                                      \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                               \
+            return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                                            \
+        });                                                                                                                                                                                                                                                           \
         ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                                             \
         Value message = argv[0];                                                                                                                                                                                                                                      \
         if (!message.isUndefined()) {                                                                                                                                                                                                                                 \
@@ -66,13 +70,13 @@ DEFINE_ERROR_CTOR(Range, range);
 DEFINE_ERROR_CTOR(URI, uri);
 DEFINE_ERROR_CTOR(Eval, eval);
 
-static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "");
     return Value();
 }
 
-static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, state.context()->staticStrings().Error.string(), true, state.context()->staticStrings().toString.string(), errorMessage_GlobalObject_ThisNotObject);
@@ -134,7 +138,15 @@ void GlobalObject::installError(ExecutionState& state)
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
     // 13.2.3 The [[ThrowTypeError]] Function Object
-    m_throwTypeError = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ThrowTypeError, builtinErrorThrowTypeError, 0, NativeFunctionInfo::Strict));
+    m_throwTypeError = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinErrorThrowTypeError, 0, NativeFunctionInfo::Strict));
+    m_throwTypeError->setGlobalIntrinsicObject(state, false);
+    m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name),
+                                        ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+    m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length),
+                                        ObjectPropertyDescriptor(Value(0), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+
+    m_throwTypeError->preventExtensions(state);
+
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
 
 #define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                                  \

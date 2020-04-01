@@ -491,8 +491,9 @@ Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 
 Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
 {
-    Object* obj = new Object(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
-    obj->m_structure = state.context()->defaultStructureForFunctionPrototypeObject();
+    auto ctx = function->codeBlock()->context();
+    Object* obj = new Object(state, ctx->globalObject()->objectPrototype()->asObject(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
+    obj->m_structure = ctx->defaultStructureForFunctionPrototypeObject();
     obj->m_values[0] = Value(function);
 
     return obj;
@@ -1065,8 +1066,7 @@ Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyN
     return Optional<Object*>(func.asObject());
 }
 
-// https://www.ecma-international.org/ecma-262/10.0/#sec-getprototypefromconstructor
-Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* constructor, const Value& intrinsicDefaultProto)
+Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* constructor, Object* (*intrinsicDefaultProtoGetter)(ExecutionState& state, Context* context))
 {
     // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
     // Assert: IsCallable(constructor) is true.
@@ -1079,7 +1079,7 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
     if (!proto.isObject()) {
         // Let realm be ? GetFunctionRealm(constructor).
         // Set proto to realm's intrinsic object named intrinsicDefaultProto.
-        proto = intrinsicDefaultProto;
+        proto = intrinsicDefaultProtoGetter(state, constructor->getFunctionRealm(state));
     } else {
         proto.asObject()->markAsPrototypeObject(state);
     }
