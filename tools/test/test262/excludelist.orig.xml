@@ -11,7 +11,9 @@
     <test id="built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol"><reason>Not Working on 12.0 unicode and 12.1 unicode table</reason></test>
     <test id="built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol"><reason>Not Working on 12.0 unicode and 12.1 unicode table</reason></test>
     <test id="built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned"><reason>Not Working on 12.0 unicode and 12.1 unicode table</reason></test>
-
+    <test id="intl402/Collator/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
+    <test id="intl402/DateTimeFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
+    <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
     <test id="annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body"><reason>TODO</reason></test>
     <test id="annexB/built-ins/RegExp/named-groups/non-unicode-malformed"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
@@ -1718,7 +1720,6 @@
     <test id="built-ins/global/global-object"><reason>TODO</reason></test>
     <test id="built-ins/global/property-descriptor"><reason>TODO</reason></test>
     <test id="harness/deepEqual-primitives-bigint"><reason>TODO</reason></test>
-    <test id="intl402/Array/prototype/toLocaleString/calls-toLocaleString-number-elements"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/builtin"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/de-DE"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/default-options-object-prototype"><reason>TODO</reason></test>
@@ -1730,10 +1731,7 @@
     <test id="intl402/BigInt/prototype/toLocaleString/taint-Intl-NumberFormat"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/this-value-invalid"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/throws-same-exceptions-as-NumberFormat"><reason>TODO</reason></test>
-    <test id="intl402/Collator/default-options-object-prototype"><reason>TODO</reason></test>
-    <test id="intl402/Collator/legacy-regexp-statics-not-modified"><reason>TODO</reason></test>
     <test id="intl402/Collator/missing-unicode-ext-value-defaults-to-true"><reason>TODO</reason></test>
-    <test id="intl402/Collator/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="intl402/Collator/prototype/compare/compare-function-name"><reason>TODO</reason></test>
     <test id="intl402/Collator/prototype/compare/name"><reason>TODO</reason></test>
     <test id="intl402/Collator/prototype/resolvedOptions/order"><reason>TODO</reason></test>
@@ -1757,9 +1755,7 @@
     <test id="intl402/DateTimeFormat/constructor-options-throwing-getters-timedate-style"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/constructor-options-timeStyle-invalid"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/constructor-options-timeStyle-valid"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/legacy-regexp-statics-not-modified"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/numbering-system-calendar-options"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/dayPeriod-long-en"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/dayPeriod-narrow-en"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/dayPeriod-short-en"><reason>TODO</reason></test>
@@ -2069,9 +2065,7 @@
     <test id="intl402/NumberFormat/constructor-unitDisplay"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/currencyDisplay-unit"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/default-options-object-prototype"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/numbering-system-options"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/proto-from-ctor-realm"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/format/engineering-scientific-de-DE"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/format/engineering-scientific-en-US"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/format/engineering-scientific-ja-JP"><reason>TODO</reason></test>
@@ -2322,7 +2316,6 @@
     <test id="intl402/Segmenter/prototype/segment/segment-word-preceding"><reason>TODO</reason></test>
     <test id="intl402/Segmenter/prototype/toStringTag/toString"><reason>TODO</reason></test>
     <test id="intl402/Segmenter/prototype/toStringTag/toStringTag"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/localeCompare/default-options-object-prototype"><reason>TODO</reason></test>
     <test id="intl402/String/prototype/toLocaleLowerCase/capital_I_with_dot"><reason>TODO</reason></test>
     <test id="intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri"><reason>TODO</reason></test>
     <test id="intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian"><reason>TODO</reason></test>

@@ -182,16 +182,16 @@ static String* defaultTimeZone(ExecutionState& state)
     return String::fromUTF8(state.context()->vmInstance()->timezoneID().data(), state.context()->vmInstance()->timezoneID().length());
 }
 
-Object* IntlDateTimeFormat::create(ExecutionState& state, Value locales, Value options)
+Object* IntlDateTimeFormat::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
-    Object* dateTimeFormat = new Object(state);
-    initialize(state, dateTimeFormat, locales, options);
+    Object* dateTimeFormat = new Object(state, realm->globalObject()->objectPrototype());
+    initialize(state, dateTimeFormat, realm, locales, options);
     return dateTimeFormat;
 }
 
-void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeFormat, Value locales, Value options)
+void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeFormat, Context* realm, Value locales, Value options)
 {
-    dateTimeFormat->setPrototype(state, state.context()->globalObject()->intlDateTimeFormat()->getFunctionPrototype(state));
+    dateTimeFormat->setPrototype(state, realm->globalObject()->intlDateTimeFormat()->getFunctionPrototype(state));
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {

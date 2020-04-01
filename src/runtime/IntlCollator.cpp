@@ -133,10 +133,10 @@ static std::vector<std::string> searchLocaleData(String* locale, size_t keyIndex
     return keyLocaleData;
 }
 
-Object* IntlCollator::create(ExecutionState& state, Value locales, Value options)
+Object* IntlCollator::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
-    Object* collator = new Object(state);
-    initialize(state, collator, locales, options);
+    Object* collator = new Object(state, realm->globalObject()->objectPrototype());
+    initialize(state, collator, realm, locales, options);
     return collator;
 }
 
@@ -153,11 +153,11 @@ IntlCollator::CollatorResolvedOptions IntlCollator::resolvedOptions(ExecutionSta
     return opt;
 }
 
-void IntlCollator::initialize(ExecutionState& state, Object* collator, Value locales, Value options)
+void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* realm, Value locales, Value options)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.1.1
 
-    collator->setPrototype(state, state.context()->globalObject()->intlCollator()->getFunctionPrototype(state));
+    collator->setPrototype(state, realm->globalObject()->intlCollator()->getFunctionPrototype(state));
     // If collator has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
@@ -175,7 +175,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Value loc
     // Let options be the result of creating a new object as
     // if by the expression new Object() where Object is the standard built-in constructor with that name.
     if (options.isUndefined()) {
-        options = new Object(state);
+        options = new Object(state, Object::PrototypeIsNull);
     } else {
         // Let options be ToObject(options).
         options = options.toObject(state);
@@ -191,7 +191,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Value loc
     collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("usage")), u, collator->internalSlot());
 
     // Let Collator be the standard built-in object that is the initial value of Intl.Collator.
-    FunctionObject* Collator = state.context()->globalObject()->intlCollator();
+    FunctionObject* Collator = realm->globalObject()->intlCollator();
 
     // If u is "sort", then let localeData be the value of the [[sortLocaleData]] internal property of Collator;
     Intl::LocaleDataImplFunction localeData;
@@ -245,7 +245,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Value loc
     // Let relevantExtensionKeys be the value of the [[relevantExtensionKeys]] internal property of Collator.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
     // internal property of Collator, requestedLocales, opt, relevantExtensionKeys, and localeData.
-    StringMap* r = Intl::resolveLocale(state, state.context()->globalObject()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
+    StringMap* r = Intl::resolveLocale(state, realm->globalObject()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
 
     // Set the [[locale]] internal property of collator to the value of r.[[locale]].
     String* localeInternalString = String::fromASCII("locale");

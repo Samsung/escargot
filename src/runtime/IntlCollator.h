@@ -38,9 +38,9 @@ public:
         String* caseFirst;
     };
 
-    static Object* create(ExecutionState& state, Value locales, Value options);
+    static Object* create(ExecutionState& state, Context* realm, Value locales, Value options);
     static CollatorResolvedOptions resolvedOptions(ExecutionState& state, Object* internalSlot);
-    static void initialize(ExecutionState& state, Object* collator, Value locales, Value options);
+    static void initialize(ExecutionState& state, Object* collator, Context* realm, Value locales, Value options);
     static int compare(ExecutionState& state, Object* collator, String* a, String* b);
 };
 

@@ -229,7 +229,7 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
         options = argv[1];                                                                                                                \
     }                                                                                                                                     \
     auto dateTimeOption = IntlDateTimeFormat::toDateTimeOptions(state, options, String::fromASCII(REQUIRED), String::fromASCII(DEFUALT)); \
-    Object* dateFormat = IntlDateTimeFormat::create(state, locales, dateTimeOption);                                                      \
+    Object* dateFormat = IntlDateTimeFormat::create(state, state.context(), locales, dateTimeOption);                                     \
     auto result = IntlDateTimeFormat::format(state, dateFormat, x);                                                                       \
     return new UTF16String(result.data(), result.length());
 #endif

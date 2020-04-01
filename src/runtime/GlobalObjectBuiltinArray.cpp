@@ -1272,6 +1272,7 @@ static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    // https://www.ecma-international.org/ecma-402/6.0/index.html#sup-array.prototype.tolocalestring
     // Let array be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(array, Array, toLocaleString);
 
@@ -1302,14 +1303,13 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
     } else {
         // Let elementObj be ToObject(firstElement).
         Object* elementObj = firstElement.toObject(state);
-        // Let func be the result of calling the [[Get]] internal method of elementObj with argument "toLocaleString".
+
+        // Let R be ? ToString(? Invoke(elementObj, "toLocaleString", « locales, options »)).
         Value func = elementObj->get(state, state.context()->staticStrings().toLocaleString).value(state, elementObj);
-        // If IsCallable(func) is false, throw a TypeError exception.
         if (!func.isCallable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
         }
-        // Let R be the result of calling the [[Call]] internal method of func providing elementObj as the this value and an empty arguments list.
-        R = Object::call(state, func, elementObj, 0, nullptr).toString(state);
+        R = Object::call(state, func, elementObj, argc, argv).toString(state);
     }
 
     // Let k be 1.

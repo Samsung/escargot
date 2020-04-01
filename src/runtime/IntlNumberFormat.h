@@ -28,8 +28,8 @@ namespace Escargot {
 
 class IntlNumberFormat {
 public:
-    static Object* create(ExecutionState& state, Value locales, Value options);
-    static void initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options);
+    static Object* create(ExecutionState& state, Context* realm, Value locales, Value options);
+    static void initialize(ExecutionState& state, Object* numberFormat, Context* realm, Value locales, Value options);
     static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, double x);
 };
 
