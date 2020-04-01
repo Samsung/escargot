@@ -41,13 +41,13 @@
 
 namespace Escargot {
 
-Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return thisValue;
 }
 
 #if defined(ESCARGOT_ENABLE_TEST)
-static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     bool result = false;
 
@@ -59,7 +59,7 @@ static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value this
     return Value(result);
 }
 
-static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     bool result = false;
 
@@ -87,7 +87,7 @@ public:
     GlobalObject* m_globalObject;
 };
 
-static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     EvalFunctionObject* fn = (EvalFunctionObject*)state.resolveCallee();
     return fn->m_globalObject->eval(state, argv[0]);
@@ -245,7 +245,7 @@ static bool isInfinity(String* str, unsigned p, unsigned length)
 }
 
 
-static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value ret;
 
@@ -327,7 +327,7 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
     return Value(sign * number);
 }
 
-static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // 1. Let inputString be ToString(string).
     Value input = argv[0];
@@ -390,7 +390,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     return Value(number);
 }
 
-static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double num = argv[0].toNumber(state);
     if (std::isnan(num) || num == std::numeric_limits<double>::infinity() || num == -std::numeric_limits<double>::infinity())
@@ -399,7 +399,7 @@ static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc
         return Value(Value::True);
 }
 
-static Value builtinIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double num = argv[0].toNumber(state);
     if (std::isnan(num)) {
@@ -548,14 +548,14 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
     return unescaped.finalize(&state);
 }
 
-static Value builtinDecodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDecodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0)
         return Value();
     return decode(state, argv[0].toString(state), true, state.context()->staticStrings().decodeURI.string());
 }
 
-static Value builtinDecodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDecodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0)
         return Value();
@@ -619,14 +619,14 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
     return escaped.finalize(&state);
 }
 
-static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0)
         return Value();
     return encode(state, argv[0].toString(state), true, state.context()->staticStrings().encodeURI.string());
 }
 
-static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0)
         return Value();
@@ -669,7 +669,7 @@ ASCIIStringDataNonGCStd char2hex4digit(char16_t dec)
 }
 
 
-static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     String* str = argv[0].toString(state);
     size_t length = str->length();
@@ -726,7 +726,7 @@ char16_t hex2char(char16_t first, char16_t second)
     dec |= dig2;
     return dec;
 }
-static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     String* str = argv[0].toString(state);
     size_t length = str->length();
@@ -802,7 +802,7 @@ static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc
 }
 
 // Object.prototype.__defineGetter__ ( P, getter )
-static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
@@ -828,7 +828,7 @@ static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t 
 }
 
 // Object.prototype.__defineSetter__ ( P, getter )
-static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
@@ -854,7 +854,7 @@ static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t 
 }
 
 // Object.prototype.__lookupGetter__ ( P, getter )
-static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
@@ -883,7 +883,7 @@ static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t 
 }
 
 // Object.prototype.__lookupSetter__ ( P, getter )
-static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
@@ -911,7 +911,7 @@ static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t 
     return Value();
 }
 
-static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* targetFunction = nullptr;
     bool needThrow = false;

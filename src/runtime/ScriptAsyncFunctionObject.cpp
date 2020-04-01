@@ -34,7 +34,7 @@ ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, Obje
 
 class ScriptAsyncFunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& calleeState, ScriptAsyncFunctionObject* self, const Value& thisArgument, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, ScriptAsyncFunctionObject* self, const Value& thisArgument, bool isStrict)
     {
         Value thisValue = self->thisValue();
         if (thisValue.isEmpty()) {
@@ -109,7 +109,7 @@ static void awaitFulfilledFunctions(ExecutionState& state, ScriptAsyncFunctionHe
     // Return undefined.
 }
 
-static Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ScriptAsyncFunctionHelperFunctionObject* self = (ScriptAsyncFunctionHelperFunctionObject*)state.resolveCallee();
     awaitFulfilledFunctions(state, self, argv[0]);
@@ -130,7 +130,7 @@ static void awaitRejectedFunctions(ExecutionState& state, ScriptAsyncFunctionHel
     // Return undefined.
 }
 
-static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ScriptAsyncFunctionHelperFunctionObject* self = (ScriptAsyncFunctionHelperFunctionObject*)state.resolveCallee();
     awaitRejectedFunctions(state, self, argv[0]);

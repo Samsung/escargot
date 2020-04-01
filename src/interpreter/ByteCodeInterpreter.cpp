@@ -2149,20 +2149,21 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
 
     bool isGenerator = cb->isGenerator();
     bool isAsync = cb->isAsync();
-    Object* proto = state.context()->globalObject()->functionPrototype();
+    Context* functionRealm = cb->context();
+    Object* proto = functionRealm->globalObject()->functionPrototype();
 
     if (UNLIKELY(isGenerator && isAsync)) {
-        proto = state.context()->globalObject()->asyncGenerator();
+        proto = functionRealm->globalObject()->asyncGenerator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isGenerator)) {
-        proto = state.context()->globalObject()->generator();
+        proto = functionRealm->globalObject()->generator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isAsync)) {
-        proto = state.context()->globalObject()->asyncFunctionPrototype();
+        proto = functionRealm->globalObject()->asyncFunctionPrototype();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);

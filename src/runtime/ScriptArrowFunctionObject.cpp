@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ScriptArrowFunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& calleeState, ScriptArrowFunctionObject* self, const Value& receiverSrc, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, ScriptArrowFunctionObject* self, const Value& receiverSrc, bool isStrict)
     {
         return self->thisValue();
     }

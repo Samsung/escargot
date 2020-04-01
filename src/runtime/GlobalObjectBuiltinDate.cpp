@@ -67,14 +67,16 @@ bool isInValidRange(double year, double month, double date, double hour, double 
     return true;
 }
 
-static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         DateObject d(state);
         d.setTimeValue(DateObject::currentTime());
         return d.toFullString(state);
     } else {
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->datePrototype());
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+            return constructorRealm->globalObject()->datePrototype();
+        });
         DateObject* thisObject = new DateObject(state, proto);
 
         if (argc == 0) {
@@ -128,12 +130,12 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
     }
 }
 
-static Value builtinDateNow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateNow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return Value(DateObject::currentTime());
 }
 
-static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value str = argv[0].toPrimitive(state, Value::PreferString);
     if (str.isString()) {
@@ -144,7 +146,7 @@ static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t arg
     return Value(std::numeric_limits<double>::quiet_NaN());
 }
 
-static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     DateObject d(state);
     double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
@@ -180,32 +182,32 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     }                                                                                                                                                                                                                               \
     DateObject* NAME = thisValue.asObject()->asDateObject();
 
-static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getTime);
     return Value(thisObject->primitiveValue());
 }
 
-static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, valueOf);
     double val = thisObject->primitiveValue();
     return Value(val);
 }
 
-static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
     return thisObject->toFullString(state);
 }
 
-static Value builtinDateToDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
     return thisObject->toDateString(state);
 }
 
-static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
     return thisObject->toTimeString(state);
@@ -230,7 +232,7 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
     return new UTF16String(result.data(), result.length());
 #endif
 
-static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
@@ -240,7 +242,7 @@ static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, s
 #endif
 }
 
-static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
@@ -250,7 +252,7 @@ static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValu
 #endif
 }
 
-static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
@@ -260,19 +262,19 @@ static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValu
 #endif
 }
 
-static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToUTCString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toUTCString);
     return thisObject->toUTCString(state, state.context()->staticStrings().toUTCString.string());
 }
 
-static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toISOString);
     return thisObject->toISOString(state);
 }
 
-static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toJSON);
 
@@ -285,13 +287,13 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     return Object::call(state, isoFunc, thisObject, 0, nullptr);
 }
 
-#define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                      \
-    static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget) \
-    {                                                                                                                    \
-        RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, get##Name);                                                       \
-        if (!(thisObject->isValid()))                                                                                    \
-            return Value(std::numeric_limits<double>::quiet_NaN());                                                      \
-        return Value(thisObject->get##Name(state));                                                                      \
+#define DECLARE_STATIC_DATE_GETTER(Name, unused1, unused2, unused3)                                                                  \
+    static Value builtinDateGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
+    {                                                                                                                                \
+        RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, get##Name);                                                                   \
+        if (!(thisObject->isValid()))                                                                                                \
+            return Value(std::numeric_limits<double>::quiet_NaN());                                                                  \
+        return Value(thisObject->get##Name(state));                                                                                  \
     }
 
 FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_GETTER);
@@ -381,14 +383,14 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
 }
 
 #define DECLARE_STATIC_DATE_SETTER(Name, setterType, length, utc)                                                                                              \
-    static Value builtinDateSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)                                       \
+    static Value builtinDateSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                           \
     {                                                                                                                                                          \
         return Value(builtinDateSetHelper(state, DateSetterType::setterType, length, utc, thisValue, argc, argv, state.context()->staticStrings().set##Name)); \
     }
 
 FOR_EACH_DATE_VALUES(DECLARE_STATIC_DATE_SETTER);
 
-static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setTime);
     if (argc > 0) {
@@ -401,7 +403,7 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
     }
 }
 
-static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getYear);
     if (!(thisObject->isValid())) {
@@ -411,7 +413,7 @@ static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t a
     return Value(ret);
 }
 
-static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setYear);
     DateObject* d = thisObject;
@@ -462,7 +464,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     return Value(d->primitiveValue());
 }
 
-static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getTimezoneOffset);
     if (!(thisObject->isValid()))
@@ -470,7 +472,7 @@ static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue
     return Value(thisObject->getTimezoneOffset(state));
 }
 
-static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
     Value O = thisValue;

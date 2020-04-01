@@ -47,7 +47,7 @@ Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Va
 
 class ScriptClassConstructorFunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& thisArgument, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& thisArgument, bool isStrict)
     {
         // Let envRec be localEnv’s EnvironmentRecord.
         // Assert: The next step never returns an abrupt completion because envRec.[[thisBindingStatus]] is not "uninitialized".
@@ -62,7 +62,7 @@ public:
 
 class ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct {
 public:
-    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
+    void operator()(ExecutionState& callerState, ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
     {
         record->setNewTarget(newTarget);
     }
@@ -70,7 +70,7 @@ public:
 
 class ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct {
 public:
-    Value operator()(ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
     {
         // Let result be OrdinaryCallEvaluateBody(F, argumentsList).
         const Value& result = interpreterReturnValue;
@@ -85,7 +85,7 @@ public:
         }
         // If result.[[value]] is not undefined, throw a TypeError exception.
         if (!result.isUndefined()) {
-            ErrorObject::throwBuiltinError(calleeState, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
+            ErrorObject::throwBuiltinError(callerState, ErrorObject::TypeError, errorMessage_InvalidDerivedConstructorReturnValue);
         }
         // Else, ReturnIfAbrupt(result).
         // Return envRec.GetThisBinding().
@@ -107,7 +107,9 @@ Object* ScriptClassConstructorFunctionObject::construct(ExecutionState& state, c
     // If kind is "base", then
     if (kind == ConstructorKind::Base) {
         // Let thisArgument be OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->objectPrototype());
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+            return constructorRealm->globalObject()->objectPrototype();
+        });
         // Set the [[Prototype]] internal slot of obj to proto.
         thisArgument = new Object(state, proto);
         // ReturnIfAbrupt(thisArgument).

@@ -33,8 +33,8 @@
 namespace Escargot {
 
 // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
-static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
-static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget);
+static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
 PromiseObject::PromiseObject(ExecutionState& state)
     : PromiseObject(state, state.context()->globalObject()->promisePrototype())
@@ -226,7 +226,7 @@ Object* PromiseObject::promiseResolve(ExecutionState& state, Object* C, const Va
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-getcapabilitiesexecutor-functions
-Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
 
@@ -255,7 +255,7 @@ Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Valu
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve-functions
-static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
@@ -308,7 +308,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-promise-reject-functions
-static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
@@ -336,7 +336,7 @@ static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-promise.all-resolve-element-functions
-Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // Let F be the active function object.
@@ -372,7 +372,7 @@ Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Val
 }
 
 
-static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let F be the active function object.
     Object* F = state.resolveCallee();
@@ -381,7 +381,7 @@ static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t arg
 }
 
 
-static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let F be the active function object.
     Object* F = state.resolveCallee();
@@ -391,7 +391,7 @@ static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t ar
 }
 
 
-Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-thenfinallyfunctions
     auto strings = &state.context()->staticStrings();
@@ -425,7 +425,7 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
 }
 
 
-Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-catchfinallyfunctions
     auto strings = &state.context()->staticStrings();

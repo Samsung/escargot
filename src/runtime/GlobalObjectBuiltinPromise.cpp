@@ -32,10 +32,10 @@
 namespace Escargot {
 
 // $25.4.3 Promise(executor)
-static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise constructor should be called with new Promise()");
     }
 
@@ -45,7 +45,9 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
     }
 
     // Let promise be ? OrdinaryCreateFromConstructor(NewTarget, "%PromisePrototype%", « [[PromiseState]], [[PromiseResult]], [[PromiseFulfillReactions]], [[PromiseRejectReactions]], [[PromiseIsHandled]] »).
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->promisePrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->promisePrototype();
+    });
     PromiseObject* promise = new PromiseObject(state, proto);
 
     PromiseReaction::Capability capability = promise->createResolvingFunctions(state);
@@ -63,7 +65,7 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
     return promise;
 }
 
-static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-promise.all
     auto strings = &state.context()->staticStrings();
@@ -200,7 +202,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
     return result;
 }
 
-static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-promise.race
     auto strings = &state.context()->staticStrings();
@@ -294,7 +296,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     return result;
 }
 
-static Value builtinPromiseReject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseReject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Object* thisObject = thisValue.toObject(state);
@@ -306,7 +308,7 @@ static Value builtinPromiseReject(ExecutionState& state, Value thisValue, size_t
 }
 
 // http://www.ecma-international.org/ecma-262/10.0/#sec-promise.resolve
-static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let C be the this value.
     const Value& C = thisValue;
@@ -318,7 +320,7 @@ static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_
     return PromiseObject::promiseResolve(state, C.asObject(), argv[0]);
 }
 
-static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
     Object* thisObject = thisValue.toObject(state);
@@ -329,7 +331,7 @@ static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t 
 }
 
 
-static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-promise.prototype.finally
     auto strings = &state.context()->staticStrings();
@@ -362,7 +364,7 @@ static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_
 }
 
 
-static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
     if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())

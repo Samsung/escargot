@@ -29,16 +29,18 @@
 namespace Escargot {
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-weakset-constructor
-Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
     // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakSetPrototype%", « [[WeakSetData]] »).
     // Set set's [[WeakSetData]] internal slot to a new empty List.
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->weakSetPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->weakSetPrototype();
+    });
     WeakSetObject* set = new WeakSetObject(state, proto);
 
     // If iterable is not present, let iterable be undefined.
@@ -93,7 +95,7 @@ Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t a
     }                                                                                                                                                                                                                                          \
     WeakSetObject* NAME = thisValue.asObject()->asWeakSetObject();
 
-static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, add);
     if (!argv[0].isObject()) {
@@ -104,7 +106,7 @@ static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t ar
     return S;
 }
 
-static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, stringDelete);
     if (!argv[0].isObject()) {
@@ -114,7 +116,7 @@ static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t
     return Value(S->deleteOperation(state, argv[0].asObject()));
 }
 
-static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, has);
     if (!argv[0].isObject()) {

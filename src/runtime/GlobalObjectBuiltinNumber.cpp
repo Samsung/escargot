@@ -74,23 +74,25 @@ static int itoa(int64_t value, char* sp, int radix)
     return len;
 }
 
-static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double num = 0;
     if (argc > 0) {
         num = argv[0].toNumber(state);
     }
 
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         return Value(num);
     } else {
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->numberPrototype());
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+            return constructorRealm->globalObject()->numberPrototype();
+        });
         NumberObject* numObj = new NumberObject(state, proto, num);
         return numObj;
     }
 }
 
-static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double number = 0.0;
 
@@ -134,7 +136,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
     return Value();
 }
 
-static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double number = 0.0;
 
@@ -177,7 +179,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     return Value(new ASCIIString(builder.Finalize()));
 }
 
-static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double number = 0.0;
 
@@ -216,7 +218,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
     return Value();
 }
 
-static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double number = 0.0;
 
@@ -263,7 +265,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 
-static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Number, toLocaleString);
     if (!thisObject->isNumberObject()) {
@@ -306,7 +308,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
 #endif
 }
 
-static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isNumber()) {
         return Value(thisValue);
@@ -317,7 +319,7 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinNumberIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isNumber()) {
         return Value(Value::False);
@@ -330,7 +332,7 @@ static Value builtinNumberIsFinite(ExecutionState& state, Value thisValue, size_
     return Value(Value::True);
 }
 
-static Value builtinNumberIsInteger(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberIsInteger(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isNumber()) {
         return Value(Value::False);
@@ -348,7 +350,7 @@ static Value builtinNumberIsInteger(ExecutionState& state, Value thisValue, size
     return Value(Value::True);
 }
 
-static Value builtinNumberIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isNumber()) {
         return Value(Value::False);
@@ -361,7 +363,7 @@ static Value builtinNumberIsNaN(ExecutionState& state, Value thisValue, size_t a
     return Value(Value::False);
 }
 
-static Value builtinNumberIsSafeInteger(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinNumberIsSafeInteger(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isNumber()) {
         return Value(Value::False);

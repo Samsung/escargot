@@ -37,9 +37,9 @@ namespace Escargot {
     F(Uint16)                      \
     F(Uint32)
 
-Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, errorMessage_GlobalObject_NotExistNewInDataViewConstructor);
     }
     if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBufferObject())) {
@@ -79,49 +79,51 @@ Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t 
         }
     }
 
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->dataViewPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->dataViewPrototype();
+    });
     ArrayBufferView* obj = new DataViewObject(state, proto);
     obj->setBuffer(buffer, byteOffset, byteLength);
 
     return obj;
 }
 
-#define DECLARE_DATAVIEW_GETTER(Name)                                                                                         \
-    static Value builtinDataViewGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)  \
-    {                                                                                                                         \
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                      \
-        if (!(thisObject->isDataViewObject())) {                                                                              \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), \
-                                           true, state.context()->staticStrings().get##Name.string(),                         \
-                                           errorMessage_GlobalObject_ThisNotDataViewObject);                                  \
-        }                                                                                                                     \
-        if (argc < 2) {                                                                                                       \
-            return thisObject->asDataViewObject()->getViewValue(state, argv[0], Value(false), TypedArrayType::Name);          \
-        } else {                                                                                                              \
-            return thisObject->asDataViewObject()->getViewValue(state, argv[0], argv[1], TypedArrayType::Name);               \
-        }                                                                                                                     \
+#define DECLARE_DATAVIEW_GETTER(Name)                                                                                                    \
+    static Value builtinDataViewGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
+    {                                                                                                                                    \
+        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                                 \
+        if (!(thisObject->isDataViewObject())) {                                                                                         \
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(),            \
+                                           true, state.context()->staticStrings().get##Name.string(),                                    \
+                                           errorMessage_GlobalObject_ThisNotDataViewObject);                                             \
+        }                                                                                                                                \
+        if (argc < 2) {                                                                                                                  \
+            return thisObject->asDataViewObject()->getViewValue(state, argv[0], Value(false), TypedArrayType::Name);                     \
+        } else {                                                                                                                         \
+            return thisObject->asDataViewObject()->getViewValue(state, argv[0], argv[1], TypedArrayType::Name);                          \
+        }                                                                                                                                \
     }
 
-#define DECLARE_DATAVIEW_SETTER(Name)                                                                                         \
-    static Value builtinDataViewSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)  \
-    {                                                                                                                         \
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                      \
-        if (!(thisObject->isDataViewObject())) {                                                                              \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), \
-                                           true, state.context()->staticStrings().set##Name.string(),                         \
-                                           errorMessage_GlobalObject_ThisNotDataViewObject);                                  \
-        }                                                                                                                     \
-        if (argc < 3) {                                                                                                       \
-            return thisObject->asDataViewObject()->setViewValue(state, argv[0], Value(false), TypedArrayType::Name, argv[1]); \
-        } else {                                                                                                              \
-            return thisObject->asDataViewObject()->setViewValue(state, argv[0], argv[2], TypedArrayType::Name, argv[1]);      \
-        }                                                                                                                     \
+#define DECLARE_DATAVIEW_SETTER(Name)                                                                                                    \
+    static Value builtinDataViewSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
+    {                                                                                                                                    \
+        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                                 \
+        if (!(thisObject->isDataViewObject())) {                                                                                         \
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(),            \
+                                           true, state.context()->staticStrings().set##Name.string(),                                    \
+                                           errorMessage_GlobalObject_ThisNotDataViewObject);                                             \
+        }                                                                                                                                \
+        if (argc < 3) {                                                                                                                  \
+            return thisObject->asDataViewObject()->setViewValue(state, argv[0], Value(false), TypedArrayType::Name, argv[1]);            \
+        } else {                                                                                                                         \
+            return thisObject->asDataViewObject()->setViewValue(state, argv[0], argv[2], TypedArrayType::Name, argv[1]);                 \
+        }                                                                                                                                \
     }
 
 FOR_EACH_DATAVIEW_TYPES(DECLARE_DATAVIEW_GETTER);
 FOR_EACH_DATAVIEW_TYPES(DECLARE_DATAVIEW_SETTER);
 
-static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
         ArrayBufferObject* buffer = thisValue.asObject()->asArrayBufferView()->buffer();
@@ -133,7 +135,7 @@ static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue,
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
@@ -142,7 +144,7 @@ static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisVa
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());

@@ -25,6 +25,7 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/Context.h"
 #include "util/Util.h"
 
 namespace Escargot {
@@ -147,6 +148,18 @@ public:
         return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
     }
     void* operator new[](size_t size) = delete;
+
+    ALWAYS_INLINE bool isDetached()
+    {
+        return m_buffer->isDetachedBuffer();
+    }
+
+    ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
+    {
+        if (UNLIKELY(isDetached())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), errorMessage_GlobalObject_DetachedBuffer);
+        }
+    }
 
 private:
     ArrayBufferObject* m_buffer;
@@ -294,6 +307,8 @@ public:
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
+            throwTypeErrorIfDetached(state);
+
             if ((unsigned)index < arrayLength()) {
                 unsigned idxPosition = index * typedArrayElementSize;
                 return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
@@ -307,6 +322,8 @@ public:
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
+            throwTypeErrorIfDetached(state);
+
             if ((unsigned)index < arrayLength()) {
                 unsigned idxPosition = index * typedArrayElementSize;
                 return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
@@ -320,6 +337,8 @@ public:
     {
         uint64_t index = P.tryToUseAsIndex();
         if (LIKELY(Value::InvalidIndexValue != index)) {
+            throwTypeErrorIfDetached(state);
+
             if ((unsigned)index >= arrayLength())
                 return false;
             unsigned idxPosition = index * typedArrayElementSize;
@@ -398,6 +417,7 @@ public:
     {
         Value::ValueIndex idx = property.tryToUseAsIndex(state);
         if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arrayLength())) {
+            throwTypeErrorIfDetached(state);
             unsigned idxPosition = idx * typedArrayElementSize;
             return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
         }
@@ -408,6 +428,7 @@ public:
     {
         Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
         if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arrayLength())) {
+            throwTypeErrorIfDetached(state);
             unsigned idxPosition = idx * typedArrayElementSize;
             return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
         }
@@ -418,14 +439,13 @@ public:
     {
         Value::ValueIndex index = property.tryToUseAsIndex(state);
         if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((unsigned)index < arrayLength())) {
+            throwTypeErrorIfDetached(state);
             unsigned idxPosition = index * typedArrayElementSize;
             setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
             return true;
         }
         return set(state, ObjectPropertyName(state, property), value, this);
     }
-
-protected:
 };
 
 typedef TypedArrayObject<Int8Adaptor, 1> Int8ArrayObjectWrapper;

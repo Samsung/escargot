@@ -86,7 +86,7 @@ Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, 
 
 class ScriptFunctionObjectObjectThisValueBinderWithConstruct {
 public:
-    Value operator()(ExecutionState& calleeState, FunctionObject* self, const Value& thisArgument, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, FunctionObject* self, const Value& thisArgument, bool isStrict)
     {
         ASSERT(thisArgument.isObject());
         return thisArgument;
@@ -95,7 +95,7 @@ public:
 
 class ScriptFunctionObjectReturnValueBinderWithConstruct {
 public:
-    Value operator()(ExecutionState& state, ScriptFunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
+    Value operator()(ExecutionState& callerState, ExecutionState& state, ScriptFunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
     {
         // Let result be OrdinaryCallEvaluateBody(F, argumentsList).
         const Value& result = interpreterReturnValue;
@@ -112,7 +112,7 @@ public:
 
 class ScriptFunctionObjectNewTargetBinderWithConstruct {
 public:
-    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
+    void operator()(ExecutionState& callerState, ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
     {
         record->setNewTarget(newTarget);
     }
@@ -127,7 +127,9 @@ Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc
     ASSERT(constructorKind() == ConstructorKind::Base); // this is always `Base` because we define ScriptClassConsturctor::construct
 
     // Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget, state.context()->globalObject()->objectPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->objectPrototype();
+    });
     // Set the [[Prototype]] internal slot of obj to proto.
     Object* thisArgument = new Object(state, proto);
 

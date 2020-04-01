@@ -28,16 +28,18 @@
 
 namespace Escargot {
 
-Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage_GlobalObject_ConstructorRequiresNew);
     }
 
     // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%SetPrototype%", « [[SetData]] »).
     // Set set's [[SetData]] internal slot to a new empty List.
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->setPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->setPrototype();
+    });
     SetObject* set = new SetObject(state, proto);
 
     // If iterable is not present, let iterable be undefined.
@@ -92,33 +94,33 @@ Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_t argc,
     }                                                                                                                                                                                                                                          \
     SetObject* NAME = thisValue.asObject()->asSetObject();
 
-static Value builtinSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, add);
     S->add(state, argv[0]);
     return S;
 }
 
-static Value builtinSetClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, clear);
     S->clear(state);
     return Value();
 }
 
-static Value builtinSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, stringDelete);
     return Value(S->deleteOperation(state, argv[0]));
 }
 
-static Value builtinSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, has);
     return Value(S->has(state, argv[0]));
 }
 
-static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be the this value.
     // If Type(S) is not Object, throw a TypeError exception.
@@ -152,25 +154,25 @@ static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t ar
     return Value();
 }
 
-static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
     return S->values(state);
 }
 
-static Value builtinSetEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, entries);
     return S->entries(state);
 }
 
-static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, size);
     return Value(S->size(state));
 }
 
-static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isSetIteratorObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SetIterator.string(), true, state.context()->staticStrings().next.string(), errorMessage_GlobalObject_CalledOnIncompatibleReceiver);

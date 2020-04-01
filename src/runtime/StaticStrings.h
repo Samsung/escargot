@@ -302,7 +302,6 @@ namespace Escargot {
     F(trim)                       \
     F(unescape)                   \
     F(unshift)                    \
-    F(ThrowTypeError)             \
     F(TypedArray)                 \
     F(Int8Array)                  \
     F(Int16Array)                 \

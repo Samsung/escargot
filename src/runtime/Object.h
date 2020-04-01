@@ -1023,7 +1023,7 @@ public:
     static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
     Optional<Object*> getMethod(ExecutionState& state, const ObjectPropertyName& propertyName); // returns nullptr or callable
 
-    static Object* getPrototypeFromConstructor(ExecutionState& state, Object* constructor, const Value& intrinsicDefaultProto);
+    static Object* getPrototypeFromConstructor(ExecutionState& state, Object* constructor, Object* (*intrinsicDefaultProtoGetter)(ExecutionState& state, Context* constructorRealm));
 
     bool hasInstance(ExecutionState& state, const Value O);
 

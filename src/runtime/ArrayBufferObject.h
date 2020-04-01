@@ -22,6 +22,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -46,7 +47,7 @@ public:
     explicit ArrayBufferObject(ExecutionState& state);
     explicit ArrayBufferObject(ExecutionState& state, Object* proto);
 
-    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Value constructor);
+    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor);
 
     static const uint32_t maxArrayBufferSize = 210000000;
 
@@ -131,11 +132,18 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    bool isDetachedBuffer()
+    ALWAYS_INLINE bool isDetachedBuffer()
     {
         if (data() == NULL)
             return true;
         return false;
+    }
+
+    ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
+    {
+        if (UNLIKELY(isDetachedBuffer())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), errorMessage_GlobalObject_DetachedBuffer);
+        }
     }
 
     void fillData(const uint8_t* data, unsigned length)

@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-static Value builtinIteratorIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinIteratorIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return thisValue;
 }

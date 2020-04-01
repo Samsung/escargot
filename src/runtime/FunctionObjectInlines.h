@@ -41,7 +41,7 @@ class ScriptAsyncFunctionObject;
 // this is default version of ThisValueBinder
 class FunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& calleeState, FunctionObject* self, const Value& thisArgument, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, FunctionObject* self, const Value& thisArgument, bool isStrict)
     {
         // OrdinaryCallBindThis ( F, calleeContext, thisArgument )
         // Let thisMode be the value of F’s [[ThisMode]] internal slot.
@@ -73,7 +73,7 @@ public:
 
 class FunctionObjectReturnValueBinder {
 public:
-    Value operator()(ExecutionState& calleeState, FunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, FunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
     {
         return interpreterReturnValue;
     }
@@ -81,32 +81,12 @@ public:
 
 class FunctionObjectNewTargetBinder {
 public:
-    void operator()(ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
+    void operator()(ExecutionState& callerState, ExecutionState& calleeState, FunctionObject* self, Object* newTarget, FunctionEnvironmentRecord* record)
     {
     }
 };
 
 class FunctionObjectProcessCallGenerator {
-private:
-    // https://www.ecma-international.org/ecma-262/10.0/#sec-getprototypefromconstructor
-    static Object* getPrototypeFromConstructor(ExecutionState& state, FunctionObject* constructor, const Value& intrinsicDefaultProto)
-    {
-        // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
-        // Assert: IsCallable(constructor) is true.
-        // Let proto be ? Get(constructor, "prototype").
-        Value proto = constructor->getFunctionPrototype(state);
-        // If Type(proto) is not Object, then
-        if (!proto.isObject()) {
-            // Let realm be ? GetFunctionRealm(constructor).
-            // Set proto to realm's intrinsic object named intrinsicDefaultProto.
-            proto = intrinsicDefaultProto;
-        } else {
-            proto.asObject()->markAsPrototypeObject(state);
-        }
-        // Return proto.
-        return proto.asObject();
-    }
-
 public:
     template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
     static ALWAYS_INLINE Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
@@ -201,24 +181,26 @@ public:
             // we should use newState because
             // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
             // NOTE ToObject produces wrapper objects using calleeRealm. <<----
-            stackStorage[0] = thisValueBinder(*newState, self, thisArgument, isStrict);
+            stackStorage[0] = thisValueBinder(state, *newState, self, thisArgument, isStrict);
 
             if (isConstructCall) {
                 NewTargetBinder newTargetBinder;
-                newTargetBinder(*newState, self, newTarget, record);
+                newTargetBinder(state, *newState, self, newTarget, record);
             }
 
             // https://www.ecma-international.org/ecma-262/10.0/#sec-ordinarycreatefromconstructor
             // OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] )
-            FunctionObject* constructor = self;
-
             // Assert: intrinsicDefaultProto is a String value that is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
             // let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
             Object* proto = nullptr;
             if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
-                proto = getPrototypeFromConstructor(state, constructor, constructor->getFunctionRealm(state)->globalObject()->generatorPrototype());
+                proto = Object::getPrototypeFromConstructor(state, self, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+                    return constructorRealm->globalObject()->generatorPrototype();
+                });
             } else {
-                proto = getPrototypeFromConstructor(state, constructor, constructor->getFunctionRealm(state)->globalObject()->asyncGeneratorPrototype());
+                proto = Object::getPrototypeFromConstructor(state, self, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+                    return constructorRealm->globalObject()->asyncGeneratorPrototype();
+                });
             }
 
             // Return ObjectCreate(proto, internalSlotsList).
@@ -252,16 +234,16 @@ public:
         // we should use newState because
         // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
         // NOTE ToObject produces wrapper objects using calleeRealm. <<----
-        stackStorage[0] = thisValueBinder(*newState, self, thisArgument, isStrict);
+        stackStorage[0] = thisValueBinder(state, *newState, self, thisArgument, isStrict);
 
         if (isConstructCall) {
             NewTargetBinder newTargetBinder;
-            newTargetBinder(*newState, self, newTarget, record);
+            newTargetBinder(state, *newState, self, newTarget, record);
         }
 
         // run function
         ReturnValueBinder returnValueBinder;
-        const Value returnValue = returnValueBinder(*newState, self,
+        const Value returnValue = returnValueBinder(state, *newState, self,
                                                     std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value ? ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async)
                                                                                                                        : ByteCodeInterpreter::interpret(newState, blk, 0, registerFile),
                                                     thisArgument, record);

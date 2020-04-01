@@ -24,10 +24,12 @@
 
 namespace Escargot {
 
-ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Value constructor)
+ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
-    Object* proto = Object::getPrototypeFromConstructor(state, constructor.asObject(), state.context()->globalObject()->arrayBufferPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, constructor, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->arrayBufferPrototype();
+    });
     ArrayBufferObject* obj = new ArrayBufferObject(state, proto);
 
     return obj;

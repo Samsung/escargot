@@ -30,12 +30,12 @@ namespace Escargot {
 typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> ObjectPropertyVector;
 typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> ObjectStructurePropertyVector;
 
-static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return thisValue.toObject(state)->getPrototype(state);
 }
 
-static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value value = argv[0];
     Object* thisObject = thisValue.toObject(state);
@@ -49,12 +49,14 @@ static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue
     return Value();
 }
 
-static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is neither undefined nor the active function, then
-    if (!newTarget.isUndefined() && newTarget != state.resolveCallee()) {
+    if (newTarget.hasValue() && newTarget.value() != state.resolveCallee()) {
         // Return ? OrdinaryCreateFromConstructor(NewTarget, "%ObjectPrototype%").
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->objectPrototype());
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+            return constructorRealm->globalObject()->objectPrototype();
+        });
         return new Object(state, proto);
     }
 
@@ -68,13 +70,13 @@ static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, si
     }
 }
 
-static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(ret, Object, valueOf);
     return ret;
 }
 
-static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
         return argv[0];
@@ -84,7 +86,7 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
     return o;
 }
 
-static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefined()) {
         return new ASCIIString("[object Undefined]");
@@ -128,7 +130,7 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     return AtomicString(state, builder.finalize()).string();
 }
 
-static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value key = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
     Object* obj = thisValue.toObject(state);
@@ -160,7 +162,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     return object;
 }
 
-static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject() && !argv[0].isNull())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), errorMessage_GlobalObject_FirstArgumentNotObjectAndNotNull);
@@ -175,12 +177,12 @@ static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t 
     return obj;
 }
 
-static Value builtinObjectDefineProperties(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectDefineProperties(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return objectDefineProperties(state, argv[0], argv[1]);
 }
 
-static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Object.defineProperty ( O, P, Attributes )
     // If Type(O) is not Object, throw a TypeError exception.
@@ -203,7 +205,7 @@ static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue,
     return O;
 }
 
-static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Object.prototype.isPrototypeOf (V)
     // If V is not an object, return false.
@@ -229,7 +231,7 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
     }
 }
 
-static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let P be toPropertyKey(V).
     Value P = argv[0].toPropertyKey(state);
@@ -248,7 +250,7 @@ static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value this
     return Value(desc.isEnumerable());
 }
 
-static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
@@ -264,12 +266,12 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
     return Object::call(state, toString, Value(O), 0, nullptr);
 }
 
-static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return argv[0].toObject(state)->getPrototype(state);
 }
 
-static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
     // 19.1.2.18 Object.setPrototypeOf ( O, proto )
@@ -307,7 +309,7 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
     return object;
 }
 
-static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
         // If Type(O) is not Object, return O. (ES6)
@@ -356,7 +358,7 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     return O;
 }
 
-static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argv[0].isUndefinedOrNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), errorMessage_GlobalObject_ThisUndefinedOrNull);
@@ -399,7 +401,7 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
     return obj;
 }
 
-static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Object.getOwnPropertyDescriptor ( O, P )
 
@@ -417,7 +419,7 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
 }
 // 19.1.2.9Object.getOwnPropertyDescriptors ( O )
 //https://www.ecma-international.org/ecma-262/8.0/#sec-object.getownpropertydescriptors
-static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Object* obj = argv[0].toObject(state);
     auto ownKeys = obj->ownPropertyKeys(state);
@@ -471,21 +473,21 @@ static ArrayObject* getOwnPropertyKeys(ExecutionState& state, Value o, GetOwnPro
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
-static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertynames
     Object* O = argv[0].toObject(state);
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::String);
 }
 
-static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertysymbols
     Object* O = argv[0].toObject(state);
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::Symbol);
 }
 
-static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(Value::False);
@@ -494,7 +496,7 @@ static Value builtinObjectIsExtensible(ExecutionState& state, Value thisValue, s
     return Value(argv[0].asObject()->isExtensible(state));
 }
 
-static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(Value::True);
@@ -523,7 +525,7 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
-static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
         return Value(Value::True);
@@ -554,7 +556,7 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
     return Value(false);
 }
 
-static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
         return argv[0];
@@ -589,7 +591,7 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     return O;
 }
 
-static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Object.assign ( target, ...sources )
     // Let to be ? ToObject(target).
@@ -634,7 +636,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
     return to;
 }
 
-static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // 19.1.2.10 Object.is ( value1, value2 )
 
@@ -642,7 +644,7 @@ static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc
     return Value(argv[0].equalsToByTheSameValueAlgorithm(state, argv[1]));
 }
 
-static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // 19.1.2.16 Object.keys ( O )
 
@@ -654,7 +656,7 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
-static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // 19.1.2.21 Object.values ( O )
 
@@ -666,7 +668,7 @@ static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t 
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
-static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // 19.1.2.5 Object.entries ( O )
 

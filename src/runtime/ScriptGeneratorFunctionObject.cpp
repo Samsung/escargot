@@ -26,13 +26,13 @@ namespace Escargot {
 
 Object* ScriptGeneratorFunctionObject::createFunctionPrototypeObject(ExecutionState& state)
 {
-    Object* prototype = new Object(state, state.context()->globalObject()->generatorPrototype());
+    Object* prototype = new Object(state, m_codeBlock->context()->globalObject()->generatorPrototype());
     return prototype;
 }
 
 class ScriptGeneratorFunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& calleeState, ScriptGeneratorFunctionObject* self, const Value& thisArgument, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, ScriptGeneratorFunctionObject* self, const Value& thisArgument, bool isStrict)
     {
         Value thisValue = self->thisValue();
         if (thisValue.isEmpty()) {

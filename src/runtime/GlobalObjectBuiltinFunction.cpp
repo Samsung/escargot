@@ -29,14 +29,14 @@
 
 namespace Escargot {
 
-static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionEmptyFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return Value();
 }
 
-static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!newTarget.isUndefined() && UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
+    if (newTarget.hasValue() && UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
         Value checkMSG = state.context()->securityPolicyCheckCallback()(state, false);
         if (!checkMSG.isEmpty()) {
             ASSERT(checkMSG.isString());
@@ -51,10 +51,12 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
-    if (newTarget.isUndefined()) {
+    if (!newTarget.hasValue()) {
         newTarget = state.resolveCallee();
     }
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.asObject(), state.context()->globalObject()->functionPrototype());
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->functionPrototype();
+    });
 
     ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
 
@@ -62,7 +64,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-function.prototype.tostring
-static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isObject())) {
         Object* func = thisValue.asObject();
@@ -102,7 +104,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
     return Value();
 }
 
-static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
@@ -132,7 +134,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
     return Object::call(state, thisValue, thisArg, arrlen, arguments);
 }
 
-static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), errorMessage_GlobalObject_ThisNotFunctionObject);
@@ -148,7 +150,7 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-function.prototype.bind
-static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If IsCallable(Target) is false, throw a TypeError exception.
     if (!thisValue.isCallable()) {
@@ -202,7 +204,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     return new BoundFunctionObject(state, target, boundThis, boundArgc, boundArgv, Value(length), Value(builder.finalize(&state)));
 }
 
-static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Value newTarget)
+static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
         return Value(false);

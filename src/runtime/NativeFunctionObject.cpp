@@ -94,7 +94,7 @@ bool NativeFunctionObject::isConstructor() const
 }
 
 template <bool isConstruct>
-Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, Object* newTarget)
+Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
@@ -145,7 +145,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         return result;
     } else {
         ASSERT(!newTarget);
-        return code->m_fn(newState, receiver, argc, argv, Value());
+        return code->m_fn(newState, receiver, argc, argv, nullptr);
     }
 }
 
