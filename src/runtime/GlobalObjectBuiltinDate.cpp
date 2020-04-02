@@ -149,7 +149,7 @@ static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     DateObject d(state);
-    double args[7] = { 0, 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
+    double args[7] = { std::numeric_limits<double>::quiet_NaN(), 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
     argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
     for (size_t i = 0; i < argc; i++) {
         args[i] = argv[i].toNumber(state);
@@ -162,13 +162,15 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     double second = args[5];
     double millisecond = args[6];
 
-    if (!std::isnan(year) && (int)year >= 0 && (int)year <= 99) {
-        year += 1900;
+    if (!std::isnan(year)) {
+        int yi = (int)year;
+        if (yi >= 0 && yi <= 99) {
+            yi += 1900;
+            year = yi;
+        }
     }
 
-    if (argc < 2) {
-        d.setTimeValueAsNaN();
-    } else if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
+    if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
         d.setTimeValueAsNaN();
     } else {
         d.setTimeValue(state, year, month, date, hour, minute, second, millisecond, false);

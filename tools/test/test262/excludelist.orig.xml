@@ -502,14 +502,6 @@
     <test id="built-ins/DataView/toindex-bytelength-sab"><reason>TODO</reason></test>
     <test id="built-ins/DataView/toindex-byteoffset"><reason>TODO</reason></test>
     <test id="built-ins/DataView/toindex-byteoffset-sab"><reason>TODO</reason></test>
-    <test id="built-ins/Date/UTC/return-value"><reason>TODO</reason></test>
-    <test id="built-ins/Date/UTC/year-offset"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toDateString/format"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toDateString/negative-year"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toString/format"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toString/negative-year"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toUTCString/format"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toUTCString/negative-year"><reason>TODO</reason></test>
     <test id="built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/Symbol.toStringTag"><reason>TODO</reason></test>
     <test id="built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws"><reason>TODO</reason></test>
     <test id="built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-length"><reason>TODO</reason></test>
