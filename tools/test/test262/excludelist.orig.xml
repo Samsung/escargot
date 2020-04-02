@@ -1731,13 +1731,6 @@
     <test id="intl402/BigInt/prototype/toLocaleString/taint-Intl-NumberFormat"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/this-value-invalid"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/throws-same-exceptions-as-NumberFormat"><reason>TODO</reason></test>
-    <test id="intl402/Collator/missing-unicode-ext-value-defaults-to-true"><reason>TODO</reason></test>
-    <test id="intl402/Collator/prototype/compare/compare-function-name"><reason>TODO</reason></test>
-    <test id="intl402/Collator/prototype/compare/name"><reason>TODO</reason></test>
-    <test id="intl402/Collator/prototype/resolvedOptions/order"><reason>TODO</reason></test>
-    <test id="intl402/Collator/this-value-ignored"><reason>TODO</reason></test>
-    <test id="intl402/Collator/unicode-ext-seq-in-private-tag"><reason>TODO</reason></test>
-    <test id="intl402/Collator/usage-de"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/constructor-calendar-numberingSystem-order"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/constructor-options-dateStyle-invalid"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/constructor-options-dateStyle-valid"><reason>TODO</reason></test>

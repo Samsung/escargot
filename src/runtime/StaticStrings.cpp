@@ -99,6 +99,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(getDescription, "get description");
     INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
     INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
+    INIT_STATIC_STRING(getCompare, "get compare");
 
     INIT_STATIC_STRING($Ampersand, "$&");
     INIT_STATIC_STRING($PlusSign, "$+");

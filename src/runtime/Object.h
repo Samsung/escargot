@@ -717,8 +717,6 @@ class Object : public PointerValue {
     friend struct ObjectRareData;
 
 public:
-    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
-
     explicit Object(ExecutionState& state);
     explicit Object(ExecutionState& state, Object* proto);
 
@@ -986,8 +984,7 @@ public:
         ASSERT(!isArrayObject());
         ensureObjectRareData();
         if (!internalSlot()) {
-            setInternalSlot(new Object(state));
-            internalSlot()->setPrototype(state, Value(Value::Null));
+            setInternalSlot(new Object(state, Object::PrototypeIsNull));
         }
         return internalSlot();
     }
@@ -1060,6 +1057,7 @@ protected:
     }
 
     explicit Object(ExecutionState& state, Object* proto, size_t defaultSpace);
+    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     explicit Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin);
 
     ObjectRareData* rareData() const

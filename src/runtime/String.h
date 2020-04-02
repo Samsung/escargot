@@ -269,6 +269,7 @@ public:
     }
 
     static String* fromASCII(const char* s);
+    static String* fromASCII(const char* s, size_t len);
     static String* fromCharCode(char32_t code);
     static String* fromDouble(double v);
     static String* fromInt32(int32_t v)

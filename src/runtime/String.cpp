@@ -596,6 +596,11 @@ String* String::fromASCII(const char* src)
     return new ASCIIString(src, strlen(src));
 }
 
+String* String::fromASCII(const char* src, size_t len)
+{
+    return new ASCIIString(src, len);
+}
+
 String* String::fromDouble(double v)
 {
     auto s = dtoa(v);

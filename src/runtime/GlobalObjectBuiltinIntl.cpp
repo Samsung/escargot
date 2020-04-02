@@ -60,46 +60,28 @@ namespace Escargot {
 
 static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.hasValue()) {
-        // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.3.1
-        Value locales, options;
-        // If locales is not provided, then let locales be undefined.
-        // If options is not provided, then let options be undefined.
-        if (argc >= 1) {
-            locales = argv[0];
-        }
-        if (argc >= 2) {
-            options = argv[1];
-        }
-        // IntlCollator::initializeCollator(state, collator, locales, options);
-        return IntlCollator::create(state, newTarget->getFunctionRealm(state), locales, options);
-    } else {
-        // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.2
-        Value locales, options;
-        // If locales is not provided, then let locales be undefined.
-        // If options is not provided, then let options be undefined.
-        if (argc >= 1) {
-            locales = argv[0];
-        }
-        if (argc >= 2) {
-            options = argv[1];
-        }
-        // If this is the standard built-in Intl object defined in 8 or undefined, then
-        // Return the result of creating a new object as if by the expression new Intl.Collator(locales, options),
-        // where Intl.Collator is the standard built-in constructor defined in 10.1.3.
-        if (thisValue.isUndefined() || (thisValue.isObject() && thisValue.asObject() == state.context()->globalObject()->intl())) {
-            return IntlCollator::create(state, state.context(), locales, options);
-        } else {
-            // Let obj be the result of calling ToObject passing the this value as the argument.
-            Object* collator = thisValue.toObject(state);
-            // If the [[Extensible]] internal property of obj is false, throw a TypeError exception.
-            if (!collator->isExtensible(state)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This value of Intl.Collator function must be extensible");
-            }
-            IntlCollator::initialize(state, collator, state.context(), locales, options);
-            return collator;
-        }
+    // https://www.ecma-international.org/ecma-402/6.0/index.html#sec-intl.collator
+    Value locales, options;
+    if (argc >= 1) {
+        locales = argv[0];
     }
+    if (argc >= 2) {
+        options = argv[1];
+    }
+
+    // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
+    if (!newTarget) {
+        newTarget = state.resolveCallee();
+    }
+
+    // Let internalSlotsList be « [[InitializedCollator]], [[Locale]], [[Usage]], [[Sensitivity]], [[IgnorePunctuation]], [[Collation]], [[BoundCompare]] ».
+    // If %Collator%.[[RelevantExtensionKeys]] contains "kn", then
+    // Append [[Numeric]] as the last element of internalSlotsList.
+    // If %Collator%.[[RelevantExtensionKeys]] contains "kf", then
+    // Append [[CaseFirst]] as the last element of internalSlotsList.
+    // Let collator be ? OrdinaryCreateFromConstructor(newTarget, "%CollatorPrototype%", internalSlotsList).
+    // Return ? InitializeCollator(collator, locales, options).
+    return IntlCollator::create(state, newTarget->getFunctionRealm(state), locales, options);
 }
 
 static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -131,7 +113,7 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->compare, builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, compareFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -148,13 +130,13 @@ static Value builtinIntlCollatorResolvedOptions(ExecutionState& state, Value thi
     Object* internalSlot = thisValue.asObject()->internalSlot();
     auto r = IntlCollator::resolvedOptions(state, internalSlot);
     Object* result = new Object(state);
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("caseFirst")), ObjectPropertyDescriptor(Value(r.caseFirst), ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("collation")), ObjectPropertyDescriptor(r.collation, ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation")), ObjectPropertyDescriptor(Value(r.ignorePunctuation), ObjectPropertyDescriptor::AllPresent));
     result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("locale")), ObjectPropertyDescriptor(r.locale, ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("numeric")), ObjectPropertyDescriptor(Value(r.numeric), ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), ObjectPropertyDescriptor(r.sensitivity, ObjectPropertyDescriptor::AllPresent));
     result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("usage")), ObjectPropertyDescriptor(r.usage, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), ObjectPropertyDescriptor(r.sensitivity, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation")), ObjectPropertyDescriptor(Value(r.ignorePunctuation), ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("collation")), ObjectPropertyDescriptor(r.collation, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("numeric")), ObjectPropertyDescriptor(Value(r.numeric), ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("caseFirst")), ObjectPropertyDescriptor(Value(r.caseFirst), ObjectPropertyDescriptor::AllPresent));
     return result;
 }
 
@@ -455,7 +437,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlCollator = new NativeFunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlCollator->setGlobalIntrinsicObject(state);
 
-    FunctionObject* compareFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->compare, builtinIntlCollatorCompareGetter, 0, NativeFunctionInfo::Strict));
+    FunctionObject* compareFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCompare, builtinIntlCollatorCompareGetter, 0, NativeFunctionInfo::Strict));
     m_intlCollator->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().compare,
                                                                               ObjectPropertyDescriptor(JSGetterSetter(compareFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 

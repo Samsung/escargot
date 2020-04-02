@@ -348,24 +348,52 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         CollatorResolvedOptions opt = resolvedOptions(state, internalSlot);
         UErrorCode status = U_ZERO_ERROR;
         String* locale = opt.locale;
-        UCollator* ucollator = ucol_open(locale->toUTF8StringData().data(), &status);
-        if (U_FAILURE(status)) {
-            return;
+        UColAttributeValue strength = UCOL_DEFAULT;
+        UColAttributeValue caseLevel = UCOL_OFF;
+        UColAttributeValue alternate = UCOL_DEFAULT;
+        UColAttributeValue numeric = UCOL_OFF;
+        UColAttributeValue normalization = UCOL_ON; // normalization is always on. ecma-402 needs this
+        UColAttributeValue caseFirst = UCOL_DEFAULT;
+
+        if (opt.usage->equals("search")) {
+            // If usage is search, we should append "-co-search" extension
+            size_t u = locale->find("-u-");
+            if (u == SIZE_MAX) {
+                StringBuilder sb;
+                sb.appendString(locale);
+                sb.appendString("-u-co-search");
+                locale = sb.finalize();
+            } else {
+                StringBuilder sb;
+                sb.appendString(locale);
+                sb.appendString("-co-search");
+                locale = sb.finalize();
+            }
+        } else {
+            ASSERT(opt.usage->equals("sort"));
         }
 
-        UColAttributeValue strength = UCOL_PRIMARY;
-        UColAttributeValue caseLevel = UCOL_OFF;
-        UColAttributeValue caseFirst = UCOL_OFF;
 
         String* sensitivity = opt.sensitivity;
-        if (sensitivity->equals("accent")) {
+
+        if (sensitivity->equals("base")) {
+            strength = UCOL_PRIMARY;
+        } else if (sensitivity->equals("accent")) {
             strength = UCOL_SECONDARY;
         } else if (sensitivity->equals("case")) {
+            strength = UCOL_PRIMARY;
             caseLevel = UCOL_ON;
-        } else if (sensitivity->equals("variant")) {
+        } else {
+            ASSERT(sensitivity->equals("variant"));
             strength = UCOL_TERTIARY;
-        } else if (!sensitivity->equals("base")) {
-            ASSERT_NOT_REACHED();
+        }
+
+        if (opt.ignorePunctuation) {
+            alternate = UCOL_SHIFTED;
+        }
+
+        if (opt.numeric) {
+            numeric = UCOL_ON;
         }
 
         String* caseFirstString = opt.caseFirst;
@@ -373,23 +401,23 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             caseFirst = UCOL_UPPER_FIRST;
         } else if (caseFirstString->equals("lower")) {
             caseFirst = UCOL_LOWER_FIRST;
+        } else {
+            ASSERT(caseFirstString->equals("false"));
+            caseFirst = UCOL_OFF;
+        }
+
+        UCollator* ucollator = ucol_open(locale->toUTF8StringData().data(), &status);
+        if (U_FAILURE(status)) {
+            return;
         }
 
         ucol_setAttribute(ucollator, UCOL_STRENGTH, strength, &status);
         ucol_setAttribute(ucollator, UCOL_CASE_LEVEL, caseLevel, &status);
+        ucol_setAttribute(ucollator, UCOL_ALTERNATE_HANDLING, alternate, &status);
+        ucol_setAttribute(ucollator, UCOL_NUMERIC_COLLATION, numeric, &status);
+        ucol_setAttribute(ucollator, UCOL_NORMALIZATION_MODE, normalization, &status);
         ucol_setAttribute(ucollator, UCOL_CASE_FIRST, caseFirst, &status);
 
-        bool numeric = opt.numeric;
-        ucol_setAttribute(ucollator, UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF, &status);
-
-        // FIXME: Setting UCOL_ALTERNATE_HANDLING to UCOL_SHIFTED causes punctuation and whitespace to be
-        // ignored. There is currently no way to ignore only punctuation.
-        bool ignorePunctuation = opt.ignorePunctuation;
-        ucol_setAttribute(ucollator, UCOL_ALTERNATE_HANDLING, ignorePunctuation ? UCOL_SHIFTED : UCOL_DEFAULT, &status);
-
-        // "The method is required to return 0 when comparing Strings that are considered canonically
-        // equivalent by the Unicode standard."
-        ucol_setAttribute(ucollator, UCOL_NORMALIZATION_MODE, UCOL_ON, &status);
         if (U_FAILURE(status)) {
             ucol_close(ucollator);
             return;
@@ -407,27 +435,29 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
 int IntlCollator::compare(ExecutionState& state, Object* collator, String* a, String* b)
 {
-    ASSERT(a != nullptr);
-    ASSERT(b != nullptr);
-
-    UCollator* ucol = (UCollator*)collator->internalSlot()->extraData();
+    if (a->equals(b)) {
+        return 0;
+    }
 
     auto utf16A = a->toUTF16StringData();
     auto utf16B = b->toUTF16StringData();
 
-    UCharIterator iterA;
-    UCharIterator iterB;
+    UCollator* ucol = (UCollator*)collator->internalSlot()->extraData();
+    UCollationResult result = ucol_strcoll(ucol, utf16A.data(), utf16A.length(), utf16B.data(), utf16B.length());
 
-    uiter_setString(&iterA, (const UChar*)utf16A.data(), utf16A.length());
-    uiter_setString(&iterB, (const UChar*)utf16B.data(), utf16B.length());
-
-    UErrorCode status = U_ZERO_ERROR;
-    auto result = ucol_strcollIter(ucol, &iterA, &iterB, &status);
-    if (U_FAILURE(status)) {
+    switch (result) {
+    case UCOL_LESS:
+        return -1;
+    case UCOL_EQUAL:
+        return 0;
+    case UCOL_GREATER:
+        return 1;
+    default:
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to compare string a and b");
-        return result;
     }
-    return result;
+
+    ASSERT_NOT_REACHED();
+    return 0;
 }
 } // namespace Escargot
 #endif
