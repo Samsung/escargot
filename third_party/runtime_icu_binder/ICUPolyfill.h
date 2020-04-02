@@ -63,6 +63,7 @@
 #define ucol_getKeywordValuesForLocale RuntimeICUBinder::ICU::instance().ucol_getKeywordValuesForLocale
 #define ucol_open RuntimeICUBinder::ICU::instance().ucol_open
 #define ucol_strcollIter RuntimeICUBinder::ICU::instance().ucol_strcollIter
+#define ucol_strcoll RuntimeICUBinder::ICU::instance().ucol_strcoll
 
 #define unum_countAvailable RuntimeICUBinder::ICU::instance().unum_countAvailable
 #define unum_getAvailable RuntimeICUBinder::ICU::instance().unum_getAvailable

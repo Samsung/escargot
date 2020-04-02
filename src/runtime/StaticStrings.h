@@ -623,6 +623,7 @@ public:
     AtomicString getSize;
     AtomicString getSymbolSpecies;
     AtomicString getSymbolToStringTag;
+    AtomicString getCompare;
     AtomicString symbolSplit;
     AtomicString symbolReplace;
     AtomicString symbolSearch;

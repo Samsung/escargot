@@ -859,7 +859,7 @@ static std::string privateUseLangTag(const std::vector<std::string>& parts, size
             ++numExtParts;
             privateuse.appendChar('-');
             std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
-            privateuse.appendString(String::fromASCII(extPart.c_str()));
+            privateuse.appendString(String::fromUTF8(extPart.data(), extPart.length()));
         }
 
         // Requires at least one production.
@@ -897,7 +897,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
     std::transform(language.begin(), language.end(), language.begin(), tolower);
     language = preferredLanguage(language);
-    canonical.appendString(String::fromASCII(language.c_str()));
+    canonical.appendString(String::fromUTF8(language.data(), language.length()));
 
     // Check for extlang.
     // extlang = 3ALPHA *2("-" 3ALPHA)
@@ -910,11 +910,11 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
                 std::transform(extlang.begin(), extlang.end(), extlang.begin(), tolower);
                 if (!times && intlPreferredExtlangTag(extlang) == language) {
                     canonical.clear();
-                    canonical.appendString(String::fromASCII(extlang.c_str()));
+                    canonical.appendString(String::fromUTF8(extlang.data(), extlang.length()));
                     continue;
                 }
                 canonical.appendString("-");
-                canonical.appendString(String::fromASCII(extlang.c_str()));
+                canonical.appendString(String::fromUTF8(extlang.data(), extlang.length()));
             } else {
                 break;
             }
@@ -932,7 +932,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             std::transform(script.begin(), script.end(), script.begin(), tolower);
             canonical.appendChar((char)toupper(script[0]));
             script = script.substr(1, 3);
-            canonical.appendString(String::fromASCII(script.c_str()));
+            canonical.appendString(String::fromUTF8(script.data(), script.length()));
         }
     }
 
@@ -948,7 +948,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             canonical.appendChar('-');
             std::transform(region.begin(), region.end(), region.begin(), toupper);
             auto preffered = preferredRegion(region);
-            canonical.appendString(String::fromASCII(preffered.c_str()));
+            canonical.appendString(String::fromUTF8(preffered.data(), preffered.length()));
         }
     }
 
@@ -976,7 +976,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
         // Reordering variant subtags is not required in the spec.
         canonical.appendChar('-');
-        canonical.appendString(String::fromASCII(lowerVariant.c_str()));
+        canonical.appendString(String::fromUTF8(lowerVariant.data(), lowerVariant.length()));
     }
 
     // Check for extension.
@@ -1003,8 +1003,10 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
         ++currentIndex;
         int numExtParts = 0;
+        std::string prevExtPart;
+
         StringBuilder extension;
-        extension.appendString(String::fromASCII(singleton.c_str()));
+        extension.appendString(String::fromUTF8(singleton.data(), singleton.length()));
         while (currentIndex < numParts) {
             std::string extPart = parts[currentIndex];
             unsigned extPartLength = extPart.length();
@@ -1015,9 +1017,17 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
             ++currentIndex;
             ++numExtParts;
-            extension.appendChar('-');
             std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
-            extension.appendString(String::fromASCII(extPart.c_str()));
+
+            if (prevExtPart == "kn" && extPart == "true") {
+                // skip to insert
+                // we should not represent default value of `kn`
+            } else {
+                extension.appendChar('-');
+                extension.appendString(String::fromUTF8(extPart.data(), extPart.length()));
+            }
+
+            prevExtPart = std::move(extPart);
         }
 
         // Requires at least one production.
@@ -1039,7 +1049,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     size_t numExtenstions = extensions.size();
     for (size_t i = 0; i < numExtenstions; ++i) {
         canonical.appendChar('-');
-        canonical.appendString(String::fromASCII(extensions[i].c_str()));
+        canonical.appendString(String::fromUTF8(extensions[i].data(), extensions[i].length()));
     }
 
     // Check for privateuse.
@@ -1048,7 +1058,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
         if (privateuse.length() == 0)
             return std::string();
         canonical.appendChar('-');
-        canonical.appendString(String::fromASCII(privateuse.c_str()));
+        canonical.appendString(String::fromUTF8(privateuse.data(), privateuse.length()));
     }
 
     String* e = canonical.finalize();
@@ -1060,7 +1070,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     return estd;
 }
 
-static String* isStructurallyValidLanguageTagAndcanonicalizeLanguageTag(ExecutionState& state, String* locale)
+Optional<String*> isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(ExecutionState& state, String* locale)
 {
     std::string grandfather = grandfatheredLangTag(locale);
     if (grandfather.length() != 0)
@@ -1073,12 +1083,14 @@ static String* isStructurallyValidLanguageTagAndcanonicalizeLanguageTag(Executio
 
     if (parts.size()) {
         std::string langtag = canonicalLangTag(parts);
-        if (langtag.length() != 0)
-            return String::fromASCII(langtag.c_str());
+        if (langtag.length()) {
+            return String::fromUTF8(langtag.data(), langtag.length());
+        }
 
-        std::string privateuse = privateUseLangTag(parts, 0);
-        if (privateuse.length() != 0)
-            return String::fromASCII(privateuse.c_str());
+        std::string privateUse = privateUseLangTag(parts, 0);
+        if (privateUse.length()) {
+            return String::fromUTF8(privateUse.data(), privateUse.length());
+        }
     }
 
     return nullptr;
@@ -1170,10 +1182,11 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
             // is false, then throw a RangeError exception.
             // Let tag be the result of calling the abstract operation CanonicalizeLanguageTag (defined in 6.2.3), passing tag as the argument.
             // If tag is not an element of seen, then append tag as the last element of seen.
-            tag = isStructurallyValidLanguageTagAndcanonicalizeLanguageTag(state, tag);
-            if (!tag) {
+            auto canonicalizedTag = isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, tag);
+            if (!canonicalizedTag) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got Invalid locale");
             }
+            tag = canonicalizedTag.value();
             bool has = false;
             for (size_t i = 0; i < seen.size(); i++) {
                 if (seen[i].equalsTo(state, tag)) {
@@ -1268,23 +1281,30 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
             // Set result.[[extension]] to extension.
             // Set result.[[extensionIndex]] to extensionIndex.
 
-            size_t extensionIndex = locale->find(String::fromASCII("-u-"));
-            RELEASE_ASSERT(extensionIndex != SIZE_MAX);
-
-            size_t extensionLength = locale->length() - extensionIndex;
-            size_t end = extensionIndex + 3;
-            while (end < locale->length()) {
-                end = locale->find(String::fromASCII("-"), end);
-                if (end == SIZE_MAX)
-                    break;
-                if (end + 2 < locale->length() && locale->charAt(end + 2) == '-') {
-                    extensionLength = end - extensionIndex;
-                    break;
-                }
-                end++;
+            bool unicodeExtensionExists = false;
+            if (locale->find("-x-") != SIZE_MAX) {
+                unicodeExtensionExists = true;
             }
-            result.extension = locale->substring(extensionIndex, extensionIndex + extensionLength);
-            result.extensionIndex = extensionIndex;
+
+            if (!unicodeExtensionExists) {
+                size_t extensionIndex = locale->find("-u-");
+                ASSERT(extensionIndex != SIZE_MAX);
+
+                size_t extensionLength = locale->length() - extensionIndex;
+                size_t end = extensionIndex + 3;
+                while (end < locale->length()) {
+                    end = locale->find(String::fromASCII("-"), end);
+                    if (end == SIZE_MAX)
+                        break;
+                    if (end + 2 < locale->length() && locale->charAt(end + 2) == '-') {
+                        extensionLength = end - extensionIndex;
+                        break;
+                    }
+                    end++;
+                }
+                result.extension = locale->substring(extensionIndex, extensionIndex + extensionLength);
+                result.extensionIndex = extensionIndex;
+            }
         }
     } else {
         // Set result.[[locale]] to the value returned by the DefaultLocale abstract operation (defined in 6.2.4).
@@ -1300,9 +1320,99 @@ static Intl::IntlMatcherResult bestFitMatcher(ExecutionState& state, const Vecto
     return lookupMatcher(state, availableLocales, requestedLocales);
 }
 
+static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* extension, const char* key)
+{
+    // Let size be the number of elements in extension.
+    auto size = extension->length();
+    // Let searchValue be the concatenation of "-", key, and "-".
+    StringBuilder searchValueBuilder;
+    searchValueBuilder.appendChar('-');
+    searchValueBuilder.appendString(key);
+    searchValueBuilder.appendChar('-');
+    String* searchValue = searchValueBuilder.finalize();
+
+    // Let pos be Call(%StringProto_indexOf%, extension, « searchValue »).
+    size_t pos = extension->find(searchValue);
+
+    // If pos ≠ -1, then
+    if (pos != SIZE_MAX) {
+        // Let start be pos + 4.
+        size_t start = pos + 4;
+        // Let end be start.
+        size_t end = start;
+        // Let k be start.
+        size_t k = start;
+        // Let done be false.
+        bool done = false;
+
+        // Repeat, while done is false
+        while (!done) {
+            // Let e be Call(%StringProto_indexOf%, extension, « "-", k »).
+            size_t e = extension->find("-", k);
+            size_t len;
+            // If e = -1,
+            if (e == SIZE_MAX) {
+                // let len be size - k;
+                len = size - k;
+            } else {
+                // else let len be e - k.
+                len = e - k;
+            }
+
+            // If len = 2, then
+            if (len == 2) {
+                // Let done be true.
+                done = true;
+            } else if (e == SIZE_MAX) {
+                // Else if e = -1, then
+                // Let end be size.
+                end = size;
+                // Let done be true.
+                done = true;
+            } else {
+                // Else,
+                // Let end be e.
+                end = e;
+                // Let k be e + 1.
+                k = e + 1;
+            }
+        }
+
+        // Return the String value equal to the substring of extension
+        // consisting of the code units at indices start (inclusive) through end (exclusive).
+        return extension->substring(start, end);
+    }
+
+    // Let searchValue be the concatenation of "-" and key.
+    searchValueBuilder.appendChar('-');
+    searchValueBuilder.appendString(key);
+    searchValue = searchValueBuilder.finalize();
+    // Let pos be Call(%StringProto_indexOf%, extension, « searchValue »).
+    pos = extension->find(searchValue);
+    // If pos ≠ -1 and pos + 3 = size, then
+    if (pos != SIZE_MAX && pos + 3 == size) {
+        return String::emptyString;
+    }
+
+    return nullptr;
+}
+
+
+static bool stringVectorContains(const std::vector<std::string>& v, const std::string& key)
+{
+    for (size_t j = 0; j < v.size(); j++) {
+        if (v[j] == key) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData)
 {
-    // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.5
+    // https://www.ecma-international.org/ecma-402/6.0/index.html#sec-resolvelocale
 
     // Let matcher be the value of options.[[localeMatcher]].
     auto iter = options->find(String::fromASCII("localeMatcher"));
@@ -1314,29 +1424,16 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
     Intl::IntlMatcherResult r;
     // If matcher is "lookup", then
     if (matcher.equalsTo(state, String::fromASCII("lookup"))) {
-        // Let r be the result of calling the LookupMatcher abstract operation (defined in 9.2.3) with arguments availableLocales and requestedLocales.
+        // Let r be LookupMatcher(availableLocales, requestedLocales).
         r = lookupMatcher(state, availableLocales, requestedLocales);
     } else {
         // Else
-        // Let r be the result of calling the BestFitMatcher abstract operation (defined in 9.2.4) with arguments availableLocales and requestedLocales.
+        // Let r be BestFitMatcher(availableLocales, requestedLocales).
         r = bestFitMatcher(state, availableLocales, requestedLocales);
     }
 
     // Let foundLocale be the value of r.[[locale]].
     String* foundLocale = r.locale;
-    std::vector<std::string> extensionSubtags;
-    if (r.extension->length()) {
-        // Let extension be the value of r.[[extension]].
-        String* extension = r.extension;
-        // Let extensionIndex be the value of r.[[extensionIndex]].
-        size_t extensionIndex = r.extensionIndex;
-        // Let split be the standard built-in function object defined in ES5, 15.5.4.14.
-        // Let extensionSubtags be the result of calling the [[Call]] internal method of split with extension as the this value and an argument list containing the single item "-".
-        // Let extensionSubtagsLength be the result of calling the [[Get]] internal method of extensionSubtags with argument "length".
-        auto utf8 = extension->toUTF8StringData();
-        std::string stdUTF8(utf8.data(), utf8.length());
-        extensionSubtags = split(stdUTF8, '-');
-    }
 
     // Let result be a new Record.
     StringMap* result = new StringMap;
@@ -1347,74 +1444,71 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
     // Let supportedExtension be "-u".
     String* supportedExtension = String::fromASCII("-u");
 
-    // Let i be 0.
+    // For each element key of relevantExtensionKeys in List order, do
     size_t i = 0;
-    // Let len be the result of calling the [[Get]] internal method of relevantExtensionKeys with argument "length".
     size_t len = relevantExtensionKeyCount;
-
-    // Repeat while i < len:
     while (i < len) {
-        // Let key be the result of calling the [[Get]] internal method of relevantExtensionKeys with argument ToString(i).
         const char* key = relevantExtensionKeys[i];
-        // Let foundLocaleData be the result of calling the [[Get]] internal method of localeData with the argument foundLocale.
-        // Let keyLocaleData be the result of calling the [[Get]] internal method of foundLocaleData with the argument key.
-        // Let value be the result of calling the [[Get]] internal method of keyLocaleData with argument "0".
+        // Let foundLocaleData be localeData.[[<foundLocale>]].
+        // Let keyLocaleData be foundLocaleData.[[<key>]].
         std::vector<std::string> keyLocaleData = localeData(foundLocale, i);
+        // Let value be keyLocaleData[0].
+        std::string value = keyLocaleData[0];
 
         // Let supportedExtensionAddition be "".
         String* supportedExtensionAddition = String::emptyString;
 
-        std::string value = keyLocaleData[0];
-        // If extensionSubtags is not undefined, then
-        if (extensionSubtags.size()) {
-            // Let keyPos be Call(%ArrayProto_indexOf%, extensionSubtags, «key») .
-            size_t keyPos = SIZE_MAX;
-            for (size_t i = 0; i < extensionSubtags.size(); i++) {
-                if (extensionSubtags[i] == key) {
-                    keyPos = i;
-                    break;
-                }
-            }
-            // If keyPos != -1, then
-            if (keyPos != SIZE_MAX) {
-                // If keyPos + 1 < extensionSubtagsLength and the length of the result of Get(extensionSubtags, ToString(keyPos +1)) is greater than 2, then
-                if (keyPos + 1 < extensionSubtags.size() && extensionSubtags[keyPos + 1].length() > 2) {
-                    const std::string& requestedValue = extensionSubtags[keyPos + 1];
+        // If r has an [[extension]] field, then
+        if (r.extension->length()) {
+            // Let requestedValue be UnicodeExtensionValue(r.[[extension]], key).
+            Optional<String*> requestedValue = unicodeExtensionValue(state, r.extension, key);
 
-                    bool contains = false;
-                    for (size_t k = 0; k < keyLocaleData.size(); k++) {
-                        if (keyLocaleData[k] == requestedValue) {
-                            contains = true;
-                            break;
-                        }
+            // If requestedValue is not undefined, then
+            if (requestedValue) {
+                // If requestedValue is not the empty String, then
+                if (requestedValue.value()->length()) {
+                    // If keyLocaleData contains requestedValue, then
+                    if (stringVectorContains(keyLocaleData, requestedValue.value()->toNonGCUTF8StringData())) {
+                        // Let value be requestedValue.
+                        value = requestedValue.value()->toNonGCUTF8StringData();
+                        // Let supportedExtensionAddition be the concatenation of "-", key, "-", and value.
+                        StringBuilder supportedExtensionAdditionBuilder;
+                        supportedExtensionAdditionBuilder.appendChar('-');
+                        supportedExtensionAdditionBuilder.appendString(key);
+                        supportedExtensionAdditionBuilder.appendChar('-');
+                        supportedExtensionAdditionBuilder.appendString(value.data());
+                        supportedExtensionAddition = supportedExtensionAdditionBuilder.finalize();
                     }
-                    if (contains) {
-                        value = requestedValue;
-                        std::string s = std::string("-") + key + std::string("-") + value;
-                        supportedExtensionAddition = String::fromUTF8(s.data(), s.length());
-                    }
-                } else if (std::find(keyLocaleData.begin(), keyLocaleData.end(), std::string("true")) != keyLocaleData.end()) {
-                    // Else, if the result of Call(%StringProto_includes%, keyLocaleData, «"true"») is true, then
+                } else if (stringVectorContains(keyLocaleData, "true")) {
+                    // Else if keyLocaleData contains "true", then
+                    // Let value be "true".
                     value = "true";
+                    // Let supportedExtensionAddition be the concatenation of "-" and key.
+                    StringBuilder supportedExtensionAdditionBuilder;
+                    supportedExtensionAdditionBuilder.appendChar('-');
+                    supportedExtensionAdditionBuilder.appendString(key);
+                    supportedExtensionAddition = supportedExtensionAdditionBuilder.finalize();
                 }
             }
         }
 
         // If options has a field [[<key>]], then
         if (options->find(String::fromASCII(key)) != options->end()) {
-            // Let optionsValue be the value of options.[[<key>]].
-            std::string optionsValue = std::string(options->at(String::fromASCII(key))->toUTF8StringData().data());
-
-            // If the result of calling the [[Call]] internal method of indexOf with keyLocaleData as the this value
-            // and an argument list containing the single item optionsValue is not -1, then
-            // If optionsValue is not equal to value, then
-            if (std::find(keyLocaleData.begin(), keyLocaleData.end(), optionsValue) != keyLocaleData.end() && optionsValue != value) {
-                // Let value be optionsValue.
-                // Let supportedExtensionAddition be "".
-                value = optionsValue;
-                supportedExtensionAddition = String::emptyString;
+            // Let optionsValue be options.[[<key>]].
+            auto optionsValue = options->at(String::fromASCII(key));
+            // Assert: Type(optionsValue) is either String, Undefined, or Null.
+            // If keyLocaleData contains optionsValue, then
+            if (stringVectorContains(keyLocaleData, optionsValue->toNonGCUTF8StringData())) {
+                // If SameValue(optionsValue, value) is false, then
+                if (!optionsValue->equals(value.data(), value.length())) {
+                    // Let value be optionsValue.
+                    value = optionsValue->toNonGCUTF8StringData();
+                    // Let supportedExtensionAddition be "".
+                    supportedExtensionAddition = String::emptyString;
+                }
             }
         }
+
         // Set result.[[<key>]] to value.
         result->insert(std::make_pair(String::fromASCII(key), String::fromUTF8(value.data(), value.length())));
 
@@ -1424,27 +1518,42 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
         sb.appendString(supportedExtensionAddition);
         supportedExtension = sb.finalize();
 
-        // Increase i by 1.
         i++;
     }
 
     // If the length of supportedExtension is greater than 2, then
     if (supportedExtension->length() > 2) {
-        size_t len = foundLocale->length();
-        // Let preExtension be the substring of foundLocale from position 0, inclusive, to position extensionIndex, exclusive.
-        String* preExtension = foundLocale->substring(0, len > r.extensionIndex ? r.extensionIndex : len);
+        // Let privateIndex be Call(%StringProto_indexOf%, foundLocale, « "-x-" »).
+        size_t privateIndex = foundLocale->find("-x-");
 
-        // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
-        String* postExtension = String::emptyString;
-        if (r.extensionIndex < len) {
-            postExtension = foundLocale->substring(r.extensionIndex, len);
+        // If privateIndex = -1, then
+        if (privateIndex != SIZE_MAX) {
+            // Let foundLocale be the concatenation of foundLocale and supportedExtension.
+            StringBuilder sb;
+            sb.appendString(foundLocale);
+            sb.appendString(supportedExtension);
+            foundLocale = sb.finalize();
+        } else {
+            size_t len = foundLocale->length();
+            // Let preExtension be the substring of foundLocale from position 0, inclusive, to position extensionIndex, exclusive.
+            String* preExtension = foundLocale->substring(0, len > r.extensionIndex ? r.extensionIndex : len);
+
+            // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
+            String* postExtension = String::emptyString;
+            if (r.extensionIndex < len) {
+                postExtension = foundLocale->substring(r.extensionIndex, len);
+            }
+            // Let foundLocale be the concatenation of preExtension, supportedExtension, and postExtension.
+            StringBuilder sb;
+            sb.appendString(preExtension);
+            sb.appendString(supportedExtension);
+            sb.appendString(postExtension);
+            foundLocale = sb.finalize();
         }
-        // Let foundLocale be the concatenation of preExtension, supportedExtension, and postExtension.
-        StringBuilder sb;
-        sb.appendString(preExtension);
-        sb.appendString(supportedExtension);
-        sb.appendString(postExtension);
-        foundLocale = sb.finalize();
+
+        // Let foundLocale be CanonicalizeLanguageTag(foundLocale).
+        // Assert: IsStructurallyValidLanguageTag(foundLocale) is true.
+        foundLocale = isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, foundLocale).value();
     }
     // Set result.[[locale]] to foundLocale.
     result->insert(std::make_pair(String::fromASCII("locale"), foundLocale));
