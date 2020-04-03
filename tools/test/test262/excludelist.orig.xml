@@ -588,11 +588,6 @@
     <test id="built-ins/NativeErrors/TypeError/prototype/not-error-object"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/URIError/prototype/not-error-object"><reason>TODO</reason></test>
     <test id="built-ins/Number/bigint-conversion"><reason>TODO</reason></test>
-    <test id="built-ins/Number/prototype/toExponential/range"><reason>TODO</reason></test>
-    <test id="built-ins/Number/prototype/toExponential/tointeger-fractiondigits"><reason>TODO</reason></test>
-    <test id="built-ins/Number/prototype/toFixed/exactness"><reason>TODO</reason></test>
-    <test id="built-ins/Number/prototype/toFixed/range"><reason>TODO</reason></test>
-    <test id="built-ins/Number/prototype/toPrecision/range"><reason>TODO</reason></test>
     <test id="built-ins/Object/bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/create/properties-arg-to-object-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
