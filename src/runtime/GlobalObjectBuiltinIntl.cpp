@@ -418,7 +418,6 @@ static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Va
 
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ASSERT(argv != nullptr);
     // Let ll be ? CanonicalizeLocaleList(locales).
     ValueVector ll = Intl::canonicalizeLocaleList(state, argv[0]);
     // Return CreateArrayFromList(ll);
@@ -486,7 +485,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->NumberFormat),
                               ObjectPropertyDescriptor(m_intlNumberFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 0, NativeFunctionInfo::Strict));
+    FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),
                               ObjectPropertyDescriptor(getCanonicalLocales, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
