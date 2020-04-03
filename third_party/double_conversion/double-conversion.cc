@@ -199,7 +199,7 @@ bool DoubleToStringConverter::ToShortestIeeeNumber(
 bool DoubleToStringConverter::ToFixed(double value,
                                       int requested_digits,
                                       StringBuilder* result_builder) const {
-  ASSERT(kMaxFixedDigitsBeforePoint == 60);
+  ASSERT(kMaxFixedDigitsBeforePoint == 100);
   const double kFirstNonFixed = 1e60;
 
   if (Double(value).IsSpecial()) {

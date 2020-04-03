@@ -31,7 +31,7 @@
 #include "IntlNumberFormat.h"
 #endif
 
-#define NUMBER_TO_STRING_BUFFER_LENGTH 96
+#define NUMBER_TO_STRING_BUFFER_LENGTH 128
 
 namespace Escargot {
 
@@ -104,36 +104,32 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
-    if (argc == 0) {
-        bool isInteger = (static_cast<int64_t>(number) == number);
-        if (isInteger) {
-            char buffer[256];
-            itoa(static_cast<int64_t>(number), buffer, 10);
-            return new ASCIIString(buffer);
-        } else {
-            return Value(round(number)).toString(state);
-        }
-    } else if (argc >= 1) {
-        double digitD = argv[0].toNumber(state);
-        if (digitD == 0 || std::isnan(digitD)) {
-            return Value(round(number)).toString(state);
-        }
-        int digit = (int)trunc(digitD);
-        if (digit < 0 || digit > 20) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_RangeError);
-        }
-        if (std::isnan(number) || std::isinf(number)) {
-            return Value(number).toString(state);
-        } else if (std::abs(number) >= pow(10, 21)) {
-            return Value(round(number)).toString(state);
-        }
-
-        char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
-        double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
-        double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToFixed(number, digit, &builder);
-        return Value(new ASCIIString(builder.Finalize()));
+    Value fractionDigits = argv[0];
+    int digit = fractionDigits.toInteger(state);
+    if (digit < 0 || digit > 100) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
-    return Value();
+
+    if (std::isnan(number)) {
+        return state.context()->staticStrings().NaN.string();
+    }
+
+    if (std::isinf(number)) {
+        if (number < 0) {
+            return state.context()->staticStrings().NegativeInfinity.string();
+        } else {
+            return state.context()->staticStrings().Infinity.string();
+        }
+    }
+
+    if (std::abs(number) >= pow(10, 21)) {
+        return Value(number).toString(state);
+    }
+
+    char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+    double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
+    double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToFixed(number, digit, &builder);
+    return Value(new ASCIIString(builder.Finalize()));
 }
 
 static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -148,12 +144,9 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
-    int digit = 0; // only used when an argument is given
-    bool undefinedDigit = argc == 0 || argv[0].isUndefined();
-    if (!undefinedDigit) {
-        double fractionDigits = argv[0].toNumber(state);
-        digit = (int)trunc(fractionDigits);
-    }
+    Value fractionDigits = argv[0];
+    int digit = fractionDigits.toInteger(state);
+
     if (std::isnan(number)) { // 3
         return state.context()->staticStrings().NaN.string();
     }
@@ -165,13 +158,14 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
             return state.context()->staticStrings().Infinity.string();
         }
     }
-    if (digit < 0 || digit > 20) {
+
+    if (digit < 0 || digit > 100) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
     double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
-    if (undefinedDigit) {
+    if (fractionDigits.isUndefined()) {
         double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToExponential(number, -1, &builder);
     } else {
         double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToExponential(number, digit, &builder);
@@ -191,31 +185,33 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
-    if (argc == 0 || argv[0].isUndefined()) {
+    Value precision = argv[0];
+    if (precision.isUndefined()) {
         return Value(number).toString(state);
-    } else if (argc >= 1) {
-        double p_d = argv[0].toNumber(state);
-        if (std::isnan(number)) {
-            return state.context()->staticStrings().NaN.string();
-        }
-        if (std::isinf(number)) {
-            if (number < 0) {
-                return state.context()->staticStrings().NegativeInfinity.string();
-            } else {
-                return state.context()->staticStrings().Infinity.string();
-            }
+    }
+
+    int p = precision.toInteger(state);
+
+    if (std::isnan(number)) {
+        return state.context()->staticStrings().NaN.string();
+    }
+
+    if (std::isinf(number)) {
+        if (number < 0) {
+            return state.context()->staticStrings().NegativeInfinity.string();
         } else {
-            int p = (int)trunc(p_d);
-            if (p < 1 || p > 21) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_RangeError);
-            }
-            char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
-            double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
-            double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
-            return Value(new ASCIIString(builder.Finalize()));
+            return state.context()->staticStrings().Infinity.string();
         }
     }
-    return Value();
+
+    if (p < 1 || p > 100) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
+
+    char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+    double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
+    double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
+    return Value(new ASCIIString(builder.Finalize()));
 }
 
 static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
