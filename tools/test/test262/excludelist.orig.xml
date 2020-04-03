@@ -1763,14 +1763,8 @@
     <test id="intl402/DisplayNames/prototype/resolvedOptions/this-object-lacks-internal-throws"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/Locale-object"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/canonicalized-tags"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/grandfathered"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/has-property"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/invalid-tags"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/length"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/locales-is-not-a-string"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/main"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/non-iana-canon"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/overriden-arg-length"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/preferred-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/preferred-variant"><reason>TODO</reason></test>
     <test id="intl402/ListFormat/constructor/constructor/locales-invalid"><reason>TODO</reason></test>
@@ -1956,7 +1950,6 @@
     <test id="intl402/Number/prototype/toLocaleString/default-options-object-prototype"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-compactDisplay-compact"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-compactDisplay-no-compact"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/constructor-locales-get-tostring"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-locales-hasproperty"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-notation"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-numberingSystem-order"><reason>TODO</reason></test>

@@ -81,7 +81,7 @@ static std::string grandfatheredLangTag(String* locale)
     tagMap["cel-gaulish"] = "cel-gaulish";
     tagMap["no-bok"] = "nb";
     tagMap["no-nyn"] = "nn";
-    tagMap["zh-guoyu"] = "cmn";
+    tagMap["zh-guoyu"] = "zh";
     tagMap["zh-hakka"] = "hak";
     tagMap["zh-min"] = "zh-min";
     tagMap["zh-min-nan"] = "nan";
@@ -1148,30 +1148,33 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
     }
     // Let seen be a new empty List.
     ValueVector seen;
+
+    Object* O;
     // If locales is a String value, then
     if (locales.isString()) {
-        // Let locales be a new array created as if
-        // by the expression new Array(locales) where Array is the standard built-in constructor with that name and locales is the value of locales.
-        Value callArg[] = { locales };
-        locales = Object::construct(state, state.context()->globalObject()->array(), 1, callArg);
+        // Let O be CreateArrayFromList(« locales »).
+        ValueVector vv;
+        vv.push_back(locales);
+        O = Object::createArrayFromList(state, vv);
+    } else {
+        // Else
+        // Let O be ToObject(locales).
+        O = locales.toObject(state);
     }
-    // Let O be ToObject(locales).
-    Object* O = locales.toObject(state);
-    // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
-    Value lenValue = Value(O->length(state));
-    // Let len be ToUint32(lenValue).
-    uint32_t len = lenValue.toUint32(state);
+
+    uint64_t len = O->lengthES6(state);
     // Let k be 0.
     // Repeat, while k < len
-    uint32_t k = 0;
+    uint64_t k = 0;
     while (k < len) {
         // Let Pk be ToString(k).
-        ObjectGetResult pkResult = O->get(state, ObjectPropertyName(state, Value(k)));
+        ObjectPropertyName pk(state, Value(k));
+        ObjectHasPropertyResult pkResult = O->hasProperty(state, pk);
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument Pk.
         // If kPresent is true, then
-        if (pkResult.hasValue()) {
+        if (pkResult.hasProperty()) {
             // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-            Value kValue = pkResult.value(state, O);
+            Value kValue = pkResult.value(state, pk, O);
             // If the type of kValue is not String or Object, then throw a TypeError exception.
             if (!kValue.isString() && !kValue.isObject()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Type of element of locales must be String or Object");
@@ -1197,9 +1200,15 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
             if (!has) {
                 seen.pushBack(tag);
             }
+
+            // Increase k by 1.
+            k++;
+        } else {
+            // Increase k by 1.
+            int64_t nextIndex;
+            Object::nextIndexForward(state, O, k, len, nextIndex);
+            k = nextIndex;
         }
-        // Increase k by 1.
-        k++;
     }
 
     // Return seen.
