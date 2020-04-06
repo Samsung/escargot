@@ -59,35 +59,42 @@ static const size_t indexOfExtensionKeyCa = 0;
 static const size_t indexOfExtensionKeyNu = 1;
 static const double minECMAScriptTime = -8.64E15;
 
+std::vector<std::string> Intl::calendarsForLocale(String* locale)
+{
+    std::vector<std::string> keyLocaleData;
+    UErrorCode status = U_ZERO_ERROR;
+    UEnumeration* calendars = ucal_getKeywordValuesForLocale("calendar", locale->toUTF8StringData().data(), false, &status);
+    ASSERT(U_SUCCESS(status));
+
+    status = U_ZERO_ERROR;
+    int32_t nameLength;
+    while (const char* availableName = uenum_next(calendars, &nameLength, &status)) {
+        ASSERT(U_SUCCESS(status));
+        status = U_ZERO_ERROR;
+        std::string calendar = std::string(availableName, nameLength);
+        // Ensure aliases used in language tag are allowed.
+        if (calendar == std::string("gregorian")) {
+            keyLocaleData.push_back(std::string("gregory"));
+        } else if (calendar == std::string("islamic-civil")) {
+            keyLocaleData.push_back(std::string("islamicc"));
+        } else if (calendar == std::string("ethiopic-amete-alem")) {
+            keyLocaleData.push_back(std::string("ethioaa"));
+        } else {
+            keyLocaleData.push_back(calendar);
+        }
+    }
+    uenum_close(calendars);
+
+    return keyLocaleData;
+}
+
 static std::vector<std::string> localeDataDateTimeFormat(String* locale, size_t keyIndex)
 {
     std::vector<std::string> keyLocaleData;
     switch (keyIndex) {
-    case indexOfExtensionKeyCa: {
-        UErrorCode status = U_ZERO_ERROR;
-        UEnumeration* calendars = ucal_getKeywordValuesForLocale("calendar", locale->toUTF8StringData().data(), false, &status);
-        ASSERT(U_SUCCESS(status));
-
-        status = U_ZERO_ERROR;
-        int32_t nameLength;
-        while (const char* availableName = uenum_next(calendars, &nameLength, &status)) {
-            ASSERT(U_SUCCESS(status));
-            status = U_ZERO_ERROR;
-            std::string calendar = std::string(availableName, nameLength);
-            // Ensure aliases used in language tag are allowed.
-            if (calendar == std::string("gregorian")) {
-                keyLocaleData.push_back(std::string("gregory"));
-            } else if (calendar == std::string("islamic-civil")) {
-                keyLocaleData.push_back(std::string("islamicc"));
-            } else if (calendar == std::string("ethiopic-amete-alem")) {
-                keyLocaleData.push_back(std::string("ethioaa"));
-            } else {
-                keyLocaleData.push_back(calendar);
-            }
-        }
-        uenum_close(calendars);
+    case indexOfExtensionKeyCa:
+        keyLocaleData = Intl::calendarsForLocale(locale);
         break;
-    }
     case indexOfExtensionKeyNu:
         keyLocaleData = Intl::numberingSystemsForLocale(locale);
         break;

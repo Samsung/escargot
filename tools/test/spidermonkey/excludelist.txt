@@ -56,6 +56,9 @@ non262/RegExp/flags.js
 # Passed in 64bit but, Failed in 32bit binary due to value expression bug in 32bit mode
 non262/TypedArray/sort-negative-nan.js
 
+# This is wrong
+non262/Intl/PluralRules/call.js
+
 # TODO
 non262/Array/unscopables.js
 non262/arrow-functions/arrow-not-as-end-of-statement.js

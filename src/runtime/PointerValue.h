@@ -61,6 +61,9 @@ class WeakSetObject;
 class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
+#if defined(ENABLE_INTL)
+class IntlLocaleObject;
+#endif
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
@@ -347,6 +350,13 @@ public:
         return false;
     }
 
+#if defined(ENABLE_INTL)
+    virtual bool isIntlLocaleObject() const
+    {
+        return false;
+    }
+#endif
+
     virtual bool isCallable() const
     {
         return false;
@@ -584,6 +594,14 @@ public:
         ASSERT(isAsyncFromSyncIteratorObject());
         return (AsyncFromSyncIteratorObject*)this;
     }
+
+#if defined(ENABLE_INTL)
+    IntlLocaleObject* asIntlLocaleObject()
+    {
+        ASSERT(isIntlLocaleObject());
+        return (IntlLocaleObject*)this;
+    }
+#endif
 
     inline size_t getTagInFirstDataArea() const
     {

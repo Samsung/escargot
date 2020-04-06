@@ -55,6 +55,7 @@
 #include "IntlCollator.h"
 #include "IntlNumberFormat.h"
 #include "IntlDateTimeFormat.h"
+#include "IntlLocale.h"
 
 namespace Escargot {
 
@@ -416,6 +417,267 @@ static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Va
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
 
+static Value builtinIntlLocaleConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+    Value tagValue = argv[0];
+
+    // If Type(tag) is not String or Object, throw a TypeError exception.
+    if (!tagValue.isObject() && !tagValue.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "First argument of Intl.Locale should be String or Object");
+    }
+
+    String* tag;
+    // If Type(tag) is Object and tag has an [[InitializedLocale]] internal slot, then
+    if (tagValue.isObject() && tagValue.asObject()->isIntlLocaleObject()) {
+        // Let tag be tag.[[Locale]].
+        tag = tagValue.asObject()->asIntlLocaleObject()->locale();
+    } else {
+        // Else,
+        // Let tag be ? ToString(tag).
+        tag = tagValue.toString(state);
+    }
+
+    Optional<Object*> options;
+    // If options is undefined, then
+    if (argc <= 1 || argv[1].isUndefined()) {
+        // Let options be ! ObjectCreate(null).
+    } else {
+        // Let options be ? ToObject(options).
+        options = argv[1].toObject(state);
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->intlLocalePrototype();
+    });
+    return new IntlLocaleObject(state, proto, tag, options);
+}
+
+static Value builtinIntlLocaleToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let loc be the this value.
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    // Return loc.[[Locale]].
+    return loc.asObject()->asIntlLocaleObject()->locale();
+}
+
+static Value builtinIntlLocaleBaseNameGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->baseName();
+}
+
+static Value builtinIntlLocaleCalendarGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->calendar().hasValue() ? loc.asObject()->asIntlLocaleObject()->calendar().value() : Value();
+}
+
+static Value builtinIntlLocaleCaseFirstGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->caseFirst().hasValue() ? loc.asObject()->asIntlLocaleObject()->caseFirst().value() : Value();
+}
+
+static Value builtinIntlLocaleCollationGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->collation().hasValue() ? loc.asObject()->asIntlLocaleObject()->collation().value() : Value();
+}
+
+static Value builtinIntlLocaleHourCycleGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->hourCycle().hasValue() ? loc.asObject()->asIntlLocaleObject()->hourCycle().value() : Value();
+}
+
+static Value builtinIntlLocaleNumericGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->numeric().hasValue() ? Value(loc.asObject()->asIntlLocaleObject()->numeric().value()->equals("true")) : Value(false);
+}
+
+static Value builtinIntlLocaleNumberingSystemGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->numberingSystem().hasValue() ? loc.asObject()->asIntlLocaleObject()->numberingSystem().value() : Value();
+}
+
+static Value builtinIntlLocaleLanguageGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->language();
+}
+
+static Value builtinIntlLocaleScriptGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    String* baseName = loc.asObject()->asIntlLocaleObject()->baseName();
+    char buf[32];
+    UErrorCode status = U_ZERO_ERROR;
+    auto len = uloc_getScript(baseName->toNonGCUTF8StringData().data(), buf, sizeof(buf), &status);
+    ASSERT(U_SUCCESS(status));
+    if (len) {
+        return String::fromUTF8(buf, len);
+    } else {
+        return Value();
+    }
+}
+
+static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    String* baseName = loc.asObject()->asIntlLocaleObject()->baseName();
+    char buf[32];
+    UErrorCode status = U_ZERO_ERROR;
+    auto len = uloc_getCountry(baseName->toNonGCUTF8StringData().data(), buf, sizeof(buf), &status);
+    ASSERT(U_SUCCESS(status));
+    if (len) {
+        return String::fromUTF8(buf, len);
+    } else {
+        return Value();
+    }
+}
+
+static void removeAtSymbol(char* buf, size_t len)
+{
+    for (size_t i = 0; i < len; i++) {
+        if (buf[i] == '@') {
+            buf[i] = 0;
+            return;
+        }
+    }
+}
+
+static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    // Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
+    // Return ! Construct(%Locale%, maximal).
+    String* locale = loc.asObject()->asIntlLocaleObject()->locale();
+    auto u8Locale = locale->toNonGCUTF8StringData();
+    UErrorCode status = U_ZERO_ERROR;
+    char buf[128];
+    int32_t len = uloc_addLikelySubtags(u8Locale.data(), buf, sizeof(buf), &status);
+    if (U_SUCCESS(status)) {
+        // we should ignore tags after '@'. ex) es-Latn-ES@currency=ESP -> es-Latn-ES
+        removeAtSymbol(buf, strlen(buf));
+        return new IntlLocaleObject(state, Intl::icuLocaleToBCP47Tag(String::fromUTF8(buf, strlen(buf))), nullptr);
+    } else if (status != U_BUFFER_OVERFLOW_ERROR) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Unexpected error is occured while parsing locale");
+    }
+    status = U_ZERO_ERROR;
+    char* newBuf = (char*)alloca(len + 1);
+    uloc_addLikelySubtags(u8Locale.data(), newBuf, len + 1, &status);
+    ASSERT(U_SUCCESS(status));
+    String* maximal = String::fromUTF8(buf, strlen(newBuf));
+    return new IntlLocaleObject(state, maximal, nullptr);
+}
+
+static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    // Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
+    // Return ! Construct(%Locale%, minimal).
+    String* locale = loc.asObject()->asIntlLocaleObject()->locale();
+    auto u8Locale = locale->toNonGCUTF8StringData();
+    UErrorCode status = U_ZERO_ERROR;
+    char buf[128];
+    int32_t len = uloc_minimizeSubtags(u8Locale.data(), buf, sizeof(buf), &status);
+    if (U_SUCCESS(status)) {
+        return new IntlLocaleObject(state, Intl::icuLocaleToBCP47Tag(String::fromUTF8(buf, strlen(buf))), nullptr);
+    } else if (status != U_BUFFER_OVERFLOW_ERROR) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Unexpected error is occured while parsing locale");
+    }
+    status = U_ZERO_ERROR;
+    char* newBuf = (char*)alloca(len + 1);
+    uloc_minimizeSubtags(u8Locale.data(), newBuf, len + 1, &status);
+    ASSERT(U_SUCCESS(status));
+    String* minimal = String::fromUTF8(newBuf, strlen(newBuf));
+    return new IntlLocaleObject(state, minimal, nullptr);
+}
+
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let ll be ? CanonicalizeLocaleList(locales).
@@ -435,6 +697,7 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlCollator = new NativeFunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlCollator->setGlobalIntrinsicObject(state);
+    m_intlCollator->getFunctionPrototype(state).asObject()->setGlobalIntrinsicObject(state);
 
     FunctionObject* compareFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCompare, builtinIntlCollatorCompareGetter, 0, NativeFunctionInfo::Strict));
     m_intlCollator->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().compare,
@@ -451,6 +714,7 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlDateTimeFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->DateTimeFormat, builtinIntlDateTimeFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlDateTimeFormat->setGlobalIntrinsicObject(state);
+    m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->setGlobalIntrinsicObject(state);
 
     FunctionObject* formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormatGetter, 0, NativeFunctionInfo::Strict));
     m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().format,
@@ -464,6 +728,7 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlNumberFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlNumberFormat->setGlobalIntrinsicObject(state);
+    m_intlNumberFormat->getFunctionPrototype(state).asObject()->setGlobalIntrinsicObject(state);
 
     formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
     m_intlNumberFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().format,
@@ -475,6 +740,93 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlNumberFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+    m_intlLocale = new NativeFunctionObject(state, NativeFunctionInfo(strings->Locale, builtinIntlLocaleConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlLocale->setGlobalIntrinsicObject(state);
+
+    m_intlLocalePrototype = m_intlLocale->getFunctionPrototype(state).asObject();
+    m_intlLocalePrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlLocalePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                            ObjectPropertyDescriptor(Value(state.context()->staticStrings().intlDotLocale.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getBaseName, builtinIntlLocaleBaseNameGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().baseName), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getCalendar, builtinIntlLocaleCalendarGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().calendar), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getCaseFirst, builtinIntlLocaleCaseFirstGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().caseFirst), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getCollation, builtinIntlLocaleCollationGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().collation), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getHourCycle, builtinIntlLocaleHourCycleGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().hourCycle), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getNumeric, builtinIntlLocaleNumericGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().numeric), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getNumberingSystem, builtinIntlLocaleNumberingSystemGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().numberingSystem), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getLanguage, builtinIntlLocaleLanguageGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().language), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getScript, builtinIntlLocaleScriptGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().script), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getRegion, builtinIntlLocaleRegionGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().region), desc);
+    }
+
+    m_intlLocalePrototype->defineOwnProperty(state, state.context()->staticStrings().toString,
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinIntlLocaleToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlLocalePrototype->defineOwnProperty(state, state.context()->staticStrings().maximize,
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->maximize, builtinIntlLocaleMaximize, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlLocalePrototype->defineOwnProperty(state, state.context()->staticStrings().minimize,
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->minimize, builtinIntlLocaleMinimize, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Collator),
                               ObjectPropertyDescriptor(m_intlCollator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -484,6 +836,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->NumberFormat),
                               ObjectPropertyDescriptor(m_intlNumberFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Locale),
+                              ObjectPropertyDescriptor(m_intlLocale, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),

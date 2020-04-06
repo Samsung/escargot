@@ -419,8 +419,20 @@ namespace Escargot {
     F(trimLeft)                   \
     F(asyncIterator)              \
     F(AsyncGenerator)             \
-    F(AsyncGeneratorFunction)
-
+    F(AsyncGeneratorFunction)     \
+    F(Locale)                     \
+    F(baseName)                   \
+    F(calendar)                   \
+    F(caseFirst)                  \
+    F(collation)                  \
+    F(hourCycle)                  \
+    F(numeric)                    \
+    F(numberingSystem)            \
+    F(language)                   \
+    F(script)                     \
+    F(region)                     \
+    F(maximize)                   \
+    F(minimize)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \
@@ -624,6 +636,17 @@ public:
     AtomicString getSymbolSpecies;
     AtomicString getSymbolToStringTag;
     AtomicString getCompare;
+    AtomicString getBaseName;
+    AtomicString getCalendar;
+    AtomicString getCaseFirst;
+    AtomicString getCollation;
+    AtomicString getHourCycle;
+    AtomicString getNumeric;
+    AtomicString getNumberingSystem;
+    AtomicString getLanguage;
+    AtomicString getScript;
+    AtomicString getRegion;
+    AtomicString intlDotLocale;
     AtomicString symbolSplit;
     AtomicString symbolReplace;
     AtomicString symbolSearch;

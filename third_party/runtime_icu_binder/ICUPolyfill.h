@@ -33,6 +33,16 @@
 #define uloc_getName RuntimeICUBinder::ICU::instance().uloc_getName
 #define uloc_canonicalize RuntimeICUBinder::ICU::instance().uloc_canonicalize
 #define uloc_getBaseName RuntimeICUBinder::ICU::instance().uloc_getBaseName
+#define uloc_forLanguageTag RuntimeICUBinder::ICU::instance().uloc_forLanguageTag
+#define uloc_getLanguage RuntimeICUBinder::ICU::instance().uloc_getLanguage
+#define uloc_getScript RuntimeICUBinder::ICU::instance().uloc_getScript
+#define uloc_getCountry RuntimeICUBinder::ICU::instance().uloc_getCountry
+#define uloc_getVariant RuntimeICUBinder::ICU::instance().uloc_getVariant
+#define uloc_toLegacyKey RuntimeICUBinder::ICU::instance().uloc_toLegacyKey
+#define uloc_toLegacyType RuntimeICUBinder::ICU::instance().uloc_toLegacyType
+#define uloc_toLanguageTag RuntimeICUBinder::ICU::instance().uloc_toLanguageTag
+#define uloc_addLikelySubtags RuntimeICUBinder::ICU::instance().uloc_addLikelySubtags
+#define uloc_minimizeSubtags RuntimeICUBinder::ICU::instance().uloc_minimizeSubtags
 
 #define u_getIntPropertyValue RuntimeICUBinder::ICU::instance().u_getIntPropertyValue
 #define u_getIntPropertyMaxValue RuntimeICUBinder::ICU::instance().u_getIntPropertyMaxValue

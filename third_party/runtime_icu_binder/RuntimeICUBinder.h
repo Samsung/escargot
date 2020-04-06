@@ -54,6 +54,16 @@ namespace RuntimeICUBinder {
     F(uloc_getName, int32_t (*)(const char* localeID, char* name, int32_t nameCapacity, UErrorCode* err), int32_t)                                                         \
     F(uloc_canonicalize, int32_t (*)(const char* localeID, char* name, int32_t nameCapacity, UErrorCode* err), int32_t)                                                    \
     F(uloc_getBaseName, int32_t (*)(const char* localeID, char* name, int32_t nameCapacity, UErrorCode* err), int32_t)                                                     \
+    F(uloc_forLanguageTag, int32_t (*)(const char* langtag, char* localeID, int32_t localeIDCapacity, int32_t* parsedLength, UErrorCode* err), int32_t)                    \
+    F(uloc_getLanguage, int32_t (*)(const char* localeID, char* language, int32_t languageCapacity, UErrorCode* err), int32_t)                                             \
+    F(uloc_getScript, int32_t (*)(const char* localeID, char* script, int32_t scriptCapacity, UErrorCode* err), int32_t)                                                   \
+    F(uloc_getCountry, int32_t (*)(const char* localeID, char* country, int32_t countryCapacity, UErrorCode* err), int32_t)                                                \
+    F(uloc_getVariant, int32_t (*)(const char* localeID, char* variant, int32_t variantCapacity, UErrorCode* err), int32_t)                                                \
+    F(uloc_toLegacyKey, const char* (*)(const char* keyword), const char*)                                                                                                 \
+    F(uloc_toLegacyType, const char* (*)(const char* keyword, const char* value), const char*)                                                                             \
+    F(uloc_toLanguageTag, int32_t (*)(const char* localeID, char* langtag, int32_t langtagCapacity, UBool strict, UErrorCode* err), int32_t)                               \
+    F(uloc_addLikelySubtags, int32_t (*)(const char* localeID, char* maximizedLocaleID, int32_t maximizedLocaleIDCapacity, UErrorCode* err), int32_t)                      \
+    F(uloc_minimizeSubtags, int32_t (*)(const char* localeID, char* minimizedLocaleID, int32_t minimizedLocaleIDCapacity, UErrorCode* err), int32_t)                       \
     F(ucnv_open, UConverter* (*)(const char* converterName, UErrorCode* err), UConverter*)                                                                                 \
     F(ucnv_compareNames, int (*)(const char* name1, const char* name2), int)                                                                                               \
     F(ucnv_getDisplayName, int32_t (*)(const UConverter* converter, const char* displayLocale, UChar* displayName, int32_t displayNameCapacity, UErrorCode* err), int32_t) \
