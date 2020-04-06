@@ -468,10 +468,20 @@ static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString
 
         String* valueString = value.toString(*state);
         valueView = new StringView(valueString);
-    } else if (value.isString()) {
-        type = Debugger::ESCARGOT_VARIABLE_STRING;
+    } else if (value.isString() || value.isSymbol()) {
+        String* valueString;
+        if (value.isString()) {
+            type = Debugger::ESCARGOT_VARIABLE_STRING;
+            valueString = value.asString();
+        } else {
+            type = Debugger::ESCARGOT_VARIABLE_SYMBOL;
+            Symbol* symbol = value.asSymbol();
 
-        String* valueString = value.asString();
+            valueString = String::emptyString;
+            if (symbol->description().hasValue()) {
+                valueString = symbol->description().value();
+            }
+        }
         size_t valueLength = valueString->length();
 
         if (valueLength >= ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
