@@ -269,21 +269,31 @@ public:
         return m_intlCollator;
     }
 
-    const Vector<String*, gc_allocator<String*>>& intlCollatorAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlCollatorAvailableLocales();
 
     FunctionObject* intlDateTimeFormat()
     {
         return m_intlDateTimeFormat;
     }
 
-    const Vector<String*, gc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
 
     FunctionObject* intlNumberFormat()
     {
         return m_intlNumberFormat;
     }
 
-    const Vector<String*, gc_allocator<String*>>& intlNumberFormatAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlNumberFormatAvailableLocales();
+
+    FunctionObject* intlLocale()
+    {
+        return m_intlLocale;
+    }
+
+    Object* intlLocalePrototype()
+    {
+        return m_intlLocalePrototype;
+    }
 #endif
     FunctionObject* promise()
     {
@@ -625,11 +635,13 @@ private:
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     Object* m_intl;
     FunctionObject* m_intlCollator;
-    Vector<String*, gc_allocator<String*>> m_intlCollatorAvailableLocales;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlCollatorAvailableLocales;
     FunctionObject* m_intlDateTimeFormat;
-    Vector<String*, gc_allocator<String*>> m_intlDateTimeFormatAvailableLocales;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlDateTimeFormatAvailableLocales;
     FunctionObject* m_intlNumberFormat;
-    Vector<String*, gc_allocator<String*>> m_intlNumberFormatAvailableLocales;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlNumberFormatAvailableLocales;
+    FunctionObject* m_intlLocale; // %Locale%
+    Object* m_intlLocalePrototype; // %LocalePrototype%
 #endif
 
     FunctionObject* m_promise;

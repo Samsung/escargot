@@ -868,6 +868,23 @@ size_t String::advanceStringIndex(size_t index, bool unicode)
     return index + 2;
 }
 
+bool String::isAllSpecialCharacters(bool (*fn)(char))
+{
+    auto bad = bufferAccessData();
+    for (size_t i = 0; i < bad.length; i++) {
+        char32_t c = bad.charAt(i);
+        if (c > 127) {
+            return false;
+        }
+        if (!fn((char)c)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 void* ASCIIString::operator new(size_t size)
 {
     static bool typeInited = false;

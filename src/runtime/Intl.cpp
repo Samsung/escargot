@@ -51,6 +51,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/Intl.h"
 #include "runtime/VMInstance.h"
+#include "runtime/IntlLocale.h"
 
 namespace Escargot {
 
@@ -314,7 +315,7 @@ static std::string intlRedundantLanguageTag(const std::string& tag)
     return "";
 }
 
-static std::string preferredLanguage(const std::string& language)
+std::string Intl::preferredLanguage(const std::string& language)
 {
     auto preferred = intlPreferredLanguageTag(language);
     if (preferred != "") {
@@ -896,7 +897,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     StringBuilder canonical;
 
     std::transform(language.begin(), language.end(), language.begin(), tolower);
-    language = preferredLanguage(language);
+    language = Intl::preferredLanguage(language);
     canonical.appendString(String::fromUTF8(language.data(), language.length()));
 
     // Check for extlang.
@@ -1070,7 +1071,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
     return estd;
 }
 
-Optional<String*> isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(ExecutionState& state, String* locale)
+Optional<String*> Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(ExecutionState& state, String* locale)
 {
     std::string grandfather = grandfatheredLangTag(locale);
     if (grandfather.length() != 0)
@@ -1096,7 +1097,7 @@ Optional<String*> isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(Execu
     return nullptr;
 }
 
-static String* icuLocaleToBCP47Tag(String* string)
+String* Intl::icuLocaleToBCP47Tag(String* string)
 {
     StringBuilder sb;
     for (size_t i = 0; i < string->length(); i++) {
@@ -1111,7 +1112,7 @@ static String* icuLocaleToBCP47Tag(String* string)
 static String* defaultLocale(ExecutionState& state)
 {
     String* localeString = String::fromUTF8(state.context()->vmInstance()->locale().data(), state.context()->vmInstance()->locale().length());
-    return icuLocaleToBCP47Tag(localeString);
+    return Intl::icuLocaleToBCP47Tag(localeString);
 }
 
 static String* removeUnicodeLocaleExtension(ExecutionState& state, String* locale)
@@ -1150,8 +1151,8 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
     ValueVector seen;
 
     Object* O;
-    // If locales is a String value, then
-    if (locales.isString()) {
+    // If Type(locales) is String or locales has an [[InitializedLocale]] internal slot, then
+    if (locales.isString() || (locales.isObject() && locales.asObject()->isIntlLocaleObject())) {
         // Let O be CreateArrayFromList(« locales »).
         ValueVector vv;
         vv.push_back(locales);
@@ -1179,13 +1180,22 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
             if (!kValue.isString() && !kValue.isObject()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Type of element of locales must be String or Object");
             }
-            // Let tag be ToString(kValue).
-            String* tag = kValue.toString(state);
+
+            String* tag;
+            // If Type(kValue) is Object and kValue has an [[InitializedLocale]] internal slot, then
+            if (kValue.isObject() && kValue.asObject()->isIntlLocaleObject()) {
+                // Let tag be kValue.[[Locale]].
+                tag = kValue.asObject()->asIntlLocaleObject()->locale();
+            } else {
+                // Else,
+                // Let tag be ToString(kValue).
+                tag = kValue.toString(state);
+            }
             // If the result of calling the abstract operation IsStructurallyValidLanguageTag (defined in 6.2.2), passing tag as the argument,
             // is false, then throw a RangeError exception.
             // Let tag be the result of calling the abstract operation CanonicalizeLanguageTag (defined in 6.2.3), passing tag as the argument.
             // If tag is not an element of seen, then append tag as the last element of seen.
-            auto canonicalizedTag = isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, tag);
+            auto canonicalizedTag = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, tag);
             if (!canonicalizedTag) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got Invalid locale");
             }
@@ -1215,7 +1225,7 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
     return seen;
 }
 
-static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, Value locale)
+static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, Value locale)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.2
     // Let candidate be locale.
@@ -1251,7 +1261,7 @@ static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, 
     return String::emptyString;
 }
 
-static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector<String*, gc_allocator<String*>> availableLocales, const ValueVector& requestedLocales)
+static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>> availableLocales, const ValueVector& requestedLocales)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.3
     // Let i be 0.
@@ -1323,13 +1333,13 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
     return result;
 }
 
-static Intl::IntlMatcherResult bestFitMatcher(ExecutionState& state, const Vector<String*, gc_allocator<String*>> availableLocales, const ValueVector& requestedLocales)
+static Intl::IntlMatcherResult bestFitMatcher(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>> availableLocales, const ValueVector& requestedLocales)
 {
     // TODO
     return lookupMatcher(state, availableLocales, requestedLocales);
 }
 
-static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* extension, const char* key)
+Optional<String*> Intl::unicodeExtensionValue(ExecutionState& state, String* extension, const char* key)
 {
     // Let size be the number of elements in extension.
     auto size = extension->length();
@@ -1419,7 +1429,7 @@ static bool stringVectorContains(const std::vector<std::string>& v, const std::s
 }
 
 
-StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData)
+StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData)
 {
     // https://www.ecma-international.org/ecma-402/6.0/index.html#sec-resolvelocale
 
@@ -1470,7 +1480,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
         // If r has an [[extension]] field, then
         if (r.extension->length()) {
             // Let requestedValue be UnicodeExtensionValue(r.[[extension]], key).
-            Optional<String*> requestedValue = unicodeExtensionValue(state, r.extension, key);
+            Optional<String*> requestedValue = Intl::unicodeExtensionValue(state, r.extension, key);
 
             // If requestedValue is not undefined, then
             if (requestedValue) {
@@ -1562,7 +1572,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
 
         // Let foundLocale be CanonicalizeLanguageTag(foundLocale).
         // Assert: IsStructurallyValidLanguageTag(foundLocale) is true.
-        foundLocale = isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, foundLocale).value();
+        foundLocale = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, foundLocale).value();
     }
     // Set result.[[locale]] to foundLocale.
     result->insert(std::make_pair(String::fromASCII("locale"), foundLocale));
@@ -1571,7 +1581,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, gc_a
 }
 
 
-static ValueVector lookupSupportedLocales(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales)
+static ValueVector lookupSupportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.6
     // Let len be the number of elements in requestedLocales.
@@ -1599,14 +1609,14 @@ static ValueVector lookupSupportedLocales(ExecutionState& state, const Vector<St
     return subset;
 }
 
-static ValueVector bestfitSupportedLocales(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales)
+static ValueVector bestfitSupportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.7
     // TODO
     return lookupSupportedLocales(state, availableLocales, requestedLocales);
 }
 
-Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options)
+Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.8
     Value matcher;

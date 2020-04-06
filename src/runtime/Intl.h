@@ -40,11 +40,15 @@ public:
     };
 
     static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales);
-    static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
-    static Value supportedLocales(ExecutionState& state, const Vector<String*, gc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options);
+    static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
+    static Value supportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options);
     static Value getOption(ExecutionState& state, Object* options, Value property, String* type, ValueVector values, const Value& fallback);
-
+    static std::string preferredLanguage(const std::string& language);
+    static String* icuLocaleToBCP47Tag(String* string);
+    static std::vector<std::string> calendarsForLocale(String* locale);
     static std::vector<std::string> numberingSystemsForLocale(String* locale);
+    static Optional<String*> isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(ExecutionState& state, String* locale);
+    static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* extension, const char* key);
 };
 } // namespace Escargot
 

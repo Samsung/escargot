@@ -470,6 +470,8 @@ public:
 
     size_t advanceStringIndex(size_t index, bool unicode);
 
+    bool isAllSpecialCharacters(bool (*fn)(char));
+
 private:
     size_t m_tag;
 

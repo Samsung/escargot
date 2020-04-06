@@ -1287,7 +1287,7 @@ static String* icuLocaleToBCP47Tag(String* string)
     return sb.finalize();
 }
 
-const Vector<String*, gc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
 {
     if (m_intlCollatorAvailableLocales.size() == 0) {
         auto count = ucol_countAvailable();
@@ -1301,7 +1301,7 @@ const Vector<String*, gc_allocator<String*>>& GlobalObject::intlCollatorAvailabl
     return m_intlCollatorAvailableLocales;
 }
 
-const Vector<String*, gc_allocator<String*>>& GlobalObject::intlDateTimeFormatAvailableLocales()
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlDateTimeFormatAvailableLocales()
 {
     if (m_intlDateTimeFormatAvailableLocales.size() == 0) {
         auto count = udat_countAvailable();
@@ -1315,7 +1315,7 @@ const Vector<String*, gc_allocator<String*>>& GlobalObject::intlDateTimeFormatAv
     return m_intlDateTimeFormatAvailableLocales;
 }
 
-const Vector<String*, gc_allocator<String*>>& GlobalObject::intlNumberFormatAvailableLocales()
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlNumberFormatAvailableLocales()
 {
     if (m_intlNumberFormatAvailableLocales.size() == 0) {
         auto count = unum_countAvailable();

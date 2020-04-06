@@ -100,6 +100,17 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
     INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
     INIT_STATIC_STRING(getCompare, "get compare");
+    INIT_STATIC_STRING(getBaseName, "get baseName");
+    INIT_STATIC_STRING(getCalendar, "get calendar");
+    INIT_STATIC_STRING(getCaseFirst, "get caseFirst");
+    INIT_STATIC_STRING(getCollation, "get collation");
+    INIT_STATIC_STRING(getHourCycle, "get hourCycle");
+    INIT_STATIC_STRING(getNumeric, "get numeric");
+    INIT_STATIC_STRING(getNumberingSystem, "get numberingSystem");
+    INIT_STATIC_STRING(getLanguage, "get language");
+    INIT_STATIC_STRING(getScript, "get script");
+    INIT_STATIC_STRING(getRegion, "get region");
+    INIT_STATIC_STRING(intlDotLocale, "Intl.Locale");
 
     INIT_STATIC_STRING($Ampersand, "$&");
     INIT_STATIC_STRING($PlusSign, "$+");
