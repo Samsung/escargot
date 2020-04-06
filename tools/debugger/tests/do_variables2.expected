@@ -1,0 +1,21 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_variables2.js:22
+(escargot-debugger) b do_variables2.js:32
+Breakpoint 1 at tools/debugger/tests/do_variables2.js:32
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_variables2.js:32
+(escargot-debugger) variables
+a: undefined
+b: null
+c: boolean: true
+d: boolean: false
+e: number: 3.14
+f: string: str
+g: symbol: sym
+h: object
+i: array
+j: function
+k: unaccessible
+(escargot-debugger) c
+Connection closed.
