@@ -703,6 +703,56 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
     return Value(-1);
 }
 
+static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, includes);
+    validateTypedArray(state, O, state.context()->staticStrings().includes.string());
+
+    int64_t len = O->asArrayBufferView()->arrayLength();
+
+    // If len is 0, return false.
+    if (len == 0) {
+        return Value(false);
+    }
+
+    Value searchElement = argv[0];
+    // Let n be ? ToInteger(fromIndex). (If fromIndex is undefined, this step produces the value 0.)
+    double n = argc >= 2 ? argv[1].toInteger(state) : 0;
+    double doubleK;
+    // If n ≥ 0, then
+    if (n >= 0) {
+        // Let k be n.
+        doubleK = n;
+    } else {
+        // Else n < 0,
+        // Let k be len + n.
+        doubleK = len + n;
+    }
+
+    // If k < 0, let k be 0.
+    if (doubleK < 0) {
+        doubleK = 0;
+    }
+
+    ASSERT(doubleK >= 0);
+
+    // Repeat, while k < len
+    while (doubleK < len) {
+        // Let elementK be the result of ? Get(O, ! ToString(k)).
+        Value elementK = O->getIndexedProperty(state, Value(doubleK)).value(state, O);
+        // If SameValueZero(searchElement, elementK) is true, return true.
+        if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
+            return Value(true);
+        }
+        // Increase k by 1.
+        doubleK++;
+    }
+
+    // Return false.
+    return Value(false);
+}
+
 static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
@@ -1753,6 +1803,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinTypedArrayLastIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->includes),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinTypedArrayIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->keys),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->keys, builtinTypedArrayKeys, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->entries),
