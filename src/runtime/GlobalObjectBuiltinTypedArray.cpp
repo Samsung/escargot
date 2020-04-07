@@ -38,12 +38,11 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
     ArrayBufferObject* obj = ArrayBufferObject::allocateArrayBuffer(state, newTarget.value());
     if (argc >= 1) {
         Value& val = argv[0];
-        double numberLength = val.toNumber(state);
-        double byteLength = Value(numberLength).toLength(state);
-        if (numberLength != byteLength) {
+        double numberLength = val.toIndex(state);
+        if (numberLength == Value::InvalidIndexValue) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
         }
-        obj->allocateBuffer(state, byteLength);
+        obj->allocateBuffer(state, numberLength);
     } else {
         obj->allocateBuffer(state, 0);
     }
@@ -156,6 +155,21 @@ static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedA
         RELEASE_ASSERT_NOT_REACHED();
     }
     return Value();
+}
+
+static Value TypedArraySpeciesCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argumentList)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(T, TypedArray, constructor);
+    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, T->asArrayBufferView()->typedArrayType());
+    // Let C be SpeciesConstructor(O, defaultConstructor).
+    Value C = T->speciesConstructor(state, defaultConstructor);
+    Value A = Object::construct(state, C, argc, argumentList);
+    validateTypedArray(state, A, state.context()->staticStrings().constructor.string());
+    if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asArrayBufferView()->arrayLength() < argumentList->toNumber(state)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+    }
+    return A;
 }
 
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -283,7 +297,12 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
+        ArrayBufferView* buffer = thisValue.asObject()->asArrayBufferView();
+
+        if (buffer->isDetached()) {
+            return Value(0);
+        }
+        return Value(buffer->byteLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteLength called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -292,7 +311,12 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
 static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
+        ArrayBufferView* buffer = thisValue.asObject()->asArrayBufferView();
+
+        if (buffer->isDetached()) {
+            return Value(0);
+        }
+        return Value(buffer->byteOffset());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteOffset called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -301,7 +325,12 @@ static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value this
 static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        return Value(thisValue.asObject()->asArrayBufferView()->arrayLength());
+        ArrayBufferView* buffer = thisValue.asObject()->asArrayBufferView();
+
+        if (buffer->isDetached()) {
+            return Value(0);
+        }
+        return Value(buffer->arrayLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.length called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
@@ -335,31 +364,30 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         const Value& val = argv[0];
         if (!val.isObject()) {
             // $22.2.1.2 %TypedArray%(length)
-            int numlen = val.toNumber(state);
-            int elemlen = val.toLength(state);
-            if (numlen != elemlen)
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+            uint64_t elemlen = val.toIndex(state);
+            if (elemlen == Value::InvalidIndexValue)
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
             obj->allocateTypedArray(state, elemlen);
         } else if (val.isPointerValue() && val.asPointerValue()->isArrayBufferObject()) {
             // $22.2.1.5 %TypedArray%(buffer [, byteOffset [, length] ] )
             unsigned elementSize = obj->elementSize();
-            int64_t offset = 0;
+            uint64_t offset = 0;
             Value lenVal;
             if (argc >= 2) {
-                offset = argv[1].toInt32(state);
+                offset = argv[1].toIndex(state);
             }
-            if (offset < 0) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
-            }
-            if (offset % elementSize != 0) {
+            if (offset == Value::InvalidIndexValue || (unsigned)offset % elementSize != 0) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
             ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
             unsigned bufferByteLength = buffer->byteLength();
+            uint64_t length = 0;
+            unsigned newByteLength;
             if (argc >= 3) {
                 lenVal = argv[2];
+                length = lenVal.toIndex(state);
             }
-            unsigned newByteLength;
+            buffer->throwTypeErrorIfDetached(state);
             if (lenVal.isUndefined()) {
                 if (bufferByteLength % elementSize != 0)
                     ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
@@ -367,9 +395,8 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                     ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
                 newByteLength = bufferByteLength - offset;
             } else {
-                int length = lenVal.toLength(state);
                 newByteLength = length * elementSize;
-                if (offset + newByteLength > bufferByteLength)
+                if (offset + newByteLength > bufferByteLength || length == Value::InvalidIndexValue)
                     ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
             obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
@@ -974,15 +1001,10 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     unsigned srcByteOffset = wrapper->byteOffset();
     // Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
     unsigned beginByteOffset = srcByteOffset + beginIndex * elementSize;
-
-    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for constructorName.
-    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
-    // Let constructor be SpeciesConstructor(O, defaultConstructor).
-    Value constructor = O->speciesConstructor(state, defaultConstructor);
     // Let argumentsList be «buffer, beginByteOffset, newLength».
     Value args[3] = { buffer, Value(beginByteOffset), Value(newLength) };
-    // Return Construct(constructor, argumentsList).
-    return Object::construct(state, constructor, 3, args);
+    Value A = TypedArraySpeciesCreate(state, O, 3, args);
+    return A;
 }
 
 static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1060,10 +1082,10 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 
     // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
     unsigned fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
-
-    Value value = argv[0];
+    O->asArrayBufferView()->throwTypeErrorIfDetached(state);
+    double valueNumber = argv[0].toNumber(state);
     while (k < fin) {
-        O->setIndexedPropertyThrowsException(state, Value(k), value);
+        O->setIndexedPropertyThrowsException(state, Value(k), Value(valueNumber));
         k++;
     }
     // return O.
@@ -1092,11 +1114,6 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
         T = argv[1];
     }
 
-    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
-    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
-    // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = O->speciesConstructor(state, defaultConstructor);
-
     // Let kept be a new empty List.
     ValueVectorWithInlineStorage kept;
     // Let k be 0.
@@ -1114,11 +1131,8 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
         }
         k++;
     }
-
-    // FIXME Let A be AllocateTypedArray(C, captured).
     Value arg[1] = { Value(captured) };
-    Value A = Object::construct(state, C, 1, arg);
-
+    Value A = TypedArraySpeciesCreate(state, O, 1, arg);
     // Let n be 0.
     size_t n = 0;
     // For each element e of kept
@@ -1330,16 +1344,8 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     if (argc > 1) {
         T = argv[1];
     }
-
-    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
-    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
-    // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = O->speciesConstructor(state, defaultConstructor);
-
-    // FIXME Let A be AllocateTypedArray(C, len).
     Value arg[1] = { Value(len) };
-    Value A = Object::construct(state, C, 1, arg);
-
+    Value A = TypedArraySpeciesCreate(state, O, 1, arg);
     // Let k be 0.
     size_t k = 0;
     // Repeat, while k < len
@@ -1504,13 +1510,8 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     // Let count be max(final – k, 0).
     double count = std::max((double)finalEnd - k, 0.0);
 
-    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
-    Value defaultConstructor = getDefaultTypedArrayConstructor(state, O->asArrayBufferView()->typedArrayType());
-    // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = O->speciesConstructor(state, defaultConstructor);
-    // FIXME Let A be AllocateTypedArray(C, count).
     Value arg[1] = { Value(count) };
-    Value A = Object::construct(state, C, 1, arg);
+    Value A = TypedArraySpeciesCreate(state, O, 1, arg);
 
     // If SameValue(srcType, targetType) is false, then
     if (O->asArrayBufferView()->typedArrayType() != A.asObject()->asArrayBufferView()->typedArrayType()) {
