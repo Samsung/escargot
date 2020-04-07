@@ -40,8 +40,6 @@ template <typename TypeArg, int elementSize>
 class TypedArrayObject;
 class ExecutionPauser;
 
-extern size_t g_objectRareDataTag;
-
 #define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
 
 struct ObjectRareData : public PointerValue {
@@ -688,14 +686,11 @@ private:
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 0
 #define ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 
-extern size_t g_objectTag;
-
 enum class EnumerableOwnPropertiesType {
     Key,
     Value,
     KeyAndValue
 };
-
 
 enum class ElementTypes : uint8_t {
     Undefined = 1,
@@ -800,27 +795,18 @@ public:
     // internal [[prototype]]
     virtual Value getPrototype(ExecutionState&)
     {
-        if (LIKELY(m_prototype != nullptr)) {
-            if (UNLIKELY(g_objectRareDataTag == *(size_t*)m_prototype)) {
-                Object* prototype = rareData()->m_prototype;
-                if (prototype == nullptr) {
-                    return Value(Value::Null);
-                }
-                return prototype;
-            }
-            return m_prototype;
+        Object* prototype = m_prototype;
+        if (UNLIKELY(prototype != nullptr && prototype->isObjectRareData())) {
+            prototype = rareData()->m_prototype;
         }
-
-        return Value(Value::Null);
+        return prototype ? prototype : Value(Value::Null);
     }
 
     // internal [[prototype]]
-    // this function can be inlined on ByteCodeInterpreter
-    ALWAYS_INLINE virtual Object* getPrototypeObject(ExecutionState&)
+    virtual Object* getPrototypeObject(ExecutionState&)
     {
         Object* prototype = m_prototype;
-
-        if (UNLIKELY(m_prototype != nullptr && g_objectRareDataTag == *(size_t*)prototype)) {
+        if (UNLIKELY(prototype != nullptr && prototype->isObjectRareData())) {
             prototype = rareData()->m_prototype;
         }
         return prototype;
@@ -830,7 +816,7 @@ public:
     {
         Object* prototype = m_prototype;
 
-        if (UNLIKELY(m_prototype != nullptr && g_objectRareDataTag == *(size_t*)prototype)) {
+        if (UNLIKELY(prototype != nullptr && prototype->isObjectRareData())) {
             prototype = rareData()->m_prototype;
         }
         return prototype;
@@ -1062,7 +1048,7 @@ protected:
 
     ObjectRareData* rareData() const
     {
-        if ((size_t)m_prototype > 2 && g_objectRareDataTag == *((size_t*)(m_prototype))) {
+        if ((size_t)m_prototype > 2 && m_prototype->isObjectRareData()) {
             return (ObjectRareData*)m_prototype;
         }
         return nullptr;

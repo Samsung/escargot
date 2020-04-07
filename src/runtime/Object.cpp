@@ -81,8 +81,6 @@ ObjectStructurePropertyName ObjectPropertyName::toObjectStructurePropertyNameUin
     return ObjectStructurePropertyName(state, String::fromDouble(uint));
 }
 
-size_t g_objectRareDataTag;
-
 ObjectRareData::ObjectRareData(Object* obj)
 {
     if (obj)
@@ -420,9 +418,6 @@ void ObjectPropertyDescriptor::completePropertyDescriptor(ObjectPropertyDescript
     }
     // 8. Return Desc.
 }
-
-
-size_t g_objectTag;
 
 Object::Object(ExecutionState& state)
     : m_structure(state.context()->defaultStructureForObject())

@@ -76,26 +76,57 @@ class AsyncFromSyncIteratorObject;
 // so, we can remove each m_tag value in very small device future
 
 class PointerValue : public gc {
-    friend class ByteCodeInterpreter;
     friend class Object;
+    friend class Context;
+    friend class VMInstance;
+    friend class ByteCodeInterpreter;
+
+    // tag values for fast type check
+    // these values actually have unique virtual table address of each object class
+    static size_t g_arrayObjectTag;
+    static size_t g_arrayPrototypeObjectTag;
+    static size_t g_objectRareDataTag;
+    static size_t g_doubleInSmallValueTag;
 
 public:
     virtual ~PointerValue() {}
+    // fast type check with tag comparison
     inline bool isObject() const
     {
-        return isObjectByDataTag();
+        return !(getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA));
     }
 
     inline bool isString() const
     {
-        return isStringByDataTag();
+        return getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA;
     }
 
     inline bool isSymbol() const
     {
-        return isSymbolByDataTag();
+        return getTagInFirstDataArea() & POINTER_VALUE_SYMBOL_TAG_IN_DATA;
     }
 
+    inline bool isArrayObject() const
+    {
+        return hasTag(g_arrayObjectTag) || hasTag(g_arrayPrototypeObjectTag);
+    }
+
+    inline bool isArrayPrototypeObject() const
+    {
+        return hasTag(g_arrayPrototypeObjectTag);
+    }
+
+    inline bool isObjectRareData() const
+    {
+        return hasTag(g_objectRareDataTag);
+    }
+
+    inline bool isDoubleInSmallValue() const
+    {
+        return hasTag(g_doubleInSmallValueTag);
+    }
+
+    // type check by virtual function call
     virtual bool isFunctionObject() const
     {
         return false;
@@ -142,16 +173,6 @@ public:
     }
 
     virtual bool isScriptClassConstructorFunctionObject() const
-    {
-        return false;
-    }
-
-    virtual bool isArrayObject() const
-    {
-        return false;
-    }
-
-    virtual bool isArrayPrototypeObject() const
     {
         return false;
     }
@@ -232,11 +253,6 @@ public:
     }
 
     virtual bool isTypedArrayPrototypeObject() const
-    {
-        return false;
-    }
-
-    virtual bool isDoubleInSmallValue() const
     {
         return false;
     }
@@ -569,42 +585,22 @@ public:
         return (AsyncFromSyncIteratorObject*)this;
     }
 
-    bool hasTag(const size_t tag) const
-    {
-        return tag == *((size_t*)(this));
-    }
-
-    size_t getTag() const
-    {
-        return *((size_t*)(this));
-    }
-
-    bool hasTagInFirstDataArea(const size_t tag) const
-    {
-        return tag == *((size_t*)(this) + 1);
-    }
-
     inline size_t getTagInFirstDataArea() const
     {
         return *((size_t*)(this) + 1);
     }
 
-    inline bool isObjectByDataTag() const
-    {
-        return !(getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA));
-    }
-
-    inline bool isStringByDataTag() const
-    {
-        return getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA;
-    }
-
-    inline bool isSymbolByDataTag() const
-    {
-        return getTagInFirstDataArea() & POINTER_VALUE_SYMBOL_TAG_IN_DATA;
-    }
-
 private:
+    inline bool hasTag(const size_t tag) const
+    {
+        return tag == *((size_t*)(this));
+    }
+
+    inline size_t getTag() const
+    {
+        return *((size_t*)(this));
+    }
+
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget);
 };

@@ -30,7 +30,6 @@ namespace Escargot {
 
 class PointerValue;
 
-
 #ifdef ESCARGOT_32
 COMPILE_ASSERT(sizeof(SmallValueData) == 4, "");
 #else
@@ -41,11 +40,6 @@ class DoubleInSmallValue : public PointerValue {
     friend class SmallValue;
 
 public:
-    virtual bool isDoubleInSmallValue() const
-    {
-        return true;
-    }
-
     explicit DoubleInSmallValue(double v)
         : m_value(v)
     {
@@ -56,7 +50,6 @@ public:
         return GC_MALLOC_ATOMIC(size);
     }
     void* operator new[](size_t size) = delete;
-
 
     double value()
     {
@@ -140,8 +133,6 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
     ((reinterpret_cast<intptr_t>(value) & ::Escargot::SmallValueImpl::kSmiTagMask) == ::Escargot::SmallValueImpl::kSmiTag)
 }
 
-extern size_t g_doubleInSmallValueTag;
-
 class SmallValue {
 public:
     enum ForceUninitializedTag { ForceUninitialized };
@@ -224,7 +215,7 @@ public:
 #else
             return Value(v);
 #endif
-        } else if (g_doubleInSmallValueTag == *((size_t*)v)) {
+        } else if (v->isDoubleInSmallValue()) {
             return Value(v->asDoubleInSmallValue()->value());
         }
         return Value(v);
@@ -291,7 +282,7 @@ public:
 
             if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
                 PointerValue* v = (PointerValue*)payload;
-                if (g_doubleInSmallValueTag == *((size_t*)v)) {
+                if (v->isDoubleInSmallValue()) {
                     ((DoubleInSmallValue*)m_data.payload)->m_value = from.asNumber();
                     return;
                 }

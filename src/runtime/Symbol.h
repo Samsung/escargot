@@ -24,7 +24,6 @@
 
 namespace Escargot {
 
-extern size_t g_symbolTag;
 class VMInstance;
 
 class Symbol : public PointerValue {
