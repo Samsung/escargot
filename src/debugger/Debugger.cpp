@@ -149,6 +149,23 @@ void Debugger::releaseFunction(const void* ptr)
     sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
 }
 
+static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
+{
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv) {
+        EnvironmentRecord* record = lexEnv->record();
+
+        if (record->isDeclarativeEnvironmentRecord()
+            && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            return lexEnv;
+        }
+
+        lexEnv = lexEnv->outerEnvironment();
+    }
+    return nullptr;
+}
+
 bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
@@ -238,6 +255,27 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
                 break;
             }
             m_stopState = state;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_FINISH: {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            LexicalEnvironment* lexEnv = getFunctionLexEnv(state);
+
+            if (!lexEnv) {
+                m_stopState = nullptr;
+                return false;
+            }
+
+            ExecutionState* stopState = state->parent();
+
+            while (stopState && getFunctionLexEnv(stopState) == lexEnv) {
+                stopState = stopState->parent();
+            }
+
+            m_stopState = stopState;
             return false;
         }
         case ESCARGOT_MESSAGE_EVAL_8BIT_START:
