@@ -26,6 +26,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "ArrayObject.h"
 #include "ErrorObject.h"
 #include "StringObject.h"
 #include "NumberObject.h"
@@ -40,6 +41,162 @@
 #include "Environment.h"
 
 namespace Escargot {
+
+GlobalObject::GlobalObject(ExecutionState& state)
+    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__)
+    , m_context(state.context())
+    , m_object(nullptr)
+    , m_objectPrototypeToString(nullptr)
+    , m_objectCreate(nullptr)
+    , m_objectFreeze(nullptr)
+    , m_function(nullptr)
+    , m_functionPrototype(nullptr)
+    , m_functionApply(nullptr)
+    , m_iteratorPrototype(nullptr)
+    , m_error(nullptr)
+    , m_errorPrototype(nullptr)
+    , m_referenceError(nullptr)
+    , m_referenceErrorPrototype(nullptr)
+    , m_typeError(nullptr)
+    , m_typeErrorPrototype(nullptr)
+    , m_rangeError(nullptr)
+    , m_rangeErrorPrototype(nullptr)
+    , m_syntaxError(nullptr)
+    , m_syntaxErrorPrototype(nullptr)
+    , m_uriError(nullptr)
+    , m_uriErrorPrototype(nullptr)
+    , m_evalError(nullptr)
+    , m_evalErrorPrototype(nullptr)
+    , m_string(nullptr)
+    , m_stringPrototype(nullptr)
+    , m_stringIteratorPrototype(nullptr)
+    , m_number(nullptr)
+    , m_numberPrototype(nullptr)
+    , m_symbol(nullptr)
+    , m_symbolPrototype(nullptr)
+    , m_array(nullptr)
+    , m_arrayPrototype(nullptr)
+    , m_arrayIteratorPrototype(nullptr)
+    , m_arrayPrototypeValues(nullptr)
+    , m_boolean(nullptr)
+    , m_booleanPrototype(nullptr)
+    , m_date(nullptr)
+    , m_datePrototype(nullptr)
+    , m_regexp(nullptr)
+    , m_regexpPrototype(nullptr)
+    , m_regexpSplitMethod(nullptr)
+    , m_regexpReplaceMethod(nullptr)
+    , m_regexpExecMethod(nullptr)
+    , m_math(nullptr)
+    , m_eval(nullptr)
+    , m_throwTypeError(nullptr)
+    , m_throwerGetterSetterData(nullptr)
+    , m_stringProxyObject(nullptr)
+    , m_numberProxyObject(nullptr)
+    , m_booleanProxyObject(nullptr)
+    , m_symbolProxyObject(nullptr)
+    , m_json(nullptr)
+    , m_jsonStringify(nullptr)
+    , m_jsonParse(nullptr)
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    , m_intl(nullptr)
+    , m_intlCollator(nullptr)
+    , m_intlDateTimeFormat(nullptr)
+    , m_intlNumberFormat(nullptr)
+#endif
+    , m_promise(nullptr)
+    , m_promisePrototype(nullptr)
+    , m_proxy(nullptr)
+    , m_reflect(nullptr)
+    , m_arrayBuffer(nullptr)
+    , m_arrayBufferPrototype(nullptr)
+    , m_dataView(nullptr)
+    , m_dataViewPrototype(nullptr)
+    , m_typedArray(nullptr)
+    , m_typedArrayPrototype(nullptr)
+    , m_int8Array(nullptr)
+    , m_int8ArrayPrototype(nullptr)
+    , m_uint8Array(nullptr)
+    , m_uint8ArrayPrototype(nullptr)
+    , m_uint8ClampedArray(nullptr)
+    , m_uint8ClampedArrayPrototype(nullptr)
+    , m_int16Array(nullptr)
+    , m_int16ArrayPrototype(nullptr)
+    , m_uint16Array(nullptr)
+    , m_uint16ArrayPrototype(nullptr)
+    , m_int32Array(nullptr)
+    , m_int32ArrayPrototype(nullptr)
+    , m_uint32Array(nullptr)
+    , m_uint32ArrayPrototype(nullptr)
+    , m_float32Array(nullptr)
+    , m_float32ArrayPrototype(nullptr)
+    , m_float64Array(nullptr)
+    , m_float64ArrayPrototype(nullptr)
+    , m_map(nullptr)
+    , m_mapPrototype(nullptr)
+    , m_mapIteratorPrototype(nullptr)
+    , m_set(nullptr)
+    , m_setPrototype(nullptr)
+    , m_setIteratorPrototype(nullptr)
+    , m_weakMap(nullptr)
+    , m_weakMapPrototype(nullptr)
+    , m_weakSet(nullptr)
+    , m_weakSetPrototype(nullptr)
+    , m_generatorFunction(nullptr)
+    , m_generator(nullptr)
+    , m_generatorPrototype(nullptr)
+    , m_asyncFunction(nullptr)
+    , m_asyncFunctionPrototype(nullptr)
+    , m_asyncIteratorPrototype(nullptr)
+    , m_asyncFromSyncIteratorPrototype(nullptr)
+    , m_asyncGenerator(nullptr)
+    , m_asyncGeneratorPrototype(nullptr)
+    , m_asyncGeneratorFunction(nullptr)
+{
+    // m_objectPrototype should be initialized ahead of any other builtins
+    m_objectPrototype = Object::createBuiltinObjectPrototype(state);
+
+    Object::setPrototype(state, m_objectPrototype);
+    Object::setGlobalIntrinsicObject(state);
+}
+
+void GlobalObject::installBuiltins(ExecutionState& state)
+{
+    // m_objectPrototype has been initialized ahead of any other builtins
+    ASSERT(!!m_objectPrototype);
+
+    installFunction(state);
+    installObject(state);
+    installIterator(state);
+    installError(state);
+    installSymbol(state);
+    installString(state);
+    installNumber(state);
+    installBoolean(state);
+    installArray(state);
+    installMath(state);
+    installDate(state);
+    installRegExp(state);
+    installJSON(state);
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    installIntl(state);
+#endif
+    installPromise(state);
+    installProxy(state);
+    installReflect(state);
+    installDataView(state);
+    installTypedArray(state);
+    installMap(state);
+    installSet(state);
+    installWeakMap(state);
+    installWeakSet(state);
+    installGenerator(state);
+    installAsyncFunction(state);
+    installAsyncIterator(state);
+    installAsyncFromSyncIterator(state);
+    installAsyncGeneratorFunction(state);
+    installOthers(state);
+}
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {

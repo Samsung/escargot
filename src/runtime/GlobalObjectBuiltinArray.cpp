@@ -1898,7 +1898,7 @@ void GlobalObject::installArray(ExecutionState& state)
         m_array->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_arrayPrototype = new ArrayPrototypeObject(state, m_objectPrototype);
+    m_arrayPrototype = new ArrayPrototypeObject(state);
     m_arrayPrototype->setGlobalIntrinsicObject(state, true);
 
     m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -27,8 +27,6 @@
 
 namespace Escargot {
 
-size_t g_arrayObjectTag;
-
 ArrayObject::ArrayObject(ExecutionState& state)
     : ArrayObject(state, state.context()->globalObject()->arrayPrototype())
 {
@@ -662,5 +660,10 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
             return std::make_pair(resultValue, false);
         }
     }
+}
+
+ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)
+    : ArrayObject(state, state.context()->globalObject()->objectPrototype())
+{
 }
 }

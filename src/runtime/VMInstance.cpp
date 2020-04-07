@@ -32,10 +32,6 @@
 
 namespace Escargot {
 
-extern size_t g_doubleInSmallValueTag;
-extern size_t g_objectRareDataTag;
-extern size_t g_symbolTag;
-
 bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
@@ -336,9 +332,11 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     GC_add_event_callback(gcEventCallback, this);
 
     // initialize tag values
-    g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
-    g_objectRareDataTag = ObjectRareData(nullptr).getTag();
-    g_symbolTag = Symbol(nullptr).getTag();
+    // object tags will have valid values after installation of builtins
+    PointerValue::g_arrayObjectTag = 0;
+    PointerValue::g_arrayPrototypeObjectTag = 0;
+    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
+    PointerValue::g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
 
 #define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(String::fromASCII("Symbol." #name));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);

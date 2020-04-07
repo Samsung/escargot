@@ -67,7 +67,7 @@ public:
             return false;
         }
         PointerValue* pa = (PointerValue*)m_data;
-        if (UNLIKELY(pa->hasTag(g_symbolTag))) {
+        if (UNLIKELY(pa->isSymbol())) {
             return true;
         }
         return false;
@@ -169,7 +169,7 @@ protected:
     {
         ASSERT(!hasAtomicString());
         PointerValue* pa = (PointerValue*)m_data;
-        if (UNLIKELY(pa->hasTag(g_symbolTag))) {
+        if (UNLIKELY(pa->isSymbol())) {
             return true;
         }
         return false;

@@ -29,14 +29,10 @@ namespace Escargot {
 #define ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE 65536 * 16
 #define ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP 1024
 
-extern size_t g_arrayObjectTag;
-
 class ArrayIteratorObject;
 
 class ArrayObject : public Object {
     friend class VMInstance;
-    friend class Context;
-    friend class Object;
     friend class ByteCodeInterpreter;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     friend void initializeCustomAllocators();
@@ -53,11 +49,6 @@ public:
     ArrayObject(ExecutionState& state, Object* proto, const Value* src, const uint64_t& size);
 
     static ArrayObject* createSpreadArray(ExecutionState& state);
-
-    virtual bool isArrayObject() const override
-    {
-        return true;
-    }
 
     virtual bool isInlineCacheable() override
     {
@@ -142,15 +133,7 @@ private:
 
 class ArrayPrototypeObject : public ArrayObject {
 public:
-    ArrayPrototypeObject(ExecutionState& state, Object* proto)
-        : ArrayObject(state, proto)
-    {
-    }
-
-    virtual bool isArrayPrototypeObject() const override
-    {
-        return true;
-    }
+    explicit ArrayPrototypeObject(ExecutionState& state);
 };
 
 class ArrayIteratorObject : public IteratorObject {

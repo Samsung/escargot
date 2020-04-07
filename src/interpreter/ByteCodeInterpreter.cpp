@@ -462,7 +462,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             PointerValue* v;
-            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
+            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->isArrayObject())) {
                 ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx = property.tryToUseAsArrayIndex(*state);
@@ -485,7 +485,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasTag(g_arrayObjectTag))) {
+            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->isArrayObject())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 uint32_t idx = property.tryToUseAsArrayIndex(*state);
                 if (LIKELY(arr->isFastModeArray())) {
@@ -1735,7 +1735,7 @@ ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(Execu
 
 NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, GetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
-    if (code->m_isLength && obj->hasTag(g_arrayObjectTag)) {
+    if (code->m_isLength && obj->isArrayObject()) {
         return Value(obj->asArrayObject()->getArrayLength(state));
     }
 
@@ -1884,7 +1884,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
 
 NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
-    if (code->m_isLength && originalObject->hasTag(g_arrayObjectTag) && originalObject->asArrayObject()->isFastModeArray()) {
+    if (code->m_isLength && originalObject->isArrayObject() && originalObject->asArrayObject()->isFastModeArray()) {
         if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }

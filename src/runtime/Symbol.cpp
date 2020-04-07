@@ -24,8 +24,6 @@
 
 namespace Escargot {
 
-size_t g_symbolTag;
-
 Symbol* Symbol::fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey)
 {
     // Let stringKey be ? ToString(key).
