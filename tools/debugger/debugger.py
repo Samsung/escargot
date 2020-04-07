@@ -82,6 +82,20 @@ class DebuggerPrompt(Cmd):
         """ Delete the given breakpoint, use 'delete all|active|pending' to clear all the given breakpoints """
         write(self.debugger.delete(args))
 
+    def do_continue(self, _):
+        """ Continue execution """
+        self.debugger.do_continue()
+        self.stop = True
+        if not self.debugger.non_interactive:
+            print("Press enter to stop JavaScript execution.")
+    do_c = do_continue
+
+    def do_step(self, _):
+        """ Next breakpoint, step into functions """
+        self.debugger.step()
+        self.stop = True
+    do_s = do_step
+
     def do_next(self, args):
         """ Next breakpoint in the same context """
         self.stop = True
@@ -116,19 +130,11 @@ class DebuggerPrompt(Cmd):
             print("Error: expected a positive integer: %s" % val_errno)
     do_n = do_next
 
-    def do_step(self, _):
-        """ Next breakpoint, step into functions """
-        self.debugger.step()
+    def do_finish(self, _):
+        """ Continue running until the current function returns """
+        self.debugger.finish()
         self.stop = True
-    do_s = do_step
-
-    def do_continue(self, _):
-        """ Continue execution """
-        self.debugger.do_continue()
-        self.stop = True
-        if not self.debugger.non_interactive:
-            print("Press enter to stop JavaScript execution.")
-    do_c = do_continue
+    do_f = do_finish
 
     def do_src(self, args):
         """ Get current source code """

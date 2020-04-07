@@ -137,16 +137,21 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         }
     }
 
+    Value result;
     if (isConstruct) {
-        Value result = code->m_fn(newState, receiver, argc, argv, newTarget);
+        result = code->m_fn(newState, receiver, argc, argv, newTarget);
         if (UNLIKELY(!result.isObject())) {
             ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
         }
-        return result;
     } else {
         ASSERT(!newTarget);
-        return code->m_fn(newState, receiver, argc, argv, nullptr);
+        result = code->m_fn(newState, receiver, argc, argv, nullptr);
     }
+
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state.context()->debugger(), &newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
+#endif /* ESCARGOT_DEBUGGER */
+    return result;
 }
 
 Value NativeFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
