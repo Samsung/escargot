@@ -233,6 +233,11 @@ public:
         return m_inStrictMode;
     }
 
+    bool inTryStatement()
+    {
+        return m_inTryStatement;
+    }
+
     // callee is pauser && isNotInEvalCode
     bool inPauserScope();
 
