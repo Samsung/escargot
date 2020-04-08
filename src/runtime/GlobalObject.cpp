@@ -103,6 +103,8 @@ GlobalObject::GlobalObject(ExecutionState& state)
     , m_intlCollator(nullptr)
     , m_intlDateTimeFormat(nullptr)
     , m_intlNumberFormat(nullptr)
+    , m_intlLocale(nullptr)
+    , m_intlLocalePrototype(nullptr)
 #endif
     , m_promise(nullptr)
     , m_promisePrototype(nullptr)

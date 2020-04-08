@@ -47,8 +47,22 @@ public:
     static String* icuLocaleToBCP47Tag(String* string);
     static std::vector<std::string> calendarsForLocale(String* locale);
     static std::vector<std::string> numberingSystemsForLocale(String* locale);
-    static Optional<String*> isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(ExecutionState& state, String* locale);
-    static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* extension, const char* key);
+    struct CanonicalizedLangunageTag {
+        Optional<String*> canonicalizedTag;
+        std::string language;
+        std::vector<std::string> extLang;
+        std::string script;
+        std::string region;
+        std::vector<std::string> variant;
+        struct ExtensionSingleton {
+            char key;
+            std::string value;
+        };
+        std::vector<ExtensionSingleton> extensions;
+        std::vector<std::pair<std::string, std::string>> unicodeExtension;
+        std::string privateUse;
+    };
+    static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
 };
 } // namespace Escargot
 

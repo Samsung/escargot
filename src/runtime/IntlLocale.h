@@ -31,43 +31,57 @@ public:
     IntlLocaleObject(ExecutionState& state, String* tag, Optional<Object*> options);
     IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Optional<Object*> options);
 
-    String* locale();
-    String* language()
+    String* locale() const
+    {
+        return m_locale;
+    }
+
+    String* language() const
     {
         return m_language;
     }
 
-    String* baseName()
+    Value region() const
+    {
+        return m_region->length() ? Value(m_region) : Value();
+    }
+
+    Value script() const
+    {
+        return m_script->length() ? Value(m_script) : Value();
+    }
+
+    String* baseName() const
     {
         return m_baseName;
     }
 
-    Optional<String*> calendar()
+    Optional<String*> calendar() const
     {
         return m_calendar;
     }
 
-    Optional<String*> caseFirst()
+    Optional<String*> caseFirst() const
     {
         return m_caseFirst;
     }
 
-    Optional<String*> collation()
+    Optional<String*> collation() const
     {
         return m_collation;
     }
 
-    Optional<String*> hourCycle()
+    Optional<String*> hourCycle() const
     {
         return m_hourCycle;
     }
 
-    Optional<String*> numeric()
+    Optional<String*> numeric() const
     {
         return m_numeric;
     }
 
-    Optional<String*> numberingSystem()
+    Optional<String*> numberingSystem() const
     {
         return m_numberingSystem;
     }
@@ -79,7 +93,10 @@ public:
 
 protected:
     String* m_language;
+    String* m_script;
+    String* m_region;
     String* m_baseName;
+    String* m_locale;
     Optional<String*> m_calendar; // ca
     Optional<String*> m_caseFirst; // kf
     Optional<String*> m_collation; // co

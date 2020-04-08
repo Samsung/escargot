@@ -575,16 +575,7 @@ static Value builtinIntlLocaleScriptGetter(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
-    String* baseName = loc.asObject()->asIntlLocaleObject()->baseName();
-    char buf[32];
-    UErrorCode status = U_ZERO_ERROR;
-    auto len = uloc_getScript(baseName->toNonGCUTF8StringData().data(), buf, sizeof(buf), &status);
-    ASSERT(U_SUCCESS(status));
-    if (len) {
-        return String::fromUTF8(buf, len);
-    } else {
-        return Value();
-    }
+    return loc.asObject()->asIntlLocaleObject()->script();
 }
 
 static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -596,24 +587,34 @@ static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
-    String* baseName = loc.asObject()->asIntlLocaleObject()->baseName();
-    char buf[32];
-    UErrorCode status = U_ZERO_ERROR;
-    auto len = uloc_getCountry(baseName->toNonGCUTF8StringData().data(), buf, sizeof(buf), &status);
-    ASSERT(U_SUCCESS(status));
-    if (len) {
-        return String::fromUTF8(buf, len);
-    } else {
-        return Value();
-    }
+    return loc.asObject()->asIntlLocaleObject()->region();
 }
 
-static void removeAtSymbol(char* buf, size_t len)
+static void icuLocleToBCP47Locale(char* buf, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
-        if (buf[i] == '@') {
+        if (buf[i] == '_') {
+            buf[i] = '-';
+        } else if (buf[i] < 0) {
+            // when using uloc_addLikelySubtags with `und-...` input, old version of ICU shows weird behavior
+            // it contains minus value in string
             buf[i] = 0;
-            return;
+            len = i;
+            break;
+        } else if (buf[i] == '@') { // we should ignore tags after '@'. ex) es-Latn-ES@currency=ESP -> es-Latn-ES
+            buf[i] = 0;
+            len = i;
+            break;
+        }
+    }
+
+    for (size_t i = 0; i < len - 1; i++) {
+        if (buf[i] == '-' && buf[i + 1] == '-') {
+            for (size_t j = i; j < len - 1; j++) {
+                buf[j] = buf[j + 1];
+            }
+            len--;
+            buf[len] = 0;
         }
     }
 }
@@ -629,15 +630,19 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
 
     // Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
     // Return ! Construct(%Locale%, maximal).
-    String* locale = loc.asObject()->asIntlLocaleObject()->locale();
+    IntlLocaleObject* localeObject = loc.asObject()->asIntlLocaleObject();
+    String* locale = localeObject->locale();
     auto u8Locale = locale->toNonGCUTF8StringData();
     UErrorCode status = U_ZERO_ERROR;
     char buf[128];
     int32_t len = uloc_addLikelySubtags(u8Locale.data(), buf, sizeof(buf), &status);
     if (U_SUCCESS(status)) {
-        // we should ignore tags after '@'. ex) es-Latn-ES@currency=ESP -> es-Latn-ES
-        removeAtSymbol(buf, strlen(buf));
-        return new IntlLocaleObject(state, Intl::icuLocaleToBCP47Tag(String::fromUTF8(buf, strlen(buf))), nullptr);
+        icuLocleToBCP47Locale(buf, strlen(buf));
+        StringBuilder sb;
+        sb.appendString(buf);
+        sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
+        return new IntlLocaleObject(state, sb.finalize(), nullptr);
+
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Unexpected error is occured while parsing locale");
     }
@@ -645,8 +650,12 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
     char* newBuf = (char*)alloca(len + 1);
     uloc_addLikelySubtags(u8Locale.data(), newBuf, len + 1, &status);
     ASSERT(U_SUCCESS(status));
-    String* maximal = String::fromUTF8(buf, strlen(newBuf));
-    return new IntlLocaleObject(state, maximal, nullptr);
+
+    icuLocleToBCP47Locale(newBuf, strlen(newBuf));
+    StringBuilder sb;
+    sb.appendString(newBuf);
+    sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
+    return new IntlLocaleObject(state, sb.finalize(), nullptr);
 }
 
 static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -660,22 +669,31 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
 
     // Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
     // Return ! Construct(%Locale%, minimal).
-    String* locale = loc.asObject()->asIntlLocaleObject()->locale();
+    IntlLocaleObject* localeObject = loc.asObject()->asIntlLocaleObject();
+    String* locale = localeObject->locale();
     auto u8Locale = locale->toNonGCUTF8StringData();
     UErrorCode status = U_ZERO_ERROR;
     char buf[128];
     int32_t len = uloc_minimizeSubtags(u8Locale.data(), buf, sizeof(buf), &status);
     if (U_SUCCESS(status)) {
-        return new IntlLocaleObject(state, Intl::icuLocaleToBCP47Tag(String::fromUTF8(buf, strlen(buf))), nullptr);
+        icuLocleToBCP47Locale(buf, len);
+        StringBuilder sb;
+        sb.appendString(buf);
+        sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
+        return new IntlLocaleObject(state, sb.finalize(), nullptr);
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Unexpected error is occured while parsing locale");
     }
     status = U_ZERO_ERROR;
     char* newBuf = (char*)alloca(len + 1);
-    uloc_minimizeSubtags(u8Locale.data(), newBuf, len + 1, &status);
+    len = uloc_minimizeSubtags(u8Locale.data(), newBuf, len + 1, &status);
     ASSERT(U_SUCCESS(status));
-    String* minimal = String::fromUTF8(newBuf, strlen(newBuf));
-    return new IntlLocaleObject(state, minimal, nullptr);
+
+    icuLocleToBCP47Locale(newBuf, len);
+    StringBuilder sb;
+    sb.appendString(newBuf);
+    sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
+    return new IntlLocaleObject(state, sb.finalize(), nullptr);
 }
 
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
