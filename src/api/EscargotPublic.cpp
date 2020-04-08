@@ -1727,6 +1727,18 @@ void ExecutionStateRef::throwException(ValueRef* value)
     imp->throwException(toImpl(value));
 }
 
+bool ExecutionStateRef::inTryStatement()
+{
+    ExecutionState* imp = toImpl(this);
+    return imp->inTryStatement();
+}
+
+OptionalRef<ExecutionStateRef> ExecutionStateRef::parent()
+{
+    ExecutionState* imp = toImpl(this);
+    return toRef(imp->parent());
+}
+
 ValueRef* ValueRef::create(bool value)
 {
     return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());

@@ -338,6 +338,11 @@ public:
     {
     }
 
+    OptionalRef(const OptionalRef<T>& src)
+        : m_value(src.m_value)
+    {
+    }
+
     T* value()
     {
         return m_value;
@@ -403,7 +408,7 @@ protected:
     T* m_value;
 };
 
-// Don't save ExecutionStateRef anywhere yourself
+// Don't save pointer of ExecutionStateRef anywhere yourself
 // If you want to acquire ExecutionStateRef, you can use Evaluator::execute
 class ESCARGOT_EXPORT ExecutionStateRef {
 public:
@@ -412,8 +417,11 @@ public:
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
     void throwException(ValueRef* value);
+    bool inTryStatement(); // test ExecutionStateRef in scope of try-statement directly
 
     ContextRef* context();
+
+    OptionalRef<ExecutionStateRef> parent();
 };
 
 // expand tuple into variadic template function's arguments
