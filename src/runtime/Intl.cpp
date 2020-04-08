@@ -55,7 +55,7 @@
 
 namespace Escargot {
 
-static std::string grandfatheredLangTag(String* locale)
+static std::string grandfatheredLangTag(const std::string& locale)
 {
     // grandfathered = irregular / regular
     std::unordered_map<std::string, std::string> tagMap;
@@ -88,10 +88,9 @@ static std::string grandfatheredLangTag(String* locale)
     tagMap["zh-min-nan"] = "nan";
     tagMap["zh-xiang"] = "hsn";
 
-    auto utf8 = locale->toUTF8StringData();
-    std::string stdUTF8(utf8.data(), utf8.length());
-    std::transform(stdUTF8.begin(), stdUTF8.end(), stdUTF8.begin(), tolower);
-    auto iter = tagMap.find(stdUTF8);
+    auto tempLocale = locale;
+    std::transform(tempLocale.begin(), tempLocale.end(), tempLocale.begin(), tolower);
+    auto iter = tagMap.find(tempLocale);
 
     if (iter != tagMap.end()) {
         return iter->second;
@@ -872,31 +871,34 @@ static std::string privateUseLangTag(const std::vector<std::string>& parts, size
     if (currentIndex < numParts)
         return std::string();
 
-    String* e = privateuse.finalize();
-    auto estd = e->toUTF8StringData();
-    return std::string(estd.data(), estd.length());
+    return privateuse.finalize()->toNonGCUTF8StringData();
 }
 
-static std::string canonicalLangTag(const std::vector<std::string>& parts)
+static Intl::CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale)
 {
+    std::vector<std::string> parts = split(locale, '-');
+
+    Intl::CanonicalizedLangunageTag result;
+
     // Follows the grammar at https://www.rfc-editor.org/rfc/bcp/bcp47.txt
     // langtag = language ["-" script] ["-" region] *("-" variant) *("-" extension) ["-" privateuse]
-
     size_t numParts = parts.size();
     // Check for language.
-    // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+    // language = 2*3ALPHA ["-" extlang] / 4ALPHA (reserved) / 5*8ALPHA
     size_t currentIndex = 0;
     std::string language = parts[currentIndex];
     unsigned languageLength = language.length();
     bool canHaveExtlang = languageLength >= 2 && languageLength <= 3;
-    bool isValidLanguage = languageLength >= 2 && languageLength <= 8 && isAllSpecialCharacters(language, isASCIIAlpha);
-    if (!isValidLanguage)
-        return std::string();
+    bool isValidLanguage = languageLength != 4 && languageLength >= 2 && languageLength <= 8 && isAllSpecialCharacters(language, isASCIIAlpha);
+    if (!isValidLanguage) {
+        return Intl::CanonicalizedLangunageTag();
+    }
 
     ++currentIndex;
     StringBuilder canonical;
 
     std::transform(language.begin(), language.end(), language.begin(), tolower);
+    result.language = language;
     language = Intl::preferredLanguage(language);
     canonical.appendString(String::fromUTF8(language.data(), language.length()));
 
@@ -909,6 +911,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             if (extlangLength == 3 && isAllSpecialCharacters(extlang, isASCIIAlpha)) {
                 ++currentIndex;
                 std::transform(extlang.begin(), extlang.end(), extlang.begin(), tolower);
+                result.extLang.push_back(extlang);
                 if (!times && intlPreferredExtlangTag(extlang) == language) {
                     canonical.clear();
                     canonical.appendString(String::fromUTF8(extlang.data(), extlang.length()));
@@ -931,8 +934,10 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             ++currentIndex;
             canonical.appendString("-");
             std::transform(script.begin(), script.end(), script.begin(), tolower);
+            result.script += (char)toupper(script[0]);
             canonical.appendChar((char)toupper(script[0]));
             script = script.substr(1, 3);
+            result.script += script;
             canonical.appendString(String::fromUTF8(script.data(), script.length()));
         }
     }
@@ -948,6 +953,7 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
             ++currentIndex;
             canonical.appendChar('-');
             std::transform(region.begin(), region.end(), region.begin(), toupper);
+            result.region = region;
             auto preffered = preferredRegion(region);
             canonical.appendString(String::fromUTF8(preffered.data(), preffered.length()));
         }
@@ -961,36 +967,41 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
         unsigned variantLength = variant.length();
         bool isValidVariant = ((variantLength >= 5 && variantLength <= 8 && isAllSpecialCharacters(variant, isASCIIAlphanumeric))
                                || (variantLength == 4 && isASCIIDigit(variant[0]) && isAllSpecialCharacters(variant.substr(1, 3), isASCIIAlphanumeric)));
-        if (!isValidVariant)
+        if (!isValidVariant) {
             break;
+        }
 
         // Cannot include duplicate subtags (case insensitive).
         std::string lowerVariant = variant;
         std::transform(lowerVariant.begin(), lowerVariant.end(), lowerVariant.begin(), tolower);
         auto iter = subtags.find(lowerVariant);
         if (iter != subtags.end()) {
-            return std::string();
+            return Intl::CanonicalizedLangunageTag();
         }
         subtags.insert(lowerVariant);
 
         ++currentIndex;
 
-        // Reordering variant subtags is not required in the spec.
+        result.variant.push_back(lowerVariant);
+    }
+
+    std::sort(result.variant.begin(), result.variant.end());
+    for (size_t i = 0; i < result.variant.size(); i++) {
         canonical.appendChar('-');
-        canonical.appendString(String::fromUTF8(lowerVariant.data(), lowerVariant.length()));
+        canonical.appendString(result.variant[i].data());
     }
 
     // Check for extension.
     // extension = singleton 1*("-" (2*8alphanum))
     // singleton = alphanum except x or X
     subtags.clear();
-    std::vector<std::string> extensions;
     while (currentIndex < numParts) {
         std::string possibleSingleton = parts[currentIndex];
         unsigned singletonLength = possibleSingleton.length();
         bool isValidSingleton = (singletonLength == 1 && possibleSingleton != "x" && possibleSingleton != "X" && isASCIIAlphanumeric(possibleSingleton[0]));
-        if (!isValidSingleton)
+        if (!isValidSingleton) {
             break;
+        }
 
         // Cannot include duplicate singleton (case insensitive).
         std::string singleton = possibleSingleton;
@@ -998,103 +1009,177 @@ static std::string canonicalLangTag(const std::vector<std::string>& parts)
 
         auto iter = subtags.find(singleton);
         if (iter != subtags.end()) {
-            return std::string();
+            return Intl::CanonicalizedLangunageTag();
         }
         subtags.insert(singleton);
 
+        Intl::CanonicalizedLangunageTag::ExtensionSingleton singletonValue;
+        singletonValue.key = possibleSingleton[0];
+
         ++currentIndex;
-        int numExtParts = 0;
-        std::string prevExtPart;
 
-        StringBuilder extension;
-        extension.appendString(String::fromUTF8(singleton.data(), singleton.length()));
-        while (currentIndex < numParts) {
-            std::string extPart = parts[currentIndex];
-            unsigned extPartLength = extPart.length();
+        if (singletonValue.key == 'u') {
+            // "u" needs ordered key, value
+            // "u" doesn't allow single "true" as value
 
-            bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
-            if (!isValid)
-                break;
+            std::vector<std::pair<std::string, std::vector<std::string>>> values;
 
-            ++currentIndex;
-            ++numExtParts;
-            std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
+            std::string key;
+            std::vector<std::string> value;
 
-            if (prevExtPart == "kn" && extPart == "true") {
-                // skip to insert
-                // we should not represent default value of `kn`
-            } else {
-                extension.appendChar('-');
-                extension.appendString(String::fromUTF8(extPart.data(), extPart.length()));
+            while (currentIndex < numParts) {
+                std::string extPart = parts[currentIndex];
+                unsigned extPartLength = extPart.length();
+
+                bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
+                if (!isValid) {
+                    break;
+                }
+
+                ++currentIndex;
+                std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
+
+                if (extPartLength == 2) {
+                    if (key.length() || value.size()) {
+                        if (key.length() && value.size() == 1 && value[0] == "true") {
+                            value.clear();
+                        }
+                        values.push_back(std::make_pair(key, value));
+                        key.clear();
+                        value.clear();
+                    }
+                    key = extPart;
+                } else {
+                    value.push_back(extPart);
+                }
             }
 
-            prevExtPart = std::move(extPart);
+            if (key.length() || value.size()) {
+                if (key.length() && value.size() == 1 && value[0] == "true") {
+                    value.clear();
+                }
+                values.push_back(std::make_pair(key, value));
+                key.clear();
+                value.clear();
+            }
+
+            std::sort(values.begin(), values.end(),
+                      [](const std::pair<std::string, std::vector<std::string>>& a, const std::pair<std::string, std::vector<std::string>>& b) -> bool {
+                          return a.first < b.first;
+                      });
+
+            // Attributes in Unicode extensions are reordered in US-ASCII order.
+            if (values.size() && !values.begin()->first.length()) {
+                std::sort(values.begin()->second.begin(), values.begin()->second.end());
+            }
+
+            std::string resultValue;
+            for (size_t i = 0; i < values.size(); i++) {
+                if (values[i].first.size()) {
+                    if (resultValue.size()) {
+                        resultValue += '-';
+                    }
+                    resultValue += values[i].first;
+                }
+
+                for (size_t j = 0; j < values[i].second.size(); j++) {
+                    if (resultValue.size()) {
+                        resultValue += '-';
+                    }
+                    resultValue += values[i].second[j];
+                }
+            }
+
+            singletonValue.value = std::move(resultValue);
+
+            std::vector<std::pair<std::string, std::string>> unicodeExtensionValue;
+
+            for (size_t i = 0; i < values.size(); i++) {
+                std::string singleUnicodeExtensionValue;
+                for (size_t j = 0; j < values[i].second.size(); j++) {
+                    if (singleUnicodeExtensionValue.length()) {
+                        singleUnicodeExtensionValue += '-';
+                    }
+                    singleUnicodeExtensionValue += values[i].second[j];
+                }
+                unicodeExtensionValue.push_back(std::make_pair(values[i].first, singleUnicodeExtensionValue));
+            }
+
+            result.unicodeExtension = std::move(unicodeExtensionValue);
+        } else {
+            std::string single;
+            while (currentIndex < numParts) {
+                std::string extPart = parts[currentIndex];
+                unsigned extPartLength = extPart.length();
+
+                bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
+                if (!isValid) {
+                    break;
+                }
+
+                ++currentIndex;
+                std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
+
+                if (single.length()) {
+                    single += '-';
+                }
+                single += extPart;
+            }
+
+            singletonValue.value = std::move(single);
         }
 
-        // Requires at least one production.
-        if (!numExtParts)
-            return std::string();
+        result.extensions.push_back(singletonValue);
 
-        String* e = extension.finalize();
-        auto estd = e->toUTF8StringData();
-        extensions.push_back(std::string(estd.data()));
+        // Requires at least one production.
+        if (!result.extensions.back().value.size()) {
+            return Intl::CanonicalizedLangunageTag();
+        }
     }
 
     // Add extensions to canonical sorted by singleton.
-    std::sort(
-        extensions.begin(),
-        extensions.end(),
-        [](const std::string& a, const std::string& b) -> bool {
-            return a[0] < b[0];
-        });
-    size_t numExtenstions = extensions.size();
+    std::sort(result.extensions.begin(), result.extensions.end(),
+              [](const Intl::CanonicalizedLangunageTag::ExtensionSingleton& a, const Intl::CanonicalizedLangunageTag::ExtensionSingleton& b) -> bool {
+                  return a.key < b.key;
+              });
+    size_t numExtenstions = result.extensions.size();
     for (size_t i = 0; i < numExtenstions; ++i) {
         canonical.appendChar('-');
-        canonical.appendString(String::fromUTF8(extensions[i].data(), extensions[i].length()));
+        canonical.appendChar(result.extensions[i].key);
+        canonical.appendChar('-');
+        canonical.appendString(String::fromUTF8(result.extensions[i].value.data(), result.extensions[i].value.length()));
     }
 
     // Check for privateuse.
     if (currentIndex < numParts) {
-        std::string privateuse = privateUseLangTag(parts, currentIndex);
-        if (privateuse.length() == 0)
-            return std::string();
+        std::string privateUse = privateUseLangTag(parts, currentIndex);
+        if (privateUse.length() == 0) {
+            return Intl::CanonicalizedLangunageTag();
+        }
         canonical.appendChar('-');
-        canonical.appendString(String::fromUTF8(privateuse.data(), privateuse.length()));
+        canonical.appendString(String::fromUTF8(privateUse.data(), privateUse.length()));
+        result.privateUse = privateUse;
     }
 
     String* e = canonical.finalize();
     auto estd = e->toNonGCUTF8StringData();
     auto preferred = intlRedundantLanguageTag(estd);
     if (preferred != "") {
-        return preferred;
+        e = String::fromUTF8(preferred.data(), preferred.length());
     }
-    return estd;
+
+    result.canonicalizedTag = e;
+    return result;
 }
 
-Optional<String*> Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(ExecutionState& state, String* locale)
+Intl::CanonicalizedLangunageTag Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale)
 {
     std::string grandfather = grandfatheredLangTag(locale);
-    if (grandfather.length() != 0)
-        return String::fromUTF8(grandfather.c_str(), grandfather.length());
-
-    auto utf8 = locale->toUTF8StringData();
-    std::string stdUTF8(utf8.data(), utf8.length());
-
-    std::vector<std::string> parts = split(stdUTF8, '-');
-
-    if (parts.size()) {
-        std::string langtag = canonicalLangTag(parts);
-        if (langtag.length()) {
-            return String::fromUTF8(langtag.data(), langtag.length());
-        }
-
-        std::string privateUse = privateUseLangTag(parts, 0);
-        if (privateUse.length()) {
-            return String::fromUTF8(privateUse.data(), privateUse.length());
-        }
+    if (grandfather.length()) {
+        return canonicalizeLanguageTag(grandfather);
     }
 
-    return nullptr;
+    return canonicalizeLanguageTag(locale);
 }
 
 String* Intl::icuLocaleToBCP47Tag(String* string)
@@ -1195,11 +1280,11 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
             // is false, then throw a RangeError exception.
             // Let tag be the result of calling the abstract operation CanonicalizeLanguageTag (defined in 6.2.3), passing tag as the argument.
             // If tag is not an element of seen, then append tag as the last element of seen.
-            auto canonicalizedTag = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, tag);
-            if (!canonicalizedTag) {
+            auto canonicalizedTag = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(tag->toNonGCUTF8StringData());
+            if (!canonicalizedTag.canonicalizedTag) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got Invalid locale");
             }
-            tag = canonicalizedTag.value();
+            tag = canonicalizedTag.canonicalizedTag.value();
             bool has = false;
             for (size_t i = 0; i < seen.size(); i++) {
                 if (seen[i].equalsTo(state, tag)) {
@@ -1339,7 +1424,7 @@ static Intl::IntlMatcherResult bestFitMatcher(ExecutionState& state, const Vecto
     return lookupMatcher(state, availableLocales, requestedLocales);
 }
 
-Optional<String*> Intl::unicodeExtensionValue(ExecutionState& state, String* extension, const char* key)
+static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* extension, const char* key)
 {
     // Let size be the number of elements in extension.
     auto size = extension->length();
@@ -1480,7 +1565,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUt
         // If r has an [[extension]] field, then
         if (r.extension->length()) {
             // Let requestedValue be UnicodeExtensionValue(r.[[extension]], key).
-            Optional<String*> requestedValue = Intl::unicodeExtensionValue(state, r.extension, key);
+            Optional<String*> requestedValue = unicodeExtensionValue(state, r.extension, key);
 
             // If requestedValue is not undefined, then
             if (requestedValue) {
@@ -1572,7 +1657,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUt
 
         // Let foundLocale be CanonicalizeLanguageTag(foundLocale).
         // Assert: IsStructurallyValidLanguageTag(foundLocale) is true.
-        foundLocale = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(state, foundLocale).value();
+        foundLocale = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(foundLocale->toNonGCUTF8StringData()).canonicalizedTag.value();
     }
     // Set result.[[locale]] to foundLocale.
     result->insert(std::make_pair(String::fromASCII("locale"), foundLocale));

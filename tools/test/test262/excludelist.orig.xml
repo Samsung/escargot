@@ -14,6 +14,9 @@
     <test id="intl402/Collator/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
     <test id="intl402/DateTimeFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
     <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
+
+    <test id="intl402/Locale/likely-subtags"><reason>old version of ICU cannot run uloc_addLikelySubtags correctly with `und..` input</reason></test>
+
     <test id="annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body"><reason>TODO</reason></test>
     <test id="annexB/built-ins/RegExp/named-groups/non-unicode-malformed"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
@@ -1850,15 +1853,6 @@
     <test id="intl402/ListFormat/prototype/toStringTag/toStringTag"><reason>TODO</reason></test>
     <test id="intl402/Locale/constructor-non-iana-canon"><reason>TODO</reason></test>
     <test id="intl402/Locale/constructor-options-region-valid"><reason>TODO</reason></test>
-    <test id="intl402/Locale/constructor-tag"><reason>TODO</reason></test>
-    <test id="intl402/Locale/constructor-unicode-ext-valid"><reason>TODO</reason></test>
-    <test id="intl402/Locale/extensions-grandfathered"><reason>TODO</reason></test>
-    <test id="intl402/Locale/extensions-private"><reason>TODO</reason></test>
-    <test id="intl402/Locale/getters"><reason>TODO</reason></test>
-    <test id="intl402/Locale/getters-grandfathered"><reason>TODO</reason></test>
-    <test id="intl402/Locale/getters-missing"><reason>TODO</reason></test>
-    <test id="intl402/Locale/invalid-tag-throws"><reason>TODO</reason></test>
-    <test id="intl402/Locale/likely-subtags"><reason>TODO</reason></test>
     <test id="intl402/Locale/likely-subtags-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Number/prototype/toLocaleString/default-options-object-prototype"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-compactDisplay-compact"><reason>TODO</reason></test>
