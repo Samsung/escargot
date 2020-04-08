@@ -125,6 +125,29 @@ void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uin
     send(type, &backtraceInfo, sizeof(BacktraceInfo));
 }
 
+void Debugger::sendVariableObjectInfo(uint8_t subType, Object* object)
+{
+    /* Maximum UINT32_MAX number of objects are stored. */
+    uint32_t size = (uint32_t)m_activeObjects.size();
+    uint32_t index;
+
+    for (index = 0; index < size; index++) {
+        if (m_activeObjects[index] == object) {
+            break;
+        }
+    }
+
+    if (index == size && size < UINT32_MAX) {
+        m_activeObjects.pushBack(object);
+    }
+
+    Debugger::VariableObjectInfo variableObjectInfo;
+
+    variableObjectInfo.subType = subType;
+    memcpy(&variableObjectInfo.index, &index, sizeof(uint32_t));
+    send(Debugger::ESCARGOT_MESSAGE_VARIABLE, &variableObjectInfo, sizeof(VariableObjectInfo));
+}
+
 void Debugger::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
@@ -147,11 +170,13 @@ void Debugger::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, E
         return;
     }
 
-    m_stopState = nullptr;
+    ASSERT(m_activeObjects.size() == 0);
+    m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
 
     while (processIncomingMessages(state, byteCodeBlock))
         ;
 
+    m_activeObjects.clear();
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
 }
 
@@ -299,11 +324,21 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     sendType(ESCARGOT_MESSAGE_BACKTRACE_END);
 }
 
-void Debugger::getScopeChain(ExecutionState* state)
+void Debugger::getScopeChain(ExecutionState* state, uint32_t stateIndex)
 {
     const size_t maxMessageLength = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1;
     uint8_t buffer[maxMessageLength];
     size_t nextScope = 0;
+
+    while (stateIndex > 0) {
+        state = state->parent();
+        stateIndex--;
+
+        if (!state) {
+            send(ESCARGOT_MESSAGE_SCOPE_CHAIN_END, buffer, nextScope);
+            return;
+        }
+    }
 
     LexicalEnvironment* lexEnv = state->lexicalEnvironment();
 
@@ -399,7 +434,11 @@ static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString
         nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
     }
 
-    debugger->sendSubtype(Debugger::ESCARGOT_MESSAGE_VARIABLE, type);
+    if ((type & Debugger::ESCARGOT_VARIABLE_TYPE_MASK) < Debugger::ESCARGOT_VARIABLE_OBJECT) {
+        debugger->sendSubtype(Debugger::ESCARGOT_MESSAGE_VARIABLE, type);
+    } else {
+        debugger->sendVariableObjectInfo(type, value.asObject());
+    }
 
     if (debugger->enabled()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
@@ -482,8 +521,18 @@ static void sendRecordProperties(Debugger* debugger, ExecutionState* state, cons
     }
 }
 
-void Debugger::getScopeVariables(ExecutionState* state, uint32_t index)
+void Debugger::getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index)
 {
+    while (stateIndex > 0) {
+        state = state->parent();
+        stateIndex--;
+
+        if (!state) {
+            sendSubtype(ESCARGOT_MESSAGE_VARIABLE, ESCARGOT_VARIABLE_END);
+            return;
+        }
+    }
+
     LexicalEnvironment* lexEnv = state->lexicalEnvironment();
 
     while (lexEnv && index > 0) {
@@ -687,13 +736,30 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
             return true;
         }
         case ESCARGOT_MESSAGE_GET_SCOPE_CHAIN: {
-            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+            if ((length != 1 + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
-            getScopeChain(state);
+
+            uint32_t stateIndex;
+            memcpy(&stateIndex, buffer + 1, sizeof(uint32_t));
+
+            getScopeChain(state, stateIndex);
             return true;
         }
         case ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES: {
+            if ((length != 1 + sizeof(uint32_t) + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            uint32_t stateIndex;
+            uint32_t index;
+            memcpy(&stateIndex, buffer + 1, sizeof(uint32_t));
+            memcpy(&index, buffer + 1 + sizeof(uint32_t), sizeof(uint32_t));
+
+            getScopeVariables(state, stateIndex, index);
+            return true;
+        }
+        case ESCARGOT_MESSAGE_GET_OBJECT: {
             if (length != 1 + sizeof(uint32_t) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
@@ -701,7 +767,11 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
             uint32_t index;
             memcpy(&index, buffer + 1, sizeof(uint32_t));
 
-            getScopeVariables(state, index);
+            if (index < m_activeObjects.size()) {
+                sendObjectProperties(this, state, m_activeObjects[index]);
+            }
+
+            sendSubtype(ESCARGOT_MESSAGE_VARIABLE, ESCARGOT_VARIABLE_END);
             return true;
         }
         case ESCARGOT_DEBUGGER_PENDING_CONFIG: {

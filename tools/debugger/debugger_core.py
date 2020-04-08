@@ -87,13 +87,14 @@ ESCARGOT_MESSAGE_EVAL_16BIT = 9
 ESCARGOT_MESSAGE_GET_BACKTRACE = 10
 ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 11
 ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 12
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 13
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 14
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 15
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 16
-ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 17
-ESCARGOT_DEBUGGER_PENDING_CONFIG = 18
-ESCARGOT_DEBUGGER_PENDING_RESUME = 19
+ESCARGOT_MESSAGE_GET_OBJECT = 13
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 14
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 15
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 16
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 17
+ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 18
+ESCARGOT_DEBUGGER_PENDING_CONFIG = 19
+ESCARGOT_DEBUGGER_PENDING_RESUME = 20
 
 
 # Environment record types
@@ -146,6 +147,17 @@ def arguments_parse():
         logging.debug("Debug logging mode: ON")
 
     return args
+
+
+def _parse_int(value):
+    try:
+        index = int(value)
+        if index < 0:
+             return "Error: A non negative integer number expected"
+        return index
+
+    except ValueError as val_errno:
+        return "Error: Non negative integer number expected, %s\n" % (val_errno)
 
 
 class Breakpoint(object):
@@ -518,6 +530,8 @@ class Debugger(object):
                     value_str += self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True));
                     if variable_full_type & ESCARGOT_VARIABLE_LONG_VALUE:
                         value_str += "..."
+                elif variable_type >= ESCARGOT_VARIABLE_OBJECT:
+                    value_str += " [id: %d]" % (struct.unpack(self.byte_order + self.idx_format, data[2:])[0])
 
                 return DebuggerAction(DebuggerAction.TEXT, "%s: %s\n" % (name, value_str))
 
@@ -730,24 +744,50 @@ class Debugger(object):
         self.prompt = False
         return ""
 
-    def scope_chain(self):
-        self.prompt = False
-        self._exec_command(ESCARGOT_MESSAGE_GET_SCOPE_CHAIN)
-
-    def scope_variables(self, args):
+    def scope_chain(self, args):
         index = 0
-        if args:
-            try:
-                index = int(args)
-                if index < 0:
-                    return "Error: A non negative integer number expected"
-
-            except ValueError as val_errno:
-                return "Error: Non negative integer number expected, %s\n" % (val_errno)
+        if args != "":
+            index = _parse_int(args)
 
         message = struct.pack(self.byte_order + "BB" + self.idx_format,
                               1 + 4,
+                              ESCARGOT_MESSAGE_GET_SCOPE_CHAIN,
+                              index)
+
+        self.channel.send_message(self.byte_order, message)
+
+        self.prompt = False
+        return ""
+
+    def scope_variables(self, args):
+        args = args.split(" ", 1)
+        stateIndex = 0
+        index = 0
+
+        if len(args) == 1:
+            if args[0] != "":
+                index = _parse_int(args[0])
+        else:
+            stateIndex = _parse_int(args[0])
+            index = _parse_int(args[1])
+
+        message = struct.pack(self.byte_order + "BB" + self.idx_format + self.idx_format,
+                              1 + 4 + 4,
                               ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES,
+                              stateIndex,
+                              index)
+
+        self.channel.send_message(self.byte_order, message)
+
+        self.prompt = False
+        return ""
+
+    def object(self, args):
+        index = _parse_int(args)
+
+        message = struct.pack(self.byte_order + "BB" + self.idx_format,
+                              1 + 4,
+                              ESCARGOT_MESSAGE_GET_OBJECT,
                               index)
 
         self.channel.send_message(self.byte_order, message)

@@ -1,0 +1,24 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_object.js:30
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_object.js:26 (in f() at line:25, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_object.js:27 (in f() at line:25, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_object.js:21 (in g() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_object.js:22 (in g() at line:20, col:1)
+(escargot-debugger) variables 0
+arr: array [id: 0]
+(escargot-debugger) object 0
+0: number: 1
+1: number: 2
+length: number: 2
+(escargot-debugger) variables 1 0
+obj: object [id: 1]
+(escargot-debugger) object 1
+a: number: 1
+b: number: 2
+(escargot-debugger) c
+Connection closed.
