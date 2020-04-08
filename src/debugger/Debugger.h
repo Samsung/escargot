@@ -114,14 +114,15 @@ public:
         ESCARGOT_MESSAGE_GET_BACKTRACE = 10,
         ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 11,
         ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 12,
+        ESCARGOT_MESSAGE_GET_OBJECT = 13,
         // These four must be in the same order.
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 13,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 14,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 15,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 16,
-        ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 17,
-        ESCARGOT_DEBUGGER_PENDING_CONFIG = 18,
-        ESCARGOT_DEBUGGER_PENDING_RESUME = 19,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 14,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 15,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 16,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 17,
+        ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 18,
+        ESCARGOT_DEBUGGER_PENDING_CONFIG = 19,
+        ESCARGOT_DEBUGGER_PENDING_RESUME = 20,
     };
 
     // Environment record types
@@ -145,9 +146,11 @@ public:
         ESCARGOT_VARIABLE_NUMBER = 6,
         ESCARGOT_VARIABLE_STRING = 7,
         ESCARGOT_VARIABLE_SYMBOL = 8,
+        // Only object types should be defined after this point.
         ESCARGOT_VARIABLE_OBJECT = 9,
         ESCARGOT_VARIABLE_ARRAY = 10,
         ESCARGOT_VARIABLE_FUNCTION = 11,
+        ESCARGOT_VARIABLE_TYPE_MASK = 0x3f,
         ESCARGOT_VARIABLE_LONG_NAME = 0x40,
         ESCARGOT_VARIABLE_LONG_VALUE = 0x80,
     };
@@ -212,6 +215,7 @@ public:
     void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
     void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
     void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth);
+    void sendVariableObjectInfo(uint8_t subType, Object* object);
     void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
     String* getClientSource(String** sourceName);
@@ -269,10 +273,16 @@ private:
         uint8_t executionStateDepth[sizeof(uint32_t)];
     };
 
+    struct VariableObjectInfo {
+        uint8_t subType;
+        uint8_t index[sizeof(uint32_t)];
+    };
+
+    uint32_t appendToActiveObjects(Object* object);
     bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
-    void getScopeChain(ExecutionState* state);
-    void getScopeVariables(ExecutionState* state, uint32_t index);
+    void getScopeChain(ExecutionState* state, uint32_t stateIndex);
+    void getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index);
     bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
 
     uint8_t m_delay;
@@ -280,9 +290,10 @@ private:
     bool m_pendingWait : 1;
     bool m_waitForResume : 1;
     ExecutionState* m_stopState;
-    Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     String* m_clientSourceData;
     String* m_clientSourceName;
+    Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
+    Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
 };
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled);

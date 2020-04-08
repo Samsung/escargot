@@ -176,14 +176,19 @@ class DebuggerPrompt(Cmd):
         self.stop = True
     do_bt = do_backtrace
 
-    def do_scope(self, _):
+    def do_scope(self, args):
         """ Get lexical environment chain """
-        self.debugger.scope_chain()
+        self.debugger.scope_chain(args)
         self.stop = True
 
     def do_variables(self, args):
-        """ Get scope variables from debugger """
+        """ Get scope variables """
         write(self.debugger.scope_variables(args))
+        self.stop = True
+
+    def do_object(self, args):
+        """ Get object by index """
+        write(self.debugger.object(args))
         self.stop = True
 
     def do_dump(self, args):

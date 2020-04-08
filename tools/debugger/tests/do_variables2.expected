@@ -13,9 +13,9 @@ d: boolean: false
 e: number: 3.14
 f: string: str
 g: symbol: sym
-h: object
-i: array
-j: function
+h: object [id: 0]
+i: array [id: 1]
+j: function [id: 2]
 k: unaccessible
 (escargot-debugger) c
 Connection closed.
