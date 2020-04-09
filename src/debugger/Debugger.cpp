@@ -149,184 +149,6 @@ void Debugger::releaseFunction(const void* ptr)
     sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
 }
 
-static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
-{
-    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
-
-    while (lexEnv) {
-        EnvironmentRecord* record = lexEnv->record();
-
-        if (record->isDeclarativeEnvironmentRecord()
-            && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            return lexEnv;
-        }
-
-        lexEnv = lexEnv->outerEnvironment();
-    }
-    return nullptr;
-}
-
-bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
-{
-    uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
-    size_t length;
-
-    while (receive(buffer, length)) {
-        switch (buffer[0]) {
-        case ESCARGOT_MESSAGE_FUNCTION_RELEASED: {
-            if (length != 1 + sizeof(uintptr_t)) {
-                break;
-            }
-
-            uintptr_t ptr;
-            memcpy(&ptr, buffer + 1, sizeof(uintptr_t));
-
-            for (size_t i = 0; i < m_releasedFunctions.size(); i++) {
-                if (m_releasedFunctions[i] == ptr) {
-                    // Delete only the first instance.
-                    m_releasedFunctions.erase(i);
-                    return true;
-                }
-            }
-            break;
-        }
-        case ESCARGOT_MESSAGE_UPDATE_BREAKPOINT: {
-            if (length != 1 + 1 + sizeof(uintptr_t) + sizeof(uint32_t)) {
-                break;
-            }
-
-            uintptr_t ptr;
-            uint32_t offset;
-            memcpy(&ptr, buffer + 1 + 1, sizeof(uintptr_t));
-            memcpy(&offset, buffer + 1 + 1 + sizeof(uintptr_t), sizeof(uint32_t));
-
-            for (size_t i = 0; i < m_releasedFunctions.size(); i++) {
-                if (m_releasedFunctions[i] == ptr) {
-                    // This function has been already freed.
-                    return true;
-                }
-            }
-
-            ByteCode* breakpoint = (ByteCode*)(ptr + offset);
-
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-            if (buffer[1] != 0) {
-                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_table[BreakpointDisabledOpcode]) {
-                    break;
-                }
-                breakpoint->m_opcodeInAddress = g_opcodeTable.m_table[BreakpointEnabledOpcode];
-            } else {
-                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_table[BreakpointEnabledOpcode]) {
-                    break;
-                }
-                breakpoint->m_opcodeInAddress = g_opcodeTable.m_table[BreakpointDisabledOpcode];
-            }
-#else
-            if (buffer[1] != 0) {
-                if (breakpoint->m_opcode != BreakpointDisabledOpcode) {
-                    break;
-                }
-                breakpoint->m_opcode = BreakpointEnabledOpcode;
-            } else {
-                if (breakpoint->m_opcode != BreakpointEnabledOpcode) {
-                    break;
-                }
-                breakpoint->m_opcode = BreakpointDisabledOpcode;
-            }
-#endif
-            return true;
-        }
-        case ESCARGOT_MESSAGE_CONTINUE: {
-            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-            m_stopState = nullptr;
-            return false;
-        }
-        case ESCARGOT_MESSAGE_STEP: {
-            if (length != 1 || m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
-                break;
-            }
-            m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
-            return false;
-        }
-        case ESCARGOT_MESSAGE_NEXT: {
-            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-            m_stopState = state;
-            return false;
-        }
-        case ESCARGOT_MESSAGE_FINISH: {
-            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-
-            LexicalEnvironment* lexEnv = getFunctionLexEnv(state);
-
-            if (!lexEnv) {
-                m_stopState = nullptr;
-                return false;
-            }
-
-            ExecutionState* stopState = state->parent();
-
-            while (stopState && getFunctionLexEnv(stopState) == lexEnv) {
-                stopState = stopState->parent();
-            }
-
-            m_stopState = stopState;
-            return false;
-        }
-        case ESCARGOT_MESSAGE_EVAL_8BIT_START:
-        case ESCARGOT_MESSAGE_EVAL_16BIT_START: {
-            if ((length <= 1 + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-
-            return doEval(state, byteCodeBlock, buffer, length);
-        }
-        case ESCARGOT_MESSAGE_GET_BACKTRACE: {
-            if ((length != 1 + sizeof(uint32_t) + sizeof(uint32_t) + 1) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-
-            uint32_t minDepth;
-            uint32_t maxDepth;
-            memcpy(&minDepth, buffer + 1, sizeof(uint32_t));
-            memcpy(&maxDepth, buffer + 1 + sizeof(uint32_t), sizeof(uint32_t));
-
-            getBacktrace(state, minDepth, maxDepth, buffer[1 + sizeof(uint32_t) + sizeof(uint32_t)] != 0);
-            return true;
-        }
-        case ESCARGOT_MESSAGE_GET_SCOPE_CHAIN: {
-            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-            getScopeChain(state);
-            return true;
-        }
-        case ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES: {
-            if (length != 1 + sizeof(uint32_t) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
-                break;
-            }
-
-            uint32_t index;
-            memcpy(&index, buffer + 1, sizeof(uint32_t));
-
-            getScopeVariables(state, index);
-            return true;
-        }
-        }
-
-        ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
-        close();
-        return false;
-    }
-
-    return enabled();
-}
-
 bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length)
 {
     uint8_t type = (uint8_t)(buffer[0] + 1);
@@ -651,6 +473,184 @@ void Debugger::getScopeVariables(ExecutionState* state, uint32_t index)
     }
 
     sendSubtype(ESCARGOT_MESSAGE_VARIABLE, ESCARGOT_VARIABLE_END);
+}
+
+static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
+{
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv) {
+        EnvironmentRecord* record = lexEnv->record();
+
+        if (record->isDeclarativeEnvironmentRecord()
+            && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            return lexEnv;
+        }
+
+        lexEnv = lexEnv->outerEnvironment();
+    }
+    return nullptr;
+}
+
+bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
+{
+    uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
+    size_t length;
+
+    while (receive(buffer, length)) {
+        switch (buffer[0]) {
+        case ESCARGOT_MESSAGE_FUNCTION_RELEASED: {
+            if (length != 1 + sizeof(uintptr_t)) {
+                break;
+            }
+
+            uintptr_t ptr;
+            memcpy(&ptr, buffer + 1, sizeof(uintptr_t));
+
+            for (size_t i = 0; i < m_releasedFunctions.size(); i++) {
+                if (m_releasedFunctions[i] == ptr) {
+                    // Delete only the first instance.
+                    m_releasedFunctions.erase(i);
+                    return true;
+                }
+            }
+            break;
+        }
+        case ESCARGOT_MESSAGE_UPDATE_BREAKPOINT: {
+            if (length != 1 + 1 + sizeof(uintptr_t) + sizeof(uint32_t)) {
+                break;
+            }
+
+            uintptr_t ptr;
+            uint32_t offset;
+            memcpy(&ptr, buffer + 1 + 1, sizeof(uintptr_t));
+            memcpy(&offset, buffer + 1 + 1 + sizeof(uintptr_t), sizeof(uint32_t));
+
+            for (size_t i = 0; i < m_releasedFunctions.size(); i++) {
+                if (m_releasedFunctions[i] == ptr) {
+                    // This function has been already freed.
+                    return true;
+                }
+            }
+
+            ByteCode* breakpoint = (ByteCode*)(ptr + offset);
+
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+            if (buffer[1] != 0) {
+                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_table[BreakpointDisabledOpcode]) {
+                    break;
+                }
+                breakpoint->m_opcodeInAddress = g_opcodeTable.m_table[BreakpointEnabledOpcode];
+            } else {
+                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_table[BreakpointEnabledOpcode]) {
+                    break;
+                }
+                breakpoint->m_opcodeInAddress = g_opcodeTable.m_table[BreakpointDisabledOpcode];
+            }
+#else
+            if (buffer[1] != 0) {
+                if (breakpoint->m_opcode != BreakpointDisabledOpcode) {
+                    break;
+                }
+                breakpoint->m_opcode = BreakpointEnabledOpcode;
+            } else {
+                if (breakpoint->m_opcode != BreakpointEnabledOpcode) {
+                    break;
+                }
+                breakpoint->m_opcode = BreakpointDisabledOpcode;
+            }
+#endif
+            return true;
+        }
+        case ESCARGOT_MESSAGE_CONTINUE: {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+            m_stopState = nullptr;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_STEP: {
+            if (length != 1 || m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
+                break;
+            }
+            m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_NEXT: {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+            m_stopState = state;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_FINISH: {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            LexicalEnvironment* lexEnv = getFunctionLexEnv(state);
+
+            if (!lexEnv) {
+                m_stopState = nullptr;
+                return false;
+            }
+
+            ExecutionState* stopState = state->parent();
+
+            while (stopState && getFunctionLexEnv(stopState) == lexEnv) {
+                stopState = stopState->parent();
+            }
+
+            m_stopState = stopState;
+            return false;
+        }
+        case ESCARGOT_MESSAGE_EVAL_8BIT_START:
+        case ESCARGOT_MESSAGE_EVAL_16BIT_START: {
+            if ((length <= 1 + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            return doEval(state, byteCodeBlock, buffer, length);
+        }
+        case ESCARGOT_MESSAGE_GET_BACKTRACE: {
+            if ((length != 1 + sizeof(uint32_t) + sizeof(uint32_t) + 1) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            uint32_t minDepth;
+            uint32_t maxDepth;
+            memcpy(&minDepth, buffer + 1, sizeof(uint32_t));
+            memcpy(&maxDepth, buffer + 1 + sizeof(uint32_t), sizeof(uint32_t));
+
+            getBacktrace(state, minDepth, maxDepth, buffer[1 + sizeof(uint32_t) + sizeof(uint32_t)] != 0);
+            return true;
+        }
+        case ESCARGOT_MESSAGE_GET_SCOPE_CHAIN: {
+            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+            getScopeChain(state);
+            return true;
+        }
+        case ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES: {
+            if (length != 1 + sizeof(uint32_t) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+                break;
+            }
+
+            uint32_t index;
+            memcpy(&index, buffer + 1, sizeof(uint32_t));
+
+            getScopeVariables(state, index);
+            return true;
+        }
+        }
+
+        ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
+        close();
+        return false;
+    }
+
+    return enabled();
 }
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)
