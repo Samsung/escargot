@@ -52,6 +52,20 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 
     fillStackDataIntoErrorObject(error);
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger* debugger = m_context->debugger();
+    if (debugger && debugger->enabled()) {
+        ExecutionState state(m_context);
+        String* message = error.toStringWithoutException(state);
+
+        debugger->sendType(Debugger::ESCARGOT_MESSAGE_EXCEPTION);
+        if (debugger->enabled()) {
+            StringView* messageView = new StringView(message);
+            debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, messageView);
+        }
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
     for (size_t i = 0; i < m_stackTraceData.size(); i++) {
         if ((size_t)m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
             // this means loc not computed yet.
@@ -69,6 +83,13 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             traceData.isEval = m_stackTraceData[i].second.isEval;
 
             result.stackTraceData.pushBack(traceData);
+
+#ifdef ESCARGOT_DEBUGGER
+            if (i < 8 && debugger && debugger->enabled()) {
+                debugger->sendBacktraceInfo(Debugger::ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE,
+                                            m_stackTraceData[i].second.loc.actualCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column);
+            }
+#endif /* ESCARGOT_DEBUGGER */
         } else {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
         }

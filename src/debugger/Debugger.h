@@ -85,18 +85,15 @@ public:
         ESCARGOT_MESSAGE_BACKTRACE_END = 32,
         ESCARGOT_MESSAGE_SCOPE_CHAIN = 33,
         ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 34,
-        ESCARGOT_MESSAGE_VARIABLE = 35,
         // These four must be in the same order.
-        ESCARGOT_MESSAGE_VARIABLE_8BIT = 36,
-        ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 37,
-        ESCARGOT_MESSAGE_VARIABLE_16BIT = 38,
-        ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 39,
-        // These four must be in the same order.
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_PRINT_8BIT = 40,
-        ESCARGOT_MESSAGE_PRINT_8BIT_END = 41,
-        ESCARGOT_MESSAGE_PRINT_16BIT = 42,
-        ESCARGOT_MESSAGE_PRINT_16BIT_END = 43,
+        ESCARGOT_MESSAGE_STRING_8BIT = 35,
+        ESCARGOT_MESSAGE_STRING_8BIT_END = 36,
+        ESCARGOT_MESSAGE_STRING_16BIT = 37,
+        ESCARGOT_MESSAGE_STRING_16BIT_END = 38,
+        ESCARGOT_MESSAGE_VARIABLE = 39,
+        ESCARGOT_MESSAGE_PRINT = 40,
+        ESCARGOT_MESSAGE_EXCEPTION = 41,
+        ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -199,6 +196,7 @@ public:
     void sendPointer(uint8_t type, const void* ptr);
     void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
     void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
+    void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column);
     void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
 

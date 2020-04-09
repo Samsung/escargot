@@ -112,6 +112,18 @@ void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>
     send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation));
 }
 
+void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column)
+{
+    BacktraceInfo backtraceInfo;
+
+    char* byteCode = byteCodeBlock->m_code.data();
+    memcpy(&backtraceInfo.byteCode, &byteCode, sizeof(void*));
+    memcpy(&backtraceInfo.line, &line, sizeof(uint32_t));
+    memcpy(&backtraceInfo.column, &column, sizeof(uint32_t));
+
+    send(type, &backtraceInfo, sizeof(BacktraceInfo));
+}
+
 void Debugger::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
@@ -227,7 +239,6 @@ error:
 
 void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
 {
-    BacktraceInfo backtraceInfo;
     SandBox::StackTraceDataVector stackTraceData;
 
     SandBox::createStackTraceData(stackTraceData, *state);
@@ -251,16 +262,11 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
             ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
             size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
 
-            char* byteCode = byteCodeBlock->m_code.data();
-            memcpy(&backtraceInfo.byteCode, &byteCode, sizeof(void*));
-
             ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
-            uint32_t data = (uint32_t)loc.line;
-            memcpy(&backtraceInfo.line, &data, sizeof(uint32_t));
-            data = (uint32_t)loc.column;
-            memcpy(&backtraceInfo.column, &data, sizeof(uint32_t));
 
-            if (!send(ESCARGOT_MESSAGE_BACKTRACE, &backtraceInfo, sizeof(BacktraceInfo))) {
+            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column);
+
+            if (!enabled()) {
                 return;
             }
         }
@@ -373,11 +379,11 @@ static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString
 
     if (debugger->enabled()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
-        debugger->sendString(Debugger::ESCARGOT_MESSAGE_VARIABLE_8BIT, nameView);
+        debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
     }
 
     if (valueView && debugger->enabled()) {
-        debugger->sendString(Debugger::ESCARGOT_MESSAGE_VARIABLE_8BIT, valueView);
+        debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, valueView);
     }
 }
 
@@ -395,7 +401,7 @@ static void sendUnaccessibleProperty(Debugger* debugger, AtomicString name)
 
     if (debugger->enabled()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
-        debugger->sendString(Debugger::ESCARGOT_MESSAGE_VARIABLE_8BIT, nameView);
+        debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
     }
 }
 
