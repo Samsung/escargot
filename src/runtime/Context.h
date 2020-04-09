@@ -276,6 +276,7 @@ public:
 
     bool initDebugger(const char* options);
     void printDebugger(StringView* output);
+    String* getClientSource(String** sourceName);
 #endif /* ESCARGOT_DEBUGGER */
 
 private:

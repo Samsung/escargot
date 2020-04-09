@@ -127,10 +127,11 @@ def isPr() {
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" v8 spidermonkey regression-tests new-es intl'
                     },
                     'Escargot-debugger-test-64bit' : {
-                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/debugger_out_linux64/escargot" escargot-debugger'
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/debugger_out_linux64/escargot" debugger-server-source'
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/debugger_out_linux64/escargot" debugger-client-source'
                     },
                     'kangax test-suites' : {
-                        sh 'python tools/kangax/run-kangax.py --engine="${WORKSPACE}/build/out_linux64/escargot"' 
+                        sh 'python tools/kangax/run-kangax.py --engine="${WORKSPACE}/build/out_linux64/escargot"'
                     },
                 )
             }

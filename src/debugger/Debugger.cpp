@@ -203,11 +203,34 @@ bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8
     }
 
     String* str;
-
     if (type == ESCARGOT_MESSAGE_EVAL_8BIT) {
         str = new Latin1String(data, size);
-    } else {
+    } else if (type == ESCARGOT_MESSAGE_EVAL_16BIT) {
         str = new UTF16String((char16_t*)data, size / 2);
+    } else if (type == ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT) {
+        char* sourceNameSrc = (char*)memchr(data, '\0', size);
+        if (!sourceNameSrc) {
+            goto error;
+        }
+        uint32_t sourceNameLen = sourceNameSrc - data;
+        m_clientSourceName = new Latin1String(data, sourceNameLen);
+        m_clientSourceData = new Latin1String(data + sourceNameLen + 1, size - sourceNameLen - 1);
+        return false;
+    } else if (type == ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT) {
+        char16_t* str = (char16_t*)data;
+        uint32_t sourceNameLen = 0;
+        size = size / 2;
+        for (; sourceNameLen != size; sourceNameLen++) {
+            if (str[sourceNameLen] == '\0') {
+                break;
+            }
+        }
+        if (sourceNameLen == size) {
+            goto error;
+        }
+        m_clientSourceName = new UTF16String(str, sourceNameLen);
+        m_clientSourceData = new UTF16String(str + sourceNameLen + 1, size - sourceNameLen - 1);
+        return false;
     }
 
     type = ESCARGOT_MESSAGE_EVAL_RESULT_8BIT;
@@ -505,6 +528,20 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
 
     while (receive(buffer, length)) {
         switch (buffer[0]) {
+        case ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START:
+        case ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START: {
+            if ((length <= 1 + sizeof(uint32_t) || state != nullptr || byteCodeBlock != nullptr)) {
+                break;
+            }
+
+            return doEval(state, byteCodeBlock, buffer, length);
+        }
+        case ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE: {
+            if (length != 1 || state != nullptr || byteCodeBlock != nullptr) {
+                break;
+            }
+            return false;
+        }
         case ESCARGOT_MESSAGE_FUNCTION_RELEASED: {
             if (length != 1 + sizeof(uintptr_t)) {
                 break;
@@ -692,6 +729,20 @@ Debugger* createDebugger(const char* options, bool* debuggerEnabled)
         }
     }
     return debugger;
+}
+
+String* Debugger::getClientSource(String** sourceName)
+{
+    sendType(Debugger::ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE);
+    while (processIncomingMessages(nullptr, nullptr))
+        ;
+    if (sourceName) {
+        *sourceName = m_clientSourceName;
+    }
+    String* sourceData = m_clientSourceData;
+    m_clientSourceName = nullptr;
+    m_clientSourceData = nullptr;
+    return sourceData;
 }
 }
 #endif /* ESCARGOT_DEBUGGER */

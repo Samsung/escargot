@@ -125,6 +125,14 @@ void Context::printDebugger(StringView* output)
     }
 }
 
+String* Context::getClientSource(String** sourceName)
+{
+    if (!m_debugger || !m_debugger->enabled()) {
+        return nullptr;
+    }
+    return m_debugger->getClientSource(sourceName);
+}
+
 #endif /* ESCARGOT_DEBUGGER */
 
 GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(AtomicString as)

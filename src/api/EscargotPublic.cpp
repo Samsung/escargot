@@ -1677,6 +1677,15 @@ void ContextRef::printDebugger(StringRef* output)
 #endif /* ESCARGOT_DEBUGGER */
 }
 
+StringRef* ContextRef::getClientSource(StringRef** sourceName)
+{
+#ifdef ESCARGOT_DEBUGGER
+    return toRef(toImpl(this)->getClientSource(reinterpret_cast<String**>(sourceName)));
+#else /* ESCARGOT_DEBUGGER */
+    return nullptr;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
 void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
     Context* ctx = toImpl(this);
