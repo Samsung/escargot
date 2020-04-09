@@ -23,6 +23,11 @@ import sys
 import logging
 import time
 import debugger_core
+import codecs
+import locale
+
+# Wrap sys.stdout into a StreamWriter to allow writing unicode.
+sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
 
 from debugger_websocket import WebSocket
 from debugger_tcp import TcpSocket
@@ -238,6 +243,9 @@ def main():
 
     if args.exception is not None:
         prompt.do_exception(str(args.exception))
+
+    if args.client_source:
+        debugger.store_client_sources(args.client_source)
 
     while True:
         if prompt.quit:

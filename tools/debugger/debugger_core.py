@@ -69,6 +69,7 @@ ESCARGOT_MESSAGE_VARIABLE = 39
 ESCARGOT_MESSAGE_PRINT = 40
 ESCARGOT_MESSAGE_EXCEPTION = 41
 ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42
+ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43
 
 
 # Messages sent by the debugger client to Escargot.
@@ -85,6 +86,11 @@ ESCARGOT_MESSAGE_EVAL_16BIT = 9
 ESCARGOT_MESSAGE_GET_BACKTRACE = 10
 ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 11
 ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 12
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 13
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 14
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 15
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 16
+ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 17
 
 
 # Environment record types
@@ -128,6 +134,8 @@ def arguments_parse():
                         help="set display range")
     parser.add_argument("--exception", action="store", default=None, type=int, choices=[0, 1],
                         help="set exception config, usage 1: [Enable] or 0: [Disable]")
+    parser.add_argument("--client-source", action="store", default=None, type=str,
+                        help="specify a javascript source file to execute")
     args = parser.parse_args()
 
     if args.verbose:
@@ -246,7 +254,7 @@ class Debugger(object):
         self.frame_index = 0
         self.scope_vars = ""
         self.scopes = ""
-        self.client_sources = []
+        self.client_sources = ""
         self.last_breakpoint_hit = None
         self.next_breakpoint_index = 0
         self.active_breakpoint_list = {}
@@ -498,7 +506,8 @@ class Debugger(object):
             elif buffer_type == ESCARGOT_MESSAGE_EXCEPTION:
                 exceptionMessage ="%sException: %s%s\n" % (self.red, self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True)), self.nocolor)
                 return DebuggerAction(DebuggerAction.TEXT, exceptionMessage);
-
+            elif buffer_type == ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE:
+                self.send_client_source()
             else:
                 raise Exception("Unknown message: %d" % (buffer_type))
 
@@ -510,6 +519,21 @@ class Debugger(object):
         self.green_bg = '\033[42m\033[30m'
         self.yellow_bg = '\033[43m\033[30m'
         self.blue = '\033[94m'
+
+    def store_client_sources(self, args):
+        self.client_sources = args
+
+    def send_client_source(self):
+        if not self.client_sources:
+            self._exec_command(ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE)
+            return
+        path = self.client_sources
+        if not path.endswith('.js'):
+            sys.exit("Error: Javascript file expected!")
+            return
+        with open(path, 'r') as src_file:
+            content = path + '\0'+ src_file.read()
+        self._send_string(content, ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START)
 
     def _exec_command(self, command_id):
         message = struct.pack(self.byte_order + "BB",
@@ -914,7 +938,6 @@ class Debugger(object):
         # 1: length of type byte
         message_header = 1
         message_type += 1
-        print(message_type)
 
         max_fragment = self.max_message_size - message_header
         while offset < size:

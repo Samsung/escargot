@@ -1,0 +1,10 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_한글문자.js:20
+(escargot-debugger) c
+Print: 모음 쓰기 및 발음
+Print: 이중모음
+Print: 자음
+Print: 자음 발음
+Print: 음절 법칙
+Connection closed.

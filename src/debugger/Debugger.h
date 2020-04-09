@@ -94,6 +94,7 @@ public:
         ESCARGOT_MESSAGE_PRINT = 40,
         ESCARGOT_MESSAGE_EXCEPTION = 41,
         ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42,
+        ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -112,6 +113,12 @@ public:
         ESCARGOT_MESSAGE_GET_BACKTRACE = 10,
         ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 11,
         ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 12,
+        // These four must be in the same order.
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 13,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 14,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 15,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 16,
+        ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 17,
     };
 
     // Environment record types
@@ -199,6 +206,7 @@ public:
     void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column);
     void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
+    String* getClientSource(String** sourceName);
 
 protected:
     Debugger()
@@ -206,6 +214,8 @@ protected:
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_computeLocation(false)
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
+        , m_clientSourceData(nullptr)
+        , m_clientSourceName(nullptr)
     {
     }
 
@@ -257,6 +267,8 @@ private:
     bool m_computeLocation;
     ExecutionState* m_stopState;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
+    String* m_clientSourceData;
+    String* m_clientSourceName;
 };
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled);

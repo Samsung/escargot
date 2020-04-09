@@ -645,6 +645,17 @@ int main(int argc, char* argv[])
                     context->initDebugger(nullptr);
                     continue;
                 }
+                if (strcmp(argv[i], "--debugger-wait-source") == 0) {
+                    StringRef* sourceName;
+                    StringRef* clientSourceRef = context->getClientSource(&sourceName);
+                    if (clientSourceRef) {
+                        if (!evalScript(context, clientSourceRef, sourceName, false, false))
+                            return 3;
+                        runShell = false;
+                        break;
+                    }
+                    continue;
+                }
             } else { // `-option` case
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;

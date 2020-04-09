@@ -580,6 +580,7 @@ public:
 
     bool initDebugger(const char* options);
     void printDebugger(StringRef* output);
+    StringRef* getClientSource(StringRef** sourceName);
 
     typedef OptionalRef<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);
     typedef OptionalRef<ValueRef> (*SecurityPolicyCheckCallback)(ExecutionStateRef* state, bool isEval);
