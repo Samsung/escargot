@@ -408,22 +408,6 @@ protected:
     T* m_value;
 };
 
-// Don't save pointer of ExecutionStateRef anywhere yourself
-// If you want to acquire ExecutionStateRef, you can use Evaluator::execute
-class ESCARGOT_EXPORT ExecutionStateRef {
-public:
-    OptionalRef<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
-    GCManagedVector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
-    GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
-
-    void throwException(ValueRef* value);
-    bool inTryStatement(); // test ExecutionStateRef in scope of try-statement directly
-
-    ContextRef* context();
-
-    OptionalRef<ExecutionStateRef> parent();
-};
-
 // expand tuple into variadic template function's arguments
 // https://stackoverflow.com/questions/687490/how-do-i-expand-a-tuple-into-variadic-template-functions-arguments
 namespace EvaluatorUtil {
@@ -528,6 +512,24 @@ private:
         },
                                &tuple, (void*)fn);
     }
+};
+
+// Don't save pointer of ExecutionStateRef anywhere yourself
+// If you want to acquire ExecutionStateRef, you can use Evaluator::execute
+class ESCARGOT_EXPORT ExecutionStateRef {
+public:
+    OptionalRef<FunctionObjectRef> resolveCallee(); // resolve nearest callee if exists
+    GCManagedVector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
+    GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
+
+    void throwException(ValueRef* value);
+    bool inTryStatement(); // test ExecutionStateRef in scope of try-statement directly
+
+    GCManagedVector<Evaluator::StackTraceData> computeStackTraceData();
+
+    ContextRef* context();
+
+    OptionalRef<ExecutionStateRef> parent();
 };
 
 class ESCARGOT_EXPORT VMInstanceRef {
