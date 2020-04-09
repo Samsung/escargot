@@ -84,7 +84,7 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 
     // 3. Let revoker be a new built-in function object as defined in 26.2.2.1.1.
     // 4. Set the [[RevocableProxy]] internal slot of revoker to p.
-    RevokeFunctionObject* revoker = new RevokeFunctionObject(state, NativeFunctionInfo(strings->revoke, builtinProxyRevoke, 0, NativeFunctionInfo::Strict), proxy.asObject()->asProxyObject());
+    RevokeFunctionObject* revoker = new RevokeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinProxyRevoke, 0, NativeFunctionInfo::Strict), proxy.asObject()->asProxyObject());
 
     // 5. Let result be ObjectCreate(%ObjectPrototype%).
     Object* result = new Object(state);
