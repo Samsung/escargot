@@ -119,7 +119,10 @@ void Context::printDebugger(StringView* output)
     if (!m_debugger || !m_debugger->enabled()) {
         return;
     }
-    m_debugger->sendString(Debugger::ESCARGOT_MESSAGE_PRINT_8BIT, output);
+    m_debugger->sendType(Debugger::ESCARGOT_MESSAGE_PRINT);
+    if (m_debugger->enabled()) {
+        m_debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, output);
+    }
 }
 
 #endif /* ESCARGOT_DEBUGGER */

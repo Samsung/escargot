@@ -61,15 +61,14 @@ ESCARGOT_MESSAGE_BACKTRACE = 31
 ESCARGOT_MESSAGE_BACKTRACE_END = 32
 ESCARGOT_MESSAGE_SCOPE_CHAIN = 33
 ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 34
-ESCARGOT_MESSAGE_VARIABLE = 35
-ESCARGOT_MESSAGE_VARIABLE_8BIT = 36
-ESCARGOT_MESSAGE_VARIABLE_8BIT_END = 37
-ESCARGOT_MESSAGE_VARIABLE_16BIT = 38
-ESCARGOT_MESSAGE_VARIABLE_16BIT_END = 39
-ESCARGOT_MESSAGE_PRINT_8BIT = 40
-ESCARGOT_MESSAGE_PRINT_8BIT_END = 41
-ESCARGOT_MESSAGE_PRINT_16BIT = 42
-ESCARGOT_MESSAGE_PRINT_16BIT_END = 43
+ESCARGOT_MESSAGE_STRING_8BIT = 35
+ESCARGOT_MESSAGE_STRING_8BIT_END = 36
+ESCARGOT_MESSAGE_STRING_16BIT = 37
+ESCARGOT_MESSAGE_STRING_16BIT_END = 38
+ESCARGOT_MESSAGE_VARIABLE = 39
+ESCARGOT_MESSAGE_PRINT = 40
+ESCARGOT_MESSAGE_EXCEPTION = 41
+ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42
 
 
 # Messages sent by the debugger client to Escargot.
@@ -397,7 +396,8 @@ class Debugger(object):
                 result = self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data);
                 return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.no_color));
 
-            elif buffer_type == ESCARGOT_MESSAGE_BACKTRACE:
+            elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
+                                 ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
                 backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format, data[1:])
                 function = self.function_list[backtrace_info[0]]
 
@@ -405,7 +405,9 @@ class Debugger(object):
                 if function.name != "":
                     result += " (in %s)" % (function.name)
 
-                return DebuggerAction(DebuggerAction.TEXT, result + "\n")
+                if buffer_type == ESCARGOT_MESSAGE_BACKTRACE:
+                    return DebuggerAction(DebuggerAction.TEXT, result + "\n")
+                return DebuggerAction(DebuggerAction.TEXT, "%s%s%s\n" % (self.red, result, self.nocolor))
 
             elif buffer_type == ESCARGOT_MESSAGE_BACKTRACE_END:
                 self.prompt = True
@@ -478,24 +480,24 @@ class Debugger(object):
                 elif variable_type == ESCARGOT_VARIABLE_FUNCTION:
                     value_str = "function"
 
-                name = self._receive_string(ESCARGOT_MESSAGE_VARIABLE_8BIT, self.channel.get_message(True));
+                name = self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True));
                 if variable_full_type & ESCARGOT_VARIABLE_LONG_NAME != 0:
                     name += "..."
 
                 if variable_has_value:
-                    value_str += self._receive_string(ESCARGOT_MESSAGE_VARIABLE_8BIT, self.channel.get_message(True));
+                    value_str += self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True));
                     if variable_full_type & ESCARGOT_VARIABLE_LONG_VALUE:
                         value_str += "..."
 
                 return DebuggerAction(DebuggerAction.TEXT, "%s: %s\n" % (name, value_str))
 
-            elif buffer_type in [ESCARGOT_MESSAGE_PRINT_8BIT,
-                                 ESCARGOT_MESSAGE_PRINT_8BIT_END,
-                                 ESCARGOT_MESSAGE_PRINT_16BIT,
-                                 ESCARGOT_MESSAGE_PRINT_16BIT_END]:
-
-                printMessage ="Print: %s\n" % (self._receive_string(ESCARGOT_MESSAGE_PRINT_8BIT, data))
+            elif buffer_type == ESCARGOT_MESSAGE_PRINT:
+                printMessage ="Print: %s\n" % (self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True)))
                 return DebuggerAction(DebuggerAction.TEXT, printMessage);
+
+            elif buffer_type == ESCARGOT_MESSAGE_EXCEPTION:
+                exceptionMessage ="%sException: %s%s\n" % (self.red, self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True)), self.nocolor)
+                return DebuggerAction(DebuggerAction.TEXT, exceptionMessage);
 
             else:
                 raise Exception("Unknown message: %d" % (buffer_type))

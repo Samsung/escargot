@@ -1,0 +1,9 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_exception.js:28
+(escargot-debugger) c
+Exception: RangeError: Test exception
+tools/debugger/tests/do_exception.js:22:2 (in g)
+tools/debugger/tests/do_exception.js:25:4 (in f)
+tools/debugger/tests/do_exception.js:28:1
+Connection closed.
