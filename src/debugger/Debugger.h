@@ -216,12 +216,6 @@ protected:
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
     virtual void close(void) = 0;
 
-    bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
-    bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
-    void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
-    void getScopeChain(ExecutionState* state);
-    void getScopeVariables(ExecutionState* state, uint32_t index);
-
     bool* m_debuggerEnabled;
     bool m_enabled;
 
@@ -254,6 +248,12 @@ private:
         uint8_t line[sizeof(uint32_t)];
         uint8_t column[sizeof(uint32_t)];
     };
+
+    bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
+    void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
+    void getScopeChain(ExecutionState* state);
+    void getScopeVariables(ExecutionState* state, uint32_t index);
+    bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
 
     uint8_t m_delay;
     bool m_computeLocation;
