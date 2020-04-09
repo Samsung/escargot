@@ -51,6 +51,7 @@
 #include "runtime/MapObject.h"
 #include "runtime/WeakMapObject.h"
 #include "runtime/CompressibleString.h"
+#include "interpreter/ByteCode.h"
 
 namespace Escargot {
 
@@ -1731,6 +1732,39 @@ bool ExecutionStateRef::inTryStatement()
 {
     ExecutionState* imp = toImpl(this);
     return imp->inTryStatement();
+}
+
+GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceData()
+{
+    ExecutionState* state = toImpl(this);
+
+    SandBox::StackTraceDataVector stackTraceData;
+    SandBox::createStackTraceData(stackTraceData, *state);
+
+    GCManagedVector<Evaluator::StackTraceData> result;
+
+    new (&result) GCManagedVector<Evaluator::StackTraceData>(stackTraceData.size());
+    for (size_t i = 0; i < stackTraceData.size(); i++) {
+        if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+            size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+            stackTraceData[i].second.loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
+        }
+        Evaluator::StackTraceData t;
+        t.src = toRef(stackTraceData[i].second.src);
+        t.sourceCode = toRef(stackTraceData[i].second.sourceCode);
+        t.loc.index = stackTraceData[i].second.loc.index;
+        t.loc.line = stackTraceData[i].second.loc.line;
+        t.loc.column = stackTraceData[i].second.loc.column;
+        t.functionName = toRef(stackTraceData[i].second.functionName);
+        t.isFunction = stackTraceData[i].second.isFunction;
+        t.isConstructor = stackTraceData[i].second.isConstructor;
+        t.isAssociatedWithJavaScriptCode = stackTraceData[i].second.isAssociatedWithJavaScriptCode;
+        t.isEval = stackTraceData[i].second.isEval;
+        result[i] = t;
+    }
+
+    return result;
 }
 
 OptionalRef<ExecutionStateRef> ExecutionStateRef::parent()
