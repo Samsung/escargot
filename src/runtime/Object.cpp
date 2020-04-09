@@ -579,7 +579,7 @@ void Object::markAsPrototypeObject(ExecutionState& state)
 {
     ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
 
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName())) {
+    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
     }
 }

@@ -640,9 +640,6 @@
     <test id="built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/revocable/revocation-function-name"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/set/call-parameters-prototype-index"><reason>TODO</reason></test>
-    <test id="built-ins/Reflect/get/return-value-from-receiver"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/lookBehind/alternations"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/lookBehind/back-references"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/lookBehind/back-references-to-captures"><reason>TODO</reason></test>
