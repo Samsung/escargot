@@ -704,7 +704,7 @@ enum class ElementTypes : uint8_t {
 };
 
 class Object : public PointerValue {
-    friend class VMInstance;
+    friend class ObjectRef;
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
     friend class EnumerateObjectWithDestruction;
@@ -782,13 +782,13 @@ public:
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
     virtual bool isExtensible(ExecutionState&)
     {
-        return rareData() == nullptr ? true : rareData()->m_isExtensible;
+        return hasRareData() ? rareData()->m_isExtensible : true;
     }
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
     virtual bool preventExtensions(ExecutionState&)
     {
-        ensureObjectRareData()->m_isExtensible = false;
+        ensureRareData()->m_isExtensible = false;
         return true;
     }
 
@@ -796,7 +796,7 @@ public:
     virtual Value getPrototype(ExecutionState&)
     {
         Object* prototype = m_prototype;
-        if (UNLIKELY(prototype != nullptr && prototype->isObjectRareData())) {
+        if (UNLIKELY(hasRareData())) {
             prototype = rareData()->m_prototype;
         }
         return prototype ? prototype : Value(Value::Null);
@@ -806,7 +806,7 @@ public:
     virtual Object* getPrototypeObject(ExecutionState&)
     {
         Object* prototype = m_prototype;
-        if (UNLIKELY(prototype != nullptr && prototype->isObjectRareData())) {
+        if (UNLIKELY(hasRareData())) {
             prototype = rareData()->m_prototype;
         }
         return prototype;
@@ -816,7 +816,7 @@ public:
     {
         Object* prototype = m_prototype;
 
-        if (UNLIKELY(prototype != nullptr && prototype->isObjectRareData())) {
+        if (UNLIKELY(hasRareData())) {
             prototype = rareData()->m_prototype;
         }
         return prototype;
@@ -926,17 +926,22 @@ public:
         return true;
     }
 
-    ObjectRareData* ensureObjectRareData()
+    ObjectRareData* ensureRareData()
     {
-        if (rareData() == nullptr) {
+        if (!hasRareData()) {
             m_prototype = (Object*)(new ObjectRareData(this));
         }
         return rareData();
     }
 
+    inline bool hasRareData() const
+    {
+        return (m_prototype != nullptr && m_prototype->isObjectRareData());
+    }
+
     bool isEverSetAsPrototypeObject() const
     {
-        if (LIKELY(rareData() == nullptr)) {
+        if (LIKELY(!hasRareData())) {
             return false;
         } else {
             return rareData()->m_isEverSetAsPrototypeObject;
@@ -945,7 +950,7 @@ public:
 
     bool isSpreadArray() const
     {
-        if (LIKELY(rareData() == nullptr)) {
+        if (LIKELY(!hasRareData())) {
             return false;
         }
         return isArrayObject() && rareData()->m_isSpreadArrayObject;
@@ -953,7 +958,7 @@ public:
 
     void* extraData()
     {
-        if (rareData()) {
+        if (hasRareData()) {
             return rareData()->m_extraData;
         }
         return nullptr;
@@ -961,13 +966,13 @@ public:
 
     void setExtraData(void* e)
     {
-        ensureObjectRareData()->m_extraData = e;
+        ensureRareData()->m_extraData = e;
     }
 
     Object* ensureInternalSlot(ExecutionState& state)
     {
         ASSERT(!isArrayObject());
-        ensureObjectRareData();
+        ensureRareData();
         if (!internalSlot()) {
             setInternalSlot(new Object(state, Object::PrototypeIsNull));
         }
@@ -977,7 +982,7 @@ public:
     Object* internalSlot()
     {
         ASSERT(!isArrayObject());
-        ASSERT(rareData());
+        ASSERT(hasRareData());
         return rareData()->m_internalSlot;
     }
 
@@ -986,13 +991,13 @@ public:
         if (isArrayObject()) {
             return false;
         }
-        return rareData() && rareData()->m_internalSlot;
+        return hasRareData() && rareData()->m_internalSlot;
     }
 
     void setInternalSlot(Object* object)
     {
         ASSERT(!isArrayObject());
-        ensureObjectRareData()->m_internalSlot = object;
+        ensureRareData()->m_internalSlot = object;
     }
 
     virtual Context* getFunctionRealm(ExecutionState& state)
@@ -1045,12 +1050,10 @@ protected:
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     explicit Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin);
 
-    ObjectRareData* rareData() const
+    inline ObjectRareData* rareData() const
     {
-        if ((size_t)m_prototype > 2 && m_prototype->isObjectRareData()) {
-            return (ObjectRareData*)m_prototype;
-        }
-        return nullptr;
+        ASSERT(hasRareData());
+        return (ObjectRareData*)m_prototype;
     }
     ObjectStructure* m_structure;
     Object* m_prototype;
@@ -1062,7 +1065,6 @@ protected:
     {
         return m_structure;
     }
-
 
     ALWAYS_INLINE Value uncheckedGetOwnDataProperty(ExecutionState& state, size_t idx)
     {
