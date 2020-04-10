@@ -95,16 +95,15 @@ public:
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
-        auto rd = rareData();
-        if (LIKELY(rd == nullptr)) {
-            return true;
+        if (UNLIKELY(hasRareData())) {
+            return rareData()->m_isFastModeArrayObject;
         }
-        return rd->m_isFastModeArrayObject;
+        return true;
     }
 
     bool isLengthPropertyWritable()
     {
-        return rareData() ? rareData()->m_isArrayObjectLengthWritable : true;
+        return hasRareData() ? rareData()->m_isArrayObjectLengthWritable : true;
     }
 
     void setFastModeArrayValueWithoutExpanding(ExecutionState& state, size_t idx, const Value& v)

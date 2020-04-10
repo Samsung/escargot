@@ -168,7 +168,7 @@ bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
         if (UNLIKELY(m_object->asArrayObject()->arrayLength(state) != m_arrayLength)) {
             return true;
         }
-        if (UNLIKELY(m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
+        if (UNLIKELY(m_object->hasRareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
             return true;
         }
     }
@@ -277,7 +277,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Sma
         }
     }
 
-    if (m_object->rareData()) {
+    if (m_object->hasRareData()) {
         m_object->rareData()->m_shouldUpdateEnumerateObject = false;
     }
 }
@@ -303,7 +303,7 @@ bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
         if (UNLIKELY(m_object->asArrayObject()->arrayLength(state) != m_arrayLength)) {
             return true;
         }
-        if (UNLIKELY(m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
+        if (UNLIKELY(m_object->hasRareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
             return true;
         }
     }
