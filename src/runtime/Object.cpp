@@ -434,7 +434,7 @@ Object::Object(ExecutionState& state, Object* proto)
 {
     // proto has been marked as a prototype object
     ASSERT(!!proto);
-    ASSERT(proto->rareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
+    ASSERT(proto->hasRareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
     // create a new ordinary object
     m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
 }
@@ -453,7 +453,7 @@ Object::Object(ExecutionState& state, Object* proto, size_t defaultSpace)
 {
     // proto has been marked as a prototype object
     ASSERT(!!proto);
-    ASSERT(proto->rareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
+    ASSERT(proto->hasRareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
     m_values.resizeWithUninitializedValues(0, defaultSpace);
 }
 
@@ -487,7 +487,7 @@ Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
     Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__);
     obj->setPrototype(state, Value(Value::Null));
     obj->markThisObjectDontNeedStructureTransitionTable();
-    obj->ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
+    obj->ensureRareData()->m_isEverSetAsPrototypeObject = true;
 
     return obj;
 }
@@ -507,14 +507,14 @@ void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
     // For initialization of GlobalObject's intrinsic objects
     // These objects have fixed properties, so transition table is not used for memory optimization
     ASSERT(m_prototype);
-    ASSERT(!rareData());
+    ASSERT(!hasRareData());
     ASSERT(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty());
     ASSERT(!structure()->hasIndexPropertyName());
 
     markThisObjectDontNeedStructureTransitionTable();
 
     if (isPrototype) {
-        ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
+        ensureRareData()->m_isEverSetAsPrototypeObject = true;
     }
 }
 
@@ -565,7 +565,7 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
         o->markAsPrototypeObject(state);
     }
 
-    if (rareData()) {
+    if (hasRareData()) {
         rareData()->m_prototype = o;
     } else {
         m_prototype = o;
@@ -577,7 +577,7 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
 
 void Object::markAsPrototypeObject(ExecutionState& state)
 {
-    ensureObjectRareData()->m_isEverSetAsPrototypeObject = true;
+    ensureRareData()->m_isEverSetAsPrototypeObject = true;
 
     if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);

@@ -38,7 +38,7 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     , m_fastModeData(nullptr)
 {
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
-        ensureObjectRareData()->m_isFastModeArrayObject = false;
+        ensureRareData()->m_isFastModeArrayObject = false;
     }
 }
 
@@ -109,9 +109,9 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
     // SpreadArray is a Fixed Array which has no __proto__ property
     // Array.Prototype should not affect any SpreadArray operation
     ArrayObject* spreadArray = new ArrayObject(state);
-    spreadArray->ensureObjectRareData()->m_isFastModeArrayObject = true;
-    spreadArray->ensureObjectRareData()->m_isSpreadArrayObject = true;
-    spreadArray->ensureObjectRareData()->m_prototype = nullptr;
+    spreadArray->ensureRareData()->m_isFastModeArrayObject = true;
+    spreadArray->rareData()->m_isSpreadArrayObject = true;
+    spreadArray->rareData()->m_prototype = nullptr;
 
     return spreadArray;
 }
@@ -171,7 +171,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         }
 
         if (desc.isWritablePresent() && !desc.isWritable()) {
-            ensureObjectRareData()->m_isArrayObjectLengthWritable = false;
+            ensureRareData()->m_isArrayObjectLengthWritable = false;
         }
 
         if (desc.isValuePresent() && m_arrayLength != newLen) {
@@ -249,7 +249,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
             if (idx < len) {
                 if (!m_fastModeData[idx].isEmpty()) {
                     m_fastModeData[idx] = Value(Value::EmptyValue);
-                    ensureObjectRareData()->m_shouldUpdateEnumerateObject = true;
+                    ensureRareData()->m_shouldUpdateEnumerateObject = true;
                 }
                 return true;
             }
@@ -343,7 +343,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
     m_structure = structure()->convertToNonTransitionStructure();
 
-    ensureObjectRareData()->m_isFastModeArrayObject = false;
+    ensureRareData()->m_isFastModeArrayObject = false;
 
     auto length = getArrayLength(state);
     for (size_t i = 0; i < length; i++) {
@@ -397,8 +397,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
         if (LIKELY(oldLength != newLength)) {
             m_arrayLength = newLength;
             if (useFitStorage || oldLength == 0 || newLength <= 128) {
-                auto rd = rareData();
-                size_t oldCapacity = rd ? (size_t)rd->m_arrayObjectFastModeBufferCapacity : 0;
+                bool hasRD = hasRareData();
+                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : 0;
                 if (oldCapacity) {
                     if (newLength > oldCapacity) {
                         m_fastModeData = (SmallValue*)GC_REALLOC(m_fastModeData, sizeof(SmallValue) * newLength);
@@ -417,16 +417,16 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                         m_fastModeData[i] = SmallValue(SmallValue::EmptyValue);
                     }
                 }
-                if (rd) {
-                    rd->m_arrayObjectFastModeBufferCapacity = 0;
+                if (hasRD) {
+                    rareData()->m_arrayObjectFastModeBufferCapacity = 0;
                 }
             } else {
                 const size_t minExpandCountForUsingLog2Function = 3;
-                auto rd = rareData();
-                size_t oldCapacity = rd ? (size_t)rd->m_arrayObjectFastModeBufferCapacity : oldLength;
+                bool hasRD = hasRareData();
+                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : oldLength;
 
                 if (newLength) {
-                    rd = ensureObjectRareData();
+                    auto rd = ensureRareData();
                     if (newLength > oldCapacity) {
                         size_t newCapacity;
                         if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
@@ -459,8 +459,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     GC_FREE(m_fastModeData);
                     m_fastModeData = nullptr;
 
-                    if (rd) {
-                        rd->m_arrayObjectFastModeBufferCapacity = 0;
+                    if (hasRD) {
+                        rareData()->m_arrayObjectFastModeBufferCapacity = 0;
                     }
                 }
             }
