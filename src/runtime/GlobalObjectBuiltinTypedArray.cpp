@@ -1625,7 +1625,7 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
 
     *proto = m_objectPrototype;
     Object* taPrototype = new TypedArrayPrototypeObject(state);
-    taPrototype->setGlobalIntrinsicObject(state, true);
+    taPrototype->setGlobalIntrinsicObject(state);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));
 
     taConstructor->setPrototype(state, typedArrayFunction); // %TypedArray%
@@ -1690,7 +1690,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayBufferPrototype = new ArrayBufferObject(state, m_objectPrototype);
-    m_arrayBufferPrototype->setGlobalIntrinsicObject(state, true);
+    m_arrayBufferPrototype->setGlobalIntrinsicObject(state);
 
     m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
@@ -1736,7 +1736,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     // %TypedArray%.prototype
     Object* typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
-    typedArrayPrototype->setGlobalIntrinsicObject(state, true);
+    typedArrayPrototype->setGlobalIntrinsicObject(state);
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->subarray),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->set),

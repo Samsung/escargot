@@ -37,7 +37,8 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     , m_arrayLength(0)
     , m_fastModeData(nullptr)
 {
-    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+    ASSERT(!!proto && (proto->checkAllPrototypeChainHasArrayDescendantFlag(state) || !state.context()->vmInstance()->fastModeArrayEnabled()));
+    if (UNLIKELY(!state.context()->vmInstance()->fastModeArrayEnabled())) {
         ensureRareData()->m_isFastModeArrayObject = false;
     }
 }

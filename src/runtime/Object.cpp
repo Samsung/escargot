@@ -88,7 +88,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     else
         m_prototype = nullptr;
     m_isExtensible = true;
-    m_isEverSetAsPrototypeObject = false;
+    m_hasArrayDescendantInPrototypeChain = false;
     m_isFastModeArrayObject = true;
     m_isArrayObjectLengthWritable = true;
     m_isSpreadArrayObject = false;
@@ -434,7 +434,6 @@ Object::Object(ExecutionState& state, Object* proto)
 {
     // proto has been marked as a prototype object
     ASSERT(!!proto);
-    ASSERT(proto->hasRareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
     // create a new ordinary object
     m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
 }
@@ -453,7 +452,6 @@ Object::Object(ExecutionState& state, Object* proto, size_t defaultSpace)
 {
     // proto has been marked as a prototype object
     ASSERT(!!proto);
-    ASSERT(proto->hasRareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
     m_values.resizeWithUninitializedValues(0, defaultSpace);
 }
 
@@ -487,7 +485,7 @@ Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
     Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__);
     obj->setPrototype(state, Value(Value::Null));
     obj->markThisObjectDontNeedStructureTransitionTable();
-    obj->ensureRareData()->m_isEverSetAsPrototypeObject = true;
+    obj->markArrayDescendantInPrototypeChain(state);
 
     return obj;
 }
@@ -502,20 +500,16 @@ Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObj
     return obj;
 }
 
-void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
+void Object::setGlobalIntrinsicObject(ExecutionState& state)
 {
     // For initialization of GlobalObject's intrinsic objects
     // These objects have fixed properties, so transition table is not used for memory optimization
     ASSERT(m_prototype);
     ASSERT(!hasRareData());
-    ASSERT(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty());
+    ASSERT(state.context()->vmInstance()->fastModeArrayEnabled());
     ASSERT(!structure()->hasIndexPropertyName());
 
     markThisObjectDontNeedStructureTransitionTable();
-
-    if (isPrototype) {
-        ensureRareData()->m_isEverSetAsPrototypeObject = true;
-    }
 }
 
 bool Object::setPrototype(ExecutionState& state, const Value& proto)
@@ -562,7 +556,9 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
     Object* o = nullptr;
     if (LIKELY(proto.isObject())) {
         o = proto.asObject();
-        o->markAsPrototypeObject(state);
+        if (UNLIKELY(hasArrayDescendantInPrototypeChain() || isArrayObject())) {
+            o->markArrayDescendantInPrototypeChain(state);
+        }
     }
 
     if (hasRareData()) {
@@ -575,14 +571,39 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
     return true;
 }
 
-void Object::markAsPrototypeObject(ExecutionState& state)
+void Object::markArrayDescendantInPrototypeChain(ExecutionState& state)
 {
-    ensureRareData()->m_isEverSetAsPrototypeObject = true;
+    // When fast-mode optimization was disalbed, we don't need to mark array descendant flag anymore
+    if (UNLIKELY(!state.context()->vmInstance()->fastModeArrayEnabled())) {
+        return;
+    }
 
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    Object* proto = this;
+    while (proto && !proto->hasArrayDescendantInPrototypeChain()) {
+        if (UNLIKELY(proto->structure()->hasIndexPropertyName() || isProxyObject())) {
+            // If a Proxy Object or Object with index property is found in the PrototypeChain,
+            // disable the fast-mode array optimization immediately
+            state.context()->vmInstance()->disableFastModeArray(state);
+            break;
+        }
+        proto->ensureRareData()->m_hasArrayDescendantInPrototypeChain = true;
+        proto = proto->rareData()->m_prototype;
     }
 }
+
+#ifndef NDEBUG
+bool Object::checkAllPrototypeChainHasArrayDescendantFlag(ExecutionState& state)
+{
+    Object* proto = this;
+    while (proto) {
+        if (!proto->hasArrayDescendantInPrototypeChain()) {
+            return false;
+        }
+        proto = proto->rareData()->m_prototype;
+    }
+    return true;
+}
+#endif
 
 ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
@@ -613,8 +634,9 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
 
 bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
-    if (UNLIKELY(isEverSetAsPrototypeObject() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && P.isIndexString())) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    //if (UNLIKELY(isEverSetAsPrototypeObject() && state.context()->vmInstance()->fastModeArrayEnabled() && P.isIndexString())) {
+    if (UNLIKELY(hasArrayDescendantInPrototypeChain() && P.isIndexString() && state.context()->vmInstance()->fastModeArrayEnabled())) {
+        state.context()->vmInstance()->disableFastModeArray(state);
     }
 
     // TODO Return true, if every field in Desc is absent.
@@ -1083,8 +1105,6 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
         // Let realm be ? GetFunctionRealm(constructor).
         // Set proto to realm's intrinsic object named intrinsicDefaultProto.
         proto = intrinsicDefaultProtoGetter(state, constructor->getFunctionRealm(state));
-    } else {
-        proto.asObject()->markAsPrototypeObject(state);
     }
     // Return proto.
     return proto.asObject();

@@ -124,7 +124,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_error->setGlobalIntrinsicObject(state);
 
     m_errorPrototype = new Object(state);
-    m_errorPrototype->setGlobalIntrinsicObject(state, true);
+    m_errorPrototype->setGlobalIntrinsicObject(state);
 
     m_error->setFunctionPrototype(state, m_errorPrototype);
 
@@ -139,7 +139,7 @@ void GlobalObject::installError(ExecutionState& state)
     // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
     // 13.2.3 The [[ThrowTypeError]] Function Object
     m_throwTypeError = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinErrorThrowTypeError, 0, NativeFunctionInfo::Strict));
-    m_throwTypeError->setGlobalIntrinsicObject(state, false);
+    m_throwTypeError->setGlobalIntrinsicObject(state);
     m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name),
                                         ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length),
@@ -153,7 +153,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_##errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                                    \
     m_##errorname##Error->setPrototype(state, m_error);                                                                                                                                                                                                                                                                                 \
     m_##errorname##ErrorPrototype = new bname##ErrorObject(state, m_errorPrototype, String::emptyString);                                                                                                                                                                                                                               \
-    m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state, true);                                                                                                                                                                                                                                                               \
+    m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state);                                                                                                                                                                                                                                                                     \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                            \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                 \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().bname##Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \

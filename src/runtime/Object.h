@@ -44,7 +44,7 @@ class ExecutionPauser;
 
 struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
-    bool m_isEverSetAsPrototypeObject : 1;
+    bool m_hasArrayDescendantInPrototypeChain : 1;
     bool m_isFastModeArrayObject : 1;
     bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
@@ -924,7 +924,7 @@ public:
 
     ObjectRareData* ensureRareData()
     {
-        if (!hasRareData()) {
+        if (LIKELY(!hasRareData())) {
             m_prototype = (Object*)(new ObjectRareData(this));
         }
         return rareData();
@@ -935,12 +935,12 @@ public:
         return (m_prototype != nullptr && m_prototype->isObjectRareData());
     }
 
-    bool isEverSetAsPrototypeObject() const
+    bool hasArrayDescendantInPrototypeChain() const
     {
         if (LIKELY(!hasRareData())) {
             return false;
         } else {
-            return rareData()->m_isEverSetAsPrototypeObject;
+            return rareData()->m_hasArrayDescendantInPrototypeChain;
         }
     }
 
@@ -1032,7 +1032,11 @@ public:
     IteratorObject* entries(ExecutionState& state);
 
     Value speciesConstructor(ExecutionState& state, const Value& defaultConstructor);
-    void markAsPrototypeObject(ExecutionState& state);
+    void markArrayDescendantInPrototypeChain(ExecutionState& state);
+
+#ifndef NDEBUG
+    bool checkAllPrototypeChainHasArrayDescendantFlag(ExecutionState& state);
+#endif
 
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
@@ -1148,8 +1152,7 @@ protected:
         }
     }
 
-    void setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype = false);
-
+    void setGlobalIntrinsicObject(ExecutionState& state);
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 };
 }

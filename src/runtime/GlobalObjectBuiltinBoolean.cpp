@@ -68,7 +68,7 @@ void GlobalObject::installBoolean(ExecutionState& state)
     m_boolean->setGlobalIntrinsicObject(state);
 
     m_booleanPrototype = new BooleanObject(state, m_objectPrototype, false);
-    m_booleanPrototype->setGlobalIntrinsicObject(state, true);
+    m_booleanPrototype->setGlobalIntrinsicObject(state);
     m_booleanPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.3.3.2 Boolean.prototype.toString

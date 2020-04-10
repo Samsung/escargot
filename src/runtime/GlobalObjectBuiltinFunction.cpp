@@ -216,7 +216,7 @@ void GlobalObject::installFunction(ExecutionState& state)
 {
     m_functionPrototype = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict)),
                                                    NativeFunctionObject::__ForGlobalBuiltin__);
-    m_functionPrototype->setGlobalIntrinsicObject(state, true);
+    m_functionPrototype->setGlobalIntrinsicObject(state);
 
     m_function = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Function, builtinFunctionConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_function->setGlobalIntrinsicObject(state);

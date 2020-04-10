@@ -1498,7 +1498,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_string->setGlobalIntrinsicObject(state);
 
     m_stringPrototype = new StringObject(state, m_objectPrototype, String::emptyString);
-    m_stringPrototype->setGlobalIntrinsicObject(state, true);
+    m_stringPrototype->setGlobalIntrinsicObject(state);
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
     m_stringPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1665,7 +1665,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
     m_stringIteratorPrototype = new Object(state, m_iteratorPrototype);
-    m_stringIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_stringIteratorPrototype->setGlobalIntrinsicObject(state);
 
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinStringIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

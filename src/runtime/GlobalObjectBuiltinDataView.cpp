@@ -159,7 +159,7 @@ void GlobalObject::installDataView(ExecutionState& state)
     m_dataView->setGlobalIntrinsicObject(state);
 
     m_dataViewPrototype = new DataViewObject(state, m_objectPrototype);
-    m_dataViewPrototype->setGlobalIntrinsicObject(state, true);
+    m_dataViewPrototype->setGlobalIntrinsicObject(state);
     m_dataView->setFunctionPrototype(state, m_dataViewPrototype);
 
     m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

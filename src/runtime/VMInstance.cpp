@@ -255,7 +255,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     : m_currentSandBox(nullptr)
     , m_randEngine((unsigned int)time(NULL))
     , m_isFinalized(false)
-    , m_didSomePrototypeObjectDefineIndexedProperty(false)
+    , m_fastModeArrayEnabled(true)
 #ifdef ESCARGOT_DEBUGGER
     , m_debuggerEnabled(false)
 #endif /* ESCARGOT_DEBUGGER */
@@ -445,9 +445,11 @@ void VMInstance::clearCaches()
     globalSymbolRegistry().clear();
 }
 
-void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
+void VMInstance::disableFastModeArray(ExecutionState& state)
 {
-    m_didSomePrototypeObjectDefineIndexedProperty = true;
+    // When a Proxy or Object with indexed properties is registered in any ArrayObject's prototype chain,
+    // we immediately disable the fast-mode optimization and revert all the status of allocated fast-mode arrays to non-fast-mode
+    m_fastModeArrayEnabled = false;
     std::vector<ArrayObject*> allOfArray;
     Escargot::HeapObjectIteratorCallback callback =
         [&allOfArray](Escargot::ExecutionState& state, void* obj) {

@@ -67,7 +67,7 @@ void GlobalObject::installGenerator(ExecutionState& state)
 
     // %Generator% : The initial value of the prototype property of %GeneratorFunction%
     m_generator = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0, NativeFunctionInfo::Strict));
-    m_generator->setGlobalIntrinsicObject(state, true);
+    m_generator->setGlobalIntrinsicObject(state);
     m_generatorFunction->setFunctionPrototype(state, m_generator);
 
 
@@ -76,7 +76,7 @@ void GlobalObject::installGenerator(ExecutionState& state)
 
     // %GeneratorPrototype% : The initial value of the prototype property of %Generator%
     m_generatorPrototype = new Object(state, m_iteratorPrototype);
-    m_generatorPrototype->setGlobalIntrinsicObject(state, true);
+    m_generatorPrototype->setGlobalIntrinsicObject(state);
 
     m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_generatorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
 

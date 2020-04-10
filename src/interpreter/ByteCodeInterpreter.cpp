@@ -2389,8 +2389,6 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
         }
     }
 
-    constructorParent.asObject()->markAsPrototypeObject(state);
-
     ScriptClassConstructorPrototypeObject* proto = new ScriptClassConstructorPrototypeObject(state);
     proto->setPrototype(state, protoParent);
 

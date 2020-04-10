@@ -388,7 +388,7 @@ void GlobalObject::installPromise(ExecutionState& state)
     }
 
     m_promisePrototype = new Object(state);
-    m_promisePrototype->setGlobalIntrinsicObject(state, true);
+    m_promisePrototype->setGlobalIntrinsicObject(state);
 
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),

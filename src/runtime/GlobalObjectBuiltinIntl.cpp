@@ -762,7 +762,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlLocale->setGlobalIntrinsicObject(state);
 
     m_intlLocalePrototype = m_intlLocale->getFunctionPrototype(state).asObject();
-    m_intlLocalePrototype->setGlobalIntrinsicObject(state, true);
+    m_intlLocalePrototype->setGlobalIntrinsicObject(state);
 
     m_intlLocalePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().intlDotLocale.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -382,7 +382,7 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_number->setGlobalIntrinsicObject(state);
 
     m_numberPrototype = new NumberObject(state, m_objectPrototype, 0);
-    m_numberPrototype->setGlobalIntrinsicObject(state, true);
+    m_numberPrototype->setGlobalIntrinsicObject(state);
     m_number->setFunctionPrototype(state, m_numberPrototype);
 
     m_numberPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

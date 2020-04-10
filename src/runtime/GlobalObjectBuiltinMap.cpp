@@ -207,7 +207,7 @@ void GlobalObject::installMap(ExecutionState& state)
     }
 
     m_mapPrototype = new MapObject(state, m_objectPrototype);
-    m_mapPrototype->setGlobalIntrinsicObject(state, true);
+    m_mapPrototype->setGlobalIntrinsicObject(state);
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_map, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_mapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().clear),
@@ -251,7 +251,7 @@ void GlobalObject::installMap(ExecutionState& state)
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
     m_mapIteratorPrototype = new Object(state, m_iteratorPrototype);
-    m_mapIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_mapIteratorPrototype->setGlobalIntrinsicObject(state);
 
     m_mapIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinMapIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

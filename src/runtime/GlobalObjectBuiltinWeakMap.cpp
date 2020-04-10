@@ -144,7 +144,7 @@ void GlobalObject::installWeakMap(ExecutionState& state)
     m_weakMap->setGlobalIntrinsicObject(state);
 
     m_weakMapPrototype = new Object(state, m_objectPrototype);
-    m_weakMapPrototype->setGlobalIntrinsicObject(state, true);
+    m_weakMapPrototype->setGlobalIntrinsicObject(state);
     m_weakMapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakMapPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),

@@ -150,12 +150,12 @@ public:
     static Value regexpStickyNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
     static Value regexpUnicodeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
 
-    bool didSomePrototypeObjectDefineIndexedProperty()
+    bool fastModeArrayEnabled()
     {
-        return m_didSomePrototypeObjectDefineIndexedProperty;
+        return m_fastModeArrayEnabled;
     }
 
-    void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
+    void disableFastModeArray(ExecutionState& state);
 
     ToStringRecursionPreventer& toStringRecursionPreventer()
     {
@@ -236,7 +236,8 @@ private:
 
     bool m_isFinalized;
     // this flag should affect VM-wide array object
-    bool m_didSomePrototypeObjectDefineIndexedProperty;
+    // represent use of fast mode array optimization (default: enabled)
+    bool m_fastModeArrayEnabled;
 #ifdef ESCARGOT_DEBUGGER
     bool m_debuggerEnabled;
 #endif /* ESCARGOT_DEBUGGER */

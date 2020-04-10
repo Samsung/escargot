@@ -68,7 +68,7 @@ void GlobalObject::installAsyncGeneratorFunction(ExecutionState& state)
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-properties-of-asyncgeneratorfunction-prototype
     m_asyncGenerator = new Object(state, m_functionPrototype);
-    m_asyncGenerator->setGlobalIntrinsicObject(state, true);
+    m_asyncGenerator->setGlobalIntrinsicObject(state);
 
     m_asyncGeneratorFunction->setFunctionPrototype(state, m_asyncGenerator);
 
@@ -80,7 +80,7 @@ void GlobalObject::installAsyncGeneratorFunction(ExecutionState& state)
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-properties-of-asyncgenerator-prototype
     m_asyncGeneratorPrototype = new Object(state, m_asyncIteratorPrototype);
-    m_asyncGeneratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_asyncGeneratorPrototype->setGlobalIntrinsicObject(state);
 
     m_asyncGenerator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_asyncGeneratorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
     m_asyncGeneratorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_asyncGenerator, ObjectPropertyDescriptor::ConfigurablePresent));

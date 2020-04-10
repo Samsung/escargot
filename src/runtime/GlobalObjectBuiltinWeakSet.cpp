@@ -132,7 +132,7 @@ void GlobalObject::installWeakSet(ExecutionState& state)
     m_weakSet->setGlobalIntrinsicObject(state);
 
     m_weakSetPrototype = new Object(state);
-    m_weakSetPrototype->setGlobalIntrinsicObject(state, true);
+    m_weakSetPrototype->setGlobalIntrinsicObject(state);
 
     m_weakSetPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

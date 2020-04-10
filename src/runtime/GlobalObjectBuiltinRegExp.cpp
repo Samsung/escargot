@@ -739,7 +739,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
 #undef DEFINE_ATTR
 
     m_regexpPrototype = new Object(state);
-    m_regexpPrototype->setGlobalIntrinsicObject(state, true);
+    m_regexpPrototype->setGlobalIntrinsicObject(state);
 
     {
         Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getFlags, builtinRegExpFlagsGetter, 0, NativeFunctionInfo::Strict));

@@ -261,7 +261,7 @@ void GlobalObject::installAsyncFromSyncIterator(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%-object
     m_asyncFromSyncIteratorPrototype = new Object(state, m_asyncIteratorPrototype);
-    m_asyncFromSyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_asyncFromSyncIteratorPrototype->setGlobalIntrinsicObject(state);
 
     m_asyncFromSyncIteratorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                         ObjectPropertyDescriptor(String::fromASCII("Async-from-Sync Iterator"), ObjectPropertyDescriptor::ConfigurablePresent));

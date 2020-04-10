@@ -61,6 +61,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->arrayPrototype();
     });
+    proto->markArrayDescendantInPrototypeChain(state);
     ArrayObject* array = new ArrayObject(state, proto, (uint64_t)size);
 
     if (interpretArgumentsAsElements) {
@@ -1869,7 +1870,8 @@ void GlobalObject::installArray(ExecutionState& state)
     }
 
     m_arrayPrototype = new ArrayPrototypeObject(state);
-    m_arrayPrototype->setGlobalIntrinsicObject(state, true);
+    m_arrayPrototype->setGlobalIntrinsicObject(state);
+    m_arrayPrototype->markArrayDescendantInPrototypeChain(state);
 
     m_arrayPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1975,7 +1977,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 
     m_arrayIteratorPrototype = new Object(state, m_iteratorPrototype);
-    m_arrayIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_arrayIteratorPrototype->setGlobalIntrinsicObject(state);
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinArrayIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -194,7 +194,7 @@ void GlobalObject::installSet(ExecutionState& state)
     }
 
     m_setPrototype = new Object(state);
-    m_setPrototype->setGlobalIntrinsicObject(state, true);
+    m_setPrototype->setGlobalIntrinsicObject(state);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_setPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().clear),
@@ -232,7 +232,7 @@ void GlobalObject::installSet(ExecutionState& state)
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
     m_setIteratorPrototype = new Object(state, m_iteratorPrototype);
-    m_setIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_setIteratorPrototype->setGlobalIntrinsicObject(state);
 
     m_setIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinSetIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

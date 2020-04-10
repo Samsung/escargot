@@ -137,7 +137,7 @@ void GlobalObject::installSymbol(ExecutionState& state)
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_symbolPrototype = new Object(state);
-    m_symbolPrototype->setGlobalIntrinsicObject(state, true);
+    m_symbolPrototype->setGlobalIntrinsicObject(state);
 
     m_symbolPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_symbol, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

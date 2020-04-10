@@ -34,7 +34,7 @@ void GlobalObject::installAsyncIterator(ExecutionState& state)
 {
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-%iteratorprototype%-object
     m_asyncIteratorPrototype = new Object(state);
-    m_asyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    m_asyncIteratorPrototype->setGlobalIntrinsicObject(state);
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asynciteratorprototype-asynciterator
     m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator),
