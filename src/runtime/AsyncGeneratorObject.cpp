@@ -24,6 +24,7 @@
 #include "runtime/PromiseObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ScriptAsyncGeneratorFunctionObject.h"
 
 namespace Escargot {
@@ -50,46 +51,37 @@ void* AsyncGeneratorObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-class ScriptAsyncGeneratorFunctionHelperFunctionObject : public NativeFunctionObject {
-public:
-    ScriptAsyncGeneratorFunctionHelperFunctionObject(ExecutionState& state, NativeFunctionInfo info, AsyncGeneratorObject* sourceObject)
-        : NativeFunctionObject(state, info)
-        , m_sourceObject(sourceObject)
-    {
-    }
-
-    AsyncGeneratorObject* m_sourceObject;
-};
-
 // https://www.ecma-international.org/ecma-262/10.0/index.html#async-generator-resume-next-return-processor-fulfilled
-Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, ScriptAsyncGeneratorFunctionHelperFunctionObject* F, const Value& value)
+Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, ExtendedNativeFunctionObject* F, const Value& value)
 {
     // Let F be the active function object.
     // Set F.[[Generator]].[[AsyncGeneratorState]] to "completed".
-    F->m_sourceObject->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
+    AsyncGeneratorObject* generator = Value(F->getInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator)).asPointerValue()->asAsyncGeneratorObject();
+    generator->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
     // Return ! AsyncGeneratorResolve(F.[[Generator]], value, true).
-    return AsyncGeneratorObject::asyncGeneratorResolve(state, F->m_sourceObject, value, true);
+    return AsyncGeneratorObject::asyncGeneratorResolve(state, generator, value, true);
 }
 
 static Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ScriptAsyncGeneratorFunctionHelperFunctionObject* self = (ScriptAsyncGeneratorFunctionHelperFunctionObject*)state.resolveCallee();
+    ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
     return asyncGeneratorResumeNextReturnProcessorFulfilledFunction(state, self, argv[0]);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#async-generator-resume-next-return-processor-rejected
-Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, ScriptAsyncGeneratorFunctionHelperFunctionObject* F, const Value& reason)
+Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, ExtendedNativeFunctionObject* F, const Value& reason)
 {
     // Let F be the active function object.
     // Set F.[[Generator]].[[AsyncGeneratorState]] to "completed".
-    F->m_sourceObject->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
+    AsyncGeneratorObject* generator = Value(F->getInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator)).asPointerValue()->asAsyncGeneratorObject();
+    generator->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
     // Return ! AsyncGeneratorReject(F.[[Generator]], reason).
-    return AsyncGeneratorObject::asyncGeneratorReject(state, F->m_sourceObject, reason);
+    return AsyncGeneratorObject::asyncGeneratorReject(state, generator, reason);
 }
 
 static Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ScriptAsyncGeneratorFunctionHelperFunctionObject* self = (ScriptAsyncGeneratorFunctionHelperFunctionObject*)state.resolveCallee();
+    ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
     return asyncGeneratorResumeNextReturnProcessorRejectedFunction(state, self, argv[0]);
 }
 
@@ -170,11 +162,13 @@ Value AsyncGeneratorObject::asyncGeneratorResumeNext(ExecutionState& state, Asyn
                 // Let stepsFulfilled be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Fulfilled Functions.
                 // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[Generator]] »).
                 // Set onFulfilled.[[Generator]] to generator.
-                FunctionObject* onFulfilled = new ScriptAsyncGeneratorFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorFulfilledFunction, 1), generator);
+                ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorFulfilledFunction, 1));
+                onFulfilled->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
                 // Let stepsRejected be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Rejected Functions.
                 // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[Generator]] »).
                 // Set onRejected.[[Generator]] to generator.
-                FunctionObject* onRejected = new ScriptAsyncGeneratorFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorRejectedFunction, 1), generator);
+                ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorRejectedFunction, 1));
+                onRejected->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
                 // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
                 promise->then(state, onFulfilled, onRejected);
                 // Return undefined.

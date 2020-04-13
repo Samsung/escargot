@@ -23,6 +23,7 @@
 #include "runtime/Context.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 
 namespace Escargot {
 
@@ -47,19 +48,21 @@ static Value builtinProxyRevoke(ExecutionState& state, Value thisValue, size_t a
 {
     auto strings = &state.context()->staticStrings();
 
-    RevokeFunctionObject* revoke = (RevokeFunctionObject*)state.resolveCallee();
+    ExtendedNativeFunctionObject* revoke = state.resolveCallee()->asExtendedNativeFunctionObject();
     ASSERT(revoke);
 
     // 1. Let p be the value of F’s [[RevocableProxy]] internal slot.
-    ProxyObject* proxy = revoke->revocableProxy();
+    Value p = revoke->getInternalSlot(ProxyObject::BuiltinFunctionSlot::RevocableProxy);
 
     // 2. If p is null, return undefined.
-    if (proxy == nullptr) {
+    if (p.isNull()) {
         return Value();
     }
 
+    ProxyObject* proxy = p.asObject()->asProxyObject();
+
     // 3. Set the value of F’s [[RevocableProxy]] internal slot to null.
-    revoke->setRevocableProxyToNull();
+    revoke->setInternalSlot(ProxyObject::BuiltinFunctionSlot::RevocableProxy, Value(Value::Null));
 
     // 5. Set the [[ProxyTarget]] internal slot of p to null.
     proxy->setTarget(nullptr);
@@ -84,7 +87,8 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 
     // 3. Let revoker be a new built-in function object as defined in 26.2.2.1.1.
     // 4. Set the [[RevocableProxy]] internal slot of revoker to p.
-    RevokeFunctionObject* revoker = new RevokeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinProxyRevoke, 0, NativeFunctionInfo::Strict), proxy.asObject()->asProxyObject());
+    ExtendedNativeFunctionObject* revoker = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), builtinProxyRevoke, 0, NativeFunctionInfo::Strict));
+    revoker->setInternalSlot(ProxyObject::BuiltinFunctionSlot::RevocableProxy, proxy);
 
     // 5. Let result be ObjectCreate(%ObjectPrototype%).
     Object* result = new Object(state);

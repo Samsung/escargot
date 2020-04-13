@@ -235,21 +235,11 @@ static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisVal
 }
 #endif
 
-class EvalFunctionObject : public NativeFunctionObject {
-public:
-    EvalFunctionObject(ExecutionState& state, NativeFunctionInfo info)
-        : NativeFunctionObject(state, info)
-    {
-        m_globalObject = state.context()->globalObject();
-    }
-
-    GlobalObject* m_globalObject;
-};
-
 static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    EvalFunctionObject* fn = (EvalFunctionObject*)state.resolveCallee();
-    return fn->m_globalObject->eval(state, argv[0]);
+    NativeFunctionObject* fn = (NativeFunctionObject*)state.resolveCallee();
+    Context* realm = fn->codeBlock()->context();
+    return realm->globalObject()->eval(state, argv[0]);
 }
 
 ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
@@ -1138,8 +1128,8 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, strings->undefined, ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
 
     // $18.2.1 eval (x)
-    m_eval = new EvalFunctionObject(state,
-                                    NativeFunctionInfo(strings->eval, builtinEval, 1, NativeFunctionInfo::Strict));
+    m_eval = new NativeFunctionObject(state,
+                                      NativeFunctionInfo(strings->eval, builtinEval, 1, NativeFunctionInfo::Strict));
     defineOwnProperty(state, ObjectPropertyName(strings->eval),
                       ObjectPropertyDescriptor(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $18.2.2 isFinite(number)
