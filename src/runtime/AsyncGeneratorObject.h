@@ -28,8 +28,6 @@
 
 namespace Escargot {
 
-class ScriptAsyncGeneratorFunctionHelperFunctionObject;
-
 class AsyncGeneratorObject : public Object {
     friend class ByteCodeInterpreter;
     friend class ExecutionPauser;
@@ -47,6 +45,10 @@ public:
         AwaitingReturn,
         SuspendedStart,
         SuspendedYield
+    };
+
+    enum BuiltinFunctionSlot : size_t {
+        Generator = 0,
     };
 
     AsyncGeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
@@ -94,8 +96,8 @@ private:
     friend Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* generator);
     friend Value asyncGeneratorResolve(ExecutionState& state, AsyncGeneratorObject* generator, const Value& value, bool done);
     friend Value asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generator, Value exception);
-    friend Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, ScriptAsyncGeneratorFunctionHelperFunctionObject* F, const Value& value);
-    friend Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, ScriptAsyncGeneratorFunctionHelperFunctionObject* F, const Value& reason);
+    friend Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& state, ExtendedNativeFunctionObject* F, const Value& value);
+    friend Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, ExtendedNativeFunctionObject* F, const Value& reason);
 
     AsyncGeneratorState m_asyncGeneratorState;
     ExecutionPauser m_executionPauser;
