@@ -21,6 +21,7 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "VMInstance.h"
+#include "runtime/NativeFunctionObject.h"
 
 namespace Escargot {
 

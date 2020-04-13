@@ -301,7 +301,7 @@ bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMat
 
 bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
-    RegExpStatus& globalRegExpStatus = state.context()->globalObject()->regexp()->m_status;
+    Context::RegExpStatus& globalRegExpStatus = state.context()->regexpStatus();
     globalRegExpStatus.input = str;
 
     m_lastExecutedString = str;
@@ -360,13 +360,13 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             }
 
             // Details:{3, 10, 3, 10, 3, 6, 7, 10, 1684872, 806200}
-            globalRegExpStatus.pairCount = maxMatchedIndex;
-            unsigned pairEnd = std::min(maxMatchedIndex, (unsigned)9);
-            for (unsigned i = 1; i <= pairEnd; i++) {
+            globalRegExpStatus.dollarCount = maxMatchedIndex;
+            unsigned dollarEnd = std::min(maxMatchedIndex, (unsigned)9);
+            for (unsigned i = 1; i <= dollarEnd; i++) {
                 if (outputBuf[i * 2] == std::numeric_limits<unsigned>::max()) {
-                    globalRegExpStatus.pairs[i - 1] = StringView();
+                    globalRegExpStatus.dollars[i - 1] = StringView();
                 } else {
-                    globalRegExpStatus.pairs[i - 1] = StringView(str, outputBuf[i * 2], outputBuf[i * 2 + 1]);
+                    globalRegExpStatus.dollars[i - 1] = StringView(str, outputBuf[i * 2], outputBuf[i * 2 + 1]);
                 }
             }
 

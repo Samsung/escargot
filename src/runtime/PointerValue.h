@@ -52,7 +52,6 @@ class ArrayBufferView;
 class DoubleInSmallValue;
 class JSGetterSetter;
 class IteratorRecord;
-class GlobalRegExpFunctionObject;
 class IteratorObject;
 class MapObject;
 class SetObject;
@@ -266,11 +265,6 @@ public:
     }
 
     virtual bool isIteratorRecord() const
-    {
-        return false;
-    }
-
-    virtual bool isGlobalRegExpFunctionObject()
     {
         return false;
     }
@@ -539,12 +533,6 @@ public:
     {
         ASSERT(isIteratorRecord());
         return (IteratorRecord*)this;
-    }
-
-    GlobalRegExpFunctionObject* asGlobalRegExpFunctionObject()
-    {
-        ASSERT(isGlobalRegExpFunctionObject());
-        return (GlobalRegExpFunctionObject*)this;
     }
 
     IteratorObject* asIteratorObject()

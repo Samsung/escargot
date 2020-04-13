@@ -25,6 +25,7 @@
 #include "runtime/PromiseObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
+#include "runtime/NativeFunctionObject.h"
 
 namespace Escargot {
 

@@ -58,30 +58,30 @@ Context::Context(VMInstance* instance)
     , m_loadedModules(new LoadedModuleVector())
     , m_bumpPointerAllocator(instance->m_bumpPointerAllocator)
     , m_regexpCache(instance->m_regexpCache)
+
+    , m_defaultStructureForObject(instance->m_defaultStructureForObject)
+    , m_defaultStructureForFunctionObject(instance->m_defaultStructureForFunctionObject)
+    , m_defaultStructureForNotConstructorFunctionObject(instance->m_defaultStructureForNotConstructorFunctionObject)
+    , m_defaultStructureForBuiltinFunctionObject(instance->m_defaultStructureForBuiltinFunctionObject)
+    , m_defaultStructureForFunctionPrototypeObject(instance->m_defaultStructureForFunctionPrototypeObject)
+    , m_defaultStructureForBoundFunctionObject(instance->m_defaultStructureForBoundFunctionObject)
+    , m_defaultStructureForClassConstructorFunctionObject(instance->m_defaultStructureForClassConstructorFunctionObject)
+    , m_defaultStructureForStringObject(instance->m_defaultStructureForStringObject)
+    , m_defaultStructureForSymbolObject(instance->m_defaultStructureForSymbolObject)
+    , m_defaultStructureForRegExpObject(instance->m_defaultStructureForRegExpObject)
+    , m_defaultStructureForMappedArgumentsObject(instance->m_defaultStructureForMappedArgumentsObject)
+    , m_defaultStructureForUnmappedArgumentsObject(instance->m_defaultStructureForUnmappedArgumentsObject)
+
     , m_toStringRecursionPreventer(&instance->m_toStringRecursionPreventer)
+    , m_virtualIdentifierCallback(nullptr)
+    , m_securityPolicyCheckCallback(nullptr)
+    , m_virtualIdentifierCallbackPublic(nullptr)
+    , m_securityPolicyCheckCallbackPublic(nullptr)
     , m_astAllocator(*instance->m_astAllocator)
 #ifdef ESCARGOT_DEBUGGER
     , m_debugger(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
 {
-    m_defaultStructureForObject = m_instance->m_defaultStructureForObject;
-    m_defaultStructureForFunctionObject = m_instance->m_defaultStructureForFunctionObject;
-    m_defaultStructureForNotConstructorFunctionObject = m_instance->m_defaultStructureForNotConstructorFunctionObject;
-    m_defaultStructureForBuiltinFunctionObject = m_instance->m_defaultStructureForBuiltinFunctionObject;
-    m_defaultStructureForFunctionPrototypeObject = m_instance->m_defaultStructureForFunctionPrototypeObject;
-    m_defaultStructureForBoundFunctionObject = m_instance->m_defaultStructureForBoundFunctionObject;
-    m_defaultStructureForClassConstructorFunctionObject = m_instance->m_defaultStructureForClassConstructorFunctionObject;
-    m_defaultStructureForStringObject = m_instance->m_defaultStructureForStringObject;
-    m_defaultStructureForSymbolObject = m_instance->m_defaultStructureForSymbolObject;
-    m_defaultStructureForRegExpObject = m_instance->m_defaultStructureForRegExpObject;
-    m_defaultStructureForMappedArgumentsObject = m_instance->m_defaultStructureForMappedArgumentsObject;
-    m_defaultStructureForUnmappedArgumentsObject = m_instance->m_defaultStructureForUnmappedArgumentsObject;
-
-    m_virtualIdentifierCallback = nullptr;
-    m_securityPolicyCheckCallback = nullptr;
-    m_virtualIdentifierCallbackPublic = nullptr;
-    m_securityPolicyCheckCallbackPublic = nullptr;
-
     ExecutionState stateForInit(this);
     m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
