@@ -23,6 +23,7 @@
 #include "VMInstance.h"
 #include "runtime/ScriptAsyncGeneratorFunctionObject.h"
 #include "runtime/AsyncGeneratorObject.h"
+#include "runtime/NativeFunctionObject.h"
 
 namespace Escargot {
 

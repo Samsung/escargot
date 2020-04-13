@@ -81,6 +81,29 @@ class Context : public gc {
     friend class ContextRef;
 
 public:
+    struct RegExpStatus {
+        String* input; // RegExp.input ($_)
+        StringView lastMatch;
+        StringView lastParen;
+        StringView leftContext;
+        StringView rightContext;
+        size_t dollarCount;
+        StringView dollars[9]; // RegExp.$1-$9
+
+        RegExpStatus()
+            : input(String::emptyString)
+            , lastMatch()
+            , lastParen()
+            , leftContext()
+            , rightContext()
+            , dollarCount(0)
+        {
+            for (size_t i = 0; i < 9; i++) {
+                dollars[i] = StringView();
+            }
+        }
+    };
+
     explicit Context(VMInstance* instance);
 
     VMInstance* vmInstance()
@@ -230,6 +253,11 @@ public:
         return m_astAllocator;
     }
 
+    RegExpStatus& regexpStatus()
+    {
+        return m_regexpStatus;
+    }
+
 #ifdef ESCARGOT_DEBUGGER
     Debugger* debugger()
     {
@@ -255,6 +283,7 @@ private:
     LoadedModuleVector* m_loadedModules;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
+
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
     ObjectStructure* m_defaultStructureForNotConstructorFunctionObject;
@@ -267,14 +296,19 @@ private:
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
+
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
     VirtualIdentifierCallback m_virtualIdentifierCallback;
     SecurityPolicyCheckCallback m_securityPolicyCheckCallback;
-
-    ASTAllocator& m_astAllocator;
     // public helper variable
     void* m_virtualIdentifierCallbackPublic;
     void* m_securityPolicyCheckCallbackPublic;
+
+    ASTAllocator& m_astAllocator;
+    // For non-standard, read-only properties of RegExp
+    // contains the result of the last matched regular expressions
+    RegExpStatus m_regexpStatus;
+
 #ifdef ESCARGOT_DEBUGGER
     // debugger support
     Debugger* m_debugger;

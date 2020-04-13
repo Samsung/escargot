@@ -23,6 +23,7 @@
 #include "Environment.h"
 #include "EnvironmentRecord.h"
 #include "FunctionObject.h"
+#include "NativeFunctionObject.h"
 
 namespace Escargot {
 
