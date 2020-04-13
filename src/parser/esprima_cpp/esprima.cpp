@@ -91,6 +91,7 @@ struct Context {
     bool allowSuperCall : 1;
     bool allowSuperProperty : 1;
     bool allowNewTarget : 1;
+    bool allowStrictDirective : 1;
     bool await : 1;
     bool isAssignmentTarget : 1;
     bool isBindingElement : 1;
@@ -240,6 +241,7 @@ public:
         this->context->allowSuperCall = false;
         this->context->allowSuperProperty = false;
         this->context->allowNewTarget = false;
+        this->context->allowStrictDirective = true;
         this->context->await = false;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
@@ -1368,7 +1370,6 @@ public:
         SmallScannerResultVector params;
         ALLOC_TOKEN(token);
         *token = this->lookahead;
-
         if (token->type == Token::PunctuatorToken && token->valuePunctuatorKind == PunctuatorKind::PeriodPeriodPeriod) {
             param = this->parseRestElement(builder, params);
         } else {
@@ -1493,6 +1494,8 @@ public:
         this->context->isBindingElement = false;
 
         const bool previousStrict = this->context->strict;
+        const bool previousAllowStrictDirective = this->context->allowStrictDirective;
+        this->context->allowStrictDirective = !this->currentScopeContext->m_hasParameterOtherThanIdentifier;
         ASTNode body = this->isolateCoverGrammar(builder, &Parser::parseFunctionSourceElements<ASTBuilder>);
         if (this->context->strict && params.firstRestricted) {
             this->throwUnexpectedToken(params.firstRestricted, params.message);
@@ -1501,6 +1504,7 @@ public:
             this->throwUnexpectedToken(params.stricted, params.message);
         }
         this->context->strict = previousStrict;
+        this->context->allowStrictDirective = previousAllowStrictDirective;
 
         return body;
     }
@@ -2752,6 +2756,7 @@ public:
                 bool previousAllowYield = this->context->allowYield;
                 bool previousAwait = this->context->await;
                 bool previousInArrowFunction = this->context->inArrowFunction;
+                bool previousAllowStrictDirective = this->context->allowStrictDirective;
 
                 this->context->allowYield = false;
                 this->context->inArrowFunction = true;
@@ -2768,6 +2773,7 @@ public:
                 this->expect(Arrow);
 
                 this->context->await = isAsync;
+                this->context->allowStrictDirective = !this->currentScopeContext->m_hasParameterOtherThanIdentifier;
 
                 MetaNode node = this->startNode(startToken);
                 MetaNode bodyStart = this->createNode();
@@ -2806,6 +2812,7 @@ public:
                 this->context->allowYield = previousAllowYield;
                 this->context->await = previousAwait;
                 this->context->inArrowFunction = previousInArrowFunction;
+                this->context->allowStrictDirective = previousAllowStrictDirective;
             } else {
                 // check if restricted words are used as target in array/object initializer
                 if (checkLeftHasRestrictedWord) {
@@ -4371,7 +4378,6 @@ public:
             }
         }
         this->expect(RightParenthesis);
-
         return container;
     }
 
@@ -4668,6 +4674,9 @@ public:
         this->context->allowYield = isGenerator;
 
         bool previousStrict = this->context->strict;
+        bool previousAllowStrictDirective = this->context->allowStrictDirective;
+        this->context->allowStrictDirective = !this->currentScopeContext->m_hasParameterOtherThanIdentifier;
+
         this->parseFunctionSourceElements(newBuilder);
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(firstRestricted, message);
@@ -4680,6 +4689,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowStrictDirective = previousAllowStrictDirective;
 
         END_FUNCTION_SCANNING();
         return static_cast<ASTNode>(this->finalize(node, builder.createFunctionDeclarationNode(subCodeBlockIndex, fnName)));
@@ -4775,6 +4785,9 @@ public:
         this->context->await = isAsync;
         this->context->allowYield = isGenerator;
         bool previousStrict = this->context->strict;
+        bool previousAllowStrictDirective = this->context->allowStrictDirective;
+        this->context->allowStrictDirective = !this->currentScopeContext->m_hasParameterOtherThanIdentifier;
+
         this->parseFunctionSourceElements(newBuilder);
         if (this->context->strict && firstRestricted) {
             this->throwUnexpectedToken(firstRestricted, message);
@@ -4787,6 +4800,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowStrictDirective = previousAllowStrictDirective;
 
         END_FUNCTION_SCANNING();
         return static_cast<ASTNode>(this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName)));
@@ -4804,6 +4818,9 @@ public:
         // check strict mode early before lexing of following tokens
         if (!token->hasAllocatedString && token->valueStringLiteral(this->scanner).equals("use strict")) {
             this->currentScopeContext->m_isStrict = this->context->strict = true;
+            if (!this->context->allowStrictDirective) {
+                this->throwError("Illegal 'use strict' directive in function with non-simple parameter list");
+            }
         }
 
         MetaNode node = this->createNode();
@@ -5766,14 +5783,12 @@ public:
         }
 
         const bool previousAllowNewTarget = context->allowNewTarget;
-
         context->allowNewTarget = true;
         MetaNode node = this->createNode();
         StatementContainer* params = this->parseFunctionParameters(builder);
         BlockStatementNode* body = this->parseFunctionBody(builder);
 
         context->allowNewTarget = previousAllowNewTarget;
-
         return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
     }
 
