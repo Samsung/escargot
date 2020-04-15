@@ -16,7 +16,6 @@
     <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
 
     <test id="intl402/Locale/likely-subtags"><reason>old version of ICU cannot run uloc_addLikelySubtags correctly with `und..` input</reason></test>
-
     <test id="annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body"><reason>TODO</reason></test>
     <test id="annexB/built-ins/RegExp/named-groups/non-unicode-malformed"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
@@ -54,10 +53,8 @@
     <test id="built-ins/Array/prototype/splice/length-exceeding-integer-limit-shrink-array"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/toLocaleString/primitive_this_value_getter"><reason>TODO</reason></test>
-    <test id="built-ins/ArrayBuffer/allocation-limit"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer"><reason>TODO</reason></test>
-    <test id="built-ins/ArrayBuffer/toindex-length"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/Symbol.toStringTag"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/add/bad-range"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/add/bigint/bad-range"><reason>TODO</reason></test>
@@ -1214,7 +1211,6 @@
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-nextelement-tostring"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-nextelement-valueof"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-result"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toString"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toString/BigInt/detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/values/BigInt/detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/values/BigInt/iter-prototype"><reason>TODO</reason></test>

@@ -64,6 +64,9 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
     if (bytelength > (GC_get_heap_size() / ratio)) {
         size_t n = 0;
         size_t times = bytelength / (GC_get_heap_size() / ratio) / 3;
+        if (maxArrayBufferSize < bytelength) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Bytelength is to large");
+        }
         do {
             GC_gcollect_and_unmap();
             n += 1;
