@@ -201,6 +201,16 @@ public:
         return m_globalObject;
     }
 
+    Object* globalObjectProxy()
+    {
+        return m_globalObjectProxy;
+    }
+
+    void setGlobalObjectProxy(Object* newGlobalObjectProxy)
+    {
+        m_globalObjectProxy = newGlobalObjectProxy;
+    }
+
     ToStringRecursionPreventer* toStringRecursionPreventer()
     {
         return m_toStringRecursionPreventer;
@@ -276,6 +286,9 @@ private:
     AtomicStringMap* m_atomicStringMap;
     StaticStrings& m_staticStrings;
     GlobalObject* m_globalObject;
+    // initially, this value is same with m_globalObject
+    // this value indicates `this` value on source(global)
+    Object* m_globalObjectProxy;
     ScriptParser* m_scriptParser;
     IdentifierRecordVector* m_globalDeclarativeRecord;
     SmallValueVector* m_globalDeclarativeStorage;

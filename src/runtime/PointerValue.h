@@ -60,6 +60,7 @@ class WeakSetObject;
 class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
+class GlobalObjectProxyObject;
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
 #endif
@@ -339,6 +340,11 @@ public:
         return false;
     }
 
+    virtual bool isGlobalObjectProxyObject() const
+    {
+        return false;
+    }
+
     virtual bool isArgumentsObject() const
     {
         return false;
@@ -581,6 +587,12 @@ public:
     {
         ASSERT(isAsyncFromSyncIteratorObject());
         return (AsyncFromSyncIteratorObject*)this;
+    }
+
+    GlobalObjectProxyObject* asGlobalObjectProxyObject()
+    {
+        ASSERT(isGlobalObjectProxyObject());
+        return (GlobalObjectProxyObject*)this;
     }
 
 #if defined(ENABLE_INTL)

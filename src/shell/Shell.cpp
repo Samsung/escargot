@@ -324,12 +324,20 @@ static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisVa
 }
 #endif
 
+
 PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
 {
     PersistentRefHolder<ContextRef> context = ContextRef::create(instance);
 
     Evaluator::execute(context, [](ExecutionStateRef* state) -> ValueRef* {
         ContextRef* context = state->context();
+
+        GlobalObjectProxyObjectRef* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(), [](ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, GlobalObjectProxyObjectRef::AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists) {
+            // TODO check security
+        });
+        context->setGlobalObjectProxy(proxy);
+
+
         {
             FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
@@ -418,7 +426,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
             }
 
             {
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("global"), context->globalObject(), true, true, true);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("global"), context->globalObjectProxy(), true, true, true);
             }
 
             {

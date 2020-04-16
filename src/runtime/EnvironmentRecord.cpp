@@ -64,7 +64,7 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
                     if (desc.isDataProperty()) {
                         m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(desc.value(state, m_globalObject), attribute));
                     } else {
-                        m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(attribute));
+                        m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(Value(), attribute));
                     }
                     break;
                 }

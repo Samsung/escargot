@@ -59,7 +59,7 @@ public:
             // if thisArgument is null or undefined, then
             // Let thisValue be calleeRealm.[[globalThis]]
             if (thisArgument.isUndefinedOrNull()) {
-                return calleeState.context()->globalObject();
+                return calleeState.context()->globalObjectProxy();
             } else {
                 // Else
                 // Let thisValue be ToObject(thisArgument).

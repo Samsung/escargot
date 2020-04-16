@@ -50,6 +50,7 @@
 #include "runtime/WeakSetObject.h"
 #include "runtime/MapObject.h"
 #include "runtime/WeakMapObject.h"
+#include "runtime/GlobalObjectProxyObject.h"
 #include "runtime/CompressibleString.h"
 #include "interpreter/ByteCode.h"
 
@@ -87,6 +88,7 @@ DEFINE_CAST(RangeErrorObject);
 DEFINE_CAST(URIErrorObject);
 DEFINE_CAST(EvalErrorObject);
 DEFINE_CAST(GlobalObject);
+DEFINE_CAST(GlobalObjectProxyObject);
 DEFINE_CAST(FunctionObject);
 DEFINE_CAST(DateObject);
 DEFINE_CAST(PromiseObject);
@@ -446,6 +448,11 @@ bool StringRef::equals(StringRef* src)
     return toImpl(this)->equals(toImpl(src));
 }
 
+bool StringRef::equalsWithASCIIString(const char* buf, size_t len)
+{
+    return toImpl(this)->equals(buf, len);
+}
+
 StringRef* StringRef::substring(size_t from, size_t to)
 {
     return toRef(toImpl(this)->substring(from, to));
@@ -579,6 +586,7 @@ DEFINE_IS_AS_POINTERVALUE_XXX(SetObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(WeakSetObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(MapObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(WeakMapObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObjectProxyObject)
 
 bool ValueRef::isSetIteratorObject()
 {
@@ -1089,6 +1097,11 @@ bool ObjectRef::set(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* 
     return toImpl(this)->set(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)), toImpl(value), toImpl(this));
 }
 
+bool ObjectRef::has(ExecutionStateRef* state, ValueRef* propertyName)
+{
+    return toImpl(this)->hasProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)));
+}
+
 bool ObjectRef::deleteOwnProperty(ExecutionStateRef* state, ValueRef* propertyName)
 {
     return toImpl(this)->deleteOwnProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)));
@@ -1536,6 +1549,23 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
     return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, newTarget.hasValue()));
 }
 
+typedef void (*SecurityCheckCallback)(ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject);
+
+GlobalObjectProxyObjectRef* GlobalObjectProxyObjectRef::create(ExecutionStateRef* state, GlobalObjectRef* target, SecurityCheckCallback callback)
+{
+    return toRef(new GlobalObjectProxyObject(*toImpl(state), toImpl(target), callback));
+}
+
+GlobalObjectRef* GlobalObjectProxyObjectRef::target()
+{
+    return toRef(toImpl(this)->target());
+}
+
+void GlobalObjectProxyObjectRef::setTarget(GlobalObjectRef* target)
+{
+    toImpl(this)->setTarget(toImpl(target));
+}
+
 static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info, bool isBuiltin)
 {
     CallPublicFunctionData* data = new CallPublicFunctionData();
@@ -1604,6 +1634,18 @@ GlobalObjectRef* ContextRef::globalObject()
 {
     Context* ctx = toImpl(this);
     return toRef(ctx->globalObject());
+}
+
+ObjectRef* ContextRef::globalObjectProxy()
+{
+    Context* ctx = toImpl(this);
+    return toRef(ctx->globalObjectProxy());
+}
+
+void ContextRef::setGlobalObjectProxy(ObjectRef* newGlobalObjectProxy)
+{
+    Context* ctx = toImpl(this);
+    ctx->setGlobalObjectProxy(toImpl(newGlobalObjectProxy));
 }
 
 VMInstanceRef* ContextRef::vmInstance()
