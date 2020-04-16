@@ -77,6 +77,7 @@ class NumberObjectRef;
 class BooleanObjectRef;
 class RegExpObjectRef;
 class ProxyObjectRef;
+class GlobalObjectProxyObjectRef;
 class PlatformRef;
 class ScriptRef;
 class ScriptParserRef;
@@ -568,9 +569,12 @@ public:
 
     void clearRelatedQueuedPromiseJobs();
 
-    ScriptParserRef* scriptParser();
-    GlobalObjectRef* globalObject();
     VMInstanceRef* vmInstance();
+    ScriptParserRef* scriptParser();
+
+    GlobalObjectRef* globalObject();
+    ObjectRef* globalObjectProxy();
+    void setGlobalObjectProxy(ObjectRef* newGlobalObjectProxy);
 
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
 
@@ -686,6 +690,7 @@ public:
     bool isMapObject();
     bool isWeakMapObject();
     bool isMapIteratorObject();
+    bool isGlobalObjectProxyObject();
 
     bool toBoolean(ExecutionStateRef* state);
     double toNumber(ExecutionStateRef* state);
@@ -740,6 +745,7 @@ public:
     WeakSetObjectRef* asWeakSetObject();
     MapObjectRef* asMapObject();
     WeakMapObjectRef* asWeakMapObject();
+    GlobalObjectProxyObjectRef* asGlobalObjectProxyObject();
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
     bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // ===
@@ -804,6 +810,7 @@ public:
     char16_t charAt(size_t idx);
     size_t length();
     bool equals(StringRef* src);
+    bool equalsWithASCIIString(const char* buf, size_t len);
 
     StringRef* substring(size_t from, size_t to);
 
@@ -913,6 +920,8 @@ public:
     ValueRef* getOwnPropertyDescriptor(ExecutionStateRef* state, ValueRef* propertyName);
 
     bool set(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value);
+
+    bool has(ExecutionStateRef* state, ValueRef* propertyName);
 
     enum PresentAttribute {
         NotPresent = 0,
@@ -1082,6 +1091,21 @@ public:
     ObjectRef* float64ArrayPrototype();
 };
 
+class ESCARGOT_EXPORT GlobalObjectProxyObjectRef : public ObjectRef {
+public:
+    // if there is security error, you can throw error in this callback
+    enum AccessOperationType {
+        Read, // [[Get]], [[GetOwnProperty]]..
+        Write // [[Set]], [[DefineOwnProperty]]..
+    };
+    typedef void (*SecurityCheckCallback)(ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists);
+
+    static GlobalObjectProxyObjectRef* create(ExecutionStateRef* state, GlobalObjectRef* target, SecurityCheckCallback callback);
+
+    GlobalObjectRef* target();
+    void setTarget(GlobalObjectRef* target);
+};
+
 class ESCARGOT_EXPORT FunctionObjectRef : public ObjectRef {
 public:
     // in constructor call, function must return newly created object && thisValue is always undefined
@@ -1107,9 +1131,12 @@ public:
     static FunctionObjectRef* create(ExecutionStateRef* state, NativeFunctionInfo info);
     static FunctionObjectRef* createBuiltinFunction(ExecutionStateRef* state, NativeFunctionInfo info); // protoype of builtin function is non-writable
 
-    // getter of internal [[Prototype]]
+    // get prototype property of constructible function(not [[prototype]])
+    // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     ValueRef* getFunctionPrototype(ExecutionStateRef* state);
-    // setter of internal [[Prototype]]
+
+    // set prototype property constructible function(not [[prototype]])
+    // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     bool setFunctionPrototype(ExecutionStateRef* state, ValueRef* v);
 
     bool isConstructor();

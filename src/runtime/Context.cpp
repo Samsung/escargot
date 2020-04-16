@@ -83,7 +83,7 @@ Context::Context(VMInstance* instance)
 #endif /* ESCARGOT_DEBUGGER */
 {
     ExecutionState stateForInit(this);
-    m_globalObject = new GlobalObject(stateForInit);
+    m_globalObjectProxy = m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
 
     // initialize object tag values after installation of builtins

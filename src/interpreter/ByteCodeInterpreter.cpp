@@ -2711,7 +2711,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         if (bindedRecord && bindedRecord->isObjectEnvironmentRecord()) {
             receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();
         } else {
-            receiverObj = state.context()->globalObject();
+            receiverObj = state.context()->globalObjectProxy();
         }
 
         if (code->m_hasSpreadElement) {

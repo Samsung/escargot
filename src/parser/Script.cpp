@@ -546,7 +546,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         }
     }
 
-    Value thisValue(context()->globalObject());
+    Value thisValue(context()->globalObjectProxy());
 
     size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
     Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
