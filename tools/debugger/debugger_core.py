@@ -70,6 +70,7 @@ ESCARGOT_MESSAGE_PRINT = 40
 ESCARGOT_MESSAGE_EXCEPTION = 41
 ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42
 ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43
+ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 44
 
 
 # Messages sent by the debugger client to Escargot.
@@ -91,6 +92,8 @@ ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 14
 ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 15
 ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 16
 ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 17
+ESCARGOT_DEBUGGER_PENDING_CONFIG = 18
+ESCARGOT_DEBUGGER_PENDING_RESUME = 19
 
 
 # Environment record types
@@ -165,6 +168,22 @@ class Breakpoint(object):
     def __repr__(self):
         return ("Breakpoint(line:%d, offset:%d, active_index:%d)"
                 % (self.line, self.offset, self.active_index))
+
+class PendingBreakpoint(object):
+    def __init__(self, line=None, source_name=None, function=None):
+        self.function = function
+        self.line = line
+        self.source_name = source_name
+
+        self.index = -1
+
+    def __str__(self):
+        result = self.source_name or ""
+        if self.line:
+            result += ":%d" % (self.line)
+        else:
+            result += "%s()" % (self.function)
+        return result
 
 class EscargotFunction(object):
     # pylint: disable=too-many-instance-attributes,too-many-arguments
@@ -258,6 +277,7 @@ class Debugger(object):
         self.last_breakpoint_hit = None
         self.next_breakpoint_index = 0
         self.active_breakpoint_list = {}
+        self.pending_breakpoint_list = {}
         self.line_list = Multimap()
         self.display = 0
         self.green = ''
@@ -355,6 +375,9 @@ class Debugger(object):
                 result = self._parse_source(data)
                 if result:
                     return DebuggerAction(DebuggerAction.TEXT, result)
+
+            elif buffer_type == ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING:
+                self._exec_command(ESCARGOT_DEBUGGER_PENDING_RESUME)
 
             elif buffer_type == ESCARGOT_MESSAGE_CLOSE_CONNECTION:
                 return DebuggerAction(DebuggerAction.END, "")
@@ -583,12 +606,13 @@ class Debugger(object):
                    "Delete the given breakpoint, use 'delete all|active|pending' " \
                    "to clear all the given breakpoints\n "
         elif args == 'all':
-            for i in self.active_breakpoint_list.values():
-                breakpoint = self.active_breakpoint_list[i.active_index]
-                del self.active_breakpoint_list[i.active_index]
-                breakpoint.active_index = -1
-                self._send_breakpoint(breakpoint)
-            return ""
+                self.delete_active()
+                self.delete_pending()
+        elif args == "pending":
+                self.delete_pending()
+        elif args == "active":
+                self.delete_active()
+        return ""
 
         try:
             breakpoint_index = int(args)
@@ -601,6 +625,11 @@ class Debugger(object):
             breakpoint.active_index = -1
             self._send_breakpoint(breakpoint)
             return "Breakpoint %d deleted\n" % (breakpoint_index)
+        elif breakpoint_index in self.pending_breakpoint_list:
+            del self.pending_breakpoint_list[breakpoint_index]
+            if not self.pending_breakpoint_list:
+                self._send_pending_config(0)
+            return "Pending breakpoint %d deleted\n" % (breakpoint_index)
 
         return "Error: Breakpoint %d not found\n" % (breakpoint_index)
 
@@ -611,8 +640,13 @@ class Debugger(object):
             for breakpoint in self.active_breakpoint_list.values():
                 result += " %d: %s\n" % (breakpoint.active_index, breakpoint)
 
-        if result == "":
-            result = "No breakpoints\n"
+        if self.pending_breakpoint_list:
+            result += "=== %sPending breakpoints%s ===\n" % (self.yellow_bg, self.nocolor)
+            for breakpoint in self.pending_breakpoint_list.values():
+                result += " %d: %s (pending)\n" % (breakpoint.index, breakpoint)
+
+        if not self.active_breakpoint_list and not self.pending_breakpoint_list:
+            result += "No breakpoints\n"
 
         return result
 
@@ -812,6 +846,32 @@ class Debugger(object):
                 self.line_list.insert(line, breakpoint)
             self.function_list[function.byte_code_ptr] = function
 
+        # Try to set the pending breakpoints
+        if self.pending_breakpoint_list:
+            logging.debug("Pending breakpoints available")
+            bp_list = self.pending_breakpoint_list
+
+            for breakpoint_index, breakpoint in bp_list.items():
+                source_lines = 0
+                for src in function_list:
+                    if src.name == breakpoint.source_name:
+                        source_lines = len(src.source)
+                        break
+                if breakpoint.line:
+                    if breakpoint.line <= source_lines:
+                        command = src.source_name + ":" + str(breakpoint.line)
+                        set_result = self._set_breakpoint(command, True)
+                        if set_result:
+                            result += set_result
+                            del bp_list[breakpoint_index]
+                elif breakpoint.function:
+                    command = breakpoint.function
+                    set_result = self._set_breakpoint(command, True)
+                    if set_result:
+                        result += set_result
+                        del bp_list[breakpoint_index]
+            if not bp_list:
+                 self._send_pending_config(0)
         return result
 
     def _release_function(self, data):
@@ -844,6 +904,13 @@ class Debugger(object):
                               breakpoint.offset)
         self.channel.send_message(self.byte_order, message)
 
+    def _send_pending_config(self, enable):
+        message = struct.pack(self.byte_order + "BBB",
+                              1 + 1,
+                              ESCARGOT_DEBUGGER_PENDING_CONFIG,
+                              enable)
+        self.channel.send_message(self.byte_order, message)
+
     def _get_breakpoint(self, breakpoint_data):
         function = self.function_list[breakpoint_data[0]]
         offset = breakpoint_data[1]
@@ -863,6 +930,17 @@ class Debugger(object):
         return (function.offsets[nearest_offset], False)
 
     def _enable_breakpoint(self, breakpoint):
+        if isinstance(breakpoint, PendingBreakpoint):
+            if self.breakpoint_pending_exists(breakpoint):
+                return "%sPending breakpoint%s already exists\n" % (self.yellow, self.nocolor)
+
+            self.next_breakpoint_index += 1
+            breakpoint.index = self.next_breakpoint_index
+            self.pending_breakpoint_list[self.next_breakpoint_index] = breakpoint
+            return ("%sPending breakpoint %d%s at %s\n" % (self.yellow,
+                                                           breakpoint.index,
+                                                           self.nocolor,
+                                                           breakpoint))
         if breakpoint.active_index < 0:
             self.next_breakpoint_index += 1
             self.active_breakpoint_list[self.next_breakpoint_index] = breakpoint
@@ -900,6 +978,21 @@ class Debugger(object):
 
             for function in functions_to_enable:
                 result += self._enable_breakpoint(function.lines[function.first_breakpoint_line])
+
+        if not result and not pending:
+            print("No breakpoint found, do you want to add a %spending breakpoint%s? (y or [n])" % \
+                  (self.yellow, self.nocolor))
+
+            ans = sys.stdin.readline()
+            if ans in ['yes\n', 'y\n']:
+                if not self.pending_breakpoint_list:
+                    self._send_pending_config(1)
+
+                if line:
+                    breakpoint = PendingBreakpoint(int(line.group(2)), line.group(1))
+                else:
+                    breakpoint = PendingBreakpoint(function=string)
+                result += self._enable_breakpoint(breakpoint)
 
         return result
 
@@ -976,3 +1069,24 @@ class Debugger(object):
             result = self.decode16(result)
 
         return result;
+
+    def delete_active(self):
+        for i in self.active_breakpoint_list.values():
+            breakpoint = self.active_breakpoint_list[i.active_index]
+            del self.active_breakpoint_list[i.active_index]
+            breakpoint.active_index = -1
+            self._send_breakpoint(breakpoint)
+
+    def delete_pending(self):
+        if self.pending_breakpoint_list:
+            self.pending_breakpoint_list.clear()
+            self._send_pending_config(0)
+
+    def breakpoint_pending_exists(self, breakpoint):
+        for existing_bp in self.pending_breakpoint_list.values():
+            if (breakpoint.line and existing_bp.source_name == breakpoint.source_name and \
+                existing_bp.line == breakpoint.line) \
+                or (not breakpoint.line and existing_bp.function == breakpoint.function):
+                    return True
+
+        return False

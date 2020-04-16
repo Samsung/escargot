@@ -1,0 +1,22 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_pending_breakpoints_lines.js:20
+(escargot-debugger) b :1
+No breakpoint found, do you want to add a pending breakpoint? (y or [n])
+Pending breakpoint 1 at :1
+(escargot-debugger) list
+=== Pending breakpoints ===
+ 1: :1 (pending)
+(escargot-debugger) c
+Print: pending-breakpoints_lines
+Breakpoint 2 at eval input:1
+Stopped at breakpoint:2 eval input:1
+(escargot-debugger) list
+=== Active breakpoints ===
+ 2: eval input:1
+(escargot-debugger) source
+Source: eval input
+   1 > 1;var a = 1
+(escargot-debugger) c
+Print: 1
+Connection closed.

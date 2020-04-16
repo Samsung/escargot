@@ -451,6 +451,9 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
             recursivelyGenerateByteCode(topCodeBlock);
             m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_DONE);
+            if (m_context->debugger()->pendingWait()) {
+                m_context->debugger()->waitForResolvingPendingBreakpoints();
+            }
         }
 
         GC_enable();
