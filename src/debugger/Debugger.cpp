@@ -686,14 +686,40 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
             getScopeVariables(state, index);
             return true;
         }
+        case ESCARGOT_DEBUGGER_PENDING_CONFIG: {
+            if (length != 2) {
+                break;
+            }
+            m_pendingWait = buffer[1];
+            return false;
+        }
+        case ESCARGOT_DEBUGGER_PENDING_RESUME: {
+            if (!m_waitForResume || length != 1) {
+                break;
+            }
+            m_waitForResume = false;
+            return true;
+        }
         }
 
         ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
         close();
         return false;
     }
-
     return enabled();
+}
+
+void Debugger::waitForResolvingPendingBreakpoints()
+{
+    m_waitForResume = true;
+    sendType(Debugger::ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING);
+    while (m_waitForResume) {
+        processIncomingMessages(nullptr, nullptr);
+
+        if (!enabled()) {
+            break;
+        }
+    }
 }
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)

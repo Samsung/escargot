@@ -95,6 +95,7 @@ public:
         ESCARGOT_MESSAGE_EXCEPTION = 41,
         ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42,
         ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43,
+        ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 44,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -119,6 +120,8 @@ public:
         ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 15,
         ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 16,
         ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 17,
+        ESCARGOT_DEBUGGER_PENDING_CONFIG = 18,
+        ESCARGOT_DEBUGGER_PENDING_RESUME = 19,
     };
 
     // Environment record types
@@ -170,6 +173,11 @@ public:
         return m_computeLocation;
     }
 
+    bool pendingWait(void)
+    {
+        return m_pendingWait;
+    }
+
     void setComputeLocation(bool value)
     {
         m_computeLocation = value;
@@ -207,12 +215,15 @@ public:
     void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
     String* getClientSource(String** sourceName);
+    void waitForResolvingPendingBreakpoints();
 
 protected:
     Debugger()
         : m_enabled(false)
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_computeLocation(false)
+        , m_pendingWait(false)
+        , m_waitForResume(false)
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
         , m_clientSourceData(nullptr)
         , m_clientSourceName(nullptr)
@@ -264,7 +275,9 @@ private:
     bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
 
     uint8_t m_delay;
-    bool m_computeLocation;
+    bool m_computeLocation : 1;
+    bool m_pendingWait : 1;
+    bool m_waitForResume : 1;
     ExecutionState* m_stopState;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     String* m_clientSourceData;
