@@ -14,3 +14,5 @@
     <test id="intl402/Collator/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
     <test id="intl402/DateTimeFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
     <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
+
+    <test id="intl402/Locale/likely-subtags"><reason>old version of ICU cannot run uloc_addLikelySubtags correctly with `und..` input</reason></test>
