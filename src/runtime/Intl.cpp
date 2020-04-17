@@ -1820,6 +1820,24 @@ std::vector<std::string> Intl::numberingSystemsForLocale(String* locale)
     return numberingSystems;
 }
 
+String* Intl::getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales)
+{
+    // Let requestedLocales be ? CanonicalizeLocaleList(locales).
+    ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
+    // If requestedLocales is not an empty List, then
+    // a. Let requestedLocale be requestedLocales[0].
+    // Else Let requestedLocale be DefaultLocale().
+    String* requestedLocale = requestedLocales.size() > 0 ? requestedLocales[0].toString(state) : defaultLocale(state);
+    // Let noExtensionsLocale be the String value that is requestedLocale with all Unicode locale extension sequences (6.2.1) removed.
+    String* noExtensionsLocale = removeUnicodeLocaleExtension(state, requestedLocale);
+
+    // Let availableLocales be a List with language tags that includes the languages for which the Unicode Character Database contains language sensitive case mappings. Implementations may add additional language tags if they support case mapping for additional locales.
+    const auto& availableLocales = state.context()->globalObject()->caseMappingAvailableLocales();
+    // Let locale be BestAvailableLocale(availableLocales, noExtensionsLocale).
+    String* locale = bestAvailableLocale(state, availableLocales, noExtensionsLocale);
+    return locale;
+}
+
 } // namespace Escargot
 
 #endif

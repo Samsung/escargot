@@ -1320,5 +1320,16 @@ const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlN
     }
     return m_intlNumberFormatAvailableLocales;
 }
+
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::caseMappingAvailableLocales()
+{
+    if (m_caseMappingAvailableLocales.size() == 0) {
+        m_caseMappingAvailableLocales.pushBack(String::fromASCII("tr"));
+        m_caseMappingAvailableLocales.pushBack(String::fromASCII("el"));
+        m_caseMappingAvailableLocales.pushBack(String::fromASCII("lt"));
+        m_caseMappingAvailableLocales.pushBack(String::fromASCII("az"));
+    }
+    return m_caseMappingAvailableLocales;
+}
 #endif
 } // namespace Escargot

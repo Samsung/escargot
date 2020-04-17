@@ -284,6 +284,8 @@ public:
 
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlNumberFormatAvailableLocales();
 
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& caseMappingAvailableLocales();
+
     FunctionObject* intlLocale()
     {
         return m_intlLocale;
@@ -639,6 +641,9 @@ private:
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlDateTimeFormatAvailableLocales;
     FunctionObject* m_intlNumberFormat;
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlNumberFormatAvailableLocales;
+
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_caseMappingAvailableLocales;
+
     FunctionObject* m_intlLocale; // %Locale%
     Object* m_intlLocalePrototype; // %LocalePrototype%
 #endif

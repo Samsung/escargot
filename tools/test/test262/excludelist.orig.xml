@@ -795,13 +795,6 @@
     <test id="built-ins/String/prototype/matchAll/regexp-prototype-matchAll-throws"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/matchAll/this-val-non-obj-coercible"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/matchAll/toString-this-val"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toLocaleUpperCase/special_casing"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toLowerCase/Final_Sigma_U180E"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toLowerCase/special_casing"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toLowerCase/special_casing_conditional"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/toUpperCase/special_casing"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/matchAll/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/invoked"><reason>TODO</reason></test>
@@ -2110,13 +2103,6 @@
     <test id="intl402/Segmenter/prototype/segment/segment-word-preceding"><reason>TODO</reason></test>
     <test id="intl402/Segmenter/prototype/toStringTag/toString"><reason>TODO</reason></test>
     <test id="intl402/Segmenter/prototype/toStringTag/toStringTag"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleLowerCase/capital_I_with_dot"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian"><reason>TODO</reason></test>
-    <test id="intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish"><reason>TODO</reason></test>
     <test id="intl402/TypedArray/prototype/toLocaleString/calls-toLocaleString-number-elements"><reason>TODO</reason></test>
     <test id="intl402/language-tags-invalid"><reason>TODO</reason></test>
     <test id="intl402/language-tags-with-underscore"><reason>TODO</reason></test>
