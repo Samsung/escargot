@@ -28,7 +28,8 @@
 #define u_totitle RuntimeICUBinder::ICU::instance().u_totitle
 #define u_charMirror RuntimeICUBinder::ICU::instance().u_charMirror
 #define u_countChar32 RuntimeICUBinder::ICU::instance().u_countChar32
-
+#define u_strToLower RuntimeICUBinder::ICU::instance().u_strToLower
+#define u_strToUpper RuntimeICUBinder::ICU::instance().u_strToUpper
 #define uloc_getDefault RuntimeICUBinder::ICU::instance().uloc_getDefault
 #define uloc_getName RuntimeICUBinder::ICU::instance().uloc_getName
 #define uloc_canonicalize RuntimeICUBinder::ICU::instance().uloc_canonicalize

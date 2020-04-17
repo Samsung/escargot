@@ -36,6 +36,8 @@ namespace RuntimeICUBinder {
     F(u_totitle, UChar32 (*)(UChar32), UChar32)                                                                                                                            \
     F(u_charMirror, UChar32 (*)(UChar32), UChar32)                                                                                                                         \
     F(u_countChar32, int32_t (*)(const UChar* s, int32_t length), int32_t)                                                                                                 \
+    F(u_strToLower, int32_t (*)(UChar * dest, int32_t destCapacity, const UChar* src, int32_t srcLength, const char* locale, UErrorCode* pErrorCode), int32_t)             \
+    F(u_strToUpper, int32_t (*)(UChar * dest, int32_t destCapacity, const UChar* src, int32_t srcLength, const char* locale, UErrorCode* pErrorCode), int32_t)             \
     F(unorm2_getNFCInstance, const UNormalizer2* (*)(UErrorCode*), const UNormalizer2*)                                                                                    \
     F(unorm2_getNFDInstance, const UNormalizer2* (*)(UErrorCode*), const UNormalizer2*)                                                                                    \
     F(unorm2_getNFKCInstance, const UNormalizer2* (*)(UErrorCode*), const UNormalizer2*)                                                                                   \

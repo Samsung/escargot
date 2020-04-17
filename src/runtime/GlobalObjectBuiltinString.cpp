@@ -28,6 +28,7 @@
 #include "NativeFunctionObject.h"
 #include "parser/Lexer.h"
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#include "Intl.h"
 #include "IntlCollator.h"
 #endif
 
@@ -843,6 +844,35 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
     return str->substring(from, from + span);
 }
 
+#if defined(ENABLE_ICU)
+static String* stringToLocaleConvertCase(ExecutionState& state, String* str, String* locale, bool isUpper)
+{
+    int32_t len = str->length();
+    char16_t* src = ALLOCA(len * 2, char16_t, state);
+    if (str->has8BitContent()) {
+        const LChar* buf = str->characters8();
+        for (int32_t i = 0; i < len; i++) {
+            src[i] = buf[i];
+        }
+    } else {
+        memcpy(src, str->characters16(), len * 2);
+    }
+
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t dest_length = len * 3;
+    char16_t* dest = ALLOCA(dest_length * 2, char16_t, state);
+    if (isUpper) {
+        dest_length = u_strToUpper(dest, dest_length, src, len, (const char*)locale->characters8(), &status);
+    } else {
+        dest_length = u_strToLower(dest, dest_length, src, len, (const char*)locale->characters8(), &status);
+    }
+
+    ASSERT(status != U_BUFFER_OVERFLOW_ERROR);
+    ASSERT(U_SUCCESS(status));
+    return new UTF16String(dest, dest_length);
+}
+#endif
+
 static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
@@ -851,23 +881,21 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
         const LChar* buf = str->characters8();
-        bool result = true;
         for (size_t i = 0; i < len; i++) {
 #if defined(ENABLE_ICU)
             char32_t u2 = u_tolower(buf[i]);
 #else
             char32_t u2 = tolower(buf[i]);
 #endif
-            if (UNLIKELY(u2 > 255)) {
-                result = false;
-                break;
-            }
+            ASSERT(u2 < 256);
             newStr[i] = u2;
         }
-        if (result)
-            return new Latin1String(std::move(newStr));
+        return new Latin1String(std::move(newStr));
     }
 
+#if defined(ENABLE_ICU)
+    return stringToLocaleConvertCase(state, str, String::emptyString, false);
+#else
     size_t len = str->length();
     UTF16StringData newStr;
     if (str->has8BitContent()) {
@@ -876,19 +904,16 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         for (size_t i = 0; i < len; i++) {
             newStr[i] = buf[i];
         }
-    } else
+    } else {
         newStr = UTF16StringData(str->characters16(), len);
+    }
     char16_t* buf = newStr.data();
     for (size_t i = 0; i < len;) {
         char32_t c;
         size_t iBefore = i;
         U16_NEXT(buf, i, len, c);
 
-#if defined(ENABLE_ICU)
-        c = u_tolower(c);
-#else
         c = tolower(c);
-#endif
         if (c <= 0x10000) {
             char16_t c2 = (char16_t)c;
             buf[iBefore] = c2;
@@ -898,6 +923,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         }
     }
     return new UTF16String(std::move(newStr));
+#endif
 }
 
 static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -907,24 +933,54 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         Latin1StringData newStr;
         size_t len = str->length();
         newStr.resizeWithUninitializedValues(len);
+
+        bool fitTo8Bit = true;
+        size_t sharpSCount = 0;
         const LChar* buf = str->characters8();
-        bool result = true;
         for (size_t i = 0; i < len; i++) {
-#if defined(ENABLE_ICU)
-            char32_t u2 = u_toupper(buf[i]);
-#else
-            char32_t u2 = toupper(buf[i]);
-#endif
-            if (UNLIKELY(u2 > 255)) {
-                result = false;
+            LChar ch = buf[i];
+            // U+00B5 and U+00FF are mapped to a character beyond U+00FF
+            if (UNLIKELY(ch == 0xB5 || ch == 0xFF)) {
+                fitTo8Bit = false;
                 break;
             }
+            // Lower case sharp-S converts to "SS" (two characters)
+            if (UNLIKELY(ch == 0xDF)) {
+                sharpSCount++;
+                continue;
+            }
+#if defined(ENABLE_ICU)
+            char32_t u2 = u_toupper(ch);
+#else
+            char32_t u2 = toupper(ch);
+#endif
+            ASSERT(u2 < 256);
             newStr[i] = u2;
         }
-        if (result)
+        if (fitTo8Bit) {
+            if (UNLIKELY(sharpSCount > 0)) {
+                Latin1StringData newStr2;
+                newStr2.resizeWithUninitializedValues(len + sharpSCount);
+                size_t destIndex = 0;
+                for (size_t i = 0; i < len; i++) {
+                    LChar ch = buf[i];
+                    if (ch != 0xDF) {
+                        newStr2[destIndex++] = newStr[i];
+                    } else {
+                        newStr2[destIndex++] = 'S';
+                        newStr2[destIndex++] = 'S';
+                    }
+                }
+                ASSERT(destIndex == len + sharpSCount);
+                return new Latin1String(std::move(newStr2));
+            }
             return new Latin1String(std::move(newStr));
+        }
     }
 
+#if defined(ENABLE_ICU)
+    return stringToLocaleConvertCase(state, str, String::emptyString, true);
+#else
     size_t len = str->length();
     UTF16StringData newStr;
     if (str->has8BitContent()) {
@@ -940,11 +996,8 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         char32_t c;
         size_t iBefore = i;
         U16_NEXT(buf, i, len, c);
-#if defined(ENABLE_ICU)
-        c = u_toupper(c);
-#else
+
         c = toupper(c);
-#endif
         if (c <= 0x10000) {
             char16_t c2 = (char16_t)c;
             buf[iBefore] = c2;
@@ -954,18 +1007,39 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
         }
     }
     return new UTF16String(std::move(newStr));
+#endif
 }
 
 static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleLowerCase);
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Value locales = argc > 0 ? argv[0] : Value();
+    String* locale = Intl::getLocaleForStringLocaleConvertCase(state, locales);
+    if (str->has8BitContent() && locale->length() == 0) {
+        return builtinStringToLowerCase(state, thisValue, argc, argv, newTarget);
+    } else {
+        return stringToLocaleConvertCase(state, str, locale, false);
+    }
+#else
     return builtinStringToLowerCase(state, thisValue, argc, argv, newTarget);
+#endif
 }
 
 static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleUpperCase);
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Value locales = argc > 0 ? argv[0] : Value();
+    String* locale = Intl::getLocaleForStringLocaleConvertCase(state, locales);
+    if (str->has8BitContent() && locale->length() == 0) {
+        return builtinStringToUpperCase(state, thisValue, argc, argv, newTarget);
+    } else {
+        return stringToLocaleConvertCase(state, str, locale, true);
+    }
+#else
     return builtinStringToUpperCase(state, thisValue, argc, argv, newTarget);
+#endif
 }
 
 enum StringTrimWhere : unsigned {

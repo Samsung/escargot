@@ -63,6 +63,7 @@ public:
         std::string privateUse;
     };
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
+    static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
 };
 } // namespace Escargot
 
