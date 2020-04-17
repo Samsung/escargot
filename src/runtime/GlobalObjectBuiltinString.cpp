@@ -185,26 +185,23 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), "%s: called on undefined or null");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
-    Value argument = argv[0];
-    RegExpObject* rx;
-    Value matcher;
-
-    if (!argument.isUndefinedOrNull()) {
-        Value matcher = argument.toObject(state)->getMethod(state, argument, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
+    Value regexp = argv[0];
+    if (!regexp.isUndefinedOrNull()) {
+        Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
         if (!matcher.isUndefined()) {
-            return Object::call(state, matcher, argument, 1, &thisValue);
+            Value args[1] = { thisValue };
+            return Object::call(state, matcher, regexp, 1, args);
         }
     }
 
     String* S = thisValue.toString(state);
-
-    rx = new RegExpObject(state, argument.isUndefined() ? String::emptyString : argument.toString(state), String::emptyString);
-    Value match = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
-    Value parameter[1] = { Value(S) };
-    return Object::call(state, match, rx, 1, parameter);
+    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
+    Value args[1] = { Value(S) };
+    return Object::call(state, func, rx, 1, args);
 }
 
 #if defined(ENABLE_ICU)
@@ -528,35 +525,36 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Call CheckObjectCoercible passing the this value as its argument.
-    // Let string be the result of calling ToString, giving it the this value as its argument.
-    RESOLVE_THIS_BINDING_TO_STRING(string, String, search);
+    if (thisValue.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().search.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+    }
+
     Value regexp = argv[0];
-    RegExpObject* rx;
-
-    //http://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.search
-    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, search);
-    if (!(regexp.isUndefinedOrNull())) {
-        Value searcher = obj->getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
-
+    if (!regexp.isUndefinedOrNull()) {
+        Value searcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
         if (!searcher.isUndefined()) {
-            Value parameter[1] = { obj };
-            return Object::call(state, searcher, regexp, 1, parameter);
+            Value args[1] = { thisValue };
+            return Object::call(state, searcher, regexp, 1, args);
         }
     }
-    rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
-    Value func = rx->getMethod(state, rx, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
-    Value parameter[1] = { Value(string) };
-    return Object::call(state, func, rx, 1, parameter);
+
+    String* string = thisValue.toString(state);
+    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search)).value(state, rx);
+    Value args[1] = { Value(string) };
+    return Object::call(state, func, rx, 1, args);
 }
 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Object, split);
+    if (thisValue.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().split.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+    }
+
     Value separator = argv[0];
-    bool isSeparatorRegExp = separator.isPointerValue() && separator.asPointerValue()->isRegExpObject();
     Value limit = argv[1];
-    uint64_t lim;
+    bool isSeparatorRegExp = separator.isPointerValue() && separator.asPointerValue()->isRegExpObject();
+
     // If separator is neither undefined nor null, then
     if (!separator.isUndefinedOrNull()) {
         // Let splitter be GetMethod(separator, @@split).
@@ -566,20 +564,26 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         // if splitter is builtin RegExp.prototype.split and separator is RegExpObject
         // we can use old method(ES5) below
         if (isSeparatorRegExp && splitter.isPointerValue() && splitter.asPointerValue() == state.context()->globalObject()->regexpSplitMethod()) {
-            // use old method(ES5)
-        } else {
+        } else if (!splitter.isUndefined()) {
             // If splitter is not undefined, then
-            if (!splitter.isUndefined()) {
-                // Return Call(splitter, separator, <<O, limit>>).
-                Value params[2] = { obj, limit };
-                return Object::call(state, splitter, separator, 2, params);
-            }
+            // Return Call(splitter, separator, <<O, limit>>).
+            Value params[2] = { thisValue, limit };
+            return Object::call(state, splitter, separator, 2, params);
         }
     }
-    // If limit is undefined, let lim = 2^53 - 1, else let lim = ToLength(limit).
-    // NOTE: not using toLength() here since it would return 0 for negative values, which results in incorrect behaviour.
-    lim = limit.isUndefined() ? (1ULL << 53) - 1 : limit.toUint32(state);
-    // Let R be ToString(separator).
+
+    // Let S be ? ToString(O).
+    String* S = thisValue.toString(state);
+    // Let A be ! ArrayCreate(0).
+    ArrayObject* A = new ArrayObject(state);
+    // Let lengthA = 0.
+    size_t lengthA = 0;
+    // If limit is undefined, let lim be 2^32 - 1; else let lim be ? ToUint32(limit).
+    uint64_t lim = limit.isUndefined() ? (1ULL << 32) - 1 : limit.toUint32(state);
+    // Let s be the length of S.
+    // Let p = 0.
+    size_t s = S->length(), p = 0;
+
     PointerValue* P;
     if (isSeparatorRegExp) {
         P = separator.asPointerValue()->asRegExpObject();
@@ -587,18 +591,10 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         P = separator.toString(state);
     }
 
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, split);
-    ArrayObject* A = new ArrayObject(state);
-    Value searcher;
-
-    // Let lengthA = 0.
-    size_t lengthA = 0;
-    // Let S be the number of elements in S.
-    // Let p = 0.
-    size_t s = S->length(), p = 0;
-
-    if (lim == 0)
+    // If lim = 0, return A.
+    if (lim == 0) {
         return A;
+    }
 
     if (separator.isUndefined()) {
         A->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(S, ObjectPropertyDescriptor::AllPresent));
