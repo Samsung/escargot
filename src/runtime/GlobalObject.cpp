@@ -105,6 +105,8 @@ GlobalObject::GlobalObject(ExecutionState& state)
     , m_intlNumberFormat(nullptr)
     , m_intlLocale(nullptr)
     , m_intlLocalePrototype(nullptr)
+    , m_intlPluralRules(nullptr)
+    , m_intlPluralRulesPrototype(nullptr)
 #endif
     , m_promise(nullptr)
     , m_promisePrototype(nullptr)
@@ -1330,6 +1332,35 @@ const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::caseM
         m_caseMappingAvailableLocales.pushBack(String::fromASCII("az"));
     }
     return m_caseMappingAvailableLocales;
+}
+
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlPluralRulesAvailableLocales()
+{
+    if (m_intlPluralRulesAvailableLocales.size() == 0) {
+        UErrorCode status = U_ZERO_ERROR;
+        UResourceBundle* rb = ures_openDirect(nullptr, "plurals", &status);
+        ASSERT(U_SUCCESS(status));
+        UResourceBundle* locales = ures_getByKey(rb, "locales", nullptr, &status);
+        ASSERT(U_SUCCESS(status));
+
+        UResourceBundle* res = nullptr;
+
+        while (true) {
+            res = ures_getNextResource(locales, res, &status);
+            if (res == nullptr || U_FAILURE(status)) {
+                break;
+            }
+            const char* l = ures_getKey(res);
+            String* locale = String::fromUTF8(l, strlen(l));
+            locale = icuLocaleToBCP47Tag(locale);
+            m_intlPluralRulesAvailableLocales.pushBack(locale);
+        }
+
+        ures_close(res);
+        ures_close(locales);
+        ures_close(rb);
+    }
+    return m_intlPluralRulesAvailableLocales;
 }
 #endif
 } // namespace Escargot

@@ -6240,6 +6240,465 @@ struct UBiDi;
 /** @stable ICU 2.0 */
 typedef struct UBiDi UBiDi;
 
+// upluralrules.h
+/**
+ * Type of plurals and PluralRules.
+ * @stable ICU 50
+ */
+enum UPluralType {
+    /**
+     * Plural rules for cardinal numbers: 1 file vs. 2 files.
+     * @stable ICU 50
+     */
+    UPLURAL_TYPE_CARDINAL,
+    /**
+     * Plural rules for ordinal numbers: 1st file, 2nd file, 3rd file, 4th file, etc.
+     * @stable ICU 50
+     */
+    UPLURAL_TYPE_ORDINAL,
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal UPluralType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
+    UPLURAL_TYPE_COUNT
+#endif /* U_HIDE_DEPRECATED_API */
+};
+/**
+ * @stable ICU 50
+ */
+typedef enum UPluralType UPluralType;
+
+/**
+ * Opaque UPluralRules object for use in C programs.
+ * @stable ICU 4.8
+ */
+struct UPluralRules;
+typedef struct UPluralRules UPluralRules; /**< C typedef for struct UPluralRules. @stable ICU 4.8 */
+
+// ures.h
+/**
+ * UResourceBundle is an opaque type for handles for resource bundles in C APIs.
+ * @stable ICU 2.0
+ */
+struct UResourceBundle;
+
+/**
+ * @stable ICU 2.0
+ */
+typedef struct UResourceBundle UResourceBundle;
+
+/**
+ * Numeric constants for types of resource items.
+ * @see ures_getType
+ * @stable ICU 2.0
+ */
+typedef enum {
+    /** Resource type constant for "no resource". @stable ICU 2.6 */
+    URES_NONE = -1,
+
+    /** Resource type constant for 16-bit Unicode strings. @stable ICU 2.6 */
+    URES_STRING = 0,
+
+    /** Resource type constant for binary data. @stable ICU 2.6 */
+    URES_BINARY = 1,
+
+    /** Resource type constant for tables of key-value pairs. @stable ICU 2.6 */
+    URES_TABLE = 2,
+
+    /**
+     * Resource type constant for aliases;
+     * internally stores a string which identifies the actual resource
+     * storing the data (can be in a different resource bundle).
+     * Resolved internally before delivering the actual resource through the API.
+     * @stable ICU 2.6
+     */
+    URES_ALIAS = 3,
+
+    /**
+     * Resource type constant for a single 28-bit integer, interpreted as
+     * signed or unsigned by the ures_getInt() or ures_getUInt() function.
+     * @see ures_getInt
+     * @see ures_getUInt
+     * @stable ICU 2.6
+     */
+    URES_INT = 7,
+
+    /** Resource type constant for arrays of resources. @stable ICU 2.6 */
+    URES_ARRAY = 8,
+
+    /**
+     * Resource type constant for vectors of 32-bit integers.
+     * @see ures_getIntVector
+     * @stable ICU 2.6
+     */
+    URES_INT_VECTOR = 14,
+#ifndef U_HIDE_DEPRECATED_API
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_NONE = URES_NONE,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_STRING = URES_STRING,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_BINARY = URES_BINARY,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_TABLE = URES_TABLE,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_ALIAS = URES_ALIAS,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_INT = URES_INT,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_ARRAY = URES_ARRAY,
+    /** @deprecated ICU 2.6 Use the URES_ constant instead. */
+    RES_INT_VECTOR = URES_INT_VECTOR,
+    /** @deprecated ICU 2.6 Not used. */
+    RES_RESERVED = 15,
+
+    /**
+     * One more than the highest normal UResType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
+    URES_LIMIT = 16
+#endif // U_HIDE_DEPRECATED_API
+} UResType;
+
+// unumberformatter.h
+/**
+ * An enum declaring how to render units, including currencies. Example outputs when formatting 123 USD and 123
+ * meters in <em>en-CA</em>:
+ *
+ * <p>
+ * <ul>
+ * <li>NARROW*: "$123.00" and "123 m"
+ * <li>SHORT: "US$ 123.00" and "123 m"
+ * <li>FULL_NAME: "123.00 US dollars" and "123 meters"
+ * <li>ISO_CODE: "USD 123.00" and undefined behavior
+ * <li>HIDDEN: "123.00" and "123"
+ * </ul>
+ *
+ * <p>
+ * This enum is similar to {@link UMeasureFormatWidth}.
+ *
+ * @stable ICU 60
+ */
+typedef enum UNumberUnitWidth {
+    /**
+     * Print an abbreviated version of the unit name. Similar to SHORT, but always use the shortest available
+     * abbreviation or symbol. This option can be used when the context hints at the identity of the unit. For more
+     * information on the difference between NARROW and SHORT, see SHORT.
+     *
+     * <p>
+     * In CLDR, this option corresponds to the "Narrow" format for measure units and the "¤¤¤¤¤" placeholder for
+     * currencies.
+     *
+     * @stable ICU 60
+     */
+    UNUM_UNIT_WIDTH_NARROW,
+
+    /**
+     * Print an abbreviated version of the unit name. Similar to NARROW, but use a slightly wider abbreviation or
+     * symbol when there may be ambiguity. This is the default behavior.
+     *
+     * <p>
+     * For example, in <em>es-US</em>, the SHORT form for Fahrenheit is "{0} °F", but the NARROW form is "{0}°",
+     * since Fahrenheit is the customary unit for temperature in that locale.
+     *
+     * <p>
+     * In CLDR, this option corresponds to the "Short" format for measure units and the "¤" placeholder for
+     * currencies.
+     *
+     * @stable ICU 60
+     */
+    UNUM_UNIT_WIDTH_SHORT,
+
+    /**
+     * Print the full name of the unit, without any abbreviations.
+     *
+     * <p>
+     * In CLDR, this option corresponds to the default format for measure units and the "¤¤¤" placeholder for
+     * currencies.
+     *
+     * @stable ICU 60
+     */
+    UNUM_UNIT_WIDTH_FULL_NAME,
+
+    /**
+     * Use the three-digit ISO XXX code in place of the symbol for displaying currencies. The behavior of this
+     * option is currently undefined for use with measure units.
+     *
+     * <p>
+     * In CLDR, this option corresponds to the "¤¤" placeholder for currencies.
+     *
+     * @stable ICU 60
+     */
+    UNUM_UNIT_WIDTH_ISO_CODE,
+
+    /**
+     * Format the number according to the specified unit, but do not display the unit. For currencies, apply
+     * monetary symbols and formats as with SHORT, but omit the currency symbol. For measure units, the behavior is
+     * equivalent to not specifying the unit at all.
+     *
+     * @stable ICU 60
+     */
+    UNUM_UNIT_WIDTH_HIDDEN,
+
+    /**
+     * One more than the highest UNumberUnitWidth value.
+     *
+     * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
+     */
+    UNUM_UNIT_WIDTH_COUNT
+} UNumberUnitWidth;
+
+/**
+ * An enum declaring the strategy for when and how to display grouping separators (i.e., the
+ * separator, often a comma or period, after every 2-3 powers of ten). The choices are several
+ * pre-built strategies for different use cases that employ locale data whenever possible. Example
+ * outputs for 1234 and 1234567 in <em>en-IN</em>:
+ *
+ * <ul>
+ * <li>OFF: 1234 and 12345
+ * <li>MIN2: 1234 and 12,34,567
+ * <li>AUTO: 1,234 and 12,34,567
+ * <li>ON_ALIGNED: 1,234 and 12,34,567
+ * <li>THOUSANDS: 1,234 and 1,234,567
+ * </ul>
+ *
+ * <p>
+ * The default is AUTO, which displays grouping separators unless the locale data says that grouping
+ * is not customary. To force grouping for all numbers greater than 1000 consistently across locales,
+ * use ON_ALIGNED. On the other hand, to display grouping less frequently than the default, use MIN2
+ * or OFF. See the docs of each option for details.
+ *
+ * <p>
+ * Note: This enum specifies the strategy for grouping sizes. To set which character to use as the
+ * grouping separator, use the "symbols" setter.
+ *
+ * @stable ICU 63
+ */
+typedef enum UNumberGroupingStrategy {
+    /**
+     * Do not display grouping separators in any locale.
+     *
+     * @stable ICU 61
+     */
+    UNUM_GROUPING_OFF,
+
+    /**
+     * Display grouping using locale defaults, except do not show grouping on values smaller than
+     * 10000 (such that there is a <em>minimum of two digits</em> before the first separator).
+     *
+     * <p>
+     * Note that locales may restrict grouping separators to be displayed only on 1 million or
+     * greater (for example, ee and hu) or disable grouping altogether (for example, bg currency).
+     *
+     * <p>
+     * Locale data is used to determine whether to separate larger numbers into groups of 2
+     * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
+     *
+     * @stable ICU 61
+     */
+    UNUM_GROUPING_MIN2,
+
+    /**
+     * Display grouping using the default strategy for all locales. This is the default behavior.
+     *
+     * <p>
+     * Note that locales may restrict grouping separators to be displayed only on 1 million or
+     * greater (for example, ee and hu) or disable grouping altogether (for example, bg currency).
+     *
+     * <p>
+     * Locale data is used to determine whether to separate larger numbers into groups of 2
+     * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
+     *
+     * @stable ICU 61
+     */
+    UNUM_GROUPING_AUTO,
+
+    /**
+     * Always display the grouping separator on values of at least 1000.
+     *
+     * <p>
+     * This option ignores the locale data that restricts or disables grouping, described in MIN2 and
+     * AUTO. This option may be useful to normalize the alignment of numbers, such as in a
+     * spreadsheet.
+     *
+     * <p>
+     * Locale data is used to determine whether to separate larger numbers into groups of 2
+     * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
+     *
+     * @stable ICU 61
+     */
+    UNUM_GROUPING_ON_ALIGNED,
+
+    /**
+     * Use the Western defaults: groups of 3 and enabled for all numbers 1000 or greater. Do not use
+     * locale data for determining the grouping strategy.
+     *
+     * @stable ICU 61
+     */
+    UNUM_GROUPING_THOUSANDS
+
+#ifndef U_HIDE_INTERNAL_API
+    ,
+    /**
+     * One more than the highest UNumberGroupingStrategy value.
+     *
+     * @internal ICU 62: The numeric value may change over time; see ICU ticket #12420.
+     */
+    UNUM_GROUPING_COUNT
+#endif /* U_HIDE_INTERNAL_API */
+
+} UNumberGroupingStrategy;
+
+/**
+ * An enum declaring how to denote positive and negative numbers. Example outputs when formatting
+ * 123, 0, and -123 in <em>en-US</em>:
+ *
+ * <ul>
+ * <li>AUTO: "123", "0", and "-123"
+ * <li>ALWAYS: "+123", "+0", and "-123"
+ * <li>NEVER: "123", "0", and "123"
+ * <li>ACCOUNTING: "$123", "$0", and "($123)"
+ * <li>ACCOUNTING_ALWAYS: "+$123", "+$0", and "($123)"
+ * <li>EXCEPT_ZERO: "+123", "0", and "-123"
+ * <li>ACCOUNTING_EXCEPT_ZERO: "+$123", "$0", and "($123)"
+ * </ul>
+ *
+ * <p>
+ * The exact format, including the position and the code point of the sign, differ by locale.
+ *
+ * @stable ICU 60
+ */
+typedef enum UNumberSignDisplay {
+    /**
+     * Show the minus sign on negative numbers, and do not show the sign on positive numbers. This is the default
+     * behavior.
+     *
+     * @stable ICU 60
+     */
+    UNUM_SIGN_AUTO,
+
+    /**
+     * Show the minus sign on negative numbers and the plus sign on positive numbers, including zero.
+     * To hide the sign on zero, see {@link UNUM_SIGN_EXCEPT_ZERO}.
+     *
+     * @stable ICU 60
+     */
+    UNUM_SIGN_ALWAYS,
+
+    /**
+     * Do not show the sign on positive or negative numbers.
+     *
+     * @stable ICU 60
+     */
+    UNUM_SIGN_NEVER,
+
+    /**
+     * Use the locale-dependent accounting format on negative numbers, and do not show the sign on positive numbers.
+     *
+     * <p>
+     * The accounting format is defined in CLDR and varies by locale; in many Western locales, the format is a pair
+     * of parentheses around the number.
+     *
+     * <p>
+     * Note: Since CLDR defines the accounting format in the monetary context only, this option falls back to the
+     * AUTO sign display strategy when formatting without a currency unit. This limitation may be lifted in the
+     * future.
+     *
+     * @stable ICU 60
+     */
+    UNUM_SIGN_ACCOUNTING,
+
+    /**
+     * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
+     * positive numbers, including zero. For more information on the accounting format, see the
+     * ACCOUNTING sign display strategy. To hide the sign on zero, see
+     * {@link UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO}.
+     *
+     * @stable ICU 60
+     */
+    UNUM_SIGN_ACCOUNTING_ALWAYS,
+
+    /**
+     * Show the minus sign on negative numbers and the plus sign on positive numbers. Do not show a
+     * sign on zero, numbers that round to zero, or NaN.
+     *
+     * @stable ICU 61
+     */
+    UNUM_SIGN_EXCEPT_ZERO,
+
+    /**
+     * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
+     * positive numbers. Do not show a sign on zero, numbers that round to zero, or NaN. For more
+     * information on the accounting format, see the ACCOUNTING sign display strategy.
+     *
+     * @stable ICU 61
+     */
+    UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO,
+
+    /**
+     * One more than the highest UNumberSignDisplay value.
+     *
+     * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
+     */
+    UNUM_SIGN_COUNT
+} UNumberSignDisplay;
+
+/**
+ * An enum declaring how to render the decimal separator.
+ *
+ * <p>
+ * <ul>
+ * <li>UNUM_DECIMAL_SEPARATOR_AUTO: "1", "1.1"
+ * <li>UNUM_DECIMAL_SEPARATOR_ALWAYS: "1.", "1.1"
+ * </ul>
+ *
+ * @stable ICU 60
+ */
+typedef enum UNumberDecimalSeparatorDisplay {
+    /**
+     * Show the decimal separator when there are one or more digits to display after the separator, and do not show
+     * it otherwise. This is the default behavior.
+     *
+     * @stable ICU 60
+     */
+    UNUM_DECIMAL_SEPARATOR_AUTO,
+
+    /**
+     * Always show the decimal separator, even if there are no digits to display after the separator.
+     *
+     * @stable ICU 60
+     */
+    UNUM_DECIMAL_SEPARATOR_ALWAYS,
+
+    /**
+     * One more than the highest UNumberDecimalSeparatorDisplay value.
+     *
+     * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
+     */
+    UNUM_DECIMAL_SEPARATOR_COUNT
+} UNumberDecimalSeparatorDisplay;
+
+struct UNumberFormatter;
+/**
+ * C-compatible version of icu::number::LocalizedNumberFormatter.
+ *
+ * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
+ *
+ * @stable ICU 62
+ */
+typedef struct UNumberFormatter UNumberFormatter;
+
+struct UFormattedNumber;
+/**
+ * C-compatible version of icu::number::FormattedNumber.
+ *
+ * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
+ *
+ * @stable ICU 62
+ */
+typedef struct UFormattedNumber UFormattedNumber;
+
 // uversion.h
 
 /** Maximum length of the copyright string.

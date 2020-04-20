@@ -295,6 +295,18 @@ public:
     {
         return m_intlLocalePrototype;
     }
+
+    FunctionObject* intlPluralRules()
+    {
+        return m_intlPluralRules;
+    }
+
+    Object* intlPluralRulesPrototype()
+    {
+        return m_intlPluralRulesPrototype;
+    }
+
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlPluralRulesAvailableLocales();
 #endif
     FunctionObject* promise()
     {
@@ -646,6 +658,9 @@ private:
 
     FunctionObject* m_intlLocale; // %Locale%
     Object* m_intlLocalePrototype; // %LocalePrototype%
+    FunctionObject* m_intlPluralRules; // %PluralRules%
+    Object* m_intlPluralRulesPrototype; // %PluralRulesPrototype%
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlPluralRulesAvailableLocales;
 #endif
 
     FunctionObject* m_promise;

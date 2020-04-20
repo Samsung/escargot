@@ -163,10 +163,8 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, C
     StringMap* opt = new StringMap();
     // Let matcher be the result of calling the GetOption abstract operation (defined in 9.2.9) with the arguments options, "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit".
     // Set opt.[[localeMatcher]] to matcher.
-    ValueVector values;
-    values.pushBack(String::fromASCII("lookup"));
-    values.pushBack(String::fromASCII("best fit"));
-    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), String::fromASCII("string"), values, String::fromASCII("best fit"));
+    Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
+    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
     // Set opt.[[localeMatcher]] to matcher.
     opt->insert(std::make_pair(String::fromASCII("localeMatcher"), matcher.toString(state)));
 
@@ -184,17 +182,14 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, C
     // Let dataLocale be the value of r.[[dataLocale]].
     // Let s be the result of calling the GetOption abstract operation with the arguments options, "style", "string",
     // a List containing the three String values "decimal", "percent", and "currency", and "decimal".
-    values.clear();
-    values.pushBack(String::fromASCII("decimal"));
-    values.pushBack(String::fromASCII("percent"));
-    values.pushBack(String::fromASCII("currency"));
-    Value s = Intl::getOption(state, options.asObject(), String::fromASCII("style"), String::fromASCII("string"), values, String::fromASCII("decimal"));
+    Value styleValues[3] = { String::fromASCII("decimal"), String::fromASCII("percent"), String::fromASCII("currency") };
+    Value s = Intl::getOption(state, options.asObject(), String::fromASCII("style"), Intl::StringValue, styleValues, 3, styleValues[0]);
 
     // Set the [[style]] internal property of numberFormat to s.
     numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("style")), s, numberFormat->internalSlot());
 
     // Let c be the result of calling the GetOption abstract operation with the arguments options, "currency", "string", undefined, and undefined.
-    Value c = Intl::getOption(state, options.asObject(), String::fromASCII("currency"), String::fromASCII("string"), ValueVector(), Value());
+    Value c = Intl::getOption(state, options.asObject(), String::fromASCII("currency"), Intl::StringValue, nullptr, 0, Value());
     // If c is not undefined and the result of calling the IsWellFormedCurrencyCode abstract operation (defined in 6.3.1) with argument c is false, then throw a RangeError exception.
     if (!c.isUndefined()) {
         String* currency = c.toString(state);
@@ -224,11 +219,8 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, C
 
     // Let cd be the result of calling the GetOption abstract operation with the arguments
     // options, "currencyDisplay", "string", a List containing the three String values "code", "symbol", and "name", and "symbol".
-    values.clear();
-    values.pushBack(String::fromASCII("code"));
-    values.pushBack(String::fromASCII("symbol"));
-    values.pushBack(String::fromASCII("name"));
-    Value cd = Intl::getOption(state, options.asObject(), String::fromASCII("currencyDisplay"), String::fromASCII("string"), values, String::fromASCII("symbol"));
+    Value currencyDisplayValues[3] = { String::fromASCII("code"), String::fromASCII("symbol"), String::fromASCII("name") };
+    Value cd = Intl::getOption(state, options.asObject(), String::fromASCII("currencyDisplay"), Intl::StringValue, currencyDisplayValues, 3, currencyDisplayValues[1]);
     // If s is "currency", then set the [[currencyDisplay]] internal property of numberFormat to cd.
     if (s.equalsTo(state, String::fromASCII("currency"))) {
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("currencyDisplay")), cd, numberFormat->internalSlot());
@@ -285,7 +277,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, C
     }
 
     // Let g be the result of calling the GetOption abstract operation with the arguments options, "useGrouping", "boolean", undefined, and true.
-    Value g = Intl::getOption(state, options.asObject(), String::fromASCII("useGrouping"), String::fromASCII("boolean"), ValueVector(), Value(true));
+    Value g = Intl::getOption(state, options.asObject(), String::fromASCII("useGrouping"), Intl::BooleanValue, nullptr, 0, Value(true));
     // Set the [[useGrouping]] internal property of numberFormat to g.
     numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("useGrouping")), g, numberFormat->internalSlot());
 

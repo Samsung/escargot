@@ -1748,7 +1748,7 @@ Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil
     return result;
 }
 
-Value Intl::getOption(ExecutionState& state, Object* options, Value property, String* type, ValueVector values, const Value& fallback)
+Value Intl::getOption(ExecutionState& state, Object* options, Value property, Intl::OptionValueType type, Value* values, size_t valuesLength, const Value& fallback)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.9
     // Let value be the result of calling the [[Get]] internal method of options with argument property.
@@ -1757,18 +1757,18 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, St
     if (!value.isUndefined()) {
         // Assert: type is "boolean" or "string".
         // If type is "boolean", then let value be ToBoolean(value).
-        if (type->equals("boolean")) {
+        if (type == Intl::OptionValueType::BooleanValue) {
             value = Value(value.toBoolean(state));
         }
         // If type is "string", then let value be ToString(value).
-        if (type->equals("string")) {
+        if (type == Intl::OptionValueType::StringValue) {
             value = Value(value.toString(state));
         }
         // If values is not undefined, then
-        if (values.size()) {
+        if (valuesLength) {
             // If values does not contain an element equal to value, then throw a RangeError exception.
             bool contains = false;
-            for (size_t i = 0; i < values.size(); i++) {
+            for (size_t i = 0; i < valuesLength; i++) {
                 if (values[i].equalsTo(state, value)) {
                     contains = true;
                 }

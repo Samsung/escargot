@@ -219,10 +219,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     StringMap* opt = new StringMap;
     // Let matcher be the result of calling the GetOption abstract operation (defined in 9.2.9) with arguments options,
     // "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit".
-    ValueVector tempV;
-    tempV.pushBack(String::fromASCII("lookup"));
-    tempV.pushBack(String::fromASCII("best fit"));
-    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), String::fromASCII("string"), tempV, String::fromASCII("best fit"));
+    Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
+    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
 
     // Set opt.[[localeMatcher]] to matcher.
     opt->insert(std::make_pair(String::fromASCII("localeMatcher"), matcher.toString(state)));
@@ -282,22 +280,20 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     // timeZoneName    "short", "long"
 
     // For each row of Table 3, except the header row, do:
-    std::function<void(String*, const ValueVector)> doTable3 = [&](String* prop, const ValueVector& values) {
+    std::function<void(String * prop, Value * values, size_t valuesSize)> doTable3 = [&](String* prop, Value* values, size_t valuesSize) {
         // Let prop be the name given in the Property column of the row.
         // Let value be the result of calling the GetOption abstract operation, passing as argument options, the name given in the Property column of the row,
         // "string", a List containing the strings given in the Values column of the row, and undefined.
-        Value value = Intl::getOption(state, options.asObject(), prop, String::fromASCII("string"), values, Value());
+        Value value = Intl::getOption(state, options.asObject(), prop, Intl::StringValue, values, valuesSize, Value());
         // Set opt.[[<prop>]] to value.
         opt->insert(std::make_pair(prop, value.toString(state)));
     };
 
     StringBuilder skeletonBuilder;
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("narrow"));
-    tempV.pushBack(String::fromASCII("short"));
-    tempV.pushBack(String::fromASCII("long"));
-    doTable3(String::fromASCII("weekday"), tempV);
+    Value narrowShortLongValues[3] = { String::fromASCII("narrow"), String::fromASCII("short"), String::fromASCII("long") };
+
+    doTable3(String::fromASCII("weekday"), narrowShortLongValues, 3);
 
     String* ret = opt->at(String::fromASCII("weekday"));
 
@@ -309,11 +305,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("EEEE");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("narrow"));
-    tempV.pushBack(String::fromASCII("short"));
-    tempV.pushBack(String::fromASCII("long"));
-    doTable3(String::fromASCII("era"), tempV);
+    doTable3(String::fromASCII("era"), narrowShortLongValues, 3);
 
     ret = opt->at(String::fromASCII("era"));
     if (ret->equals("narrow")) {
@@ -324,10 +316,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("GGGG");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("2-digit"));
-    tempV.pushBack(String::fromASCII("numeric"));
-    doTable3(String::fromASCII("year"), tempV);
+    Value twoDightNumericValues[2] = { String::fromASCII("2-digit"), String::fromASCII("numeric") };
+    doTable3(String::fromASCII("year"), twoDightNumericValues, 2);
 
     ret = opt->at(String::fromASCII("year"));
     if (ret->equals("2-digit")) {
@@ -336,13 +326,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("y");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("2-digit"));
-    tempV.pushBack(String::fromASCII("numeric"));
-    tempV.pushBack(String::fromASCII("narrow"));
-    tempV.pushBack(String::fromASCII("short"));
-    tempV.pushBack(String::fromASCII("long"));
-    doTable3(String::fromASCII("month"), tempV);
+    Value allValues[5] = { String::fromASCII("2-digit"), String::fromASCII("numeric"), String::fromASCII("narrow"), String::fromASCII("short"), String::fromASCII("long") };
+    doTable3(String::fromASCII("month"), allValues, 5);
 
     ret = opt->at(String::fromASCII("month"));
     if (ret->equals("2-digit")) {
@@ -357,10 +342,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("MMMM");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("2-digit"));
-    tempV.pushBack(String::fromASCII("numeric"));
-    doTable3(String::fromASCII("day"), tempV);
+    doTable3(String::fromASCII("day"), twoDightNumericValues, 2);
 
     ret = opt->at(String::fromASCII("day"));
     if (ret->equals("2-digit")) {
@@ -369,15 +351,12 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("d");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("2-digit"));
-    tempV.pushBack(String::fromASCII("numeric"));
-    doTable3(String::fromASCII("hour"), tempV);
+    doTable3(String::fromASCII("hour"), twoDightNumericValues, 2);
 
     ret = opt->at(String::fromASCII("hour"));
 
     // Let hr12 be the result of calling the GetOption abstract operation with arguments options, "hour12", "boolean", undefined, and undefined.
-    Value hr12Value = Intl::getOption(state, options.asObject(), String::fromASCII("hour12"), String::fromASCII("boolean"), ValueVector(), Value());
+    Value hr12Value = Intl::getOption(state, options.asObject(), String::fromASCII("hour12"), Intl::BooleanValue, nullptr, 0, Value());
     bool isHour12Undefined = hr12Value.isUndefined();
     bool hr12 = hr12Value.toBoolean(state);
 
@@ -398,10 +377,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
             skeletonBuilder.appendChar('H');
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("2-digit"));
-    tempV.pushBack(String::fromASCII("numeric"));
-    doTable3(String::fromASCII("minute"), tempV);
+    doTable3(String::fromASCII("minute"), twoDightNumericValues, 2);
 
     ret = opt->at(String::fromASCII("minute"));
     if (ret->equals("2-digit")) {
@@ -410,10 +386,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("m");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("2-digit"));
-    tempV.pushBack(String::fromASCII("numeric"));
-    doTable3(String::fromASCII("second"), tempV);
+    doTable3(String::fromASCII("second"), twoDightNumericValues, 2);
 
     ret = opt->at(String::fromASCII("second"));
     if (ret->equals("2-digit")) {
@@ -422,10 +395,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("s");
     }
 
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("short"));
-    tempV.pushBack(String::fromASCII("long"));
-    doTable3(String::fromASCII("timeZoneName"), tempV);
+    Value shortLongValues[2] = { String::fromASCII("short"), String::fromASCII("long") };
+    doTable3(String::fromASCII("timeZoneName"), shortLongValues, 2);
 
     ret = opt->at(String::fromASCII("second"));
     if (ret->equals("short")) {
@@ -438,10 +409,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     // Let formats be the result of calling the [[Get]] internal method of dataLocaleData with argument "formats".
     // Let matcher be the result of calling the GetOption abstract operation with arguments options,
     // "formatMatcher", "string", a List containing the two String values "basic" and "best fit", and "best fit".
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("basic"));
-    tempV.pushBack(String::fromASCII("best fit"));
-    matcher = Intl::getOption(state, options.asObject(), String::fromASCII("formatMatcher"), String::fromASCII("string"), tempV, String::fromASCII("best fit"));
+    Value formatMatcherValues[2] = { String::fromASCII("basic"), String::fromASCII("best fit") };
+    matcher = Intl::getOption(state, options.asObject(), String::fromASCII("formatMatcher"), Intl::StringValue, formatMatcherValues, 2, formatMatcherValues[1]);
 
     // Always use ICU date format generator, rather than our own pattern list and matcher.
     // Covers steps 28-36.

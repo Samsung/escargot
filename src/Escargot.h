@@ -225,6 +225,8 @@ typedef unsigned char LChar;
 #include <unicode/udat.h> // for Intl
 #include <unicode/udatpg.h> // for Intl
 #include <unicode/unum.h> // for Intl
+#include <unicode/upluralrules.h> // for Intl
+#include <unicode/unumberformatter.h> // for Intl
 
 // FIXME replace these vzone decl into include
 // I declare vzone api because there is no header file in include folder

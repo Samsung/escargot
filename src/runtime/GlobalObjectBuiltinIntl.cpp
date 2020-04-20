@@ -55,6 +55,7 @@
 #include "IntlCollator.h"
 #include "IntlNumberFormat.h"
 #include "IntlDateTimeFormat.h"
+#include "IntlPluralRules.h"
 #include "IntlLocale.h"
 
 namespace Escargot {
@@ -417,6 +418,125 @@ static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Va
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
 
+static Value builtinIntlPluralRulesConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 60) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.PluralRules needs 60+ version of ICU");
+    }
+#endif
+
+    Value locales = argc >= 1 ? argv[0] : Value();
+    Value options = argc >= 2 ? argv[1] : Value();
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->intlPluralRulesPrototype();
+    });
+
+    return new IntlPluralRulesObject(state, proto, locales, options);
+}
+
+static Value builtinIntlPluralRulesSelect(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://www.ecma-international.org/ecma-402/6.0/index.html#sec-intl.pluralrules.prototype.select
+    // Let pr be the this value.
+    // If Type(pr) is not Object, throw a TypeError exception.
+    // If pr does not have an [[InitializedPluralRules]] internal slot, throw a TypeError exception.
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlPluralRulesObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    // Let n be ? ToNumber(value).
+    double n = argv[0].toNumber(state);
+    // Return ? ResolvePlural(pr, n).
+    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePlural(n);
+}
+
+static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let pr be the this value.
+    // If Type(pr) is not Object, throw a TypeError exception.
+    // If pr does not have an [[InitializedPluralRules]] internal slot, throw a TypeError exception.
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlPluralRulesObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlPluralRulesObject* pr = thisValue.asObject()->asIntlPluralRulesObject();
+
+    // Let options be ! ObjectCreate(%ObjectPrototype%).
+    Object* options = new Object(state);
+    // For each row of Table 8, except the header row, in table order, do
+    // Let p be the Property value of the current row.
+    // Let v be the value of pr's internal slot whose name is the Internal Slot value of the current row.
+    // If v is not undefined, then
+    // Perform ! CreateDataPropertyOrThrow(options, p, v).
+
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("locale"))), ObjectPropertyDescriptor(pr->locale(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("type"))), ObjectPropertyDescriptor(pr->type(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("minimumIntegerDigits"))), ObjectPropertyDescriptor(Value(pr->minimumIntegerDigits()), ObjectPropertyDescriptor::AllPresent));
+
+    if (pr->minimumSignificantDigits()) {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("minimumSignificantDigits"))), ObjectPropertyDescriptor(Value(pr->minimumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("maximumSignificantDigits"))), ObjectPropertyDescriptor(Value(pr->maximumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
+    } else {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("minimumFractionDigits"))), ObjectPropertyDescriptor(Value(pr->minimumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("maximumFractionDigits"))), ObjectPropertyDescriptor(Value(pr->maximumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
+    }
+
+
+    // Let pluralCategories be a List of Strings representing the possible results of PluralRuleSelect for the selected locale pr.[[Locale]]. This List consists of unique string values, from the the list "zero", "one", "two", "few", "many" and "other", that are relevant for the locale whose localization is specified in LDML Language Plural Rules.
+    // Perform ! CreateDataProperty(options, "pluralCategories", CreateArrayFromList(pluralCategories)).
+    ArrayObject* pluralCategories = new ArrayObject(state);
+
+    UErrorCode status = U_ZERO_ERROR;
+    UEnumeration* ue = uplrules_getKeywords(pr->icuPluralRules(), &status);
+    ASSERT(U_SUCCESS(status));
+    uint32_t i = 0;
+
+    do {
+        int32_t size;
+        const char* str = uenum_next(ue, &size, &status);
+        ASSERT(U_SUCCESS(status));
+
+        if (!str) {
+            break;
+        }
+
+        String* s = String::fromUTF8(str, size);
+        pluralCategories->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, (size_t)i), ObjectPropertyDescriptor(Value(s), ObjectPropertyDescriptor::AllPresent));
+        i++;
+    } while (true);
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("pluralCategories"))), ObjectPropertyDescriptor(pluralCategories, ObjectPropertyDescriptor::AllPresent));
+
+    uenum_close(ue);
+    // Return options.
+    return options;
+}
+
+static Value builtinIntlPluralRulesSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If options is not provided, then let options be undefined.
+    Value locales = argv[0];
+    Value options;
+    if (argc >= 2) {
+        options = argv[1];
+    }
+    // Let availableLocales be the value of the [[availableLocales]] internal property of the standard built-in object that is the initial value of Intl.Collator.
+    const auto& availableLocales = state.context()->globalObject()->intlPluralRulesAvailableLocales();
+    // Let requestedLocales be the result of calling the CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
+    ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
+    // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
+    return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
+}
+
 static Value builtinIntlLocaleConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -758,6 +878,25 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlNumberFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+    m_intlPluralRules = new NativeFunctionObject(state, NativeFunctionInfo(strings->PluralRules, builtinIntlPluralRulesConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlPluralRules->setGlobalIntrinsicObject(state);
+
+    m_intlPluralRulesPrototype = m_intlPluralRules->getFunctionPrototype(state).asObject();
+    m_intlPluralRulesPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlPluralRulesPrototype->defineOwnProperty(state, state.context()->staticStrings().select,
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->select, builtinIntlPluralRulesSelect, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlPluralRulesPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlPluralRulesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlPluralRulesPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                 ObjectPropertyDescriptor(Value(state.context()->staticStrings().Object.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intlPluralRules->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlPluralRulesSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+
     m_intlLocale = new NativeFunctionObject(state, NativeFunctionInfo(strings->Locale, builtinIntlLocaleConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlLocale->setGlobalIntrinsicObject(state);
 
@@ -854,6 +993,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->NumberFormat),
                               ObjectPropertyDescriptor(m_intlNumberFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intl->defineOwnProperty(state, ObjectPropertyName(strings->PluralRules),
+                              ObjectPropertyDescriptor(m_intlPluralRules, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Locale),
                               ObjectPropertyDescriptor(m_intlLocale, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

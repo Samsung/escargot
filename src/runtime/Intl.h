@@ -42,7 +42,11 @@ public:
     static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales);
     static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
     static Value supportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options);
-    static Value getOption(ExecutionState& state, Object* options, Value property, String* type, ValueVector values, const Value& fallback);
+    enum OptionValueType {
+        StringValue,
+        BooleanValue
+    };
+    static Value getOption(ExecutionState& state, Object* options, Value property, OptionValueType type, Value* values, size_t valuesLength, const Value& fallback);
     static std::string preferredLanguage(const std::string& language);
     static String* icuLocaleToBCP47Tag(String* string);
     static std::vector<std::string> calendarsForLocale(String* locale);
