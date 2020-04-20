@@ -432,7 +432,9 @@ namespace Escargot {
     F(script)                     \
     F(region)                     \
     F(maximize)                   \
-    F(minimize)
+    F(minimize)                   \
+    F(PluralRules)                \
+    F(select)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \

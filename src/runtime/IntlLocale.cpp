@@ -49,7 +49,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
 
     String* languageString = String::fromASCII("language");
     // Let language be ? GetOption(options, "language", "string", undefined, undefined).
-    Value language = options ? Intl::getOption(state, options.value(), languageString, state.context()->staticStrings().string.string(), ValueVector(), Value()) : Value();
+    Value language = options ? Intl::getOption(state, options.value(), languageString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If language is not undefined, then
     if (!language.isUndefined()) {
         // If language does not match the unicode_language_subtag production, throw a RangeError exception.
@@ -63,7 +63,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
 
     String* scriptString = String::fromASCII("script");
     // Let script be ? GetOption(options, "script", "string", undefined, undefined).
-    Value script = options ? Intl::getOption(state, options.value(), scriptString, state.context()->staticStrings().string.string(), ValueVector(), Value()) : Value();
+    Value script = options ? Intl::getOption(state, options.value(), scriptString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If script is not undefined, then
     if (!script.isUndefined()) {
         // If script does not match the unicode_script_subtag, throw a RangeError exception.
@@ -75,7 +75,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
 
     String* regionString = String::fromASCII("region");
     // Let region be ? GetOption(options, "region", "string", undefined, undefined).
-    Value region = options ? Intl::getOption(state, options.value(), regionString, state.context()->staticStrings().string.string(), ValueVector(), Value()) : Value();
+    Value region = options ? Intl::getOption(state, options.value(), regionString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If region is not undefined, then
     if (!region.isUndefined()) {
         // If region does not match the unicode_region_subtag, throw a RangeError exception.
@@ -208,7 +208,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
 
     // Let calendar be ? GetOption(options, "calendar", "string", undefined, undefined).
     String* calendarString = String::fromASCII("calendar");
-    Value calendar = options ? Intl::getOption(state, options.value(), calendarString, state.context()->staticStrings().string.string(), ValueVector(), Value()) : Value();
+    Value calendar = options ? Intl::getOption(state, options.value(), calendarString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If calendar is not undefined, then
     if (!calendar.isUndefined()) {
         // If calendar does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
@@ -222,7 +222,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     }
 
     // Let collation be ? GetOption(options, "collation", "string", undefined, undefined).
-    Value collation = options ? Intl::getOption(state, options.value(), String::fromASCII("collation"), state.context()->staticStrings().string.string(), ValueVector(), Value()) : Value();
+    Value collation = options ? Intl::getOption(state, options.value(), String::fromASCII("collation"), Intl::StringValue, nullptr, 0, Value()) : Value();
     // If collation is not undefined, then
     if (!collation.isUndefined()) {
         // If collation does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
@@ -237,30 +237,23 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
 
 
     // Let hc be ? GetOption(options, "hourCycle", "string", « "h11", "h12", "h23", "h24" », undefined).
-    ValueVector vv;
-    vv.pushBack(String::fromASCII("h11"));
-    vv.pushBack(String::fromASCII("h12"));
-    vv.pushBack(String::fromASCII("h23"));
-    vv.pushBack(String::fromASCII("h24"));
-    Value hourCycle = options ? Intl::getOption(state, options.value(), String::fromASCII("hourCycle"), state.context()->staticStrings().string.string(), vv, Value()) : Value();
+    Value hourCycleValues[4] = { String::fromASCII("h11"), String::fromASCII("h12"), String::fromASCII("h23"), String::fromASCII("h24") };
+    Value hourCycle = options ? Intl::getOption(state, options.value(), String::fromASCII("hourCycle"), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
     // Set opt.[[hc]] to hc.
     if (!hourCycle.isUndefined()) {
         hc = hourCycle.asString();
     }
 
     // Let kf be ? GetOption(options, "caseFirst", "string", « "upper", "lower", "false" », undefined).
-    vv.clear();
-    vv.pushBack(String::fromASCII("upper"));
-    vv.pushBack(String::fromASCII("lower"));
-    vv.pushBack(String::fromASCII("false"));
+    Value caseFirstValues[3] = { String::fromASCII("upper"), String::fromASCII("lower"), String::fromASCII("false") };
     // Set opt.[[kf]] to kf.
-    Value caseFirst = options ? Intl::getOption(state, options.value(), String::fromASCII("caseFirst"), state.context()->staticStrings().string.string(), vv, Value()) : Value();
+    Value caseFirst = options ? Intl::getOption(state, options.value(), String::fromASCII("caseFirst"), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
     if (!caseFirst.isUndefined()) {
         kf = caseFirst.asString();
     }
 
     // Let kn be ? GetOption(options, "numeric", "boolean", undefined, undefined).
-    Value numeric = options ? Intl::getOption(state, options.value(), String::fromASCII("numeric"), state.context()->staticStrings().boolean.string(), ValueVector(), Value()) : Value();
+    Value numeric = options ? Intl::getOption(state, options.value(), String::fromASCII("numeric"), Intl::BooleanValue, nullptr, 0, Value()) : Value();
     // If kn is not undefined, set kn to ! ToString(kn).
     if (!numeric.isUndefined()) {
         kn = numeric.toString(state);
@@ -268,7 +261,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     // Set opt.[[kn]] to kn.
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = options ? Intl::getOption(state, options.value(), String::fromASCII("numberingSystem"), state.context()->staticStrings().string.string(), ValueVector(), Value()) : Value();
+    Value numberingSystem = options ? Intl::getOption(state, options.value(), String::fromASCII("numberingSystem"), Intl::StringValue, nullptr, 0, Value()) : Value();
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.

@@ -182,10 +182,8 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
     // Let u be the result of calling the GetOption abstract operation (defined in 9.2.9) with arguments options,
     // "usage", "string", a List containing the two String values "sort" and "search", and "sort".
-    ValueVector values;
-    values.pushBack(String::fromASCII("sort"));
-    values.pushBack(String::fromASCII("search"));
-    Value u = Intl::getOption(state, options.asObject(), String::fromASCII("usage"), String::fromASCII("string"), values, String::fromASCII("sort"));
+    Value usageValues[2] = { String::fromASCII("sort"), String::fromASCII("search") };
+    Value u = Intl::getOption(state, options.asObject(), String::fromASCII("usage"), Intl::StringValue, usageValues, 2, usageValues[0]);
 
     // Set the [[usage]] internal property of collator to u.
     collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("usage")), u, collator->internalSlot());
@@ -207,10 +205,8 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
     // Let matcher be the result of calling the GetOption abstract operation with arguments
     // options, "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit"
-    values.clear();
-    values.pushBack(String::fromASCII("lookup"));
-    values.pushBack(String::fromASCII("best fit"));
-    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), String::fromASCII("string"), values, String::fromASCII("best fit"));
+    Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
+    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
     // Set opt.[[localeMatcher]] to matcher.
     opt->insert(std::make_pair(String::fromASCII("localeMatcher"), matcher.toString(state)));
 
@@ -218,29 +214,27 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Key Property    Type            Values
     // kn  numeric    "boolean"
     // kf  caseFirst  "string"   "upper", "lower", "false"
-    std::function<void(String*, Value, String*, ValueVector)> doTable1 = [&](String* keyColumn, Value propertyColumn, String* typeColumn, ValueVector values) {
+    std::function<void(String * keyColumn, Value propertyColumn, Intl::OptionValueType type, Value * values, size_t valuesSize)> doTable1 = [&](String* keyColumn, Value propertyColumn, Intl::OptionValueType type, Value* values, size_t valuesSize) {
         // Let key be the name given in the Key column of the row.
         Value key = keyColumn;
 
         // Let value be the result of calling the GetOption abstract operation, passing as arguments options, the name given in the Property column of the row,
         // the string given in the Type column of the row,
         // a List containing the Strings given in the Values column of the row or undefined if no strings are given, and undefined.
-        Value value = Intl::getOption(state, options.asObject(), propertyColumn, typeColumn, values, Value());
+
+        Value value = Intl::getOption(state, options.asObject(), propertyColumn, type, values, valuesSize, Value());
         // If the string given in the Type column of the row is "boolean" and value is not undefined, then
         // Let value be ToString(value).
-        if (typeColumn->equals("boolean") && !value.isUndefined()) {
+        if (type == Intl::BooleanValue && !value.isUndefined()) {
             value = value.toString(state);
         }
         // Set opt.[[<key>]] to value.
         opt->insert(std::make_pair(keyColumn, value.toString(state)));
     };
 
-    doTable1(String::fromASCII("kn"), String::fromASCII("numeric"), String::fromASCII("boolean"), ValueVector());
-    ValueVector tempV;
-    tempV.pushBack(String::fromASCII("upper"));
-    tempV.pushBack(String::fromASCII("lower"));
-    tempV.pushBack(String::fromASCII("false"));
-    doTable1(String::fromASCII("kf"), String::fromASCII("caseFirst"), String::fromASCII("string"), tempV);
+    doTable1(String::fromASCII("kn"), String::fromASCII("numeric"), Intl::BooleanValue, nullptr, 0);
+    Value caseFirstValue[3] = { String::fromASCII("upper"), String::fromASCII("lower"), String::fromASCII("false") };
+    doTable1(String::fromASCII("kf"), String::fromASCII("caseFirst"), Intl::StringValue, caseFirstValue, 3);
 
     // Let relevantExtensionKeys be the value of the [[relevantExtensionKeys]] internal property of Collator.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
@@ -311,12 +305,8 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
     // Let s be the result of calling the GetOption abstract operation with arguments
     // options, "sensitivity", "string", a List containing the four String values "base", "accent", "case", and "variant", and undefined.
-    tempV.clear();
-    tempV.pushBack(String::fromASCII("base"));
-    tempV.pushBack(String::fromASCII("accent"));
-    tempV.pushBack(String::fromASCII("case"));
-    tempV.pushBack(String::fromASCII("variant"));
-    Value s = Intl::getOption(state, options.asObject(), Value(String::fromASCII("sensitivity")), String::fromASCII("string"), tempV, Value());
+    Value sensitivityValue[4] = { String::fromASCII("base"), String::fromASCII("accent"), String::fromASCII("case"), String::fromASCII("variant") };
+    Value s = Intl::getOption(state, options.asObject(), Value(String::fromASCII("sensitivity")), Intl::StringValue, sensitivityValue, 4, Value());
     String* sensitivityString = s.toString(state);
     // If s is undefined, then
     // If u is "sort", then let s be "variant".
@@ -335,7 +325,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
 
     // Let ip be the result of calling the GetOption abstract operation with arguments options, "ignorePunctuation", "boolean", undefined, and false.
-    Value ip = Intl::getOption(state, options.asObject(), String::fromASCII("ignorePunctuation"), String::fromASCII("boolean"), ValueVector(), Value(false));
+    Value ip = Intl::getOption(state, options.asObject(), String::fromASCII("ignorePunctuation"), Intl::BooleanValue, nullptr, 0, Value(false));
     // Set the [[ignorePunctuation]] internal property of collator to ip.
     collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation")), ObjectPropertyDescriptor(ip));
     // Set the [[boundCompare]] internal property of collator to undefined.

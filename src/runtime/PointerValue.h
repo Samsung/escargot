@@ -63,6 +63,7 @@ class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
+class IntlPluralRulesObject;
 #endif
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
@@ -355,6 +356,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isIntlPluralRulesObject() const
+    {
+        return false;
+    }
 #endif
 
     virtual bool isCallable() const
@@ -600,6 +606,12 @@ public:
     {
         ASSERT(isIntlLocaleObject());
         return (IntlLocaleObject*)this;
+    }
+
+    IntlPluralRulesObject* asIntlPluralRulesObject()
+    {
+        ASSERT(isIntlPluralRulesObject());
+        return (IntlPluralRulesObject*)this;
     }
 #endif
 

@@ -152,4 +152,28 @@
 #define uscript_hasScript RuntimeICUBinder::ICU::instance().uscript_hasScript
 #define uscript_getShortName RuntimeICUBinder::ICU::instance().uscript_getShortName
 
+#define uplrules_open RuntimeICUBinder::ICU::instance().uplrules_open
+#define uplrules_openForType RuntimeICUBinder::ICU::instance().uplrules_openForType
+#define uplrules_close RuntimeICUBinder::ICU::instance().uplrules_close
+#define uplrules_select RuntimeICUBinder::ICU::instance().uplrules_select
+#define uplrules_getKeywords RuntimeICUBinder::ICU::instance().uplrules_getKeywords
+#define uplrules_selectWithFormat RuntimeICUBinder::ICU::instance().uplrules_selectWithFormat
+
+#define ures_open RuntimeICUBinder::ICU::instance().ures_open
+#define ures_openDirect RuntimeICUBinder::ICU::instance().ures_openDirect
+#define ures_getByKey RuntimeICUBinder::ICU::instance().ures_getByKey
+#define ures_close RuntimeICUBinder::ICU::instance().ures_close
+#define ures_getKey RuntimeICUBinder::ICU::instance().ures_getKey
+#define ures_getNextResource RuntimeICUBinder::ICU::instance().ures_getNextResource
+#define ures_hasNext RuntimeICUBinder::ICU::instance().ures_hasNext
+#define ures_resetIterator RuntimeICUBinder::ICU::instance().ures_resetIterator
+
+#define unumf_openForSkeletonAndLocale RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocale
+#define unumf_openForSkeletonAndLocaleWithError RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocaleWithError
+#define unumf_openResult RuntimeICUBinder::ICU::instance().unumf_openResult
+#define unumf_formatDouble RuntimeICUBinder::ICU::instance().unumf_formatDouble
+#define unumf_resultToString RuntimeICUBinder::ICU::instance().unumf_resultToString
+#define unumf_close RuntimeICUBinder::ICU::instance().unumf_close
+#define unumf_closeResult RuntimeICUBinder::ICU::instance().unumf_closeResult
+
 #endif
