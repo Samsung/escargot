@@ -50,6 +50,7 @@
 #include "Value.h"
 #include "Intl.h"
 #include "IntlDateTimeFormat.h"
+#include "ArrayObject.h"
 
 namespace Escargot {
 
@@ -583,6 +584,165 @@ UTF16StringDataNonGCStd IntlDateTimeFormat::format(ExecutionState& state, Object
         status = U_ZERO_ERROR;
         udat_format(udat, x, (UChar*)result.data(), resultLength, nullptr, &status);
     }
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format date value");
+    }
+
+    return result;
+}
+
+
+static String* icuFieldTypeToPartName(int32_t fieldName)
+{
+    if (fieldName == -1) {
+        return String::fromASCII("literal");
+    }
+
+    switch ((UDateFormatField)fieldName) {
+    case UDAT_ERA_FIELD:
+        return String::fromASCII("era");
+    case UDAT_YEAR_FIELD:
+    case UDAT_YEAR_WOY_FIELD:
+    case UDAT_EXTENDED_YEAR_FIELD:
+    case UDAT_YEAR_NAME_FIELD:
+        return String::fromASCII("year");
+    case UDAT_MONTH_FIELD:
+    case UDAT_STANDALONE_MONTH_FIELD:
+        return String::fromASCII("month");
+    case UDAT_DATE_FIELD:
+    case UDAT_JULIAN_DAY_FIELD:
+        return String::fromASCII("day");
+    case UDAT_HOUR_OF_DAY1_FIELD:
+    case UDAT_HOUR_OF_DAY0_FIELD:
+    case UDAT_HOUR1_FIELD:
+    case UDAT_HOUR0_FIELD:
+        return String::fromASCII("hour");
+    case UDAT_MINUTE_FIELD:
+        return String::fromASCII("minute");
+    case UDAT_SECOND_FIELD:
+        return String::fromASCII("second");
+    case UDAT_DAY_OF_WEEK_FIELD:
+    case UDAT_STANDALONE_DAY_FIELD:
+    case UDAT_DOW_LOCAL_FIELD:
+    case UDAT_DAY_OF_WEEK_IN_MONTH_FIELD:
+        return String::fromASCII("weekday");
+    case UDAT_AM_PM_FIELD:
+        return String::fromASCII("dayPeriod");
+    case UDAT_TIMEZONE_FIELD:
+        return String::fromASCII("timeZoneName");
+    default:
+        ASSERT_NOT_REACHED();
+        return String::emptyString;
+    }
+}
+
+
+ArrayObject* IntlDateTimeFormat::formatToParts(ExecutionState& state, Object* dateTimeFormat, double x)
+{
+    if (!std::isfinite(x)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is not finite in DateTimeFormat format()");
+    }
+
+    ArrayObject* result = new ArrayObject(state);
+
+    UDateFormat* udat = (UDateFormat*)dateTimeFormat->internalSlot()->extraData();
+
+    UErrorCode status = U_ZERO_ERROR;
+
+    UFieldPositionIterator* fpositer;
+    fpositer = ufieldpositer_open(&status);
+    ASSERT(U_SUCCESS(status));
+
+    UTF16StringDataNonGCStd resultString;
+    resultString.resize(32);
+    auto resultLength = udat_formatForFields(udat, x, (UChar*)resultString.data(), resultString.size(), fpositer, &status);
+    resultString.resize(resultLength);
+
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        status = U_ZERO_ERROR;
+        udat_formatForFields(udat, x, (UChar*)resultString.data(), resultLength, fpositer, &status);
+    }
+
+    struct FieldItem {
+        int32_t start;
+        int32_t end;
+        int32_t type;
+    };
+
+    std::vector<FieldItem> fields;
+    while (true) {
+        int32_t start;
+        int32_t end;
+        int32_t type = ufieldpositer_next(fpositer, &start, &end);
+        if (type < 0) {
+            break;
+        }
+
+        FieldItem item;
+        item.start = start;
+        item.end = end;
+        item.type = type;
+
+        fields.push_back(item);
+    }
+
+    ufieldpositer_close(fpositer);
+
+    // add literal field if needs
+    std::vector<FieldItem> literalFields;
+    for (size_t i = 0; i < resultString.length(); i++) {
+        bool found = false;
+        for (size_t j = 0; j < fields.size(); j++) {
+            if ((size_t)fields[j].start <= i && i < (size_t)fields[j].end) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            size_t end = i + 1;
+            while (end != resultString.length()) {
+                bool found = false;
+                for (size_t j = 0; j < fields.size(); j++) {
+                    if ((size_t)fields[j].start <= end && end < (size_t)fields[j].end) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    break;
+                }
+                end++;
+            }
+
+            FieldItem newItem;
+            newItem.type = -1;
+            newItem.start = i;
+            newItem.end = end;
+            i = end - 1;
+            literalFields.push_back(newItem);
+        }
+    }
+    fields.insert(fields.end(), literalFields.begin(), literalFields.end());
+
+    std::sort(fields.begin(), fields.end(),
+              [](const FieldItem& a, const FieldItem& b) -> bool {
+                  return a.start < b.start;
+              });
+
+    AtomicString typeAtom(state, "type", 4);
+    AtomicString valueAtom = state.context()->staticStrings().value;
+
+    for (size_t i = 0; i < fields.size(); i++) {
+        const FieldItem& item = fields[i];
+
+        Object* o = new Object(state);
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(icuFieldTypeToPartName(item.type), ObjectPropertyDescriptor::AllPresent));
+        auto sub = resultString.substr(item.start, item.end - item.start);
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
+
+        result->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, i), ObjectPropertyDescriptor(o, ObjectPropertyDescriptor::AllPresent));
+    }
+
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format date value");
     }

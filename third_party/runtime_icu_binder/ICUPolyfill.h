@@ -87,9 +87,9 @@
 
 #define udat_getAvailable RuntimeICUBinder::ICU::instance().udat_getAvailable
 #define udat_countAvailable RuntimeICUBinder::ICU::instance().udat_countAvailable
-
 #define udat_open RuntimeICUBinder::ICU::instance().udat_open
 #define udat_format RuntimeICUBinder::ICU::instance().udat_format
+#define udat_formatForFields RuntimeICUBinder::ICU::instance().udat_formatForFields
 #define udat_close RuntimeICUBinder::ICU::instance().udat_close
 #define udat_getCalendar RuntimeICUBinder::ICU::instance().udat_getCalendar
 
