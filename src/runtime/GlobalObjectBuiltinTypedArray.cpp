@@ -174,6 +174,7 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, Value thisValue, siz
 
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
     return Value();
 }
 
@@ -355,21 +356,22 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInTypedArrayConstructor);
     }
 
-    TA* obj = new TA(state);
-    obj->setPrototypeFromConstructor(state, newTarget.value());
+    TA* obj;
     if (argc == 0) {
         // $22.2.1.1 %TypedArray% ()
-        obj->allocateTypedArray(state, 0);
-    } else if (argc >= 1) {
+        obj = TA::allocateTypedArray(state, newTarget.value(), 0);
+    } else {
         const Value& val = argv[0];
         if (!val.isObject()) {
             // $22.2.1.2 %TypedArray%(length)
             uint64_t elemlen = val.toIndex(state);
-            if (elemlen == Value::InvalidIndexValue)
+            if (elemlen == Value::InvalidIndexValue) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
-            obj->allocateTypedArray(state, elemlen);
+            }
+            obj = TA::allocateTypedArray(state, newTarget.value(), elemlen);
         } else if (val.isPointerValue() && val.asPointerValue()->isArrayBufferObject()) {
             // $22.2.1.5 %TypedArray%(buffer [, byteOffset [, length] ] )
+            obj = TA::allocateTypedArray(state, newTarget.value());
             unsigned elementSize = obj->elementSize();
             uint64_t offset = 0;
             Value lenVal;
@@ -402,8 +404,8 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
         } else if (val.isObject() && val.asObject()->isTypedArrayObject()) {
             // $22.2.1.3 %TypedArray% ( typedArray )
-            // FIXME Let O be AllocateTypedArray(NewTarget).
-            obj->allocateTypedArray(state, 0);
+            // Let O be AllocateTypedArray(NewTarget).
+            obj = TA::allocateTypedArray(state, newTarget.value(), 0);
             // Let srcArray be typedArray.
             ArrayBufferView* srcArray = val.asObject()->asArrayBufferView();
             // Let srcData be the value of srcArray’s [[ViewedArrayBuffer]] internal slot.
@@ -467,6 +469,9 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             obj->setBuffer(data, 0, byteLength, elementLength);
         } else if (val.isObject()) {
             // https://www.ecma-international.org/ecma-262/10.0/#sec-typedarray-object
+            // Let O be ? AllocateTypedArray(constructorName, NewTarget, "%TypedArrayPrototype%").
+            obj = TA::allocateTypedArray(state, newTarget.value(), 0);
+
             Object* inputObj = val.asObject();
             // Let usingIterator be ? GetMethod(object, @@iterator).
             Value usingIterator = Object::getMethod(state, inputObj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
@@ -939,11 +944,14 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
         ASSERT(x.isNumber() && y.isNumber());
         if (!defaultSort) {
             Value args[] = { x, y };
-            Value v = Object::call(state, cmpfn, Value(), 2, args);
+            double v = Object::call(state, cmpfn, Value(), 2, args).toNumber(state);
             if (buffer->isDetachedBuffer()) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
             }
-            return (v.toNumber(state) < 0);
+            if (std::isnan(v)) {
+                return false;
+            }
+            return (v < 0);
         } else {
             double xNum = x.asNumber();
             double yNum = y.asNumber();
