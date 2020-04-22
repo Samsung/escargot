@@ -434,7 +434,8 @@ namespace Escargot {
     F(maximize)                   \
     F(minimize)                   \
     F(PluralRules)                \
-    F(select)
+    F(select)                     \
+    F(formatToParts)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \

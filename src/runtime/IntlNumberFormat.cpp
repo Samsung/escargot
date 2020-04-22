@@ -49,6 +49,7 @@
 #include "Value.h"
 #include "Intl.h"
 #include "IntlNumberFormat.h"
+#include "ArrayObject.h"
 
 namespace Escargot {
 
@@ -375,6 +376,195 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
     }
+    return result;
+}
+
+static String* icuFieldTypeToPartName(int32_t fieldName, double d)
+{
+    if (fieldName == -1) {
+        return String::fromASCII("literal");
+    }
+
+    switch ((UNumberFormatFields)fieldName) {
+    case UNUM_INTEGER_FIELD:
+        if (std::isnan(d)) {
+            return String::fromASCII("nan");
+        }
+        if (std::isinf(d)) {
+            return String::fromASCII("infinity");
+        }
+        return String::fromASCII("integer");
+    case UNUM_GROUPING_SEPARATOR_FIELD:
+        return String::fromASCII("group");
+    case UNUM_DECIMAL_SEPARATOR_FIELD:
+        return String::fromASCII("decimal");
+    case UNUM_FRACTION_FIELD:
+        return String::fromASCII("fraction");
+    case UNUM_SIGN_FIELD:
+        return std::signbit(d) ? String::fromASCII("minusSign") : String::fromASCII("plusSign");
+    case UNUM_PERCENT_FIELD:
+        return String::fromASCII("percentSign");
+    case UNUM_CURRENCY_FIELD:
+        return String::fromASCII("currency");
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+}
+
+ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numberFormat, double x)
+{
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 59) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.NumberFormat.prototype.formatToParts needs 59+ version of ICU");
+    }
+#endif
+
+    ArrayObject* result = new ArrayObject(state);
+
+    UNumberFormat* uformat = (UNumberFormat*)numberFormat->internalSlot()->extraData();
+    UErrorCode status = U_ZERO_ERROR;
+    UTF16StringDataNonGCStd resultString;
+
+    // Map negative zero to positive zero.
+    if (!x) {
+        x = 0.0;
+    }
+
+    UFieldPositionIterator* fpositer;
+    fpositer = ufieldpositer_open(&status);
+    ASSERT(U_SUCCESS(status));
+
+    resultString.resize(128);
+    auto length = unum_formatDoubleForFields(uformat, x, (UChar*)resultString.data(), resultString.size(), fpositer, &status);
+    resultString.resize(length);
+
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        status = U_ZERO_ERROR;
+        unum_formatDoubleForFields(uformat, x, (UChar*)resultString.data(), length, fpositer, &status);
+    }
+    ASSERT(U_SUCCESS(status));
+
+    struct FieldItem {
+        int32_t start;
+        int32_t end;
+        int32_t type;
+    };
+
+    std::vector<FieldItem> fields;
+
+    while (true) {
+        int32_t start;
+        int32_t end;
+        int32_t type = ufieldpositer_next(fpositer, &start, &end);
+        if (type < 0) {
+            break;
+        }
+
+        FieldItem item;
+        item.start = start;
+        item.end = end;
+        item.type = type;
+
+        fields.push_back(item);
+    }
+
+    // we need to divide integer field
+    // because icu returns result as
+    // 1.234 $
+    // "1.234" <- integer field
+    // but we want
+    // "1", "234"
+    std::vector<FieldItem> integerFields;
+    for (size_t i = 0; i < fields.size(); i++) {
+        FieldItem item = fields[i];
+
+        if (item.type == UNUM_INTEGER_FIELD) {
+            fields.erase(fields.begin() + i);
+            i--;
+
+            std::vector<std::pair<int32_t, int32_t>> apertures;
+
+            for (size_t j = 0; j < fields.size(); j++) {
+                if (fields[j].start >= item.start && fields[j].end <= item.end) {
+                    apertures.push_back(std::make_pair(fields[j].start, fields[j].end));
+                }
+            }
+            if (apertures.size()) {
+                FieldItem newItem;
+                newItem.type = item.type;
+
+                int32_t lastStart = item.start;
+                for (size_t j = 0; j < apertures.size(); j++) {
+                    newItem.start = lastStart;
+                    newItem.end = apertures[j].first;
+                    integerFields.push_back(newItem);
+
+                    lastStart = apertures[j].second;
+                }
+
+                if (lastStart != item.end) {
+                    newItem.start = lastStart;
+                    newItem.end = item.end;
+                    integerFields.push_back(newItem);
+                }
+
+
+            } else {
+                integerFields.push_back(item);
+            }
+        }
+    }
+
+    fields.insert(fields.end(), integerFields.begin(), integerFields.end());
+
+    // add literal field if needs
+    std::vector<FieldItem> literalFields;
+    for (size_t i = 0; i < resultString.length(); i++) {
+        bool found = false;
+        for (size_t j = 0; j < fields.size(); j++) {
+            if ((size_t)fields[j].start <= i && i < (size_t)fields[j].end) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            FieldItem newItem;
+            newItem.type = -1;
+            newItem.start = i;
+            newItem.end = i + 1;
+            literalFields.push_back(newItem);
+        }
+    }
+
+    fields.insert(fields.end(), literalFields.begin(), literalFields.end());
+
+    std::sort(fields.begin(), fields.end(),
+              [](const FieldItem& a, const FieldItem& b) -> bool {
+                  return a.start < b.start;
+              });
+
+    AtomicString typeAtom(state, "type", 4);
+    AtomicString valueAtom = state.context()->staticStrings().value;
+
+    for (size_t i = 0; i < fields.size(); i++) {
+        const FieldItem& item = fields[i];
+
+        Object* o = new Object(state);
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(icuFieldTypeToPartName(item.type, x), ObjectPropertyDescriptor::AllPresent));
+        auto sub = resultString.substr(item.start, item.end - item.start);
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
+
+        result->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, i), ObjectPropertyDescriptor(o, ObjectPropertyDescriptor::AllPresent));
+    }
+
+    ufieldpositer_close(fpositer);
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+    }
+
     return result;
 }
 

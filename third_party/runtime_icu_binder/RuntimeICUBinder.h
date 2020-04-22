@@ -87,60 +87,64 @@ namespace RuntimeICUBinder {
     F(ubidi_setPara, void (*)(UBiDi * pBiDi, const UChar* text, int32_t length, UBiDiLevel paraLevel, UBiDiLevel* embeddingLevels, UErrorCode* pErrorCode), void)                                      \
     F(ubidi_getLogicalRun, void (*)(const UBiDi* pBiDi, int32_t logicalPosition, int32_t* pLogicalLimit, UBiDiLevel* pLevel), void)
 
-#define FOR_EACH_I18N_OP(F)                                                                                                                                                                   \
-    F(vzone_openID, VZone* (*)(const UChar*, int32_t), VZone*)                                                                                                                                \
-    F(vzone_getRawOffset, int32_t (*)(VZone*), int32_t)                                                                                                                                       \
-    F(ucol_countAvailable, int32_t (*)(), int32_t)                                                                                                                                            \
-    F(ucol_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                               \
-    F(ucol_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                          \
-    F(ucol_open, UCollator* (*)(const char* loc, UErrorCode* status), UCollator*)                                                                                                             \
-    F(ucol_strcollIter, UCollationResult (*)(const UCollator* coll, UCharIterator* sIter, UCharIterator* tIter, UErrorCode* status), UCollationResult)                                        \
-    F(ucol_strcoll, UCollationResult (*)(const UCollator* coll, const UChar* source, int32_t sourceLength, const UChar* target, int32_t targetLength), UCollationResult)                      \
-    F(udat_countAvailable, int32_t (*)(), int32_t)                                                                                                                                            \
-    F(udat_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                               \
-    F(udat_open, UDateFormat* (*)(UDateFormatStyle, UDateFormatStyle, const char*, const UChar*, int32_t, const UChar*, int32_t, UErrorCode*), UDateFormat*)                                  \
-    F(udat_format, int32_t (*)(const UDateFormat*, UDate, UChar*, int32_t, UFieldPosition*, UErrorCode*), int32_t)                                                                            \
-    F(udat_getCalendar, const UCalendar* (*)(const UDateFormat* fmt), const UCalendar*)                                                                                                       \
-    F(uenum_count, int32_t (*)(UEnumeration * en, UErrorCode * status), int32_t)                                                                                                              \
-    F(uenum_unext, const UChar* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const UChar*)                                                                            \
-    F(uenum_next, const char* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const char*)                                                                               \
-    F(unumsys_openAvailableNames, UEnumeration* (*)(UErrorCode * status), UEnumeration*)                                                                                                      \
-    F(unumsys_openByName, UNumberingSystem* (*)(const char* name, UErrorCode* status), UNumberingSystem*)                                                                                     \
-    F(unumsys_isAlgorithmic, UBool (*)(const UNumberingSystem* unumsys), UBool)                                                                                                               \
-    F(unumsys_getName, const char* (*)(const UNumberingSystem* unumsys), const char*)                                                                                                         \
-    F(unumsys_open, UNumberingSystem* (*)(const char* locale, UErrorCode* status), UNumberingSystem*)                                                                                         \
-    F(ucal_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                          \
-    F(ucal_openTimeZones, UEnumeration* (*)(UErrorCode * ec), UEnumeration*)                                                                                                                  \
-    F(ucal_getCanonicalTimeZoneID, int32_t (*)(const UChar* id, int32_t len, UChar* result, int32_t resultCapacity, UBool* isSystemID, UErrorCode* status), int32_t)                          \
-    F(ucal_getType, const char* (*)(const UCalendar* cal, UErrorCode* status), const char*)                                                                                                   \
-    F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                    \
-    F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)     \
-    F(unum_countAvailable, int32_t (*)(), int32_t)                                                                                                                                            \
-    F(unum_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                               \
-    F(unum_open, UNumberFormat* (*)(UNumberFormatStyle style, const UChar* pattern, int32_t patternLength, const char* locale, UParseError* parseErr, UErrorCode* status), UNumberFormat*)    \
-    F(unum_formatDouble, int32_t (*)(const UNumberFormat* fmt, double number, UChar* result, int32_t resultLength, UFieldPosition* pos, UErrorCode* status), int32_t)                         \
-    F(ubrk_open, UBreakIterator* (*)(UBreakIteratorType type, const char* locale, const UChar* text, int32_t textLength, UErrorCode* status), UBreakIterator*)                                \
-    F(ubrk_openRules, UBreakIterator* (*)(const UChar* rules, int32_t rulesLength, const UChar* text, int32_t textLength, UParseError* parseErr, UErrorCode* status), UBreakIterator*)        \
-    F(ubrk_next, int32_t (*)(UBreakIterator * bi), int32_t)                                                                                                                                   \
-    F(ucsdet_open, UCharsetDetector* (*)(UErrorCode * status), UCharsetDetector*)                                                                                                             \
-    F(ucsdet_detectAll, const UCharsetMatch** (*)(UCharsetDetector * ucsd, int32_t * matchesFound, UErrorCode * status), const UCharsetMatch**)                                               \
-    F(ucsdet_detect, const UCharsetMatch* (*)(UCharsetDetector * ucsd, UErrorCode * status), const UCharsetMatch*)                                                                            \
-    F(ucsdet_getName, const char* (*)(const UCharsetMatch* ucsm, UErrorCode* status), const char*)                                                                                            \
-    F(ucsdet_getConfidence, int32_t (*)(const UCharsetMatch* ucsm, UErrorCode* status), int32_t)                                                                                              \
-    F(ures_openDirect, UResourceBundle* (*)(const char* packageName, const char* locale, UErrorCode* status), UResourceBundle*)                                                               \
-    F(ures_getByKey, UResourceBundle* (*)(const UResourceBundle* resourceBundle, const char* key, UResourceBundle* fillIn, UErrorCode* status), UResourceBundle*)                             \
-    F(ures_getKey, const char* (*)(const UResourceBundle* resourceBundle), const char*)                                                                                                       \
-    F(ures_getNextResource, UResourceBundle* (*)(UResourceBundle * resourceBundle, UResourceBundle * fillIn, UErrorCode * status), UResourceBundle*)                                          \
-    F(ures_hasNext, UBool (*)(const UResourceBundle* resourceBundle), UBool)                                                                                                                  \
-    F(uplrules_select, int32_t (*)(const UPluralRules* uplrules, double number, UChar* keyword, int32_t capacity, UErrorCode* status), int32_t)                                               \
-    F(uplrules_getKeywords, UEnumeration* (*)(const UPluralRules* uplrules, UErrorCode* status), UEnumeration*)                                                                               \
-    F(uplrules_open, UPluralRules* (*)(const char* locale, UErrorCode* status), UPluralRules*)                                                                                                \
-    F(uplrules_openForType, UPluralRules* (*)(const char* locale, UPluralType type, UErrorCode* status), UPluralRules*)                                                                       \
-    F(uplrules_selectWithFormat, int32_t (*)(const UPluralRules* uplrules, double number, const UNumberFormat* fmt, UChar* keyword, int32_t capacity, UErrorCode* status), int32_t)           \
-    F(unumf_openForSkeletonAndLocale, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UErrorCode* ec), UNumberFormatter*)                               \
-    F(unumf_openForSkeletonAndLocaleWithError, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UParseError* perror, UErrorCode* ec), UNumberFormatter*) \
-    F(unumf_openResult, UFormattedNumber* (*)(UErrorCode * ec), UFormattedNumber*)                                                                                                            \
-    F(unumf_resultToString, int32_t (*)(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity, UErrorCode* ec), int32_t)
+#define FOR_EACH_I18N_OP(F)                                                                                                                                                                    \
+    F(vzone_openID, VZone* (*)(const UChar*, int32_t), VZone*)                                                                                                                                 \
+    F(vzone_getRawOffset, int32_t (*)(VZone*), int32_t)                                                                                                                                        \
+    F(ucol_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
+    F(ucol_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
+    F(ucol_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
+    F(ucol_open, UCollator* (*)(const char* loc, UErrorCode* status), UCollator*)                                                                                                              \
+    F(ucol_strcollIter, UCollationResult (*)(const UCollator* coll, UCharIterator* sIter, UCharIterator* tIter, UErrorCode* status), UCollationResult)                                         \
+    F(ucol_strcoll, UCollationResult (*)(const UCollator* coll, const UChar* source, int32_t sourceLength, const UChar* target, int32_t targetLength), UCollationResult)                       \
+    F(udat_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
+    F(udat_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
+    F(udat_open, UDateFormat* (*)(UDateFormatStyle, UDateFormatStyle, const char*, const UChar*, int32_t, const UChar*, int32_t, UErrorCode*), UDateFormat*)                                   \
+    F(udat_format, int32_t (*)(const UDateFormat*, UDate, UChar*, int32_t, UFieldPosition*, UErrorCode*), int32_t)                                                                             \
+    F(udat_getCalendar, const UCalendar* (*)(const UDateFormat* fmt), const UCalendar*)                                                                                                        \
+    F(uenum_count, int32_t (*)(UEnumeration * en, UErrorCode * status), int32_t)                                                                                                               \
+    F(uenum_unext, const UChar* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const UChar*)                                                                             \
+    F(uenum_next, const char* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const char*)                                                                                \
+    F(unumsys_openAvailableNames, UEnumeration* (*)(UErrorCode * status), UEnumeration*)                                                                                                       \
+    F(unumsys_openByName, UNumberingSystem* (*)(const char* name, UErrorCode* status), UNumberingSystem*)                                                                                      \
+    F(unumsys_isAlgorithmic, UBool (*)(const UNumberingSystem* unumsys), UBool)                                                                                                                \
+    F(unumsys_getName, const char* (*)(const UNumberingSystem* unumsys), const char*)                                                                                                          \
+    F(unumsys_open, UNumberingSystem* (*)(const char* locale, UErrorCode* status), UNumberingSystem*)                                                                                          \
+    F(ucal_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
+    F(ucal_openTimeZones, UEnumeration* (*)(UErrorCode * ec), UEnumeration*)                                                                                                                   \
+    F(ucal_getCanonicalTimeZoneID, int32_t (*)(const UChar* id, int32_t len, UChar* result, int32_t resultCapacity, UBool* isSystemID, UErrorCode* status), int32_t)                           \
+    F(ucal_getType, const char* (*)(const UCalendar* cal, UErrorCode* status), const char*)                                                                                                    \
+    F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                     \
+    F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
+    F(unum_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
+    F(unum_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
+    F(unum_open, UNumberFormat* (*)(UNumberFormatStyle style, const UChar* pattern, int32_t patternLength, const char* locale, UParseError* parseErr, UErrorCode* status), UNumberFormat*)     \
+    F(unum_formatDouble, int32_t (*)(const UNumberFormat* fmt, double number, UChar* result, int32_t resultLength, UFieldPosition* pos, UErrorCode* status), int32_t)                          \
+    F(unum_formatDoubleForFields, int32_t (*)(const UNumberFormat* format, double number, UChar* result, int32_t resultLength, UFieldPositionIterator* fpositer, UErrorCode* status), int32_t) \
+    F(ubrk_open, UBreakIterator* (*)(UBreakIteratorType type, const char* locale, const UChar* text, int32_t textLength, UErrorCode* status), UBreakIterator*)                                 \
+    F(ubrk_openRules, UBreakIterator* (*)(const UChar* rules, int32_t rulesLength, const UChar* text, int32_t textLength, UParseError* parseErr, UErrorCode* status), UBreakIterator*)         \
+    F(ubrk_next, int32_t (*)(UBreakIterator * bi), int32_t)                                                                                                                                    \
+    F(ucsdet_open, UCharsetDetector* (*)(UErrorCode * status), UCharsetDetector*)                                                                                                              \
+    F(ucsdet_detectAll, const UCharsetMatch** (*)(UCharsetDetector * ucsd, int32_t * matchesFound, UErrorCode * status), const UCharsetMatch**)                                                \
+    F(ucsdet_detect, const UCharsetMatch* (*)(UCharsetDetector * ucsd, UErrorCode * status), const UCharsetMatch*)                                                                             \
+    F(ucsdet_getName, const char* (*)(const UCharsetMatch* ucsm, UErrorCode* status), const char*)                                                                                             \
+    F(ucsdet_getConfidence, int32_t (*)(const UCharsetMatch* ucsm, UErrorCode* status), int32_t)                                                                                               \
+    F(ures_openDirect, UResourceBundle* (*)(const char* packageName, const char* locale, UErrorCode* status), UResourceBundle*)                                                                \
+    F(ures_getByKey, UResourceBundle* (*)(const UResourceBundle* resourceBundle, const char* key, UResourceBundle* fillIn, UErrorCode* status), UResourceBundle*)                              \
+    F(ures_getKey, const char* (*)(const UResourceBundle* resourceBundle), const char*)                                                                                                        \
+    F(ures_getNextResource, UResourceBundle* (*)(UResourceBundle * resourceBundle, UResourceBundle * fillIn, UErrorCode * status), UResourceBundle*)                                           \
+    F(ures_hasNext, UBool (*)(const UResourceBundle* resourceBundle), UBool)                                                                                                                   \
+    F(uplrules_select, int32_t (*)(const UPluralRules* uplrules, double number, UChar* keyword, int32_t capacity, UErrorCode* status), int32_t)                                                \
+    F(uplrules_getKeywords, UEnumeration* (*)(const UPluralRules* uplrules, UErrorCode* status), UEnumeration*)                                                                                \
+    F(uplrules_open, UPluralRules* (*)(const char* locale, UErrorCode* status), UPluralRules*)                                                                                                 \
+    F(uplrules_openForType, UPluralRules* (*)(const char* locale, UPluralType type, UErrorCode* status), UPluralRules*)                                                                        \
+    F(uplrules_selectWithFormat, int32_t (*)(const UPluralRules* uplrules, double number, const UNumberFormat* fmt, UChar* keyword, int32_t capacity, UErrorCode* status), int32_t)            \
+    F(unumf_openForSkeletonAndLocale, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UErrorCode* ec), UNumberFormatter*)                                \
+    F(unumf_openForSkeletonAndLocaleWithError, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UParseError* perror, UErrorCode* ec), UNumberFormatter*)  \
+    F(unumf_openResult, UFormattedNumber* (*)(UErrorCode * ec), UFormattedNumber*)                                                                                                             \
+    F(unumf_resultToString, int32_t (*)(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity, UErrorCode* ec), int32_t)                                                      \
+    F(ufieldpositer_open, UFieldPositionIterator* (*)(UErrorCode * status), UFieldPositionIterator*)                                                                                           \
+    F(ufieldpositer_next, int32_t (*)(UFieldPositionIterator * fpositer, int32_t * beginIndex, int32_t * endIndex), int32_t)
+
 
 #define FOR_EACH_I18N_VOID_OP(F)                                                                                                                                     \
     F(udat_close, void (*)(UDateFormat * format), void)                                                                                                              \
@@ -165,7 +169,9 @@ namespace RuntimeICUBinder {
     F(ures_resetIterator, void (*)(UResourceBundle * resourceBundle), void)                                                                                          \
     F(unumf_formatDouble, void (*)(const UNumberFormatter* uformatter, double value, UFormattedNumber* uresult, UErrorCode* ec), void)                               \
     F(unumf_close, void (*)(UNumberFormatter * uformatter), void)                                                                                                    \
-    F(unumf_closeResult, void (*)(UFormattedNumber * uresult), void)
+    F(unumf_closeResult, void (*)(UFormattedNumber * uresult), void)                                                                                                 \
+    F(ufieldpositer_close, void (*)(UFieldPositionIterator * fpositer), void)
+
 
 #define FOR_EACH_I18N_STICKY_OP(F) \
     F(vzone_getOffset3)

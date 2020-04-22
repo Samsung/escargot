@@ -216,6 +216,7 @@ typedef unsigned char LChar;
 #else
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
+#include <unicode/ustring.h>
 #include <unicode/datefmt.h>
 #include <unicode/vtzone.h>
 #include <unicode/unorm.h> // for normalize builtin function of String
