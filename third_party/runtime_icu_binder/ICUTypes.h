@@ -1255,6 +1255,15 @@ typedef struct UFieldPosition {
     int32_t endIndex;
 } UFieldPosition;
 
+// ufieldpositer.h
+
+/**
+ * Opaque UFieldPositionIterator object for use in C.
+ * @stable ICU 55
+ */
+struct UFieldPositionIterator;
+typedef struct UFieldPositionIterator UFieldPositionIterator; /**< C typedef for struct UFieldPositionIterator. @stable ICU 55 */
+
 // unorm2.h
 struct UNormalizer2;
 

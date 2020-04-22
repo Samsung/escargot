@@ -82,6 +82,7 @@
 #define unum_setAttribute RuntimeICUBinder::ICU::instance().unum_setAttribute
 #define unum_open RuntimeICUBinder::ICU::instance().unum_open
 #define unum_formatDouble RuntimeICUBinder::ICU::instance().unum_formatDouble
+#define unum_formatDoubleForFields RuntimeICUBinder::ICU::instance().unum_formatDoubleForFields
 #define unum_close RuntimeICUBinder::ICU::instance().unum_close
 
 #define udat_getAvailable RuntimeICUBinder::ICU::instance().udat_getAvailable
@@ -175,5 +176,9 @@
 #define unumf_resultToString RuntimeICUBinder::ICU::instance().unumf_resultToString
 #define unumf_close RuntimeICUBinder::ICU::instance().unumf_close
 #define unumf_closeResult RuntimeICUBinder::ICU::instance().unumf_closeResult
+
+#define ufieldpositer_open RuntimeICUBinder::ICU::instance().ufieldpositer_open
+#define ufieldpositer_next RuntimeICUBinder::ICU::instance().ufieldpositer_next
+#define ufieldpositer_close RuntimeICUBinder::ICU::instance().ufieldpositer_close
 
 #endif
