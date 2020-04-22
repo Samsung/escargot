@@ -22,8 +22,8 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
-#include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
+#include "runtime/ArrayBufferObject.h"
 
 namespace Escargot {
 
@@ -32,11 +32,6 @@ public:
     explicit DataViewObject(ExecutionState& state, Object* proto)
         : ArrayBufferView(state, proto)
     {
-    }
-
-    virtual TypedArrayType typedArrayType()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     virtual bool isDataViewObject() const

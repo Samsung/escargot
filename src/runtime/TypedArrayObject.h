@@ -24,11 +24,21 @@
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
-#include "runtime/ArrayObject.h"
 #include "runtime/Context.h"
 #include "util/Util.h"
 
 namespace Escargot {
+
+#define FOR_EACH_TYPEDARRAY(F)        \
+    F(Int8, int8, 1);                 \
+    F(Int16, int16, 2);               \
+    F(Int32, int32, 4);               \
+    F(Uint8, uint8, 1);               \
+    F(Uint8Clamped, uint8Clamped, 1); \
+    F(Uint16, uint16, 2);             \
+    F(Uint32, uint32, 4);             \
+    F(Float32, float32, 4);           \
+    F(Float64, float64, 8);
 
 class ArrayBufferView : public Object {
 public:
@@ -42,7 +52,11 @@ public:
     {
     }
 
-    virtual TypedArrayType typedArrayType() = 0;
+    virtual TypedArrayType typedArrayType()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     virtual String* typedArrayName(ExecutionState& state)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -59,7 +73,7 @@ public:
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
         m_arrayLength = arrayLength;
-        m_rawBuffer = (uint8_t*)(bo->data() + m_byteOffset);
+        m_rawBuffer = bo ? (uint8_t*)(bo->data() + m_byteOffset) : nullptr;
     }
 
     ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength)
@@ -67,7 +81,7 @@ public:
         m_buffer = bo;
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
-        m_rawBuffer = (uint8_t*)(bo->data() + m_byteOffset);
+        m_rawBuffer = bo ? (uint8_t*)(bo->data() + m_byteOffset) : nullptr;
     }
 
     virtual bool isArrayBufferView() const
@@ -291,18 +305,7 @@ struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
 
 template <typename TypeAdaptor, int typedArrayElementSize>
 class TypedArrayObject : public ArrayBufferView {
-    Object* typedArrayObjectDefaultPrototype(ExecutionState& state);
-
 public:
-    explicit TypedArrayObject(ExecutionState& state)
-        : ArrayBufferView(state, typedArrayObjectDefaultPrototype(state))
-    {
-    }
-
-    void setPrototypeFromConstructor(ExecutionState& state, Object* newTarget);
-
-    virtual String* typedArrayName(ExecutionState& state) override;
-
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
         uint64_t index = P.tryToUseAsIndex();
@@ -367,13 +370,6 @@ public:
             }
         }
         Object::enumeration(state, callback, data);
-    }
-
-    void allocateTypedArray(ExecutionState& state, unsigned length)
-    {
-        auto obj = new ArrayBufferObject(state);
-        obj->allocateBuffer(state, length * typedArrayElementSize);
-        setBuffer(obj, 0, length * typedArrayElementSize, length);
     }
 
     size_t elementSize()
@@ -446,116 +442,54 @@ public:
         }
         return set(state, ObjectPropertyName(state, property), value, this);
     }
+
+protected:
+    explicit TypedArrayObject(ExecutionState& state, Object* proto)
+        : ArrayBufferView(state, proto)
+    {
+    }
 };
 
-typedef TypedArrayObject<Int8Adaptor, 1> Int8ArrayObjectWrapper;
-class Int8ArrayObject : public Int8ArrayObjectWrapper {
-public:
-    explicit Int8ArrayObject(ExecutionState& state)
-        : Int8ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Int8;
-    }
-};
-typedef TypedArrayObject<Int16Adaptor, 2> Int16ArrayObjectWrapper;
-class Int16ArrayObject : public Int16ArrayObjectWrapper {
-public:
-    explicit Int16ArrayObject(ExecutionState& state)
-        : Int16ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Int16;
-    }
-};
-typedef TypedArrayObject<Int32Adaptor, 4> Int32ArrayObjectWrapper;
-class Int32ArrayObject : public Int32ArrayObjectWrapper {
-public:
-    explicit Int32ArrayObject(ExecutionState& state)
-        : Int32ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Int32;
-    }
-};
-typedef TypedArrayObject<Uint8Adaptor, 1> Uint8ArrayObjectWrapper;
-class Uint8ArrayObject : public Uint8ArrayObjectWrapper {
-public:
-    explicit Uint8ArrayObject(ExecutionState& state)
-        : Uint8ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Uint8;
-    }
-};
-typedef TypedArrayObject<Uint16Adaptor, 2> Uint16ArrayObjectWrapper;
-class Uint16ArrayObject : public Uint16ArrayObjectWrapper {
-public:
-    explicit Uint16ArrayObject(ExecutionState& state)
-        : Uint16ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Uint16;
-    }
-};
-typedef TypedArrayObject<Uint32Adaptor, 4> Uint32ArrayObjectWrapper;
-class Uint32ArrayObject : public Uint32ArrayObjectWrapper {
-public:
-    explicit Uint32ArrayObject(ExecutionState& state)
-        : Uint32ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Uint32;
-    }
-};
-typedef TypedArrayObject<Uint8ClampedAdaptor, 1> Uint8ClampedArrayObjectWrapper;
-class Uint8ClampedArrayObject : public Uint8ClampedArrayObjectWrapper {
-public:
-    explicit Uint8ClampedArrayObject(ExecutionState& state)
-        : Uint8ClampedArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Uint8Clamped;
-    }
-};
-typedef TypedArrayObject<Float32Adaptor, 4> Float32ArrayObjectWrapper;
-class Float32ArrayObject : public Float32ArrayObjectWrapper {
-public:
-    explicit Float32ArrayObject(ExecutionState& state)
-        : Float32ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Float32;
-    }
-};
-typedef TypedArrayObject<Float64Adaptor, 8> Float64ArrayObjectWrapper;
-class Float64ArrayObject : public Float64ArrayObjectWrapper {
-public:
-    explicit Float64ArrayObject(ExecutionState& state)
-        : Float64ArrayObjectWrapper(state)
-    {
-    }
-    virtual TypedArrayType typedArrayType()
-    {
-        return TypedArrayType::Float64;
-    }
-};
+#define DECLARE_TYPEDARRAY(TYPE, type, siz)                                                                                                            \
+    typedef TypedArrayObject<TYPE##Adaptor, siz> TYPE##ArrayObjectWrapper;                                                                             \
+    class TYPE##ArrayObject : public TYPE##ArrayObjectWrapper {                                                                                        \
+    public:                                                                                                                                            \
+        explicit TYPE##ArrayObject(ExecutionState& state)                                                                                              \
+            : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                        \
+        {                                                                                                                                              \
+        }                                                                                                                                              \
+        explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                               \
+            : TYPE##ArrayObjectWrapper(state, proto)                                                                                                   \
+        {                                                                                                                                              \
+        }                                                                                                                                              \
+        virtual TypedArrayType typedArrayType() override                                                                                               \
+        {                                                                                                                                              \
+            return TypedArrayType::TYPE;                                                                                                               \
+        }                                                                                                                                              \
+        virtual String* typedArrayName(ExecutionState& state) override                                                                                 \
+        {                                                                                                                                              \
+            return state.context()->staticStrings().TYPE##Array.string();                                                                              \
+        }                                                                                                                                              \
+        static TYPE##ArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, unsigned length = std::numeric_limits<unsigned>::max()) \
+        {                                                                                                                                              \
+            ASSERT(!!newTarget);                                                                                                                       \
+            Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {    \
+                return constructorRealm->globalObject()->type##ArrayPrototype();                                                                       \
+            });                                                                                                                                        \
+            TYPE##ArrayObject* obj = new TYPE##ArrayObject(state, proto);                                                                              \
+            if (length == std::numeric_limits<unsigned>::max()) {                                                                                      \
+                obj->setBuffer(nullptr, 0, 0, 0);                                                                                                      \
+            } else {                                                                                                                                   \
+                auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer());                           \
+                buffer->allocateBuffer(state, length* siz);                                                                                            \
+                obj->setBuffer(buffer, 0, length* siz, length);                                                                                        \
+            }                                                                                                                                          \
+            return obj;                                                                                                                                \
+        }                                                                                                                                              \
+    };
+
+FOR_EACH_TYPEDARRAY(DECLARE_TYPEDARRAY)
+#undef DECLARE_TYPEDARRAY
 
 class TypedArrayPrototypeObject : public Object {
 public:

@@ -21,7 +21,6 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "VMInstance.h"
-#include "TypedArrayObject.h"
 #include "DataViewObject.h"
 #include "NativeFunctionObject.h"
 

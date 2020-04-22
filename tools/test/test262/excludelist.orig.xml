@@ -797,7 +797,6 @@
     <test id="built-ins/String/prototype/matchAll/toString-this-val"><reason>TODO</reason></test>
     <test id="built-ins/Symbol/matchAll/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/invoked"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/Symbol.toStringTag/BigInt/detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/Symbol.toStringTag/BigInt/return-typedarrayname"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/buffer/BigInt/detached-buffer"><reason>TODO</reason></test>
@@ -1162,7 +1161,6 @@
     <test id="built-ins/TypedArray/prototype/sort/BigInt/return-same-instance"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/sort/BigInt/sortcompare-with-no-tostring"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/sort/BigInt/sorted-values"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/sort/sort-tonumber"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/subarray/BigInt/detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/subarray/BigInt/infinity"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/subarray/BigInt/minus-zero"><reason>TODO</reason></test>
