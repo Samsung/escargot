@@ -407,7 +407,8 @@ static String* icuFieldTypeToPartName(int32_t fieldName, double d)
     case UNUM_CURRENCY_FIELD:
         return String::fromASCII("currency");
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_NOT_REACHED();
+        return String::emptyString;
     }
 }
 
@@ -530,14 +531,29 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
             }
         }
         if (!found) {
+            size_t end = i + 1;
+            while (end != resultString.length()) {
+                bool found = false;
+                for (size_t j = 0; j < fields.size(); j++) {
+                    if ((size_t)fields[j].start <= end && end < (size_t)fields[j].end) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    break;
+                }
+                end++;
+            }
+
             FieldItem newItem;
             newItem.type = -1;
             newItem.start = i;
-            newItem.end = i + 1;
+            newItem.end = end;
+            i = end - 1;
             literalFields.push_back(newItem);
         }
     }
-
     fields.insert(fields.end(), literalFields.begin(), literalFields.end());
 
     std::sort(fields.begin(), fields.end(),
