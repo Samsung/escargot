@@ -129,14 +129,13 @@ static double getNumberOption(ExecutionState& state, Object* options, String* pr
 
 Object* IntlNumberFormat::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
-    Object* numberFormat = new Object(state, realm->globalObject()->objectPrototype());
-    initialize(state, numberFormat, realm, locales, options);
+    Object* numberFormat = new Object(state, realm->globalObject()->intlNumberFormatPrototype());
+    initialize(state, numberFormat, locales, options);
     return numberFormat;
 }
 
-void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, Context* realm, Value locales, Value options)
+void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options)
 {
-    numberFormat->setPrototype(state, realm->globalObject()->intlNumberFormat()->getFunctionPrototype(state));
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (numberFormat->hasInternalSlot() && numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
@@ -161,24 +160,24 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, C
     }
 
     // Let opt be a new Record.
-    StringMap* opt = new StringMap();
+    StringMap opt;
     // Let matcher be the result of calling the GetOption abstract operation (defined in 9.2.9) with the arguments options, "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit".
     // Set opt.[[localeMatcher]] to matcher.
     Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
     Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
     // Set opt.[[localeMatcher]] to matcher.
-    opt->insert(std::make_pair(String::fromASCII("localeMatcher"), matcher.toString(state)));
+    opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
     // Let NumberFormat be the standard built-in object that is the initial value of Intl.NumberFormat.
     // Let localeData be the value of the [[localeData]] internal property of NumberFormat.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
     // internal property of NumberFormat, requestedLocales, opt, the [[relevantExtensionKeys]] internal property of NumberFormat, and localeData.
-    StringMap* r = Intl::resolveLocale(state, state.context()->globalObject()->intlNumberFormatAvailableLocales(), requestedLocales, opt, intlNumberFormatRelevantExtensionKeys, intlNumberFormatRelevantExtensionKeysLength, localeDataNumberFormat);
+    StringMap r = Intl::resolveLocale(state, state.context()->globalObject()->intlNumberFormatAvailableLocales(), requestedLocales, opt, intlNumberFormatRelevantExtensionKeys, intlNumberFormatRelevantExtensionKeysLength, localeDataNumberFormat);
 
     // Set the [[locale]] internal property of numberFormat to the value of r.[[locale]].
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("locale")), r->at(String::fromASCII("locale")), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("locale")), r.at("locale"), numberFormat->internalSlot());
     // Set the [[numberingSystem]] internal property of numberFormat to the value of r.[[nu]].
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("numberingSystem")), r->at(String::fromASCII("nu")), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("numberingSystem")), r.at("nu"), numberFormat->internalSlot());
 
     // Let dataLocale be the value of r.[[dataLocale]].
     // Let s be the result of calling the GetOption abstract operation with the arguments options, "style", "string",

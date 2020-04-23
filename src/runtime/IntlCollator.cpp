@@ -201,14 +201,14 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
 
     // Let opt be a new Record.
-    StringMap* opt = new StringMap();
+    StringMap opt;
 
     // Let matcher be the result of calling the GetOption abstract operation with arguments
     // options, "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit"
     Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
     Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
     // Set opt.[[localeMatcher]] to matcher.
-    opt->insert(std::make_pair(String::fromASCII("localeMatcher"), matcher.toString(state)));
+    opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
     // Table 1 – Collator options settable through both extension keys and options properties
     // Key Property    Type            Values
@@ -229,7 +229,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             value = value.toString(state);
         }
         // Set opt.[[<key>]] to value.
-        opt->insert(std::make_pair(keyColumn, value.toString(state)));
+        opt.insert(std::make_pair(keyColumn->toNonGCUTF8StringData(), value.toString(state)));
     };
 
     doTable1(String::fromASCII("kn"), String::fromASCII("numeric"), Intl::BooleanValue, nullptr, 0);
@@ -239,11 +239,11 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Let relevantExtensionKeys be the value of the [[relevantExtensionKeys]] internal property of Collator.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
     // internal property of Collator, requestedLocales, opt, relevantExtensionKeys, and localeData.
-    StringMap* r = Intl::resolveLocale(state, realm->globalObject()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
+    StringMap r = Intl::resolveLocale(state, realm->globalObject()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
 
     // Set the [[locale]] internal property of collator to the value of r.[[locale]].
     String* localeInternalString = String::fromASCII("locale");
-    collator->internalSlot()->set(state, ObjectPropertyName(state, localeInternalString), r->at(localeInternalString), collator->internalSlot());
+    collator->internalSlot()->set(state, ObjectPropertyName(state, localeInternalString), r.at("locale"), collator->internalSlot());
 
     // Let i be 0.
     size_t i = 0;
@@ -260,9 +260,9 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             // Let property be "collation".
             property = "collation";
             // Let value be the value of r.[[co]].
-            auto iter = r->find(String::fromASCII("co"));
+            auto iter = r.find("co");
             // If value is null, then let value be "default".
-            if (r->end() == iter || iter->second->equals("")) {
+            if (r.end() == iter || iter->second->equals("")) {
                 value = String::fromASCII("default");
             } else {
                 value = iter->second;
@@ -277,7 +277,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             // Let property be the name given in the Property column of the row.
             property = "numeric";
             // Let value be the value of r.[[<key>]].
-            value = r->at(String::fromASCII("kn"));
+            value = r.at("kn");
             // If the name given in the Type column of the row is "boolean",
             // then let value be the result of comparing value with "true".
             value = Value(value.equalsTo(state, String::fromASCII("true")));
@@ -292,7 +292,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             // Let property be the name given in the Property column of the row.
             property = "caseFirst";
             // Let value be the value of r.[[<key>]].
-            value = r->at(String::fromASCII("kf"));
+            value = r.at("kf");
             // If the name given in the Type column of the row is "boolean",
             // then let value be the result of comparing value with "true".
         } else {

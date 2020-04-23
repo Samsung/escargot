@@ -649,6 +649,7 @@ public:
     AtomicString getLanguage;
     AtomicString getScript;
     AtomicString getRegion;
+    AtomicString getFormat;
     AtomicString intlDotLocale;
     AtomicString symbolSplit;
     AtomicString symbolReplace;

@@ -116,6 +116,7 @@ namespace RuntimeICUBinder {
     F(ucal_getType, const char* (*)(const UCalendar* cal, UErrorCode* status), const char*)                                                                                                    \
     F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                     \
     F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
+    F(udatpg_getBestPatternWithOptions, int32_t (*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                   \
     F(unum_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
     F(unum_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
     F(unum_open, UNumberFormat* (*)(UNumberFormatStyle style, const UChar* pattern, int32_t patternLength, const char* locale, UParseError* parseErr, UErrorCode* status), UNumberFormat*)     \

@@ -161,45 +161,29 @@ static Value builtinIntlCollatorSupportedLocalesOf(ExecutionState& state, Value 
 
 static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!newTarget.hasValue()) {
-        // If locales is not provided, then let locales be undefined.
-        // If options is not provided, then let options be undefined.
-        Value locales, options;
-        if (argc >= 1) {
-            locales = argv[0];
-        }
-        if (argc >= 2) {
-            options = argv[1];
-        }
-
-        // If this is the standard built-in Intl object defined in 8 or undefined, then
-        // Return the result of creating a new object as if by the expression new Intl.DateTimeFormat(locales, options), where Intl.DateTimeFormat is the standard built-in constructor defined in 12.1.3.
-        if (thisValue.isUndefined() || thisValue.equalsTo(state, state.context()->globalObject()->intl())) {
-            return IntlDateTimeFormat::create(state, state.context(), locales, options);
-        }
-        // Let obj be the result of calling ToObject passing the this value as the argument.
-        Object* obj = thisValue.toObject(state);
-        // If the [[Extensible]] internal property of obj is false, throw a TypeError exception.
-        if (!obj->isExtensible(state)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This value of Intl.DateTimeFormat function must be extensible");
-        }
-        // Call the InitializeDateTimeFormat abstract operation (defined in 12.1.1.1) with arguments obj, locales, and options.
-        IntlDateTimeFormat::initialize(state, obj, state.context(), locales, options);
-        return obj;
-    } else {
-        Context* realm = newTarget->getFunctionRealm(state);
-
-        // If locales is not provided, then let locales be undefined.
-        // If options is not provided, then let options be undefined.
-        Value locales, options;
-        if (argc >= 1) {
-            locales = argv[0];
-        }
-        if (argc >= 2) {
-            options = argv[1];
-        }
-        return IntlDateTimeFormat::create(state, realm, locales, options);
+    Value locales, options;
+    if (argc >= 1) {
+        locales = argv[0];
     }
+    if (argc >= 2) {
+        options = argv[1];
+    }
+
+    // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
+    Object* newTargetVariable;
+    if (!newTarget.hasValue()) {
+        newTargetVariable = state.resolveCallee();
+    } else {
+        newTargetVariable = newTarget.value();
+    }
+
+    // Let dateTimeFormat be ? OrdinaryCreateFromConstructor(newTarget, "%DateTimeFormatPrototype%", « [[InitializedDateTimeFormat]], [[Locale]], [[Calendar]], [[NumberingSystem]], [[TimeZone]], [[Weekday]], [[Era]], [[Year]], [[Month]], [[Day]], [[Hour]], [[Minute]], [[Second]], [[TimeZoneName]], [[HourCycle]], [[Pattern]], [[BoundFormat]] »).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTargetVariable, [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->intlDateTimeFormatPrototype();
+    });
+    Object* dateTimeFormat = new Object(state, proto);
+    IntlDateTimeFormat::initialize(state, dateTimeFormat, locales, options);
+    return dateTimeFormat;
 }
 
 static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -235,7 +219,7 @@ static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value 
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormat, 0, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -291,11 +275,12 @@ static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Val
     setFormatOpt(state, internalSlot, result, "calendar");
     setFormatOpt(state, internalSlot, result, "numberingSystem");
     setFormatOpt(state, internalSlot, result, "timeZone");
+    setFormatOpt(state, internalSlot, result, "hourCycle");
     setFormatOpt(state, internalSlot, result, "hour12");
+    setFormatOpt(state, internalSlot, result, "weekday");
     setFormatOpt(state, internalSlot, result, "era");
     setFormatOpt(state, internalSlot, result, "year");
     setFormatOpt(state, internalSlot, result, "month");
-    setFormatOpt(state, internalSlot, result, "weekday");
     setFormatOpt(state, internalSlot, result, "day");
     setFormatOpt(state, internalSlot, result, "hour");
     setFormatOpt(state, internalSlot, result, "minute");
@@ -349,8 +334,7 @@ static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value th
     if (g.hasValue()) {
         fn = g.value(state, internalSlot).asFunction();
     } else {
-        const StaticStrings* strings = &state.context()->staticStrings();
-        fn = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormat, 1, NativeFunctionInfo::Strict));
+        fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlNumberFormatFormat, 1, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
@@ -360,46 +344,29 @@ static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value th
 
 static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget.hasValue()) {
-        // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.3.1
-        Value locales, options;
-        // If locales is not provided, then let locales be undefined.
-        // If options is not provided, then let options be undefined.
-        if (argc >= 1) {
-            locales = argv[0];
-        }
-        if (argc >= 2) {
-            options = argv[1];
-        }
-        return IntlNumberFormat::create(state, newTarget->getFunctionRealm(state), locales, options);
-    } else {
-        // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.2
-        Value locales, options;
-        // If locales is not provided, then let locales be undefined.
-        // If options is not provided, then let options be undefined.
-        if (argc >= 1) {
-            locales = argv[0];
-        }
-        if (argc >= 2) {
-            options = argv[1];
-        }
-        // If this is the standard built-in Intl object defined in 8 or undefined, then
-        // Return the result of creating a new object as if by the expression new Intl.Collator(locales, options),
-        // where Intl.Collator is the standard built-in constructor defined in 10.1.3.
-        if (thisValue.isUndefined() || (thisValue.isObject() && thisValue.asObject() == state.context()->globalObject()->intl())) {
-            Value callArgv[] = { locales, options };
-            return IntlNumberFormat::create(state, state.context(), locales, options);
-        } else {
-            // Let obj be the result of calling ToObject passing the this value as the argument.
-            Object* obj = thisValue.toObject(state);
-            // If the [[Extensible]] internal property of obj is false, throw a TypeError exception.
-            if (!obj->isExtensible(state)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This value of Intl.NumberFormat function must be extensible");
-            }
-            IntlNumberFormat::initialize(state, obj, state.context(), locales, options);
-            return obj;
-        }
+    Value locales, options;
+    if (argc >= 1) {
+        locales = argv[0];
     }
+    if (argc >= 2) {
+        options = argv[1];
+    }
+
+    // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
+    Object* newTargetVariable;
+    if (!newTarget.hasValue()) {
+        newTargetVariable = state.resolveCallee();
+    } else {
+        newTargetVariable = newTarget.value();
+    }
+
+    // Let numberFormat be ? OrdinaryCreateFromConstructor(newTarget, "%NumberFormatPrototype%", « [[InitializedNumberFormat]], [[Locale]], [[DataLocale]], [[NumberingSystem]], [[Style]], [[Unit]], [[UnitDisplay]], [[Currency]], [[CurrencyDisplay]], [[CurrencySign]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[Notation]], [[CompactDisplay]], [[UseGrouping]], [[SignDisplay]], [[BoundFormat]] »).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTargetVariable, [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->intlNumberFormatPrototype();
+    });
+    Object* numberFormat = new Object(state, proto);
+    IntlNumberFormat::initialize(state, numberFormat, locales, options);
+    return numberFormat;
 }
 
 static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -889,34 +856,36 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlDateTimeFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->DateTimeFormat, builtinIntlDateTimeFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlDateTimeFormat->setGlobalIntrinsicObject(state);
-    m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->setGlobalIntrinsicObject(state);
+    m_intlDateTimeFormatPrototype = m_intlDateTimeFormat->getFunctionPrototype(state).asObject();
+    m_intlDateTimeFormatPrototype->setGlobalIntrinsicObject(state, true);
 
-    FunctionObject* formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDateTimeFormatFormatGetter, 0, NativeFunctionInfo::Strict));
-    m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().format,
-                                                                                    ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    FunctionObject* formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getFormat, builtinIntlDateTimeFormatFormatGetter, 0, NativeFunctionInfo::Strict));
+    m_intlDateTimeFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().format,
+                                                     ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
-                                                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlDateTimeFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlDateTimeFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
+                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlDateTimeFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlDateTimeFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
-                                                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDateTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlDateTimeFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDateTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlDateTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlDateTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlNumberFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlNumberFormat->setGlobalIntrinsicObject(state);
-    m_intlNumberFormat->getFunctionPrototype(state).asObject()->setGlobalIntrinsicObject(state);
+    m_intlNumberFormatPrototype = m_intlNumberFormat->getFunctionPrototype(state).asObject();
+    m_intlNumberFormatPrototype->setGlobalIntrinsicObject(state, true);
 
-    formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
-    m_intlNumberFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().format,
-                                                                                  ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getFormat, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
+    m_intlNumberFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().format,
+                                                   ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_intlNumberFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
-                                                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlNumberFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlNumberFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlNumberFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlNumberFormat->getFunctionPrototype(state).asObject()->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
-                                                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlNumberFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlNumberFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));

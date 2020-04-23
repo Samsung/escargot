@@ -88,7 +88,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     }
 
     // Let opt be a new Record.
-    StringMap* opt = new StringMap();
+    StringMap opt;
     // Let matcher be ? GetOption(options, "localeMatcher", "string", « "lookup", "best fit" », "best fit").
     // Set opt.[[localeMatcher]] to matcher.
     Value localeMatcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
@@ -96,7 +96,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     if (optionObject) {
         matcher = Intl::getOption(state, optionObject.value(), String::fromASCII("localeMatcher"), Intl::StringValue, localeMatcherValues, 2, localeMatcherValues[1]).asString();
     }
-    opt->insert(std::make_pair(String::fromASCII("matcher"), matcher));
+    opt.insert(std::make_pair("matcher", matcher));
 
     // Let t be ? GetOption(options, "type", "string", « "cardinal", "ordinal" », "cardinal").
     Value typeValues[2] = { String::fromASCII("cardinal"), String::fromASCII("ordinal") };
@@ -149,7 +149,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     // Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]], requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]], localeData).
     // Set pluralRules.[[Locale]] to the value of r.[[locale]].
     auto r = Intl::resolveLocale(state, state.context()->globalObject()->intlPluralRulesAvailableLocales(), requestedLocales, opt, nullptr, 0, nullptr);
-    String* foundLocale = r->at(String::fromASCII("locale"));
+    String* foundLocale = r.at("locale");
 
     UErrorCode status = U_ZERO_ERROR;
     m_icuNumberFormat = unum_open(UNUM_DEFAULT, nullptr, 0, foundLocale->toNonGCUTF8StringData().data(), nullptr, &status);
