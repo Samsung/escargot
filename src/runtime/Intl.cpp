@@ -874,7 +874,7 @@ static std::string privateUseLangTag(const std::vector<std::string>& parts, size
     return privateuse.finalize()->toNonGCUTF8StringData();
 }
 
-static Intl::CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale)
+Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored)
 {
     std::vector<std::string> parts = split(locale, '-');
 
@@ -1018,6 +1018,7 @@ static Intl::CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string
 
         ++currentIndex;
 
+        bool unicodeExtensionIgnored = false;
         if (singletonValue.key == 'u') {
             // "u" needs ordered key, value
             // "u" doesn't allow single "true" as value
@@ -1054,7 +1055,10 @@ static Intl::CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string
                 }
             }
 
-            if (key.length() || value.size()) {
+            bool unicodeExtensionIgnoredOnce = (key.length() && key == unicodeExtensionNameShouldIgnored);
+            unicodeExtensionIgnored |= unicodeExtensionIgnoredOnce;
+
+            if (!unicodeExtensionIgnoredOnce && (key.length() || value.size())) {
                 if (key.length() && value.size() == 1 && value[0] == "true") {
                     value.clear();
                 }
@@ -1106,6 +1110,10 @@ static Intl::CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string
             }
 
             result.unicodeExtension = std::move(unicodeExtensionValue);
+
+            if (unicodeExtensionIgnored && !result.unicodeExtension.size()) {
+                continue;
+            }
         } else {
             std::string single;
             while (currentIndex < numParts) {
@@ -1514,14 +1522,14 @@ static bool stringVectorContains(const std::vector<std::string>& v, const std::s
 }
 
 
-StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData)
+StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, const StringMap& options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData)
 {
     // https://www.ecma-international.org/ecma-402/6.0/index.html#sec-resolvelocale
 
     // Let matcher be the value of options.[[localeMatcher]].
-    auto iter = options->find(String::fromASCII("localeMatcher"));
+    auto iter = options.find("localeMatcher");
     Value matcher;
-    if (iter != options->end()) {
+    if (iter != options.end()) {
         matcher = iter->second;
     }
 
@@ -1540,10 +1548,10 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUt
     String* foundLocale = r.locale;
 
     // Let result be a new Record.
-    StringMap* result = new StringMap;
+    StringMap result;
 
     // Set result.[[dataLocale]] to foundLocale.
-    result->insert(std::make_pair(String::fromASCII("dataLocale"), foundLocale));
+    result.insert(std::make_pair("dataLocale", foundLocale));
 
     // Let supportedExtension be "-u".
     String* supportedExtension = String::fromASCII("-u");
@@ -1597,9 +1605,9 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUt
         }
 
         // If options has a field [[<key>]], then
-        if (options->find(String::fromASCII(key)) != options->end()) {
+        if (options.find(key) != options.end()) {
             // Let optionsValue be options.[[<key>]].
-            auto optionsValue = options->at(String::fromASCII(key));
+            auto optionsValue = options.at(key);
             // Assert: Type(optionsValue) is either String, Undefined, or Null.
             // If keyLocaleData contains optionsValue, then
             if (stringVectorContains(keyLocaleData, optionsValue->toNonGCUTF8StringData())) {
@@ -1614,7 +1622,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUt
         }
 
         // Set result.[[<key>]] to value.
-        result->insert(std::make_pair(String::fromASCII(key), String::fromUTF8(value.data(), value.length())));
+        result.insert(std::make_pair(key, String::fromUTF8(value.data(), value.length())));
 
         // Append supportedExtensionAddition to supportedExtension.
         StringBuilder sb;
@@ -1660,7 +1668,7 @@ StringMap* Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUt
         foundLocale = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(foundLocale->toNonGCUTF8StringData()).canonicalizedTag.value();
     }
     // Set result.[[locale]] to foundLocale.
-    result->insert(std::make_pair(String::fromASCII("locale"), foundLocale));
+    result.insert(std::make_pair("locale", foundLocale));
     // Return result.
     return result;
 }

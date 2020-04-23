@@ -780,10 +780,10 @@ struct equal_to<Escargot::String*> {
 #include "runtime/StringView.h"
 
 namespace Escargot {
-typedef std::unordered_map<String*, String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<std::pair<String* const, String*>>> StringMapStd;
+typedef std::unordered_map<std::string, String*, std::hash<std::string>, std::equal_to<std::string>, GCUtil::gc_malloc_allocator<std::pair<std::string const, String*>>> StringMapStd;
 class StringMap : public StringMapStd, public gc {
 public:
-    String* at(String* s) const
+    String* at(const std::string& s) const
     {
         auto iter = find(s);
         if (iter != end()) {
@@ -791,6 +791,9 @@ public:
         }
         return String::emptyString;
     }
+
+    void* operator new(size_t size) = delete;
+    void* operator new[](size_t size) = delete;
 };
 }
 

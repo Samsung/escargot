@@ -50,14 +50,16 @@
 #include "Value.h"
 #include "Intl.h"
 #include "IntlDateTimeFormat.h"
+#include "DateObject.h"
 #include "ArrayObject.h"
 
 namespace Escargot {
 
-static const char* const intlDateTimeFormatRelevantExtensionKeys[2] = { "ca", "nu" };
-static size_t intlDateTimeFormatRelevantExtensionKeysLength = 2;
+static const char* const intlDateTimeFormatRelevantExtensionKeys[3] = { "ca", "nu", "hc" };
+static size_t intlDateTimeFormatRelevantExtensionKeysLength = 3;
 static const size_t indexOfExtensionKeyCa = 0;
 static const size_t indexOfExtensionKeyNu = 1;
+static const size_t indexOfExtensionKeyHc = 2;
 static const double minECMAScriptTime = -8.64E15;
 
 std::vector<std::string> Intl::calendarsForLocale(String* locale)
@@ -98,6 +100,12 @@ static std::vector<std::string> localeDataDateTimeFormat(String* locale, size_t 
         break;
     case indexOfExtensionKeyNu:
         keyLocaleData = Intl::numberingSystemsForLocale(locale);
+        break;
+    case indexOfExtensionKeyHc:
+        keyLocaleData.push_back("h12");
+        keyLocaleData.push_back("h23");
+        keyLocaleData.push_back("h24");
+        keyLocaleData.push_back("h11");
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -174,9 +182,6 @@ static String* canonicalizeTimeZoneName(String* timeZoneName)
 
 static void toDateTimeOptionsTest(ExecutionState& state, Value options, const char* ch, bool& needDefaults)
 {
-    if (!needDefaults) {
-        return;
-    }
     Value r = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII(ch))).value(state, options.asObject());
     if (!r.isUndefined()) {
         needDefaults = false;
@@ -192,14 +197,102 @@ static String* defaultTimeZone(ExecutionState& state)
 
 Object* IntlDateTimeFormat::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
-    Object* dateTimeFormat = new Object(state, realm->globalObject()->objectPrototype());
-    initialize(state, dateTimeFormat, realm, locales, options);
+    Object* dateTimeFormat = new Object(state, realm->globalObject()->intlDateTimeFormatPrototype());
+    initialize(state, dateTimeFormat, locales, options);
     return dateTimeFormat;
 }
 
-void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeFormat, Context* realm, Value locales, Value options)
+static bool is38Alphanum(const std::string& str)
 {
-    dateTimeFormat->setPrototype(state, realm->globalObject()->intlDateTimeFormat()->getFunctionPrototype(state));
+    if (str.length() >= 3 && str.length() <= 8) {
+        return isAllSpecialCharacters(str, isASCIIAlphanumeric);
+    }
+    return false;
+}
+
+static bool is38AlphanumList(const std::string& str)
+{
+    std::size_t found = str.find("-");
+    if (found == std::string::npos) {
+        return is38Alphanum(str);
+    }
+    return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1));
+}
+
+static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString)
+{
+    bool inQuote = false;
+    for (size_t i = 0; i < patternString.length(); i++) {
+        auto ch = patternString[i];
+        switch (ch) {
+        case '\'':
+            inQuote = !inQuote;
+            break;
+        case 'K':
+            if (!inQuote) {
+                return "h11";
+            }
+            break;
+        case 'h':
+            if (!inQuote) {
+                return "h12";
+            }
+            break;
+        case 'H':
+            if (!inQuote) {
+                return "h23";
+            }
+            break;
+        case 'k':
+            if (!inQuote) {
+                return "h24";
+            }
+            break;
+        }
+    }
+    return "";
+}
+
+UTF16StringDataNonGCStd updateHourCycleInPatternDueToHourCycle(const UTF16StringDataNonGCStd& pattern, String* hc)
+{
+    char16_t newHcChar;
+    if (hc->equals("h11")) {
+        newHcChar = 'K';
+    } else if (hc->equals("h12")) {
+        newHcChar = 'h';
+    } else if (hc->equals("h23")) {
+        newHcChar = 'H';
+    } else {
+        ASSERT(hc->equals("h24"));
+        newHcChar = 'k';
+    }
+    bool inQuote = false;
+    UTF16StringDataNonGCStd result;
+    for (size_t i = 0; i < pattern.length(); i++) {
+        auto ch = pattern[i];
+        switch (ch) {
+        case '\'':
+            inQuote = !inQuote;
+            result += ch;
+            break;
+        case 'K':
+        case 'k':
+        case 'H':
+        case 'h':
+            result += inQuote ? ch : newHcChar;
+            break;
+        default:
+            result += ch;
+            break;
+        }
+    }
+
+    return result;
+}
+
+
+void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeFormat, Value locales, Value options)
+{
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     String* initializedIntlObject = String::fromASCII("initializedIntlObject");
     if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
@@ -217,14 +310,59 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     options = toDateTimeOptions(state, options, String::fromASCII("any"), String::fromASCII("date"));
 
     // Let opt be a new Record.
-    StringMap* opt = new StringMap;
+    StringMap opt;
     // Let matcher be the result of calling the GetOption abstract operation (defined in 9.2.9) with arguments options,
     // "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit".
     Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
     Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
 
     // Set opt.[[localeMatcher]] to matcher.
-    opt->insert(std::make_pair(String::fromASCII("localeMatcher"), matcher.toString(state)));
+    opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
+
+    // Let calendar be ? GetOption(options, "calendar", "string", undefined, undefined).
+    Value calendar = Intl::getOption(state, options.asObject(), String::fromASCII("calendar"), Intl::StringValue, nullptr, 0, Value());
+    // If calendar is not undefined, then
+    if (!calendar.isUndefined()) {
+        // If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
+        std::string s = calendar.asString()->toNonGCUTF8StringData();
+        if (!is38AlphanumList(s)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The calendar value you gave is not valid");
+        }
+    }
+    // Set opt.[[ca]] to calendar.
+    if (!calendar.isUndefined()) {
+        opt.insert(std::make_pair("ca", calendar.toString(state)));
+    }
+    // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
+    Value numberingSystem = Intl::getOption(state, options.asObject(), String::fromASCII("numberingSystem"), Intl::StringValue, nullptr, 0, Value());
+    // If numberingSystem is not undefined, then
+    if (!numberingSystem.isUndefined()) {
+        // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
+        std::string s = numberingSystem.asString()->toNonGCUTF8StringData();
+        if (!is38AlphanumList(s)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
+        }
+    }
+    // Set opt.[[nu]] to numberingSystem.
+    if (!numberingSystem.isUndefined()) {
+        opt.insert(std::make_pair("nu", numberingSystem.toString(state)));
+    }
+
+    // Let hour12 be ? GetOption(options, "hour12", "boolean", undefined, undefined).
+    Value hour12 = Intl::getOption(state, options.asObject(), String::fromASCII("hour12"), Intl::BooleanValue, nullptr, 0, Value());
+
+    // Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11", "h12", "h23", "h24" », undefined).
+    Value hourCycleValue[4] = { String::fromASCII("h11"), String::fromASCII("h12"), String::fromASCII("h23"), String::fromASCII("h24") };
+    Value hourCycle = Intl::getOption(state, options.asObject(), String::fromASCII("hourCycle"), Intl::StringValue, hourCycleValue, 4, Value());
+    // If hour12 is not undefined, then
+    if (!hour12.isUndefined()) {
+        // Let hourCycle be null.
+        hourCycle = Value(Value::Null);
+    }
+    // Set opt.[[hc]] to hourCycle.
+    if (!hourCycle.isUndefinedOrNull()) {
+        opt.insert(std::make_pair("hc", hourCycle.toString(state)));
+    }
 
     // Let DateTimeFormat be the standard built-in object that is the initial value of Intl.DateTimeFormat.
     // Let localeData be the value of the [[localeData]] internal property of DateTimeFormat.
@@ -232,17 +370,35 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the
     // [[availableLocales]] internal property of DateTimeFormat, requestedLocales, opt, the [[relevantExtensionKeys]] internal property of DateTimeFormat, and localeData.
-    StringMap* r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, intlDateTimeFormatRelevantExtensionKeys, intlDateTimeFormatRelevantExtensionKeysLength, localeDataDateTimeFormat);
+    StringMap r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, intlDateTimeFormatRelevantExtensionKeys, intlDateTimeFormatRelevantExtensionKeysLength, localeDataDateTimeFormat);
+
+    // The resolved locale doesn't include a hc Unicode extension value if the hour12 or hourCycle option is also present.
+    if (!hour12.isUndefined() || !hourCycle.isUndefinedOrNull()) {
+        auto iter = r.find("locale");
+        String* locale = iter->second;
+        iter->second = Intl::canonicalizeLanguageTag(locale->toNonGCUTF8StringData(), "hc").canonicalizedTag.value();
+    }
 
     // Set the [[locale]] internal property of dateTimeFormat to the value of r.[[locale]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("locale")), r->at(String::fromASCII("locale")), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("locale")), r.at("locale"), dateTimeFormat->internalSlot());
     // Set the [[calendar]] internal property of dateTimeFormat to the value of r.[[ca]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("calendar")), r->at(String::fromASCII("ca")), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("calendar")), r.at("ca"), dateTimeFormat->internalSlot());
+    // Set dateTimeFormat.[[hourCycle]] to r.[[hc]].
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hourCycle")), r.at("hc"), dateTimeFormat->internalSlot());
     // Set the [[numberingSystem]] internal property of dateTimeFormat to the value of r.[[nu]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("numberingSystem")), r->at(String::fromASCII("nu")), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("numberingSystem")), r.at("nu"), dateTimeFormat->internalSlot());
 
     // Let dataLocale be the value of r.[[dataLocale]].
-    Value dataLocale = r->at(String::fromASCII("dataLocale"));
+    Value dataLocale = r.at("dataLocale");
+
+    // Always use ICU date format generator, rather than our own pattern list and matcher.
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(dataLocale.toString(state)->toUTF8StringData().data(), &status),
+                                                              [](UDateTimePatternGenerator* d) { udatpg_close(d); });
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+        return;
+    }
 
     // Let tz be the result of calling the [[Get]] internal method of options with argument "timeZone".
     Value tz = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("timeZone"))).value(state, options.asObject());
@@ -266,7 +422,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("timeZone")), tz, dateTimeFormat->internalSlot());
 
     // Let opt be a new Record.
-    opt = new StringMap();
+    opt.clear();
 
     // Table 3 – Components of date and time formats
     // Property    Values
@@ -287,7 +443,9 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         // "string", a List containing the strings given in the Values column of the row, and undefined.
         Value value = Intl::getOption(state, options.asObject(), prop, Intl::StringValue, values, valuesSize, Value());
         // Set opt.[[<prop>]] to value.
-        opt->insert(std::make_pair(prop, value.toString(state)));
+        if (!value.isUndefined()) {
+            opt.insert(std::make_pair(prop->toNonGCUTF8StringData(), value.toString(state)));
+        }
     };
 
     StringBuilder skeletonBuilder;
@@ -296,7 +454,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     doTable3(String::fromASCII("weekday"), narrowShortLongValues, 3);
 
-    String* ret = opt->at(String::fromASCII("weekday"));
+    String* ret = opt.at("weekday");
 
     if (ret->equals("narrow")) {
         skeletonBuilder.appendString("EEEEE");
@@ -308,7 +466,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     doTable3(String::fromASCII("era"), narrowShortLongValues, 3);
 
-    ret = opt->at(String::fromASCII("era"));
+    ret = opt.at("era");
     if (ret->equals("narrow")) {
         skeletonBuilder.appendString("GGGGG");
     } else if (ret->equals("short")) {
@@ -320,7 +478,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     Value twoDightNumericValues[2] = { String::fromASCII("2-digit"), String::fromASCII("numeric") };
     doTable3(String::fromASCII("year"), twoDightNumericValues, 2);
 
-    ret = opt->at(String::fromASCII("year"));
+    ret = opt.at("year");
     if (ret->equals("2-digit")) {
         skeletonBuilder.appendString("yy");
     } else if (ret->equals("numeric")) {
@@ -330,7 +488,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     Value allValues[5] = { String::fromASCII("2-digit"), String::fromASCII("numeric"), String::fromASCII("narrow"), String::fromASCII("short"), String::fromASCII("long") };
     doTable3(String::fromASCII("month"), allValues, 5);
 
-    ret = opt->at(String::fromASCII("month"));
+    ret = opt.at("month");
     if (ret->equals("2-digit")) {
         skeletonBuilder.appendString("MM");
     } else if (ret->equals("numeric")) {
@@ -345,7 +503,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     doTable3(String::fromASCII("day"), twoDightNumericValues, 2);
 
-    ret = opt->at(String::fromASCII("day"));
+    ret = opt.at("day");
     if (ret->equals("2-digit")) {
         skeletonBuilder.appendString("dd");
     } else if (ret->equals("numeric")) {
@@ -354,10 +512,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     doTable3(String::fromASCII("hour"), twoDightNumericValues, 2);
 
-    ret = opt->at(String::fromASCII("hour"));
-
-    // Let hr12 be the result of calling the GetOption abstract operation with arguments options, "hour12", "boolean", undefined, and undefined.
-    Value hr12Value = Intl::getOption(state, options.asObject(), String::fromASCII("hour12"), Intl::BooleanValue, nullptr, 0, Value());
+    String* hour = ret = opt.at("hour");
+    Value hr12Value = hour12;
     bool isHour12Undefined = hr12Value.isUndefined();
     bool hr12 = hr12Value.toBoolean(state);
 
@@ -380,7 +536,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     doTable3(String::fromASCII("minute"), twoDightNumericValues, 2);
 
-    ret = opt->at(String::fromASCII("minute"));
+    ret = opt.at("minute");
     if (ret->equals("2-digit")) {
         skeletonBuilder.appendString("mm");
     } else if (ret->equals("numeric")) {
@@ -389,7 +545,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     doTable3(String::fromASCII("second"), twoDightNumericValues, 2);
 
-    ret = opt->at(String::fromASCII("second"));
+    ret = opt.at("second");
     if (ret->equals("2-digit")) {
         skeletonBuilder.appendString("ss");
     } else if (ret->equals("numeric")) {
@@ -399,7 +555,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     Value shortLongValues[2] = { String::fromASCII("short"), String::fromASCII("long") };
     doTable3(String::fromASCII("timeZoneName"), shortLongValues, 2);
 
-    ret = opt->at(String::fromASCII("second"));
+    ret = opt.at("timeZoneName");
     if (ret->equals("short")) {
         skeletonBuilder.appendString("z");
     } else if (ret->equals("long")) {
@@ -415,34 +571,95 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     // Always use ICU date format generator, rather than our own pattern list and matcher.
     // Covers steps 28-36.
-    UErrorCode status = U_ZERO_ERROR;
-    UDateTimePatternGenerator* generator = udatpg_open(dataLocale.toString(state)->toUTF8StringData().data(), &status);
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
-        return;
-    }
-
     String* skeleton = skeletonBuilder.finalize();
     UTF16StringData skeletonUTF16String = skeleton->toUTF16StringData();
+
+    // If dateTimeFormat.[[Hour]] is not undefined, then
+    bool hasHourOption = hour->length();
+    if (hasHourOption) {
+        // Let hcDefault be dataLocaleData.[[hourCycle]].
+        UTF16StringDataNonGCStd patternBuffer;
+        patternBuffer.resize(32);
+        status = U_ZERO_ERROR;
+        auto patternLength = udatpg_getBestPattern(generator.get(), u"jjmm", 4, (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
+        patternBuffer.resize(patternLength);
+        if (status == U_BUFFER_OVERFLOW_ERROR) {
+            status = U_ZERO_ERROR;
+            patternBuffer.resize(patternLength);
+            udatpg_getBestPattern(generator.get(), u"jjmm", 4, (UChar*)patternBuffer.data(), patternLength, &status);
+        }
+        ASSERT(U_SUCCESS(status));
+        auto hcDefault = readHourCycleFromPattern(patternBuffer);
+        // Let hc be dateTimeFormat.[[HourCycle]].
+        auto hc = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("hourCycle"))).value(state, dateTimeFormat->internalSlot()).asString();
+        // If hc is null, then
+        if (!hc->length()) {
+            // Set hc to hcDefault.
+            hc = String::fromUTF8(hcDefault.data(), hcDefault.size());
+        }
+        // If hour12 is not undefined, then
+        if (!hour12.isUndefined()) {
+            // If hour12 is true, then
+            if (hour12.asBoolean()) {
+                // If hcDefault is "h11" or "h23", then
+                if (hcDefault == "h11" || hcDefault == "h23") {
+                    // Set hc to "h11".
+                    hc = String::fromASCII("h11");
+                } else {
+                    // Set hc to "h12".
+                    hc = String::fromASCII("h12");
+                }
+            } else {
+                // Assert: hour12 is false.
+                // If hcDefault is "h11" or "h23", then
+                if (hcDefault == "h11" || hcDefault == "h23") {
+                    // Set hc to "h23".
+                    hc = String::fromASCII("h23");
+                } else {
+                    // Else,
+                    // Set hc to "h24".
+                    hc = String::fromASCII("h24");
+                }
+            }
+        }
+
+        // Let dateTimeFormat.[[HourCycle]] to hc.
+        dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hourCycle")), Value(hc), dateTimeFormat->internalSlot());
+    } else {
+        // Set dateTimeFormat.[[HourCycle]] to undefined.
+        dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hourCycle")), Value(), dateTimeFormat->internalSlot());
+        // Let pattern be bestFormat.[[pattern]].
+    }
+
     UTF16StringDataNonGCStd patternBuffer;
     patternBuffer.resize(32);
     status = U_ZERO_ERROR;
-    auto patternLength = udatpg_getBestPattern(generator, (UChar*)skeletonUTF16String.data(), skeletonUTF16String.length(), (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
+    auto patternLength = udatpg_getBestPatternWithOptions(generator.get(), (UChar*)skeletonUTF16String.data(), skeletonUTF16String.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
     patternBuffer.resize(patternLength);
     if (status == U_BUFFER_OVERFLOW_ERROR) {
         status = U_ZERO_ERROR;
         patternBuffer.resize(patternLength);
-        udatpg_getBestPattern(generator, (UChar*)skeletonUTF16String.data(), skeletonUTF16String.length(), (UChar*)patternBuffer.data(), patternLength, &status);
+        udatpg_getBestPatternWithOptions(generator.get(), (UChar*)skeletonUTF16String.data(), skeletonUTF16String.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, (UChar*)patternBuffer.data(), patternLength, &status);
     }
-    udatpg_close(generator);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
         return;
     }
 
+    Value hc = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("hourCycle"))).value(state, dateTimeFormat->internalSlot());
+    if (!hc.isUndefined() && hc.asString()->length()) {
+        patternBuffer = updateHourCycleInPatternDueToHourCycle(patternBuffer, hc.asString());
+    }
+
+    bool inQuote = false;
     unsigned length = patternBuffer.length();
     for (unsigned i = 0; i < length; ++i) {
         char16_t currentCharacter = patternBuffer[i];
+
+        if (currentCharacter == '\'') {
+            inQuote = !inQuote;
+        }
+
         if (!isASCIIAlpha(currentCharacter))
             continue;
 
@@ -452,10 +669,13 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
             ++i;
         }
 
-        if (currentCharacter == 'h' || currentCharacter == 'K')
-            dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour12")), Value(true), dateTimeFormat->internalSlot());
-        else if (currentCharacter == 'H' || currentCharacter == 'k')
-            dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour12")), Value(false), dateTimeFormat->internalSlot());
+        if (hasHourOption && !inQuote) {
+            if (currentCharacter == 'h' || currentCharacter == 'K') {
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour12")), Value(true), dateTimeFormat->internalSlot());
+            } else if (currentCharacter == 'H' || currentCharacter == 'k') {
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour12")), Value(false), dateTimeFormat->internalSlot());
+            }
+        }
 
         switch (currentCharacter) {
         case 'G':
@@ -535,7 +755,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     status = U_ZERO_ERROR;
     UTF16StringData timeZoneView = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("timeZone"))).value(state, dateTimeFormat->internalSlot()).toString(state)->toUTF16StringData();
-    UTF8StringData localeStringView = r->at(String::fromASCII("locale"))->toUTF8StringData();
+    UTF8StringData localeStringView = r.at("locale")->toUTF8StringData();
     UDateFormat* icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, localeStringView.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
@@ -566,10 +786,14 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
 UTF16StringDataNonGCStd IntlDateTimeFormat::format(ExecutionState& state, Object* dateTimeFormat, double x)
 {
-    // 1. If x is not a finite Number, then throw a RangeError exception.
-    if (!std::isfinite(x)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is not finite in DateTimeFormat format()");
+    // If x is not a finite Number, then throw a RangeError exception.
+    // If x is NaN, throw a RangeError exception
+    // If abs(time) > 8.64 × 10^15, return NaN.
+    if (std::isinf(x) || std::isnan(x) || !IS_IN_TIME_RANGE(x)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is valid in DateTimeFormat format()");
     }
+
+    x = Value(x).toInteger(state);
 
     UDateFormat* udat = (UDateFormat*)dateTimeFormat->internalSlot()->extraData();
 
@@ -639,9 +863,14 @@ static String* icuFieldTypeToPartName(int32_t fieldName)
 
 ArrayObject* IntlDateTimeFormat::formatToParts(ExecutionState& state, Object* dateTimeFormat, double x)
 {
-    if (!std::isfinite(x)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is not finite in DateTimeFormat format()");
+    // If x is not a finite Number, then throw a RangeError exception.
+    // If x is NaN, throw a RangeError exception
+    // If abs(time) > 8.64 × 10^15, return NaN.
+    if (std::isinf(x) || std::isnan(x) || !IS_IN_TIME_RANGE(x)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is not valid in DateTimeFormat formatToParts()");
     }
+
+    x = Value(x).toInteger(state);
 
     ArrayObject* result = new ArrayObject(state);
 
@@ -789,18 +1018,18 @@ Value IntlDateTimeFormat::toDateTimeOptions(ExecutionState& state, Value options
         // Call the [[DefineOwnProperty]] internal method of options with the property name,
         // Property Descriptor {[[Value]]: "numeric", [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
         String* v = String::fromASCII("numeric");
-        options.asObject()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("year")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("month")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("day")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("year")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("month")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("day")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
     // If needDefaults is true and defaults is either "time" or "all", then
     if (needDefaults && (defaults.equalsTo(state, String::fromASCII("time")) || defaults.equalsTo(state, String::fromASCII("all")))) {
         // For each of the property names "hour", "minute", "second":
         // Call the [[DefineOwnProperty]] internal method of options with the property name, Property Descriptor {[[Value]]: "numeric", [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
         String* v = String::fromASCII("numeric");
-        options.asObject()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("hour")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("minute")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("second")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("hour")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("minute")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("second")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
 
     return options;

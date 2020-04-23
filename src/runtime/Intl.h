@@ -40,7 +40,7 @@ public:
     };
 
     static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales);
-    static StringMap* resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, StringMap* options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
+    static StringMap resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, const StringMap& options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
     static Value supportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options);
     enum OptionValueType {
         StringValue,
@@ -66,6 +66,7 @@ public:
         std::vector<std::pair<std::string, std::string>> unicodeExtension;
         std::string privateUse;
     };
+    static CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored = "");
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
 };

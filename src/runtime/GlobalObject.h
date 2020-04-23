@@ -275,11 +275,21 @@ public:
         return m_intlDateTimeFormat;
     }
 
+    Object* intlDateTimeFormatPrototype()
+    {
+        return m_intlDateTimeFormatPrototype;
+    }
+
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
 
     FunctionObject* intlNumberFormat()
     {
         return m_intlNumberFormat;
+    }
+
+    Object* intlNumberFormatPrototype()
+    {
+        return m_intlNumberFormatPrototype;
     }
 
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlNumberFormatAvailableLocales();
@@ -650,8 +660,10 @@ private:
     FunctionObject* m_intlCollator;
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlCollatorAvailableLocales;
     FunctionObject* m_intlDateTimeFormat;
+    Object* m_intlDateTimeFormatPrototype;
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlDateTimeFormatAvailableLocales;
     FunctionObject* m_intlNumberFormat;
+    Object* m_intlNumberFormatPrototype;
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlNumberFormatAvailableLocales;
 
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_caseMappingAvailableLocales;
