@@ -55,6 +55,22 @@
 
 namespace Escargot {
 
+// Invalid tags starting with: https://github.com/tc39/ecma402/pull/289
+static bool isValidTagInBCP47ButInvalidOnUTS35(const std::string& s)
+{
+    if (s.rfind("no-nyn", 0) == 0) {
+        return true;
+    } else if (s.rfind("i-klingon", 0) == 0) {
+        return true;
+    } else if (s.rfind("zh-hak-CN", 0) == 0) {
+        return true;
+    } else if (s.rfind("sgn-ils", 0) == 0) {
+        return true;
+    }
+
+    return false;
+}
+
 static std::string grandfatheredLangTag(const std::string& locale)
 {
     // grandfathered = irregular / regular
@@ -79,7 +95,7 @@ static std::string grandfatheredLangTag(const std::string& locale)
     tagMap["sgn-ch-de"] = "sgg";
     // Regular.
     tagMap["art-lojban"] = "jbo";
-    tagMap["cel-gaulish"] = "cel-gaulish";
+    tagMap["cel-gaulish"] = "xtg-x-cel-gaulish";
     tagMap["no-bok"] = "nb";
     tagMap["no-nyn"] = "nn";
     tagMap["zh-guoyu"] = "zh";
@@ -101,6 +117,8 @@ static std::string grandfatheredLangTag(const std::string& locale)
 static std::string intlPreferredLanguageTag(const std::string& tag)
 {
     // 78 possible replacements
+    if (tag == "aar")
+        return "aa";
     if (tag == "aam")
         return "aas";
     if (tag == "adp")
@@ -115,12 +133,16 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "drl";
     if (tag == "ccq")
         return "rki";
+    if (tag == "ces")
+        return "cs";
     if (tag == "cjr")
         return "mom";
     if (tag == "cka")
         return "cmr";
     if (tag == "cmk")
         return "xch";
+    if (tag == "cmn")
+        return "zh";
     if (tag == "coy")
         return "pij";
     if (tag == "cqu")
@@ -139,6 +161,8 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "nyc";
     if (tag == "guv")
         return "duz";
+    if (tag == "heb")
+        return "he";
     if (tag == "hrr")
         return "jal";
     if (tag == "ibi")
@@ -283,8 +307,8 @@ static std::string intlRedundantLanguageTag(const std::string& tag)
         return "fsl";
     if (tag == "sgn-GB")
         return "bfi";
-    if (tag == "sgn-GR")
-        return "gss";
+    if (tag == "gss")
+        return "sgn-GR";
     if (tag == "sgn-IE")
         return "isg";
     if (tag == "sgn-IT")
@@ -1182,6 +1206,9 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
 
 Intl::CanonicalizedLangunageTag Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale)
 {
+    if (isValidTagInBCP47ButInvalidOnUTS35(locale)) {
+        return Intl::CanonicalizedLangunageTag();
+    }
     std::string grandfather = grandfatheredLangTag(locale);
     if (grandfather.length()) {
         return canonicalizeLanguageTag(grandfather);

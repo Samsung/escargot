@@ -1725,10 +1725,7 @@
     <test id="intl402/DisplayNames/prototype/resolvedOptions/return-object"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/resolvedOptions/this-not-object-throws"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/resolvedOptions/this-object-lacks-internal-throws"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/canonicalized-tags"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/invalid-tags"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/non-iana-canon"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/preferred-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/preferred-variant"><reason>TODO</reason></test>
     <test id="intl402/ListFormat/constructor/constructor/locales-invalid"><reason>TODO</reason></test>
     <test id="intl402/ListFormat/constructor/constructor/locales-valid"><reason>TODO</reason></test>
@@ -2038,7 +2035,6 @@
     <test id="intl402/Segmenter/prototype/toStringTag/toString"><reason>TODO</reason></test>
     <test id="intl402/Segmenter/prototype/toStringTag/toStringTag"><reason>TODO</reason></test>
     <test id="intl402/TypedArray/prototype/toLocaleString/calls-toLocaleString-number-elements"><reason>TODO</reason></test>
-    <test id="intl402/language-tags-invalid"><reason>TODO</reason></test>
     <test id="intl402/language-tags-with-underscore"><reason>TODO</reason></test>
     <test id="intl402/supportedLocalesOf-returned-array-elements-are-not-frozen"><reason>TODO</reason></test>
     <test id="language/arguments-object/cls-decl-async-private-gen-meth-args-trailing-comma-multiple"><reason>TODO</reason></test>
