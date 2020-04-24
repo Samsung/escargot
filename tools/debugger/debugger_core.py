@@ -96,7 +96,6 @@ ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 18
 ESCARGOT_DEBUGGER_PENDING_CONFIG = 19
 ESCARGOT_DEBUGGER_PENDING_RESUME = 20
 
-
 # Environment record types
 ESCARGOT_RECORD_GLOBAL_ENVIRONMENT = 0
 ESCARGOT_RECORD_FUNCTION_ENVIRONMENT = 1
@@ -429,15 +428,15 @@ class Debugger(object):
                                  ESCARGOT_MESSAGE_EVAL_RESULT_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END]:
                 self.prompt = True
-                return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data));
+                return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data)+'\n');
 
             elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
                 self.prompt = True
-                result = self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data);
-                return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.no_color));
+                return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, data)+'\n');
+
 
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
@@ -702,6 +701,12 @@ class Debugger(object):
     def eval(self, code):
         self._send_string(code, ESCARGOT_MESSAGE_EVAL_8BIT_START)
         self.prompt = False
+
+    def eval_at(self, code, index):
+        self._send_string(code, ESCARGOT_MESSAGE_EVAL_8BIT_START, index)
+        self.prompt = False
+
+
 
     def backtrace(self, args):
         max_depth = 0
@@ -1035,11 +1040,10 @@ class Debugger(object):
 
         return result
 
-    def _send_string(self, args, message_type):
+    def _send_string(self, args, message_type, index=0):
         # 1: length of type byte
         # 4: length of an uint32 value
         message_header = 1 + 4
-
         if not isinstance(args, unicode):
             try:
                 args = args.decode("ascii")
@@ -1052,6 +1056,10 @@ class Debugger(object):
             args = args.encode("UTF-16LE" if self.little_endian else "UTF-16BE", "namereplace")
             message_type += 2
 
+        # Add scope chain index
+        if message_type == ESCARGOT_MESSAGE_EVAL_8BIT_START:
+            args = struct.pack(self.byte_order + "I", index) + args
+
         size = len(args)
         max_fragment = min(self.max_message_size - message_header, size)
 
@@ -1059,7 +1067,6 @@ class Debugger(object):
                               max_fragment + message_header,
                               message_type,
                               size)
-
         if size == max_fragment:
             self.channel.send_message(self.byte_order, message + args)
             return

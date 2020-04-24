@@ -1,0 +1,44 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_eval_at.js:21
+(escargot-debugger) eval_at 0
+undefined
+(escargot-debugger) eval_at 0 b
+undefined
+(escargot-debugger) n
+Stopped at tools/debugger/tests/do_eval_at.js:29
+(escargot-debugger) eval_at 0 b
+2
+(escargot-debugger) b do_eval_at.js:26
+Breakpoint 1 at tools/debugger/tests/do_eval_at.js:26 (in f() at line:23, col:1)
+(escargot-debugger) n
+Stopped at breakpoint:1 tools/debugger/tests/do_eval_at.js:26 (in f() at line:23, col:1)
+(escargot-debugger) scope
+Function Environment
+Global Environment
+(escargot-debugger) eval_at 0 b
+6
+(escargot-debugger) eval_at 1 b
+2
+(escargot-debugger) eval_at 0 b=20
+20
+(escargot-debugger) eval_at 1 b=100
+100
+(escargot-debugger) n
+Stopped at tools/debugger/tests/do_eval_at.js:31
+(escargot-debugger) eval_at 0 a
+23
+(escargot-debugger) scope
+Global Environment
+(escargot-debugger) eval_at 0 b
+100
+(escargot-debugger) eval_at -1 b
+Error: Invalid scope chain index: -1 (must be between 0 and 65535)
+(escargot-debugger) eval_at 65536 b
+Error: Invalid scope chain index: 65536 (must be between 0 and 65535)
+(escargot-debugger) eval_at b
+Error: invalid literal for int() with base 10: 'b'
+(escargot-debugger) eval_at 200
+
+(escargot-debugger) c
+Connection closed.

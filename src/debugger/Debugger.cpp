@@ -192,20 +192,29 @@ bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8
     uint8_t type = (uint8_t)(buffer[0] + 1);
     uint32_t size;
     char* data;
+    uint32_t index;
+    char* ptr;
+    char* end;
 
     memcpy(&size, buffer + 1, sizeof(uint32_t));
+    memcpy(&index, buffer + 1 + sizeof(uint32_t), sizeof(uint32_t));
 
     if (size > ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1 - sizeof(uint32_t)) {
         if (length != ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH) {
             goto error;
         }
-
-        data = (char*)GC_MALLOC_ATOMIC(size);
-        char* ptr = data;
-        char* end = data + size;
-
         length = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1 - sizeof(uint32_t);
-        memcpy(ptr, buffer + 1 + sizeof(uint32_t), length);
+        if (type == ESCARGOT_MESSAGE_EVAL_8BIT || type == ESCARGOT_MESSAGE_EVAL_16BIT) {
+            data = (char*)GC_MALLOC_ATOMIC(size - sizeof(uint32_t));
+            ptr = data;
+            end = data + size - sizeof(uint32_t);
+            memcpy(ptr, buffer + 1 + sizeof(uint32_t) + sizeof(uint32_t), length);
+        } else {
+            data = (char*)GC_MALLOC_ATOMIC(size);
+            ptr = data;
+            end = data + size;
+            memcpy(ptr, buffer + 1 + sizeof(uint32_t), length);
+        }
         ptr += length;
 
         do {
@@ -224,15 +233,14 @@ bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8
         if (size + 1 + sizeof(uint32_t) != length) {
             goto error;
         }
-
-        data = (char*)buffer + 1 + sizeof(uint32_t);
+        data = (char*)buffer + 1 + sizeof(uint32_t) + sizeof(uint32_t);
     }
 
     String* str;
     if (type == ESCARGOT_MESSAGE_EVAL_8BIT) {
-        str = new Latin1String(data, size);
+        str = new Latin1String(data, size - sizeof(uint32_t));
     } else if (type == ESCARGOT_MESSAGE_EVAL_16BIT) {
-        str = new UTF16String((char16_t*)data, size / 2);
+        str = new UTF16String((char16_t*)data, (size - sizeof(uint32_t)) / 2);
     } else if (type == ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT) {
         char* sourceNameSrc = (char*)memchr(data, '\0', size);
         if (!sourceNameSrc) {
@@ -262,10 +270,27 @@ bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8
     type = ESCARGOT_MESSAGE_EVAL_RESULT_8BIT;
     m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
 
+
     try {
         Value asValue(str);
-        Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), true));
-        str = result.toStringWithoutException(*state);
+        if (index != 0) {
+            LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+            while (lexEnv && index > 0) {
+                lexEnv = lexEnv->outerEnvironment();
+                index--;
+            }
+            if (lexEnv) {
+                LexicalEnvironment* originalEnv = state->lexicalEnvironment();
+                state->setLexicalEnvironment(lexEnv, false);
+                Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), true));
+                str = result.toStringWithoutException(*state);
+                state->setLexicalEnvironment(originalEnv, false);
+            }
+        } else {
+            Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), true));
+            str = result.toStringWithoutException(*state);
+        }
     } catch (const Value& val) {
         type = ESCARGOT_MESSAGE_EVAL_FAILED_8BIT;
         str = val.toStringWithoutException(*state);
