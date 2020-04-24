@@ -1873,6 +1873,28 @@ String* Intl::getLocaleForStringLocaleConvertCase(ExecutionState& state, Value l
     return locale;
 }
 
+static bool is38Alphanum(const std::string& str)
+{
+    if (str.length() >= 3 && str.length() <= 8) {
+        return isAllSpecialCharacters(str, isASCIIAlphanumeric);
+    }
+    return false;
+}
+
+static bool is38AlphanumList(const std::string& str)
+{
+    std::size_t found = str.find("-");
+    if (found == std::string::npos) {
+        return is38Alphanum(str);
+    }
+    return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1));
+}
+
+bool Intl::isValidUnicodeLocaleIdentifierTypeNonterminal(String* value)
+{
+    return is38AlphanumList(value->toNonGCUTF8StringData());
+}
+
 } // namespace Escargot
 
 #endif

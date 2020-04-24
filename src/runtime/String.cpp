@@ -70,6 +70,25 @@ std::vector<std::string> split(const std::string& s, char seperator)
     return output;
 }
 
+std::vector<std::string> split(const std::string& str, const std::string& seperator)
+{
+    std::vector<std::string> tokens;
+    size_t prev = 0, pos = 0;
+    do {
+        pos = str.find(seperator, prev);
+        if (pos == std::string::npos) {
+            pos = str.length();
+        }
+        std::string token = str.substr(prev, pos - prev);
+        if (!token.empty()) {
+            tokens.push_back(token);
+        }
+        prev = pos + seperator.length();
+    } while (pos < str.length() && prev < str.length());
+
+    return tokens;
+}
+
 bool isASCIIAlpha(char ch)
 {
     return isalpha(ch);

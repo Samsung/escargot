@@ -661,10 +661,12 @@ private:
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlCollatorAvailableLocales;
     FunctionObject* m_intlDateTimeFormat;
     Object* m_intlDateTimeFormatPrototype;
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlDateTimeFormatAvailableLocales;
     FunctionObject* m_intlNumberFormat;
     Object* m_intlNumberFormatPrototype;
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlNumberFormatAvailableLocales;
+
+    void ensureIntlSupportedLocales();
+    // we can expect uloc_, udat_, unum_ returns same supported locales
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlAvailableLocales;
 
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_caseMappingAvailableLocales;
 
@@ -673,6 +675,7 @@ private:
     FunctionObject* m_intlPluralRules; // %PluralRules%
     Object* m_intlPluralRulesPrototype; // %PluralRulesPrototype%
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlPluralRulesAvailableLocales;
+
 #endif
 
     FunctionObject* m_promise;

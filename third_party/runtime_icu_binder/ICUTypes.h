@@ -6081,14 +6081,20 @@ typedef enum UNumberFormatFields {
     UNUM_PERMILL_FIELD,
     /** @stable ICU 49 */
     UNUM_SIGN_FIELD,
+    /** @stable ICU 64 */
+    UNUM_MEASURE_UNIT_FIELD,
+    /** @stable ICU 64 */
+    UNUM_COMPACT_FIELD,
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UNumberFormatFields value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UNUM_FIELD_COUNT
+    UNUM_FIELD_COUNT = UNUM_SIGN_FIELD + 3
 #endif /* U_HIDE_DEPRECATED_API */
 } UNumberFormatFields;
+
 
 /** The possible UNumberFormat text attributes @stable ICU 2.0*/
 typedef enum UNumberFormatTextAttribute {
@@ -7453,6 +7459,75 @@ struct UFormattedNumber;
  * @stable ICU 62
  */
 typedef struct UFormattedNumber UFormattedNumber;
+
+// ucurr.h
+/**
+ * Currency Usage used for Decimal Format
+ * @stable ICU 54
+ */
+enum UCurrencyUsage {
+    /**
+     * a setting to specify currency usage which determines currency digit
+     * and rounding for standard usage, for example: "50.00 NT$"
+     * used as DEFAULT value
+     * @stable ICU 54
+     */
+    UCURR_USAGE_STANDARD = 0,
+    /**
+     * a setting to specify currency usage which determines currency digit
+     * and rounding for cash usage, for example: "50 NT$"
+     * @stable ICU 54
+     */
+    UCURR_USAGE_CASH = 1,
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One higher than the last enum UCurrencyUsage constant.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
+    UCURR_USAGE_COUNT = 2
+#endif // U_HIDE_DEPRECATED_API
+};
+typedef enum UCurrencyUsage UCurrencyUsage;
+
+/**
+ * Selector constants for ucurr_getName().
+ *
+ * @see ucurr_getName
+ * @stable ICU 2.6
+ */
+typedef enum UCurrNameStyle {
+    /**
+     * Selector for ucurr_getName indicating a symbolic name for a
+     * currency, such as "$" for USD.
+     * @stable ICU 2.6
+     */
+    UCURR_SYMBOL_NAME,
+
+    /**
+     * Selector for ucurr_getName indicating the long name for a
+     * currency, such as "US Dollar" for USD.
+     * @stable ICU 2.6
+     */
+    UCURR_LONG_NAME
+
+#ifndef U_HIDE_DRAFT_API
+    ,
+    /**
+     * Selector for getName() indicating the narrow currency symbol.
+     * The narrow currency symbol is similar to the regular currency
+     * symbol, but it always takes the shortest form: for example,
+     * "$" instead of "US$" for USD in en-CA.
+     *
+     * @draft ICU 61
+     */
+    UCURR_NARROW_SYMBOL_NAME
+#endif // U_HIDE_DRAFT_API
+} UCurrNameStyle;
+
+/**
+ * @stable ICU 2.6
+ */
+typedef const void *UCurrRegistryKey;
 
 // uversion.h
 

@@ -66,6 +66,8 @@ namespace RuntimeICUBinder {
     F(uloc_toLanguageTag, int32_t (*)(const char* localeID, char* langtag, int32_t langtagCapacity, UBool strict, UErrorCode* err), int32_t)                               \
     F(uloc_addLikelySubtags, int32_t (*)(const char* localeID, char* maximizedLocaleID, int32_t maximizedLocaleIDCapacity, UErrorCode* err), int32_t)                      \
     F(uloc_minimizeSubtags, int32_t (*)(const char* localeID, char* minimizedLocaleID, int32_t minimizedLocaleIDCapacity, UErrorCode* err), int32_t)                       \
+    F(uloc_countAvailable, int32_t (*)(), int32_t)                                                                                                                         \
+    F(uloc_getAvailable, const char* (*)(int32_t n), const char*)                                                                                                          \
     F(ucnv_open, UConverter* (*)(const char* converterName, UErrorCode* err), UConverter*)                                                                                 \
     F(ucnv_compareNames, int (*)(const char* name1, const char* name2), int)                                                                                               \
     F(ucnv_getDisplayName, int32_t (*)(const UConverter* converter, const char* displayLocale, UChar* displayName, int32_t displayNameCapacity, UErrorCode* err), int32_t) \
@@ -145,8 +147,9 @@ namespace RuntimeICUBinder {
     F(unumf_openResult, UFormattedNumber* (*)(UErrorCode * ec), UFormattedNumber*)                                                                                                             \
     F(unumf_resultToString, int32_t (*)(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity, UErrorCode* ec), int32_t)                                                      \
     F(ufieldpositer_open, UFieldPositionIterator* (*)(UErrorCode * status), UFieldPositionIterator*)                                                                                           \
-    F(ufieldpositer_next, int32_t (*)(UFieldPositionIterator * fpositer, int32_t * beginIndex, int32_t * endIndex), int32_t)
-
+    F(ufieldpositer_next, int32_t (*)(UFieldPositionIterator * fpositer, int32_t * beginIndex, int32_t * endIndex), int32_t)                                                                   \
+    F(ucurr_getDefaultFractionDigits, int32_t (*)(const UChar* currency, UErrorCode* ec), int32_t)                                                                                             \
+    F(ucurr_getDefaultFractionDigitsForUsage, int32_t (*)(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec), int32_t)
 
 #define FOR_EACH_I18N_VOID_OP(F)                                                                                                                                     \
     F(udat_close, void (*)(UDateFormat * format), void)                                                                                                              \
@@ -169,11 +172,13 @@ namespace RuntimeICUBinder {
     F(uplrules_close, void (*)(UPluralRules * uplrules), void)                                                                                                       \
     F(ures_close, void (*)(UResourceBundle * resourceBundle), void)                                                                                                  \
     F(ures_resetIterator, void (*)(UResourceBundle * resourceBundle), void)                                                                                          \
+    F(unumf_formatInt, void (*)(const UNumberFormatter* uformatter, int64_t value, UFormattedNumber* uresult, UErrorCode* ec), void)                                 \
+    F(unumf_formatDecimal, void (*)(const UNumberFormatter* uformatter, const char* value, int32_t valueLen, UFormattedNumber* uresult, UErrorCode* ec), void)       \
     F(unumf_formatDouble, void (*)(const UNumberFormatter* uformatter, double value, UFormattedNumber* uresult, UErrorCode* ec), void)                               \
+    F(unumf_resultGetAllFieldPositions, void (*)(const UFormattedNumber* uresult, UFieldPositionIterator* ufpositer, UErrorCode* ec), void)                          \
     F(unumf_close, void (*)(UNumberFormatter * uformatter), void)                                                                                                    \
     F(unumf_closeResult, void (*)(UFormattedNumber * uresult), void)                                                                                                 \
     F(ufieldpositer_close, void (*)(UFieldPositionIterator * fpositer), void)
-
 
 #define FOR_EACH_I18N_STICKY_OP(F) \
     F(vzone_getOffset3)
