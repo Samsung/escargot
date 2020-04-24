@@ -44,6 +44,7 @@ typedef std::basic_string<char16_t, std::char_traits<char16_t>> UTF16StringDataN
 typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataNonGCStd;
 
 std::vector<std::string> split(const std::string& s, char seperator);
+std::vector<std::string> split(const std::string& s, const std::string& seperator);
 
 bool isASCIIAlpha(char ch);
 bool isASCIIDigit(char ch);

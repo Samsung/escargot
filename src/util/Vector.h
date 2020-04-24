@@ -145,6 +145,7 @@ public:
     }
 
     Vector(std::initializer_list<T> list)
+        : Vector()
     {
         reserve(list.size());
         for (auto& i : list) {

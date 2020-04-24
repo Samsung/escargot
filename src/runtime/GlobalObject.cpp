@@ -39,6 +39,7 @@
 #include "heap/LeakCheckerBridge.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
+#include "Intl.h"
 
 namespace Escargot {
 
@@ -1271,58 +1272,81 @@ void GlobalObject::installOthers(ExecutionState& state)
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-static String* icuLocaleToBCP47Tag(String* string)
+// some locale have script value on it eg) zh_Hant_HK. so we need to remove it
+static std::string icuLocaleToBCP47LanguageRegionPair(const char* l)
 {
-    StringBuilder sb;
-    for (size_t i = 0; i < string->length(); i++) {
-        char16_t ch = string->charAt(i);
-        if (ch == '_')
-            ch = '-';
-        sb.appendChar(ch);
+    std::string v = l;
+    for (size_t i = 0; i < v.length(); i++) {
+        if (v[i] == '_') {
+            v[i] = '-';
+        }
     }
-    return sb.finalize();
+    auto c = Intl::canonicalizeLanguageTag(v);
+    if (c.region.length()) {
+        return c.language + "-" + c.region;
+    }
+    return c.language;
 }
 
 const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
 {
     if (m_intlCollatorAvailableLocales.size() == 0) {
         auto count = ucol_countAvailable();
+
+        // after removing script value from locale
+        // we should consider duplication
+        // eg) zh, zh_Hans
+        std::set<std::string> duplicateRemover;
         for (int32_t i = 0; i < count; ++i) {
-            const char* l = ucol_getAvailable(i);
-            String* locale = String::fromUTF8(l, strlen(l));
-            locale = icuLocaleToBCP47Tag(locale);
-            m_intlCollatorAvailableLocales.pushBack(locale);
+            auto s = icuLocaleToBCP47LanguageRegionPair(ucol_getAvailable(i));
+            if (duplicateRemover.find(s) == duplicateRemover.end()) {
+                duplicateRemover.insert(s);
+                String* locale = String::fromASCII(s.data(), s.length());
+                m_intlCollatorAvailableLocales.pushBack(locale);
+            }
         }
     }
     return m_intlCollatorAvailableLocales;
 }
 
-const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlDateTimeFormatAvailableLocales()
+void GlobalObject::ensureIntlSupportedLocales()
 {
-    if (m_intlDateTimeFormatAvailableLocales.size() == 0) {
-        auto count = udat_countAvailable();
+    if (m_intlAvailableLocales.size() == 0) {
+#if !defined(NDEBUG)
+        ASSERT(uloc_countAvailable() == udat_countAvailable());
+        ASSERT(uloc_countAvailable() == unum_countAvailable());
+        for (int32_t i = 0; i < uloc_countAvailable(); ++i) {
+            ASSERT(std::string(uloc_getAvailable(i)) == std::string(udat_getAvailable(i)));
+            ASSERT(std::string(uloc_getAvailable(i)) == std::string(unum_getAvailable(i)));
+        }
+#endif
+        // after removing script value from locale
+        // we should consider duplication
+        // eg) zh, zh_Hans
+        std::set<std::string> duplicateRemover;
+
+        auto count = uloc_countAvailable();
         for (int32_t i = 0; i < count; ++i) {
-            const char* l = udat_getAvailable(i);
-            String* locale = String::fromUTF8(l, strlen(l));
-            locale = icuLocaleToBCP47Tag(locale);
-            m_intlDateTimeFormatAvailableLocales.pushBack(locale);
+            auto s = icuLocaleToBCP47LanguageRegionPair(uloc_getAvailable(i));
+            if (duplicateRemover.find(s) == duplicateRemover.end()) {
+                duplicateRemover.insert(s);
+                String* locale = String::fromASCII(s.data(), s.length());
+                m_intlAvailableLocales.pushBack(locale);
+            }
         }
     }
-    return m_intlDateTimeFormatAvailableLocales;
+}
+
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlDateTimeFormatAvailableLocales()
+{
+    ensureIntlSupportedLocales();
+    return m_intlAvailableLocales;
 }
 
 const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlNumberFormatAvailableLocales()
 {
-    if (m_intlNumberFormatAvailableLocales.size() == 0) {
-        auto count = unum_countAvailable();
-        for (int32_t i = 0; i < count; ++i) {
-            const char* l = unum_getAvailable(i);
-            String* locale = String::fromUTF8(l, strlen(l));
-            locale = icuLocaleToBCP47Tag(locale);
-            m_intlNumberFormatAvailableLocales.pushBack(locale);
-        }
-    }
-    return m_intlNumberFormatAvailableLocales;
+    ensureIntlSupportedLocales();
+    return m_intlAvailableLocales;
 }
 
 const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::caseMappingAvailableLocales()
@@ -1347,15 +1371,19 @@ const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlP
 
         UResourceBundle* res = nullptr;
 
+        std::set<std::string> duplicateRemover;
+
         while (true) {
             res = ures_getNextResource(locales, res, &status);
             if (res == nullptr || U_FAILURE(status)) {
                 break;
             }
-            const char* l = ures_getKey(res);
-            String* locale = String::fromUTF8(l, strlen(l));
-            locale = icuLocaleToBCP47Tag(locale);
-            m_intlPluralRulesAvailableLocales.pushBack(locale);
+            auto s = icuLocaleToBCP47LanguageRegionPair(ures_getKey(res));
+            if (duplicateRemover.find(s) == duplicateRemover.end()) {
+                duplicateRemover.insert(s);
+                String* locale = String::fromASCII(s.data(), s.length());
+                m_intlPluralRulesAvailableLocales.pushBack(locale);
+            }
         }
 
         ures_close(res);

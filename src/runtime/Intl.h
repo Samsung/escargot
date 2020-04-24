@@ -69,6 +69,9 @@ public:
     static CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored = "");
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
+
+    // test string is `(3*8alphanum) *("-" (3*8alphanum))` sequence
+    static bool isValidUnicodeLocaleIdentifierTypeNonterminal(String* value);
 };
 } // namespace Escargot
 

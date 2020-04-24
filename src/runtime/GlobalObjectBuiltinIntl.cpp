@@ -383,12 +383,18 @@ static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value
     setFormatOpt(state, internalSlot, result, "style");
     setFormatOpt(state, internalSlot, result, "currency");
     setFormatOpt(state, internalSlot, result, "currencyDisplay");
+    setFormatOpt(state, internalSlot, result, "currencySign");
+    setFormatOpt(state, internalSlot, result, "unit");
+    setFormatOpt(state, internalSlot, result, "unitDisplay");
     setFormatOpt(state, internalSlot, result, "minimumIntegerDigits");
     setFormatOpt(state, internalSlot, result, "minimumFractionDigits");
     setFormatOpt(state, internalSlot, result, "maximumFractionDigits");
     setFormatOpt(state, internalSlot, result, "minimumSignificantDigits");
     setFormatOpt(state, internalSlot, result, "maximumSignificantDigits");
     setFormatOpt(state, internalSlot, result, "useGrouping");
+    setFormatOpt(state, internalSlot, result, "notation");
+    setFormatOpt(state, internalSlot, result, "compactDisplay");
+    setFormatOpt(state, internalSlot, result, "signDisplay");
     return result;
 }
 
@@ -886,6 +892,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlNumberFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlNumberFormatPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                  ObjectPropertyDescriptor(Value(state.context()->staticStrings().Object.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlNumberFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));

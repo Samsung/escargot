@@ -202,23 +202,6 @@ Object* IntlDateTimeFormat::create(ExecutionState& state, Context* realm, Value 
     return dateTimeFormat;
 }
 
-static bool is38Alphanum(const std::string& str)
-{
-    if (str.length() >= 3 && str.length() <= 8) {
-        return isAllSpecialCharacters(str, isASCIIAlphanumeric);
-    }
-    return false;
-}
-
-static bool is38AlphanumList(const std::string& str)
-{
-    std::size_t found = str.find("-");
-    if (found == std::string::npos) {
-        return is38Alphanum(str);
-    }
-    return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1));
-}
-
 static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString)
 {
     bool inQuote = false;
@@ -324,8 +307,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     // If calendar is not undefined, then
     if (!calendar.isUndefined()) {
         // If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        std::string s = calendar.asString()->toNonGCUTF8StringData();
-        if (!is38AlphanumList(s)) {
+        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminal(calendar.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The calendar value you gave is not valid");
         }
     }
@@ -339,7 +321,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         std::string s = numberingSystem.asString()->toNonGCUTF8StringData();
-        if (!is38AlphanumList(s)) {
+        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminal(numberingSystem.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
         }
     }

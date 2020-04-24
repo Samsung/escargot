@@ -44,6 +44,8 @@
 #define uloc_toLanguageTag RuntimeICUBinder::ICU::instance().uloc_toLanguageTag
 #define uloc_addLikelySubtags RuntimeICUBinder::ICU::instance().uloc_addLikelySubtags
 #define uloc_minimizeSubtags RuntimeICUBinder::ICU::instance().uloc_minimizeSubtags
+#define uloc_countAvailable RuntimeICUBinder::ICU::instance().uloc_countAvailable
+#define uloc_getAvailable RuntimeICUBinder::ICU::instance().uloc_getAvailable
 
 #define u_getIntPropertyValue RuntimeICUBinder::ICU::instance().u_getIntPropertyValue
 #define u_getIntPropertyMaxValue RuntimeICUBinder::ICU::instance().u_getIntPropertyMaxValue
@@ -173,7 +175,10 @@
 #define unumf_openForSkeletonAndLocale RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocale
 #define unumf_openForSkeletonAndLocaleWithError RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocaleWithError
 #define unumf_openResult RuntimeICUBinder::ICU::instance().unumf_openResult
+#define unumf_formatInt RuntimeICUBinder::ICU::instance().unumf_formatInt
+#define unumf_formatDecimal RuntimeICUBinder::ICU::instance().unumf_formatDecimal
 #define unumf_formatDouble RuntimeICUBinder::ICU::instance().unumf_formatDouble
+#define unumf_resultGetAllFieldPositions RuntimeICUBinder::ICU::instance().unumf_resultGetAllFieldPositions
 #define unumf_resultToString RuntimeICUBinder::ICU::instance().unumf_resultToString
 #define unumf_close RuntimeICUBinder::ICU::instance().unumf_close
 #define unumf_closeResult RuntimeICUBinder::ICU::instance().unumf_closeResult
@@ -182,4 +187,6 @@
 #define ufieldpositer_next RuntimeICUBinder::ICU::instance().ufieldpositer_next
 #define ufieldpositer_close RuntimeICUBinder::ICU::instance().ufieldpositer_close
 
+#define ucurr_getDefaultFractionDigits RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigits
+#define ucurr_getDefaultFractionDigitsForUsage RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigitsForUsage
 #endif
