@@ -466,7 +466,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx = property.tryToUseAsArrayIndex(*state);
-                    if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arr->getArrayLength(*state))) {
+                    if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arr->arrayLength(*state))) {
                         const Value& v = arr->m_fastModeData[idx];
                         if (LIKELY(!v.isEmpty())) {
                             registerFile[code->m_storeRegisterIndex] = v;
@@ -490,7 +490,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 uint32_t idx = property.tryToUseAsArrayIndex(*state);
                 if (LIKELY(arr->isFastModeArray())) {
                     if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-                        uint32_t len = arr->getArrayLength(*state);
+                        uint32_t len = arr->arrayLength(*state);
                         if (UNLIKELY(len <= idx)) {
                             if (UNLIKELY(!arr->isExtensible(*state))) {
                                 JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
@@ -1736,7 +1736,7 @@ ALWAYS_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperation(Execu
 NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, GetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
     if (code->m_isLength && obj->isArrayObject()) {
-        return Value(obj->asArrayObject()->getArrayLength(state));
+        return Value(obj->asArrayObject()->arrayLength(state));
     }
 
     const int maxCacheMissCount = 16;
@@ -2864,7 +2864,7 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
         if (arg.isObject() && arg.asObject()->isSpreadArray()) {
             ArrayObject* spreadArray = arg.asObject()->asArrayObject();
             ASSERT(spreadArray->isFastModeArray());
-            for (size_t i = 0; i < spreadArray->getArrayLength(state); i++) {
+            for (size_t i = 0; i < spreadArray->arrayLength(state); i++) {
                 argVector.push_back(spreadArray->m_fastModeData[i]);
             }
         } else {
@@ -3094,13 +3094,13 @@ NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOper
     ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
 
     if (LIKELY(arr->isFastModeArray())) {
-        size_t baseIndex = arr->getArrayLength(state);
+        size_t baseIndex = arr->arrayLength(state);
         size_t elementLength = code->m_count;
         for (size_t i = 0; i < code->m_count; i++) {
             if (code->m_loadRegisterIndexs[i] != REGISTER_LIMIT) {
                 Value element = registerFile[code->m_loadRegisterIndexs[i]];
                 if (element.isObject() && element.asObject()->isSpreadArray()) {
-                    elementLength = elementLength + element.asObject()->asArrayObject()->getArrayLength(state) - 1;
+                    elementLength = elementLength + element.asObject()->asArrayObject()->arrayLength(state) - 1;
                 }
             }
         }
@@ -3116,7 +3116,7 @@ NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOper
                 if (element.isObject() && element.asObject()->isSpreadArray()) {
                     ArrayObject* spreadArray = element.asObject()->asArrayObject();
                     ASSERT(spreadArray->isFastModeArray());
-                    for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(state); spreadIndex++) {
+                    for (size_t spreadIndex = 0; spreadIndex < spreadArray->arrayLength(state); spreadIndex++) {
                         arr->m_fastModeData[baseIndex + elementIndex] = spreadArray->m_fastModeData[spreadIndex];
                         elementIndex++;
                     }
@@ -3138,7 +3138,7 @@ NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOper
         ArrayObject* arr = registerFile[objectRegisterIndex].asObject()->asArrayObject();
         ASSERT(!arr->isFastModeArray());
 
-        size_t baseIndex = arr->getArrayLength(state);
+        size_t baseIndex = arr->arrayLength(state);
         size_t elementIndex = 0;
 
         for (size_t i = 0; i < count; i++) {
@@ -3148,7 +3148,7 @@ NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOper
                     ArrayObject* spreadArray = element.asObject()->asArrayObject();
                     ASSERT(spreadArray->isFastModeArray());
                     Value spreadElement;
-                    for (size_t spreadIndex = 0; spreadIndex < spreadArray->getArrayLength(state); spreadIndex++) {
+                    for (size_t spreadIndex = 0; spreadIndex < spreadArray->arrayLength(state); spreadIndex++) {
                         spreadElement = spreadArray->m_fastModeData[spreadIndex];
                         arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(spreadElement, ObjectPropertyDescriptor::AllPresent));
                         elementIndex++;

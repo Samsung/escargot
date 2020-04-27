@@ -113,22 +113,13 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
     Value argArray = argv[1];
     size_t arrlen = 0;
     Value* arguments = nullptr;
+    ValueVector argList;
     if (argArray.isUndefinedOrNull()) {
-        // do nothing
-    } else if (argArray.isObject()) {
-        Object* obj = argArray.asObject();
-        arrlen = obj->length(state);
-        arguments = ALLOCA(sizeof(Value) * arrlen, Value, state);
-        for (size_t i = 0; i < arrlen; i++) {
-            auto re = obj->getIndexedProperty(state, Value(i));
-            if (re.hasValue()) {
-                arguments[i] = re.value(state, obj);
-            } else {
-                arguments[i] = Value();
-            }
-        }
+        // TODO
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_SecondArgumentNotObject);
+        argList = Object::createListFromArrayLike(state, argArray);
+        arrlen = argList.size();
+        arguments = argList.data();
     }
 
     return Object::call(state, thisValue, thisArg, arrlen, arguments);

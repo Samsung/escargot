@@ -1286,7 +1286,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
     // 4. Let len be ToLength(Get(obj, "length")).
     // 5. ReturnIfAbrupt(len).
     Object* o = obj.asObject();
-    auto len = o->lengthES6(state);
+    auto len = o->length(state);
 
     // Honorate "length" property: If length>2^32-1, throw a RangeError exception.
     if (len > ((1LL << 32LL) - 1LL)) {
@@ -1296,7 +1296,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
     // 6. Let list be an empty List.
     ValueVector list;
     // 7. Let index be 0.
-    size_t index = 0;
+    uint64_t index = 0;
     //8. Repeat while index < len
     while (index < len) {
         // a. Let indexName be ToString(index).
@@ -1312,7 +1312,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
         // e. Append next as the last element of list.
         list.pushBack(next);
         // f. Set index to index + 1.
-        index += 1;
+        index++;
     }
 
     // 9. Return list.
@@ -1329,11 +1329,7 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
 
 uint64_t Object::length(ExecutionState& state)
 {
-    return get(state, state.context()->staticStrings().length).value(state, this).toUint32(state);
-}
-
-uint64_t Object::lengthES6(ExecutionState& state)
-{
+    // ToLength(Get(obj, "length"))
     return get(state, state.context()->staticStrings().length).value(state, this).toLength(state);
 }
 

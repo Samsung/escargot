@@ -94,11 +94,11 @@ public:
     void init(ExecutionState& state, String* source, String* option = String::emptyString);
     void initWithOption(ExecutionState& state, String* source, Option option);
 
-    double computedLastIndex(ExecutionState& state)
+    uint64_t computedLastIndex(ExecutionState& state)
     {
         // NOTE(ES6): if global is false and sticy is false, let lastIndex be 0
         // Compute the result first with toInteger() and then examine if it is global or sticky
-        double res = lastIndex().toLength(state);
+        auto res = lastIndex().toLength(state);
         if (!(option() & (Option::Global | Option::Sticky)))
             return 0;
         return res;

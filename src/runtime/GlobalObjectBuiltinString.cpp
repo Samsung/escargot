@@ -1218,7 +1218,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     // Let raw be ? ToObject(? Get(cooked, "raw")).
     Object* raw = cooked->get(state, ObjectPropertyName(state.context()->staticStrings().raw)).value(state, cooked).toObject(state);
     // Let literalSegments be ? ToLength(? Get(raw, "length")).
-    double literalSegments = raw->lengthES6(state);
+    double literalSegments = raw->length(state);
     // If literalSegments ≤ 0, return the empty string.
     if (literalSegments <= 0) {
         return String::emptyString;

@@ -34,6 +34,8 @@ class ArrayIteratorObject;
 class ArrayObject : public Object {
     friend class VMInstance;
     friend class ByteCodeInterpreter;
+    friend class EnumerateObjectWithDestruction;
+    friend class EnumerateObjectWithIteration;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     friend void initializeCustomAllocators();
     friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);
@@ -66,10 +68,6 @@ public:
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override;
-    virtual uint64_t length(ExecutionState& state) override
-    {
-        return getArrayLength(state);
-    }
     virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;
     virtual ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override;
@@ -86,7 +84,7 @@ public:
 
     void defineOwnIndexedPropertyWithExpandedLength(ExecutionState& state, const size_t& index, const Value& value)
     {
-        ASSERT(index < getArrayLength(state));
+        ASSERT(index < arrayLength(state));
         if (LIKELY(isFastModeArray())) {
             setFastModeArrayValueWithoutExpanding(state, index, value);
         } else {
@@ -112,11 +110,11 @@ private:
     void setFastModeArrayValueWithoutExpanding(ExecutionState& state, size_t idx, const Value& v)
     {
         ASSERT(isFastModeArray());
-        ASSERT(idx < getArrayLength(state));
+        ASSERT(idx < arrayLength(state));
         m_fastModeData[idx] = v;
     }
 
-    ALWAYS_INLINE uint32_t getArrayLength(ExecutionState&)
+    ALWAYS_INLINE uint32_t arrayLength(ExecutionState&)
     {
         return m_arrayLength;
     }

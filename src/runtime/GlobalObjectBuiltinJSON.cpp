@@ -222,7 +222,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                 if (val.asObject()->isArray(state)) {
                     Object* object = val.asObject();
                     uint32_t i = 0;
-                    uint32_t len = object->lengthES6(state);
+                    uint32_t len = object->length(state);
                     while (i < len) {
                         Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
                         if (newElement.isUndefined()) {
@@ -350,7 +350,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         } else if (replacer.asObject()->isArray(state)) {
             propertyListTouched = true;
             Object* replacerObj = replacer.asObject();
-            uint64_t len = replacerObj->lengthES6(state);
+            uint64_t len = replacerObj->length(state);
             uint64_t k = 0;
 
             while (k < len) {
@@ -508,7 +508,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         // 5
         VectorWithInlineStorage<32, String*, GCUtil::gc_malloc_allocator<String*>> partial;
         // 6, 7
-        uint32_t len = obj->lengthES6(state);
+        uint32_t len = obj->length(state);
 
         // Each array element requires at least 1 character for the value, and 1 character for the separator
         if (len / 2 > STRING_MAXIMUM_LENGTH) {

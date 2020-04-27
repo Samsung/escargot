@@ -42,24 +42,10 @@ static Value builtinReflectApply(ExecutionState& state, Value thisValue, size_t 
     }
 
     // 2. Let args be CreateListFromArrayLike(argumentsList).
-    if (!argList.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: argumentsList is not an object");
-    }
-    Object* argObject = argList.asObject();
-    size_t arglen = argObject->length(state);
-    Value* args = ALLOCA(sizeof(Value) * arglen, Value, state);
-    for (size_t i = 0; i < arglen; i++) {
-        auto element = argObject->getIndexedProperty(state, Value(i));
-        if (element.hasValue()) {
-            args[i] = element.value(state, argObject);
-        } else {
-            args[i] = Value();
-        }
-    }
+    auto args = Object::createListFromArrayLike(state, argList);
 
-    // TODO 4. Perform PrepareForTailCall().
     // 5. Return Call(target, thisArgument, args).
-    return Object::call(state, target, thisArgument, arglen, args);
+    return Object::call(state, target, thisArgument, args.size(), args.data());
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.construct
@@ -82,23 +68,9 @@ static Value builtinReflectConstruct(ExecutionState& state, Value thisValue, siz
     }
 
     // 4. Let args be CreateListFromArrayLike(argumentsList).
-    if (!argList.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: argumentsList is not an object");
-    }
-    Object* argObject = argList.asObject();
-    size_t arglen = argObject->length(state);
-    Value* args = ALLOCA(sizeof(Value) * arglen, Value, state);
-    for (size_t i = 0; i < arglen; i++) {
-        auto element = argObject->getIndexedProperty(state, Value(i));
-        if (element.hasValue()) {
-            args[i] = element.value(state, argObject);
-        } else {
-            args[i] = Value();
-        }
-    }
-
+    auto args = Object::createListFromArrayLike(state, argList);
     // 6. Return Construct(target, args, newTarget).
-    return Object::construct(state, target, arglen, args, newTargetArg.asObject());
+    return Object::construct(state, target, args.size(), args.data(), newTargetArg.asObject());
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.defineproperty

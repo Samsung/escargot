@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "EnumerateObject.h"
 #include "runtime/SmallValue.h"
+#include "runtime/ArrayObject.h"
 
 namespace Escargot {
 
@@ -113,7 +114,7 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, S
     ASSERT(!!m_object);
 
     if (m_object->isArrayObject()) {
-        m_arrayLength = m_object->length(state);
+        m_arrayLength = m_object->asArrayObject()->arrayLength(state);
     }
 
     m_hiddenClass = m_object->structure();
@@ -164,7 +165,7 @@ bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
     }
 
     if (m_object->isArrayObject()) {
-        if (UNLIKELY(m_object->length(state) != m_arrayLength)) {
+        if (UNLIKELY(m_object->asArrayObject()->arrayLength(state) != m_arrayLength)) {
             return true;
         }
         if (UNLIKELY(m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
@@ -181,7 +182,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Sma
     m_hiddenClassChain.clear();
 
     if (m_object->isArrayObject()) {
-        m_arrayLength = m_object->length(state);
+        m_arrayLength = m_object->asArrayObject()->arrayLength(state);
     }
 
     bool shouldSearchProto = false;
@@ -299,7 +300,7 @@ bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
     }
 
     if (m_object->isArrayObject()) {
-        if (UNLIKELY(m_object->length(state) != m_arrayLength)) {
+        if (UNLIKELY(m_object->asArrayObject()->arrayLength(state) != m_arrayLength)) {
             return true;
         }
         if (UNLIKELY(m_object->rareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
