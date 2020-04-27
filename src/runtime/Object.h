@@ -847,8 +847,8 @@ public:
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
     // callback function should skip un-Enumerable property if needs
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual uint64_t length(ExecutionState& state);
-    uint64_t lengthES6(ExecutionState& state);
+    // ToLength(Get(obj, "length"))
+    uint64_t length(ExecutionState& state);
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-isarray
     bool isArray(ExecutionState& state);

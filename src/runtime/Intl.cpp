@@ -1248,7 +1248,7 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
         O = locales.toObject(state);
     }
 
-    uint64_t len = O->lengthES6(state);
+    uint64_t len = O->length(state);
     // Let k be 0.
     // Repeat, while k < len
     uint64_t k = 0;

@@ -86,7 +86,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     RegExpObject* regexp = thisObject->asRegExpObject();
     unsigned int option = regexp->option();
     String* str = argv[0].toString(state);
-    double lastIndex = 0;
+    uint64_t lastIndex = 0;
     if (option & (RegExpObject::Global | RegExpObject::Sticky)) {
         lastIndex = regexp->computedLastIndex(state);
         if (lastIndex > str->length()) {
@@ -147,17 +147,13 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
     RegExpObject* regexp = thisObject->asRegExpObject();
     unsigned int option = regexp->option();
     String* str = argv[0].toString(state);
-    double lastIndex = 0;
+    uint64_t lastIndex = 0;
     if (option & (RegExpObject::Global | RegExpObject::Sticky)) {
         lastIndex = regexp->computedLastIndex(state);
         if (lastIndex > str->length()) {
             regexp->setLastIndex(state, Value(0));
             return Value(false);
         }
-    }
-
-    if (lastIndex < 0) {
-        lastIndex = 0;
     }
 
     RegexMatchResult result;

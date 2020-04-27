@@ -184,7 +184,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     uint64_t idx = P.tryToUseAsArrayIndex();
     if (LIKELY(isFastModeArray())) {
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            uint32_t len = getArrayLength(state);
+            uint32_t len = arrayLength(state);
             if (len > idx && !m_fastModeData[idx].isEmpty()) {
                 // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
                 // So, when new desciptor is not present, keep {w:true, e:true, c:true}
@@ -219,7 +219,7 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 
 NonFastPath:
 
-    uint32_t oldLen = getArrayLength(state);
+    uint32_t oldLen = arrayLength(state);
 
     if (idx != Value::InvalidArrayIndexValue) {
         if ((idx >= oldLen) && !isLengthPropertyWritable())
@@ -245,7 +245,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     if (LIKELY(isFastModeArray())) {
         uint64_t idx = P.tryToUseAsArrayIndex();
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            uint64_t len = getArrayLength(state);
+            uint64_t len = arrayLength(state);
             if (idx < len) {
                 if (!m_fastModeData[idx].isEmpty()) {
                     m_fastModeData[idx] = Value(Value::EmptyValue);
@@ -262,7 +262,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
 void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 {
     if (LIKELY(isFastModeArray())) {
-        size_t len = getArrayLength(state);
+        size_t len = arrayLength(state);
         for (size_t i = 0; i < len; i++) {
             ASSERT(isFastModeArray());
             if (m_fastModeData[i].isEmpty())
@@ -307,7 +307,7 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
                 }
             }
 
-            if (getArrayLength(state) != orgLength) {
+            if (arrayLength(state) != orgLength) {
                 setArrayLength(state, orgLength);
             }
 
@@ -345,7 +345,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
     ensureObjectRareData()->m_isFastModeArrayObject = false;
 
-    auto length = getArrayLength(state);
+    auto length = arrayLength(state);
     for (size_t i = 0; i < length; i++) {
         if (!m_fastModeData[i].isEmpty()) {
             defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(m_fastModeData[i], ObjectPropertyDescriptor::AllPresent));
@@ -384,7 +384,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
 {
     bool isFastMode = isFastModeArray();
     if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
-        uint32_t orgLength = getArrayLength(state);
+        uint32_t orgLength = arrayLength(state);
         constexpr uint32_t maxSize = std::numeric_limits<uint32_t>::max() / 2;
         if (newLength > orgLength && ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) || newLength >= maxSize)) {
             convertIntoNonFastMode(state);
@@ -393,7 +393,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
     }
 
     if (LIKELY(isFastMode)) {
-        auto oldLength = getArrayLength(state);
+        auto oldLength = arrayLength(state);
         if (LIKELY(oldLength != newLength)) {
             m_arrayLength = newLength;
             if (useFitStorage || oldLength == 0 || newLength <= 128) {
@@ -471,7 +471,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
         }
         return true;
     } else {
-        int64_t oldLen = length(state);
+        int64_t oldLen = arrayLength(state);
         int64_t newLen = newLength;
 
         while (newLen < oldLen) {
@@ -508,7 +508,7 @@ ObjectGetResult ArrayObject::getVirtualValue(ExecutionState& state, const Object
     }
     if (LIKELY(isFastModeArray())) {
         uint64_t idx = P.tryToUseAsArrayIndex();
-        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
+        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectGetResult(v, true, true, true);
@@ -523,7 +523,7 @@ ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, c
 {
     if (LIKELY(isFastModeArray())) {
         uint32_t idx = propertyName.tryToUseAsArrayIndex(state);
-        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
+        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectHasPropertyResult(ObjectGetResult(v, true, true, true));
@@ -537,7 +537,7 @@ ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Val
 {
     if (LIKELY(isFastModeArray())) {
         uint32_t idx = property.tryToUseAsArrayIndex(state);
-        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < getArrayLength(state))) {
+        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectGetResult(v, true, true, true);
@@ -553,7 +553,7 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
     if (LIKELY(isFastModeArray() && property.isUInt32())) {
         uint32_t idx = property.tryToUseAsArrayIndex(state);
         if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            uint32_t len = getArrayLength(state);
+            uint32_t len = arrayLength(state);
             if (UNLIKELY(len <= idx)) {
                 if (UNLIKELY(!isExtensible(state))) {
                     return false;
@@ -632,7 +632,7 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
         len = a->asArrayBufferView()->arrayLength();
     } else {
         // Let len be ? ToLength(? Get(a, "length")).
-        len = a->lengthES6(state);
+        len = a->length(state);
     }
 
     // If index ≥ len, then

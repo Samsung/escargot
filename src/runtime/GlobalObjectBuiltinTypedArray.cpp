@@ -249,7 +249,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     }
 
     Object* arrayLike = source.toObject(state);
-    uint64_t len = arrayLike->lengthES6(state);
+    uint64_t len = arrayLike->length(state);
 
     // TODO Let targetObj be ? TypedArrayCreate(C, « len »).
     Value arg[1] = { Value(len) };
@@ -505,7 +505,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             // Let arrayLike be object.
             Object* arrayLike = inputObj;
             // Let len be ? ToLength(? Get(arrayLike, "length")).
-            uint64_t len = arrayLike->lengthES6(state);
+            uint64_t len = arrayLike->length(state);
             // Perform ? AllocateTypedArrayBuffer(O, len).
             unsigned elementSize = obj->elementSize();
             uint64_t bufferSize = len * elementSize;
@@ -815,7 +815,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     int targetElementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
     if (!arg0->isTypedArrayObject()) {
         Object* src = arg0;
-        uint64_t srcLength = src->lengthES6(state);
+        uint64_t srcLength = src->length(state);
         if (srcLength + (uint64_t)offset > targetLength) {
             const StaticStrings* strings = &state.context()->staticStrings();
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);

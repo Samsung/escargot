@@ -791,19 +791,23 @@ inline uint32_t Value::toUint32(ExecutionState& state) const // http://www.ecma-
     return toInt32(state);
 }
 
-inline Value::ValueIndex Value::toIndex(ExecutionState& state) const // $7.1.15 ToLength
+inline Value::ValueIndex Value::toIndex(ExecutionState& ec) const
 {
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-toindex
+    // RangeError exception should be checked by caller of toIndex
     int32_t i;
-    if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
+    if (LIKELY(isInt32() && (i = asInt32()) >= 0)) {
         return i;
     }
-    ValueIndex index = 0;
-    if (!isUndefined()) {
-        auto integerIndex = toInteger(state);
-        index = Value(integerIndex).toLength(state);
-        if (integerIndex < 0 || integerIndex != index) {
-            return Value::InvalidIndexValue;
-        }
+
+    if (UNLIKELY(isUndefined())) {
+        return 0;
+    }
+
+    auto integerIndex = toInteger(ec);
+    Value::ValueIndex index = Value(integerIndex).toLength(ec);
+    if (UNLIKELY(integerIndex < 0 || integerIndex != index)) {
+        return Value::InvalidIndexValue;
     }
     return index;
 }
@@ -843,24 +847,25 @@ inline uint64_t Value::toArrayIndex(ExecutionState& state) const
 
 inline double Value::toInteger(ExecutionState& state) const
 {
-    if (isInt32())
+    if (isInt32()) {
         return asInt32();
+    }
+
     double d = toNumber(state);
-    if (std::isnan(d))
+    if (std::isnan(d)) {
         return 0;
-    if (d == 0 || d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity())
+    }
+    if (d == 0 || d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity()) {
         return d;
+    }
     return (d < 0 ? -1 : 1) * std::floor(std::abs(d));
 }
 
-inline double Value::toLength(ExecutionState& state) const
+inline uint64_t Value::toLength(ExecutionState& state) const
 {
     double len = toInteger(state);
     if (len <= 0.0) {
-        return 0.0;
-    }
-    if (std::isinf(len)) {
-        return maximumLength();
+        return 0;
     }
     return std::min(len, maximumLength());
 }
