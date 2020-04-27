@@ -43,7 +43,6 @@ public:
     Value getViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type)
     {
         double numberIndex = index.toIndex(state);
-
         if (numberIndex == Value::InvalidIndexValue)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
 
@@ -91,7 +90,6 @@ public:
     Value setViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type, Value val)
     {
         double numberIndex = index.toIndex(state);
-
         if (numberIndex == Value::InvalidIndexValue)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
 
