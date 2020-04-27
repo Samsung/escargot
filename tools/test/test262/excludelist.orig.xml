@@ -1201,7 +1201,6 @@
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-nextelement-tostring"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-nextelement-valueof"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-result"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toString"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toString/BigInt/detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/values/BigInt/detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/values/BigInt/iter-prototype"><reason>TODO</reason></test>
@@ -1382,18 +1381,6 @@
     <test id="built-ins/TypedArrayConstructors/ctors/buffer-arg/typedarray-backed-by-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/ctors/buffer-arg/use-custom-proto-if-object-sab"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/ctors/buffer-arg/use-default-proto-if-custom-proto-is-not-object-sab"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/detached-when-species-retrieved-different-type"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/detached-when-species-retrieved-same-type"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/other-ctor-buffer-ctor-custom-species"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/other-ctor-buffer-ctor-species-prototype-throws"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-access-throws"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-species-custom"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-species-not-ctor"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-species-prototype-throws"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-species-throws"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-value-not-obj-throws"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/src-typedarray-big-throws"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/from/BigInt/arylk-get-length-error"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/from/BigInt/arylk-to-length-error"><reason>TODO</reason></test>

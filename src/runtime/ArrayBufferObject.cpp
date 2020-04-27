@@ -24,15 +24,29 @@
 
 namespace Escargot {
 
-ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor)
+ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, size_t byteLength)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
     Object* proto = Object::getPrototypeFromConstructor(state, constructor, [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->arrayBufferPrototype();
     });
     ArrayBufferObject* obj = new ArrayBufferObject(state, proto);
+    obj->allocateBuffer(state, byteLength);
 
     return obj;
+}
+
+ArrayBufferObject* ArrayBufferObject::cloneArrayBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t srcLength, Object* constructor)
+{
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-clonearraybuffer
+    ASSERT(constructor->isConstructor());
+
+    ArrayBufferObject* targetBuffer = ArrayBufferObject::allocateArrayBuffer(state, constructor, srcLength);
+    srcBuffer->throwTypeErrorIfDetached(state);
+
+    targetBuffer->fillData(srcBuffer->data() + srcByteOffset, srcLength);
+
+    return targetBuffer;
 }
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
@@ -89,24 +103,6 @@ void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
     }
     m_data = NULL;
     m_bytelength = 0;
-}
-
-// http://www.ecma-international.org/ecma-262/6.0/#sec-clonearraybuffer
-bool ArrayBufferObject::cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset)
-{
-    unsigned srcLength = srcBuffer->byteLength();
-    ASSERT(srcByteOffset <= srcLength);
-    unsigned cloneLength = srcLength - srcByteOffset;
-    return cloneBuffer(state, srcBuffer, srcByteOffset, cloneLength);
-}
-
-bool ArrayBufferObject::cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength)
-{
-    if (srcBuffer->isDetachedBuffer())
-        return false;
-    allocateBuffer(state, cloneLength);
-    fillData(srcBuffer->data() + srcByteOffset, cloneLength);
-    return true;
 }
 
 void* ArrayBufferObject::operator new(size_t size)

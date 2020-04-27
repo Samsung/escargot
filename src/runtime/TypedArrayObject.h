@@ -480,8 +480,7 @@ protected:
             if (length == std::numeric_limits<unsigned>::max()) {                                                                                      \
                 obj->setBuffer(nullptr, 0, 0, 0);                                                                                                      \
             } else {                                                                                                                                   \
-                auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer());                           \
-                buffer->allocateBuffer(state, length* siz);                                                                                            \
+                auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);             \
                 obj->setBuffer(buffer, 0, length* siz, length);                                                                                        \
             }                                                                                                                                          \
             return obj;                                                                                                                                \

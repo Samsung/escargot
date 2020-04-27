@@ -35,18 +35,11 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInArrayBufferConstructor);
     }
 
-    ArrayBufferObject* obj = ArrayBufferObject::allocateArrayBuffer(state, newTarget.value());
-    if (argc >= 1) {
-        Value& val = argv[0];
-        double numberLength = val.toIndex(state);
-        if (numberLength == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
-        }
-        obj->allocateBuffer(state, numberLength);
-    } else {
-        obj->allocateBuffer(state, 0);
+    double byteLength = argv[0].toIndex(state);
+    if (byteLength == Value::InvalidIndexValue) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
-    return obj;
+    return ArrayBufferObject::allocateArrayBuffer(state, newTarget.value(), byteLength);
 }
 
 static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -430,17 +423,17 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             unsigned byteLength = elementSize * elementLength;
 
             ArrayBufferObject* data;
+            // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
+            Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
             // If SameValue(elementType,srcType) is true, then
             if (obj->typedArrayType() == srcArray->typedArrayType()) {
-                // Let data be CloneArrayBuffer(srcData, srcByteOffset).
-                data = new ArrayBufferObject(state);
-                data->cloneBuffer(state, srcData, srcByteOffset, byteLength);
+                // Let data be ? CloneArrayBuffer(srcData, srcByteOffset, byteLength, bufferConstructor).
+                data = ArrayBufferObject::cloneArrayBuffer(state, srcData, srcByteOffset, byteLength, bufferConstructor.asObject());
             } else {
-                // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
-                Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
-                // FIXME Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
-                Value arg[1] = { Value(byteLength) };
-                data = Object::construct(state, bufferConstructor, 1, arg)->asArrayBufferObject();
+                // Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
+                data = ArrayBufferObject::allocateArrayBuffer(state, bufferConstructor.asObject(), byteLength);
+                // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
+                srcData->throwTypeErrorIfDetached(state);
 
                 // Let srcByteIndex be srcByteOffset.
                 unsigned srcByteIndex = srcByteOffset;
@@ -843,18 +836,12 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         }
         int srcByteIndex = 0;
         ArrayBufferObject* oldSrcBuffer = srcBuffer;
-        unsigned oldSrcByteoffset = arg0Wrapper->byteOffset();
-        unsigned oldSrcBytelength = arg0Wrapper->byteLength();
-        unsigned oldSrcArraylength = arg0Wrapper->arrayLength();
+        unsigned oldSrcByteOffset = arg0Wrapper->byteOffset();
+        unsigned oldSrcByteLength = arg0Wrapper->byteLength();
+        unsigned oldSrcArrayLength = arg0Wrapper->arrayLength();
         if (srcBuffer == targetBuffer) {
-            // NOTE: Step 24
-            srcBuffer = new ArrayBufferObject(state);
-            bool succeed = srcBuffer->cloneBuffer(state, targetBuffer, srcByteOffset, oldSrcBytelength);
-            if (!succeed) {
-                const StaticStrings* strings = &state.context()->staticStrings();
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "");
-            }
-            arg0Wrapper->setBuffer(srcBuffer, 0, srcBuffer->byteLength(), oldSrcArraylength);
+            srcBuffer = ArrayBufferObject::cloneArrayBuffer(state, targetBuffer, srcByteOffset, oldSrcByteLength, state.context()->globalObject()->arrayBuffer());
+            arg0Wrapper->setBuffer(srcBuffer, 0, srcBuffer->byteLength(), oldSrcArrayLength);
         } else {
             srcByteIndex = srcByteOffset;
         }
@@ -868,7 +855,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
             targetIndex++;
         }
         if (oldSrcBuffer != srcBuffer)
-            arg0Wrapper->setBuffer(oldSrcBuffer, oldSrcByteoffset, oldSrcBytelength, oldSrcArraylength);
+            arg0Wrapper->setBuffer(oldSrcBuffer, oldSrcByteOffset, oldSrcByteLength, oldSrcArrayLength);
         return Value();
     }
 }
@@ -1612,18 +1599,6 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     return R;
 }
 
-static Value builtinTypedArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, toString);
-    validateTypedArray(state, O, state.context()->staticStrings().toString.string());
-
-    Value toString = O->get(state, state.context()->staticStrings().join).value(state, O);
-    if (!toString.isCallable()) {
-        toString = state.context()->globalObject()->objectPrototypeToString();
-    }
-    return Object::call(state, toString, O, 0, nullptr);
-}
-
 template <typename TA, int elementSize, typename TypeAdaptor>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
@@ -1781,8 +1756,13 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinTypedArraySlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toLocaleString),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTypedArrayToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.tostring
+    // The initial value of the %TypedArray%.prototype.toString data property is the same built-in function object as the Array.prototype.toString method
+    ASSERT(!!m_arrayPrototype && m_arrayPrototype->hasOwnProperty(state, ObjectPropertyName(strings->toString)));
+    Value arrayToString = m_arrayPrototype->getOwnProperty(state, ObjectPropertyName(strings->toString)).value(state, m_arrayPrototype);
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTypedArrayToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(arrayToString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),

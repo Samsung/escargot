@@ -47,14 +47,11 @@ public:
     explicit ArrayBufferObject(ExecutionState& state);
     explicit ArrayBufferObject(ExecutionState& state, Object* proto);
 
-    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor);
+    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, size_t byteLength);
+    static ArrayBufferObject* cloneArrayBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t srcLength, Object* constructor);
 
     static const uint32_t maxArrayBufferSize = 210000000;
 
-    // Clone srcBuffer's srcByteOffset ~ end.
-    bool cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset);
-    // Clone srcBuffer's srcByteOffset ~ (srcByteOffset + cloneLength).
-    bool cloneBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, size_t cloneLength);
     void allocateBuffer(ExecutionState& state, size_t bytelength);
     void attachBuffer(ExecutionState& state, void* buffer, size_t bytelength);
     void detachArrayBuffer(ExecutionState& state);
