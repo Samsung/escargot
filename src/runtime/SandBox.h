@@ -72,6 +72,12 @@ public:
     SandBoxResult run(Value (*runner)(ExecutionState&, void*), void* data);
     static void createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state);
     void throwException(ExecutionState& state, Value exception);
+    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceData);
+
+    StackTraceDataVector& stackTraceData()
+    {
+        return m_stackTraceData;
+    }
 
     Context* context()
     {

@@ -1352,34 +1352,24 @@ bool Object::isArray(ExecutionState& state)
     return false;
 }
 
-bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
+void Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
 {
     Value ptr = obj;
     int64_t ret = end;
-    bool exists = false;
     struct Data {
         bool* exists;
         const int64_t* cur;
         int64_t* ret;
     } data;
-    data.exists = &exists;
     data.cur = &cur;
     data.ret = &ret;
 
     while (ptr.isObject()) {
-        if (!ptr.asObject()->isOrdinary()) {
-            int64_t k = cur + 1;
-            while (k < end) {
-                auto kPresent = ptr.asObject()->hasIndexedProperty(state, Value(k));
-                if (kPresent) {
-                    nextIndex = k;
-                    return true;
-                }
-                k++;
-            }
-            nextIndex = ret;
-            return false;
+        if (UNLIKELY(!ptr.asObject()->isOrdinary())) {
+            nextIndex = std::min(end, cur + 1);
+            return;
         }
+
         ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             int64_t index;
             Data* e = (Data*)data;
@@ -1389,7 +1379,6 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
             if ((uint64_t)index != Value::InvalidIndexValue) {
                 if (index > *e->cur && *ret > index) {
                     *ret = std::min(index, *ret);
-                    *e->exists = true;
                 }
             }
             return true;
@@ -1397,37 +1386,24 @@ bool Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
                                     &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
-    nextIndex = ret;
-    return exists;
+    nextIndex = std::max(ret, cur + 1);
 }
 
-bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
+void Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
 {
     Value ptr = obj;
     int64_t ret = end;
-    bool exists = false;
     struct Data {
-        bool* exists;
         const int64_t* cur;
         int64_t* ret;
     } data;
-    data.exists = &exists;
     data.cur = &cur;
     data.ret = &ret;
 
     while (ptr.isObject()) {
-        if (!ptr.asObject()->isOrdinary()) {
-            int64_t k = cur - 1;
-            while (k > end) {
-                auto kPresent = ptr.asObject()->hasIndexedProperty(state, Value(k));
-                if (kPresent) {
-                    nextIndex = k;
-                    return true;
-                }
-                k--;
-            }
-            nextIndex = ret;
-            return false;
+        if (UNLIKELY(!ptr.asObject()->isOrdinary())) {
+            nextIndex = std::max(end, cur - 1);
+            return;
         }
         ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
             int64_t index;
@@ -1438,7 +1414,6 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
             if ((uint64_t)index != Value::InvalidIndexValue) {
                 if (index < *e->cur) {
                     *ret = std::max(index, *ret);
-                    *e->exists = true;
                 }
             }
             return true;
@@ -1446,8 +1421,7 @@ bool Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
                                     &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
-    nextIndex = ret;
-    return exists;
+    nextIndex = std::min(ret, cur - 1);
 }
 
 void Object::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)

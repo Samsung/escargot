@@ -169,6 +169,24 @@ public:
         return *this;
     }
 
+    const Vector<T, Allocator, ComputeReservedCapacityFunction>& operator=(Vector<T, Allocator, ComputeReservedCapacityFunction>&& other)
+    {
+        if (&other == this)
+            return *this;
+
+        if (other.size()) {
+            m_size = other.size();
+            m_buffer = other.m_buffer;
+            m_capacity = other.m_capacity;
+            other.m_buffer = nullptr;
+            other.m_size = 0;
+            other.m_capacity = 0;
+        } else {
+            clear();
+        }
+        return *this;
+    }
+
     Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other, const T& newItem)
     {
         m_size = other.size() + 1;

@@ -598,14 +598,9 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             k++;
         } else {
             int64_t result;
-            bool exist = Object::nextIndexForward(state, O, actualStart + k, len, result);
-            if (!exist) {
-                A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(actualDeleteCount), A);
-                break;
-            } else {
-                k = result - actualStart;
-                A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);
-            }
+            Object::nextIndexForward(state, O, actualStart + k, len, result);
+            k = result - actualStart;
+            A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);
         }
     }
     // Let setStatus be Set(A, "length", actualDeleteCount, true).
@@ -789,17 +784,17 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
             k++;
             n++;
         } else {
-            int64_t tmp;
-            bool exist = Object::nextIndexForward(state, thisObject, k, len, tmp);
-            if (!exist) {
-                n = finalEnd - kStart;
-                break;
-            }
-            n += tmp - k;
-            k = tmp;
+            int64_t result;
+            Object::nextIndexForward(state, thisObject, k, len, result);
+            n += result - k;
+            k = result;
         }
     }
-    ArrayObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(n), Value(ArrayObject));
+    if (finalEnd - kStart > 0) {
+        ArrayObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(finalEnd - kStart), Value(ArrayObject));
+    } else {
+        ArrayObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(0), Value(ArrayObject));
+    }
     return ArrayObject;
 }
 

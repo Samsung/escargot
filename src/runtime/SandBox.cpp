@@ -142,7 +142,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
         bool alreadyExists = false;
 
         for (size_t i = 0; i < stackTraceData.size(); i++) {
-            if (stackTraceData[i].first == es) {
+            if (stackTraceData[i].first == es || stackTraceData[i].first->lexicalEnvironment() == es->lexicalEnvironment()) {
                 alreadyExists = true;
                 break;
             }
@@ -228,6 +228,18 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
 
 void SandBox::throwException(ExecutionState& state, Value exception)
 {
+    createStackTraceData(m_stackTraceData, state);
+
+    // We MUST save thrown exception Value.
+    // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
+    m_exception = exception;
+    throw exception;
+}
+
+void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceData)
+{
+    m_stackTraceData = stackTraceData;
+    // update stack trace data if needs
     createStackTraceData(m_stackTraceData, state);
 
     // We MUST save thrown exception Value.
