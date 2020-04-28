@@ -2228,6 +2228,8 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
+    SandBox::StackTraceDataVector stackTraceData;
+
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
             newState->m_inTryStatement = true;
@@ -2267,15 +2269,16 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 ESCARGOT_LOG_ERROR("%s\n", builder.finalize()->toUTF8StringData().data());
             }
 #endif
-
-            newState->context()->vmInstance()->currentSandBox()->m_stackTraceData.clear();
+            stackTraceData = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceData());
             if (!code->m_hasCatch) {
                 newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             } else {
+                stackTraceData.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
                 try {
                     interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
                 } catch (const Value& val) {
+                    stackTraceData = newState->context()->vmInstance()->currentSandBox()->stackTraceData();
                     newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 }
             }
@@ -2331,7 +2334,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 return Value(Value::EmptyValue);
             }
         } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
-            state->context()->throwException(*state, record->value());
+            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), stackTraceData);
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
             return Value(Value::EmptyValue);

@@ -916,9 +916,8 @@ public:
         m_structure = m_structure->convertToNonTransitionStructure();
     }
 
-    // returns existence of index
-    static bool nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t len, int64_t& nextIndex);
-    static bool nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex);
+    static void nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t len, int64_t& nextIndex);
+    static void nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex);
 
     virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp);
 

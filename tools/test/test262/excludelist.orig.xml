@@ -48,7 +48,6 @@
     <test id="built-ins/AggregateError/prototype/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/AggregateError/prototype/proto"><reason>TODO</reason></test>
     <test id="built-ins/AggregateError/toString"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/reverse/length-exceeding-integer-limit-with-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/splice/length-exceeding-integer-limit-shrink-array"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
@@ -1812,7 +1811,6 @@
     <test id="intl402/Locale/constructor-non-iana-canon"><reason>TODO</reason></test>
     <test id="intl402/Locale/constructor-options-region-valid"><reason>TODO</reason></test>
     <test id="intl402/Locale/likely-subtags-grandfathered"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/constructor-locales-hasproperty"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/constructor-unit"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/constructor/constructor/locales-invalid"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/constructor/constructor/locales-valid"><reason>TODO</reason></test>
