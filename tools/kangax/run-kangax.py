@@ -125,7 +125,7 @@ def kangax_setup():
 
 def main():
     parser = ArgumentParser(description='Kangax runner for the Escargot engine')
-    parser.add_argument('--suite', nargs='?', default='""',  choices=['es6', 'es6plus'], help='Run kangax suite (choices: %(choices)s)')
+    parser.add_argument('--suite', nargs='?', default='""',  choices=['es6', 'es2016plus'], help='Run kangax suite (choices: %(choices)s)')
     parser.add_argument('--engine', nargs='?', default='local', help='Define escargot path. Leave empty for project root ./escargot file')
     args = parser.parse_args()
 
