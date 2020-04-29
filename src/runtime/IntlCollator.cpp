@@ -49,6 +49,7 @@
 #include "Value.h"
 #include "Intl.h"
 #include "IntlCollator.h"
+#include "VMInstance.h"
 
 namespace Escargot {
 
@@ -239,7 +240,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Let relevantExtensionKeys be the value of the [[relevantExtensionKeys]] internal property of Collator.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
     // internal property of Collator, requestedLocales, opt, relevantExtensionKeys, and localeData.
-    StringMap r = Intl::resolveLocale(state, realm->globalObject()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
+    StringMap r = Intl::resolveLocale(state, realm->vmInstance()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
 
     // Set the [[locale]] internal property of collator to the value of r.[[locale]].
     String* localeInternalString = String::fromASCII("locale");

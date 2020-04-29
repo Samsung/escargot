@@ -268,8 +268,6 @@ public:
         return m_intlCollator;
     }
 
-    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlCollatorAvailableLocales();
-
     FunctionObject* intlDateTimeFormat()
     {
         return m_intlDateTimeFormat;
@@ -279,8 +277,6 @@ public:
     {
         return m_intlDateTimeFormatPrototype;
     }
-
-    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
 
     FunctionObject* intlNumberFormat()
     {
@@ -292,9 +288,15 @@ public:
         return m_intlNumberFormatPrototype;
     }
 
-    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlNumberFormatAvailableLocales();
+    FunctionObject* intlRelativeTimeFormat()
+    {
+        return m_intlRelativeTimeFormat;
+    }
 
-    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& caseMappingAvailableLocales();
+    Object* intlRelativeTimeFormatPrototype()
+    {
+        return m_intlRelativeTimeFormatPrototype;
+    }
 
     FunctionObject* intlLocale()
     {
@@ -315,8 +317,6 @@ public:
     {
         return m_intlPluralRulesPrototype;
     }
-
-    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlPluralRulesAvailableLocales();
 #endif
     FunctionObject* promise()
     {
@@ -658,24 +658,16 @@ private:
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     Object* m_intl;
     FunctionObject* m_intlCollator;
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlCollatorAvailableLocales;
     FunctionObject* m_intlDateTimeFormat;
     Object* m_intlDateTimeFormatPrototype;
     FunctionObject* m_intlNumberFormat;
     Object* m_intlNumberFormatPrototype;
-
-    void ensureIntlSupportedLocales();
-    // we can expect uloc_, udat_, unum_ returns same supported locales
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlAvailableLocales;
-
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_caseMappingAvailableLocales;
-
+    FunctionObject* m_intlRelativeTimeFormat;
+    Object* m_intlRelativeTimeFormatPrototype;
     FunctionObject* m_intlLocale; // %Locale%
     Object* m_intlLocalePrototype; // %LocalePrototype%
     FunctionObject* m_intlPluralRules; // %PluralRules%
     Object* m_intlPluralRulesPrototype; // %PluralRulesPrototype%
-    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlPluralRulesAvailableLocales;
-
 #endif
 
     FunctionObject* m_promise;

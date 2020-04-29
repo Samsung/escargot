@@ -71,7 +71,15 @@ public:
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
 
     // test string is `(3*8alphanum) *("-" (3*8alphanum))` sequence
-    static bool isValidUnicodeLocaleIdentifierTypeNonterminal(String* value);
+    static bool isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(String* value);
+
+    struct NumberFieldItem {
+        int32_t start;
+        int32_t end;
+        int32_t type;
+    };
+    static void convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& fields, double x, const UTF16StringDataNonGCStd& resultString);
+    static String* icuNumberFieldToString(int32_t fieldName, double d);
 };
 } // namespace Escargot
 

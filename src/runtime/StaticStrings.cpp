@@ -112,6 +112,7 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
     INIT_STATIC_STRING(getRegion, "get region");
     INIT_STATIC_STRING(getFormat, "get format");
     INIT_STATIC_STRING(intlDotLocale, "Intl.Locale");
+    INIT_STATIC_STRING(intlDotRelativeTimeFormat, "Intl.RelativeTimeFormat");
 
     INIT_STATIC_STRING($Ampersand, "$&");
     INIT_STATIC_STRING($PlusSign, "$+");

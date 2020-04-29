@@ -189,4 +189,27 @@
 
 #define ucurr_getDefaultFractionDigits RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigits
 #define ucurr_getDefaultFractionDigitsForUsage RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigitsForUsage
+
+#define ureldatefmt_open RuntimeICUBinder::ICU::instance().ureldatefmt_open
+#define ureldatefmt_openResult RuntimeICUBinder::ICU::instance().ureldatefmt_openResult
+#define ureldatefmt_resultAsValue RuntimeICUBinder::ICU::instance().ureldatefmt_resultAsValue
+#define ureldatefmt_format RuntimeICUBinder::ICU::instance().ureldatefmt_format
+#define ureldatefmt_formatNumeric RuntimeICUBinder::ICU::instance().ureldatefmt_formatNumeric
+#define ureldatefmt_formatNumericToResult RuntimeICUBinder::ICU::instance().ureldatefmt_formatNumericToResult
+#define ureldatefmt_formatToResult RuntimeICUBinder::ICU::instance().ureldatefmt_formatToResult
+#define ureldatefmt_close RuntimeICUBinder::ICU::instance().ureldatefmt_close
+#define ureldatefmt_closeResult RuntimeICUBinder::ICU::instance().ureldatefmt_closeResult
+
+#define ucfpos_open RuntimeICUBinder::ICU::instance().ucfpos_open
+#define ucfpos_getCategory RuntimeICUBinder::ICU::instance().ucfpos_getCategory
+#define ucfpos_getField RuntimeICUBinder::ICU::instance().ucfpos_getField
+#define ucfpos_reset RuntimeICUBinder::ICU::instance().ucfpos_reset
+#define ucfpos_close RuntimeICUBinder::ICU::instance().ucfpos_close
+#define ucfpos_constrainCategory RuntimeICUBinder::ICU::instance().ucfpos_constrainCategory
+#define ucfpos_constrainField RuntimeICUBinder::ICU::instance().ucfpos_constrainField
+#define ucfpos_getIndexes RuntimeICUBinder::ICU::instance().ucfpos_getIndexes
+
+#define ufmtval_getString RuntimeICUBinder::ICU::instance().ufmtval_getString
+#define ufmtval_nextPosition RuntimeICUBinder::ICU::instance().ufmtval_nextPosition
+
 #endif

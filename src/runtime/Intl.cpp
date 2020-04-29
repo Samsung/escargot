@@ -1767,20 +1767,8 @@ Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil
         subset = lookupSupportedLocales(state, availableLocales, requestedLocales);
     }
 
-    // For each named own property name P of subset,
-    ArrayObject* result = new ArrayObject(state);
-
-    result->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().length), ObjectPropertyDescriptor(Value(subset.size()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-    for (size_t i = 0; i < subset.size(); i++) {
-        String* P = subset[i].toString(state);
-        // Let desc be the result of calling the [[GetOwnProperty]] internal method of subset with P.
-        // Set desc.[[Writable]] to false.
-        // Set desc.[[Configurable]] to false.
-        // Call the [[DefineOwnProperty]] internal method of subset with P, desc, and true as arguments.
-        result->defineOwnProperty(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(P, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-    }
-
-    return result;
+    // Return CreateArrayFromList(supportedLocales).
+    return Object::createArrayFromList(state, subset);
 }
 
 Value Intl::getOption(ExecutionState& state, Object* options, Value property, Intl::OptionValueType type, Value* values, size_t valuesLength, const Value& fallback)
@@ -1867,7 +1855,7 @@ String* Intl::getLocaleForStringLocaleConvertCase(ExecutionState& state, Value l
     String* noExtensionsLocale = removeUnicodeLocaleExtension(state, requestedLocale);
 
     // Let availableLocales be a List with language tags that includes the languages for which the Unicode Character Database contains language sensitive case mappings. Implementations may add additional language tags if they support case mapping for additional locales.
-    const auto& availableLocales = state.context()->globalObject()->caseMappingAvailableLocales();
+    const auto& availableLocales = state.context()->vmInstance()->caseMappingAvailableLocales();
     // Let locale be BestAvailableLocale(availableLocales, noExtensionsLocale).
     String* locale = bestAvailableLocale(state, availableLocales, noExtensionsLocale);
     return locale;
@@ -1890,9 +1878,147 @@ static bool is38AlphanumList(const std::string& str)
     return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1));
 }
 
-bool Intl::isValidUnicodeLocaleIdentifierTypeNonterminal(String* value)
+bool Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(String* value)
 {
     return is38AlphanumList(value->toNonGCUTF8StringData());
+}
+
+void Intl::convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& fields, double x, const UTF16StringDataNonGCStd& resultString)
+{
+    // we need to divide integer field
+    // because icu returns result as
+    // 1.234 $
+    // "1.234" <- integer field
+    // but we want
+    // "1", "234"
+    std::vector<NumberFieldItem> integerFields;
+    for (size_t i = 0; i < fields.size(); i++) {
+        NumberFieldItem item = fields[i];
+
+        if (item.type == UNUM_INTEGER_FIELD) {
+            fields.erase(fields.begin() + i);
+            i--;
+
+            std::vector<std::pair<int32_t, int32_t>> apertures;
+
+            for (size_t j = 0; j < fields.size(); j++) {
+                if (fields[j].start >= item.start && fields[j].end <= item.end) {
+                    apertures.push_back(std::make_pair(fields[j].start, fields[j].end));
+                }
+            }
+            if (apertures.size()) {
+                NumberFieldItem newItem;
+                newItem.type = item.type;
+
+                int32_t lastStart = item.start;
+                for (size_t j = 0; j < apertures.size(); j++) {
+                    newItem.start = lastStart;
+                    newItem.end = apertures[j].first;
+                    integerFields.push_back(newItem);
+
+                    lastStart = apertures[j].second;
+                }
+
+                if (lastStart != item.end) {
+                    newItem.start = lastStart;
+                    newItem.end = item.end;
+                    integerFields.push_back(newItem);
+                }
+
+
+            } else {
+                integerFields.push_back(item);
+            }
+        }
+    }
+
+    fields.insert(fields.end(), integerFields.begin(), integerFields.end());
+
+    // add literal field if needs
+    if (!std::isnan(x) && !std::isinf(x)) {
+        std::vector<NumberFieldItem> literalFields;
+        for (size_t i = 0; i < resultString.length(); i++) {
+            bool found = false;
+            for (size_t j = 0; j < fields.size(); j++) {
+                if ((size_t)fields[j].start <= i && i < (size_t)fields[j].end) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                size_t end = i + 1;
+                while (end != resultString.length()) {
+                    bool found = false;
+                    for (size_t j = 0; j < fields.size(); j++) {
+                        if ((size_t)fields[j].start <= end && end < (size_t)fields[j].end) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        break;
+                    }
+                    end++;
+                }
+
+                NumberFieldItem newItem;
+                newItem.type = -1;
+                newItem.start = i;
+                newItem.end = end;
+                i = end - 1;
+                literalFields.push_back(newItem);
+            }
+        }
+        fields.insert(fields.end(), literalFields.begin(), literalFields.end());
+    }
+
+    std::sort(fields.begin(), fields.end(),
+              [](const NumberFieldItem& a, const NumberFieldItem& b) -> bool {
+                  return a.start < b.start;
+              });
+}
+
+String* Intl::icuNumberFieldToString(int32_t fieldName, double d)
+{
+    if (fieldName == -1) {
+        return String::fromASCII("literal");
+    }
+
+    switch ((UNumberFormatFields)fieldName) {
+    case UNUM_INTEGER_FIELD:
+        if (std::isnan(d)) {
+            return String::fromASCII("nan");
+        }
+        if (std::isinf(d)) {
+            return String::fromASCII("infinity");
+        }
+        return String::fromASCII("integer");
+    case UNUM_GROUPING_SEPARATOR_FIELD:
+        return String::fromASCII("group");
+    case UNUM_DECIMAL_SEPARATOR_FIELD:
+        return String::fromASCII("decimal");
+    case UNUM_FRACTION_FIELD:
+        return String::fromASCII("fraction");
+    case UNUM_SIGN_FIELD:
+        return std::signbit(d) ? String::fromASCII("minusSign") : String::fromASCII("plusSign");
+    case UNUM_PERCENT_FIELD:
+        return String::fromASCII("percentSign");
+    case UNUM_CURRENCY_FIELD:
+        return String::fromASCII("currency");
+    case UNUM_EXPONENT_SYMBOL_FIELD:
+        return String::fromASCII("exponentSeparator");
+    case UNUM_EXPONENT_SIGN_FIELD:
+        return String::fromASCII("exponentMinusSign");
+    case UNUM_EXPONENT_FIELD:
+        return String::fromASCII("exponentInteger");
+    case UNUM_MEASURE_UNIT_FIELD:
+        return String::fromASCII("unit");
+    case UNUM_COMPACT_FIELD:
+        return String::fromASCII("compact");
+    default:
+        ASSERT_NOT_REACHED();
+        return String::emptyString;
+    }
 }
 
 } // namespace Escargot

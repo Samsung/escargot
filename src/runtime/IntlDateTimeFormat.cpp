@@ -307,7 +307,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     // If calendar is not undefined, then
     if (!calendar.isUndefined()) {
         // If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminal(calendar.asString())) {
+        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(calendar.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The calendar value you gave is not valid");
         }
     }
@@ -321,7 +321,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         std::string s = numberingSystem.asString()->toNonGCUTF8StringData();
-        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminal(numberingSystem.asString())) {
+        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(numberingSystem.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
         }
     }
@@ -348,7 +348,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     // Let DateTimeFormat be the standard built-in object that is the initial value of Intl.DateTimeFormat.
     // Let localeData be the value of the [[localeData]] internal property of DateTimeFormat.
-    const auto& availableLocales = state.context()->globalObject()->intlDateTimeFormatAvailableLocales();
+    const auto& availableLocales = state.context()->vmInstance()->intlDateTimeFormatAvailableLocales();
 
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the
     // [[availableLocales]] internal property of DateTimeFormat, requestedLocales, opt, the [[relevantExtensionKeys]] internal property of DateTimeFormat, and localeData.

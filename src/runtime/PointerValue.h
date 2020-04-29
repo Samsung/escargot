@@ -64,6 +64,7 @@ class GlobalObjectProxyObject;
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
 class IntlPluralRulesObject;
+class IntlRelativeTimeFormatObject;
 #endif
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
@@ -361,6 +362,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isIntlRelativeTimeFormatObject() const
+    {
+        return false;
+    }
 #endif
 
     virtual bool isCallable() const
@@ -612,6 +618,12 @@ public:
     {
         ASSERT(isIntlPluralRulesObject());
         return (IntlPluralRulesObject*)this;
+    }
+
+    IntlRelativeTimeFormatObject* asIntlRelativeTimeFormatObject()
+    {
+        ASSERT(isIntlRelativeTimeFormatObject());
+        return (IntlRelativeTimeFormatObject*)this;
     }
 #endif
 
