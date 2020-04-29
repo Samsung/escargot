@@ -149,7 +149,17 @@ namespace RuntimeICUBinder {
     F(ufieldpositer_open, UFieldPositionIterator* (*)(UErrorCode * status), UFieldPositionIterator*)                                                                                           \
     F(ufieldpositer_next, int32_t (*)(UFieldPositionIterator * fpositer, int32_t * beginIndex, int32_t * endIndex), int32_t)                                                                   \
     F(ucurr_getDefaultFractionDigits, int32_t (*)(const UChar* currency, UErrorCode* ec), int32_t)                                                                                             \
-    F(ucurr_getDefaultFractionDigitsForUsage, int32_t (*)(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec), int32_t)
+    F(ucurr_getDefaultFractionDigitsForUsage, int32_t (*)(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec), int32_t)                                                         \
+    F(ureldatefmt_open, URelativeDateTimeFormatter* (*)(const char*, UNumberFormat*, UDateRelativeDateTimeFormatterStyle, UDisplayContext, UErrorCode*), URelativeDateTimeFormatter*)          \
+    F(ureldatefmt_openResult, UFormattedRelativeDateTime* (*)(UErrorCode * ec), UFormattedRelativeDateTime*)                                                                                   \
+    F(ureldatefmt_resultAsValue, const UFormattedValue* (*)(const UFormattedRelativeDateTime* ufrdt, UErrorCode* ec), const UFormattedValue*)                                                  \
+    F(ureldatefmt_format, int32_t (*)(const URelativeDateTimeFormatter* reldatefmt, double, URelativeDateTimeUnit, UChar*, int32_t, UErrorCode*), int32_t)                                     \
+    F(ureldatefmt_formatNumeric, int32_t (*)(const URelativeDateTimeFormatter* reldatefmt, double, URelativeDateTimeUnit, UChar*, int32_t, UErrorCode*), int32_t)                              \
+    F(ucfpos_open, UConstrainedFieldPosition* (*)(UErrorCode * ec), UConstrainedFieldPosition*)                                                                                                \
+    F(ucfpos_getCategory, int32_t (*)(const UConstrainedFieldPosition* ucfpos, UErrorCode* ec), int32_t)                                                                                       \
+    F(ucfpos_getField, int32_t (*)(const UConstrainedFieldPosition* ucfpos, UErrorCode* ec), int32_t)                                                                                          \
+    F(ufmtval_getString, const UChar* (*)(const UFormattedValue* ufmtval, int32_t* pLength, UErrorCode* ec), const UChar*)                                                                     \
+    F(ufmtval_nextPosition, UBool (*)(const UFormattedValue* ufmtval, UConstrainedFieldPosition* ucfpos, UErrorCode* ec), UBool)
 
 #define FOR_EACH_I18N_VOID_OP(F)                                                                                                                                     \
     F(udat_close, void (*)(UDateFormat * format), void)                                                                                                              \
@@ -178,7 +188,16 @@ namespace RuntimeICUBinder {
     F(unumf_resultGetAllFieldPositions, void (*)(const UFormattedNumber* uresult, UFieldPositionIterator* ufpositer, UErrorCode* ec), void)                          \
     F(unumf_close, void (*)(UNumberFormatter * uformatter), void)                                                                                                    \
     F(unumf_closeResult, void (*)(UFormattedNumber * uresult), void)                                                                                                 \
-    F(ufieldpositer_close, void (*)(UFieldPositionIterator * fpositer), void)
+    F(ufieldpositer_close, void (*)(UFieldPositionIterator * fpositer), void)                                                                                        \
+    F(ureldatefmt_formatNumericToResult, void (*)(const URelativeDateTimeFormatter*, double, URelativeDateTimeUnit, UFormattedRelativeDateTime*, UErrorCode*), void) \
+    F(ureldatefmt_formatToResult, void (*)(const URelativeDateTimeFormatter*, double, URelativeDateTimeUnit, UFormattedRelativeDateTime*, UErrorCode*), void)        \
+    F(ureldatefmt_close, void (*)(URelativeDateTimeFormatter * reldatefmt), void)                                                                                    \
+    F(ureldatefmt_closeResult, void (*)(UFormattedRelativeDateTime * ufrdt), void)                                                                                   \
+    F(ucfpos_reset, void (*)(UConstrainedFieldPosition * ucfpos, UErrorCode * ec), void)                                                                             \
+    F(ucfpos_close, void (*)(UConstrainedFieldPosition * ucfpos), void)                                                                                              \
+    F(ucfpos_constrainCategory, void (*)(UConstrainedFieldPosition * ucfpos, int32_t category, UErrorCode * ec), void)                                               \
+    F(ucfpos_constrainField, void (*)(UConstrainedFieldPosition * ucfpos, int32_t category, int32_t field, UErrorCode * ec), void)                                   \
+    F(ucfpos_getIndexes, void (*)(const UConstrainedFieldPosition* ucfpos, int32_t* pStart, int32_t* pLimit, UErrorCode* ec), void)
 
 #define FOR_EACH_I18N_STICKY_OP(F) \
     F(vzone_getOffset3)

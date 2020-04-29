@@ -39,7 +39,6 @@
 #include "heap/LeakCheckerBridge.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
-#include "Intl.h"
 
 namespace Escargot {
 
@@ -106,6 +105,8 @@ GlobalObject::GlobalObject(ExecutionState& state)
     , m_intlDateTimeFormatPrototype(nullptr)
     , m_intlNumberFormat(nullptr)
     , m_intlNumberFormatPrototype(nullptr)
+    , m_intlRelativeTimeFormat(nullptr)
+    , m_intlRelativeTimeFormatPrototype(nullptr)
     , m_intlLocale(nullptr)
     , m_intlLocalePrototype(nullptr)
     , m_intlPluralRules(nullptr)
@@ -1271,126 +1272,4 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
 }
 
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-// some locale have script value on it eg) zh_Hant_HK. so we need to remove it
-static std::string icuLocaleToBCP47LanguageRegionPair(const char* l)
-{
-    std::string v = l;
-    for (size_t i = 0; i < v.length(); i++) {
-        if (v[i] == '_') {
-            v[i] = '-';
-        }
-    }
-    auto c = Intl::canonicalizeLanguageTag(v);
-    if (c.region.length()) {
-        return c.language + "-" + c.region;
-    }
-    return c.language;
-}
-
-const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlCollatorAvailableLocales()
-{
-    if (m_intlCollatorAvailableLocales.size() == 0) {
-        auto count = ucol_countAvailable();
-
-        // after removing script value from locale
-        // we should consider duplication
-        // eg) zh, zh_Hans
-        std::set<std::string> duplicateRemover;
-        for (int32_t i = 0; i < count; ++i) {
-            auto s = icuLocaleToBCP47LanguageRegionPair(ucol_getAvailable(i));
-            if (duplicateRemover.find(s) == duplicateRemover.end()) {
-                duplicateRemover.insert(s);
-                String* locale = String::fromASCII(s.data(), s.length());
-                m_intlCollatorAvailableLocales.pushBack(locale);
-            }
-        }
-    }
-    return m_intlCollatorAvailableLocales;
-}
-
-void GlobalObject::ensureIntlSupportedLocales()
-{
-    if (m_intlAvailableLocales.size() == 0) {
-#if !defined(NDEBUG)
-        ASSERT(uloc_countAvailable() == udat_countAvailable());
-        ASSERT(uloc_countAvailable() == unum_countAvailable());
-        for (int32_t i = 0; i < uloc_countAvailable(); ++i) {
-            ASSERT(std::string(uloc_getAvailable(i)) == std::string(udat_getAvailable(i)));
-            ASSERT(std::string(uloc_getAvailable(i)) == std::string(unum_getAvailable(i)));
-        }
-#endif
-        // after removing script value from locale
-        // we should consider duplication
-        // eg) zh, zh_Hans
-        std::set<std::string> duplicateRemover;
-
-        auto count = uloc_countAvailable();
-        for (int32_t i = 0; i < count; ++i) {
-            auto s = icuLocaleToBCP47LanguageRegionPair(uloc_getAvailable(i));
-            if (duplicateRemover.find(s) == duplicateRemover.end()) {
-                duplicateRemover.insert(s);
-                String* locale = String::fromASCII(s.data(), s.length());
-                m_intlAvailableLocales.pushBack(locale);
-            }
-        }
-    }
-}
-
-const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlDateTimeFormatAvailableLocales()
-{
-    ensureIntlSupportedLocales();
-    return m_intlAvailableLocales;
-}
-
-const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlNumberFormatAvailableLocales()
-{
-    ensureIntlSupportedLocales();
-    return m_intlAvailableLocales;
-}
-
-const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::caseMappingAvailableLocales()
-{
-    if (m_caseMappingAvailableLocales.size() == 0) {
-        m_caseMappingAvailableLocales.pushBack(String::fromASCII("tr"));
-        m_caseMappingAvailableLocales.pushBack(String::fromASCII("el"));
-        m_caseMappingAvailableLocales.pushBack(String::fromASCII("lt"));
-        m_caseMappingAvailableLocales.pushBack(String::fromASCII("az"));
-    }
-    return m_caseMappingAvailableLocales;
-}
-
-const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& GlobalObject::intlPluralRulesAvailableLocales()
-{
-    if (m_intlPluralRulesAvailableLocales.size() == 0) {
-        UErrorCode status = U_ZERO_ERROR;
-        UResourceBundle* rb = ures_openDirect(nullptr, "plurals", &status);
-        ASSERT(U_SUCCESS(status));
-        UResourceBundle* locales = ures_getByKey(rb, "locales", nullptr, &status);
-        ASSERT(U_SUCCESS(status));
-
-        UResourceBundle* res = nullptr;
-
-        std::set<std::string> duplicateRemover;
-
-        while (true) {
-            res = ures_getNextResource(locales, res, &status);
-            if (res == nullptr || U_FAILURE(status)) {
-                break;
-            }
-            auto s = icuLocaleToBCP47LanguageRegionPair(ures_getKey(res));
-            if (duplicateRemover.find(s) == duplicateRemover.end()) {
-                duplicateRemover.insert(s);
-                String* locale = String::fromASCII(s.data(), s.length());
-                m_intlPluralRulesAvailableLocales.pushBack(locale);
-            }
-        }
-
-        ures_close(res);
-        ures_close(locales);
-        ures_close(rb);
-    }
-    return m_intlPluralRulesAvailableLocales;
-}
-#endif
 } // namespace Escargot

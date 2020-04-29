@@ -57,6 +57,7 @@
 #include "IntlDateTimeFormat.h"
 #include "IntlPluralRules.h"
 #include "IntlLocale.h"
+#include "IntlRelativeTimeFormat.h"
 
 namespace Escargot {
 
@@ -151,7 +152,7 @@ static Value builtinIntlCollatorSupportedLocalesOf(ExecutionState& state, Value 
         options = argv[1];
     }
     // Let availableLocales be the value of the [[availableLocales]] internal property of the standard built-in object that is the initial value of Intl.Collator.
-    const auto& availableLocales = state.context()->globalObject()->intlCollatorAvailableLocales();
+    const auto& availableLocales = state.context()->vmInstance()->intlCollatorAvailableLocales();
     // Let requestedLocales be the result of calling the CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
     // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
@@ -299,7 +300,7 @@ static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, 
         options = argv[1];
     }
     // Let availableLocales be the value of the [[availableLocales]] internal property of the standard built-in object that is the initial value of Intl.DateTimeFormat.
-    const auto& availableLocales = state.context()->globalObject()->intlDateTimeFormatAvailableLocales();
+    const auto& availableLocales = state.context()->vmInstance()->intlDateTimeFormatAvailableLocales();
     // Let requestedLocales be the result of calling the CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
     // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
@@ -421,7 +422,7 @@ static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Va
         options = argv[1];
     }
     // Let availableLocales be the value of the [[availableLocales]] internal property of the standard built-in object that is the initial value of Intl.NumberFormat.
-    const auto& availableLocales = state.context()->globalObject()->intlNumberFormatAvailableLocales();
+    const auto& availableLocales = state.context()->vmInstance()->intlNumberFormatAvailableLocales();
     // Let requestedLocales be the result of calling the CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
     // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
@@ -540,7 +541,7 @@ static Value builtinIntlPluralRulesSupportedLocalesOf(ExecutionState& state, Val
         options = argv[1];
     }
     // Let availableLocales be the value of the [[availableLocales]] internal property of the standard built-in object that is the initial value of Intl.Collator.
-    const auto& availableLocales = state.context()->globalObject()->intlPluralRulesAvailableLocales();
+    const auto& availableLocales = state.context()->vmInstance()->intlPluralRulesAvailableLocales();
     // Let requestedLocales be the result of calling the CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
     // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
@@ -725,7 +726,7 @@ static void icuLocleToBCP47Locale(char* buf, size_t len)
     for (size_t i = 0; i < len; i++) {
         if (buf[i] == '_') {
             buf[i] = '-';
-        } else if (buf[i] < 0) {
+        } else if ((std::numeric_limits<char>::is_signed && buf[i] < 0) || (!std::numeric_limits<char>::is_signed && buf[i] > 127)) {
             // when using uloc_addLikelySubtags with `und-...` input, old version of ICU shows weird behavior
             // it contains minus value in string
             buf[i] = 0;
@@ -824,6 +825,97 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
     sb.appendString(newBuf);
     sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
     return new IntlLocaleObject(state, sb.finalize(), nullptr);
+}
+
+static Value builtinIntlRelativeTimeFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 64) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.RelativeTimeFormat needs 64+ version of ICU");
+    }
+#endif
+
+    Value locales = argc >= 1 ? argv[0] : Value();
+    Value options = argc >= 2 ? argv[1] : Value();
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->intlRelativeTimeFormatPrototype();
+    });
+
+    return new IntlRelativeTimeFormatObject(state, proto, locales, options);
+}
+
+static Value builtinIntlRelativeTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlRelativeTimeFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlRelativeTimeFormatObject* r = thisValue.asObject()->asIntlRelativeTimeFormatObject();
+
+    // Let options be ! ObjectCreate(%ObjectPrototype%).
+    Object* options = new Object(state);
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("locale"))), ObjectPropertyDescriptor(r->locale(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("style"))), ObjectPropertyDescriptor(r->style(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("numeric"))), ObjectPropertyDescriptor(r->numeric(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("numberingSystem"))), ObjectPropertyDescriptor(r->numberingSystem(), ObjectPropertyDescriptor::AllPresent));
+
+    return options;
+}
+
+static Value builtinIntlRelativeTimeFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value locales = argv[0];
+    Value options;
+    if (argc >= 2) {
+        options = argv[1];
+    }
+    // Let availableLocales be %RelativeTimeFormat%.[[AvailableLocales]].
+    const auto& availableLocales = state.context()->vmInstance()->intlRelativeTimeFormatAvailableLocales();
+    // Let requestedLocales be ? CanonicalizeLocaleList(locales).
+    ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
+    // Return ? SupportedLocales(availableLocales, requestedLocales, options).
+    return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
+}
+
+static Value builtinIntlRelativeTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlRelativeTimeFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    // Let relativeTimeFormat be the this value.
+    // Perform ? RequireInternalSlot(relativeTimeFormat, [[InitializedRelativeTimeFormat]]).
+    // Let value be ? ToNumber(value).
+    double value = argv[0].toNumber(state);
+    // Let unit be ? ToString(unit).
+    String* unit = argv[1].toString(state);
+    // Return ? FormatRelativeTime(relativeTimeFormat, value, unit).
+    return thisValue.asObject()->asIntlRelativeTimeFormatObject()->format(state, value, unit);
+}
+
+static Value builtinIntlRelativeTimeFormatFormatToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlRelativeTimeFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    // Let relativeTimeFormat be the this value.
+    // Perform ? RequireInternalSlot(relativeTimeFormat, [[InitializedRelativeTimeFormat]]).
+    // Let value be ? ToNumber(value).
+    double value = argv[0].toNumber(state);
+    // Let unit be ? ToString(unit).
+    String* unit = argv[1].toString(state);
+    // Return ? FormatRelativeTimeToParts(relativeTimeFormat, value, unit).
+    return thisValue.asObject()->asIntlRelativeTimeFormatObject()->formatToParts(state, value, unit);
 }
 
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1006,6 +1098,27 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlLocalePrototype->defineOwnProperty(state, state.context()->staticStrings().minimize,
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->minimize, builtinIntlLocaleMinimize, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+    m_intlRelativeTimeFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->RelativeTimeFormat, builtinIntlRelativeTimeFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlRelativeTimeFormat->setGlobalIntrinsicObject(state);
+
+    m_intlRelativeTimeFormatPrototype = m_intlRelativeTimeFormat->getFunctionPrototype(state).asObject();
+    m_intlRelativeTimeFormatPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlRelativeTimeFormatPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                        ObjectPropertyDescriptor(Value(state.context()->staticStrings().intlDotRelativeTimeFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intlRelativeTimeFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().format,
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlRelativeTimeFormatFormat, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlRelativeTimeFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlRelativeTimeFormatFormatToParts, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlRelativeTimeFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlRelativeTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlRelativeTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlRelativeTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Collator),
                               ObjectPropertyDescriptor(m_intlCollator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1020,6 +1133,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Locale),
                               ObjectPropertyDescriptor(m_intlLocale, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intl->defineOwnProperty(state, ObjectPropertyName(strings->RelativeTimeFormat),
+                              ObjectPropertyDescriptor(m_intlRelativeTimeFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),

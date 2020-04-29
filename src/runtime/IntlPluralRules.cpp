@@ -24,6 +24,7 @@
 #include "Value.h"
 #include "Intl.h"
 #include "IntlPluralRules.h"
+#include "VMInstance.h"
 
 namespace Escargot {
 
@@ -148,7 +149,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     // Let localeData be %PluralRules%.[[LocaleData]].
     // Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]], requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]], localeData).
     // Set pluralRules.[[Locale]] to the value of r.[[locale]].
-    auto r = Intl::resolveLocale(state, state.context()->globalObject()->intlPluralRulesAvailableLocales(), requestedLocales, opt, nullptr, 0, nullptr);
+    auto r = Intl::resolveLocale(state, state.context()->vmInstance()->intlPluralRulesAvailableLocales(), requestedLocales, opt, nullptr, 0, nullptr);
     String* foundLocale = r.at("locale");
 
     UErrorCode status = U_ZERO_ERROR;

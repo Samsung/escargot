@@ -435,7 +435,8 @@ namespace Escargot {
     F(minimize)                   \
     F(PluralRules)                \
     F(select)                     \
-    F(formatToParts)
+    F(formatToParts)              \
+    F(RelativeTimeFormat)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \
@@ -651,6 +652,7 @@ public:
     AtomicString getRegion;
     AtomicString getFormat;
     AtomicString intlDotLocale;
+    AtomicString intlDotRelativeTimeFormat;
     AtomicString symbolSplit;
     AtomicString symbolReplace;
     AtomicString symbolSearch;

@@ -225,6 +225,15 @@ public:
         m_onVMInstanceDestroyData = data;
     }
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlCollatorAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlNumberFormatAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlRelativeTimeFormatAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlPluralRulesAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& caseMappingAvailableLocales();
+#endif
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -291,6 +300,15 @@ private:
 
     // promise job queue
     JobQueue* m_jobQueue;
+
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    void ensureIntlSupportedLocales();
+    // we expect uloc_, udat_, unum_ returns same supported locales
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlAvailableLocales;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlCollatorAvailableLocales;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlPluralRulesAvailableLocales;
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_caseMappingAvailableLocales;
+#endif
 };
 } // namespace Escargot
 
