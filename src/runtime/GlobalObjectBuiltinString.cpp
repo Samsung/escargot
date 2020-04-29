@@ -749,13 +749,9 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charAt);
 
-    int64_t position;
-    if (argc == 0) {
-        position = 0;
-    } else if (argc > 0) {
+    int64_t position = 0;
+    if (argc > 0) {
         position = argv[0].toInteger(state);
-    } else {
-        return Value(String::emptyString);
     }
 
     const auto& accessData = str->bufferAccessData();
@@ -784,14 +780,13 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
         if (c < ESCARGOT_ASCII_TABLE_MAX)
             return state.context()->staticStrings().asciiTable[c].string();
         return String::fromCharCode(c);
-    } else {
-        StringBuilder builder;
-        for (size_t i = 0; i < argc; i++) {
-            builder.appendChar((char16_t)argv[i].toInteger(state));
-        }
-        return builder.finalize(&state);
     }
-    return Value();
+
+    StringBuilder builder;
+    for (size_t i = 0; i < argc; i++) {
+        builder.appendChar((char16_t)argv[i].toUint32(state));
+    }
+    return builder.finalize(&state);
 }
 
 static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

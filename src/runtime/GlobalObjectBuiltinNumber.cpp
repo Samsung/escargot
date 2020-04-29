@@ -236,29 +236,29 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_RadixInvalidRange);
         }
     }
+
     if (radix == 10) {
         return Value(number).toString(state);
-    } else {
-        bool isInteger = (static_cast<int64_t>(number) == number);
-        if (isInteger) {
-            bool minusFlag = (number < 0) ? 1 : 0;
-            number = (number < 0) ? (-1 * number) : number;
-            char buffer[256];
-            if (minusFlag) {
-                buffer[0] = '-';
-                itoa(static_cast<int64_t>(number), &buffer[1], radix);
-            } else {
-                itoa(static_cast<int64_t>(number), buffer, radix);
-            }
-            return new ASCIIString(buffer);
-        } else {
-            ASSERT(Value(number).isDouble());
-            NumberObject::RadixBuffer s;
-            const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
-            return new ASCIIString(str);
-        }
     }
-    return Value();
+
+    bool isInteger = (static_cast<int64_t>(number) == number);
+    if (isInteger) {
+        bool minusFlag = (number < 0) ? 1 : 0;
+        number = (number < 0) ? (-1 * number) : number;
+        char buffer[256];
+        if (minusFlag) {
+            buffer[0] = '-';
+            itoa(static_cast<int64_t>(number), &buffer[1], radix);
+        } else {
+            itoa(static_cast<int64_t>(number), buffer, radix);
+        }
+        return new ASCIIString(buffer);
+    } else {
+        ASSERT(Value(number).isDouble());
+        NumberObject::RadixBuffer s;
+        const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
+        return new ASCIIString(str);
+    }
 }
 
 static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
