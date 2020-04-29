@@ -5188,6 +5188,7 @@ public:
         }
 
         if (!computed && keyNode->isIdentifier()) {
+            ASSERT(!!value);
             this->addImplicitName(value, keyNode->asIdentifier()->name());
         }
 

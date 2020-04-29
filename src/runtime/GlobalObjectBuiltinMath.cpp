@@ -60,25 +60,26 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
 
 static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    bool is_NaN = false;
     if (argc == 0) {
         return Value(std::numeric_limits<double>::infinity());
-    } else {
-        double minValue = argv[0].toNumber(state);
-        for (unsigned i = 1; i < argc; i++) {
-            double value = argv[i].toNumber(state);
-            if (std::isnan(value))
-                is_NaN = true;
-            if (value < minValue || (!value && !minValue && std::signbit(value)))
-                minValue = value;
-        }
-        if (is_NaN) {
-            double qnan = std::numeric_limits<double>::quiet_NaN();
-            return Value(qnan);
-        }
-        return Value(minValue);
     }
-    return Value();
+
+    bool hasNaN = false;
+    double minValue = argv[0].toNumber(state);
+    for (unsigned i = 1; i < argc; i++) {
+        double value = argv[i].toNumber(state);
+        if (std::isnan(value)) {
+            hasNaN = true;
+        }
+        if (value < minValue || (!value && !minValue && std::signbit(value))) {
+            minValue = value;
+        }
+    }
+    if (hasNaN) {
+        double qnan = std::numeric_limits<double>::quiet_NaN();
+        return Value(qnan);
+    }
+    return Value(minValue);
 }
 
 static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
