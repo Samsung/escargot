@@ -171,9 +171,9 @@ class DebuggerPrompt(Cmd):
         self.stop = True
     do_bt = do_backtrace
 
-    def do_scope(self, _):
+    def do_scope(self, args):
         """ Get lexical environment chain """
-        self.debugger.scope_chain()
+        self.debugger.scope_chain(args)
         self.stop = True
 
     def do_variables(self, args):

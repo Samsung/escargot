@@ -673,9 +673,19 @@ class Debugger(object):
         self.prompt = False
         return ""
 
-    def scope_chain(self):
+    def scope_chain(self, args):
         self.prompt = False
-        self._exec_command(ESCARGOT_MESSAGE_GET_SCOPE_CHAIN)
+        scope = 0
+        if len(args) >= 1:
+            scope = int(args[0])
+            if scope < 0:
+                return "Error: A non negative integer number expected"
+
+        message = struct.pack(self.byte_order + "BB" + self.idx_format,
+                              1 + 4,
+                              ESCARGOT_MESSAGE_GET_SCOPE_CHAIN,
+                              scope)
+        self.channel.send_message(self.byte_order, message)
 
     def scope_variables(self, args):
         index = 0

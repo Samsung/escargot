@@ -249,7 +249,7 @@ private:
 
     bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
-    void getScopeChain(ExecutionState* state);
+    void getScopeChain(ExecutionState* state, uint32_t scope);
     void getScopeVariables(ExecutionState* state, uint32_t index);
     bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
 

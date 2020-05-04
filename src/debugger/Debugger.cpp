@@ -275,13 +275,20 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     sendType(ESCARGOT_MESSAGE_BACKTRACE_END);
 }
 
-void Debugger::getScopeChain(ExecutionState* state)
+void Debugger::getScopeChain(ExecutionState* state, uint32_t scope)
 {
     const size_t maxMessageLength = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1;
     uint8_t buffer[maxMessageLength];
     size_t nextScope = 0;
-
-    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+    ExecutionState* parentState = state;
+    while (scope > 0) {
+        if (!state->parent()) {
+            break;
+        }
+        parentState = state->parent();
+        scope--;
+    }
+    LexicalEnvironment* lexEnv = parentState->lexicalEnvironment();
 
     while (lexEnv) {
         EnvironmentRecord* record = lexEnv->record();
@@ -632,10 +639,12 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
             return true;
         }
         case ESCARGOT_MESSAGE_GET_SCOPE_CHAIN: {
-            if (length != 1 || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
+            if (length != 1 + sizeof(uint32_t) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
-            getScopeChain(state);
+            uint32_t scope;
+            memcpy(&scope, buffer + 1, sizeof(uint32_t));
+            getScopeChain(state, scope);
             return true;
         }
         case ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES: {
