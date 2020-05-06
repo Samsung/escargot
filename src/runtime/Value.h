@@ -87,6 +87,8 @@ inline ToType bitwise_cast(FromType from)
 
 class Value {
 public:
+    static constexpr const double MinusZeroIndex = std::numeric_limits<double>::min();
+    static constexpr const double UndefinedIndex = std::numeric_limits<double>::max();
 #ifdef ESCARGOT_32
     enum { EmptyValueTag = ~ValueEmpty };
     enum { BooleanFalseTag = ~ValueFalse };
@@ -202,6 +204,7 @@ public:
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
+    bool isInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     uint64_t toLength(ExecutionState& ec) const;
     int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32
     uint32_t toUint32(ExecutionState& ec) const; // http://www.ecma-international.org/ecma-262/5.1/#sec-9.6

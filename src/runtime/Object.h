@@ -36,7 +36,6 @@ class ArgumentsObject;
 class ArrayBufferObject;
 class ArrayBufferView;
 class DataViewObject;
-template <typename TypeArg, int elementSize>
 class TypedArrayObject;
 class ExecutionPauser;
 
@@ -163,6 +162,14 @@ public:
         return m_uintData & OBJECT_PROPERTY_NAME_UINT32_VIAS;
     }
 
+    inline bool isStringType() const
+    {
+        if (LIKELY(isUIntType() || objectStructurePropertyName().isPlainString())) {
+            return true;
+        }
+        return false;
+    }
+
 #if ESCARGOT_32
     inline uint32_t uintValue() const
 #else
@@ -194,6 +201,14 @@ public:
             return toObjectStructurePropertyNameUintCase(state);
         }
         return objectStructurePropertyName();
+    }
+
+    double canonicalNumericIndexString(ExecutionState& state) const
+    {
+        if (LIKELY(isUIntType())) {
+            return uintValue();
+        }
+        return objectStructurePropertyName().canonicalNumericIndexString(state);
     }
 
     uint64_t tryToUseAsIndex() const
@@ -766,11 +781,10 @@ public:
         return (ArgumentsObject*)this;
     }
 
-    template <typename TypedArrayType>
-    TypedArrayType* asTypedArrayObject()
+    TypedArrayObject* asTypedArrayObject()
     {
         ASSERT(isTypedArrayObject());
-        return (TypedArrayType*)this;
+        return (TypedArrayObject*)this;
     }
 
     bool isConcatSpreadable(ExecutionState& state);

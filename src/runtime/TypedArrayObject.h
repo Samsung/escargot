@@ -57,6 +57,11 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    virtual size_t elementSize()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
     ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
     ALWAYS_INLINE size_t byteOffset() { return m_byteOffset; }
@@ -81,46 +86,14 @@ public:
         m_byteLength = byteLength;
     }
 
-    virtual bool isArrayBufferView() const
+    virtual bool isArrayBufferView() const override
     {
         return true;
     }
 
-    template <typename Type>
-    Value getValueFromBuffer(ExecutionState& state, size_t byteindex, bool isLittleEndian = 1)
+    virtual bool isInlineCacheable() override
     {
-        // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(byteLength());
-        size_t elementSize = sizeof(Type);
-        ASSERT(byteindex + elementSize <= byteLength());
-        uint8_t* rawStart = rawBuffer() + byteindex;
-        Type res;
-        if (isLittleEndian != 1) { // bigEndian
-            for (size_t i = 0; i < elementSize; i++) {
-                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];
-            }
-        } else { // littleEndian
-            res = *((Type*)rawStart);
-        }
-        return Value(res);
-    }
-
-    template <typename Type>
-    void setValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val, bool isLittleEndian = 1)
-    {
-        // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(byteLength());
-        size_t elementSize = sizeof(typename Type::Type);
-        ASSERT(byteindex + elementSize <= byteLength());
-        uint8_t* rawStart = rawBuffer() + byteindex;
-        typename Type::Type littleEndianVal = Type::toNative(state, val);
-        if (isLittleEndian != 1) {
-            for (size_t i = 0; i < elementSize; i++) {
-                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];
-            }
-        } else {
-            *((typename Type::Type*)rawStart) = littleEndianVal;
-        }
+        return false;
     }
 
     void* operator new(size_t size)
@@ -140,102 +113,154 @@ public:
     }
     void* operator new[](size_t size) = delete;
 
-    ALWAYS_INLINE bool isDetached()
+protected:
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
+    ObjectGetResult integerIndexedElementGet(ExecutionState& state, double index)
     {
-        return m_buffer->isDetachedBuffer();
+        ArrayBufferObject* buffer = m_buffer;
+        buffer->throwTypeErrorIfDetached(state);
+
+        if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+            return ObjectGetResult();
+        }
+
+        size_t indexedPosition = (index * elementSize()) + m_byteOffset;
+        // Return GetValueFromBuffer(buffer, indexedPosition, elementType, true, "Unordered").
+        return ObjectGetResult(buffer->getValueFromBuffer(state, indexedPosition, typedArrayType()), true, true, false);
     }
 
-    ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementset
+    bool integerIndexedElementSet(ExecutionState& state, double index, const Value& value)
     {
-        if (UNLIKELY(isDetached())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+        double numValue = value.toNumber(state);
+        ArrayBufferObject* buffer = m_buffer;
+        buffer->throwTypeErrorIfDetached(state);
+
+        if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+            return false;
         }
+
+        size_t indexedPosition = (index * elementSize()) + m_byteOffset;
+        // Perform SetValueInBuffer(buffer, indexedPosition, elementType, numValue, true, "Unordered").
+        buffer->setValueInBuffer(state, indexedPosition, typedArrayType(), Value(numValue));
+        return true;
     }
 
 private:
     ArrayBufferObject* m_buffer;
+    uint8_t* m_rawBuffer;
     size_t m_byteLength;
     size_t m_byteOffset;
     size_t m_arrayLength;
 };
 
-template <typename TypeAdaptor, int typedArrayElementSize>
 class TypedArrayObject : public ArrayBufferView {
 public:
+    virtual bool isTypedArrayObject() const override
+    {
+        return true;
+    }
+
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
-        uint64_t index = P.tryToUseAsIndex();
-        if (LIKELY(Value::InvalidIndexValue != index)) {
-            throwTypeErrorIfDetached(state);
-
-            if ((size_t)index < arrayLength()) {
-                size_t idxPosition = index * typedArrayElementSize;
-                return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
+        if (LIKELY(P.isStringType())) {
+            double index = P.canonicalNumericIndexString(state);
+            if (LIKELY(index != Value::UndefinedIndex)) {
+                return ObjectHasPropertyResult(integerIndexedElementGet(state, index));
             }
-            return ObjectHasPropertyResult();
         }
-        return ArrayBufferView::hasProperty(state, P);
+        return Object::hasProperty(state, P);
     }
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
-        uint64_t index = P.tryToUseAsIndex();
-        if (LIKELY(Value::InvalidIndexValue != index)) {
-            throwTypeErrorIfDetached(state);
-
-            if ((size_t)index < arrayLength()) {
-                size_t idxPosition = index * typedArrayElementSize;
-                return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
+        if (LIKELY(P.isStringType())) {
+            double index = P.canonicalNumericIndexString(state);
+            if (LIKELY(index != Value::UndefinedIndex)) {
+                return integerIndexedElementGet(state, index);
             }
-            return ObjectGetResult();
         }
-        return ArrayBufferView::getOwnProperty(state, P);
+        return Object::getOwnProperty(state, P);
     }
 
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
     {
-        uint64_t index = P.tryToUseAsIndex();
-        if (LIKELY(Value::InvalidIndexValue != index)) {
-            throwTypeErrorIfDetached(state);
+        if (LIKELY(P.isStringType())) {
+            double index = P.canonicalNumericIndexString(state);
+            if (LIKELY(index != Value::UndefinedIndex)) {
+                if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength() || desc.isAccessorDescriptor()) {
+                    return false;
+                }
 
-            if ((size_t)index >= arrayLength())
-                return false;
-            size_t idxPosition = index * typedArrayElementSize;
-
-            if (LIKELY(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable() || (desc.isWritable() && desc.isEnumerable()))) {
-                setValueInBuffer<TypeAdaptor>(state, idxPosition, desc.value());
+                if (desc.isConfigurablePresent() && desc.isConfigurable()) {
+                    return false;
+                }
+                if (desc.isEnumerablePresent() && !desc.isEnumerable()) {
+                    return false;
+                }
+                if (desc.isWritablePresent() && !desc.isWritable()) {
+                    return false;
+                }
+                if (desc.isValuePresent()) {
+                    return integerIndexedElementSet(state, index, desc.value());
+                }
                 return true;
             }
-            return false;
         }
-        return ArrayBufferView::defineOwnProperty(state, P, desc);
+        return Object::defineOwnProperty(state, P, desc);
     }
 
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        return ArrayBufferView::deleteOwnProperty(state, P);
+        if (LIKELY(P.isStringType())) {
+            double index = P.canonicalNumericIndexString(state);
+            if (LIKELY(index != Value::UndefinedIndex)) {
+                return integerIndexedElementGet(state, index);
+            }
+        }
+        return Object::get(state, P);
     }
 
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
+    virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override
+    {
+        if (LIKELY(P.isStringType())) {
+            double index = P.canonicalNumericIndexString(state);
+            if (LIKELY(index != Value::UndefinedIndex)) {
+                return integerIndexedElementSet(state, index, v);
+            }
+        }
+        return Object::set(state, P, v, receiver);
+    }
+
+    /*
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
+    {
+        Value::ValueIndex idx = property.tryToUseAsIndex(state);
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((size_t)idx < arrayLength())) {
+            return integerIndexedElementGet(state, idx);
+        }
+        return get(state, ObjectPropertyName(state, property));
+    }
+
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
+    {
+        Value::ValueIndex index = property.tryToUseAsIndex(state);
+        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((size_t)index < arrayLength())) {
+            return integerIndexedElementSet(state, index, value);
+        }
+        return set(state, ObjectPropertyName(state, property), value, this);
+    }
+    */
+
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) override
     {
         size_t len = arrayLength();
         for (size_t i = 0; i < len; i++) {
-            size_t idxPosition = i * typedArrayElementSize + byteOffset();
             if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data)) {
                 return;
             }
         }
         Object::enumeration(state, callback, data);
-    }
-
-    size_t elementSize()
-    {
-        return typedArrayElementSize;
-    }
-
-    virtual bool isTypedArrayObject() const override
-    {
-        return true;
     }
 
     virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override
@@ -244,8 +269,7 @@ public:
             Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * length);
 
             for (int64_t i = 0; i < length; i++) {
-                size_t idxPosition = i * typedArrayElementSize;
-                tempBuffer[i] = getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition);
+                tempBuffer[i] = integerIndexedElementGet(state, i).value(state, this);
             }
 
             TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
@@ -256,47 +280,12 @@ public:
             });
 
             for (int64_t i = 0; i < length; i++) {
-                size_t idxPosition = i * typedArrayElementSize;
-                setValueInBuffer<TypeAdaptor>(state, idxPosition, tempBuffer[i]);
+                integerIndexedElementSet(state, i, tempBuffer[i]);
             }
             GC_FREE(tempBuffer);
 
             return;
         }
-    }
-
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
-    {
-        Value::ValueIndex idx = property.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((size_t)idx < arrayLength())) {
-            throwTypeErrorIfDetached(state);
-            size_t idxPosition = idx * typedArrayElementSize;
-            return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
-        }
-        return get(state, ObjectPropertyName(state, property));
-    }
-
-    ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override
-    {
-        Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((size_t)idx < arrayLength())) {
-            throwTypeErrorIfDetached(state);
-            size_t idxPosition = idx * typedArrayElementSize;
-            return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
-        }
-        return hasProperty(state, ObjectPropertyName(state, propertyName));
-    }
-
-    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
-    {
-        Value::ValueIndex index = property.tryToUseAsIndex(state);
-        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((size_t)index < arrayLength())) {
-            throwTypeErrorIfDetached(state);
-            size_t idxPosition = index * typedArrayElementSize;
-            setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
-            return true;
-        }
-        return set(state, ObjectPropertyName(state, property), value, this);
     }
 
 protected:
@@ -307,15 +296,14 @@ protected:
 };
 
 #define DECLARE_TYPEDARRAY(TYPE, type, siz)                                                                                                         \
-    typedef TypedArrayObject<TYPE##Adaptor, siz> TYPE##ArrayObjectWrapper;                                                                          \
-    class TYPE##ArrayObject : public TYPE##ArrayObjectWrapper {                                                                                     \
+    class TYPE##ArrayObject : public TypedArrayObject {                                                                                             \
     public:                                                                                                                                         \
         explicit TYPE##ArrayObject(ExecutionState& state)                                                                                           \
             : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                     \
         {                                                                                                                                           \
         }                                                                                                                                           \
         explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                            \
-            : TYPE##ArrayObjectWrapper(state, proto)                                                                                                \
+            : TypedArrayObject(state, proto)                                                                                                        \
         {                                                                                                                                           \
         }                                                                                                                                           \
         virtual TypedArrayType typedArrayType() override                                                                                            \
@@ -325,6 +313,10 @@ protected:
         virtual String* typedArrayName(ExecutionState& state) override                                                                              \
         {                                                                                                                                           \
             return state.context()->staticStrings().TYPE##Array.string();                                                                           \
+        }                                                                                                                                           \
+        virtual size_t elementSize() override                                                                                                       \
+        {                                                                                                                                           \
+            return siz;                                                                                                                             \
         }                                                                                                                                           \
         static TYPE##ArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length = std::numeric_limits<size_t>::max())  \
         {                                                                                                                                           \
