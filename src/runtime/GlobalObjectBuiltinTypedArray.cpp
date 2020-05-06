@@ -246,7 +246,7 @@ static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValu
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteLength);
-    if (buffer->isDetached()) {
+    if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
     return Value(buffer->byteLength());
@@ -256,7 +256,7 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
 static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteOffset);
-    if (buffer->isDetached()) {
+    if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
     return Value(buffer->byteOffset());
@@ -266,7 +266,7 @@ static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value this
 static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteOffset);
-    if (buffer->isDetached()) {
+    if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
     return Value(buffer->arrayLength());
@@ -349,9 +349,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         // Let srcData be the value of srcArray’s [[ViewedArrayBuffer]] internal slot.
         ArrayBufferObject* srcData = srcArray->buffer();
         // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
-        if (srcData->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
-        }
+        srcData->throwTypeErrorIfDetached(state);
         // Let constructorName be the String value of O’s [[TypedArrayName]] internal slot.
         // Let elementType be the String value of the Element Type value in Table 49 for constructorName.
         // Let elementLength be the value of srcArray’s [[ArrayLength]] internal slot.
@@ -359,11 +357,11 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         // Let srcName be the String value of srcArray’s [[TypedArrayName]] internal slot.
         // Let srcType be the String value of the Element Type value in Table 49 for srcName.
         // Let srcElementSize be the Element Size value in Table 49 for srcName.
-        size_t srcElementSize = TypedArrayHelper::elementSize(srcArray->typedArrayType());
+        size_t srcElementSize = srcArray->elementSize();
         // Let srcByteOffset be the value of srcArray’s [[ByteOffset]] internal slot.
         size_t srcByteOffset = srcArray->byteOffset();
         // Let elementSize be the Element Size value in Table 49 for constructorName.
-        size_t elementSize = TypedArrayHelper::elementSize(obj->typedArrayType());
+        size_t elementSize = obj->elementSize();
         // Let byteLength be elementSize × elementLength.
         uint64_t byteLength = elementSize * elementLength;
 
@@ -508,7 +506,7 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
         buffer->throwTypeErrorIfDetached(state);
         // Let typedArrayName be the String value of O.[[TypedArrayName]].
         // Let elementSize be the Number value of the Element Size value specified in Table 59 for typedArrayName.
-        size_t elementSize = TypedArrayHelper::elementSize(O->typedArrayType());
+        size_t elementSize = O->elementSize();
         // Let byteOffset be O.[[ByteOffset]].
         size_t byteOffset = O->byteOffset();
         // Let toByteIndex be to × elementSize + byteOffset.
@@ -749,7 +747,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     ArrayBufferObject* targetBuffer = target->buffer();
     targetBuffer->throwTypeErrorIfDetached(state);
     size_t targetLength = target->arrayLength();
-    size_t targetElementSize = TypedArrayHelper::elementSize(target->typedArrayType());
+    size_t targetElementSize = target->elementSize();
     size_t targetByteOffset = target->byteOffset();
 
     Object* src = argv[0].toObject(state);
@@ -783,7 +781,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     ArrayBufferObject* srcBuffer = srcTypedArray->buffer();
     srcBuffer->throwTypeErrorIfDetached(state);
 
-    size_t srcElementSize = TypedArrayHelper::elementSize(srcTypedArray->typedArrayType());
+    size_t srcElementSize = srcTypedArray->elementSize();
     size_t srcLength = srcTypedArray->arrayLength();
     size_t srcByteOffset = srcTypedArray->byteOffset();
 
@@ -896,9 +894,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
         if (!defaultSort) {
             Value args[] = { x, y };
             double v = Object::call(state, cmpfn, Value(), 2, args).toNumber(state);
-            if (buffer->isDetachedBuffer()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
-            }
+            buffer->throwTypeErrorIfDetached(state);
             if (std::isnan(v)) {
                 return false;
             }
@@ -952,7 +948,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
 
     // Let constructorName be the String value of O’s [[TypedArrayName]] internal slot.
     // Let elementSize be the Number value of the Element Size value specified in Table 49 for constructorName.
-    size_t elementSize = TypedArrayHelper::elementSize(O->typedArrayType());
+    size_t elementSize = O->elementSize();
     // Let srcByteOffset be the value of O’s [[ByteOffset]] internal slot.
     size_t srcByteOffset = O->byteOffset();
     // Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
@@ -1494,7 +1490,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
         srcBuffer->throwTypeErrorIfDetached(state);
         ArrayBufferObject* targetBuffer = target->buffer();
 
-        size_t elementSize = TypedArrayHelper::elementSize(O->typedArrayType());
+        size_t elementSize = O->elementSize();
         size_t srcByteOffset = O->byteOffset();
         size_t targetByteIndex = target->byteOffset();
         size_t srcByteIndex = (size_t)k * elementSize + srcByteOffset;

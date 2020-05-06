@@ -121,6 +121,24 @@ public:
         }
     }
 
+    double canonicalNumericIndexString(ExecutionState& state) const
+    {
+        if (LIKELY(isPlainString())) {
+            String* arg = plainString();
+            if (arg->equals("-0")) {
+                return Value::MinusZeroIndex;
+            }
+
+            double n = Value(arg).toNumber(state);
+            if (!arg->equals(Value(n).toString(state))) {
+                return Value::UndefinedIndex;
+            }
+
+            return n;
+        }
+        return Value::UndefinedIndex;
+    }
+
     uint64_t tryToUseAsIndex() const
     {
         if (isPlainString()) {

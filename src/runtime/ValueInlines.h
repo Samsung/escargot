@@ -861,6 +861,19 @@ inline double Value::toInteger(ExecutionState& state) const
     return (d < 0 ? -1 : 1) * std::floor(std::abs(d));
 }
 
+inline bool Value::isInteger(ExecutionState& state) const
+{
+    if (isInt32()) {
+        return true;
+    }
+
+    double d = toNumber(state);
+    if (std::isnan(d) || d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity()) {
+        return false;
+    }
+    return std::floor(std::abs(d)) == std::abs(d);
+}
+
 inline uint64_t Value::toLength(ExecutionState& state) const
 {
     double len = toInteger(state);
