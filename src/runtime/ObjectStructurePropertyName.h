@@ -20,21 +20,19 @@
 #ifndef __EscargotObjectStructurePropertyName__
 #define __EscargotObjectStructurePropertyName__
 
-#include "runtime/AtomicString.h"
-#include "runtime/ExecutionState.h"
-#include "runtime/String.h"
-#include "runtime/Symbol.h"
 #include "runtime/Value.h"
+#include "runtime/Symbol.h"
+#include "runtime/Object.h"
 
 namespace Escargot {
 
-#define PROPERTY_NAME_ATOMIC_STRING_VIAS 1
+#define OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS 1
 
 class ObjectStructurePropertyName {
 public:
     ObjectStructurePropertyName(const AtomicString& atomicString)
     {
-        m_data = ((size_t)atomicString.string() + PROPERTY_NAME_ATOMIC_STRING_VIAS);
+        m_data = ((size_t)atomicString.string() + OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
         ASSERT(m_data);
     }
 
@@ -75,7 +73,7 @@ public:
 
     ALWAYS_INLINE bool hasAtomicString() const
     {
-        return LIKELY(m_data & PROPERTY_NAME_ATOMIC_STRING_VIAS);
+        return LIKELY(m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
     }
 
     bool isPlainString() const
@@ -92,7 +90,7 @@ public:
     {
         ASSERT(isPlainString());
         if (hasAtomicString()) {
-            return ((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS));
+            return ((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
         }
         return ((String*)m_data);
     }
@@ -106,7 +104,7 @@ public:
     AtomicString asAtomicString() const
     {
         ASSERT(hasAtomicString());
-        return AtomicString(((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS)));
+        return AtomicString(((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)));
     }
 
     bool isIndexString() const
@@ -117,7 +115,7 @@ public:
     Value toValue() const
     {
         if (hasAtomicString()) {
-            return Value((String*)(m_data - PROPERTY_NAME_ATOMIC_STRING_VIAS));
+            return Value((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
         } else {
             return Value((PointerValue*)m_data);
         }
@@ -175,7 +173,7 @@ protected:
         return false;
     }
 
-    // AtomicString <- saves its (String* | PROPERTY_NAME_ATOMIC_STRING_VIAS)
+    // AtomicString <- saves its (String* | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)
     // String*, Symbol* <- saves pointer
 };
 

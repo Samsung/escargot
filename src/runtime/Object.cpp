@@ -36,7 +36,7 @@
 
 namespace Escargot {
 
-COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS == (PROPERTY_NAME_ATOMIC_STRING_VIAS << 1), "");
+COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS == (OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS << 1), "");
 COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS <= (1 << 3), "");
 
 ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, const Value& valueIn)
@@ -49,7 +49,7 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
     String* string = value.toString(state);
     const auto& data = string->bufferAccessData();
     if (data.length == 0) {
-        m_data = ((size_t)AtomicString().string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        m_data = ((size_t)AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         return;
     }
     bool needsRemainNormalString = false;
@@ -62,9 +62,9 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
         m_data = (size_t)string;
     } else {
         if (c < ESCARGOT_ASCII_TABLE_MAX && (data.length == 1)) {
-            m_data = ((size_t)state.context()->staticStrings().asciiTable[c].string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
+            m_data = ((size_t)state.context()->staticStrings().asciiTable[c].string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         } else {
-            m_data = ((size_t)AtomicString(state, string).string()) | PROPERTY_NAME_ATOMIC_STRING_VIAS;
+            m_data = ((size_t)AtomicString(state, string).string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         }
     }
 }
