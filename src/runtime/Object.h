@@ -41,6 +41,8 @@ class TypedArrayObject;
 class ExecutionPauser;
 
 #define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
+#define MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME (std::numeric_limits<uint32_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
+#define MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME (std::numeric_limits<uint64_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
 struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
@@ -65,126 +67,116 @@ struct ObjectRareData : public PointerValue {
 
 class ObjectPropertyName {
 public:
+#ifdef ESCARGOT_32
     ObjectPropertyName(ExecutionState& state, const Value& v)
     {
         if (v.isUInt32()) {
-            setUIntType(true);
-            setUIntValue(v.asUInt32());
-        } else {
-            setUIntType(false);
-            m_value.m_name = ObjectStructurePropertyName(state, v);
+            uint32_t value = v.asUInt32();
+            if (LIKELY(value <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME)) {
+                setUIntValue(value);
+                return;
+            }
         }
+        setNameValue(state, v);
     }
 
     ObjectPropertyName(ExecutionState& state, const int64_t& v)
     {
-        if (v >= 0 && v <= std::numeric_limits<uint32_t>::max()) {
-            setUIntType(true);
+        if (v >= 0 && v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue((uint32_t)v);
         } else {
-            setUIntType(false);
-            m_value.m_name = ObjectStructurePropertyName(state, Value(v));
+            setNameValue(state, Value(v));
         }
     }
 
-#ifdef ESCARGOT_32
     ObjectPropertyName(ExecutionState& state, const uint64_t& v)
     {
-        if (v <= std::numeric_limits<uint32_t>::max()) {
-            setUIntType(true);
+        if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue((uint32_t)v);
         } else {
-            setUIntType(false);
-            m_value.m_name = ObjectStructurePropertyName(state, Value(v));
+            setNameValue(state, Value(v));
         }
     }
-#else
-    ObjectPropertyName(ExecutionState& state, const uint32_t& v)
-    {
-        setUIntType(true);
-        setUIntValue(v);
-    }
-#endif
 
     ObjectPropertyName(ExecutionState& state, const size_t& v)
     {
-#ifdef ESCARGOT_32
-        setUIntType(true);
-        setUIntValue((uint32_t)v);
-#else
-        if (v <= std::numeric_limits<uint32_t>::max()) {
-            setUIntType(true);
+        if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue((uint32_t)v);
         } else {
-            setUIntType(false);
-            m_value.m_name = ObjectStructurePropertyName(state, Value(v));
+            setNameValue(state, Value(v));
         }
-#endif
     }
+#else
+    ObjectPropertyName(ExecutionState& state, const Value& v)
+    {
+        if (v.isUInt32()) {
+            setUIntValue(v.asUInt32());
+            return;
+        }
+        setNameValue(state, v);
+    }
+
+    ObjectPropertyName(ExecutionState& state, const int64_t& v)
+    {
+        if (v >= 0 && (uint64_t)v <= MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME) {
+            setUIntValue((uint64_t)v);
+        } else {
+            setNameValue(state, Value(v));
+        }
+    }
+
+    ObjectPropertyName(ExecutionState& state, const uint32_t& v)
+    {
+        setUIntValue(v);
+    }
+
+    ObjectPropertyName(ExecutionState& state, const size_t& v)
+    {
+        if (v <= MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME) {
+            setUIntValue((uint64_t)v);
+        } else {
+            setNameValue(state, Value(v));
+        }
+    }
+#endif
 
     ObjectPropertyName(Symbol* symbol)
     {
-        setUIntType(false);
-        m_value.m_name = ObjectStructurePropertyName(symbol);
+        m_name = ObjectStructurePropertyName(symbol);
+        ASSERT(!isUIntType());
     }
 
     ObjectPropertyName(const AtomicString& v)
     {
-        setUIntType(false);
-        m_value.m_name = v;
+        m_name = v;
+        ASSERT(!isUIntType());
     }
 
     ObjectPropertyName(ExecutionState&, const ObjectStructurePropertyName& v)
     {
-        setUIntType(false);
-        m_value.m_name = v;
+        m_name = v;
+        ASSERT(!isUIntType());
     }
 
-    void setUIntType(bool isUint)
+    inline bool isUIntType() const
     {
-#ifdef ESCARGOT_32
-        m_isUIntType = isUint;
-#else
-        if (isUint) {
-            m_value.m_uint.flags = OBJECT_PROPERTY_NAME_UINT32_VIAS;
-        } else {
-            m_value.m_uint.flags = 0;
-        }
-#endif
+        return m_uintData & OBJECT_PROPERTY_NAME_UINT32_VIAS;
     }
 
-    void setUIntValue(uint32_t u32)
-    {
-#ifdef ESCARGOT_32
-        m_value.m_uint = u32;
+#if ESCARGOT_32
+    inline uint32_t uintValue() const
 #else
-        m_value.m_uint.u32 = u32;
+    inline uint64_t uintValue() const
 #endif
-    }
-
-    bool isUIntType() const
     {
-#ifdef ESCARGOT_32
-        return m_isUIntType;
-#else
-        return m_value.m_uint.flags & OBJECT_PROPERTY_NAME_UINT32_VIAS;
-#endif
+        ASSERT(isUIntType());
+        return (m_uintData >> OBJECT_PROPERTY_NAME_UINT32_VIAS);
     }
 
     const ObjectStructurePropertyName& objectStructurePropertyName() const
     {
         ASSERT(!isUIntType());
-        return m_value.m_name;
-    }
-
-    const uint32_t& uintValue() const
-    {
-        ASSERT(isUIntType());
-#ifdef ESCARGOT_32
-        return m_value.m_uint;
-#else
-        return m_value.m_uint.u32;
-#endif
+        return m_name;
     }
 
     bool isIndexString() const
@@ -248,30 +240,34 @@ public:
     }
 
 private:
-#ifdef ESCARGOT_32
-    bool m_isUIntType : 1;
-#endif
-    union ObjectPropertyNameData {
-        ObjectPropertyNameData()
-        {
-#ifdef ESCARGOT_32
-            m_uint = 0;
-#else
-            m_uint.u32 = 0;
-#endif
-        }
-
+    union {
         ObjectStructurePropertyName m_name;
 #ifdef ESCARGOT_32
-        uint32_t m_uint;
+        uint32_t m_uintData;
 #else
-        struct ObjectUint32PropertyData {
-        public:
-            uint32_t flags;
-            uint32_t u32;
-        } m_uint;
+        uint64_t m_uintData;
 #endif
-    } m_value;
+    };
+
+#ifdef ESCARGOT_32
+    inline void setUIntValue(uint32_t value)
+    {
+        ASSERT(value <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME);
+        m_uintData = (value << OBJECT_PROPERTY_NAME_UINT32_VIAS) | OBJECT_PROPERTY_NAME_UINT32_VIAS;
+    }
+#else
+    inline void setUIntValue(uint64_t value)
+    {
+        ASSERT(value <= MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME);
+        m_uintData = (value << OBJECT_PROPERTY_NAME_UINT32_VIAS) | OBJECT_PROPERTY_NAME_UINT32_VIAS;
+    }
+#endif
+
+    inline void setNameValue(ExecutionState& state, const Value& v)
+    {
+        m_name = ObjectStructurePropertyName(state, v);
+        ASSERT(!isUIntType());
+    }
 
     ObjectStructurePropertyName toObjectStructurePropertyNameUintCase(ExecutionState& state) const;
 };
