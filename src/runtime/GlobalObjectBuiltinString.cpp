@@ -95,8 +95,9 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
         pos = 0;
     }
     size_t len = str->length();
-    size_t start = std::min((size_t)std::max(pos, (double)0), len);
+    size_t start = std::min(std::max(pos, 0.0), (double)len);
     size_t result = str->find(searchStr, start);
+
     if (result == SIZE_MAX)
         return Value(-1);
     else

@@ -65,7 +65,6 @@ def isPr() {
                 '64bit' : {
                     sh 'LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux64 -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja'
                     sh 'LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux64_release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja'
-                    sh 'gcc -shared -fPIC -o backtrace-hooking-64.so tools/test/test262/backtrace-hooking.c'
                 },
                 'debugger-binary' : {
                   sh 'cmake -H./ -Bbuild/debugger_out_linux64 -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=shell_test -GNinja'
@@ -92,15 +91,7 @@ def isPr() {
                     },
                     'release-32bit-jetstream-3' : {
                         sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-3'
-                    },
-                    'release-64bit-jetstream-1' : {
-                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-1'
-                    },
-                    'release-64bit-jetstream-2' : {
-                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-2'
-                    },
-                    'release-64bit-jetstream-3' : {
-                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-simple-parallel-3'
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-cdjs'
                     },
                     'release-octane' : {
                         sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" octane'
@@ -113,17 +104,17 @@ def isPr() {
                     'debug-32bit-test262' : {
                         sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" test262'
                     },
-                    'debug-64bit-test262' : {
-                        sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-64.so tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" test262'
+                    'release-64bit-test262' : {
+                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" test262'
                     },
                     '32bit' : {
                         sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js'
-                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" modifiedVendorTest jsc-stress sunspider-js'
                         sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" v8 spidermonkey regression-tests new-es intl'
                     },
                     '64bit' : {
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js'
-                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" jetstream-only-cdjs modifiedVendorTest jsc-stress sunspider-js'
+                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" modifiedVendorTest jsc-stress sunspider-js'
                         sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" v8 spidermonkey regression-tests new-es intl'
                     },
                     'Escargot-debugger-test-64bit' : {
