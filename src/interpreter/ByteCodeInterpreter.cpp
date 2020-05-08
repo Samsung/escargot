@@ -198,10 +198,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     isCacheWork = true;
                 } else if (slot->m_cachedStructure == nullptr) {
                     isCacheWork = true;
-                    if (UNLIKELY(ctx->globalDeclarativeStorage()->at(idx).isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                    const auto& record = ctx->globalDeclarativeRecord()->at(idx);
+                    auto& storage = ctx->globalDeclarativeStorage()->at(idx);
+                    if (UNLIKELY(storage.isEmpty())) {
+                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                     }
-                    ctx->globalDeclarativeStorage()->at(idx) = registerFile[code->m_registerIndex];
+                    if (UNLIKELY(!record.m_isMutable)) {
+                        ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::AssignmentToConstantVariable);
+                    }
+                    storage = registerFile[code->m_registerIndex];
                 }
             }
 
@@ -2096,6 +2101,9 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
             auto& place = (*ctx->globalDeclarativeStorage())[i];
             if (UNLIKELY(place.isEmpty())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+            }
+            if (UNLIKELY(!records[i].m_isMutable)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
             }
             place = value;
             return;
