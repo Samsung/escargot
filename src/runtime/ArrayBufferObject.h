@@ -23,20 +23,9 @@
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/Context.h"
+#include "runtime/TypedArrayInline.h"
 
 namespace Escargot {
-
-enum TypedArrayType : unsigned {
-    Int8,
-    Int16,
-    Int32,
-    Uint8,
-    Uint16,
-    Uint32,
-    Uint8Clamped,
-    Float32,
-    Float64
-};
 
 class ArrayBufferObject : public Object {
     friend void initializeCustomAllocators();
@@ -62,71 +51,43 @@ public:
     }
 
     ALWAYS_INLINE const uint8_t* data() { return m_data; }
-    ALWAYS_INLINE unsigned byteLength() { return m_bytelength; }
-    // $24.1.1.5
-    template <typename Type>
-    Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
-    {
-        // If isLittleEndian is not present, set isLittleEndian to either true or false.
-        ASSERT(m_bytelength);
-        size_t elementSize = sizeof(Type);
-        ASSERT(byteindex + elementSize <= m_bytelength);
-        uint8_t* rawStart = m_data + byteindex;
-        Type res;
-        if (isLittleEndian != 1) { // bigEndian
-            for (size_t i = 0; i < elementSize; i++) {
-                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];
-            }
-        } else { // littleEndian
-            res = *((Type*)rawStart);
-        }
-        return Value(res);
-    }
+    ALWAYS_INLINE size_t byteLength() { return m_bytelength; }
     // $24.1.1.6
-    template <typename TypeAdaptor>
-    bool setValueInBuffer(ExecutionState& state, unsigned byteindex, Value val, bool isLittleEndian = 1)
+    Value getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian = true)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
         ASSERT(m_bytelength);
-        size_t elementSize = sizeof(typename TypeAdaptor::Type);
-        ASSERT(byteindex + elementSize <= m_bytelength);
+        size_t elemSize = elementSize(type);
+        ASSERT(byteindex + elemSize <= m_bytelength);
         uint8_t* rawStart = m_data + byteindex;
-        typename TypeAdaptor::Type littleEndianVal = TypeAdaptor::toNative(state, val);
-        if (isLittleEndian != 1) {
-            for (size_t i = 0; i < elementSize; i++) {
-                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];
-            }
+        if (LIKELY(isLittleEndian)) {
+            return rawBytesToNumber(state, type, rawStart);
         } else {
-            *((typename TypeAdaptor::Type*)rawStart) = littleEndianVal;
+            uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+            for (size_t i = 0; i < elemSize; i++) {
+                rawBytes[elemSize - i - 1] = rawStart[i];
+            }
+            return rawBytesToNumber(state, type, rawBytes);
         }
-        return true;
     }
 
-    Value getTypedValueFromBuffer(ExecutionState& state, unsigned byteindex, TypedArrayType type)
+    // $24.1.1.8
+    void setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian = true)
     {
-        switch (type) {
-        case TypedArrayType::Int8:
-            return getValueFromBuffer<int8_t>(state, byteindex, true);
-        case TypedArrayType::Int16:
-            return getValueFromBuffer<int16_t>(state, byteindex, true);
-        case TypedArrayType::Int32:
-            return getValueFromBuffer<int32_t>(state, byteindex, true);
-        case TypedArrayType::Uint8:
-            return getValueFromBuffer<uint8_t>(state, byteindex, true);
-        case TypedArrayType::Uint16:
-            return getValueFromBuffer<uint16_t>(state, byteindex, true);
-        case TypedArrayType::Uint32:
-            return getValueFromBuffer<uint32_t>(state, byteindex, true);
-        case TypedArrayType::Uint8Clamped:
-            return getValueFromBuffer<uint8_t>(state, byteindex, true);
-        case TypedArrayType::Float32:
-            return getValueFromBuffer<float>(state, byteindex, true);
-        case TypedArrayType::Float64:
-            return getValueFromBuffer<double>(state, byteindex, true);
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
+        // If isLittleEndian is not present, set isLittleEndian to either true or false.
+        ASSERT(m_bytelength);
+        size_t elemSize = elementSize(type);
+        ASSERT(byteindex + elemSize <= m_bytelength);
+        uint8_t* rawStart = m_data + byteindex;
+        uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+        numberToRawBytes(state, type, val, rawBytes);
+        if (LIKELY(isLittleEndian)) {
+            memcpy(rawStart, rawBytes, elemSize);
+        } else {
+            for (size_t i = 0; i < elemSize; i++) {
+                rawStart[i] = rawBytes[elemSize - i - 1];
+            }
         }
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     ALWAYS_INLINE bool isDetachedBuffer()
@@ -143,7 +104,7 @@ public:
         }
     }
 
-    void fillData(const uint8_t* data, unsigned length)
+    void fillData(const uint8_t* data, size_t length)
     {
         ASSERT(!isDetachedBuffer());
         memcpy(m_data, data, length);
@@ -153,9 +114,95 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    size_t elementSize(TypedArrayType type)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+        case TypedArrayType::Uint8:
+        case TypedArrayType::Uint8Clamped:
+            return 1;
+        case TypedArrayType::Int16:
+        case TypedArrayType::Uint16:
+            return 2;
+        case TypedArrayType::Int32:
+        case TypedArrayType::Uint32:
+        case TypedArrayType::Float32:
+            return 4;
+        case TypedArrayType::Float64:
+            return 8;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            break;
+        }
+    }
+
+    Value rawBytesToNumber(ExecutionState& state, TypedArrayType type, uint8_t* rawBytes)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+            return Value(*reinterpret_cast<Int8Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint8:
+            return Value(*reinterpret_cast<Uint8Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint8Clamped:
+            return Value(*reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes));
+        case TypedArrayType::Int16:
+            return Value(*reinterpret_cast<Int16Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint16:
+            return Value(*reinterpret_cast<Uint16Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Int32:
+            return Value(*reinterpret_cast<Int32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint32:
+            return Value(*reinterpret_cast<Uint32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Float32:
+            return Value(*reinterpret_cast<Float32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Float64:
+            return Value(*reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            return Value();
+        }
+    }
+
+    void numberToRawBytes(ExecutionState& state, TypedArrayType type, const Value& val, uint8_t* rawBytes)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+            *reinterpret_cast<Int8Adaptor::Type*>(rawBytes) = Int8Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint8:
+            *reinterpret_cast<Uint8Adaptor::Type*>(rawBytes) = Uint8Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint8Clamped:
+            *reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes) = Uint8ClampedAdaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Int16:
+            *reinterpret_cast<Int16Adaptor::Type*>(rawBytes) = Int16Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint16:
+            *reinterpret_cast<Uint16Adaptor::Type*>(rawBytes) = Uint16Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Int32:
+            *reinterpret_cast<Int32Adaptor::Type*>(rawBytes) = Int32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint32:
+            *reinterpret_cast<Uint32Adaptor::Type*>(rawBytes) = Uint32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Float32:
+            *reinterpret_cast<Float32Adaptor::Type*>(rawBytes) = Float32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Float64:
+            *reinterpret_cast<Float64Adaptor::Type*>(rawBytes) = Float64Adaptor::toNative(state, val);
+            break;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            break;
+        }
+    }
+
+
     Context* m_context;
     uint8_t* m_data;
-    unsigned m_bytelength;
+    size_t m_bytelength;
 };
 }
 

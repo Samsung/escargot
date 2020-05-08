@@ -1559,7 +1559,6 @@
     <test id="built-ins/TypedArrayConstructors/of/BigInt/new-instance-empty"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/of/BigInt/new-instance-using-custom-ctor"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/of/BigInt/this-is-not-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/of/custom-ctor-does-not-instantiate-ta-throws"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/prototype/Symbol.toStringTag/bigint-inherited"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/prototype/bigint-Symbol.iterator"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/prototype/buffer/bigint-inherited"><reason>TODO</reason></test>

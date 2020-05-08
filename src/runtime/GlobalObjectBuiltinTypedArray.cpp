@@ -21,11 +21,18 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "VMInstance.h"
+#include "Object.h"
 #include "TypedArrayObject.h"
 #include "IteratorObject.h"
 #include "NativeFunctionObject.h"
 
 namespace Escargot {
+
+#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                              \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                                \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
+    ArrayBufferView* NAME = thisValue.asObject()->asArrayBufferView();
 
 static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value& O, String* func)
 {
@@ -45,6 +52,22 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value&
         return nullptr;
     }
     return buffer;
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#typedarray-create
+static Object* createTypedArray(ExecutionState& state, const Value& constructor, size_t argc, Value* argv)
+{
+    Object* newTypedArray = Object::construct(state, constructor, argc, argv);
+    validateTypedArray(state, newTypedArray, state.context()->staticStrings().TypedArray.string());
+
+    if (argc == 1 && argv[0].isNumber()) {
+        double arrayLength = newTypedArray->asArrayBufferView()->arrayLength();
+        if (arrayLength < argv[0].asNumber()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid TypedArray length");
+        }
+    }
+
+    return newTypedArray;
 }
 
 static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedArrayType type)
@@ -147,10 +170,8 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     if (!usingIterator.isUndefined()) {
         ValueVectorWithInlineStorage values = iterableToList(state, source, usingIterator);
         uint64_t len = values.size();
-        // TODO Let targetObj be ? TypedArrayCreate(C, « len »).
         Value arg[1] = { Value(len) };
-        Value targetObj = Object::construct(state, C, 1, arg);
-        validateTypedArray(state, targetObj, state.context()->staticStrings().from.string());
+        Object* targetObj = createTypedArray(state, C, 1, arg);
 
         uint64_t k = 0;
         while (k < len) {
@@ -159,7 +180,8 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
                 Value args[2] = { values[k], Value(k) };
                 mappedValue = Object::call(state, mapfn, T, 2, args);
             }
-            targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+            // FIXME
+            targetObj->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
             k++;
         }
 
@@ -169,13 +191,12 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     Object* arrayLike = source.toObject(state);
     uint64_t len = arrayLike->length(state);
 
-    // TODO Let targetObj be ? TypedArrayCreate(C, « len »).
     Value arg[1] = { Value(len) };
-    Value targetObj = Object::construct(state, C, 1, arg);
-    validateTypedArray(state, targetObj, state.context()->staticStrings().from.string());
+    Object* targetObj = createTypedArray(state, C, 1, arg);
 
     uint64_t k = 0;
     while (k < len) {
+        // FIXME
         Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
         Value mappedValue = kValue;
         if (mapping) {
@@ -183,15 +204,16 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
             Value args[2] = { kValue, Value(k) };
             mappedValue = Object::call(state, mapfn, T, 2, args);
         }
+        // FIXME
         // Let setStatus be Set(targetObj, Pk, mappedValue, true).
-        targetObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+        targetObj->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
         k++;
     }
 
     return targetObj;
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-%typedarray%.of
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.of
 static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     size_t len = argc;
@@ -200,70 +222,54 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
     }
 
-    // FIXME AllocateTypedArray(C, len)
     Value arg[1] = { Value(len) };
-    Value newObj = Object::construct(state, C, 1, arg);
+    Object* newObj = createTypedArray(state, C, 1, arg);
 
     size_t k = 0;
     while (k < len) {
         Value kValue = argv[k];
-        newObj.asObject()->setIndexedPropertyThrowsException(state, Value(k), kValue);
+        // FIXME
+        newObj->setIndexedPropertyThrowsException(state, Value(k), kValue);
         k++;
     }
     return newObj;
 }
 
-static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        ArrayBufferView* buffer = thisValue.asObject()->asArrayBufferView();
-
-        if (buffer->isDetached()) {
-            return Value(0);
-        }
-        return Value(buffer->byteLength());
-    }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteLength called on incompatible receiver");
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        ArrayBufferView* buffer = thisValue.asObject()->asArrayBufferView();
-
-        if (buffer->isDetached()) {
-            return Value(0);
-        }
-        return Value(buffer->byteOffset());
-    }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.byteOffset called on incompatible receiver");
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        ArrayBufferView* buffer = thisValue.asObject()->asArrayBufferView();
-
-        if (buffer->isDetached()) {
-            return Value(0);
-        }
-        return Value(buffer->arrayLength());
-    }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.length called on incompatible receiver");
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
+// https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.buffer
 static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isTypedArrayObject())) {
-        if (thisValue.asObject()->asArrayBufferView()->buffer()) {
-            return Value(thisValue.asObject()->asArrayBufferView()->buffer());
-        }
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getBuffer);
+    return buffer->buffer();
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.bytelength
+static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteLength);
+    if (buffer->isDetached()) {
+        return Value(0);
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get TypedArray.prototype.buffer called on incompatible receiver");
-    RELEASE_ASSERT_NOT_REACHED();
+    return Value(buffer->byteLength());
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.byteoffset
+static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteOffset);
+    if (buffer->isDetached()) {
+        return Value(0);
+    }
+    return Value(buffer->byteOffset());
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.length
+static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteOffset);
+    if (buffer->isDetached()) {
+        return Value(0);
+    }
+    return Value(buffer->arrayLength());
 }
 
 template <typename TA, int typedArrayElementSize, typename TypeAdaptor>
@@ -274,203 +280,208 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInTypedArrayConstructor);
     }
 
-    TA* obj;
     if (argc == 0) {
-        // $22.2.1.1 %TypedArray% ()
-        obj = TA::allocateTypedArray(state, newTarget.value(), 0);
-    } else {
-        const Value& val = argv[0];
-        if (!val.isObject()) {
-            // $22.2.1.2 %TypedArray%(length)
-            uint64_t elemlen = val.toIndex(state);
-            if (elemlen == Value::InvalidIndexValue) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
-            }
-            obj = TA::allocateTypedArray(state, newTarget.value(), elemlen);
-        } else if (val.isPointerValue() && val.asPointerValue()->isArrayBufferObject()) {
-            // $22.2.1.5 %TypedArray%(buffer [, byteOffset [, length] ] )
-            obj = TA::allocateTypedArray(state, newTarget.value());
-            unsigned elementSize = obj->elementSize();
-            uint64_t offset = 0;
-            Value lenVal;
-            if (argc >= 2) {
-                offset = argv[1].toIndex(state);
-            }
-            if (offset == Value::InvalidIndexValue || (unsigned)offset % elementSize != 0) {
+        // $22.2.4.1 TypedArray ()
+        return TA::allocateTypedArray(state, newTarget.value(), 0);
+    }
+
+    const Value& val = argv[0];
+    if (!val.isObject()) {
+        // $22.2.4.2 TypedArray (length)
+        uint64_t elemlen = val.toIndex(state);
+        if (elemlen == Value::InvalidIndexValue) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        }
+
+        return TA::allocateTypedArray(state, newTarget.value(), elemlen);
+    }
+
+    if (val.isObject() && val.asObject()->isArrayBufferObject()) {
+        // $22.2.4.5 TypedArray (buffer [, byteOffset [, length] ] )
+        ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
+        TA* obj = TA::allocateTypedArray(state, newTarget.value());
+
+        size_t elementSize = obj->elementSize();
+        uint64_t offset = 0;
+        if (argc >= 2) {
+            offset = argv[1].toIndex(state);
+        }
+        if (offset == Value::InvalidIndexValue || offset % elementSize != 0) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        }
+
+        uint64_t newLength = 0;
+        Value lenVal;
+        if (argc >= 3) {
+            lenVal = argv[2];
+            newLength = lenVal.toIndex(state);
+            if (newLength == Value::InvalidIndexValue) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
-            ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
-            unsigned bufferByteLength = buffer->byteLength();
-            uint64_t length = 0;
-            unsigned newByteLength;
-            if (argc >= 3) {
-                lenVal = argv[2];
-                length = lenVal.toIndex(state);
+        }
+
+        buffer->throwTypeErrorIfDetached(state);
+        size_t bufferByteLength = buffer->byteLength();
+        size_t newByteLength = 0;
+
+        if (lenVal.isUndefined()) {
+            if ((bufferByteLength % elementSize != 0) || (bufferByteLength < offset)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
-            buffer->throwTypeErrorIfDetached(state);
-            if (lenVal.isUndefined()) {
-                if (bufferByteLength % elementSize != 0)
-                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
-                if (bufferByteLength < offset)
-                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
-                newByteLength = bufferByteLength - offset;
-            } else {
-                newByteLength = length * elementSize;
-                if (offset + newByteLength > bufferByteLength || length == Value::InvalidIndexValue)
-                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            newByteLength = bufferByteLength - offset;
+        } else {
+            newByteLength = newLength * elementSize;
+            if (offset + newByteLength > bufferByteLength) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
-            obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
-        } else if (val.isObject() && val.asObject()->isTypedArrayObject()) {
-            // $22.2.1.3 %TypedArray% ( typedArray )
-            // Let O be AllocateTypedArray(NewTarget).
-            obj = TA::allocateTypedArray(state, newTarget.value(), 0);
-            // Let srcArray be typedArray.
-            ArrayBufferView* srcArray = val.asObject()->asArrayBufferView();
-            // Let srcData be the value of srcArray’s [[ViewedArrayBuffer]] internal slot.
-            ArrayBufferObject* srcData = srcArray->buffer();
+        }
+
+        obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
+        return obj;
+    }
+
+    if (val.isObject() && val.asObject()->isTypedArrayObject()) {
+        // $22.2.4.3 TypedArray (typedArray)
+        // Let O be AllocateTypedArray(NewTarget).
+        TA* obj = TA::allocateTypedArray(state, newTarget.value());
+        // Let srcArray be typedArray.
+        ArrayBufferView* srcArray = val.asObject()->asArrayBufferView();
+        // Let srcData be the value of srcArray’s [[ViewedArrayBuffer]] internal slot.
+        ArrayBufferObject* srcData = srcArray->buffer();
+        // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
+        if (srcData->isDetachedBuffer()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+        }
+        // Let constructorName be the String value of O’s [[TypedArrayName]] internal slot.
+        // Let elementType be the String value of the Element Type value in Table 49 for constructorName.
+        // Let elementLength be the value of srcArray’s [[ArrayLength]] internal slot.
+        size_t elementLength = srcArray->arrayLength();
+        // Let srcName be the String value of srcArray’s [[TypedArrayName]] internal slot.
+        // Let srcType be the String value of the Element Type value in Table 49 for srcName.
+        // Let srcElementSize be the Element Size value in Table 49 for srcName.
+        size_t srcElementSize = ArrayBufferView::getElementSize(srcArray->typedArrayType());
+        // Let srcByteOffset be the value of srcArray’s [[ByteOffset]] internal slot.
+        size_t srcByteOffset = srcArray->byteOffset();
+        // Let elementSize be the Element Size value in Table 49 for constructorName.
+        size_t elementSize = ArrayBufferView::getElementSize(obj->typedArrayType());
+        // Let byteLength be elementSize × elementLength.
+        size_t byteLength = elementSize * elementLength;
+
+        ArrayBufferObject* data;
+        // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
+        Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
+        // If SameValue(elementType,srcType) is true, then
+        if (obj->typedArrayType() == srcArray->typedArrayType()) {
+            // Let data be ? CloneArrayBuffer(srcData, srcByteOffset, byteLength, bufferConstructor).
+            data = ArrayBufferObject::cloneArrayBuffer(state, srcData, srcByteOffset, byteLength, bufferConstructor.asObject());
+        } else {
+            // Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
+            data = ArrayBufferObject::allocateArrayBuffer(state, bufferConstructor.asObject(), byteLength);
             // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
-            if (srcData->isDetachedBuffer()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+            srcData->throwTypeErrorIfDetached(state);
+
+            // Let srcByteIndex be srcByteOffset.
+            size_t srcByteIndex = srcByteOffset;
+            // Let targetByteIndex be 0.
+            size_t targetByteIndex = 0;
+            // Let count be elementLength.
+            size_t count = elementLength;
+            // Repeat, while count > 0
+            while (count > 0) {
+                // Let value be GetValueFromBuffer(srcData, srcByteIndex, srcType).
+                Value value = srcData->getValueFromBuffer(state, srcByteIndex, srcArray->typedArrayType());
+                // Perform SetValueInBuffer(data, targetByteIndex, elementType, value).
+                data->setValueInBuffer(state, targetByteIndex, obj->typedArrayType(), value);
+                // Set srcByteIndex to srcByteIndex + srcElementSize.
+                srcByteIndex += srcElementSize;
+                // Set targetByteIndex to targetByteIndex + elementSize.
+                targetByteIndex += elementSize;
+                // Decrement count by 1.
+                count--;
             }
-            // Let constructorName be the String value of O’s [[TypedArrayName]] internal slot.
-            // Let elementType be the String value of the Element Type value in Table 49 for constructorName.
-            // Let elementLength be the value of srcArray’s [[ArrayLength]] internal slot.
-            double elementLength = srcArray->arrayLength();
-            // Let srcName be the String value of srcArray’s [[TypedArrayName]] internal slot.
-            // Let srcType be the String value of the Element Type value in Table 49 for srcName.
-            // Let srcElementSize be the Element Size value in Table 49 for srcName.
-            int srcElementSize = ArrayBufferView::getElementSize(srcArray->typedArrayType());
-            // Let srcByteOffset be the value of srcArray’s [[ByteOffset]] internal slot.
-            unsigned srcByteOffset = srcArray->byteOffset();
-            // Let elementSize be the Element Size value in Table 49 for constructorName.
-            int elementSize = ArrayBufferView::getElementSize(obj->typedArrayType());
-            // Let byteLength be elementSize × elementLength.
-            unsigned byteLength = elementSize * elementLength;
+        }
+        // Set O’s [[ViewedArrayBuffer]] internal slot to data.
+        // Set O’s [[ByteLength]] internal slot to byteLength.
+        // Set O’s [[ByteOffset]] internal slot to 0.
+        // Set O’s [[ArrayLength]] internal slot to elementLength.
+        obj->setBuffer(data, 0, byteLength, elementLength);
+        return obj;
+    }
 
-            ArrayBufferObject* data;
-            // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
-            Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
-            // If SameValue(elementType,srcType) is true, then
-            if (obj->typedArrayType() == srcArray->typedArrayType()) {
-                // Let data be ? CloneArrayBuffer(srcData, srcByteOffset, byteLength, bufferConstructor).
-                data = ArrayBufferObject::cloneArrayBuffer(state, srcData, srcByteOffset, byteLength, bufferConstructor.asObject());
-            } else {
-                // Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
-                data = ArrayBufferObject::allocateArrayBuffer(state, bufferConstructor.asObject(), byteLength);
-                // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
-                srcData->throwTypeErrorIfDetached(state);
+    if (val.isObject()) {
+        // $22.2.4.4 TypedArray (object)
+        // Let O be ? AllocateTypedArray(constructorName, NewTarget, "%TypedArrayPrototype%").
+        TA* obj = TA::allocateTypedArray(state, newTarget.value());
 
-                // Let srcByteIndex be srcByteOffset.
-                unsigned srcByteIndex = srcByteOffset;
-                // Let targetByteIndex be 0.
-                unsigned targetByteIndex = 0;
-                // Let count be elementLength.
-                unsigned count = elementLength;
-                // Repeat, while count > 0
-                while (count > 0) {
-                    // Let value be GetValueFromBuffer(srcData, srcByteIndex, srcType).
-                    Value value = srcData->getTypedValueFromBuffer(state, srcByteIndex, val.asObject()->asArrayBufferView()->typedArrayType());
-                    // Perform SetValueInBuffer(data, targetByteIndex, elementType, value).
-                    data->setValueInBuffer<TypeAdaptor>(state, targetByteIndex, value);
-                    // Set srcByteIndex to srcByteIndex + srcElementSize.
-                    srcByteIndex += srcElementSize;
-                    // Set targetByteIndex to targetByteIndex + elementSize.
-                    targetByteIndex += elementSize;
-                    // Decrement count by 1.
-                    count--;
-                }
-            }
-            // Set O’s [[ViewedArrayBuffer]] internal slot to data.
-            // Set O’s [[ByteLength]] internal slot to byteLength.
-            // Set O’s [[ByteOffset]] internal slot to 0.
-            // Set O’s [[ArrayLength]] internal slot to elementLength.
-            obj->setBuffer(data, 0, byteLength, elementLength);
-        } else if (val.isObject()) {
-            // https://www.ecma-international.org/ecma-262/10.0/#sec-typedarray-object
-            // Let O be ? AllocateTypedArray(constructorName, NewTarget, "%TypedArrayPrototype%").
-            obj = TA::allocateTypedArray(state, newTarget.value(), 0);
-
-            Object* inputObj = val.asObject();
-            // Let usingIterator be ? GetMethod(object, @@iterator).
-            Value usingIterator = Object::getMethod(state, inputObj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
-            // If usingIterator is not undefined, then
-            if (!usingIterator.isUndefined()) {
-                // Let values be ? IterableToList(object, usingIterator).
-                ValueVectorWithInlineStorage values = iterableToList(state, inputObj, usingIterator);
-                // Let len be the number of elements in values.
-                uint64_t len = values.size();
-                // Perform ? AllocateTypedArrayBuffer(O, len).
-                unsigned elementSize = obj->elementSize();
-                uint64_t bufferSize = len * elementSize;
-                ArrayBufferObject* buffer = new ArrayBufferObject(state);
-                buffer->allocateBuffer(state, bufferSize);
-                obj->setBuffer(buffer, 0, len * elementSize, len);
-
-                // Let k be 0.
-                uint64_t k = 0;
-                // Repeat, while k < len
-                while (k < len) {
-                    // Let Pk be ! ToString(k).
-                    // Let kValue be the first element of values and remove that element from values.
-                    // Perform ? Set(O, Pk, kValue, true).
-                    obj->setIndexedPropertyThrowsException(state, Value(k), values[k]);
-
-                    // Increase k by 1.
-                    k++;
-                }
-                return obj;
-            }
-            // Let arrayLike be object.
-            Object* arrayLike = inputObj;
-            // Let len be ? ToLength(? Get(arrayLike, "length")).
-            uint64_t len = arrayLike->length(state);
+        Object* inputObj = val.asObject();
+        // Let usingIterator be ? GetMethod(object, @@iterator).
+        Value usingIterator = Object::getMethod(state, inputObj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+        // If usingIterator is not undefined, then
+        if (!usingIterator.isUndefined()) {
+            // Let values be ? IterableToList(object, usingIterator).
+            ValueVectorWithInlineStorage values = iterableToList(state, inputObj, usingIterator);
+            // Let len be the number of elements in values.
+            size_t len = values.size();
             // Perform ? AllocateTypedArrayBuffer(O, len).
-            unsigned elementSize = obj->elementSize();
-            uint64_t bufferSize = len * elementSize;
-            if (bufferSize > ArrayBufferObject::maxArrayBufferSize) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
-            }
-
-            ArrayBufferObject* buffer = new ArrayBufferObject(state);
-            buffer->allocateBuffer(state, bufferSize);
-            obj->setBuffer(buffer, 0, len * elementSize, len);
+            size_t elementSize = obj->elementSize();
+            size_t byteLength = len * elementSize;
+            ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
+            obj->setBuffer(buffer, 0, byteLength, len);
 
             // Let k be 0.
-            uint64_t k = 0;
+            size_t k = 0;
             // Repeat, while k < len
             while (k < len) {
                 // Let Pk be ! ToString(k).
-                // Let kValue be ? Get(arrayLike, Pk).
+                // Let kValue be the first element of values and remove that element from values.
                 // Perform ? Set(O, Pk, kValue, true).
-                obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike));
+                // FIXME
+                obj->setIndexedPropertyThrowsException(state, Value(k), values[k]);
                 // Increase k by 1.
                 k++;
             }
+            return obj;
+        }
 
-        } else {
-            state.throwException(new ASCIIString(ErrorObject::Messages::NotImplemented));
-            RELEASE_ASSERT_NOT_REACHED();
+        // Let arrayLike be object.
+        Object* arrayLike = inputObj;
+        // Let len be ? ToLength(? Get(arrayLike, "length")).
+        size_t len = arrayLike->length(state);
+        // Perform ? AllocateTypedArrayBuffer(O, len).
+        size_t elementSize = obj->elementSize();
+        size_t byteLength = len * elementSize;
+        ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
+        obj->setBuffer(buffer, 0, byteLength, len);
+
+        // Let k be 0.
+        size_t k = 0;
+        // Repeat, while k < len
+        while (k < len) {
+            // Let Pk be ! ToString(k).
+            // Let kValue be ? Get(arrayLike, Pk).
+            // Perform ? Set(O, Pk, kValue, true).
+            // FIXME
+            obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike));
+            // Increase k by 1.
+            k++;
         }
-        // TODO
-        if (obj->arrayLength() >= ArrayBufferObject::maxArrayBufferSize) {
-            state.throwException(new ASCIIString(ErrorObject::Messages::NotImplemented));
-        }
-        RELEASE_ASSERT(obj->arrayLength() < ArrayBufferObject::maxArrayBufferSize);
+
+        return obj;
     }
-    return obj;
+
+    RELEASE_ASSERT_NOT_REACHED();
+    return Value();
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.copywithin
 static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, copyWithin);
     // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().copyWithin.string());
+    validateTypedArray(state, thisValue, state.context()->staticStrings().copyWithin.string());
+    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
 
-    // Array.prototype.copyWithin as defined in 22.1.3.3 except
-    // that the this object’s [[ArrayLength]] internal slot is accessed
-    // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    // Let len be O.[[ArrayLength]].
+    double len = O->arrayLength();
 
     // Let relativeTarget be ToInteger(target).
     double relativeTarget = argv[0].toInteger(state);
@@ -489,39 +500,53 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
 
     // Let count be min(final-from, len-to).
     double count = std::min(finalEnd - from, len - to);
-    int8_t direction;
-    // If from<to and to<from+count
-    if (from < to && to < from + count) {
-        // Let direction be -1.
-        direction = -1;
-        // Let from be from + count -1.
-        from = from + count - 1;
-        // Let to be to + count -1.
-        to = to + count - 1;
-    } else {
-        // Let direction = 1.
-        direction = 1;
+    // If count > 0, then
+    if (count > 0) {
+        // Let buffer be O.[[ViewedArrayBuffer]].
+        ArrayBufferObject* buffer = O->buffer();
+        // If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+        buffer->throwTypeErrorIfDetached(state);
+        // Let typedArrayName be the String value of O.[[TypedArrayName]].
+        // Let elementSize be the Number value of the Element Size value specified in Table 59 for typedArrayName.
+        size_t elementSize = O->getElementSize(O->typedArrayType());
+        // Let byteOffset be O.[[ByteOffset]].
+        size_t byteOffset = O->byteOffset();
+        // Let toByteIndex be to × elementSize + byteOffset.
+        size_t toByteIndex = to * elementSize + byteOffset;
+        // Let fromByteIndex be from × elementSize + byteOffset.
+        size_t fromByteIndex = from * elementSize + byteOffset;
+        // Let countBytes be count × elementSize.
+        size_t countBytes = count * elementSize;
+
+        int8_t direction = 0;
+        // If fromByteIndex < toByteIndex and toByteIndex < fromByteIndex + countBytes, then
+        if (fromByteIndex < toByteIndex && toByteIndex < fromByteIndex + countBytes) {
+            // Let direction be -1.
+            direction = -1;
+            // Set fromByteIndex to fromByteIndex + countBytes - 1.
+            fromByteIndex = fromByteIndex + countBytes - 1;
+            // Set toByteIndex to toByteIndex + countBytes - 1.
+            toByteIndex = toByteIndex + countBytes - 1;
+        } else {
+            // Let direction be 1.
+            direction = 1;
+        }
+
+        // Repeat, while countBytes > 0
+        while (countBytes > 0) {
+            // Let value be GetValueFromBuffer(buffer, fromByteIndex, "Uint8", true, "Unordered").
+            Value value = buffer->getValueFromBuffer(state, fromByteIndex, TypedArrayType::Uint8);
+            // Perform SetValueInBuffer(buffer, toByteIndex, "Uint8", value, true, "Unordered").
+            buffer->setValueInBuffer(state, toByteIndex, TypedArrayType::Uint8, value);
+            // Set fromByteIndex to fromByteIndex + direction.
+            fromByteIndex += direction;
+            // Set toByteIndex to toByteIndex + direction.
+            toByteIndex += direction;
+            // Decrease countBytes by 1.
+            countBytes--;
+        }
     }
 
-    // Repeat, while count > 0
-    while (count > 0) {
-        // Let fromPresent be HasProperty(O, fromKey).
-        ObjectGetResult fromValue = O->getIndexedProperty(state, Value(from));
-        // If fromPresent is true, then
-        if (fromValue.hasValue()) {
-            // Let setStatus be Set(O, toKey, fromVal, true).
-            O->setIndexedPropertyThrowsException(state, Value(to), fromValue.value(state, O));
-        } else {
-            // Let deleteStatus be DeletePropertyOrThrow(O, toKey).
-            O->deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)));
-        }
-        // Let from be from + direction.
-        from = from + direction;
-        // Let to be to + direction.
-        to = to + direction;
-        // Let count be count − 1.
-        count = count - 1;
-    }
     // return O.
     return O;
 }
@@ -703,86 +728,100 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     return Value(false);
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.set-overloaded-offset
 static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, TypedArray, set);
-    if (!thisBinded->isTypedArrayObject() || argc < 1) {
-        const StaticStrings* strings = &state.context()->staticStrings();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
-    auto wrapper = thisBinded->asArrayBufferView();
-    double offset = 0;
-    if (argc >= 2) {
-        offset = argv[1].toInteger(state);
+
+    ArrayBufferView* target = thisValue.asObject()->asArrayBufferView();
+
+    double targetOffset = 0;
+    if (argc > 1) {
+        targetOffset = argv[1].toInteger(state);
     }
-    if (offset < 0) {
-        const StaticStrings* strings = &state.context()->staticStrings();
+    if (targetOffset < 0) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
     }
 
-    wrapper->throwTypeErrorIfDetached(state);
+    ArrayBufferObject* targetBuffer = target->buffer();
+    targetBuffer->throwTypeErrorIfDetached(state);
+    size_t targetLength = target->arrayLength();
+    size_t targetElementSize = target->getElementSize(target->typedArrayType());
+    size_t targetByteOffset = target->byteOffset();
 
-    if (!(argv[0].isObject())) {
-        const StaticStrings* strings = &state.context()->staticStrings();
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Invalid argument");
-    }
-    auto arg0 = argv[0].toObject(state);
-    ArrayBufferObject* targetBuffer = wrapper->buffer();
-    unsigned targetLength = wrapper->arrayLength();
-    int targetByteOffset = wrapper->byteOffset();
-    int targetElementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
-    if (!arg0->isTypedArrayObject()) {
-        Object* src = arg0;
-        uint64_t srcLength = src->length(state);
-        if (srcLength + (uint64_t)offset > targetLength) {
-            const StaticStrings* strings = &state.context()->staticStrings();
+    Object* src = argv[0].toObject(state);
+    if (!src->isTypedArrayObject()) {
+        // 22.2.3.23.1%TypedArray%.prototype.set ( array [ , offset ] )
+        size_t srcLength = src->length(state);
+        if (srcLength + targetOffset > targetLength) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
         }
-        int targetByteIndex = offset * targetElementSize + targetByteOffset;
-        int k = 0;
-        int limit = targetByteIndex + targetElementSize * srcLength;
+
+        size_t targetByteIndex = targetOffset * targetElementSize + targetByteOffset;
+        size_t k = 0;
+        size_t limit = targetByteIndex + targetElementSize * srcLength;
         while (targetByteIndex < limit) {
             double kNumber = src->get(state, ObjectPropertyName(state, Value(k))).value(state, src).toNumber(state);
-            wrapper->throwTypeErrorIfDetached(state);
-            wrapper->setThrowsException(state, ObjectPropertyName(state, Value(targetByteIndex / targetElementSize)), Value(kNumber), wrapper);
+            targetBuffer->throwTypeErrorIfDetached(state);
+
+            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, kNumber, true, "Unordered").
+            targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), Value(kNumber));
+
             k++;
             targetByteIndex += targetElementSize;
         }
-        return Value();
-    } else {
-        auto arg0Wrapper = arg0->asArrayBufferView();
-        arg0Wrapper->throwTypeErrorIfDetached(state);
-        ArrayBufferObject* srcBuffer = arg0Wrapper->buffer();
-        unsigned srcLength = arg0Wrapper->arrayLength();
-        int srcByteOffset = arg0Wrapper->byteOffset();
-        if (((double)srcLength + (double)offset) > (double)targetLength) {
-            const StaticStrings* strings = &state.context()->staticStrings();
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
-        }
-        int srcByteIndex = 0;
-        ArrayBufferObject* oldSrcBuffer = srcBuffer;
-        unsigned oldSrcByteOffset = arg0Wrapper->byteOffset();
-        unsigned oldSrcByteLength = arg0Wrapper->byteLength();
-        unsigned oldSrcArrayLength = arg0Wrapper->arrayLength();
-        if (srcBuffer == targetBuffer) {
-            srcBuffer = ArrayBufferObject::cloneArrayBuffer(state, targetBuffer, srcByteOffset, oldSrcByteLength, state.context()->globalObject()->arrayBuffer());
-            arg0Wrapper->setBuffer(srcBuffer, 0, srcBuffer->byteLength(), oldSrcArrayLength);
-        } else {
-            srcByteIndex = srcByteOffset;
-        }
-        unsigned targetIndex = (unsigned)offset, srcIndex = 0;
-        unsigned targetByteIndex = offset * targetElementSize + targetByteOffset;
-        unsigned limit = targetByteIndex + targetElementSize * srcLength;
-        while (targetIndex < offset + srcLength) {
-            Value value = arg0Wrapper->get(state, ObjectPropertyName(state, Value(srcIndex))).value(state, arg0Wrapper);
-            wrapper->setThrowsException(state, ObjectPropertyName(state, Value(targetIndex)), value, wrapper);
-            srcIndex++;
-            targetIndex++;
-        }
-        if (oldSrcBuffer != srcBuffer)
-            arg0Wrapper->setBuffer(oldSrcBuffer, oldSrcByteOffset, oldSrcByteLength, oldSrcArrayLength);
+
         return Value();
     }
+
+    // 22.2.3.23.2%TypedArray%.prototype.set ( typedArray [ , offset ] )
+    ASSERT(src->isTypedArrayObject());
+    ArrayBufferView* srcTypedArray = src->asArrayBufferView();
+    ArrayBufferObject* srcBuffer = srcTypedArray->buffer();
+    srcBuffer->throwTypeErrorIfDetached(state);
+
+    size_t srcElementSize = srcTypedArray->getElementSize(srcTypedArray->typedArrayType());
+    size_t srcLength = srcTypedArray->arrayLength();
+    size_t srcByteOffset = srcTypedArray->byteOffset();
+
+    if (srcLength + targetOffset > targetLength) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+    }
+
+    size_t srcByteIndex = srcByteOffset;
+    if (srcBuffer == targetBuffer) {
+        size_t srcByteLength = srcTypedArray->byteLength();
+        srcBuffer = ArrayBufferObject::cloneArrayBuffer(state, targetBuffer, srcByteOffset, srcByteLength, state.context()->globalObject()->arrayBuffer());
+        srcByteIndex = 0;
+    }
+
+    size_t targetByteIndex = targetOffset * targetElementSize + targetByteOffset;
+    size_t limit = targetByteIndex + targetElementSize * srcLength;
+
+    if (srcTypedArray->typedArrayType() == target->typedArrayType()) {
+        while (targetByteIndex < limit) {
+            // Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, "Uint8", true, "Unordered").
+            Value value = srcBuffer->getValueFromBuffer(state, srcByteIndex, TypedArrayType::Uint8);
+            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, "Uint8", value, true, "Unordered").
+            targetBuffer->setValueInBuffer(state, targetByteIndex, TypedArrayType::Uint8, value);
+            srcByteIndex++;
+            targetByteIndex++;
+        }
+    } else {
+        while (targetByteIndex < limit) {
+            // Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, srcType, true, "Unordered").
+            Value value = srcBuffer->getValueFromBuffer(state, srcByteIndex, srcTypedArray->typedArrayType());
+            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, value, true, "Unordered").
+            targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), value);
+            srcByteIndex += srcElementSize;
+            targetByteIndex += targetElementSize;
+        }
+    }
+
+    return Value();
 }
 
 static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -886,6 +925,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     return O;
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.subarray
 static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
@@ -1410,15 +1450,16 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     return O;
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.slice
 static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, slice);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().slice.string());
+    // Let O be the this value.
+    // Perform ? ValidateTypedArray(O).
+    validateTypedArray(state, thisValue, state.context()->staticStrings().slice.string());
+    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    int64_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->arrayLength();
     // Let relativeStart be ToInteger(start).
     double relativeStart = argv[0].toInteger(state);
     // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
@@ -1432,39 +1473,40 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
 
     Value arg[1] = { Value(count) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
+    ArrayBufferView* target = A.asObject()->asArrayBufferView();
 
     // If SameValue(srcType, targetType) is false, then
-    if (O->asArrayBufferView()->typedArrayType() != A.asObject()->asArrayBufferView()->typedArrayType()) {
+    if (O->typedArrayType() != target->typedArrayType()) {
         size_t n = 0;
         while (k < finalEnd) {
+            // FIXME
             Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
             A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kValue);
             k++;
             n++;
         }
-        // Else if count > 0,
     } else if (count > 0) {
-        auto srcWrapper = O->asArrayBufferView();
-        auto targetWrapper = A.asObject()->asArrayBufferView();
+        // Else if count > 0,
+        ArrayBufferObject* srcBuffer = O->buffer();
+        srcBuffer->throwTypeErrorIfDetached(state);
+        ArrayBufferObject* targetBuffer = target->buffer();
 
-        ArrayBufferObject* srcBuffer = srcWrapper->buffer();
-        if (srcBuffer->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
-        }
-        ArrayBufferObject* targetBuffer = targetWrapper->buffer();
-        unsigned elementSize = ArrayBufferView::getElementSize(srcWrapper->typedArrayType());
-        unsigned srcByteOffset = srcWrapper->byteOffset();
-        unsigned targetByteIndex = 0;
-        unsigned srcByteIndex = k * elementSize + srcByteOffset;
+        size_t elementSize = O->getElementSize(O->typedArrayType());
+        size_t srcByteOffset = O->byteOffset();
+        size_t targetByteIndex = target->byteOffset();
+        size_t srcByteIndex = (size_t)k * elementSize + srcByteOffset;
+        size_t limit = targetByteIndex + count * elementSize;
 
-        while (targetByteIndex < count * elementSize) {
-            Value value = srcWrapper->getValueFromBuffer<uint8_t>(state, srcByteIndex);
-            targetWrapper->setValueInBuffer<Uint8Adaptor>(state, targetByteIndex, value);
+        while (targetByteIndex < limit) {
+            // Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, "Uint8", true, "Unordered").
+            Value value = srcBuffer->getValueFromBuffer(state, srcByteIndex, TypedArrayType::Uint8);
+            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, "Uint8", value, true, "Unordered").
+            targetBuffer->setValueInBuffer(state, targetByteIndex, TypedArrayType::Uint8, value);
             srcByteIndex++;
             targetByteIndex++;
         }
     }
-    // Return A.
+
     return A;
 }
 
@@ -1568,11 +1610,11 @@ static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, siz
     return M->values(state);
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.entries
 static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, entries);
-    validateTypedArray(state, M, state.context()->staticStrings().entries.string());
-    return M->entries(state);
+    validateTypedArray(state, thisValue, state.context()->staticStrings().entries.string());
+    return thisValue.asObject()->entries(state);
 }
 
 static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

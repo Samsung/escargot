@@ -64,10 +64,10 @@ public:
 
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
     ALWAYS_INLINE uint8_t* rawBuffer() { return m_rawBuffer; }
-    ALWAYS_INLINE unsigned byteLength() { return m_byteLength; }
-    ALWAYS_INLINE unsigned byteOffset() { return m_byteOffset; }
-    ALWAYS_INLINE unsigned arrayLength() { return m_arrayLength; }
-    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength)
+    ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
+    ALWAYS_INLINE size_t byteOffset() { return m_byteOffset; }
+    ALWAYS_INLINE size_t arrayLength() { return m_arrayLength; }
+    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
     {
         m_buffer = bo;
         m_byteOffset = byteOffset;
@@ -76,7 +76,7 @@ public:
         m_rawBuffer = bo ? (uint8_t*)(bo->data() + m_byteOffset) : nullptr;
     }
 
-    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, unsigned byteOffset, unsigned byteLength)
+    ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, size_t byteOffset, size_t byteLength)
     {
         m_buffer = bo;
         m_byteOffset = byteOffset;
@@ -89,7 +89,7 @@ public:
         return true;
     }
 
-    static int getElementSize(TypedArrayType type)
+    static size_t getElementSize(TypedArrayType type)
     {
         switch (type) {
         case TypedArrayType::Int8:
@@ -105,12 +105,14 @@ public:
             return 4;
         case TypedArrayType::Float64:
             return 8;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            break;
         }
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     template <typename Type>
-    Value getValueFromBuffer(ExecutionState& state, unsigned byteindex, bool isLittleEndian = 1)
+    Value getValueFromBuffer(ExecutionState& state, size_t byteindex, bool isLittleEndian = 1)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
         ASSERT(byteLength());
@@ -129,7 +131,7 @@ public:
     }
 
     template <typename Type>
-    void setValueInBuffer(ExecutionState& state, unsigned byteindex, const Value& val, bool isLittleEndian = 1)
+    void setValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val, bool isLittleEndian = 1)
     {
         // If isLittleEndian is not present, set isLittleEndian to either true or false.
         ASSERT(byteLength());
@@ -178,129 +180,9 @@ public:
 private:
     ArrayBufferObject* m_buffer;
     uint8_t* m_rawBuffer;
-    unsigned m_byteLength;
-    unsigned m_byteOffset;
-    unsigned m_arrayLength;
-};
-
-template <typename Adapter>
-struct TypedArrayAdaptor {
-    typedef typename Adapter::Type Type;
-    static Type toNative(ExecutionState& state, const Value& val)
-    {
-        return Adapter::toNative(state, val);
-    }
-};
-
-template <typename TypeArg>
-struct IntegralTypedArrayAdapter {
-    typedef TypeArg Type;
-
-    static Type toNative(ExecutionState& state, const Value& val)
-    {
-        if (val.isInt32()) {
-            return toNativeFromInt32(state, val.asInt32());
-        } else if (val.isDouble()) {
-            return toNativeFromDouble(state, val.asDouble());
-        }
-        auto number = val.toNumber(state);
-        if (std::isnan(number)) {
-            return 0;
-        }
-        return static_cast<Type>(number);
-    }
-
-    static TypeArg toNativeFromInt32(ExecutionState& state, int32_t value)
-    {
-        return static_cast<TypeArg>(value);
-    }
-    static TypeArg toNativeFromDouble(ExecutionState& state, double value)
-    {
-        int32_t result = static_cast<int32_t>(value);
-        if (static_cast<double>(result) != value)
-            result = Value(value).toInt32(state);
-        return static_cast<TypeArg>(result);
-    }
-};
-
-template <typename TypeArg>
-struct FloatTypedArrayAdaptor {
-    typedef TypeArg Type;
-
-    static Type toNative(ExecutionState& state, const Value& val)
-    {
-        if (val.isInt32()) {
-            return toNativeFromInt32(state, val.asInt32());
-        } else if (val.isDouble()) {
-            return toNativeFromDouble(state, val.asDouble());
-        }
-        return static_cast<Type>(val.toNumber(state));
-    }
-
-    static TypeArg toNativeFromInt32(ExecutionState& state, int32_t value)
-    {
-        return static_cast<TypeArg>(value);
-    }
-    static TypeArg toNativeFromDouble(ExecutionState& state, double value)
-    {
-        return value;
-    }
-};
-
-struct Uint8ClampedAdaptor {
-    typedef uint8_t Type;
-
-    static Type toNative(ExecutionState& state, const Value& val)
-    {
-        if (val.isInt32()) {
-            return toNativeFromInt32(state, val.asInt32());
-        } else if (val.isDouble()) {
-            return toNativeFromDouble(state, val.asDouble());
-        }
-        return toNativeFromDouble(state, val.toNumber(state));
-    }
-
-    static Type toNativeFromInt32(ExecutionState& state, int32_t value)
-    {
-        if (value < 0) {
-            return 0;
-        }
-        if (value > 255) {
-            return 255;
-        }
-        return static_cast<Type>(value);
-    }
-
-    static Type toNativeFromDouble(ExecutionState& state, double value)
-    {
-        if (std::isnan(value)) {
-            return 0;
-        }
-        if (value < 0) {
-            return 0;
-        }
-        if (value > 255) {
-            return 255;
-        }
-        return static_cast<Type>(lrint(value));
-    }
-};
-
-struct Int8Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<int8_t>> {
-};
-struct Int16Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<int16_t>> {
-};
-struct Int32Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<int32_t>> {
-};
-struct Uint8Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint8_t>> {
-};
-struct Uint16Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint16_t>> {
-};
-struct Uint32Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint32_t>> {
-};
-struct Float32Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<float>> {
-};
-struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
+    size_t m_byteLength;
+    size_t m_byteOffset;
+    size_t m_arrayLength;
 };
 
 template <typename TypeAdaptor, int typedArrayElementSize>
@@ -312,8 +194,8 @@ public:
         if (LIKELY(Value::InvalidIndexValue != index)) {
             throwTypeErrorIfDetached(state);
 
-            if ((unsigned)index < arrayLength()) {
-                unsigned idxPosition = index * typedArrayElementSize;
+            if ((size_t)index < arrayLength()) {
+                size_t idxPosition = index * typedArrayElementSize;
                 return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
             }
             return ObjectHasPropertyResult();
@@ -327,8 +209,8 @@ public:
         if (LIKELY(Value::InvalidIndexValue != index)) {
             throwTypeErrorIfDetached(state);
 
-            if ((unsigned)index < arrayLength()) {
-                unsigned idxPosition = index * typedArrayElementSize;
+            if ((size_t)index < arrayLength()) {
+                size_t idxPosition = index * typedArrayElementSize;
                 return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
             }
             return ObjectGetResult();
@@ -342,9 +224,9 @@ public:
         if (LIKELY(Value::InvalidIndexValue != index)) {
             throwTypeErrorIfDetached(state);
 
-            if ((unsigned)index >= arrayLength())
+            if ((size_t)index >= arrayLength())
                 return false;
-            unsigned idxPosition = index * typedArrayElementSize;
+            size_t idxPosition = index * typedArrayElementSize;
 
             if (LIKELY(desc.isValuePresentAlone() || desc.isDataWritableEnumerableConfigurable() || (desc.isWritable() && desc.isEnumerable()))) {
                 setValueInBuffer<TypeAdaptor>(state, idxPosition, desc.value());
@@ -364,7 +246,7 @@ public:
     {
         size_t len = arrayLength();
         for (size_t i = 0; i < len; i++) {
-            unsigned idxPosition = i * typedArrayElementSize + byteOffset();
+            size_t idxPosition = i * typedArrayElementSize + byteOffset();
             if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data)) {
                 return;
             }
@@ -388,7 +270,7 @@ public:
             Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * length);
 
             for (int64_t i = 0; i < length; i++) {
-                unsigned idxPosition = i * typedArrayElementSize;
+                size_t idxPosition = i * typedArrayElementSize;
                 tempBuffer[i] = getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition);
             }
 
@@ -400,7 +282,7 @@ public:
             });
 
             for (int64_t i = 0; i < length; i++) {
-                unsigned idxPosition = i * typedArrayElementSize;
+                size_t idxPosition = i * typedArrayElementSize;
                 setValueInBuffer<TypeAdaptor>(state, idxPosition, tempBuffer[i]);
             }
             GC_FREE(tempBuffer);
@@ -412,9 +294,9 @@ public:
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
     {
         Value::ValueIndex idx = property.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arrayLength())) {
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((size_t)idx < arrayLength())) {
             throwTypeErrorIfDetached(state);
-            unsigned idxPosition = idx * typedArrayElementSize;
+            size_t idxPosition = idx * typedArrayElementSize;
             return ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false);
         }
         return get(state, ObjectPropertyName(state, property));
@@ -423,9 +305,9 @@ public:
     ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override
     {
         Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((unsigned)idx < arrayLength())) {
+        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((size_t)idx < arrayLength())) {
             throwTypeErrorIfDetached(state);
-            unsigned idxPosition = idx * typedArrayElementSize;
+            size_t idxPosition = idx * typedArrayElementSize;
             return ObjectHasPropertyResult(ObjectGetResult(getValueFromBuffer<typename TypeAdaptor::Type>(state, idxPosition), true, true, false));
         }
         return hasProperty(state, ObjectPropertyName(state, propertyName));
@@ -434,9 +316,9 @@ public:
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
     {
         Value::ValueIndex index = property.tryToUseAsIndex(state);
-        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((unsigned)index < arrayLength())) {
+        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((size_t)index < arrayLength())) {
             throwTypeErrorIfDetached(state);
-            unsigned idxPosition = index * typedArrayElementSize;
+            size_t idxPosition = index * typedArrayElementSize;
             setValueInBuffer<TypeAdaptor>(state, idxPosition, value);
             return true;
         }
@@ -450,41 +332,41 @@ protected:
     }
 };
 
-#define DECLARE_TYPEDARRAY(TYPE, type, siz)                                                                                                            \
-    typedef TypedArrayObject<TYPE##Adaptor, siz> TYPE##ArrayObjectWrapper;                                                                             \
-    class TYPE##ArrayObject : public TYPE##ArrayObjectWrapper {                                                                                        \
-    public:                                                                                                                                            \
-        explicit TYPE##ArrayObject(ExecutionState& state)                                                                                              \
-            : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                        \
-        {                                                                                                                                              \
-        }                                                                                                                                              \
-        explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                               \
-            : TYPE##ArrayObjectWrapper(state, proto)                                                                                                   \
-        {                                                                                                                                              \
-        }                                                                                                                                              \
-        virtual TypedArrayType typedArrayType() override                                                                                               \
-        {                                                                                                                                              \
-            return TypedArrayType::TYPE;                                                                                                               \
-        }                                                                                                                                              \
-        virtual String* typedArrayName(ExecutionState& state) override                                                                                 \
-        {                                                                                                                                              \
-            return state.context()->staticStrings().TYPE##Array.string();                                                                              \
-        }                                                                                                                                              \
-        static TYPE##ArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, unsigned length = std::numeric_limits<unsigned>::max()) \
-        {                                                                                                                                              \
-            ASSERT(!!newTarget);                                                                                                                       \
-            Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {    \
-                return constructorRealm->globalObject()->type##ArrayPrototype();                                                                       \
-            });                                                                                                                                        \
-            TYPE##ArrayObject* obj = new TYPE##ArrayObject(state, proto);                                                                              \
-            if (length == std::numeric_limits<unsigned>::max()) {                                                                                      \
-                obj->setBuffer(nullptr, 0, 0, 0);                                                                                                      \
-            } else {                                                                                                                                   \
-                auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);             \
-                obj->setBuffer(buffer, 0, length* siz, length);                                                                                        \
-            }                                                                                                                                          \
-            return obj;                                                                                                                                \
-        }                                                                                                                                              \
+#define DECLARE_TYPEDARRAY(TYPE, type, siz)                                                                                                         \
+    typedef TypedArrayObject<TYPE##Adaptor, siz> TYPE##ArrayObjectWrapper;                                                                          \
+    class TYPE##ArrayObject : public TYPE##ArrayObjectWrapper {                                                                                     \
+    public:                                                                                                                                         \
+        explicit TYPE##ArrayObject(ExecutionState& state)                                                                                           \
+            : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                     \
+        {                                                                                                                                           \
+        }                                                                                                                                           \
+        explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                            \
+            : TYPE##ArrayObjectWrapper(state, proto)                                                                                                \
+        {                                                                                                                                           \
+        }                                                                                                                                           \
+        virtual TypedArrayType typedArrayType() override                                                                                            \
+        {                                                                                                                                           \
+            return TypedArrayType::TYPE;                                                                                                            \
+        }                                                                                                                                           \
+        virtual String* typedArrayName(ExecutionState& state) override                                                                              \
+        {                                                                                                                                           \
+            return state.context()->staticStrings().TYPE##Array.string();                                                                           \
+        }                                                                                                                                           \
+        static TYPE##ArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length = std::numeric_limits<size_t>::max())  \
+        {                                                                                                                                           \
+            ASSERT(!!newTarget);                                                                                                                    \
+            Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* { \
+                return constructorRealm->globalObject()->type##ArrayPrototype();                                                                    \
+            });                                                                                                                                     \
+            TYPE##ArrayObject* obj = new TYPE##ArrayObject(state, proto);                                                                           \
+            if (length == std::numeric_limits<size_t>::max()) {                                                                                     \
+                obj->setBuffer(nullptr, 0, 0, 0);                                                                                                   \
+            } else {                                                                                                                                \
+                auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);          \
+                obj->setBuffer(buffer, 0, length* siz, length);                                                                                     \
+            }                                                                                                                                       \
+            return obj;                                                                                                                             \
+        }                                                                                                                                           \
     };
 
 FOR_EACH_TYPEDARRAY(DECLARE_TYPEDARRAY)
