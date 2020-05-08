@@ -40,7 +40,7 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInArrayBufferConstructor);
     }
 
-    double byteLength = argv[0].toIndex(state);
+    uint64_t byteLength = argv[0].toIndex(state);
     if (byteLength == Value::InvalidIndexValue) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }

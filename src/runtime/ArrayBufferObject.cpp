@@ -74,6 +74,10 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
 
+    if (bytelength >= (size_t)ArrayBufferObject::maxArrayBufferSize) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+    }
+
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
     if (bytelength > (GC_get_heap_size() / ratio)) {
         size_t n = 0;

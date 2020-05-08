@@ -54,36 +54,16 @@ public:
             return Value();
         }
 
-        unsigned viewOffset = byteOffset();
-        unsigned viewSize = byteLength();
+        size_t viewOffset = byteOffset();
+        size_t viewSize = byteLength();
 
-        unsigned elementSize = ArrayBufferView::getElementSize(type);
+        size_t elementSize = ArrayBufferView::getElementSize(type);
 
         if (numberIndex + elementSize > viewSize)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
 
-        unsigned bufferIndex = numberIndex + viewOffset;
-        switch (type) {
-        case TypedArrayType::Float32:
-            return buffer->getValueFromBuffer<float>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Float64:
-            return buffer->getValueFromBuffer<double>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Int8:
-            return buffer->getValueFromBuffer<int8_t>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Int16:
-            return buffer->getValueFromBuffer<int16_t>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Int32:
-            return buffer->getValueFromBuffer<int32_t>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Uint8:
-            return buffer->getValueFromBuffer<uint8_t>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Uint16:
-            return buffer->getValueFromBuffer<uint16_t>(state, bufferIndex, isLittleEndian);
-        case TypedArrayType::Uint32:
-            return buffer->getValueFromBuffer<uint32_t>(state, bufferIndex, isLittleEndian);
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
-        }
-        RELEASE_ASSERT_NOT_REACHED();
+        size_t bufferIndex = numberIndex + viewOffset;
+        return buffer->getValueFromBuffer(state, bufferIndex, type, isLittleEndian);
     }
 
     // 24.2.1.2
@@ -101,43 +81,16 @@ public:
             return Value();
         }
 
-        unsigned viewOffset = byteOffset();
-        unsigned viewSize = byteLength();
+        size_t viewOffset = byteOffset();
+        size_t viewSize = byteLength();
 
-        unsigned elementSize = this->getElementSize(type);
+        size_t elementSize = this->getElementSize(type);
 
         if (numberIndex + elementSize > viewSize)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
 
-        unsigned bufferIndex = numberIndex + viewOffset;
-        switch (type) {
-        case TypedArrayType::Float32:
-            buffer->setValueInBuffer<Float32Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Float64:
-            buffer->setValueInBuffer<Float64Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Int8:
-            buffer->setValueInBuffer<Int8Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Int16:
-            buffer->setValueInBuffer<Int16Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Int32:
-            buffer->setValueInBuffer<Int32Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Uint8:
-            buffer->setValueInBuffer<Uint8Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Uint16:
-            buffer->setValueInBuffer<Uint16Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        case TypedArrayType::Uint32:
-            buffer->setValueInBuffer<Uint32Adaptor>(state, bufferIndex, val, isLittleEndian);
-            break;
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
-        }
+        size_t bufferIndex = numberIndex + viewOffset;
+        buffer->setValueInBuffer(state, bufferIndex, type, val, isLittleEndian);
         return Value();
     }
 

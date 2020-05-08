@@ -2270,7 +2270,7 @@ uint8_t* ArrayBufferObjectRef::rawBuffer()
     return (uint8_t*)toImpl(this)->data();
 }
 
-unsigned ArrayBufferObjectRef::byteLength()
+size_t ArrayBufferObjectRef::byteLength()
 {
     return toImpl(this)->byteLength();
 }
@@ -2285,12 +2285,12 @@ ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
     return toRef(toImpl(this)->buffer());
 }
 
-void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength)
+void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
 {
     toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength, arrayLength);
 }
 
-void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength)
+void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength)
 {
     toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength);
 }
@@ -2300,17 +2300,17 @@ uint8_t* ArrayBufferViewRef::rawBuffer()
     return toImpl(this)->rawBuffer();
 }
 
-unsigned ArrayBufferViewRef::byteLength()
+size_t ArrayBufferViewRef::byteLength()
 {
     return toImpl(this)->byteLength();
 }
 
-unsigned ArrayBufferViewRef::byteOffset()
+size_t ArrayBufferViewRef::byteOffset()
 {
     return toImpl(this)->byteOffset();
 }
 
-unsigned ArrayBufferViewRef::arrayLength()
+size_t ArrayBufferViewRef::arrayLength()
 {
     return toImpl(this)->arrayLength();
 }

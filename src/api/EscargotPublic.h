@@ -1269,19 +1269,19 @@ public:
     void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
     void detachArrayBuffer(ExecutionStateRef* state);
     uint8_t* rawBuffer();
-    unsigned byteLength();
+    size_t byteLength();
     bool isDetachedBuffer();
 };
 
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
     ArrayBufferObjectRef* buffer();
-    void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength, unsigned arrayLength);
-    void setBuffer(ArrayBufferObjectRef* bo, unsigned byteOffset, unsigned byteLength);
+    void setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength, size_t arrayLength);
+    void setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength);
     uint8_t* rawBuffer();
-    unsigned byteLength();
-    unsigned byteOffset();
-    unsigned arrayLength();
+    size_t byteLength();
+    size_t byteOffset();
+    size_t arrayLength();
 };
 
 class ESCARGOT_EXPORT Int8ArrayObjectRef : public ArrayBufferViewRef {
