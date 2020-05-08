@@ -745,6 +745,7 @@ private:
     void installPromise(ExecutionState& state);
     void installProxy(ExecutionState& state);
     void installReflect(ExecutionState& state);
+    void installArrayBuffer(ExecutionState& state);
     void installDataView(ExecutionState& state);
     void installTypedArray(ExecutionState& state);
     template <typename TA, int elementSize, typename TypeAdaptor>
