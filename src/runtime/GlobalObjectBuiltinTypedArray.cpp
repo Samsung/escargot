@@ -24,83 +24,8 @@
 #include "TypedArrayObject.h"
 #include "IteratorObject.h"
 #include "NativeFunctionObject.h"
-#include "interpreter/ByteCode.h"
-#include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
-
-static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInArrayBufferConstructor);
-    }
-
-    double byteLength = argv[0].toIndex(state);
-    if (byteLength == Value::InvalidIndexValue) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
-    }
-    return ArrayBufferObject::allocateArrayBuffer(state, newTarget.value(), byteLength);
-}
-
-static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isArrayBufferObject())) {
-        thisValue.asObject()->asArrayBufferObject()->throwTypeErrorIfDetached(state);
-        return Value(thisValue.asObject()->asArrayBufferObject()->byteLength());
-    }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get ArrayBuffer.prototype.byteLength called on incompatible receiver");
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-// https://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer.prototype.slice
-static Value builtinArrayBufferByteSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    Object* thisObject = thisValue.toObject(state);
-    Value end = argv[1];
-    if (!thisObject->isArrayBufferObject())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
-    ArrayBufferObject* obj = thisObject->asArrayBufferObject();
-    if (obj->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
-    }
-    double len = obj->byteLength();
-    double relativeStart = argv[0].toInteger(state);
-    unsigned first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
-    double relativeEnd = end.isUndefined() ? len : end.toInteger(state);
-    unsigned final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
-    unsigned newLen = std::max((int)final_ - (int)first, 0);
-    Value constructor = thisObject->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
-    Value arguments[] = { Value(newLen) };
-    Value newValue = Object::construct(state, constructor, 1, arguments);
-    if (!newValue.isObject() || !newValue.asObject()->isArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-    }
-
-    ArrayBufferObject* newObject = newValue.asObject()->asArrayBufferObject();
-    if (newObject->isDetachedBuffer()) // 18
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-    if (newObject == obj) // 19
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-    if (newObject->byteLength() < newLen) // 20
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-    if (obj->isDetachedBuffer()) // 22
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
-
-    newObject->fillData(obj->data() + first, newLen);
-    return newObject;
-}
-
-static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (!argv[0].isObject()) {
-        return Value(false);
-    }
-    Object* thisObject = argv[0].toObject(state);
-    if (thisObject->isTypedArrayObject() || thisObject->isDataViewObject()) {
-        return Value(true);
-    }
-    return Value(false);
-}
 
 static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value& O, String* func)
 {
@@ -1665,41 +1590,7 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
 
 void GlobalObject::installTypedArray(ExecutionState& state)
 {
-    m_arrayBuffer = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ArrayBuffer, builtinArrayBufferConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_arrayBuffer->setGlobalIntrinsicObject(state);
-
-    m_arrayBuffer->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isView),
-                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isView, builtinArrayBufferIsView, 1, NativeFunctionInfo::Strict)),
-                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    m_arrayBufferPrototype = new ArrayBufferObject(state, m_objectPrototype);
-    m_arrayBufferPrototype->setGlobalIntrinsicObject(state, true);
-
-    m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
-
     const StaticStrings* strings = &state.context()->staticStrings();
-
-    {
-        JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
-    }
-
-    JSGetterSetter gs(
-        new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
-        Value(Value::EmptyValue));
-    ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-    m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinArrayBufferByteSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    m_arrayBuffer->setFunctionPrototype(state, m_arrayBufferPrototype);
-
-    defineOwnProperty(state, ObjectPropertyName(strings->ArrayBuffer),
-                      ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // %TypedArray%
     FunctionObject* typedArrayFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->TypedArray, builtinTypedArrayConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);

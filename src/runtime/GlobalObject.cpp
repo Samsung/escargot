@@ -192,6 +192,7 @@ void GlobalObject::installBuiltins(ExecutionState& state)
     installPromise(state);
     installProxy(state);
     installReflect(state);
+    installArrayBuffer(state);
     installDataView(state);
     installTypedArray(state);
     installMap(state);
