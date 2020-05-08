@@ -16,6 +16,28 @@
     <test id="intl402/NumberFormat/legacy-regexp-statics-not-modified"><reason>testForUnwantedRegExpChanges uses non-standard feature(getters of RegExp[`legacy variables`]</reason></test>
 
     <test id="intl402/Locale/likely-subtags"><reason>old version of ICU cannot run uloc_addLikelySubtags correctly with `und..` input</reason></test>
+
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-currency-de-DE"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-currency-en-US"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-currency-ja-JP"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-currency-ko-KR"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-currency-zh-TW"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-de-DE"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-en-US"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-ja-JP"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-ko-KR"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/signDisplay-zh-TW"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-de-DE"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-en-US"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-ja-JP"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-ko-KR"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-zh-TW"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-de-DE"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-en-US"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-ja-JP"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+    <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
+
     <test id="annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body"><reason>TODO</reason></test>
     <test id="annexB/built-ins/RegExp/named-groups/non-unicode-malformed"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
@@ -50,8 +72,6 @@
     <test id="built-ins/AggregateError/toString"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/splice/length-exceeding-integer-limit-shrink-array"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/toLocaleString/primitive_this_value_getter"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/allocation-limit"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer"><reason>TODO</reason></test>
@@ -536,8 +556,6 @@
     <test id="built-ins/Number/bigint-conversion"><reason>TODO</reason></test>
     <test id="built-ins/Object/bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/create/properties-arg-to-object-bigint"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toLocaleString/primitive_this_value_getter"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/Object.prototype.toString.call-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-override-bigint"><reason>TODO</reason></test>

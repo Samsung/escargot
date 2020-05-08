@@ -252,14 +252,12 @@ static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value this
 
 static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
-
-    // Let toString be the result of calling the [[Get]] internal method of O passing "toString" as the argument.
-    Value toString = O->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, O);
-
-    // Return the result of calling the [[Call]] internal method of toString passing O as the this value and no arguments.
-    return Object::call(state, toString, Value(O), 0, nullptr);
+    // https://www.ecma-international.org/ecma-262/#sec-object.prototype.tolocalestring
+    // Let O be the this value.
+    // Return ? Invoke(O, "toString").
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, toLocaleString);
+    Value toString = O->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, thisValue);
+    return Object::call(state, toString, thisValue, 0, nullptr);
 }
 
 static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

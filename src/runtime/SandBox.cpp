@@ -218,16 +218,13 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
             }
         }
 
-        if (pstate->m_inTryStatement) {
-            break;
-        }
-
         pstate = pstate->parent();
     }
 }
 
 void SandBox::throwException(ExecutionState& state, Value exception)
 {
+    m_stackTraceData.clear();
     createStackTraceData(m_stackTraceData, state);
 
     // We MUST save thrown exception Value.
