@@ -507,26 +507,28 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     LexicalEnvironment* globalLexicalEnvironment = new LexicalEnvironment(globalRecord, nullptr);
     newState.setLexicalEnvironment(globalLexicalEnvironment, m_topCodeBlock->isStrict());
 
-    if (inStrictMode && isExecuteOnEvalFunction) {
+    EnvironmentRecord* globalVariableRecord = globalRecord;
+
+    if (isExecuteOnEvalFunction) {
         // NOTE: ES5 10.4.2.1 eval in strict mode
+        // + Indirect eval code creates a new declarative environment for lexically-scoped declarations (let)
         EnvironmentRecord* newVariableRecord = new DeclarativeEnvironmentRecordNotIndexed(state, true);
         ExecutionState* newVariableState = new ExecutionState(context());
         newVariableState->setLexicalEnvironment(new LexicalEnvironment(newVariableRecord, globalLexicalEnvironment), m_topCodeBlock->isStrict());
         newVariableState->setParent(&newState);
         codeExecutionState = newVariableState;
+        if (inStrictMode) {
+            globalVariableRecord = newVariableRecord;
+        }
     }
 
     testDeclareGlobalFunctions(state, m_topCodeBlock, context()->globalObject());
 
-    const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
-    size_t len = vec.size();
-    for (size_t i = 0; i < len; i++) {
-        // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
-        // Step 2. If code is eval code, then let configurableBindings be true.
-        if (vec[i].m_isVarDeclaration) {
-            codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, vec[i].m_name, isExecuteOnEvalFunction, vec[i].m_isMutable, true, m_topCodeBlock);
-        }
-    }
+    const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = m_topCodeBlock->identifierInfos();
+    size_t identifierVectorLen = identifierVector.size();
+
+    const auto& globalLexicalVector = m_topCodeBlock->blockInfo(0)->m_identifiers;
+    size_t globalLexicalVectorLen = globalLexicalVector.size();
 
     if (!isExecuteOnEvalFunction) {
         InterpretedCodeBlock* child = m_topCodeBlock->firstChild();
@@ -539,10 +541,38 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             child = child->nextSibling();
         }
 
-        const auto& globalLexicalVector = m_topCodeBlock->blockInfo(0)->m_identifiers;
-        size_t len = globalLexicalVector.size();
-        for (size_t i = 0; i < len; i++) {
-            codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, globalLexicalVector[i].m_name, false, globalLexicalVector[i].m_isMutable, false);
+        // https://www.ecma-international.org/ecma-262/#sec-globaldeclarationinstantiation
+        IdentifierRecordVector* globalDeclarativeRecord = context()->globalDeclarativeRecord();
+        size_t globalDeclarativeRecordLen = globalDeclarativeRecord->size();
+        for (size_t i = 0; i < globalDeclarativeRecordLen; i++) {
+            // For each name in varNames, do
+            // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
+            for (size_t j = 0; j < identifierVectorLen; j++) {
+                if (identifierVector[j].m_isVarDeclaration && identifierVector[j].m_name == globalDeclarativeRecord->at(i).m_name) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                }
+            }
+        }
+
+        for (size_t i = 0; i < globalLexicalVectorLen; i++) {
+            // Let hasRestrictedGlobal be ? envRec.HasRestrictedGlobalProperty(name).
+            // If hasRestrictedGlobal is true, throw a SyntaxError exception.
+            auto desc = context()->globalObject()->getOwnProperty(state, globalLexicalVector[i].m_name);
+            if (desc.hasValue() && !desc.isConfigurable()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString, "redeclaration of non-configurable global property %s");
+            }
+        }
+    }
+
+    for (size_t i = 0; i < globalLexicalVectorLen; i++) {
+        codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, globalLexicalVector[i].m_name, false, globalLexicalVector[i].m_isMutable, false);
+    }
+
+    for (size_t i = 0; i < identifierVectorLen; i++) {
+        // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
+        // Step 2. If code is eval code, then let configurableBindings be true.
+        if (identifierVector[i].m_isVarDeclaration) {
+            globalVariableRecord->createBinding(*codeExecutionState, identifierVector[i].m_name, isExecuteOnEvalFunction, identifierVector[i].m_isMutable, true, m_topCodeBlock);
         }
     }
 
@@ -604,11 +634,13 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
             }
         }
 
-        for (size_t i = 0; i < vecLen; i++) {
-            if (vec[i].m_isVarDeclaration) {
-                auto slot = e->record()->hasBinding(state, vec[i].m_name);
-                if (slot.m_isLexicallyDeclared && slot.m_index != SIZE_MAX) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+        if (!m_topCodeBlock->isStrict()) {
+            for (size_t i = 0; i < vecLen; i++) {
+                if (vec[i].m_isVarDeclaration) {
+                    auto slot = e->record()->hasBinding(state, vec[i].m_name);
+                    if (slot.m_isLexicallyDeclared && slot.m_index != SIZE_MAX) {
+                        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                    }
                 }
             }
         }
