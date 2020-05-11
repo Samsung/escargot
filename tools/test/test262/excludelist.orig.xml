@@ -2018,7 +2018,6 @@
     <test id="language/expressions/bitwise-xor/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-xor/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-xor/bigint-wrapped-values"><reason>TODO</reason></test>
-    <test id="language/expressions/call/scope-lex-open"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-call-args"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-cross-realm-class-construct"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-cross-realm-class-derived-construct"><reason>TODO</reason></test>
@@ -6726,8 +6725,6 @@
     <test id="language/statements/class/elements/wrapped-in-sc-string-literal-names"><reason>TODO</reason></test>
     <test id="language/statements/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/statements/class/static-classelementname-abrupt-completion"><reason>TODO</reason></test>
-    <test id="language/statements/class/subclass/class-definition-null-proto-this"><reason>TODO</reason></test>
-    <test id="language/statements/class/super/in-constructor-superproperty-evaluation"><reason>TODO</reason></test>
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-const-body"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-let-body"><reason>TODO</reason></test>

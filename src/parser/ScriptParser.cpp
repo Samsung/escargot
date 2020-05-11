@@ -67,6 +67,25 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             }
         }
 
+        if (scopeCtx->m_hasThisExpression && scopeCtx->m_isArrowFunctionExpression) {
+            // every arrow function should save this value of upper env.
+            // except arrow function is localed on class constructor(class constructor needs test of this binding is valid)
+            InterpretedCodeBlock* c = codeBlock;
+            while (c) {
+                if (c->isKindOfFunction()) {
+                    if (c->isArrowFunctionExpression()) {
+                        // pass
+                    } else if (c->isClassConstructor()) {
+                        c->m_canAllocateEnvironmentOnStack = false;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                c = c->parentCodeBlock();
+            }
+        }
+
         if (scopeCtx->m_hasSuperOrNewTarget) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {

@@ -1129,6 +1129,7 @@ public:
                     return this->parseFunctionExpression(builder);
                 } else if (this->matchKeyword(ThisKeyword)) {
                     this->nextToken();
+                    this->currentScopeContext->m_hasThisExpression = true;
                     return this->finalize(node, builder.createThisExpressionNode());
                 } else if (this->matchKeyword(SuperKeyword)) {
                     throwIfSuperOperationIsNotAllowed();
