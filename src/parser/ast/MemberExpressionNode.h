@@ -77,6 +77,12 @@ public:
             objectIndex = context->getRegister();
         }
 
+        // we should check super binding by loading this variable
+        // for covering this case eg) super[super()]
+        if (m_object->isSuperExpression() && !isPreComputedCase() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), objectIndex), context, this);
+        }
+
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
 
         if (isPreComputedCase()) {
@@ -158,6 +164,13 @@ public:
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+        // we should check super binding by loading this variable
+        // for covering this case eg) super[super()]
+        if (!isPreComputedCase() && m_object->isSuperExpression() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+            context->giveUpRegister();
+        }
+
         ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
 

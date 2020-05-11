@@ -189,6 +189,7 @@ struct ASTFunctionScopeContext {
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
     bool m_isAsync : 1;
+    bool m_hasThisExpression : 1;
     bool m_hasSuperOrNewTarget : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
@@ -482,7 +483,7 @@ struct ASTFunctionScopeContext {
 
             size_t idx = findVarName(name);
             if (idx != SIZE_MAX) {
-                if (m_varNames[idx].lexicalBlockIndex() >= blockIndex) {
+                if (m_varNames[idx].isExplicitlyDeclaredOrParameterName() && m_varNames[idx].lexicalBlockIndex() >= blockIndex) {
                     return false;
                 }
             }
@@ -503,6 +504,7 @@ struct ASTFunctionScopeContext {
         , m_isClassStaticMethod(false)
         , m_isGenerator(false)
         , m_isAsync(false)
+        , m_hasThisExpression(false)
         , m_hasSuperOrNewTarget(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
