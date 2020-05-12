@@ -48,12 +48,6 @@ public:
     }
 
 #ifdef ESCARGOT_DEBUGGER
-    virtual void setBreakpointInfo(size_t loc_index, size_t line)
-    {
-        m_loc.index = loc_index;
-        m_line = line;
-    }
-
     virtual bool isEmptyStatement(void)
     {
         return false;
@@ -61,7 +55,7 @@ public:
 
     inline void insertBreakpoint(ByteCodeGenerateContext* context)
     {
-        context->insertBreakpoint(m_line, this);
+        context->insertBreakpoint(m_loc.index, this);
     }
 
     void insertEmptyStatementBreakpoint(ByteCodeGenerateContext* context, Node* node)
@@ -73,7 +67,7 @@ public:
         if (node->type() == ASTNodeType::EmptyStatement || node->type() == ASTNodeType::BlockStatement) {
             StatementNode* statementNode = reinterpret_cast<StatementNode*>(node);
             if (statementNode->isEmptyStatement()) {
-                context->insertBreakpoint(statementNode->m_line, node);
+                context->insertBreakpoint(statementNode->m_loc.index, node);
             }
         }
     }

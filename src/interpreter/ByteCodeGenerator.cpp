@@ -88,9 +88,12 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 }
 
 #ifdef ESCARGOT_DEBUGGER
-void ByteCodeGenerateContext::insertBreakpoint(size_t line, Node* node)
+void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
 {
     ASSERT(m_breakpointContext != nullptr);
+
+    index -= m_codeBlock->asInterpretedCodeBlock()->functionStart().index;
+    size_t line = m_byteCodeBlock->computeNodeLOC(m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->functionStart(), index).line;
 
     if (line != 0 && line != m_breakpointContext->m_lastBreakpointLine) {
         m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));

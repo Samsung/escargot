@@ -336,7 +336,7 @@ struct ByteCodeGenerateContext {
     }
 
 #ifdef ESCARGOT_DEBUGGER
-    void insertBreakpoint(size_t line, Node* node);
+    void insertBreakpoint(size_t index, Node* node);
 #endif /* ESCARGOT_DEBUGGER */
 
     // NOTE this is counter! not index!!!!!!
