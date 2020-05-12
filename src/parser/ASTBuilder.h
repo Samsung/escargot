@@ -400,12 +400,6 @@ public:
         return this;
     }
 
-#ifdef ESCARGOT_DEBUGGER
-    void setBreakpointInfo(size_t, size_t)
-    {
-    }
-#endif /* ESCARGOT_DEBUGGER */
-
     void setASTNode(const SyntaxNode& node)
     {
         // dummy function for setASTNode() of ASTSentinelNode

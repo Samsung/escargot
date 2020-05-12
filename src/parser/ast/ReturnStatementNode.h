@@ -36,7 +36,15 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
 #ifdef ESCARGOT_DEBUGGER
-        insertBreakpoint(context);
+        if (context->m_breakpointContext->m_breakpointLocations.size() == 0) {
+            ASSERT(context->m_breakpointContext->m_lastBreakpointLineOffset == 0);
+            ASSERT(context->m_breakpointContext->m_breakpointLocations.size() == 0);
+            ExtendedNodeLOC sourceElementStart = context->m_codeBlock->asInterpretedCodeBlock()->functionStart();
+            size_t lastLineOffset = context->calculateBreakpointLineOffset(m_loc.index, sourceElementStart);
+            context->insertBreakpointAt(lastLineOffset + sourceElementStart.line, this);
+        } else {
+            insertBreakpoint(context);
+        }
 #endif /* ESCARGOT_DEBUGGER */
 
         if (context->tryCatchWithBlockStatementCount() != 0) {

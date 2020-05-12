@@ -88,16 +88,50 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 }
 
 #ifdef ESCARGOT_DEBUGGER
-void ByteCodeGenerateContext::insertBreakpoint(size_t line, Node* node)
+size_t ByteCodeGenerateContext::calculateBreakpointLineOffset(size_t index, ExtendedNodeLOC sourceElementStart)
+{
+    StringView src = m_codeBlock->asInterpretedCodeBlock()->src();
+    size_t lastLineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
+    index -= sourceElementStart.index;
+
+    ASSERT(index >= m_breakpointContext->m_lastBreakpointIndexOffset);
+    for (size_t i = m_breakpointContext->m_lastBreakpointIndexOffset; i < index; i++) {
+        char16_t c = src.charAt(i);
+        if (EscargotLexer::isLineTerminator(c)) {
+            // skip \r\n
+            if (UNLIKELY(c == 13 && (i + 1 < index) && src.charAt(i + 1) == 10)) {
+                i++;
+            }
+            lastLineOffset++;
+        }
+    }
+
+    m_breakpointContext->m_lastBreakpointIndexOffset = index;
+
+    return lastLineOffset;
+}
+
+void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
 {
     ASSERT(m_breakpointContext != nullptr);
+    ASSERT(index != SIZE_MAX);
 
-    if (line != 0 && line != m_breakpointContext->m_lastBreakpointLine) {
-        m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
-        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
-        m_breakpointContext->m_lastBreakpointLine = line;
+    ExtendedNodeLOC sourceElementStart = m_codeBlock->asInterpretedCodeBlock()->functionStart();
+    size_t lastLineOffset = calculateBreakpointLineOffset(index, sourceElementStart);
+
+    if (lastLineOffset != m_breakpointContext->m_lastBreakpointLineOffset) {
+        ASSERT(lastLineOffset > m_breakpointContext->m_lastBreakpointLineOffset);
+        m_breakpointContext->m_lastBreakpointLineOffset = lastLineOffset;
+        insertBreakpointAt(lastLineOffset + sourceElementStart.line, node);
     }
 }
+
+void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
+{
+    m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+    m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+}
+
 #endif /* ESCARGOT_DEBUGGER */
 
 #define ASSIGN_STACKINDEX_IF_NEEDED(registerIndex, stackBase, stackBaseWillBe, stackVariableSize)                         \
@@ -151,7 +185,6 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
 #ifdef ESCARGOT_DEBUGGER
     ByteCodeBreakpointContext breakpointContext;
-    breakpointContext.m_lastBreakpointLine = 0;
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 

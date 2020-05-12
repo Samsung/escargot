@@ -13,12 +13,12 @@ Stopped at tools/debugger/tests/do_backtrace.js:27 (in g() at line:26, col:1)
 Stopped at tools/debugger/tests/do_backtrace.js:23 (in f() at line:22, col:1)
 (escargot-debugger) bt t
 Total number of frames: 4
-tools/debugger/tests/do_backtrace.js:24:2 (in f)
+tools/debugger/tests/do_backtrace.js:23:5 (in f)
 tools/debugger/tests/do_backtrace.js:27:5 (in g)
 tools/debugger/tests/do_backtrace.js:31:5 (in h)
 tools/debugger/tests/do_backtrace.js:34:1
 (escargot-debugger) bt 2
-tools/debugger/tests/do_backtrace.js:24:2 (in f)
+tools/debugger/tests/do_backtrace.js:23:5 (in f)
 tools/debugger/tests/do_backtrace.js:27:5 (in g)
 (escargot-debugger) bt 1 3
 tools/debugger/tests/do_backtrace.js:27:5 (in g)
