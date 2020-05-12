@@ -272,7 +272,7 @@ static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValu
     return Value(buffer->arrayLength());
 }
 
-template <typename TA, int typedArrayElementSize, typename TypeAdaptor>
+template <typename TA>
 Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // if NewTarget is undefined, throw a TypeError
@@ -929,42 +929,39 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
 static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, subarray);
-    const StaticStrings* strings = &state.context()->staticStrings();
-    // If O does not have a [[TypedArrayName]] internal slot, throw a TypeError exception.
-    if (!O->isTypedArrayObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, strings->subarray.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
-    }
-    // Let buffer be the value of O’s [[ViewedArrayBuffer]] internal slot.
-    auto wrapper = O->asArrayBufferView();
-    ArrayBufferObject* buffer = wrapper->buffer();
-    // Let srcLength be the value of O’s [[ArrayLength]] internal slot.
-    double srcLength = wrapper->arrayLength();
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(O, TypedArray, subarray);
+
+    // Let buffer be O.[[ViewedArrayBuffer]].
+    ArrayBufferObject* buffer = O->buffer();
+    // Let srcLength be O.[[ArrayLength]].
+    double srcLength = O->arrayLength();
     // Let relativeBegin be ToInteger(begin).
     double relativeBegin = argv[0].toInteger(state);
     // If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin), 0); else let beginIndex be min(relativeBegin, srcLength).
-    unsigned beginIndex = (relativeBegin < 0) ? std::max((srcLength + relativeBegin), 0.0) : std::min(relativeBegin, srcLength);
+    double beginIndex = (relativeBegin < 0) ? std::max((srcLength + relativeBegin), 0.0) : std::min(relativeBegin, srcLength);
     // If end is undefined, let relativeEnd be srcLength; else, let relativeEnd be ToInteger(end).
     double relativeEnd = srcLength;
-    if (argc > 1 && !argv[1].isUndefined()) {
+    if (!argv[1].isUndefined()) {
         relativeEnd = argv[1].toInteger(state);
     }
     // If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd), 0); else let endIndex be min(relativeEnd, srcLength).
-    unsigned endIndex = (relativeEnd < 0) ? std::max((srcLength + relativeEnd), 0.0) : std::min(relativeEnd, srcLength);
+    double endIndex = (relativeEnd < 0) ? std::max((srcLength + relativeEnd), 0.0) : std::min(relativeEnd, srcLength);
+
     // Let newLength be max(endIndex – beginIndex, 0).
-    unsigned newLength = std::max((int)(endIndex - beginIndex), 0);
+    double newLength = std::max((int)(endIndex - beginIndex), 0);
 
     // Let constructorName be the String value of O’s [[TypedArrayName]] internal slot.
     // Let elementSize be the Number value of the Element Size value specified in Table 49 for constructorName.
-    unsigned elementSize = ArrayBufferView::getElementSize(wrapper->typedArrayType());
+    size_t elementSize = ArrayBufferView::getElementSize(O->typedArrayType());
     // Let srcByteOffset be the value of O’s [[ByteOffset]] internal slot.
-    unsigned srcByteOffset = wrapper->byteOffset();
+    size_t srcByteOffset = O->byteOffset();
     // Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-    unsigned beginByteOffset = srcByteOffset + beginIndex * elementSize;
+    size_t beginByteOffset = srcByteOffset + beginIndex * elementSize;
+
     // Let argumentsList be «buffer, beginByteOffset, newLength».
     Value args[3] = { buffer, Value(beginByteOffset), Value(newLength) };
-    Value A = TypedArraySpeciesCreate(state, O, 3, args);
-    return A;
+    // Return ? TypedArraySpeciesCreate(O, argumentsList).
+    return TypedArraySpeciesCreate(state, O, 3, args);
 }
 
 static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1013,54 +1010,54 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     return Value(true);
 }
 
+//https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.fill
 static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, fill);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().fill.string());
+    // Perform ? ValidateTypedArray(O).
+    validateTypedArray(state, thisValue, state.context()->staticStrings().fill.string());
+    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
 
-    // Array.prototype.fill as defined in 22.1.3.5 except
-    // that the this object’s [[ArrayLength]] internal slot is accessed
-    // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
-
-    // Let relativeStart be ToInteger(start).
+    // Let len be O.[[ArrayLength]].
+    double len = O->arrayLength();
+    // Set value to ? ToNumber(value).
+    double value = argv[0].toNumber(state);
+    // Let relativeStart be ? ToInteger(start).
     double relativeStart = 0;
     if (argc > 1) {
         relativeStart = argv[1].toInteger(state);
     }
-
     // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
-    unsigned k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
-
+    double k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
     // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
     double relativeEnd = len;
     if (argc > 2 && !argv[2].isUndefined()) {
         relativeEnd = argv[2].toInteger(state);
     }
-
     // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
-    unsigned fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
-    O->asArrayBufferView()->throwTypeErrorIfDetached(state);
-    double valueNumber = argv[0].toNumber(state);
+    double fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+
+    // If IsDetachedBuffer(O.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
+    O->buffer()->throwTypeErrorIfDetached(state);
+
+    // Repeat, while k < final
     while (k < fin) {
-        O->setIndexedPropertyThrowsException(state, Value(k), Value(valueNumber));
+        // FIXME
+        O->setIndexedPropertyThrowsException(state, Value(k), Value(value));
         k++;
     }
     // return O.
     return O;
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.filter
 static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, filter);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().filter.string());
+    // Perform ? ValidateTypedArray(O).
+    validateTypedArray(state, thisValue, state.context()->staticStrings().filter.string());
+    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
 
-    // Let len be the value of O’s [[ArrayLength]] internal slot.
-    double len = O->asArrayBufferView()->arrayLength();
+    // Let len be O.[[ArrayLength]].
+    size_t len = O->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1082,6 +1079,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     size_t captured = 0;
     // Repeat, while k < len
     while (k < len) {
+        // FIXME
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
         bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean(state);
@@ -1091,16 +1089,17 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
         }
         k++;
     }
+
+    // Let A be ? TypedArraySpeciesCreate(O, « captured »).
     Value arg[1] = { Value(captured) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
+
     // Let n be 0.
-    size_t n = 0;
     // For each element e of kept
-    for (size_t i = 0; i < kept.size(); i++) {
+    for (size_t n = 0; n < kept.size(); n++) {
+        // FIXME
         // Let status be Set(A, ToString(n), e, true ).
-        A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kept[i]);
-        // Increment n by 1.
-        n++;
+        A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kept[n]);
     }
     // Return A.
     return A;
@@ -1283,15 +1282,15 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     return builder.finalize(&state);
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.map
 static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, map);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().map.string());
+    // Perform ? ValidateTypedArray(O).
+    validateTypedArray(state, thisValue, state.context()->staticStrings().map.string());
+    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
 
-    // Let len be the value of O’s [[ArrayLength]] internal slot.
-    size_t len = O->asArrayBufferView()->arrayLength();
+    // Let len be O.[[ArrayLength]].
+    size_t len = O->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1304,12 +1303,16 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     if (argc > 1) {
         T = argv[1];
     }
+
+    // Let A be ? TypedArraySpeciesCreate(O, « len »).
     Value arg[1] = { Value(len) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
+
     // Let k be 0.
     size_t k = 0;
     // Repeat, while k < len
     while (k < len) {
+        // FIXME
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
         Value mappedValue = Object::call(state, callbackfn, T, 3, args);
@@ -1566,11 +1569,48 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     return R;
 }
 
-template <typename TA, int elementSize, typename TypeAdaptor>
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.keys
+static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Perform ? ValidateTypedArray(O).
+    validateTypedArray(state, thisValue, state.context()->staticStrings().keys.string());
+    // Return CreateArrayIterator(O, "key").
+    return thisValue.asObject()->keys(state);
+}
+
+static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Perform ? ValidateTypedArray(O).
+    validateTypedArray(state, thisValue, state.context()->staticStrings().values.string());
+    return thisValue.asObject()->values(state);
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.entries
+static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    validateTypedArray(state, thisValue, state.context()->staticStrings().entries.string());
+    return thisValue.asObject()->entries(state);
+}
+
+// https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype-@@tostringtag
+static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value O = thisValue;
+    if (!O.isObject()) {
+        return Value();
+    }
+
+    if (O.asObject()->isTypedArrayObject()) {
+        return Value(O.asObject()->asArrayBufferView()->typedArrayName(state));
+    }
+    return Value();
+}
+
+template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    NativeFunctionObject* taConstructor = new NativeFunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA, elementSize, TypeAdaptor>, 3), NativeFunctionObject::__ForBuiltinConstructor__);
+    NativeFunctionObject* taConstructor = new NativeFunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA>, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     taConstructor->setGlobalIntrinsicObject(state);
 
     *proto = m_objectPrototype;
@@ -1594,40 +1634,6 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
                       ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     return taConstructor;
-}
-
-static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, keys);
-    validateTypedArray(state, M, state.context()->staticStrings().keys.string());
-    return M->keys(state);
-}
-
-static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    RESOLVE_THIS_BINDING_TO_OBJECT(M, TypedArray, values);
-    validateTypedArray(state, M, state.context()->staticStrings().values.string());
-    return M->values(state);
-}
-
-// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.entries
-static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    validateTypedArray(state, thisValue, state.context()->staticStrings().entries.string());
-    return thisValue.asObject()->entries(state);
-}
-
-static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    Value O = thisValue;
-    if (!O.isObject()) {
-        return Value();
-    }
-
-    if (O.asObject()->isTypedArrayObject()) {
-        return Value(O.asObject()->asArrayBufferView()->typedArrayName(state));
-    }
-    return Value();
 }
 
 void GlobalObject::installTypedArray(ExecutionState& state)
@@ -1751,15 +1757,15 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     }
 
     m_typedArray = typedArrayFunction;
-    m_int8Array = installTypedArray<Int8ArrayObject, 1, Int8Adaptor>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
-    m_int16Array = installTypedArray<Int16ArrayObject, 2, Int16Adaptor>(state, strings->Int16Array, &m_int16ArrayPrototype, typedArrayFunction);
-    m_int32Array = installTypedArray<Int32ArrayObject, 4, Int32Adaptor>(state, strings->Int32Array, &m_int32ArrayPrototype, typedArrayFunction);
-    m_uint8Array = installTypedArray<Uint8ArrayObject, 1, Uint8Adaptor>(state, strings->Uint8Array, &m_uint8ArrayPrototype, typedArrayFunction);
-    m_uint16Array = installTypedArray<Uint16ArrayObject, 2, Uint16Adaptor>(state, strings->Uint16Array, &m_uint16ArrayPrototype, typedArrayFunction);
-    m_uint32Array = installTypedArray<Uint32ArrayObject, 4, Uint32Adaptor>(state, strings->Uint32Array, &m_uint32ArrayPrototype, typedArrayFunction);
-    m_uint8ClampedArray = installTypedArray<Uint8ClampedArrayObject, 1, Uint8ClampedAdaptor>(state, strings->Uint8ClampedArray, &m_uint8ClampedArrayPrototype, typedArrayFunction);
-    m_float32Array = installTypedArray<Float32ArrayObject, 4, Float32Adaptor>(state, strings->Float32Array, &m_float32ArrayPrototype, typedArrayFunction);
-    m_float64Array = installTypedArray<Float64ArrayObject, 8, Float64Adaptor>(state, strings->Float64Array, &m_float64ArrayPrototype, typedArrayFunction);
+    m_int8Array = installTypedArray<Int8ArrayObject, 1>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
+    m_int16Array = installTypedArray<Int16ArrayObject, 2>(state, strings->Int16Array, &m_int16ArrayPrototype, typedArrayFunction);
+    m_int32Array = installTypedArray<Int32ArrayObject, 4>(state, strings->Int32Array, &m_int32ArrayPrototype, typedArrayFunction);
+    m_uint8Array = installTypedArray<Uint8ArrayObject, 1>(state, strings->Uint8Array, &m_uint8ArrayPrototype, typedArrayFunction);
+    m_uint16Array = installTypedArray<Uint16ArrayObject, 2>(state, strings->Uint16Array, &m_uint16ArrayPrototype, typedArrayFunction);
+    m_uint32Array = installTypedArray<Uint32ArrayObject, 4>(state, strings->Uint32Array, &m_uint32ArrayPrototype, typedArrayFunction);
+    m_uint8ClampedArray = installTypedArray<Uint8ClampedArrayObject, 1>(state, strings->Uint8ClampedArray, &m_uint8ClampedArrayPrototype, typedArrayFunction);
+    m_float32Array = installTypedArray<Float32ArrayObject, 4>(state, strings->Float32Array, &m_float32ArrayPrototype, typedArrayFunction);
+    m_float64Array = installTypedArray<Float64ArrayObject, 8>(state, strings->Float64Array, &m_float64ArrayPrototype, typedArrayFunction);
     m_typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
     m_int8ArrayPrototype = m_int8Array->getFunctionPrototype(state).asObject();
     m_int16ArrayPrototype = m_int16Array->getFunctionPrototype(state).asObject();

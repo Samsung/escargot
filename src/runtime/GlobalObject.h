@@ -748,7 +748,7 @@ private:
     void installArrayBuffer(ExecutionState& state);
     void installDataView(ExecutionState& state);
     void installTypedArray(ExecutionState& state);
-    template <typename TA, int elementSize, typename TypeAdaptor>
+    template <typename TA, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
     void installIterator(ExecutionState& state);
     void installMap(ExecutionState& state);
