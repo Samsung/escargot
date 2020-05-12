@@ -212,7 +212,7 @@ struct ASTFunctionScopeContext {
     ASTBlockScopeContextVector m_childBlockScopes;
 
     ExtendedNodeLOC m_functionStartLOC;
-#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+#if !(defined NDEBUG)
     ExtendedNodeLOC m_bodyEndLOC;
 #else
     NodeLOC m_bodyEndLOC;

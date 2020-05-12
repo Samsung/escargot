@@ -38,7 +38,9 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
 #ifdef ESCARGOT_DEBUGGER
-        insertBreakpoint(context);
+        if (m_expression->type() != Escargot::InitializeParameterExpression) {
+            insertBreakpoint(context);
+        }
 #endif /* ESCARGOT_DEBUGGER */
 
         if (!context->shouldCareScriptExecutionResult()) {

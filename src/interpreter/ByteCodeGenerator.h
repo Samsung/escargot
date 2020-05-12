@@ -72,8 +72,15 @@ struct ByteCodeGenerateError {
 
 #ifdef ESCARGOT_DEBUGGER
 struct ByteCodeBreakpointContext {
-    size_t m_lastBreakpointLine;
+    size_t m_lastBreakpointLineOffset;
+    size_t m_lastBreakpointIndexOffset;
     std::vector<Debugger::BreakpointLocation> m_breakpointLocations;
+
+    ByteCodeBreakpointContext()
+        : m_lastBreakpointLineOffset(0)
+        , m_lastBreakpointIndexOffset(0)
+    {
+    }
 };
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -336,7 +343,9 @@ struct ByteCodeGenerateContext {
     }
 
 #ifdef ESCARGOT_DEBUGGER
-    void insertBreakpoint(size_t line, Node* node);
+    size_t calculateBreakpointLineOffset(size_t index, ExtendedNodeLOC sourceElementStart);
+    void insertBreakpoint(size_t index, Node* node);
+    void insertBreakpointAt(size_t line, Node* node);
 #endif /* ESCARGOT_DEBUGGER */
 
     // NOTE this is counter! not index!!!!!!
