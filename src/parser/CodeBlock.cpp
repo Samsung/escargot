@@ -103,6 +103,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isFunctionExpression(false)
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
+    , m_isOneExpressionOnlyArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
     , m_isClassMethod(false)
@@ -142,6 +143,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isFunctionExpression(false)
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
+    , m_isOneExpressionOnlyArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
     , m_isClassMethod(false)
@@ -223,6 +225,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionDeclaration = false;
     m_isFunctionExpression = false;
     m_isArrowFunctionExpression = false;
+    m_isOneExpressionOnlyArrowFunctionExpression = false;
     m_isStrict = scopeCtx->m_isStrict;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
@@ -316,6 +319,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isFunctionDeclaration = isFD;
     m_isFunctionExpression = isFE;
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
+    m_isOneExpressionOnlyArrowFunctionExpression = scopeCtx->m_isOneExpressionOnlyArrowFunctionExpression;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
     m_isClassMethod = scopeCtx->m_isClassMethod;

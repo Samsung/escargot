@@ -1282,7 +1282,19 @@ public:
             }
         } else {
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder);
+            if (computed) {
+                this->nextToken();
+                if (this->context->inParameterParsing) {
+                    // if parameter object pattern property has direct eval
+                    // we should wrap object pattern property into arrow function(it should have own env record)
+                    keyNode = this->parseAssignmentExpressionAndWrapIntoArrowFunctionIfFoundDirectEval(builder).first;
+                } else {
+                    keyNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+                }
+                this->expect(RightSquareBracket);
+            } else {
+                keyNode = this->parseObjectPropertyKey(builder);
+            }
             this->expect(Colon);
             valueNode = this->parsePatternWithDefault(builder, params, kind, isExplicitVariableDeclaration);
         }
@@ -1332,6 +1344,76 @@ public:
         }
     }
 
+    // returns <resultNode, originalNode>
+    template <class ASTBuilder>
+    std::pair<ASTNode, ASTNode> parseAssignmentExpressionAndWrapIntoArrowFunctionIfFoundDirectEval(ASTBuilder& builder)
+    {
+        ASTNode result;
+        bool oldHasEval = this->currentScopeContext->m_hasEval;
+        Marker startMarker = this->startMarker;
+
+        this->currentScopeContext->m_hasEval = false;
+        ASTNode originalNode = result = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+
+        if (this->currentScopeContext->m_hasEval) {
+            if (!this->isParsingSingleFunction) {
+                // we need to reparse for tracking using name correctly(expression will be wrapped by arrow function)
+                // rewind scanner to begin
+                this->scanner->index = startMarker.index;
+                this->scanner->lineNumber = startMarker.lineNumber;
+                this->scanner->lineStart = startMarker.lineStart;
+                this->nextToken();
+
+                // reparse
+                BEGIN_FUNCTION_SCANNING(AtomicString());
+                auto startNode = this->createNode();
+
+                this->currentScopeContext->m_functionStartLOC.index = startNode.index;
+                this->currentScopeContext->m_functionStartLOC.column = startNode.column;
+                this->currentScopeContext->m_functionStartLOC.line = startNode.line;
+
+                this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+
+                this->currentScopeContext->m_isArrowFunctionExpression = true;
+                this->currentScopeContext->m_isOneExpressionOnlyArrowFunctionExpression = true;
+                this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
+
+                this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+                this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+                this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+#endif
+                END_FUNCTION_SCANNING();
+
+                // wrap right expression with arrow function
+                result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+                result = builder.createCallExpressionNode(result, ASTNodeList());
+            } else {
+                auto startNode = this->createNode();
+                InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
+                size_t orgIndex = this->lookahead.start;
+
+                InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
+                this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
+                this->scanner->lineNumber = childBlock->functionStart().line;
+                this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
+
+                this->lookahead.lineNumber = this->scanner->lineNumber;
+                this->lookahead.lineStart = this->scanner->lineStart;
+                this->nextToken();
+
+                // increase subCodeBlockIndex because parsing of an internal function is skipped
+                this->subCodeBlockIndex++;
+
+                result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+                result = builder.createCallExpressionNode(result, ASTNodeList());
+            }
+        }
+
+        this->currentScopeContext->m_hasEval = oldHasEval;
+        return std::make_pair(result, originalNode);
+    }
+
     template <class ASTBuilder>
     ASTNode parsePatternWithDefault(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
@@ -1352,12 +1434,24 @@ public:
 
             const bool previousInParameterNameParsing = this->context->inParameterNameParsing;
             this->context->inParameterNameParsing = false;
-            ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-            this->context->inParameterNameParsing = previousInParameterNameParsing;
 
-            if (pattern->isIdentifier()) {
-                this->addImplicitName(right, pattern->asIdentifier()->name());
+            // if parameter default value has direct eval call,
+            // we should wrap default value into arrow function(it should have own env record)
+            ASTNode right;
+            if (this->context->inParameterParsing) {
+                auto result = this->parseAssignmentExpressionAndWrapIntoArrowFunctionIfFoundDirectEval(builder);
+                right = result.first;
+                if (pattern->isIdentifier()) {
+                    this->addImplicitName(result.second, pattern->asIdentifier()->name());
+                }
+            } else {
+                right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+                if (pattern->isIdentifier()) {
+                    this->addImplicitName(right, pattern->asIdentifier()->name());
+                }
             }
+
+            this->context->inParameterNameParsing = previousInParameterNameParsing;
             return this->finalize(this->startNode(startToken), builder.createAssignmentPatternNode(pattern, right));
         }
 
@@ -1392,6 +1486,9 @@ public:
         // should be invoked only during the global parsing (program)
         ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
 
+        bool oldInParameterParsing = this->context->inParameterParsing;
+        bool oldInParameterNameParsing = this->context->inParameterNameParsing;
+
         this->context->inParameterParsing = true;
         this->context->inParameterNameParsing = true;
 
@@ -1417,8 +1514,8 @@ public:
             this->throwError("too many parameters in function");
         }
 
-        this->context->inParameterParsing = false;
-        this->context->inParameterNameParsing = false;
+        this->context->inParameterParsing = oldInParameterParsing;
+        this->context->inParameterNameParsing = oldInParameterNameParsing;
     }
 
     bool matchAsyncFunction()
@@ -4337,6 +4434,8 @@ public:
         ASSERT(this->isParsingSingleFunction);
         StatementContainer* container = builder.createStatementContainer();
 
+        this->context->inParameterParsing = true;
+
         this->expect(LeftParenthesis);
         ParseFormalParametersResult options;
         size_t paramIndex = 0;
@@ -4379,9 +4478,11 @@ public:
             }
         }
         this->expect(RightParenthesis);
+
+        this->context->inParameterParsing = false;
+
         return container;
     }
-
 
     BlockStatementNode* parseFunctionBody(NodeGenerator& builder)
     {
@@ -5806,26 +5907,8 @@ public:
             this->nextToken();
         }
 
-        // generate parameter statements
-        if (this->codeBlock->hasArrowParameterPlaceHolder()) {
-            params = parseFunctionParameters(builder);
-        } else {
-            Node* param = this->parseConditionalExpression(builder);
-            ASSERT(param->type() == Identifier);
+        if (this->codeBlock->isOneExpressionOnlyArrowFunctionExpression()) {
             params = builder.createStatementContainer();
-            InitializeParameterExpressionNode* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, 0));
-            Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
-            params->appendChild(statement);
-        }
-        this->expect(Arrow);
-        this->context->inArrowFunction = true;
-
-        // generate body statements
-        if (this->match(LeftBrace)) {
-            body = parseFunctionBody(builder);
-        } else {
-            MetaNode nodeStart = this->createNode();
-            StatementContainer* container = builder.createStatementContainer();
 
             auto previousLabelSet = this->context->labelSet;
             bool previousInIteration = this->context->inIteration;
@@ -5839,29 +5922,15 @@ public:
 
             bool previousStrict = this->context->strict;
             bool previousAllowYield = this->context->allowYield;
-            this->context->allowYield = true;
+            this->context->allowYield = false;
 
-#ifdef ESCARGOT_DEBUGGER
-            size_t loc_index = this->lookahead.start;
-            size_t line = this->lookahead.lineNumber;
-#endif /* ESCARGOT_DEBUGGER */
-
+            MetaNode nodeStart = this->createNode();
             Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
 
+            StatementContainer* container = builder.createStatementContainer();
             Node* node = this->finalize(nodeStart, builder.createReturnStatementNode(expr));
-#ifdef ESCARGOT_DEBUGGER
-            node->setBreakpointInfo(loc_index, line);
-#endif /* ESCARGOT_DEBUGGER */
             container->appendChild(node, nullptr);
-
-            /*
-               if (this->context->strict && list.firstRestricted) {
-               this->throwUnexpectedToken(list.firstRestricted, list.message);
-               }
-               if (this->context->strict && list.stricted) {
-               this->throwUnexpectedToken(list.stricted, list.message);
-               }
-             */
+            body = this->finalize(nodeStart, builder.createBlockStatementNode(container));
 
             this->context->strict = previousStrict;
             this->context->allowYield = previousAllowYield;
@@ -5870,8 +5939,74 @@ public:
             this->context->inIteration = previousInIteration;
             this->context->inSwitch = previousInSwitch;
             this->context->inFunctionBody = previousInFunctionBody;
+        } else {
+            // generate parameter statements
+            if (this->codeBlock->hasArrowParameterPlaceHolder()) {
+                params = parseFunctionParameters(builder);
+            } else {
+                Node* param = this->parseConditionalExpression(builder);
+                ASSERT(param->type() == Identifier);
+                params = builder.createStatementContainer();
+                InitializeParameterExpressionNode* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, 0));
+                Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
+                params->appendChild(statement);
+            }
+            this->expect(Arrow);
+            this->context->inArrowFunction = true;
 
-            body = this->finalize(nodeStart, builder.createBlockStatementNode(container));
+            // generate body statements
+            if (this->match(LeftBrace)) {
+                body = parseFunctionBody(builder);
+            } else {
+                MetaNode nodeStart = this->createNode();
+                StatementContainer* container = builder.createStatementContainer();
+
+                auto previousLabelSet = this->context->labelSet;
+                bool previousInIteration = this->context->inIteration;
+                bool previousInSwitch = this->context->inSwitch;
+                bool previousInFunctionBody = this->context->inFunctionBody;
+
+                this->context->labelSet.clear();
+                this->context->inIteration = false;
+                this->context->inSwitch = false;
+                this->context->inFunctionBody = true;
+
+                bool previousStrict = this->context->strict;
+                bool previousAllowYield = this->context->allowYield;
+                this->context->allowYield = true;
+
+#ifdef ESCARGOT_DEBUGGER
+                size_t loc_index = this->lookahead.start;
+                size_t line = this->lookahead.lineNumber;
+#endif /* ESCARGOT_DEBUGGER */
+
+                Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
+
+                Node* node = this->finalize(nodeStart, builder.createReturnStatementNode(expr));
+#ifdef ESCARGOT_DEBUGGER
+                node->setBreakpointInfo(loc_index, line);
+#endif /* ESCARGOT_DEBUGGER */
+                container->appendChild(node, nullptr);
+
+                /*
+                   if (this->context->strict && list.firstRestricted) {
+                   this->throwUnexpectedToken(list.firstRestricted, list.message);
+                   }
+                   if (this->context->strict && list.stricted) {
+                   this->throwUnexpectedToken(list.stricted, list.message);
+                   }
+                 */
+
+                this->context->strict = previousStrict;
+                this->context->allowYield = previousAllowYield;
+
+                this->context->labelSet = previousLabelSet;
+                this->context->inIteration = previousInIteration;
+                this->context->inSwitch = previousInSwitch;
+                this->context->inFunctionBody = previousInFunctionBody;
+
+                body = this->finalize(nodeStart, builder.createBlockStatementNode(container));
+            }
         }
 
         return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
