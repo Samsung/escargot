@@ -20,12 +20,8 @@
 #ifndef __EscargotTypedArrayObject__
 #define __EscargotTypedArrayObject__
 
-#include "runtime/Context.h"
-#include "runtime/Object.h"
-#include "runtime/ErrorObject.h"
 #include "runtime/ArrayBufferObject.h"
-#include "runtime/Context.h"
-#include "util/Util.h"
+#include "runtime/TypedArrayInlines.h"
 
 namespace Escargot {
 
@@ -45,7 +41,6 @@ public:
     explicit ArrayBufferView(ExecutionState& state, Object* proto)
         : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , m_buffer(nullptr)
-        , m_rawBuffer(nullptr)
         , m_byteLength(0)
         , m_byteOffset(0)
         , m_arrayLength(0)
@@ -63,17 +58,20 @@ public:
     }
 
     ALWAYS_INLINE ArrayBufferObject* buffer() { return m_buffer; }
-    ALWAYS_INLINE uint8_t* rawBuffer() { return m_rawBuffer; }
     ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
     ALWAYS_INLINE size_t byteOffset() { return m_byteOffset; }
     ALWAYS_INLINE size_t arrayLength() { return m_arrayLength; }
+    ALWAYS_INLINE uint8_t* rawBuffer()
+    {
+        return m_buffer ? (uint8_t*)(m_buffer->data() + m_byteOffset) : nullptr;
+    }
+
     ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
     {
         m_buffer = bo;
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
         m_arrayLength = arrayLength;
-        m_rawBuffer = bo ? (uint8_t*)(bo->data() + m_byteOffset) : nullptr;
     }
 
     ALWAYS_INLINE void setBuffer(ArrayBufferObject* bo, size_t byteOffset, size_t byteLength)
@@ -81,34 +79,11 @@ public:
         m_buffer = bo;
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
-        m_rawBuffer = bo ? (uint8_t*)(bo->data() + m_byteOffset) : nullptr;
     }
 
     virtual bool isArrayBufferView() const
     {
         return true;
-    }
-
-    static size_t getElementSize(TypedArrayType type)
-    {
-        switch (type) {
-        case TypedArrayType::Int8:
-        case TypedArrayType::Uint8:
-        case TypedArrayType::Uint8Clamped:
-            return 1;
-        case TypedArrayType::Int16:
-        case TypedArrayType::Uint16:
-            return 2;
-        case TypedArrayType::Int32:
-        case TypedArrayType::Uint32:
-        case TypedArrayType::Float32:
-            return 4;
-        case TypedArrayType::Float64:
-            return 8;
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
-            break;
-        }
     }
 
     template <typename Type>
@@ -179,7 +154,6 @@ public:
 
 private:
     ArrayBufferObject* m_buffer;
-    uint8_t* m_rawBuffer;
     size_t m_byteLength;
     size_t m_byteOffset;
     size_t m_arrayLength;

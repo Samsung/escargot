@@ -57,7 +57,7 @@ public:
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
 
-        size_t elementSize = ArrayBufferView::getElementSize(type);
+        size_t elementSize = TypedArrayHelper::elementSize(type);
 
         if (numberIndex + elementSize > viewSize)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
@@ -84,7 +84,7 @@ public:
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
 
-        size_t elementSize = this->getElementSize(type);
+        size_t elementSize = TypedArrayHelper::elementSize(type);
 
         if (numberIndex + elementSize > viewSize)
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
