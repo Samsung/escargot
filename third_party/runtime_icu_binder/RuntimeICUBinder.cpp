@@ -52,6 +52,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <linux/limits.h>
 #endif
 
 namespace RuntimeICUBinder {
@@ -217,7 +218,7 @@ std::string ICU::findSystemLocale()
 std::string ICU::findSystemTimezoneName()
 {
 #if defined(OS_POSIX)
-    char filename[512];
+    char filename[PATH_MAX + 1];
     struct stat fstat;
     int status;
 
