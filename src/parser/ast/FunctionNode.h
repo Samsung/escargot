@@ -41,6 +41,8 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (codeBlock->m_codeBlock->functionBodyBlockIndex() != 0) {
+            size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+
             ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
             context->m_lexicalBlockIndex = 0;
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(0);
@@ -53,6 +55,8 @@ public:
             m_body->generateStatementByteCode(codeBlock, context);
 
             codeBlock->finalizeLexicalBlock(context, blockContext);
+
+            context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         } else {
             size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
             ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;

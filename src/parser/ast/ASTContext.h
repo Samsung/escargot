@@ -183,6 +183,8 @@ struct ASTFunctionScopeContext {
     bool m_hasWith : 1;
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
+    // one expression only arrow function only contains one expression in body(no param, no placeholder, no brace)
+    bool m_isOneExpressionOnlyArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isDerivedClassConstructor : 1;
     bool m_isClassMethod : 1;
@@ -498,6 +500,7 @@ struct ASTFunctionScopeContext {
         , m_hasWith(false)
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
+        , m_isOneExpressionOnlyArrowFunctionExpression(false)
         , m_isClassConstructor(false)
         , m_isDerivedClassConstructor(false)
         , m_isClassMethod(false)

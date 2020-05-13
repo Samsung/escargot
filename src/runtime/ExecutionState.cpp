@@ -63,6 +63,8 @@ FunctionObject* ExecutionState::resolveCallee()
 
 LexicalEnvironment* ExecutionState::mostNearestFunctionLexicalEnvironment()
 {
+    ASSERT(resolveCallee() && !resolveCallee()->isNativeFunctionObject());
+
     ExecutionState* es = this;
     while (true) {
         if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
