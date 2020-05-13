@@ -17,13 +17,13 @@
  *  USA
  */
 
-#ifndef __EscargotTypedArrayInline__
-#define __EscargotTypedArrayInline__
+#ifndef __EscargotTypedArrayInlines__
+#define __EscargotTypedArrayInlines__
 
 namespace Escargot {
 
-enum TypedArrayType : unsigned {
-    Int8,
+enum class TypedArrayType : unsigned {
+    Int8 = 0,
     Int16,
     Int32,
     Uint8,
@@ -152,6 +152,78 @@ struct Uint32Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint32_t>> {
 struct Float32Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<float>> {
 };
 struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
+};
+
+struct TypedArrayHelper {
+    static unsigned elementSizeTable[9];
+
+    inline static size_t elementSize(TypedArrayType type)
+    {
+        return elementSizeTable[(size_t)type];
+    }
+
+    static Value rawBytesToNumber(ExecutionState& state, TypedArrayType type, uint8_t* rawBytes)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+            return Value(*reinterpret_cast<Int8Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint8:
+            return Value(*reinterpret_cast<Uint8Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint8Clamped:
+            return Value(*reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes));
+        case TypedArrayType::Int16:
+            return Value(*reinterpret_cast<Int16Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint16:
+            return Value(*reinterpret_cast<Uint16Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Int32:
+            return Value(*reinterpret_cast<Int32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Uint32:
+            return Value(*reinterpret_cast<Uint32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Float32:
+            return Value(*reinterpret_cast<Float32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Float64:
+            return Value(*reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            return Value();
+        }
+    }
+
+    static void numberToRawBytes(ExecutionState& state, TypedArrayType type, const Value& val, uint8_t* rawBytes)
+    {
+        switch (type) {
+        case TypedArrayType::Int8:
+            *reinterpret_cast<Int8Adaptor::Type*>(rawBytes) = Int8Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint8:
+            *reinterpret_cast<Uint8Adaptor::Type*>(rawBytes) = Uint8Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint8Clamped:
+            *reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes) = Uint8ClampedAdaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Int16:
+            *reinterpret_cast<Int16Adaptor::Type*>(rawBytes) = Int16Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint16:
+            *reinterpret_cast<Uint16Adaptor::Type*>(rawBytes) = Uint16Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Int32:
+            *reinterpret_cast<Int32Adaptor::Type*>(rawBytes) = Int32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Uint32:
+            *reinterpret_cast<Uint32Adaptor::Type*>(rawBytes) = Uint32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Float32:
+            *reinterpret_cast<Float32Adaptor::Type*>(rawBytes) = Float32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Float64:
+            *reinterpret_cast<Float64Adaptor::Type*>(rawBytes) = Float64Adaptor::toNative(state, val);
+            break;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            break;
+        }
+    }
 };
 }
 #endif

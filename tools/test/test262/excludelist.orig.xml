@@ -72,7 +72,6 @@
     <test id="built-ins/AggregateError/toString"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit"><reason>TODO</reason></test>
     <test id="built-ins/Array/prototype/splice/length-exceeding-integer-limit-shrink-array"><reason>TODO</reason></test>
-    <test id="built-ins/ArrayBuffer/allocation-limit"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/Symbol.toStringTag"><reason>TODO</reason></test>

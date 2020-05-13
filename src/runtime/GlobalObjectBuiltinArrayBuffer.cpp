@@ -77,10 +77,10 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
 
     double len = obj->byteLength();
     double relativeStart = argv[0].toInteger(state);
-    unsigned first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+    size_t first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
     double relativeEnd = argv[1].isUndefined() ? len : argv[1].toInteger(state);
-    unsigned final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
-    unsigned newLen = std::max((int)final_ - (int)first, 0);
+    double final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+    size_t newLen = std::max((int)final_ - (int)first, 0);
 
     Value constructor = obj->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
     Value arguments[] = { Value(newLen) };
