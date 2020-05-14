@@ -266,7 +266,7 @@ public:
                 // Else, perform ? IteratorClose(iteratorRecord, closeCompletion).
                 IteratorOperation::IteratorCloseData iteratorCloseData;
                 iteratorCloseData.m_iterRegisterIndex = iteratorRecordIdx;
-                iteratorCloseData.m_execeptionRegisterIndexIfExists = valueIdx;
+                iteratorCloseData.m_execeptionRegisterIndexIfExists = REGISTER_LIMIT;
                 codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorCloseData), context, this);
             }
 
