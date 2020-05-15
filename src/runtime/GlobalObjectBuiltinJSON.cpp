@@ -586,21 +586,11 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         ObjectPropertyNameVector k;
         if (propertyListTouched) {
             k = propertyList;
-        } else if (value->isProxyObject()) {
+        } else {
             auto keyValues = Object::enumerableOwnProperties(state, value, EnumerableOwnPropertiesType::Key);
-
             for (size_t i = 0; i < keyValues.size(); ++i) {
                 k.push_back(ObjectPropertyName(state, keyValues[i]));
             }
-        } else {
-            value->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                ObjectPropertyNameVector* k = (ObjectPropertyNameVector*)data;
-                if (desc.isEnumerable()) {
-                    k->push_back(P);
-                }
-                return true;
-            },
-                               &k);
         }
 
         // 7
