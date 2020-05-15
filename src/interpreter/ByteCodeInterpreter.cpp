@@ -2070,23 +2070,6 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
     }
 }
 
-class VirtualIdDisabler {
-public:
-    explicit VirtualIdDisabler(Context* c)
-        : fn(c->virtualIdentifierCallback())
-        , ctx(c)
-    {
-        c->setVirtualIdentifierCallback(nullptr);
-    }
-    ~VirtualIdDisabler()
-    {
-        ctx->setVirtualIdentifierCallback(fn);
-    }
-
-    VirtualIdentifierCallback fn;
-    Context* ctx;
-};
-
 NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
