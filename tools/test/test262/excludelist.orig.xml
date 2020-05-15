@@ -547,12 +547,6 @@
     <test id="built-ins/JSON/stringify/value-bigint-tojson"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint-tojson-receiver"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-string-escape-unicode"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/EvalError/prototype/not-error-object"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/RangeError/prototype/not-error-object"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/ReferenceError/prototype/not-error-object"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/SyntaxError/prototype/not-error-object"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/TypeError/prototype/not-error-object"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/URIError/prototype/not-error-object"><reason>TODO</reason></test>
     <test id="built-ins/Number/bigint-conversion"><reason>TODO</reason></test>
     <test id="built-ins/Object/bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/create/properties-arg-to-object-bigint"><reason>TODO</reason></test>
