@@ -328,6 +328,23 @@ private:
     Debugger* m_debugger;
 #endif /* ESCARGOT_DEBUGGER */
 };
+
+class VirtualIdDisabler {
+public:
+    explicit VirtualIdDisabler(Context* c)
+        : m_fn(c->virtualIdentifierCallback())
+        , m_context(c)
+    {
+        c->setVirtualIdentifierCallback(nullptr);
+    }
+    ~VirtualIdDisabler()
+    {
+        m_context->setVirtualIdentifierCallback(m_fn);
+    }
+
+    VirtualIdentifierCallback m_fn;
+    Context* m_context;
+};
 }
 
 #endif

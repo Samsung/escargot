@@ -564,15 +564,19 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         }
     }
 
-    for (size_t i = 0; i < globalLexicalVectorLen; i++) {
-        codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, globalLexicalVector[i].m_name, false, globalLexicalVector[i].m_isMutable, false);
-    }
+    {
+        VirtualIdDisabler d(context()); // we should create binding even there is virtual ID
 
-    for (size_t i = 0; i < identifierVectorLen; i++) {
-        // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
-        // Step 2. If code is eval code, then let configurableBindings be true.
-        if (identifierVector[i].m_isVarDeclaration) {
-            globalVariableRecord->createBinding(*codeExecutionState, identifierVector[i].m_name, isExecuteOnEvalFunction, identifierVector[i].m_isMutable, true, m_topCodeBlock);
+        for (size_t i = 0; i < globalLexicalVectorLen; i++) {
+            codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, globalLexicalVector[i].m_name, false, globalLexicalVector[i].m_isMutable, false);
+        }
+
+        for (size_t i = 0; i < identifierVectorLen; i++) {
+            // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
+            // Step 2. If code is eval code, then let configurableBindings be true.
+            if (identifierVector[i].m_isVarDeclaration) {
+                globalVariableRecord->createBinding(*codeExecutionState, identifierVector[i].m_name, isExecuteOnEvalFunction, identifierVector[i].m_isMutable, true, m_topCodeBlock);
+            }
         }
     }
 
