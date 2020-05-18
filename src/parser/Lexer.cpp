@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "parser/Lexer.h"
+#include "parser/UnicodeIdentifierTables.h"
 
 // These two must be the last because they overwrite the ASSERT macro.
 #include "double-conversion.h"
@@ -184,61 +185,10 @@ NEVER_INLINE bool EscargotLexer::isWhiteSpaceSlowCase(char16_t ch)
             || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF);
 }
 
-/* Starting codepoints of identifier ranges. */
-static const uint16_t identRangeStart[429] = {
-    170, 181, 183, 186, 192, 216, 248, 710, 736, 748, 750, 768, 886, 890, 895, 902, 908, 910, 931, 1015, 1155, 1162,
-    1329, 1369, 1377, 1425, 1471, 1473, 1476, 1479, 1488, 1520, 1552, 1568, 1646, 1749, 1759, 1770, 1791, 1808, 1869,
-    1984, 2042, 2048, 2112, 2208, 2276, 2406, 2417, 2437, 2447, 2451, 2474, 2482, 2486, 2492, 2503, 2507, 2519, 2524,
-    2527, 2534, 2561, 2565, 2575, 2579, 2602, 2610, 2613, 2616, 2620, 2622, 2631, 2635, 2641, 2649, 2654, 2662, 2689,
-    2693, 2703, 2707, 2730, 2738, 2741, 2748, 2759, 2763, 2768, 2784, 2790, 2817, 2821, 2831, 2835, 2858, 2866, 2869,
-    2876, 2887, 2891, 2902, 2908, 2911, 2918, 2929, 2946, 2949, 2958, 2962, 2969, 2972, 2974, 2979, 2984, 2990, 3006,
-    3014, 3018, 3024, 3031, 3046, 3072, 3077, 3086, 3090, 3114, 3133, 3142, 3146, 3157, 3160, 3168, 3174, 3201, 3205,
-    3214, 3218, 3242, 3253, 3260, 3270, 3274, 3285, 3294, 3296, 3302, 3313, 3329, 3333, 3342, 3346, 3389, 3398, 3402,
-    3415, 3424, 3430, 3450, 3458, 3461, 3482, 3507, 3517, 3520, 3530, 3535, 3542, 3544, 3558, 3570, 3585, 3648, 3664,
-    3713, 3716, 3719, 3722, 3725, 3732, 3737, 3745, 3749, 3751, 3754, 3757, 3771, 3776, 3782, 3784, 3792, 3804, 3840,
-    3864, 3872, 3893, 3895, 3897, 3902, 3913, 3953, 3974, 3993, 4038, 4096, 4176, 4256, 4295, 4301, 4304, 4348, 4682,
-    4688, 4696, 4698, 4704, 4746, 4752, 4786, 4792, 4800, 4802, 4808, 4824, 4882, 4888, 4957, 4969, 4992, 5024, 5121,
-    5743, 5761, 5792, 5870, 5888, 5902, 5920, 5952, 5984, 5998, 6002, 6016, 6103, 6108, 6112, 6155, 6160, 6176, 6272,
-    6320, 6400, 6432, 6448, 6470, 6512, 6528, 6576, 6608, 6656, 6688, 6752, 6783, 6800, 6823, 6832, 6912, 6992, 7019,
-    7040, 7168, 7232, 7245, 7376, 7380, 7416, 7424, 7676, 7960, 7968, 8008, 8016, 8025, 8027, 8029, 8031, 8064, 8118,
-    8126, 8130, 8134, 8144, 8150, 8160, 8178, 8182, 8204, 8255, 8276, 8305, 8319, 8336, 8400, 8417, 8421, 8450, 8455,
-    8458, 8469, 8472, 8484, 8486, 8488, 8490, 8508, 8517, 8526, 8544, 11264, 11312, 11360, 11499, 11520, 11559, 11565,
-    11568, 11631, 11647, 11680, 11688, 11696, 11704, 11712, 11720, 11728, 11736, 11744, 12293, 12321, 12337, 12344,
-    12353, 12441, 12449, 12540, 12549, 12593, 12704, 12784, 13312, 19968, 40960, 42192, 42240, 42512, 42560, 42612,
-    42623, 42655, 42775, 42786, 42891, 42896, 42928, 42999, 43072, 43136, 43216, 43232, 43259, 43264, 43312, 43360,
-    43392, 43471, 43488, 43520, 43584, 43600, 43616, 43642, 43739, 43744, 43762, 43777, 43785, 43793, 43808, 43816,
-    43824, 43868, 43876, 43968, 44012, 44016, 44032, 55216, 55243, 63744, 64112, 64256, 64275, 64285, 64298, 64312,
-    64318, 64320, 64323, 64326, 64467, 64848, 64914, 65008, 65024, 65056, 65075, 65101, 65136, 65142, 65296, 65313,
-    65343, 65345, 65382, 65474, 65482, 65490, 65498, 65535
-};
-
-/* Lengths of identifier ranges. */
-static const uint8_t identRangeLength[428] = {
-    1, 1, 1, 1, 23, 31, 200, 12, 5, 1, 1, 117, 2, 4, 1, 5, 1, 20, 83, 139, 5, 166, 38, 1, 39, 45, 1, 2, 2, 1, 27, 3,
-    11, 74, 102, 8, 10, 19, 1, 59, 101, 54, 1, 46, 28, 19, 128, 10, 19, 8, 2, 22, 7, 1, 4, 9, 2, 4, 1, 2, 5, 12, 3, 6,
-    2, 22, 7, 2, 2, 2, 1, 5, 2, 3, 1, 4, 1, 16, 3, 9, 3, 22, 7, 2, 5, 10, 3, 3, 1, 4, 10, 3, 8, 2, 22, 7, 2, 5, 9, 2,
-    3, 2, 2, 5, 10, 1, 2, 6, 3, 4, 2, 1, 2, 2, 3, 12, 5, 3, 4, 1, 1, 10, 4, 8, 3, 23, 16, 8, 3, 4, 2, 2, 4, 10, 3, 8,
-    3, 23, 10, 5, 9, 3, 4, 2, 1, 4, 10, 2, 3, 8, 3, 41, 8, 3, 5, 1, 4, 10, 6, 2, 18, 24, 9, 1, 7, 1, 6, 1, 8, 10, 2,
-    58, 15, 10, 2, 1, 2, 1, 1, 4, 7, 3, 1, 1, 2, 13, 3, 5, 1, 6, 10, 4, 1, 2, 10, 1, 1, 1, 10, 36, 20, 18, 36, 1, 74,
-    78, 38, 1, 1, 43, 201, 4, 7, 1, 4, 41, 4, 33, 4, 7, 1, 4, 15, 57, 4, 67, 3, 9, 16, 85, 202, 17, 26, 75, 11, 13, 7,
-    21, 20, 13, 3, 2, 84, 1, 2, 10, 3, 10, 88, 43, 70, 31, 12, 12, 40, 5, 44, 26, 11, 28, 63, 29, 11, 10, 1, 14, 76,
-    10, 9, 116, 56, 10, 49, 3, 35, 2, 203, 204, 6, 38, 6, 8, 1, 1, 1, 31, 53, 7, 1, 3, 7, 4, 6, 13, 3, 7, 2, 2, 1, 1,
-    1, 13, 13, 1, 12, 1, 1, 10, 1, 6, 1, 1, 1, 16, 4, 5, 1, 41, 47, 47, 133, 9, 38, 1, 1, 56, 1, 24, 7, 7, 7, 7, 7, 7,
-    7, 7, 32, 3, 15, 5, 5, 86, 7, 90, 4, 41, 94, 27, 16, 205, 206, 207, 46, 208, 28, 48, 10, 31, 83, 9, 103, 4, 30, 2,
-    49, 52, 69, 10, 24, 1, 46, 36, 29, 65, 11, 31, 55, 14, 10, 23, 73, 3, 16, 5, 6, 6, 6, 7, 7, 43, 4, 2, 43, 2, 10,
-    209, 23, 49, 210, 106, 7, 5, 12, 13, 5, 1, 2, 2, 108, 211, 64, 54, 12, 16, 14, 2, 3, 5, 135, 10, 26, 1, 26, 89, 6,
-    6, 6, 3
-};
-
-/* Lengths of identifier ranges greater than IDENT_RANGE_LONG. */
-static const uint16_t identRangeLongLength[12] = {
-    458, 333, 620, 246, 282, 6582, 20941, 1165, 269, 11172, 366, 363
-};
-
 static NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
 {
     int bottom = 0;
-    int top = (sizeof(identRangeStart) / sizeof(uint16_t)) - 1;
+    int top = (EscargotLexer::basic_plane_length / sizeof(uint16_t)) - 1;
 
     while (true) {
         int middle = (bottom + top) >> 1;
@@ -251,7 +201,33 @@ static NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
                 if (UNLIKELY(length >= IDENT_RANGE_LONG)) {
                     length = identRangeLongLength[length - IDENT_RANGE_LONG];
                 }
-                return ch < rangeStart + length;
+                return ch <= rangeStart + length;
+            }
+
+            bottom = middle + 1;
+        } else {
+            top = middle;
+        }
+
+        if (bottom == top) {
+            return false;
+        }
+    }
+}
+
+static NEVER_INLINE bool isIdentifierPartSlowSupplementary(char32_t ch)
+{
+    int bottom = 0;
+    int top = (EscargotLexer::supplementary_plane_length / sizeof(uint32_t)) - 1;
+
+    while (true) {
+        int middle = (bottom + top) >> 1;
+        char32_t rangeStart = identRangeStartSupplementaryPlane[middle];
+
+        if (ch >= rangeStart) {
+            if (ch < identRangeStartSupplementaryPlane[middle + 1]) {
+                char32_t length = identRangeLengthSupplementaryPlane[middle];
+                return ch <= rangeStart + length;
             }
 
             bottom = middle + 1;
@@ -271,7 +247,7 @@ static ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
         return g_asciiRangeCharMap[ch] & LexerIsCharIdent;
     }
 
-    return isIdentifierPartSlow(ch);
+    return isIdentifierPartSlow(ch) || isIdentifierPartSlowSupplementary(ch);
 }
 
 static ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
@@ -280,7 +256,7 @@ static ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
         return g_asciiRangeCharMap[ch] & LexerIsCharIdentStart;
     }
 
-    return isIdentifierPartSlow(ch);
+    return isIdentifierPartSlow(ch) || isIdentifierPartSlowSupplementary(ch);
 }
 
 static ALWAYS_INLINE bool isDecimalDigit(char16_t ch)
@@ -822,7 +798,7 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
         // ch = Character.fromCodePoint(cp);
         ch = cp;
 
-        if (this->peekChar() >= 0xD800 && this->peekChar() < 0xDFFF) {
+        if (ch >= 128 && this->peekChar() >= 0xD800 && this->peekChar() < 0xDFFF) {
             ch = peekChar();
             ++this->index;
             char32_t ch2 = this->peekChar();
@@ -1945,7 +1921,19 @@ void Scanner::lex(Scanner::ScannerResult* token)
         return;
     }
 
-    const char16_t cp = this->peekCharWithoutEOF();
+    char16_t cp = this->peekCharWithoutEOF();
+
+
+    if (UNLIKELY(cp >= 128 && this->peekChar() >= 0xD800 && this->peekChar() < 0xDFFF)) {
+        cp = peekChar();
+        ++this->index;
+        char32_t ch2 = this->peekChar();
+        if (U16_IS_TRAIL(ch2)) {
+            cp = U16_GET_SUPPLEMENTARY(cp, ch2);
+        } else {
+            this->throwUnexpectedToken();
+        }
+    }
 
     if (isIdentifierStart(cp)) {
         goto ScanID;
@@ -1973,11 +1961,11 @@ void Scanner::lex(Scanner::ScannerResult* token)
         this->scanTemplate(token, true);
         return;
     }
-
     // Possible identifier start in a surrogate pair.
     if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF) && isIdentifierStart(this->codePointAt(this->index))) {
         goto ScanID;
     }
+
     this->scanPunctuator(token, cp);
     return;
 
