@@ -711,7 +711,6 @@
     <test id="built-ins/RegExp/prototype/exec/success-lastindex-access"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/exec/u-lastindex-adv"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/source/value-line-terminator"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/source/value-slash"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/Symbol.toStringTag"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/ancestry"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/next/custom-regexpexec"><reason>TODO</reason></test>

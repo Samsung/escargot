@@ -113,7 +113,7 @@ static String* escapeSlashInPattern(String* patternStr)
     StringBuilder builder;
     while (true) {
         for (i = 0; start + i < len; i++) {
-            if (UNLIKELY(accessData.charAt(start + i) == '/') && i > 0) {
+            if (UNLIKELY(accessData.charAt(start + i) == '/') && (i > 0 || len == 1)) {
                 size_t backSlashCount = 0;
                 size_t s = start + i - 1;
                 while (true) {
