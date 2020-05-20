@@ -4610,9 +4610,10 @@ public:
         return result;
     }
 
-    template <class ASTBuilder>
+    template <class ASTBuilder, bool parseAsExpressionWhenThereIsNoName = false>
     ASTNode parseFunctionDeclaration(ASTBuilder& builder)
     {
+        Marker startMarker = this->startMarker;
         MetaNode node = this->createNode();
         bool isAsync = this->matchContextualKeyword("async");
         if (isAsync) {
@@ -4624,6 +4625,14 @@ public:
         bool isGenerator = this->match(Multiply);
         if (isGenerator) {
             this->nextToken();
+        }
+
+        if (parseAsExpressionWhenThereIsNoName && this->match(PunctuatorKind::LeftParenthesis)) {
+            this->scanner->index = startMarker.index;
+            this->scanner->lineNumber = startMarker.lineNumber;
+            this->scanner->lineStart = startMarker.lineStart;
+            this->nextToken();
+            return parseFunctionExpression<ASTBuilder>(builder);
         }
 
         const char* message = nullptr;
@@ -5607,6 +5616,17 @@ public:
         return this->finalize(node, builder.createExportSpecifierNode(local, exported));
     }
 
+    void checkDuplicateExportName(const Script::ExportEntryVector& v, AtomicString exportName)
+    {
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_exportName.hasValue()) {
+                if (v[i].m_exportName.value() == exportName) {
+                    throwError("duplicate export name '%s'", exportName.string());
+                }
+            }
+        }
+    }
+
     void addExportDeclarationEntry(Script::ExportEntry ee)
     {
         // http://www.ecma-international.org/ecma-262/6.0/#sec-parsemodule
@@ -5674,13 +5694,20 @@ public:
             if (this->matchKeyword(KeywordKind::FunctionKeyword)) {
                 // export default function foo () {}
                 // export default function () {}
-                ASTNode declaration = this->parseFunctionExpression(builder);
+                ASTNode declaration = this->parseFunctionDeclaration<ASTBuilder, true>(builder);
 
                 if (builder.isNodeGenerator()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_localName = declaration->asFunctionExpression()->functionName().string()->length() ? declaration->asFunctionExpression()->functionName() : this->escargotContext->staticStrings().stringStarDefaultStar;
-                    addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                    AtomicString fnName;
+                    if (declaration->type() == FunctionDeclaration) {
+                        fnName = declaration->asFunctionDeclaration()->functionName();
+                    } else {
+                        fnName = declaration->asFunctionExpression()->functionName();
+                    }
+                    entry.m_localName = fnName.string()->length() ? fnName : this->escargotContext->staticStrings().stringStarDefaultStar;
+                    addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::VarKeyword);
+                    checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                     addExportDeclarationEntry(entry);
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));
                 }
@@ -5689,18 +5716,20 @@ public:
                 auto classNode = this->parseClassExpression(builder);
 
                 if (builder.isNodeGenerator()) {
+                    this->addImplicitName(classNode, this->escargotContext->staticStrings().stringDefault);
+
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
                     entry.m_localName = classNode->asClassExpression()->classNode().id() ? classNode->asClassExpression()->classNode().id()->asIdentifier()->name() : this->escargotContext->staticStrings().stringStarDefaultStar;
                     addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                    checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                     addExportDeclarationEntry(entry);
 
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(classNode, entry.m_exportName.value(), entry.m_localName.value()));
                 }
             } else if (this->matchContextualKeyword("async")) {
                 // TODO
-                RELEASE_ASSERT_NOT_REACHED();
-
+                this->throwUnexpectedToken(this->lookahead, "async keyword in export is not supported yet");
             } else {
                 if (this->matchContextualKeyword("from")) {
                     this->throwUnexpectedToken(this->lookahead);
@@ -5711,10 +5740,20 @@ public:
                 Script::ExportEntry entry;
                 entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
                 entry.m_localName = this->escargotContext->staticStrings().stringStarDefaultStar;
-                ASTNode declaration = this->match(PunctuatorKind::LeftBrace) ? this->parseObjectInitializer(builder) : this->match(PunctuatorKind::LeftSquareBracket) ? this->parseArrayInitializer(builder) : this->parseAssignmentExpression<ASTBuilder, true>(builder);
+
+                ASTNode declaration;
+                if (this->match(PunctuatorKind::LeftBrace)) {
+                    declaration = this->parseObjectInitializer(builder);
+                } else if (this->match(PunctuatorKind::LeftSquareBracket)) {
+                    declaration = this->parseArrayInitializer(builder);
+                } else {
+                    declaration = this->parseAssignmentExpression<ASTBuilder, true>(builder);
+                    this->addImplicitName(declaration, this->escargotContext->staticStrings().stringDefault);
+                }
                 exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));
 
                 addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                 addExportDeclarationEntry(entry);
 
                 this->consumeSemicolon();
@@ -5750,6 +5789,11 @@ public:
             AtomicStringVector declaredNames;
             if (builder.isNodeGenerator()) {
                 this->nameDeclaredCallback = [&declaredNames](AtomicString name, LexicalBlockIndex, KeywordKind, bool) {
+                    for (size_t i = 0; i < declaredNames.size(); i++) {
+                        if (declaredNames[i] == name) {
+                            return;
+                        }
+                    }
                     declaredNames.push_back(name);
                 };
             }
@@ -5774,6 +5818,8 @@ public:
                 Script::ExportEntry entry;
                 entry.m_exportName = declaredNames[i];
                 entry.m_localName = declaredNames[i];
+
+                checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                 addExportDeclarationEntry(entry);
             }
             exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeList(), nullptr));
@@ -5824,6 +5870,7 @@ public:
                         entry.m_localName = specifier->astNode()->asExportSpecifier()->local()->name();
                     }
 
+                    checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                     addExportDeclarationEntry(entry);
                 }
             }

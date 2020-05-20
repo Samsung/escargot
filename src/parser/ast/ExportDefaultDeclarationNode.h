@@ -45,15 +45,17 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        size_t r = context->getRegister();
-        m_declaration->generateExpressionByteCode(codeBlock, context, r);
+        if (!m_declaration->isStatement()) {
+            size_t r = context->getRegister();
+            m_declaration->generateExpressionByteCode(codeBlock, context, r);
 
-        IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(m_localName);
-        id->m_loc = m_loc;
-        context->m_isLexicallyDeclaredBindingInitialization = true;
-        id->generateStoreByteCode(codeBlock, context, r, true);
+            IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(m_localName);
+            id->m_loc = m_loc;
+            context->m_isLexicallyDeclaredBindingInitialization = true;
+            id->generateStoreByteCode(codeBlock, context, r, true);
 
-        context->giveUpRegister();
+            context->giveUpRegister();
+        }
     }
 
 private:

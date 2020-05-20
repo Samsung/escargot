@@ -476,7 +476,7 @@ class TestSuite(object):
     return path.startswith('.') or path == 'CVS'
 
   def IsTestCase(self, path):
-    return path.endswith('.js')
+    return path.endswith('.js') and "_FIXTURE" not in path
 
   def ShouldRun(self, rel_path, tests):
     if len(tests) == 0:
