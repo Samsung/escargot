@@ -132,8 +132,13 @@ public:
     {
         throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
     }
-    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, const char* templateString)
+    {
+        return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
+    }
     static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
+    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
 
     ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 

@@ -371,11 +371,26 @@ class TestCase(object):
     return (code, out, err)
 
   def RunTestIn(self, command_template, tmp):
-    tmp.Write(self.GetSource())
+    source = self.GetSource()
+    is_module = False
+
+    if "flags" in self.testRecord:
+      is_module = "module" in self.testRecord["flags"]
+
+    if is_module:
+      is_module = "--module "
+    else:
+      is_module = ""
+
+    tmp.Write(source)
     tmp.Close()
+
     command = self.InstantiateTemplate(command_template, {
-      'path': tmp.name
+      'path': tmp.name,
+      'test_case_path': self.full_path,
+      'is_module': is_module
     })
+
     (code, out, err) = self.Execute(command)
     return TestResult(code, out, err, self)
 
@@ -575,7 +590,7 @@ class TestSuite(object):
 
   def Run(self, command_template, tests, print_summary, full_summary, logname, junitfile):
     if not "{{path}}" in command_template:
-      command_template += " {{path}}"
+      command_template += " {{is_module}}--filename-as={{test_case_path}} {{path}}"
     cases = self.EnumerateTests(tests)
     if len(cases) == 0:
       ReportError("No tests to run")

@@ -415,9 +415,9 @@ template class FunctionEnvironmentRecordNotIndexed<false, true>;
 
 EnvironmentRecord::BindingSlot ModuleEnvironmentRecord::hasBinding(ExecutionState& state, const AtomicString& atomicName)
 {
-    for (size_t i = 0; i < m_moduleDeclarativeRecord.size(); i++) {
-        if (m_moduleDeclarativeRecord[i].m_name == atomicName) {
-            return BindingSlot(this, i, !m_moduleDeclarativeRecord[i].m_isVarDeclaration);
+    for (size_t i = 0; i < m_moduleBindings.size(); i++) {
+        if (m_moduleBindings[i].m_localName == atomicName) {
+            return BindingSlot(this, i, !m_moduleBindings[i].m_isVarDeclaration);
         }
     }
     return BindingSlot(this, SIZE_MAX, false);
@@ -427,29 +427,26 @@ void ModuleEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
 {
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
-        if (!m_moduleDeclarativeRecord[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
+        if (!m_moduleBindings[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
         }
         return;
     }
-    IdentifierRecord record;
-    record.m_name = name;
-    record.m_canDelete = false;
+    ModuleBindingRecord record;
+    record.m_localName = name;
     record.m_isMutable = isMutable;
     record.m_isVarDeclaration = isVarDeclaration;
-    m_moduleDeclarativeRecord.pushBack(record);
-    if (isVarDeclaration) {
-        m_moduleDeclarativeStorage.pushBack(Value());
-    } else {
-        m_moduleDeclarativeStorage.pushBack(Value(Value::EmptyValue));
-    }
+    record.m_targetRecord = nullptr;
+    record.m_value = isVarDeclaration ? Value() : Value(Value::EmptyValue);
+    m_moduleBindings.pushBack(record);
 }
 
 void ModuleEnvironmentRecord::initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    for (size_t i = 0; i < m_moduleDeclarativeRecord.size(); i++) {
-        if (m_moduleDeclarativeRecord[i].m_name == name) {
-            m_moduleDeclarativeStorage[i] = V;
+    for (size_t i = 0; i < m_moduleBindings.size(); i++) {
+        if (m_moduleBindings[i].m_localName == name) {
+            ASSERT(m_moduleBindings[i].m_targetRecord == nullptr);
+            m_moduleBindings[i].m_value = V;
             return;
         }
     }
@@ -458,11 +455,11 @@ void ModuleEnvironmentRecord::initializeBinding(ExecutionState& state, const Ato
 
 void ModuleEnvironmentRecord::setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
 {
-    size_t len = m_moduleDeclarativeRecord.size();
+    size_t len = m_moduleBindings.size();
     for (size_t i = 0; i < len; i++) {
-        if (m_moduleDeclarativeRecord[i].m_name == name) {
+        if (m_moduleBindings[i].m_localName == name) {
             writeCheck(state, i);
-            m_moduleDeclarativeStorage[i] = V;
+            m_moduleBindings[i].m_value = V;
             return;
         }
     }
@@ -471,28 +468,35 @@ void ModuleEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
 
 void ModuleEnvironmentRecord::setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
 {
+    ASSERT(m_moduleBindings[slot.m_index].m_targetRecord == nullptr);
     writeCheck(state, slot.m_index);
-    m_moduleDeclarativeStorage[slot.m_index] = v;
+    m_moduleBindings[slot.m_index].m_value = v;
 }
 
 void ModuleEnvironmentRecord::setMutableBindingByIndex(ExecutionState& state, const size_t i, const Value& v)
 {
+    ASSERT(m_moduleBindings[i].m_targetRecord == nullptr);
     writeCheck(state, i);
-    m_moduleDeclarativeStorage[i] = v;
+    m_moduleBindings[i].m_value = v;
 }
 
 void ModuleEnvironmentRecord::initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
 {
-    m_moduleDeclarativeStorage[idx] = v;
+    ASSERT(m_moduleBindings[idx].m_targetRecord == nullptr);
+    m_moduleBindings[idx].m_value = v;
 }
 
 EnvironmentRecord::GetBindingValueResult ModuleEnvironmentRecord::getBindingValue(ExecutionState& state, const AtomicString& name)
 {
-    size_t len = m_moduleDeclarativeRecord.size();
+    size_t len = m_moduleBindings.size();
     for (size_t i = 0; i < len; i++) {
-        if (m_moduleDeclarativeRecord[i].m_name == name) {
-            readCheck(state, i);
-            return GetBindingValueResult(m_moduleDeclarativeStorage[i]);
+        if (m_moduleBindings[i].m_localName == name) {
+            if (m_moduleBindings[i].m_targetRecord) {
+                return m_moduleBindings[i].m_targetRecord->getBindingValue(state, m_moduleBindings[i].m_targetBindingName);
+            } else {
+                readCheck(state, i);
+                return GetBindingValueResult(m_moduleBindings[i].m_value);
+            }
         }
     }
     return GetBindingValueResult();
@@ -500,20 +504,49 @@ EnvironmentRecord::GetBindingValueResult ModuleEnvironmentRecord::getBindingValu
 
 Value ModuleEnvironmentRecord::getBindingValue(ExecutionState& state, const size_t i)
 {
-    readCheck(state, i);
-    return m_moduleDeclarativeStorage[i];
+    if (m_moduleBindings[i].m_targetRecord) {
+        return m_moduleBindings[i].m_targetRecord->getBindingValue(state, m_moduleBindings[i].m_targetBindingName).m_value;
+    } else {
+        readCheck(state, i);
+        return m_moduleBindings[i].m_value;
+    }
 }
 
 void ModuleEnvironmentRecord::setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v)
 {
     writeCheck(state, idx);
-    m_moduleDeclarativeStorage[idx] = v;
+    ASSERT(m_moduleBindings[idx].m_targetRecord == nullptr);
+    m_moduleBindings[idx].m_value = v;
 }
 
-Value ModuleEnvironmentRecord::getHeapValueByIndex(ExecutionState& state, const size_t idx)
+Value ModuleEnvironmentRecord::getHeapValueByIndex(ExecutionState& state, const size_t i)
 {
-    readCheck(state, idx);
-    return m_moduleDeclarativeStorage[idx];
+    if (m_moduleBindings[i].m_targetRecord) {
+        return m_moduleBindings[i].m_targetRecord->getBindingValue(state, m_moduleBindings[i].m_targetBindingName).m_value;
+    } else {
+        readCheck(state, i);
+        return m_moduleBindings[i].m_value;
+    }
+}
+
+void ModuleEnvironmentRecord::createImportBinding(ExecutionState& state, AtomicString localName, ModuleEnvironmentRecord* targetRecord, AtomicString targetBindingName)
+{
+    // Let envRec be the module Environment Record for which the method was invoked.
+    // Assert: envRec does not already have a binding for N.
+    // Assert: M is a Module Record.
+    // Assert: When M.[[Environment]] is instantiated it will have a direct binding for N2.
+    // Create an immutable indirect binding in envRec for N that references M and N2 as its target binding and record that the binding is initialized.
+    // Return NormalCompletion(empty).
+    size_t len = m_moduleBindings.size();
+    for (size_t i = 0; i < len; i++) {
+        if (m_moduleBindings[i].m_localName == localName) {
+            ASSERT(m_moduleBindings[i].m_targetRecord == nullptr);
+            m_moduleBindings[i].m_targetRecord = targetRecord;
+            m_moduleBindings[i].m_targetBindingName = targetBindingName;
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
 }
 
 ModuleNamespaceObject* ModuleEnvironmentRecord::namespaceObject(ExecutionState& state)

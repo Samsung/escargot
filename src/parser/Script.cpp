@@ -45,62 +45,17 @@ Context* Script::context()
     return m_topCodeBlock->context();
 }
 
-static Optional<Script*> findLoadedModule(Context* context, Optional<Script*> referrer, String* src)
-{
-    const auto& lm = *context->loadedModules();
-    for (size_t j = 0; j < lm.size(); j++) {
-        if (lm[j].m_referrer == referrer && lm[j].m_src->equals(src)) {
-            return Optional<Script*>(lm[j].m_loadedModule);
-        }
-    }
-
-    return Optional<Script*>();
-}
-
-static void registerToLoadedModuleIfNeeds(Context* context, Optional<Script*> referrer, String* src, Script* module)
-{
-    if (!findLoadedModule(context, referrer, src)) {
-        LoadedModule m;
-        m.m_loadedModule = module;
-        m.m_referrer = referrer;
-        m.m_src = src;
-        auto lm = context->loadedModules();
-        lm->push_back(m);
-    }
-}
-
-void Script::loadExternalModule(ExecutionState& state)
-{
-    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
-        bool loaded = findLoadedModule(context(), this, m_moduleData->m_importEntries[i].m_moduleRequest).hasValue();
-        if (!loaded) {
-            loadModuleFromScript(state, m_moduleData->m_importEntries[i].m_moduleRequest);
-        }
-    }
-
-    for (size_t i = 0; i < m_moduleData->m_indirectExportEntries.size(); i++) {
-        bool loaded = findLoadedModule(context(), this, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value()).hasValue();
-        if (!loaded) {
-            loadModuleFromScript(state, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value());
-        }
-    }
-
-    for (size_t i = 0; i < m_moduleData->m_starExportEntries.size(); i++) {
-        bool loaded = findLoadedModule(context(), this, m_moduleData->m_starExportEntries[i].m_moduleRequest.value()).hasValue();
-        if (!loaded) {
-            loadModuleFromScript(state, m_moduleData->m_starExportEntries[i].m_moduleRequest.value());
-        }
-    }
-}
-
-void Script::loadModuleFromScript(ExecutionState& state, String* src)
+Script* Script::loadModuleFromScript(ExecutionState& state, String* src)
 {
     Platform::LoadModuleResult result = context()->vmInstance()->platform()->onLoadModule(context(), this, src);
     if (!result.script) {
         ErrorObject::throwBuiltinError(state, (ErrorObject::Code)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
     }
-    registerToLoadedModuleIfNeeds(context(), this, src, result.script.value());
-    result.script->loadExternalModule(state);
+    if (!result.script->moduleData()->m_didCallLoadedCallback) {
+        context()->vmInstance()->platform()->didLoadModule(context(), this, result.script.value());
+        result.script->moduleData()->m_didCallLoadedCallback = true;
+    }
+    return result.script.value();
 }
 
 size_t Script::moduleRequestsLength()
@@ -174,7 +129,7 @@ AtomicStringVector Script::exportedNames(ExecutionState& state, std::vector<Scri
 
         // Let requestedModule be HostResolveImportedModule(module, e.[[ModuleRequest]]).
         // ReturnIfAbrupt(requestedModule).
-        Script* requestedModule = findLoadedModule(context(), this, e.m_moduleRequest.value()).value();
+        Script* requestedModule = loadModuleFromScript(state, e.m_moduleRequest.value());
 
         // Let starNames be requestedModule.GetExportedNames(exportStarSet).
         auto starNames = requestedModule->exportedNames(state, exportStarSet);
@@ -241,7 +196,7 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
             // Assert: module imports a specific binding for this export.
             // Let importedModule be HostResolveImportedModule(module, e.[[ModuleRequest]]).
             // ReturnIfAbrupt(importedModule).
-            Script* importedModule = findLoadedModule(context(), this, e.m_moduleRequest.value()).value();
+            Script* importedModule = loadModuleFromScript(state, e.m_moduleRequest.value());
             // Let indirectResolution be importedModule.ResolveExport(e.[[ImportName]], resolveSet, exportStarSet).
             auto indirectResolution = importedModule->resolveExport(state, e.m_importName.value(), resolveSet, exportStarSet);
             // ReturnIfAbrupt(indirectResolution).
@@ -277,7 +232,7 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
         auto& e = starExportEntries[i];
         // Let importedModule be HostResolveImportedModule(module, e.[[ModuleRequest]]).
         // ReturnIfAbrupt(importedModule).
-        Script* importedModule = findLoadedModule(context(), this, e.m_moduleRequest.value()).value();
+        Script* importedModule = loadModuleFromScript(state, e.m_moduleRequest.value());
         // Let resolution be importedModule.ResolveExport(exportName, resolveSet, exportStarSet).
         // ReturnIfAbrupt(resolution).
         auto resolution = importedModule->resolveExport(state, exportName, resolveSet, exportStarSet);
@@ -303,148 +258,6 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
     }
 
     return starResolution;
-}
-
-Value Script::executeModule(ExecutionState& state, Optional<Script*> referrer)
-{
-    ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
-
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-moduledeclarationinstantiation
-    // ModuleDeclarationInstantiation( ) Concrete Method
-    LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
-        new GlobalEnvironmentRecord(state, nullptr, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage()), nullptr);
-
-    ExecutionState newState(context(), state.stackLimit());
-
-    ModuleEnvironmentRecord* moduleRecord = new ModuleEnvironmentRecord(this);
-    m_moduleData->m_moduleRecord = moduleRecord;
-
-    context()->vmInstance()->platform()->didLoadModule(context(), referrer, this);
-    registerToLoadedModuleIfNeeds(context(), referrer, src(), this);
-    loadExternalModule(state);
-
-    const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
-    size_t len = vec.size();
-    for (size_t i = 0; i < len; i++) {
-        moduleRecord->createBinding(newState, vec[i].m_name, false, vec[i].m_isMutable, true);
-    }
-
-    InterpretedCodeBlock::BlockInfo* bi = m_topCodeBlock->blockInfo(0);
-    if (bi) {
-        len = bi->m_identifiers.size();
-        for (size_t i = 0; i < len; i++) {
-            moduleRecord->createBinding(newState, bi->m_identifiers[i].m_name, false, bi->m_identifiers[i].m_isMutable, false);
-        }
-    }
-
-    // Test import, export first
-    // For each ImportEntry Record in in module.[[ImportEntries]], do
-    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
-        auto& in = m_moduleData->m_importEntries[i];
-        // Let importedModule be HostResolveImportedModule(module, in.[[ModuleRequest]]).
-        // ReturnIfAbrupt(importedModule).
-        Script* importedModule = findLoadedModule(context(), this, in.m_moduleRequest).value();
-
-        // If in.[[ImportName]] is "*", then
-        if (in.m_importName == context()->staticStrings().asciiTable[(unsigned char)'*']) {
-        } else {
-            // Let resolution be importedModule.ResolveExport(in.[[ImportName]], « », «‍ »).
-            auto resolution = importedModule->resolveExport(newState, in.m_importName);
-            // ReturnIfAbrupt(resolution).
-            // If resolution is null or resolution is "ambiguous", throw a SyntaxError exception.
-            // Call envRec.CreateImportBinding(in.[[LocalName]], resolution.[[module]], resolution.[[bindingName]]).
-            if (resolution.m_type == Script::ResolveExportResult::Null) {
-                StringBuilder builder;
-                builder.appendString("The requested module '");
-                builder.appendString(in.m_moduleRequest);
-                builder.appendString("' does not provide an export named '");
-                builder.appendString(in.m_localName.string());
-                builder.appendString("'");
-                ErrorObject::throwBuiltinError(newState, ErrorObject::Code::SyntaxError, builder.finalize(&newState)->toNonGCUTF8StringData().data());
-            } else if (resolution.m_type == Script::ResolveExportResult::Ambiguous) {
-                StringBuilder builder;
-                builder.appendString("The requested module '");
-                builder.appendString(in.m_moduleRequest);
-                builder.appendString("' does not provide an export named '");
-                builder.appendString(in.m_localName.string());
-                builder.appendString("' correctly");
-                ErrorObject::throwBuiltinError(newState, ErrorObject::Code::SyntaxError, builder.finalize(&newState)->toNonGCUTF8StringData().data());
-            }
-        }
-    }
-
-    // execute external modules
-    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
-        Script* script = findLoadedModule(context(), this, m_moduleData->m_importEntries[i].m_moduleRequest).value();
-        if (!script->isExecuted()) {
-            script->executeModule(state, this);
-        }
-    }
-
-    for (size_t i = 0; i < m_moduleData->m_indirectExportEntries.size(); i++) {
-        Script* script = findLoadedModule(context(), this, m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value()).value();
-        if (!script->isExecuted()) {
-            script->executeModule(state, this);
-        }
-    }
-
-    for (size_t i = 0; i < m_moduleData->m_starExportEntries.size(); i++) {
-        Script* script = findLoadedModule(context(), this, m_moduleData->m_starExportEntries[i].m_moduleRequest.value()).value();
-        if (!script->isExecuted()) {
-            script->executeModule(state, this);
-        }
-    }
-
-    // Import variables
-    // For each ImportEntry Record in in module.[[ImportEntries]], do
-    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
-        auto& in = m_moduleData->m_importEntries[i];
-        // Let importedModule be HostResolveImportedModule(module, in.[[ModuleRequest]]).
-        // ReturnIfAbrupt(importedModule).
-        Script* importedModule = findLoadedModule(context(), this, in.m_moduleRequest).value();
-
-        // If in.[[ImportName]] is "*", then
-        if (in.m_importName == context()->staticStrings().asciiTable[(unsigned char)'*']) {
-            // Let namespace be GetModuleNamespace(importedModule).
-            // ReturnIfAbrupt(module).
-            ModuleNamespaceObject* namespaceObject = importedModule->moduleData()->m_moduleRecord->namespaceObject(newState);
-            // Let status be envRec.CreateImmutableBinding(in.[[LocalName]], true).
-            // Assert: status is not an abrupt completion.
-            // Call envRec.InitializeBinding(in.[[LocalName]], namespace).
-            moduleRecord->initializeBinding(newState, in.m_localName, Value(namespaceObject));
-        } else {
-            // Let resolution be importedModule.ResolveExport(in.[[ImportName]], « », «‍ »).
-            auto resolution = importedModule->resolveExport(newState, in.m_importName);
-            // ReturnIfAbrupt(resolution).
-            // If resolution is null or resolution is "ambiguous", throw a SyntaxError exception.
-            // Call envRec.CreateImportBinding(in.[[LocalName]], resolution.[[module]], resolution.[[bindingName]]).
-            ASSERT(resolution.m_type == Script::ResolveExportResult::Record);
-            auto bindingResult = std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord->getBindingValue(newState, std::get<1>(resolution.m_record.value()));
-            ASSERT(bindingResult.m_hasBindingValue);
-            moduleRecord->initializeBinding(newState, in.m_localName, bindingResult.m_value);
-        }
-    }
-
-    newState.setLexicalEnvironment(new LexicalEnvironment(moduleRecord, globalLexicalEnv), true);
-
-    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
-    registerFile[0] = Value();
-    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-    stackStorage[0] = Value();
-    Value* literalStorage = stackStorage + 1 + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
-    Value* src = byteCodeBlock->m_numeralLiteralData.data();
-    for (size_t i = 0; i < literalStorageSize; i++) {
-        literalStorage[i] = src[i];
-    }
-
-    Value resultValue = ByteCodeInterpreter::interpret(&newState, byteCodeBlock, 0, registerFile);
-    clearStack<512>();
-
-    // we give up program bytecodeblock after first excution for reducing memory usage
-    m_topCodeBlock->m_byteCodeBlock = nullptr;
-
-    return resultValue;
 }
 
 // https://www.ecma-international.org/ecma-262/9.0/#sec-candeclareglobalfunction
@@ -495,7 +308,22 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     }
 
     if (isModule()) {
-        return executeModule(state, nullptr);
+        ASSERT(!moduleData()->m_didCallLoadedCallback);
+        if (!moduleData()->m_didCallLoadedCallback) {
+            context()->vmInstance()->platform()->didLoadModule(context(), nullptr, this);
+            moduleData()->m_didCallLoadedCallback = true;
+        }
+
+        // https://www.ecma-international.org/ecma-262/#sec-toplevelmoduleevaluationjob
+        auto result = moduleInstantiate(state);
+        if (result.gotExecption) {
+            throw result.value;
+        }
+        result = moduleEvaluate(state);
+        if (result.gotExecption) {
+            throw result.value;
+        }
+        return result.value;
     }
 
     ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
@@ -718,5 +546,399 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     clearStack<512>();
 
     return resultValue;
+}
+
+Script::ModuleExecutionResult Script::moduleInstantiate(ExecutionState& state)
+{
+    // On success, Instantiate transitions this module's [[Status]] from "uninstantiated" to "instantiated". On failure, an exception is thrown and this module's [[Status]] remains "uninstantiated".
+    ASSERT(isModule());
+
+    // Let module be this Cyclic Module Record.
+    // Assert: module.[[Status]] is not "instantiating" or "evaluating".
+    ASSERT(moduleData()->m_status != ModuleData::Instantiating && moduleData()->m_status != ModuleData::Evaluating);
+    // Let stack be a new empty List.
+    std::vector<Script*> stack;
+    // Let result be InnerModuleInstantiation(module, stack, 0).
+    ModuleExecutionResult result = innerModuleInstantiation(state, stack, 0);
+    // If result is an abrupt completion, then
+    if (result.gotExecption) {
+        // For each module m in stack, do
+        for (size_t i = 0; i < stack.size(); i++) {
+            // Assert: m.[[Status]] is "instantiating".
+            ASSERT(stack[i]->isModule());
+            ModuleData* m = stack[i]->moduleData();
+            ASSERT(m->m_status == ModuleData::Instantiating);
+            // Set m.[[Status]] to "uninstantiated".
+            m->m_status = ModuleData::Uninstantiated;
+            // Set m.[[Environment]] to undefined.
+            m->m_moduleRecord = nullptr;
+            // Set m.[[DFSIndex]] to undefined.
+            m->m_dfsIndex.reset();
+            // Set m.[[DFSAncestorIndex]] to undefined.
+            m->m_dfsAncestorIndex.reset();
+        }
+        // Assert: module.[[Status]] is "uninstantiated".
+        ASSERT(moduleData()->m_status == ModuleData::Uninstantiated);
+        // Return result.
+        return result;
+    }
+    // Assert: module.[[Status]] is "instantiated" or "evaluated".
+    ASSERT(moduleData()->m_status == ModuleData::Instantiated || moduleData()->m_status == ModuleData::Evaluated);
+    // Assert: stack is empty.
+    ASSERT(stack.empty());
+    // Return undefined.
+    return ModuleExecutionResult(false, Value());
+}
+
+Script::ModuleExecutionResult Script::innerModuleInstantiation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index)
+{
+    // If module is not a Cyclic Module Record, then
+    //    Perform ? module.Instantiate().
+    //    Return index.
+    ASSERT(isModule());
+
+    // If module.[[Status]] is "instantiating", "instantiated", or "evaluated", then
+    ModuleData* md = moduleData();
+    if (md->m_status == ModuleData::Instantiating || md->m_status == ModuleData::Instantiated || md->m_status == ModuleData::Evaluated) {
+        // Return index.
+        return Script::ModuleExecutionResult(false, Value(index));
+    }
+
+    // Assert: module.[[Status]] is "uninstantiated".
+    ASSERT(md->m_status == ModuleData::Uninstantiated);
+    // Set module.[[Status]] to "instantiating".
+    md->m_status = ModuleData::Instantiating;
+    // Set module.[[DFSIndex]] to index.
+    md->m_dfsIndex = index;
+    // Set module.[[DFSAncestorIndex]] to index.
+    md->m_dfsAncestorIndex = index;
+    // Increase index by 1.
+    index++;
+    // Append module to stack.
+    stack.push_back(this);
+
+    // For each String required that is an element of module.[[RequestedModules]], do
+    size_t rmLength = moduleRequestsLength();
+    for (size_t i = 0; i < rmLength; i++) {
+        // Let requiredModule be ! HostResolveImportedModule(module, required).
+        Script* requiredModule = loadModuleFromScript(state, moduleRequest(i));
+        // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
+        // Set index to ? innerModuleInstantiation(requiredModule, stack, index).
+        auto result = requiredModule->innerModuleInstantiation(state, stack, index);
+        if (result.gotExecption) {
+            return result;
+        }
+        index = result.value.asNumber();
+
+        // Assert: requiredModule.[[Status]] is either "instantiating", "instantiated", or "evaluated".
+        ASSERT(requiredModule->moduleData()->m_status == ModuleData::Instantiating || requiredModule->moduleData()->m_status == ModuleData::Instantiated || requiredModule->moduleData()->m_status == ModuleData::Evaluated);
+        // Assert: requiredModule.[[Status]] is "instantiating" if and only if requiredModule is in stack.
+        if (requiredModule->moduleData()->m_status == ModuleData::Instantiating) {
+            bool onStack = false;
+            for (size_t j = 0; j < stack.size(); j++) {
+                if (stack[j] == requiredModule) {
+                    onStack = true;
+                    break;
+                }
+            }
+            ASSERT(onStack);
+        }
+
+        // If requiredModule.[[Status]] is "instantiating", then
+        if (requiredModule->moduleData()->m_status == ModuleData::Instantiating) {
+            // Set module.[[DFSAncestorIndex]] to min(module.[[DFSAncestorIndex]], requiredModule.[[DFSAncestorIndex]]).
+            md->m_dfsAncestorIndex = std::min(md->m_dfsAncestorIndex.value(), requiredModule->moduleData()->m_dfsAncestorIndex.value());
+        }
+    }
+
+    // Perform ? module.InitializeEnvironment().
+    auto result = moduleInitializeEnvironment(state);
+    if (!result.isEmpty()) {
+        return Script::ModuleExecutionResult(true, result);
+    }
+
+    // Assert: module occurs exactly once in stack.
+    // Assert: module.[[DFSAncestorIndex]] is less than or equal to module.[[DFSIndex]].
+    ASSERT(md->m_dfsAncestorIndex.value() <= md->m_dfsIndex.value());
+
+    // If module.[[DFSAncestorIndex]] equals module.[[DFSIndex]], then
+    if (md->m_dfsAncestorIndex.value() == md->m_dfsIndex.value()) {
+        // Let done be false.
+        bool done = false;
+        // Repeat, while done is false,
+        while (!done) {
+            // Let requiredModule be the last element in stack.
+            Script* requiredModule = stack.back();
+            // Remove the last element of stack.
+            stack.pop_back();
+            // Set requiredModule.[[Status]] to "instantiated".
+            requiredModule->moduleData()->m_status = ModuleData::Instantiated;
+            // If requiredModule and module are the same Module Record, set done to true.
+            if (requiredModule == this) {
+                done = true;
+            }
+        }
+    }
+    // Return index.
+    return Script::ModuleExecutionResult(false, Value(index));
+}
+
+Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
+{
+    // Let module be this Cyclic Module Record.
+    ModuleData* md = moduleData();
+    // Assert: module.[[Status]] is "instantiated" or "evaluated".
+    ASSERT(md->m_status == ModuleData::Instantiated || md->m_status == ModuleData::Evaluated);
+    // Let stack be a new empty List.
+    std::vector<Script*> stack;
+    // Let result be InnerModuleEvaluation(module, stack, 0).
+    auto result = innerModuleEvaluation(state, stack, 0);
+    // If result is an abrupt completion, then
+    if (result.gotExecption) {
+        // For each module m in stack, do
+        for (size_t i = 0; i < stack.size(); i++) {
+            // Assert: m.[[Status]] is "evaluating".
+            ASSERT(stack[i]->moduleData()->m_status == ModuleData::Evaluating);
+            // Set m.[[Status]] to "evaluated".
+            // Set m.[[EvaluationError]] to result.
+            // Assert: module.[[Status]] is "evaluated" and module.[[EvaluationError]] is result.
+            stack[i]->moduleData()->m_status = ModuleData::Evaluated;
+            stack[i]->moduleData()->m_evaluationError = result.value;
+        }
+        // Return result.
+        return result;
+    }
+    // Assert: module.[[Status]] is "evaluated" and module.[[EvaluationError]] is undefined.
+    // Assert: stack is empty.
+    // Return undefined.
+    return ModuleExecutionResult(false, Value());
+}
+
+Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index)
+{
+    // If module is not a Cyclic Module Record, then
+    //     Perform ? module.Evaluate().
+    //     Return index.
+    ASSERT(isModule());
+
+    ModuleData* md = moduleData();
+
+    // If module.[[Status]] is "evaluated", then
+    if (md->m_status == ModuleData::Evaluated) {
+        // If module.[[EvaluationError]] is undefined, return index.
+        if (md->m_evaluationError == SmallValue()) {
+            return Script::ModuleExecutionResult(false, Value(index));
+        }
+        // Otherwise return module.[[EvaluationError]].
+        return Script::ModuleExecutionResult(true, md->m_evaluationError);
+    }
+
+    // If module.[[Status]] is "evaluating", return index.
+    if (md->m_status == ModuleData::Evaluating) {
+        return Script::ModuleExecutionResult(false, Value(index));
+    }
+
+    // Assert: module.[[Status]] is "instantiated".
+    ASSERT(md->m_status == ModuleData::Instantiated);
+    // Set module.[[Status]] to "evaluating".
+    md->m_status = ModuleData::Evaluating;
+    // Set module.[[DFSIndex]] to index.
+    md->m_dfsIndex = index;
+    // Set module.[[DFSAncestorIndex]] to index.
+    md->m_dfsAncestorIndex = index;
+    // Increase index by 1.
+    index++;
+    // Append module to stack.
+    stack.push_back(this);
+
+    // For each String required that is an element of module.[[RequestedModules]], do
+    size_t rmLength = moduleRequestsLength();
+    for (size_t i = 0; i < rmLength; i++) {
+        // Let requiredModule be ! HostResolveImportedModule(module, required).
+        Script* requiredModule = loadModuleFromScript(state, moduleRequest(i));
+        // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
+        // Set index to ? InnerModuleEvaluation(requiredModule, stack, index).
+        auto result = requiredModule->innerModuleEvaluation(state, stack, index);
+        if (result.gotExecption) {
+            return result;
+        }
+        index = result.value.asNumber();
+        // Assert: requiredModule.[[Status]] is either "evaluating" or "evaluated".
+        ASSERT(requiredModule->moduleData()->m_status == ModuleData::Evaluating || requiredModule->moduleData()->m_status == ModuleData::Evaluated);
+// Assert: requiredModule.[[Status]] is "evaluating" if and only if requiredModule is in stack.
+#if !defined(NDEBUG)
+        if (requiredModule->moduleData()->m_status == ModuleData::Evaluating) {
+            bool onStack = false;
+            for (size_t j = 0; j < stack.size(); j++) {
+                if (stack[j] == requiredModule) {
+                    onStack = true;
+                    break;
+                }
+            }
+            ASSERT(onStack);
+        }
+#endif
+        // If requiredModule.[[Status]] is "evaluating", then
+        if (requiredModule->moduleData()->m_status == ModuleData::Evaluating) {
+            // Assert: requiredModule is a Cyclic Module Record.
+            ASSERT(requiredModule->isModule());
+            // Set module.[[DFSAncestorIndex]] to min(module.[[DFSAncestorIndex]], requiredModule.[[DFSAncestorIndex]]).
+            md->m_dfsAncestorIndex = std::min(md->m_dfsAncestorIndex.value(), requiredModule->moduleData()->m_dfsAncestorIndex.value());
+        }
+    }
+
+    // Perform ? module.ExecuteModule().
+    auto result = moduleExecute(state);
+    if (result.gotExecption) {
+        return result;
+    }
+    // Assert: module occurs exactly once in stack.
+    // Assert: module.[[DFSAncestorIndex]] is less than or equal to module.[[DFSIndex]].
+    ASSERT(md->m_dfsAncestorIndex.value() <= md->m_dfsIndex.value());
+
+    // If module.[[DFSAncestorIndex]] equals module.[[DFSIndex]], then
+    if (md->m_dfsAncestorIndex.value() == md->m_dfsIndex.value()) {
+        // Let done be false.
+        bool done = false;
+        // Repeat, while done is false,
+        while (!done) {
+            // Let requiredModule be the last element in stack.
+            Script* requiredModule = stack.back();
+            // Remove the last element of stack.
+            stack.pop_back();
+            // Set requiredModule.[[Status]] to "evaluated".
+            requiredModule->moduleData()->m_status = ModuleData::Evaluated;
+            // If requiredModule and module are the same Module Record, set done to true.
+            if (requiredModule == this) {
+                done = true;
+            }
+        }
+    }
+    // Return index.
+    return Script::ModuleExecutionResult(false, Value(index));
+}
+
+Value Script::moduleInitializeEnvironment(ExecutionState& state)
+{
+    ASSERT(m_moduleData->m_moduleRecord == nullptr);
+
+    // For each ExportEntry Record e in module.[[IndirectExportEntries]], do
+    auto& indirectExportEntries = m_moduleData->m_indirectExportEntries;
+    for (size_t i = 0; i < indirectExportEntries.size(); i++) {
+        auto& e = indirectExportEntries[i];
+        // Let resolution be ? module.ResolveExport(e.[[ExportName]], « »).
+        auto resolution = resolveExport(state, e.m_exportName.value());
+        // If resolution is null or "ambiguous", throw a SyntaxError exception.
+        if (resolution.m_type == ResolveExportResult::Null || resolution.m_type == ResolveExportResult::Ambiguous) {
+            StringBuilder builder;
+            builder.appendString("The export binding '");
+            builder.appendString(e.m_exportName.value().string());
+            builder.appendString("' is ambiguous");
+            return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
+        }
+        // Assert: resolution is a ResolvedBinding Record.
+    }
+
+    ModuleEnvironmentRecord* moduleRecord = new ModuleEnvironmentRecord(this);
+    m_moduleData->m_moduleRecord = moduleRecord;
+
+    const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
+    size_t len = vec.size();
+    for (size_t i = 0; i < len; i++) {
+        moduleRecord->createBinding(state, vec[i].m_name, false, vec[i].m_isMutable, true);
+    }
+
+    InterpretedCodeBlock::BlockInfo* bi = m_topCodeBlock->blockInfo(0);
+    if (bi) {
+        len = bi->m_identifiers.size();
+        for (size_t i = 0; i < len; i++) {
+            moduleRecord->createBinding(state, bi->m_identifiers[i].m_name, false, bi->m_identifiers[i].m_isMutable, false);
+        }
+    }
+
+    // For each ImportEntry Record in in module.[[ImportEntries]], do
+    for (size_t i = 0; i < m_moduleData->m_importEntries.size(); i++) {
+        auto& in = m_moduleData->m_importEntries[i];
+        // Let importedModule be ! HostResolveImportedModule(module, in.[[ModuleRequest]]).
+        Script* importedModule = loadModuleFromScript(state, in.m_moduleRequest);
+        // NOTE: The above call cannot fail because imported module requests are a subset of module.[[RequestedModules]], and these have been resolved earlier in this algorithm.
+
+        // If in.[[ImportName]] is "*", then
+        if (in.m_importName == context()->staticStrings().asciiTable[(unsigned char)'*']) {
+            // Let namespace be ? GetModuleNamespace(importedModule).
+            ModuleNamespaceObject* namespaceObject = importedModule->moduleData()->m_moduleRecord->namespaceObject(state);
+            // Perform ! envRec.CreateImmutableBinding(in.[[LocalName]], true).
+            // Call envRec.InitializeBinding(in.[[LocalName]], namespace).
+            moduleRecord->initializeBinding(state, in.m_localName, namespaceObject);
+        } else {
+            // Let resolution be importedModule.ResolveExport(in.[[ImportName]], « », «‍ »).
+            auto resolution = importedModule->resolveExport(state, in.m_importName);
+            // ReturnIfAbrupt(resolution).
+            // If resolution is null or resolution is "ambiguous", throw a SyntaxError exception.
+            if (resolution.m_type == Script::ResolveExportResult::Null) {
+                StringBuilder builder;
+                builder.appendString("The requested module '");
+                builder.appendString(in.m_moduleRequest);
+                builder.appendString("' does not provide an export named '");
+                builder.appendString(in.m_localName.string());
+                builder.appendString("'");
+                return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
+            } else if (resolution.m_type == Script::ResolveExportResult::Ambiguous) {
+                StringBuilder builder;
+                builder.appendString("The requested module '");
+                builder.appendString(in.m_moduleRequest);
+                builder.appendString("' does not provide an export named '");
+                builder.appendString(in.m_localName.string());
+                builder.appendString("' correctly");
+                return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
+            }
+
+            ASSERT(std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord != nullptr);
+            // Call envRec.CreateImportBinding(in.[[LocalName]], resolution.[[module]], resolution.[[bindingName]]).
+            moduleRecord->createImportBinding(state, in.m_localName, std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord, std::get<1>(resolution.m_record.value()));
+        }
+    }
+
+    return Value(Value::EmptyValue);
+}
+
+Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state)
+{
+    ASSERT(isModule());
+
+    ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
+
+    LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
+        new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage()), nullptr);
+
+    ExecutionState newState(context(), state.stackLimit());
+    newState.setLexicalEnvironment(new LexicalEnvironment(moduleData()->m_moduleRecord, globalLexicalEnv), true);
+
+    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
+    Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    registerFile[0] = Value();
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+    stackStorage[0] = Value();
+    Value* literalStorage = stackStorage + 1 + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
+    Value* src = byteCodeBlock->m_numeralLiteralData.data();
+    for (size_t i = 0; i < literalStorageSize; i++) {
+        literalStorage[i] = src[i];
+    }
+
+    Value resultValue;
+    bool gotExecption = false;
+    try {
+        ByteCodeInterpreter::interpret(&newState, byteCodeBlock, 0, registerFile);
+    } catch (const Value& e) {
+        resultValue = e;
+        gotExecption = true;
+    }
+
+    clearStack<512>();
+
+    // we give up program bytecodeblock after first excution for reducing memory usage
+    m_topCodeBlock->m_byteCodeBlock = nullptr;
+
+    return ModuleExecutionResult(gotExecption, resultValue);
 }
 }

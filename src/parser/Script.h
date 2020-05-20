@@ -63,8 +63,15 @@ public:
     };
     typedef Vector<ExportEntry, GCUtil::gc_malloc_allocator<ExportEntry>> ExportEntryVector;
 
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-source-text-module-records
     struct ModuleData : public gc {
+        bool m_didCallLoadedCallback;
+        // Abstract Module Records
+        // https://www.ecma-international.org/ecma-262/#sec-abstract-module-records
+        // [[Environment]]
+        ModuleEnvironmentRecord* m_moduleRecord; // this record contains namespace object
+
+        // Source Text Module Records
+        // https://www.ecma-international.org/ecma-262/#sec-source-text-module-records
         // [[ImportEntries]]
         ImportEntryVector m_importEntries;
         // [[LocalExportEntries]]
@@ -73,12 +80,31 @@ public:
         ExportEntryVector m_indirectExportEntries;
         // [[StarExportEntries]]
         ExportEntryVector m_starExportEntries;
-        // [[RequestedModules]]
-        StringVector m_requestedModules;
-        ModuleEnvironmentRecord* m_moduleRecord;
+
+        // Cyclic Module Records
+        // https://www.ecma-international.org/ecma-262/#sec-cyclic-module-records
+        enum ModuleStatus {
+            Uninstantiated,
+            Instantiating,
+            Instantiated,
+            Evaluating,
+            Evaluated
+        };
+        // [[Status]]
+        ModuleStatus m_status;
+        // [[EvaluationError]]
+        SmallValue m_evaluationError;
+        // [[DFSIndex]]
+        Optional<uint32_t> m_dfsIndex;
+        // [[DFSAncestorIndex]]
+        Optional<uint32_t> m_dfsAncestorIndex;
+        // [[RequestedModules]] is same with moduleRequests
+        // StringVector m_requestedModules;
 
         ModuleData()
-            : m_moduleRecord(nullptr)
+            : m_didCallLoadedCallback(false)
+            , m_moduleRecord(nullptr)
+            , m_status(Uninstantiated)
         {
         }
     };
@@ -126,7 +152,7 @@ private:
     {
     }
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
-    void loadModuleFromScript(ExecutionState& state, String* src);
+    Script* loadModuleFromScript(ExecutionState& state, String* src);
     void loadExternalModule(ExecutionState& state);
     Value executeModule(ExecutionState& state, Optional<Script*> referrer);
     struct ResolveExportResult {
@@ -151,7 +177,8 @@ private:
         std::vector<Script*> exportStarSet;
         return resolveExport(state, exportName, resolveSet, exportStarSet);
     }
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-resolveexport
+
+    // https://www.ecma-international.org/ecma-262/#sec-resolveexport
     ResolveExportResult resolveExport(ExecutionState& state, AtomicString exportName, std::vector<std::tuple<Script*, AtomicString>>& resolveSet, std::vector<Script*>& exportStarSet);
     AtomicStringVector exportedNames(ExecutionState& state)
     {
@@ -160,6 +187,36 @@ private:
     }
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getexportednames
     AtomicStringVector exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet);
+
+    struct ModuleExecutionResult {
+        bool gotExecption;
+        Value value;
+
+        ModuleExecutionResult(bool gotExecption, Value value)
+            : gotExecption(gotExecption)
+            , value(value)
+        {
+        }
+    };
+    // https://www.ecma-international.org/ecma-262/#sec-moduledeclarationinstantiation
+    ModuleExecutionResult moduleInstantiate(ExecutionState& state);
+
+    // https://www.ecma-international.org/ecma-262/#sec-innermoduleinstantiation
+    ModuleExecutionResult innerModuleInstantiation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
+
+    // https://www.ecma-international.org/ecma-262/#sec-moduleevaluation
+    ModuleExecutionResult moduleEvaluate(ExecutionState& state);
+
+    // https://www.ecma-international.org/ecma-262/#sec-innermoduleevaluation
+    ModuleExecutionResult innerModuleEvaluation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
+
+    // https://www.ecma-international.org/ecma-262/#sec-source-text-module-record-initialize-environment
+    Value moduleInitializeEnvironment(ExecutionState& state);
+
+    // https://www.ecma-international.org/ecma-262/#sec-source-text-module-record-execute-module
+    // returns gotExecption and Value
+    ModuleExecutionResult moduleExecute(ExecutionState& state);
+
     bool m_canExecuteAgain;
     String* m_src;
     String* m_sourceCode;

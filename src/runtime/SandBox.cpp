@@ -135,8 +135,14 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 break;
             } else if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 break;
+            } else if (es->lexicalEnvironment()->record()->isModuleEnvironmentRecord()) {
+                break;
             }
             es = es->parent();
+        }
+
+        if (!es) {
+            break;
         }
 
         bool alreadyExists = false;
@@ -151,7 +157,13 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
         if (!alreadyExists) {
             if (!callee && es && es->lexicalEnvironment()) {
                 // can be null on module outer env
-                CodeBlock* cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+                CodeBlock* cb;
+                if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
+                    cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+                } else {
+                    ASSERT(es->lexicalEnvironment()->record()->isModuleEnvironmentRecord());
+                    cb = es->lexicalEnvironment()->outerEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+                }
                 if (cb) {
                     ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
                     ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
