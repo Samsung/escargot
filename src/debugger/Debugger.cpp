@@ -464,6 +464,23 @@ static void sendRecordProperties(Debugger* debugger, ExecutionState* state, Iden
     }
 }
 
+static void sendRecordProperties(Debugger* debugger, ExecutionState* state, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, ModuleEnvironmentRecord* record)
+{
+    size_t size = bindings.size();
+
+    for (size_t i = 0; i < size; i++) {
+        AtomicString name = bindings[i].m_localName;
+
+        try {
+            EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, name);
+            ASSERT(result.m_hasBindingValue);
+            sendProperty(debugger, state, name, result.m_value);
+        } catch (const Value& val) {
+            sendUnaccessibleProperty(debugger, name);
+        }
+    }
+}
+
 void Debugger::getScopeVariables(ExecutionState* state, uint32_t index)
 {
     LexicalEnvironment* lexEnv = state->lexicalEnvironment();
@@ -493,7 +510,7 @@ void Debugger::getScopeVariables(ExecutionState* state, uint32_t index)
                 sendRecordProperties(this, state, *identifierRecordVector, record);
             }
         } else if (record->isModuleEnvironmentRecord()) {
-            sendRecordProperties(this, state, declarativeRecord->asModuleEnvironmentRecord()->m_moduleDeclarativeRecord, record);
+            sendRecordProperties(this, state, record->asModuleEnvironmentRecord()->moduleBindings(), record->asModuleEnvironmentRecord());
         } else if (declarativeRecord->isDeclarativeEnvironmentRecordNotIndexed()) {
             sendRecordProperties(this, state, declarativeRecord->asDeclarativeEnvironmentRecordNotIndexed()->m_recordVector, record);
         }

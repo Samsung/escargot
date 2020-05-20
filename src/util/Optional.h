@@ -65,6 +65,12 @@ public:
         return hasValue();
     }
 
+    void reset()
+    {
+        m_value = T();
+        m_hasValue = false;
+    }
+
     bool operator==(const Optional<T>& other) const
     {
         if (m_hasValue != other.hasValue()) {
@@ -146,6 +152,11 @@ public:
     operator bool() const
     {
         return hasValue();
+    }
+
+    void reset()
+    {
+        m_value = nullptr;
     }
 
     T* operator->()

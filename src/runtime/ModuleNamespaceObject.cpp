@@ -55,7 +55,7 @@ ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, ModuleEnviro
     m_exports = std::move(unambiguousNames);
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-@@tostringtag
-    Object::defineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)), ObjectPropertyDescriptor(Value(state.context()->staticStrings().Module.string()), ObjectPropertyDescriptor::ConfigurablePresent));
+    Object::defineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)), ObjectPropertyDescriptor(Value(state.context()->staticStrings().Module.string()), ObjectPropertyDescriptor::NotPresent));
 
     m_isInitialized = true;
 }

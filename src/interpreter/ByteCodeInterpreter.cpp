@@ -2787,7 +2787,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
                     }
                     env = env->outerEnvironment();
                 }
-                if (env->record()->isObjectEnvironmentRecord()) {
+                if (env && env->record()->isObjectEnvironmentRecord()) {
                     thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
                 }
             }

@@ -527,6 +527,20 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word objBitmap[GC_BITMAP_SIZE(DeclarativeEnvironmentRecordIndexed)] = { 0 };
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexed, m_blockInfo));
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexed, m_heapStorage));
+            descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(DeclarativeEnvironmentRecordIndexed));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+
 private:
     InterpretedCodeBlock::BlockInfo* m_blockInfo;
     SmallValueVector m_heapStorage;
@@ -587,6 +601,20 @@ public:
     }
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
+
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word objBitmap[GC_BITMAP_SIZE(DeclarativeEnvironmentRecordNotIndexed)] = { 0 };
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordNotIndexed, m_heapStorage));
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordNotIndexed, m_recordVector));
+            descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(DeclarativeEnvironmentRecordNotIndexed));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
 
 private:
     bool m_isVarDeclarationTarget : 1;
@@ -1083,6 +1111,17 @@ class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class Debugger;
 #endif /* ESCARGOT_DEBUGGER */
 public:
+    struct ModuleBindingRecord {
+        bool m_isMutable;
+        bool m_isVarDeclaration;
+        AtomicString m_localName;
+        SmallValue m_value;
+        ModuleEnvironmentRecord* m_targetRecord;
+        AtomicString m_targetBindingName;
+    };
+
+    typedef Vector<ModuleBindingRecord, GCUtil::gc_malloc_allocator<ModuleBindingRecord>> ModuleBindingRecordVector;
+
     ModuleEnvironmentRecord(Script* script)
         : DeclarativeEnvironmentRecord()
         , m_script(script)
@@ -1126,27 +1165,48 @@ public:
         return m_script;
     }
 
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word objBitmap[GC_BITMAP_SIZE(ModuleEnvironmentRecord)] = { 0 };
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_moduleBindings));
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_script));
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_namespaceObject));
+            descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ModuleEnvironmentRecord));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+
+    void createImportBinding(ExecutionState& state, AtomicString localName, ModuleEnvironmentRecord* targetRecord, AtomicString targetBindingName);
+
 protected:
+    const ModuleBindingRecordVector& moduleBindings()
+    {
+        return m_moduleBindings;
+    }
+
     void readCheck(ExecutionState& state, const size_t i)
     {
-        if (UNLIKELY(m_moduleDeclarativeStorage[i].isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+        if (UNLIKELY(m_moduleBindings[i].m_value.isEmpty())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
     }
 
     void writeCheck(ExecutionState& state, const size_t i)
     {
-        if (UNLIKELY(!m_moduleDeclarativeRecord[i].m_isMutable)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_moduleDeclarativeRecord[i].m_name);
+        if (UNLIKELY(!m_moduleBindings[i].m_isMutable)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_moduleBindings[i].m_localName);
         }
 
-        if (UNLIKELY(!m_moduleDeclarativeRecord[i].m_isVarDeclaration && m_moduleDeclarativeStorage[i].isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleDeclarativeRecord[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+        if (UNLIKELY(!m_moduleBindings[i].m_isVarDeclaration && m_moduleBindings[i].m_value.isEmpty())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
     }
 
-    IdentifierRecordVector m_moduleDeclarativeRecord;
-    SmallValueVector m_moduleDeclarativeStorage;
+    ModuleBindingRecordVector m_moduleBindings;
     Script* m_script;
     ModuleNamespaceObject* m_namespaceObject;
 };

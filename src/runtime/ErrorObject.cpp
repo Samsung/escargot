@@ -23,7 +23,27 @@
 
 namespace Escargot {
 
-void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString)
+ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
+{
+    switch (code) {
+    case ReferenceError:
+        return new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage);
+    case TypeError:
+        return new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage);
+    case SyntaxError:
+        return new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage);
+    case RangeError:
+        return new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage);
+    case URIError:
+        return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
+    case EvalError:
+        return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
+    default:
+        return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
+    }
+}
+
+ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString)
 {
     StringBuilder replacerBuilder;
     if (objectName->length()) {
@@ -56,27 +76,32 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* ob
     errorMessage = new UTF16String(str.data(), str.length());
     switch (code) {
     case ReferenceError:
-        state.throwException(new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage));
+        return new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage);
         break;
     case TypeError:
-        state.throwException(new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage));
+        return new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage);
         break;
     case SyntaxError:
-        state.throwException(new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage));
+        return new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage);
         break;
     case RangeError:
-        state.throwException(new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage));
+        return new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage);
         break;
     case URIError:
-        state.throwException(new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage));
+        return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
         break;
     case EvalError:
-        state.throwException(new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage));
+        return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
         break;
     default:
-        state.throwException(new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage));
+        return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
         break;
     }
+}
+
+void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString)
+{
+    state.throwException(Value(ErrorObject::createBuiltinError(state, code, objectName, prototype, functionName, templateString)));
 }
 
 ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
@@ -86,26 +111,6 @@ ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMess
     if (errorMessage->length()) {
         defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
                                                        ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
-    }
-}
-
-ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
-{
-    switch (code) {
-    case ReferenceError:
-        return new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage);
-    case TypeError:
-        return new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage);
-    case SyntaxError:
-        return new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage);
-    case RangeError:
-        return new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage);
-    case URIError:
-        return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
-    case EvalError:
-        return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
-    default:
-        return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
     }
 }
 

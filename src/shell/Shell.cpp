@@ -512,19 +512,18 @@ public:
             return LoadModuleResult(ErrorObjectRef::Code::None, StringRef::createFromUTF8(s.data(), s.length()));
         }
 
-        auto parseResult = relatedContext->scriptParser()->initializeScript(source.value(), moduleSrc, true);
+        auto parseResult = relatedContext->scriptParser()->initializeScript(source.value(), StringRef::createFromUTF8(absPath.data(), absPath.size()), true);
         if (!parseResult.isSuccessful()) {
             return LoadModuleResult(parseResult.parseErrorCode, parseResult.parseErrorMessage);
         }
 
-        loadedModules.push_back(std::make_tuple(absPath, relatedContext, PersistentRefHolder<ScriptRef>(parseResult.script.get())));
         return LoadModuleResult(parseResult.script.get());
     }
 
     virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> referrer, ScriptRef* loadedModule) override
     {
         std::string path;
-        if (referrer) {
+        if (referrer && loadedModule->src()->length() && loadedModule->src()->charAt(0) != '/') {
             path = absolutePath(referrer->src()->toStdUTF8String(), loadedModule->src()->toStdUTF8String());
         } else {
             path = absolutePath(loadedModule->src()->toStdUTF8String());
@@ -630,6 +629,8 @@ int main(int argc, char* argv[])
 
     bool runShell = true;
     bool seenModule = false;
+    std::string fileName;
+
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
             if (argv[i][1] == '-') { // `--option` case
@@ -639,6 +640,10 @@ int main(int argc, char* argv[])
                 }
                 if (strcmp(argv[i], "--module") == 0) {
                     seenModule = true;
+                    continue;
+                }
+                if (strstr(argv[i], "--filename-as=") == argv[i]) {
+                    fileName = argv[i] + sizeof("--filename-as=") - 1;
                     continue;
                 }
                 if (strcmp(argv[i], "--start-debug-server") == 0) {
@@ -685,10 +690,15 @@ int main(int argc, char* argv[])
                                                 argv[i])
                                  .result->asString();
 
-            if (!evalScript(context, src, StringRef::createFromUTF8(argv[i], strlen(argv[i])), false, seenModule)) {
+            if (fileName.length() == 0) {
+                fileName = argv[i];
+            }
+
+            if (!evalScript(context, src, StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
                 return 3;
             }
             seenModule = false;
+            fileName.clear();
         } else {
             runShell = false;
             printf("Cannot open file %s\n", argv[i]);
