@@ -36,7 +36,6 @@ class ArgumentsObject;
 class ArrayBufferObject;
 class ArrayBufferView;
 class DataViewObject;
-class TypedArrayObject;
 class ExecutionPauser;
 
 #define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
@@ -779,12 +778,6 @@ public:
     {
         ASSERT(isArgumentsObject());
         return (ArgumentsObject*)this;
-    }
-
-    TypedArrayObject* asTypedArrayObject()
-    {
-        ASSERT(isTypedArrayObject());
-        return (TypedArrayObject*)this;
     }
 
     bool isConcatSpreadable(ExecutionState& state);

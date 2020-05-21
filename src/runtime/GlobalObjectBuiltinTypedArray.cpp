@@ -169,18 +169,17 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     Value usingIterator = Object::getMethod(state, source, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
     if (!usingIterator.isUndefined()) {
         ValueVectorWithInlineStorage values = iterableToList(state, source, usingIterator);
-        uint64_t len = values.size();
+        size_t len = values.size();
         Value arg[1] = { Value(len) };
         Object* targetObj = createTypedArray(state, C, 1, arg);
 
-        uint64_t k = 0;
+        size_t k = 0;
         while (k < len) {
             Value mappedValue = values[k];
             if (mapping) {
                 Value args[2] = { values[k], Value(k) };
                 mappedValue = Object::call(state, mapfn, T, 2, args);
             }
-            // FIXME
             targetObj->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
             k++;
         }
@@ -189,14 +188,13 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     }
 
     Object* arrayLike = source.toObject(state);
-    uint64_t len = arrayLike->length(state);
+    size_t len = arrayLike->length(state);
 
     Value arg[1] = { Value(len) };
     Object* targetObj = createTypedArray(state, C, 1, arg);
 
-    uint64_t k = 0;
+    size_t k = 0;
     while (k < len) {
-        // FIXME
         Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
         Value mappedValue = kValue;
         if (mapping) {
@@ -204,7 +202,6 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
             Value args[2] = { kValue, Value(k) };
             mappedValue = Object::call(state, mapfn, T, 2, args);
         }
-        // FIXME
         // Let setStatus be Set(targetObj, Pk, mappedValue, true).
         targetObj->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
         k++;
@@ -228,7 +225,6 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
     size_t k = 0;
     while (k < len) {
         Value kValue = argv[k];
-        // FIXME
         newObj->setIndexedPropertyThrowsException(state, Value(k), kValue);
         k++;
     }
@@ -433,7 +429,6 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
                 // Let Pk be ! ToString(k).
                 // Let kValue be the first element of values and remove that element from values.
                 // Perform ? Set(O, Pk, kValue, true).
-                // FIXME
                 obj->setIndexedPropertyThrowsException(state, Value(k), values[k]);
                 // Increase k by 1.
                 k++;
@@ -458,7 +453,6 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
             // Let Pk be ! ToString(k).
             // Let kValue be ? Get(arrayLike, Pk).
             // Perform ? Set(O, Pk, kValue, true).
-            // FIXME
             obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike));
             // Increase k by 1.
             k++;
@@ -558,7 +552,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    int64_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asArrayBufferView()->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -576,27 +570,27 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
         return Value(-1);
     }
 
-    double k;
+    double doubleK;
     // If n ≥ 0, then
     if (n >= 0) {
         // Let k be n.
-        k = (n == -0) ? 0 : n;
+        doubleK = (n == -0) ? 0 : n;
     } else {
         // Else, n<0
-        // Let k be len - abs(n).
-        k = len - std::abs(n);
-
+        // Let k be len + n
+        doubleK = len + n;
         // If k is less than 0, then let k be 0.
-        if (k < 0) {
-            k = 0;
+        if (doubleK < 0) {
+            doubleK = 0;
         }
     }
+    size_t k = (size_t)doubleK;
 
     // Repeat, while k<len
     while (k < len) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
         ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(kPresent.hasValue());
+        ASSERT(kPresent.hasValue());
         // If kPresent is true, then
         // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
         Value elementK = kPresent.value(state, O);
@@ -623,7 +617,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    int64_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asArrayBufferView()->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -639,14 +633,19 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
     }
 
     // If n ≥ 0, then let k be min(n, len – 1).
-    double k;
+    double doubleK;
     if (n >= 0) {
-        k = (n == -0) ? 0 : std::min(n, len - 1.0);
+        doubleK = (n == -0) ? 0 : std::min(n, len - 1.0);
     } else {
         // Else, n < 0
-        // Let k be len - abs(n).
-        k = len - std::abs(n);
+        // Let k be len + n.
+        doubleK = len + n;
     }
+
+    if (doubleK < 0) {
+        return Value(-1);
+    }
+    int64_t k = (int64_t)doubleK;
 
     // Repeat, while k≥ 0
     while (k >= 0) {
@@ -682,7 +681,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, includes);
     validateTypedArray(state, O, state.context()->staticStrings().includes.string());
 
-    int64_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asArrayBufferView()->arrayLength();
 
     // If len is 0, return false.
     if (len == 0) {
@@ -692,6 +691,10 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     Value searchElement = argv[0];
     // Let n be ? ToInteger(fromIndex). (If fromIndex is undefined, this step produces the value 0.)
     double n = argc >= 2 ? argv[1].toInteger(state) : 0;
+    if (n >= len) {
+        return Value(false);
+    }
+
     double doubleK;
     // If n ≥ 0, then
     if (n >= 0) {
@@ -701,25 +704,23 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
         // Else n < 0,
         // Let k be len + n.
         doubleK = len + n;
+        // If k < 0, let k be 0.
+        if (doubleK < 0) {
+            doubleK = 0;
+        }
     }
-
-    // If k < 0, let k be 0.
-    if (doubleK < 0) {
-        doubleK = 0;
-    }
-
-    ASSERT(doubleK >= 0);
+    size_t k = (size_t)doubleK;
 
     // Repeat, while k < len
-    while (doubleK < len) {
+    while (k < len) {
         // Let elementK be the result of ? Get(O, ! ToString(k)).
-        Value elementK = O->getIndexedProperty(state, Value(doubleK)).value(state, O);
+        Value elementK = O->getIndexedProperty(state, Value(k)).value(state, O);
         // If SameValueZero(searchElement, elementK) is true, return true.
         if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
             return Value(true);
         }
         // Increase k by 1.
-        doubleK++;
+        k++;
     }
 
     // Return false.
@@ -848,7 +849,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     }
 
     // Let k be 0.
-    int64_t k = 0;
+    size_t k = 0;
 
     // Repeat, while k < len
     while (k < len) {
@@ -985,7 +986,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
         T = argv[1];
 
     // Let k be 0.
-    unsigned k = 0;
+    size_t k = 0;
 
     while (k < len) {
         ObjectGetResult value = O->getIndexedProperty(state, Value(k));
@@ -1014,7 +1015,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
     ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
 
     // Let len be O.[[ArrayLength]].
-    double len = O->arrayLength();
+    size_t len = O->arrayLength();
     // Set value to ? ToNumber(value).
     double value = argv[0].toNumber(state);
     // Let relativeStart be ? ToInteger(start).
@@ -1023,21 +1024,20 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
         relativeStart = argv[1].toInteger(state);
     }
     // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
-    double k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+    size_t k = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
     // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
     double relativeEnd = len;
     if (argc > 2 && !argv[2].isUndefined()) {
         relativeEnd = argv[2].toInteger(state);
     }
     // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
-    double fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+    size_t fin = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
 
     // If IsDetachedBuffer(O.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
     O->buffer()->throwTypeErrorIfDetached(state);
 
     // Repeat, while k < final
     while (k < fin) {
-        // FIXME
         O->setIndexedPropertyThrowsException(state, Value(k), Value(value));
         k++;
     }
@@ -1075,7 +1075,6 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     size_t captured = 0;
     // Repeat, while k < len
     while (k < len) {
-        // FIXME
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
         bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean(state);
@@ -1093,7 +1092,6 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // Let n be 0.
     // For each element e of kept
     for (size_t n = 0; n < kept.size(); n++) {
-        // FIXME
         // Let status be Set(A, ToString(n), e, true ).
         A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kept[n]);
     }
@@ -1126,7 +1124,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     }
 
     // Let k be 0.
-    double k = 0;
+    size_t k = 0;
     Value kValue;
     // Repeat, while k < len
     while (k < len) {
@@ -1171,7 +1169,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     }
 
     // Let k be 0.
-    double k = 0;
+    size_t k = 0;
     Value kValue;
     // Repeat, while k < len
     while (k < len) {
@@ -1216,7 +1214,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     }
 
     // Let k be 0.
-    double k = 0;
+    size_t k = 0;
     while (k < len) {
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
         RELEASE_ASSERT(res.hasValue());
@@ -1261,7 +1259,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     RELEASE_ASSERT(!elem.isUndefinedOrNull());
     builder.appendString(elem.toString(state));
 
-    double curIndex = 1;
+    size_t curIndex = 1;
     while (curIndex < len) {
         if (sep->length() > 0) {
             if (static_cast<double>(builder.contentLength()) > static_cast<double>(lenMax - sep->length())) {
@@ -1308,7 +1306,6 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     size_t k = 0;
     // Repeat, while k < len
     while (k < len) {
-        // FIXME
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
         Value mappedValue = Object::call(state, callbackfn, T, 3, args);
@@ -1424,11 +1421,11 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     // Array.prototype.reverse as defined in 22.1.3.20 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    unsigned len = O->asArrayBufferView()->arrayLength();
-    unsigned middle = std::floor(len / 2);
-    unsigned lower = 0;
+    size_t len = O->asArrayBufferView()->arrayLength();
+    size_t middle = std::floor(len / 2);
+    size_t lower = 0;
     while (middle > lower) {
-        unsigned upper = len - lower - 1;
+        size_t upper = len - lower - 1;
 
         ObjectGetResult upperResult = O->getIndexedProperty(state, Value(upper));
         ObjectGetResult lowerResult = O->getIndexedProperty(state, Value(lower));
@@ -1462,13 +1459,13 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     // Let relativeStart be ToInteger(start).
     double relativeStart = argv[0].toInteger(state);
     // If relativeStart < 0, let k be max((len + relativeStart),0); else let k be min(relativeStart, len).
-    double k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
+    size_t k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
     // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
     double relativeEnd = (argv[1].isUndefined()) ? len : argv[1].toInteger(state);
     // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
     double finalEnd = (relativeEnd < 0) ? std::max((double)len + relativeEnd, 0.0) : std::min(relativeEnd, (double)len);
     // Let count be max(final – k, 0).
-    double count = std::max((double)finalEnd - k, 0.0);
+    size_t count = std::max((double)finalEnd - k, 0.0);
 
     Value arg[1] = { Value(count) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
@@ -1478,7 +1475,6 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     if (O->typedArrayType() != target->typedArrayType()) {
         size_t n = 0;
         while (k < finalEnd) {
-            // FIXME
             Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
             A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kValue);
             k++;
@@ -1519,7 +1515,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    uint64_t len = array->asArrayBufferView()->arrayLength();
+    size_t len = array->asArrayBufferView()->arrayLength();
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
         return String::emptyString;
@@ -1533,7 +1529,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     String* R = String::emptyString;
 
     // Let k be 0.
-    uint64_t k = 0;
+    size_t k = 0;
 
     // Repeat, while k < len
     while (k < len) {

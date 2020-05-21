@@ -53,10 +53,16 @@ public:
         return m_computed;
     }
 
-    AtomicString propertyName()
+    inline AtomicString propertyName()
     {
         ASSERT(isPreComputedCase());
         return ((IdentifierNode*)m_property)->name();
+    }
+
+    inline bool hasInfinityPropertyName(ByteCodeBlock* codeBlock)
+    {
+        ASSERT(isPreComputedCase());
+        return (propertyName() == codeBlock->m_codeBlock->context()->staticStrings().Infinity || propertyName() == codeBlock->m_codeBlock->context()->staticStrings().NegativeInfinity);
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
@@ -92,8 +98,15 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
                 codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
                 context->giveUpRegister();
+            } else if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
+                // Handle Infinity property not to be inline-cached
+                // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
+                // e.g. typedarr.Infinity
+                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
+                context->giveUpRegister();
             } else {
-                size_t pos = codeBlock->currentCodeSize();
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
             }
         } else {
@@ -130,6 +143,15 @@ public:
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
                 codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                context->giveUpRegister();
+                context->giveUpRegister();
+            } else if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
+                // Handle Infinity property not to be inline-cached
+                // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
+                // e.g. typedarr.Infinity
+                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
+                codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
                 context->giveUpRegister();
                 context->giveUpRegister();
             } else {
@@ -185,8 +207,17 @@ public:
         if (isPreComputedCase()) {
             size_t objectIndex = context->getLastRegisterIndex();
             size_t resultIndex = context->getRegister();
-            size_t pos = codeBlock->currentCodeSize();
-            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
+            if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
+                // Handle Infinity property not to be inline-cached
+                // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
+                // e.g. typedarr.Infinity
+                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this);
+                context->giveUpRegister();
+            } else {
+                codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
+            }
         } else {
             size_t objectIndex = context->getLastRegisterIndex(1);
             size_t propertyIndex = context->getLastRegisterIndex();
