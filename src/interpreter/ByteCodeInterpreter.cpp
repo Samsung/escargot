@@ -34,7 +34,6 @@
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/GeneratorObject.h"
-#include "runtime/PromiseObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptArrowFunctionObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
@@ -45,7 +44,6 @@
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
 #include "../third_party/checked_arithmetic/CheckedArithmetic.h"
-#include "runtime/ProxyObject.h"
 
 namespace Escargot {
 
@@ -1896,13 +1894,16 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         return;
     }
 
+    const int maxCacheMissCount = 16;
+    const int minCacheFillCount = 3;
+
     // cache miss
-    if (code->m_missCount > 16) {
+    if (code->m_missCount > maxCacheMissCount) {
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
         return;
     }
 
-    if (code->m_missCount < 3) {
+    if (code->m_missCount < minCacheFillCount) {
         code->m_missCount++;
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
         return;

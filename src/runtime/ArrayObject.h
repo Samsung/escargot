@@ -79,8 +79,6 @@ public:
     void* operator new[](size_t size) = delete;
 
     static void iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback);
-    static Value arrayLengthNativeGetter(ExecutionState& state, Object* self);
-    static bool arrayLengthNativeSetter(ExecutionState& state, Object* self, const Value& newData);
 
     void defineOwnIndexedPropertyWithExpandedLength(ExecutionState& state, const size_t& index, const Value& value)
     {

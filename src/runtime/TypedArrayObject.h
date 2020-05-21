@@ -21,7 +21,6 @@
 #define __EscargotTypedArrayObject__
 
 #include "runtime/ArrayBufferObject.h"
-#include "runtime/TypedArrayInlines.h"
 
 namespace Escargot {
 
@@ -91,11 +90,6 @@ public:
         return true;
     }
 
-    virtual bool isInlineCacheable() override
-    {
-        return false;
-    }
-
     void* operator new(size_t size)
     {
         static bool typeInited = false;
@@ -113,47 +107,14 @@ public:
     }
     void* operator new[](size_t size) = delete;
 
-protected:
-    // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
-    ObjectGetResult integerIndexedElementGet(ExecutionState& state, double index)
-    {
-        ArrayBufferObject* buffer = m_buffer;
-        buffer->throwTypeErrorIfDetached(state);
-
-        if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
-            return ObjectGetResult();
-        }
-
-        size_t indexedPosition = (index * elementSize()) + m_byteOffset;
-        // Return GetValueFromBuffer(buffer, indexedPosition, elementType, true, "Unordered").
-        return ObjectGetResult(buffer->getValueFromBuffer(state, indexedPosition, typedArrayType()), true, true, false);
-    }
-
-    // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementset
-    bool integerIndexedElementSet(ExecutionState& state, double index, const Value& value)
-    {
-        double numValue = value.toNumber(state);
-        ArrayBufferObject* buffer = m_buffer;
-        buffer->throwTypeErrorIfDetached(state);
-
-        if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
-            return false;
-        }
-
-        size_t indexedPosition = (index * elementSize()) + m_byteOffset;
-        // Perform SetValueInBuffer(buffer, indexedPosition, elementType, numValue, true, "Unordered").
-        buffer->setValueInBuffer(state, indexedPosition, typedArrayType(), Value(numValue));
-        return true;
-    }
-
 private:
     ArrayBufferObject* m_buffer;
-    uint8_t* m_rawBuffer;
     size_t m_byteLength;
     size_t m_byteOffset;
     size_t m_arrayLength;
 };
 
+template <typename T>
 class TypedArrayObject : public ArrayBufferView {
 public:
     virtual bool isTypedArrayObject() const override
@@ -161,142 +122,34 @@ public:
         return true;
     }
 
-    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
-    {
-        if (LIKELY(P.isStringType())) {
-            double index = P.canonicalNumericIndexString(state);
-            if (LIKELY(index != Value::UndefinedIndex)) {
-                return ObjectHasPropertyResult(integerIndexedElementGet(state, index));
-            }
-        }
-        return Object::hasProperty(state, P);
-    }
-
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
-    {
-        if (LIKELY(P.isStringType())) {
-            double index = P.canonicalNumericIndexString(state);
-            if (LIKELY(index != Value::UndefinedIndex)) {
-                return integerIndexedElementGet(state, index);
-            }
-        }
-        return Object::getOwnProperty(state, P);
-    }
-
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE override
-    {
-        if (LIKELY(P.isStringType())) {
-            double index = P.canonicalNumericIndexString(state);
-            if (LIKELY(index != Value::UndefinedIndex)) {
-                if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength() || desc.isAccessorDescriptor()) {
-                    return false;
-                }
-
-                if (desc.isConfigurablePresent() && desc.isConfigurable()) {
-                    return false;
-                }
-                if (desc.isEnumerablePresent() && !desc.isEnumerable()) {
-                    return false;
-                }
-                if (desc.isWritablePresent() && !desc.isWritable()) {
-                    return false;
-                }
-                if (desc.isValuePresent()) {
-                    return integerIndexedElementSet(state, index, desc.value());
-                }
-                return true;
-            }
-        }
-        return Object::defineOwnProperty(state, P, desc);
-    }
-
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override
-    {
-        if (LIKELY(P.isStringType())) {
-            double index = P.canonicalNumericIndexString(state);
-            if (LIKELY(index != Value::UndefinedIndex)) {
-                return integerIndexedElementGet(state, index);
-            }
-        }
-        return Object::get(state, P);
-    }
-
-    virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override
-    {
-        if (LIKELY(P.isStringType())) {
-            double index = P.canonicalNumericIndexString(state);
-            if (LIKELY(index != Value::UndefinedIndex)) {
-                return integerIndexedElementSet(state, index, v);
-            }
-        }
-        return Object::set(state, P, v, receiver);
-    }
-
-    /*
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override
-    {
-        Value::ValueIndex idx = property.tryToUseAsIndex(state);
-        if (LIKELY(idx != Value::InvalidIndexValue) && LIKELY((size_t)idx < arrayLength())) {
-            return integerIndexedElementGet(state, idx);
-        }
-        return get(state, ObjectPropertyName(state, property));
-    }
-
-    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override
-    {
-        Value::ValueIndex index = property.tryToUseAsIndex(state);
-        if (LIKELY(Value::InvalidIndexValue != index) && LIKELY((size_t)index < arrayLength())) {
-            return integerIndexedElementSet(state, index, value);
-        }
-        return set(state, ObjectPropertyName(state, property), value, this);
-    }
-    */
-
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) override
-    {
-        size_t len = arrayLength();
-        for (size_t i = 0; i < len; i++) {
-            if (!callback(state, this, ObjectPropertyName(state, Value(i)), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data)) {
-                return;
-            }
-        }
-        Object::enumeration(state, callback, data);
-    }
-
-    virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override
-    {
-        if (length) {
-            Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * length);
-
-            for (int64_t i = 0; i < length; i++) {
-                tempBuffer[i] = integerIndexedElementGet(state, i).value(state, this);
-            }
-
-            TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
-            tempSpace.resizeWithUninitializedValues(length);
-            mergeSort(tempBuffer, length, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
-                *lessOrEqualp = comp(a, b);
-                return true;
-            });
-
-            for (int64_t i = 0; i < length; i++) {
-                integerIndexedElementSet(state, i, tempBuffer[i]);
-            }
-            GC_FREE(tempBuffer);
-
-            return;
-        }
-    }
+    virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override;
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) override;
+    virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
 
 protected:
     explicit TypedArrayObject(ExecutionState& state, Object* proto)
         : ArrayBufferView(state, proto)
     {
     }
+
+    inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex, bool isLittleEndian = 1);
+    inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, double val, bool isLittleEndian = 1);
+
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
+    ObjectGetResult integerIndexedElementGet(ExecutionState& state, double index);
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementset
+    bool integerIndexedElementSet(ExecutionState& state, double index, const Value& value);
 };
 
 #define DECLARE_TYPEDARRAY(TYPE, type, siz)                                                                                                         \
-    class TYPE##ArrayObject : public TypedArrayObject {                                                                                             \
+    typedef TypedArrayObject<TYPE##Adaptor> TYPE##ArrayObjectWrapper;                                                                               \
+    class TYPE##ArrayObject : public TYPE##ArrayObjectWrapper {                                                                                     \
     public:                                                                                                                                         \
         explicit TYPE##ArrayObject(ExecutionState& state)                                                                                           \
             : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                     \
