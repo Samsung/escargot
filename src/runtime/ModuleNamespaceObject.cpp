@@ -26,20 +26,20 @@
 
 namespace Escargot {
 
-ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, ModuleEnvironmentRecord* record)
+ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, Script* script)
     : Object(state)
     , m_isInitialized(false)
-    , m_moduleEnvironmentRecord(record)
+    , m_script(script)
 {
     // Let exportedNames be module.GetExportedNames(« »).
-    auto exportedNames = m_moduleEnvironmentRecord->script()->exportedNames(state);
+    auto exportedNames = m_script->exportedNames(state);
     // ReturnIfAbrupt(exportedNames).
     // Let unambiguousNames be a new empty List.
     AtomicStringVector unambiguousNames;
     // For each name that is an element of exportedNames,
     for (size_t i = 0; i < exportedNames.size(); i++) {
         // Let resolution be module.ResolveExport(name, « », « »).
-        auto resolution = m_moduleEnvironmentRecord->script()->resolveExport(state, exportedNames[i]);
+        auto resolution = m_script->resolveExport(state, exportedNames[i]);
         // ReturnIfAbrupt(resolution).
         // If resolution is null, throw a SyntaxError exception.
         if (resolution.m_type == Script::ResolveExportResult::Null) {
@@ -53,6 +53,13 @@ ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, ModuleEnviro
     }
     // Let namespace be ModuleNamespaceCreate(module, unambiguousNames).
     m_exports = std::move(unambiguousNames);
+
+    // Let sortedExports be a new List containing the same values as the list exports where the values are ordered as if an Array of the same values had been sorted using Array.prototype.sort using undefined as comparefn.
+    // Set M.[[Exports]] to sortedExports.
+    std::sort(m_exports.begin(), m_exports.end(),
+              [](const AtomicString& a, const AtomicString& b) -> bool {
+                  return *a.string() < *b.string();
+              });
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-@@tostringtag
     Object::defineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)), ObjectPropertyDescriptor(Value(state.context()->staticStrings().Module.string()), ObjectPropertyDescriptor::NotPresent));
@@ -80,6 +87,44 @@ ObjectGetResult ModuleNamespaceObject::getOwnProperty(ExecutionState& state, con
     }
     // If P is not an element of exports, return undefined.
     return ObjectGetResult();
+}
+
+// http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+bool ModuleNamespaceObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    // If Type(P) is Symbol, return OrdinaryDefineOwnProperty(O, P, Desc).
+    auto pAsPropertyName = P.toObjectStructurePropertyName(state);
+    if (pAsPropertyName.isSymbol()) {
+        return Object::defineOwnProperty(state, P, desc);
+    }
+    // Let current be ? O.[[GetOwnProperty]](P).
+    auto current = getOwnProperty(state, P);
+    // If current is undefined, return false.
+    if (!current.hasValue()) {
+        return false;
+    }
+    // If IsAccessorDescriptor(Desc) is true, return false.
+    if (desc.isAccessorDescriptor()) {
+        return false;
+    }
+    // If Desc.[[Writable]] is present and has value false, return false.
+    if (desc.isWritablePresent() && !desc.isWritable()) {
+        return false;
+    }
+    // If Desc.[[Enumerable]] is present and has value false, return false.
+    if (desc.isEnumerablePresent() && !desc.isEnumerable()) {
+        return false;
+    }
+    // If Desc.[[Configurable]] is present and has value true, return false.
+    if (desc.isConfigurablePresent() && desc.isConfigurable()) {
+        return false;
+    }
+    // If Desc.[[Value]] is present, return SameValue(Desc.[[Value]], current.[[Value]]).
+    if (desc.isValuePresent()) {
+        return desc.value().equalsToByTheSameValueAlgorithm(state, current.value(state, this));
+    }
+    // Return true.
+    return true;
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-hasproperty-p
@@ -122,9 +167,14 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
             AtomicString pAsAtomicString(state, pAsPropertyName.plainString());
             // Let m be the value of O’s [[Module]] internal slot.
             // Let binding be m.ResolveExport(P, «», «»).
-            auto binding = m_moduleEnvironmentRecord->script()->resolveExport(state, pAsAtomicString);
+            auto binding = m_script->resolveExport(state, pAsAtomicString);
             // ReturnIfAbrupt(binding).
             // Assert: binding is neither null nor "ambiguous".
+            // If binding.[[BindingName]] is "*namespace*", then
+            if (std::get<1>(binding.m_record.value()) == state.context()->staticStrings().stringStarNamespaceStar) {
+                // Return ? GetModuleNamespace(targetModule).
+                return ObjectGetResult(std::get<0>(binding.m_record.value())->getModuleNamespace(state), true, true, false);
+            }
             // Let targetModule be binding.[[module]],
             Script* targetModule = std::get<0>(binding.m_record.value());
             // Assert: targetModule is not undefined.
@@ -145,13 +195,19 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
     return ObjectGetResult();
 }
 
-// http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-delete-p
+// https://www.ecma-international.org/ecma-262/#sec-module-namespace-exotic-objects-delete-p
 bool ModuleNamespaceObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     auto pAsPropertyName = P.toObjectStructurePropertyName(state);
-    // Let exports be the value of O’s [[Exports]] internal slot.
-    // If P is an element of exports, return true.
-    // Return false.
+    // If Type(P) is Symbol, then
+    if (pAsPropertyName.isSymbol()) {
+        // Return ? OrdinaryDelete(O, P).
+        return Object::deleteOwnProperty(state, P);
+    }
+
+    // Let exports be O.[[Exports]].
+    // If P is an element of exports, return false.
+    // Return true.
     for (size_t i = 0; i < m_exports.size(); i++) {
         if (pAsPropertyName == ObjectStructurePropertyName(m_exports[i])) {
             return false;
@@ -163,11 +219,51 @@ bool ModuleNamespaceObject::deleteOwnProperty(ExecutionState& state, const Objec
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-ownpropertykeys
 void ModuleNamespaceObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
+    // we should test binding values are initialized before enumeration
+    for (size_t i = 0; i < m_exports.size(); i++) {
+        AtomicString name = m_exports[i];
+        auto binding = m_script->resolveExport(state, name);
+        if (std::get<1>(binding.m_record.value()) == state.context()->staticStrings().stringStarNamespaceStar) {
+            std::get<0>(binding.m_record.value())->getModuleNamespace(state);
+        }
+        Script* targetModule = std::get<0>(binding.m_record.value());
+        if (!targetModule->moduleData()->m_moduleRecord) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->src());
+        }
+        targetModule->moduleData()->m_moduleRecord->getBindingValue(state, std::get<1>(binding.m_record.value()));
+    }
+
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 
     for (size_t i = 0; i < m_exports.size(); i++) {
         callback(state, this, ObjectPropertyName(m_exports[i]),
                  ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)), data);
     }
+}
+
+// https://www.ecma-international.org/ecma-262/#sec-module-namespace-exotic-objects-ownpropertykeys
+Object::OwnPropertyKeyVector ModuleNamespaceObject::ownPropertyKeys(ExecutionState& state)
+{
+    // Let exports be a copy of O.[[Exports]].
+    Object::OwnPropertyKeyVector exports;
+    for (size_t i = 0; i < m_exports.size(); i++) {
+        exports.pushBack(m_exports[i].string());
+    }
+    // Let symbolKeys be ! OrdinaryOwnPropertyKeys(O).
+    // Append all the entries of symbolKeys to the end of exports.
+
+    Object::enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& p, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        Object::OwnPropertyKeyVector* exports = (Object::OwnPropertyKeyVector*)data;
+        if (!p.isUIntType()) {
+            if (p.objectStructurePropertyName().isSymbol()) {
+                exports->pushBack(p.objectStructurePropertyName().toValue());
+            }
+        }
+        return true;
+    },
+                        &exports, false);
+
+    // Return exports.
+    return exports;
 }
 }

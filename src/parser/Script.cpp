@@ -63,28 +63,13 @@ size_t Script::moduleRequestsLength()
     if (!isModule()) {
         return 0;
     }
-    return m_moduleData->m_importEntries.size() + m_moduleData->m_indirectExportEntries.size() + m_moduleData->m_starExportEntries.size();
+    return m_moduleData->m_requestedModules.size();
 }
 
 String* Script::moduleRequest(size_t i)
 {
-    if (!isModule()) {
-        return String::emptyString;
-    }
-
-    if (i < m_moduleData->m_importEntries.size()) {
-        return m_moduleData->m_importEntries[i].m_moduleRequest;
-    }
-
-    i = i - m_moduleData->m_importEntries.size();
-
-    if (i < m_moduleData->m_indirectExportEntries.size()) {
-        return m_moduleData->m_indirectExportEntries[i].m_moduleRequest.value();
-    }
-
-    i = i - m_moduleData->m_indirectExportEntries.size();
-
-    return m_moduleData->m_starExportEntries[i].m_moduleRequest.value();
+    ASSERT(isModule());
+    return m_moduleData->m_requestedModules[i];
 }
 
 AtomicStringVector Script::exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet)
@@ -158,7 +143,7 @@ AtomicStringVector Script::exportedNames(ExecutionState& state, std::vector<Scri
     return exportedNames;
 }
 
-Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicString exportName, std::vector<std::tuple<Script*, AtomicString>>& resolveSet, std::vector<Script*>& exportStarSet)
+Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicString exportName, std::vector<std::tuple<Script*, AtomicString>>& resolveSet)
 {
     ASSERT(isModule());
     // Let module be this Source Text Module Record.
@@ -191,18 +176,22 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
     auto& indirectExportEntries = m_moduleData->m_indirectExportEntries;
     for (size_t i = 0; i < indirectExportEntries.size(); i++) {
         auto& e = indirectExportEntries[i];
+
         // If SameValue(exportName, e.[[ExportName]]) is true, then
         if (e.m_exportName == exportName) {
-            // Assert: module imports a specific binding for this export.
-            // Let importedModule be HostResolveImportedModule(module, e.[[ModuleRequest]]).
-            // ReturnIfAbrupt(importedModule).
+            // Let importedModule be ? HostResolveImportedModule(module, e.[[ModuleRequest]]).
             Script* importedModule = loadModuleFromScript(state, e.m_moduleRequest.value());
-            // Let indirectResolution be importedModule.ResolveExport(e.[[ImportName]], resolveSet, exportStarSet).
-            auto indirectResolution = importedModule->resolveExport(state, e.m_importName.value(), resolveSet, exportStarSet);
-            // ReturnIfAbrupt(indirectResolution).
-            // If indirectResolution is not null, return indirectResolution.
-            if (indirectResolution.m_type != Script::ResolveExportResult::Null) {
-                return indirectResolution;
+
+            // If e.[[ImportName]] is "*", then
+            if (e.m_importName.value() == context()->staticStrings().asciiTable[(unsigned char)'*']) {
+                // Assert: module does not provide the direct binding for this export.
+                // Return ResolvedBinding Record { [[Module]]: importedModule, [[BindingName]]: "*namespace*" }.
+                return Script::ResolveExportResult(Script::ResolveExportResult::Record, Optional<std::tuple<Script*, AtomicString>>(std::make_tuple(importedModule, context()->staticStrings().stringStarNamespaceStar)));
+            } else {
+                // Else,
+                // Assert: module imports a specific binding for this export.
+                // Return importedModule.ResolveExport(e.[[ImportName]], resolveSet).
+                return importedModule->resolveExport(state, e.m_importName.value(), resolveSet);
             }
         }
     }
@@ -215,14 +204,6 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "The module '%s' does not provide an export named 'default'", src());
     }
 
-    // If exportStarSet contains module, then return null.
-    for (size_t i = 0; i < exportStarSet.size(); i++) {
-        if (exportStarSet[i] == module) {
-            return Script::ResolveExportResult(Script::ResolveExportResult::Null);
-        }
-    }
-    // Append module to exportStarSet.
-    exportStarSet.push_back(module);
     // Let starResolution be null.
     Script::ResolveExportResult starResolution(Script::ResolveExportResult::Null);
 
@@ -231,11 +212,9 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
     for (size_t i = 0; i < starExportEntries.size(); i++) {
         auto& e = starExportEntries[i];
         // Let importedModule be HostResolveImportedModule(module, e.[[ModuleRequest]]).
-        // ReturnIfAbrupt(importedModule).
         Script* importedModule = loadModuleFromScript(state, e.m_moduleRequest.value());
-        // Let resolution be importedModule.ResolveExport(exportName, resolveSet, exportStarSet).
-        // ReturnIfAbrupt(resolution).
-        auto resolution = importedModule->resolveExport(state, exportName, resolveSet, exportStarSet);
+        // Let resolution be importedModule.ResolveExport(exportName, resolveSet).
+        auto resolution = importedModule->resolveExport(state, exportName, resolveSet);
         // If resolution is "ambiguous", return "ambiguous".
         if (resolution.m_type == Script::ResolveExportResult::Ambiguous) {
             return resolution;
@@ -866,7 +845,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
         // If in.[[ImportName]] is "*", then
         if (in.m_importName == context()->staticStrings().asciiTable[(unsigned char)'*']) {
             // Let namespace be ? GetModuleNamespace(importedModule).
-            ModuleNamespaceObject* namespaceObject = importedModule->moduleData()->m_moduleRecord->namespaceObject(state);
+            ModuleNamespaceObject* namespaceObject = importedModule->getModuleNamespace(state);
             // Perform ! envRec.CreateImmutableBinding(in.[[LocalName]], true).
             // Call envRec.InitializeBinding(in.[[LocalName]], namespace).
             moduleRecord->initializeBinding(state, in.m_localName, namespaceObject);
@@ -893,9 +872,18 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
                 return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
             }
 
-            ASSERT(std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord != nullptr);
-            // Call envRec.CreateImportBinding(in.[[LocalName]], resolution.[[module]], resolution.[[bindingName]]).
-            moduleRecord->createImportBinding(state, in.m_localName, std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord, std::get<1>(resolution.m_record.value()));
+            // If resolution.[[BindingName]] is "*namespace*", then
+            if (std::get<1>(resolution.m_record.value()) == context()->staticStrings().stringStarNamespaceStar) {
+                // Let namespace be ? GetModuleNamespace(resolution.[[Module]]).
+                auto namespaceObject = std::get<0>(resolution.m_record.value())->getModuleNamespace(state);
+                // Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
+                // Call env.InitializeBinding(in.[[LocalName]], namespace).
+                moduleRecord->initializeBinding(state, in.m_localName, namespaceObject);
+            } else {
+                ASSERT(std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord != nullptr);
+                // Call envRec.CreateImportBinding(in.[[LocalName]], resolution.[[module]], resolution.[[bindingName]]).
+                moduleRecord->createImportBinding(state, in.m_localName, std::get<0>(resolution.m_record.value())->moduleData()->m_moduleRecord, std::get<1>(resolution.m_record.value()));
+            }
         }
     }
 
@@ -940,5 +928,19 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state)
     m_topCodeBlock->m_byteCodeBlock = nullptr;
 
     return ModuleExecutionResult(gotExecption, resultValue);
+}
+
+ModuleNamespaceObject* Script::getModuleNamespace(ExecutionState& state)
+{
+    // Assert: module is an instance of a concrete subclass of Module Record.
+    ASSERT(isModule());
+    // Assert: module.[[Status]] is not "uninstantiated".
+    ASSERT(moduleData()->m_status != ModuleData::Uninstantiated);
+
+    if (!moduleData()->m_namespace) {
+        moduleData()->m_namespace = new ModuleNamespaceObject(state, this);
+    }
+
+    return moduleData()->m_namespace.value();
 }
 }

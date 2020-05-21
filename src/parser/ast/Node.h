@@ -116,6 +116,7 @@ enum ASTNodeType {
     ExportDeclaration,
     ExportDefaultDeclaration,
     ExportNamedDeclaration,
+    ExportStarAsNamedFromDeclaration,
     ExportSpecifier,
     Expression,
     ExpressionStatement,

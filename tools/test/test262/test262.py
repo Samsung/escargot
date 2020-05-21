@@ -300,10 +300,7 @@ class TestCase(object):
   def GetAdditionalIncludes(self):
     return '\n'.join([self.suite.GetInclude(include) for include in self.GetIncludeList()])
 
-  def GetSource(self):
-    if self.IsRaw():
-        return self.test
-
+  def GetDriverSource(self):
     source = self.suite.GetInclude("sta.js") + \
         self.suite.GetInclude("cth.js") + \
         self.suite.GetInclude("assert.js")
@@ -315,7 +312,14 @@ class TestCase(object):
 
     source = source + \
         self.GetAdditionalIncludes() + \
-        self.test + '\n'
+        '\n'
+    return source
+
+  def GetSource(self):
+    if self.IsRaw():
+        return self.test
+
+    source = self.test
 
     if self.strict_mode:
       source = '"use strict";\nvar strict_mode = true;\n' + source
@@ -370,7 +374,11 @@ class TestCase(object):
       stderr.Dispose()
     return (code, out, err)
 
-  def RunTestIn(self, command_template, tmp):
+  def RunTestIn(self, command_template, driver_tmp, tmp):
+    driver_source = self.GetDriverSource()
+    driver_tmp.Write(driver_source)
+    driver_tmp.Close()
+
     source = self.GetSource()
     is_module = False
 
@@ -386,6 +394,7 @@ class TestCase(object):
     tmp.Close()
 
     command = self.InstantiateTemplate(command_template, {
+      'driver_path': driver_tmp.name,
       'path': tmp.name,
       'test_case_path': self.full_path,
       'is_module': is_module
@@ -395,10 +404,12 @@ class TestCase(object):
     return TestResult(code, out, err, self)
 
   def Run(self, command_template):
+    driver_tmp = TempFile(suffix=".js", prefix="test262-", text=True)
     tmp = TempFile(suffix=".js", prefix="test262-", text=True)
     try:
-      result = self.RunTestIn(command_template, tmp)
+      result = self.RunTestIn(command_template, driver_tmp, tmp)
     finally:
+      driver_tmp.Dispose()
       tmp.Dispose()
     return result
 
@@ -590,7 +601,7 @@ class TestSuite(object):
 
   def Run(self, command_template, tests, print_summary, full_summary, logname, junitfile):
     if not "{{path}}" in command_template:
-      command_template += " {{is_module}}--filename-as={{test_case_path}} {{path}}"
+      command_template += " {{driver_path}} {{is_module}}--filename-as={{test_case_path}} {{path}}"
     cases = self.EnumerateTests(tests)
     if len(cases) == 0:
       ReportError("No tests to run")

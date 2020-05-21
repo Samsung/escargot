@@ -83,6 +83,7 @@
 #include "ExportAllDeclarationNode.h"
 #include "ExportDefaultDeclarationNode.h"
 #include "ExportNamedDeclarationNode.h"
+#include "ExportStarAsNamedFromDeclarationNode.h"
 #include "EmptyStatementNode.h"
 #include "ExpressionNode.h"
 #include "ExpressionStatementNode.h"

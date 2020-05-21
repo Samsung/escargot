@@ -609,6 +609,9 @@ public:
         UTF16StringDataNonGCStd msgData;
         msgData.assign(msg, &msg[strlen(msg)]);
         UTF16StringDataNonGCStd valueData = UTF16StringDataNonGCStd(value->toUTF16StringData().data());
+        if (msgData.find(u"%s") == std::string::npos) {
+            msgData += u" %s";
+        }
         replaceAll(msgData, UTF16StringDataNonGCStd(u"%s"), valueData);
 
         // if (token && typeof token.lineNumber == 'number') {
@@ -4610,10 +4613,9 @@ public:
         return result;
     }
 
-    template <class ASTBuilder, bool parseAsExpressionWhenThereIsNoName = false>
+    template <class ASTBuilder, bool treatEmptyNameAsDefault = false>
     ASTNode parseFunctionDeclaration(ASTBuilder& builder)
     {
-        Marker startMarker = this->startMarker;
         MetaNode node = this->createNode();
         bool isAsync = this->matchContextualKeyword("async");
         if (isAsync) {
@@ -4627,19 +4629,13 @@ public:
             this->nextToken();
         }
 
-        if (parseAsExpressionWhenThereIsNoName && this->match(PunctuatorKind::LeftParenthesis)) {
-            this->scanner->index = startMarker.index;
-            this->scanner->lineNumber = startMarker.lineNumber;
-            this->scanner->lineStart = startMarker.lineStart;
-            this->nextToken();
-            return parseFunctionExpression<ASTBuilder>(builder);
-        }
-
         const char* message = nullptr;
         ASTNode id = nullptr;
         Scanner::SmallScannerResult firstRestricted;
 
-        {
+        if (treatEmptyNameAsDefault && this->match(PunctuatorKind::LeftParenthesis)) {
+            id = builder.createIdentifierNode(this->escargotContext->staticStrings().stringDefault);
+        } else {
             ALLOC_TOKEN(token);
             *token = this->lookahead;
             TrackUsingNameBlocker blocker(this);
@@ -5415,6 +5411,17 @@ public:
     // ECMA-262 15.2 Modules
     // ECMA-262 15.2.2 Imports
 
+    void appendToRequestedModulesIfNeeds(String* src)
+    {
+        for (size_t i = 0; i < this->moduleData->m_requestedModules.size(); i++) {
+            if (src->equals(moduleData->m_requestedModules[i])) {
+                return;
+            }
+        }
+
+        this->moduleData->m_requestedModules.pushBack(src);
+    }
+
     template <class ASTBuilder>
     ASTNode parseModuleSpecifier(ASTBuilder& builder)
     {
@@ -5511,6 +5518,7 @@ public:
         if (this->lookahead.type == Token::StringLiteralToken) {
             // import 'foo';
             src = this->parseModuleSpecifier(builder);
+            appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
         } else {
             if (this->match(PunctuatorKind::LeftBrace)) {
                 // import {bar}
@@ -5585,6 +5593,7 @@ public:
             }
             this->nextToken();
             src = this->parseModuleSpecifier(builder);
+            appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
         }
         this->consumeSemicolon();
 
@@ -5661,14 +5670,18 @@ public:
                     newEntry.m_exportName = ee.m_exportName;
 
                     this->moduleData->m_indirectExportEntries.push_back(newEntry);
+
+                    appendToRequestedModulesIfNeeds(newEntry.m_moduleRequest.value());
                 }
             }
         } else if (ee.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
             // Else, if ee.[[ImportName]] is "*", then
             this->moduleData->m_starExportEntries.push_back(ee);
+            appendToRequestedModulesIfNeeds(ee.m_moduleRequest.value());
         } else {
             // Append ee to indirectExportEntries.
             this->moduleData->m_indirectExportEntries.push_back(ee);
+            appendToRequestedModulesIfNeeds(ee.m_moduleRequest.value());
         }
     }
 
@@ -5699,12 +5712,7 @@ public:
                 if (builder.isNodeGenerator()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    AtomicString fnName;
-                    if (declaration->type() == FunctionDeclaration) {
-                        fnName = declaration->asFunctionDeclaration()->functionName();
-                    } else {
-                        fnName = declaration->asFunctionExpression()->functionName();
-                    }
+                    AtomicString fnName = declaration->asFunctionDeclaration()->functionName();
                     entry.m_localName = fnName.string()->length() ? fnName : this->escargotContext->staticStrings().stringStarDefaultStar;
                     addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::VarKeyword);
                     checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
@@ -5760,29 +5768,63 @@ public:
             }
 
         } else if (this->match(PunctuatorKind::Multiply)) {
-            // export * from 'foo';
             this->nextToken();
-            if (!this->matchContextualKeyword("from")) {
+            if (this->matchContextualKeyword("from")) {
+                // export * from 'foo';
+                this->nextToken();
+                if (this->lookahead.type != Token::StringLiteralToken) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+                ASTNode src = this->parseModuleSpecifier(builder);
+
+                if (builder.isNodeGenerator()) {
+                    Script::ExportEntry entry;
+                    entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
+                    entry.m_moduleRequest = src->asLiteral()->value().asString();
+                    entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
+                    addExportDeclarationEntry(entry);
+                }
+
+                exportDeclaration = this->finalize(node, builder.createExportAllDeclarationNode(src));
+            } else if (this->matchContextualKeyword("as")) {
+                // export * as ns from "mod";
+                this->nextToken();
+
+                if (this->lookahead.type != Token::IdentifierToken) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+
+                ASTNode idNode;
+                AtomicString name;
+                {
+                    TrackUsingNameBlocker blocker(this);
+                    idNode = finishIdentifier(builder, &this->lookahead);
+                    name = idNode->asIdentifier()->name();
+                }
+                this->nextToken();
+
+                if (!this->matchContextualKeyword("from")) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+                this->nextToken();
+
+                ASTNode src = this->parseModuleSpecifier(builder);
+
+                if (builder.isNodeGenerator()) {
+                    Script::ExportEntry entry;
+                    entry.m_exportName = name;
+                    entry.m_moduleRequest = src->asLiteral()->value().asString();
+                    entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
+                    addDeclaredNameIntoContext(this->escargotContext->staticStrings().stringStarNamespaceStar, this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                    this->moduleData->m_indirectExportEntries.push_back(entry);
+                    appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
+                }
+
+                exportDeclaration = this->finalize(node, builder.createExportStarAsNamedFromDeclarationNode(idNode, src));
+            } else {
                 this->throwUnexpectedToken(this->lookahead);
             }
-            this->nextToken();
-            if (this->lookahead.type != Token::StringLiteralToken) {
-                this->throwUnexpectedToken(this->lookahead);
-            }
-            ASTNode src = this->parseModuleSpecifier(builder);
-
-            if (builder.isNodeGenerator()) {
-                Script::ExportEntry entry;
-                entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                entry.m_moduleRequest = src->asLiteral()->value().asString();
-                entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
-                addExportDeclarationEntry(entry);
-            }
-
-            exportDeclaration = this->finalize(node, builder.createExportAllDeclarationNode(src));
-
             this->consumeSemicolon();
-
         } else if (this->lookahead.type == Token::KeywordToken) {
             // export var f = 1;
             auto oldNameCallback = this->nameDeclaredCallback;
@@ -5849,6 +5891,7 @@ public:
                 // export {foo} from 'foo';
                 this->nextToken();
                 source = this->parseModuleSpecifier(builder);
+                appendToRequestedModulesIfNeeds(source->asLiteral()->value().asString());
                 this->consumeSemicolon();
             } else if (isExportFromIdentifier) {
                 // export {default}; // missing fromClause
@@ -6069,7 +6112,7 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isMo
     Parser parser(ctx, source, isModule, stackRemain);
     NodeGenerator builder(ctx->astAllocator());
 
-    parser.context->strict = strictFromOutside;
+    parser.context->strict |= strictFromOutside;
     parser.context->inWith = inWith;
     parser.context->allowSuperCall = allowSuperCallFromOutside;
     parser.context->allowSuperProperty = allowSuperPropertyFromOutside;

@@ -548,13 +548,4 @@ void ModuleEnvironmentRecord::createImportBinding(ExecutionState& state, AtomicS
     }
     ASSERT_NOT_REACHED();
 }
-
-ModuleNamespaceObject* ModuleEnvironmentRecord::namespaceObject(ExecutionState& state)
-{
-    if (!m_namespaceObject) {
-        m_namespaceObject = new ModuleNamespaceObject(state, this);
-    }
-
-    return m_namespaceObject;
-}
 }

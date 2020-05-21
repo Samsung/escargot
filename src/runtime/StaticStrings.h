@@ -586,6 +586,7 @@ public:
     AtomicString stringFor;
     AtomicString stringDefault;
     AtomicString stringStarDefaultStar;
+    AtomicString stringStarNamespaceStar;
     AtomicString stringThis;
 
     // this js keywords are used in esprima

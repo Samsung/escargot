@@ -1125,7 +1125,6 @@ public:
     ModuleEnvironmentRecord(Script* script)
         : DeclarativeEnvironmentRecord()
         , m_script(script)
-        , m_namespaceObject(nullptr)
     {
     }
     virtual bool isModuleEnvironmentRecord() override
@@ -1159,7 +1158,6 @@ public:
     virtual Value getBindingValue(ExecutionState& state, const size_t i) override;
     virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override;
     virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override;
-    ModuleNamespaceObject* namespaceObject(ExecutionState& state);
     Script* script()
     {
         return m_script;
@@ -1173,7 +1171,6 @@ public:
             GC_word objBitmap[GC_BITMAP_SIZE(ModuleEnvironmentRecord)] = { 0 };
             GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_moduleBindings));
             GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_script));
-            GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_namespaceObject));
             descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ModuleEnvironmentRecord));
             typeInited = true;
         }
@@ -1208,7 +1205,6 @@ protected:
 
     ModuleBindingRecordVector m_moduleBindings;
     Script* m_script;
-    ModuleNamespaceObject* m_namespaceObject;
 };
 }
 #endif

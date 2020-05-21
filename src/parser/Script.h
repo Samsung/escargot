@@ -27,6 +27,7 @@ namespace Escargot {
 class InterpretedCodeBlock;
 class Context;
 class ModuleEnvironmentRecord;
+class ModuleNamespaceObject;
 
 class Script : public gc {
     friend class ScriptParser;
@@ -69,6 +70,8 @@ public:
         // https://www.ecma-international.org/ecma-262/#sec-abstract-module-records
         // [[Environment]]
         ModuleEnvironmentRecord* m_moduleRecord; // this record contains namespace object
+        // [[Namespace]]
+        Optional<ModuleNamespaceObject*> m_namespace;
 
         // Source Text Module Records
         // https://www.ecma-international.org/ecma-262/#sec-source-text-module-records
@@ -99,7 +102,7 @@ public:
         // [[DFSAncestorIndex]]
         Optional<uint32_t> m_dfsAncestorIndex;
         // [[RequestedModules]] is same with moduleRequests
-        // StringVector m_requestedModules;
+        StringVector m_requestedModules;
 
         ModuleData()
             : m_didCallLoadedCallback(false)
@@ -174,12 +177,11 @@ private:
     ResolveExportResult resolveExport(ExecutionState& state, AtomicString exportName)
     {
         std::vector<std::tuple<Script*, AtomicString>> resolveSet;
-        std::vector<Script*> exportStarSet;
-        return resolveExport(state, exportName, resolveSet, exportStarSet);
+        return resolveExport(state, exportName, resolveSet);
     }
 
     // https://www.ecma-international.org/ecma-262/#sec-resolveexport
-    ResolveExportResult resolveExport(ExecutionState& state, AtomicString exportName, std::vector<std::tuple<Script*, AtomicString>>& resolveSet, std::vector<Script*>& exportStarSet);
+    ResolveExportResult resolveExport(ExecutionState& state, AtomicString exportName, std::vector<std::tuple<Script*, AtomicString>>& resolveSet);
     AtomicStringVector exportedNames(ExecutionState& state)
     {
         std::vector<Script*> exportStarSet;
@@ -216,6 +218,9 @@ private:
     // https://www.ecma-international.org/ecma-262/#sec-source-text-module-record-execute-module
     // returns gotExecption and Value
     ModuleExecutionResult moduleExecute(ExecutionState& state);
+
+    // https://www.ecma-international.org/ecma-262/#sec-getmodulenamespace
+    ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
 
     bool m_canExecuteAgain;
     String* m_src;
