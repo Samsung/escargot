@@ -84,6 +84,7 @@ namespace Escargot {
     F(ExportAllDeclaration)                   \
     F(ExportDefaultDeclaration)               \
     F(ExportNamedDeclaration)                 \
+    F(ExportStarAsNamedFromDeclaration)       \
     F(ExportSpecifier)                        \
     F(ExpressionStatement)                    \
     F(ForStatement)                           \

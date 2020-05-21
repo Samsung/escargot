@@ -24,12 +24,12 @@
 
 namespace Escargot {
 
-class ModuleEnvironmentRecord;
+class Script;
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects
 class ModuleNamespaceObject : public Object {
 public:
-    ModuleNamespaceObject(ExecutionState& state, ModuleEnvironmentRecord* record);
+    ModuleNamespaceObject(ExecutionState& state, Script* script);
 
     virtual bool isInlineCacheable() override
     {
@@ -48,9 +48,19 @@ public:
         return Value(Value::Null);
     }
 
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-setprototypeof-v
-    virtual bool setPrototype(ExecutionState&, const Value&) override
+    // https://www.ecma-international.org/ecma-262/#sec-module-namespace-exotic-objects-setprototypeof-v
+    virtual bool setPrototype(ExecutionState&, const Value& v) override
     {
+        // Return ? SetImmutablePrototype(O, V).
+        // SetImmutablePrototype ( O, V )
+        // When the SetImmutablePrototype abstract operation is called with arguments O and V, the following steps are taken:
+        // Assert: Either Type(V) is Object or Type(V) is Null.
+        // Let current be ? O.[[GetPrototypeOf]]().
+        // If SameValue(V, current) is true, return true.
+        // Return false.
+        if (v.isNull()) {
+            return true;
+        }
         return false;
     }
 
@@ -71,11 +81,7 @@ public:
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-getownproperty-p
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override
-    {
-        return false;
-    }
-
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-hasproperty-p
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
@@ -88,15 +94,18 @@ public:
         return false;
     }
 
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-delete-p
+    // https://www.ecma-international.org/ecma-262/#sec-module-namespace-exotic-objects-delete-p
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-ownpropertykeys
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) override;
 
+    // https://www.ecma-international.org/ecma-262/#sec-module-namespace-exotic-objects-ownpropertykeys
+    virtual OwnPropertyKeyVector ownPropertyKeys(ExecutionState& state) override;
+
 private:
     bool m_isInitialized;
-    ModuleEnvironmentRecord* m_moduleEnvironmentRecord;
+    Script* m_script;
     AtomicStringVector m_exports;
 };
 }
