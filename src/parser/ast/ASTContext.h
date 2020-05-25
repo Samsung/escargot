@@ -187,6 +187,7 @@ struct ASTFunctionScopeContext {
     bool m_isOneExpressionOnlyArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isDerivedClassConstructor : 1;
+    bool m_isObjectMethod : 1;
     bool m_isClassMethod : 1;
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
@@ -503,6 +504,7 @@ struct ASTFunctionScopeContext {
         , m_isOneExpressionOnlyArrowFunctionExpression(false)
         , m_isClassConstructor(false)
         , m_isDerivedClassConstructor(false)
+        , m_isObjectMethod(false)
         , m_isClassMethod(false)
         , m_isClassStaticMethod(false)
         , m_isGenerator(false)

@@ -4740,10 +4740,6 @@
     <test id="language/expressions/subtraction/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-wrapped-values"><reason>TODO</reason></test>
-    <test id="language/expressions/super/prop-dot-cls-ref-strict"><reason>TODO</reason></test>
-    <test id="language/expressions/super/prop-dot-obj-ref-strict"><reason>TODO</reason></test>
-    <test id="language/expressions/super/prop-expr-cls-ref-strict"><reason>TODO</reason></test>
-    <test id="language/expressions/super/prop-expr-obj-ref-strict"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/cache-different-functions-same-site"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/cache-eval-inner-function"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/cache-same-site"><reason>TODO</reason></test>

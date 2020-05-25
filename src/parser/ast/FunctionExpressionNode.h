@@ -37,7 +37,7 @@ public:
         CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlockAt(m_subCodeBlockIndex);
         if (UNLIKELY(blk->isClassConstructor())) {
             codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, blk, context->m_classInfo.m_src), context, this);
-        } else if (UNLIKELY(blk->isClassMethod() || blk->isClassStaticMethod())) {
+        } else if (UNLIKELY(blk->isObjectMethod() || blk->isClassMethod() || blk->isClassStaticMethod())) {
             size_t homeObjectIndex = blk->isClassStaticMethod() ? context->m_classInfo.m_constructorIndex : context->m_classInfo.m_prototypeIndex;
             codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, homeObjectIndex, blk), context, this);
         } else {

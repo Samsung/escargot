@@ -1883,7 +1883,7 @@ public:
         }
 
         if (!this->isParsingSingleFunction && (method || isGet || isSet)) {
-            this->lastPoppedScopeContext->m_isClassMethod = true;
+            this->lastPoppedScopeContext->m_isObjectMethod = true;
         }
 
         return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, kind, computed, shorthand));
