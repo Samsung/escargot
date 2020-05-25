@@ -656,6 +656,17 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case TaggedTemplateOperationOpcode: {
+                TaggedTemplateOperation* cd = (TaggedTemplateOperation*)currentCode;
+                if (cd->m_operaton == TaggedTemplateOperation::TestCacheOperation) {
+                    cd->m_testCacheOperationData.m_jumpPosition = cd->m_testCacheOperationData.m_jumpPosition + codeBase;
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_testCacheOperationData.m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                } else {
+                    ASSERT(cd->m_operaton == TaggedTemplateOperation::FillCacheOperation);
+                    ASSIGN_STACKINDEX_IF_NEEDED(cd->m_fillCacheOperationData.m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                }
+                break;
+            }
             default:
                 break;
             }

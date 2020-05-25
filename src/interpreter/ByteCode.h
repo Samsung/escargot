@@ -131,6 +131,7 @@ struct GlobalVariableAccessCacheItem;
     F(NewTargetOperation, 1, 0)                             \
     F(BlockOperation, 0, 0)                                 \
     F(ReplaceBlockLexicalEnvironmentOperation, 0, 0)        \
+    F(TaggedTemplateOperation, 0, 0)                        \
     F(EnsureArgumentsObject, 0, 0)                          \
     F(ResolveNameAddress, 1, 0)                             \
     F(StoreByNameWithAddress, 0, 1)                         \
@@ -2324,6 +2325,55 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("replace block lexical env operation (%p)", m_blockInfo);
+    }
+#endif
+};
+
+class TaggedTemplateOperation : public ByteCode {
+public:
+    enum Operation {
+        TestCacheOperation,
+        FillCacheOperation
+    };
+    struct TestCacheOperationData {
+        size_t m_cacheIndex;
+        size_t m_jumpPosition;
+        ByteCodeRegisterIndex m_registerIndex;
+    };
+
+    struct FillCacheOperationData {
+        size_t m_cacheIndex;
+        ByteCodeRegisterIndex m_registerIndex;
+    };
+
+    TaggedTemplateOperation(const ByteCodeLOC& loc, const TestCacheOperationData& data)
+        : ByteCode(Opcode::TaggedTemplateOperationOpcode, loc)
+        , m_operaton(TestCacheOperation)
+        , m_testCacheOperationData(data)
+    {
+    }
+
+    TaggedTemplateOperation(const ByteCodeLOC& loc, const FillCacheOperationData& data)
+        : ByteCode(Opcode::TaggedTemplateOperationOpcode, loc)
+        , m_operaton(FillCacheOperation)
+        , m_fillCacheOperationData(data)
+    {
+    }
+
+    Operation m_operaton;
+    union {
+        TestCacheOperationData m_testCacheOperationData;
+        FillCacheOperationData m_fillCacheOperationData;
+    };
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        if (m_operaton == TestCacheOperation) {
+            printf("tagged template operation operation (test cache %d)", (int)m_testCacheOperationData.m_cacheIndex);
+        } else {
+            printf("tagged template operation operation (fill cache %d)", (int)m_testCacheOperationData.m_cacheIndex);
+        }
     }
 #endif
 };

@@ -1303,6 +1303,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(TaggedTemplateOperation)
+            :
+        {
+            taggedTemplateOperation(*state, programCounter, registerFile, codeBuffer, byteCodeBlock);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(ResolveNameAddress)
             :
         {
@@ -3440,6 +3447,29 @@ NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& stat
     }
 
     return result;
+}
+
+NEVER_INLINE void ByteCodeInterpreter::taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock)
+{
+    TaggedTemplateOperation* code = (TaggedTemplateOperation*)programCounter;
+    InterpretedCodeBlock* cb = byteCodeBlock->m_codeBlock;
+    auto& cache = cb->ensureRareData()->m_taggedTemplateLiteralCache;
+
+    if (code->m_operaton == TaggedTemplateOperation::TestCacheOperation) {
+        if (cache.size() > code->m_testCacheOperationData.m_cacheIndex && cache[code->m_testCacheOperationData.m_cacheIndex]) {
+            registerFile[code->m_testCacheOperationData.m_registerIndex] = cache[code->m_testCacheOperationData.m_cacheIndex].value();
+            programCounter = code->m_testCacheOperationData.m_jumpPosition;
+        } else {
+            ADD_PROGRAM_COUNTER(TaggedTemplateOperation);
+        }
+    } else {
+        ASSERT(code->m_operaton == TaggedTemplateOperation::FillCacheOperation);
+        if (cache.size() <= code->m_fillCacheOperationData.m_cacheIndex) {
+            cache.resize(code->m_fillCacheOperationData.m_cacheIndex + 1);
+        }
+        cache[code->m_fillCacheOperationData.m_cacheIndex] = registerFile[code->m_fillCacheOperationData.m_registerIndex].asPointerValue()->asArrayObject();
+        ADD_PROGRAM_COUNTER(TaggedTemplateOperation);
+    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile)

@@ -149,6 +149,7 @@ enum ASTNodeType {
     SwitchCase,
     SwitchStatement,
     TaggedTemplateExpression,
+    TaggedTemplateQuasiExpression,
     TemplateLiteral,
     ThisExpression,
     ThrowStatement,

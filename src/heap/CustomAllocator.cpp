@@ -100,8 +100,8 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[2].to = (GC_word*)current->m_identifierInfos.data();
     arr[3].from = (GC_word*)&current->m_parameterNames;
     arr[3].to = (GC_word*)current->m_parameterNames.data();
-    arr[4].from = (GC_word*)&current->m_identifierInfoMap;
-    arr[4].to = (GC_word*)current->m_identifierInfoMap;
+    arr[4].from = (GC_word*)&current->m_rareData;
+    arr[4].to = (GC_word*)current->m_rareData;
     arr[5].from = (GC_word*)&current->m_parentCodeBlock;
     arr[5].to = (GC_word*)current->m_parentCodeBlock;
     arr[6].from = (GC_word*)&current->m_nextSibling;

@@ -27,11 +27,13 @@ namespace Escargot {
 
 class TaggedTemplateExpressionNode : public ExpressionNode {
 public:
-    TaggedTemplateExpressionNode(Node* expr, Node* quasi)
+    TaggedTemplateExpressionNode(Node* expr, Node* quasi, Node* convertedExpression)
         : ExpressionNode()
         , m_expr(expr)
         , m_quasi(quasi)
+        , m_convertedExpression(convertedExpression)
     {
+        ASSERT(convertedExpression->type() == CallExpression);
     }
 
     Node* expr()
@@ -47,17 +49,29 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::TaggedTemplateExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        return m_convertedExpression->generateExpressionByteCode(codeBlock, context, dstRegister);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+
+        m_expr->iterateChildren(fn);
+        m_quasi->iterateChildren(fn);
+        m_convertedExpression->iterateChildren(fn);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        m_expr->iterateChildrenIdentifier(fn);
+        m_quasi->iterateChildrenIdentifier(fn);
+        m_convertedExpression->iterateChildrenIdentifier(fn);
     }
 
 private:
     Node* m_expr;
     Node* m_quasi;
+    Node* m_convertedExpression;
 };
 }
 

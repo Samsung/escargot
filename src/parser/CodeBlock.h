@@ -415,7 +415,7 @@ public:
 
         DeclarationType m_type : 1;
 
-        LexicalBlockIndex m_blockIndex;
+        LexicalBlockIndex m_blockIndex : 16;
 
         size_t m_upperIndex;
         size_t m_index;
@@ -626,9 +626,10 @@ public:
 
     size_t findVarName(const AtomicString& name)
     {
-        if (UNLIKELY(m_identifierInfoMap != nullptr)) {
-            auto iter = m_identifierInfoMap->find(name);
-            if (iter == m_identifierInfoMap->end()) {
+        auto map = identifierInfoMap();
+        if (UNLIKELY(map)) {
+            auto iter = map->find(name);
+            if (iter == map->end()) {
                 return SIZE_MAX;
             } else {
                 return iter->second;
@@ -745,6 +746,29 @@ public:
 
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
+    struct InterpretedCodeBlockRareData : public gc {
+        FunctionContextVarMap* m_identifierInfoMap;
+        TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
+
+        InterpretedCodeBlockRareData(FunctionContextVarMap* map)
+            : m_identifierInfoMap(map)
+        {
+        }
+    };
+
+    Optional<FunctionContextVarMap*> identifierInfoMap()
+    {
+        return m_rareData ? m_rareData->m_identifierInfoMap : nullptr;
+    }
+
+    InterpretedCodeBlockRareData* ensureRareData()
+    {
+        if (!m_rareData) {
+            m_rareData = new InterpretedCodeBlockRareData(nullptr);
+        }
+        return m_rareData;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -816,7 +840,7 @@ protected:
     uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn;
     IdentifierInfoVector m_identifierInfos;
-    FunctionContextVarMap* m_identifierInfoMap;
+    InterpretedCodeBlockRareData* m_rareData;
     BlockInfoVector m_blockInfos;
 
     InterpretedCodeBlock* m_parentCodeBlock;

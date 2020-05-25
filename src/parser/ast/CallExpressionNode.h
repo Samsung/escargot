@@ -37,6 +37,7 @@ public:
     }
 
     Node* callee() { return m_callee; }
+    const NodeList& arguments() { return m_arguments; }
     virtual ASTNodeType type() override { return ASTNodeType::CallExpression; }
     std::pair<ByteCodeRegisterIndex, bool> generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {

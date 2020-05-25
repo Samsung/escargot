@@ -591,7 +591,7 @@ public:
         return node;
     }
 
-    SyntaxNode convertTaggedTemplateExpressionToCallExpression(SyntaxNode taggedTemplateExpression, ASTFunctionScopeContext* scopeContext, AtomicString raw)
+    SyntaxNode convertTaggedTemplateExpressionToCallExpression(SyntaxNode templateLiteral, SyntaxNode taggedTemplateExpressionNode, size_t taggedTemplateExpressionIndex, ASTFunctionScopeContext* scopeContext, AtomicString raw)
     {
         return SyntaxNode(CallExpression);
     }
@@ -749,14 +749,13 @@ public:
         return paramNode;
     }
 
-    // FIXME MetaNode
-    Node* convertTaggedTemplateExpressionToCallExpression(TaggedTemplateExpressionNode* taggedTemplateExpression, ASTFunctionScopeContext* scopeContext, AtomicString raw)
+    Node* convertTaggedTemplateExpressionToCallExpression(Node* templateLiteral, Node* taggedTemplateExpressionNode, size_t taggedTemplateExpressionIndex, ASTFunctionScopeContext* scopeContext, AtomicString raw)
     {
-        TemplateLiteralNode* templateLiteral = (TemplateLiteralNode*)taggedTemplateExpression->quasi();
+        TemplateLiteralNode* templateLiteralNode = (TemplateLiteralNode*)templateLiteral;
         NodeList args;
         NodeList elements;
-        for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
-            UTF16StringData& sd = (*templateLiteral->quasis())[i]->value;
+        for (size_t i = 0; i < templateLiteralNode->quasis()->size(); i++) {
+            UTF16StringData& sd = (*templateLiteralNode->quasis())[i]->value;
             String* str = new UTF16String(std::move(sd));
             elements.append(m_allocator, new (m_allocator) LiteralNode(Value(str)));
         }
@@ -764,8 +763,8 @@ public:
         ArrayExpressionNode* arrayExpressionForRaw = nullptr;
         {
             NodeList elements;
-            for (size_t i = 0; i < templateLiteral->quasis()->size(); i++) {
-                UTF16StringData& sd = (*templateLiteral->quasis())[i]->valueRaw;
+            for (size_t i = 0; i < templateLiteralNode->quasis()->size(); i++) {
+                UTF16StringData& sd = (*templateLiteralNode->quasis())[i]->valueRaw;
                 String* str = new UTF16String(std::move(sd));
                 elements.append(m_allocator, new (m_allocator) LiteralNode(Value(str)));
             }
@@ -773,15 +772,18 @@ public:
         }
 
         ArrayExpressionNode* quasiVector = new (m_allocator) ArrayExpressionNode(elements, raw, arrayExpressionForRaw, false, true);
-        args.append(m_allocator, quasiVector);
-        for (SentinelNode* expression = templateLiteral->expressions().begin(); expression != templateLiteral->expressions().end(); expression = expression->next()) {
+
+        TaggedTemplateQuasiExpressionNode* quasiNode = new (m_allocator) TaggedTemplateQuasiExpressionNode(quasiVector, taggedTemplateExpressionIndex);
+
+        args.append(m_allocator, quasiNode);
+        for (SentinelNode* expression = templateLiteralNode->expressions().begin(); expression != templateLiteralNode->expressions().end(); expression = expression->next()) {
             args.append(m_allocator, expression->astNode());
         }
 
-        if (taggedTemplateExpression->expr()->isIdentifier() && taggedTemplateExpression->expr()->asIdentifier()->name() == "eval") {
+        if (taggedTemplateExpressionNode->isIdentifier() && taggedTemplateExpressionNode->asIdentifier()->name() == "eval") {
             scopeContext->m_hasEval = true;
         }
-        return new (m_allocator) CallExpressionNode(taggedTemplateExpression->expr(), args);
+        return new (m_allocator) CallExpressionNode(taggedTemplateExpressionNode, args);
     }
 
     void setValueStringLiteral(const ParserStringView& string)
