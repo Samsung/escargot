@@ -106,6 +106,7 @@ CodeBlock::CodeBlock(Context* ctx, const NativeFunctionInfo& info)
     , m_isOneExpressionOnlyArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
+    , m_isObjectMethod(false)
     , m_isClassMethod(false)
     , m_isClassStaticMethod(false)
     , m_isGenerator(false)
@@ -146,6 +147,7 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
     , m_isOneExpressionOnlyArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
+    , m_isObjectMethod(false)
     , m_isClassMethod(false)
     , m_isClassStaticMethod(false)
     , m_isGenerator(false)
@@ -229,6 +231,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isStrict = scopeCtx->m_isStrict;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
+    m_isObjectMethod = scopeCtx->m_isObjectMethod;
     m_isClassMethod = scopeCtx->m_isClassMethod;
     m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;
@@ -322,6 +325,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_isOneExpressionOnlyArrowFunctionExpression = scopeCtx->m_isOneExpressionOnlyArrowFunctionExpression;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
+    m_isObjectMethod = scopeCtx->m_isObjectMethod;
     m_isClassMethod = scopeCtx->m_isClassMethod;
     m_isClassStaticMethod = scopeCtx->m_isClassStaticMethod;
     m_isGenerator = scopeCtx->m_isGenerator;

@@ -250,6 +250,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
             programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
             programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
+            programNode->scopeContext()->m_isObjectMethod = parentCodeBlock->isObjectMethod();
             programNode->scopeContext()->m_isClassMethod = parentCodeBlock->isClassMethod();
             programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
             programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();

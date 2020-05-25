@@ -2147,21 +2147,21 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
     if (UNLIKELY(isGenerator && isAsync)) {
         proto = functionRealm->globalObject()->asyncGenerator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
-        Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
+        Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isGenerator)) {
         proto = functionRealm->globalObject()->generator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
-        Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
+        Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isAsync)) {
         proto = functionRealm->globalObject()->asyncFunctionPrototype();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
-        Object* homeObject = (cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
+        Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
     } else if (cb->isArrowFunctionExpression()) {
         registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
-    } else if (cb->isClassMethod() || cb->isClassStaticMethod()) {
+    } else if (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) {
         registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
     } else {
         registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, true, false, false);
@@ -2445,8 +2445,22 @@ NEVER_INLINE void ByteCodeInterpreter::superSetObjectOperation(ExecutionState& s
         thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
     }
 
-    Value object = registerFile[code->m_objectRegisterIndex];
-    object.toObject(state)->set(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]), registerFile[code->m_loadRegisterIndex], thisValue);
+    const Value& object = registerFile[code->m_objectRegisterIndex];
+    // PutValue
+    // [...]
+    // Else if IsPropertyReference(V) is true, then
+    //    If HasPrimitiveBase(V) is true, then
+    //    [...]
+    //    Let succeeded be ? base.[[Set]](GetReferencedName(V), W, GetThisValue(V)).
+    //    If succeeded is false and IsStrictReference(V) is true, throw a TypeError exception.
+    bool result = object.toObject(state)->set(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]), registerFile[code->m_loadRegisterIndex], thisValue);
+    if (UNLIKELY(!result)) {
+        // testing is strict mode || IsStrictReference(V)
+        // IsStrictReference returns true if code is class method
+        if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->isObjectMethod()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+        }
+    }
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::superGetObjectOperation(ExecutionState& state, SuperGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)

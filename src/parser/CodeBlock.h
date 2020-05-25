@@ -141,7 +141,7 @@ public:
 
     bool isKindOfFunction() const
     {
-        return m_isFunctionDeclaration || m_isFunctionExpression || m_isArrowFunctionExpression || m_isClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_hasCallNativeFunctionCode;
+        return m_isFunctionDeclaration || m_isFunctionExpression || m_isArrowFunctionExpression || m_isClassConstructor || m_isObjectMethod || m_isClassMethod || m_isClassStaticMethod || m_hasCallNativeFunctionCode;
     }
 
     bool isFunctionDeclaration() const
@@ -172,6 +172,11 @@ public:
     bool isDerivedClassConstructor() const
     {
         return m_isDerivedClassConstructor;
+    }
+
+    bool isObjectMethod() const
+    {
+        return m_isObjectMethod;
     }
 
     bool isClassMethod() const
@@ -341,6 +346,7 @@ protected:
     bool m_isOneExpressionOnlyArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isDerivedClassConstructor : 1;
+    bool m_isObjectMethod : 1;
     bool m_isClassMethod : 1;
     bool m_isClassStaticMethod : 1;
     bool m_isGenerator : 1;
