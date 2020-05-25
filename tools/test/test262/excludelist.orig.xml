@@ -4740,14 +4740,9 @@
     <test id="language/expressions/subtraction/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-wrapped-values"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/cache-different-functions-same-site"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/cache-eval-inner-function"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/cache-same-site"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/cache-same-site-top-level"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/invalid-escape-sequences"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/tco-call"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/tco-member"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/template-object-template-map"><reason>TODO</reason></test>
     <test id="language/expressions/tco-pos"><reason>TODO</reason></test>
     <test id="language/expressions/typeof/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/unary-minus/bigint"><reason>TODO</reason></test>

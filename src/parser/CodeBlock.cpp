@@ -59,7 +59,7 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfoMap));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_rareData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_firstChild));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_nextSibling));
@@ -208,7 +208,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
     , m_lexicalBlockIndexFunctionLocatedIn(0)
-    , m_identifierInfoMap(scopeCtx->m_varNamesMap)
+    , m_rareData(scopeCtx->m_varNamesMap ? (new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap)) : nullptr)
     , m_parentCodeBlock(nullptr)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
@@ -286,7 +286,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_identifierOnHeapCount(0)
     , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
     , m_lexicalBlockIndexFunctionLocatedIn(scopeCtx->m_lexicalBlockIndexFunctionLocatedIn)
-    , m_identifierInfoMap(scopeCtx->m_varNamesMap)
+    , m_rareData(scopeCtx->m_varNamesMap ? (new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap)) : nullptr)
     , m_parentCodeBlock(parentBlock)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
@@ -387,8 +387,9 @@ void InterpretedCodeBlock::captureArguments()
         info.m_isMutable = true;
         m_identifierInfos.pushBack(info);
 
-        if (m_identifierInfoMap) {
-            m_identifierInfoMap->insert(std::make_pair(arguments, m_identifierInfos.size() - 1));
+        auto idMap = identifierInfoMap();
+        if (idMap) {
+            idMap->insert(std::make_pair(arguments, m_identifierInfos.size() - 1));
         }
     }
     if (m_functionLength && shouldHaveMappedArguments()) {

@@ -65,6 +65,7 @@ class GetObject;
 class SetObjectOperation;
 class EnumerateObject;
 class CheckLastEnumerateKey;
+class TaggedTemplateOperation;
 class MarkEnumerateKey;
 
 class ByteCodeInterpreter {
@@ -147,6 +148,8 @@ private:
     static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
     static void getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
     static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
+
+    static void taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 };

@@ -118,6 +118,7 @@
 #include "SwitchCaseNode.h"
 #include "SwitchStatementNode.h"
 #include "TaggedTemplateExpressionNode.h"
+#include "TaggedTemplateQuasiExpressionNode.h"
 #include "TemplateLiteralNode.h"
 #include "ThisExpressionNode.h"
 #include "ThrowStatementNode.h"

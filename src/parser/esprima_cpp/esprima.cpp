@@ -176,6 +176,7 @@ public:
     bool isParsingSingleFunction;
     size_t stackLimit;
     size_t subCodeBlockIndex;
+    size_t taggedTemplateExpressionIndex;
 
     ASTBlockScopeContext* currentBlockContext;
     LexicalBlockIndex lexicalBlockIndex;
@@ -223,6 +224,7 @@ public:
         this->lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;
         this->lexicalBlockCount = LEXICAL_BLOCK_INDEX_MAX;
         this->subCodeBlockIndex = 0;
+        this->taggedTemplateExpressionIndex = 0;
         this->lastPoppedScopeContext = &fakeContext;
         this->currentScopeContext = nullptr;
         this->trackUsingNames = true;
@@ -2257,8 +2259,11 @@ public:
                 }
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder);
-                // FIXME convertTaggedTemplateExpressionToCallExpression
-                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode, quasi)), this->currentScopeContext, escargotContext->staticStrings().raw);
+                ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
+                if (builder.isNodeGenerator()) {
+                    this->taggedTemplateExpressionIndex++;
+                }
+                exprNode = this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
             } else {
                 break;
             }
@@ -2318,8 +2323,11 @@ public:
                 exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true));
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder);
-                // FIXME convertTaggedTemplateExpressionToCallExpression
-                exprNode = builder.convertTaggedTemplateExpressionToCallExpression(this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode, quasi)), this->currentScopeContext, escargotContext->staticStrings().raw);
+                ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
+                if (builder.isNodeGenerator()) {
+                    this->taggedTemplateExpressionIndex++;
+                }
+                exprNode = this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
             } else {
                 break;
             }
