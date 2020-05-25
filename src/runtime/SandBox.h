@@ -38,6 +38,9 @@ public:
         String* sourceCode;
         ExtendedNodeLOC loc;
         String* functionName;
+#ifdef ESCARGOT_DEBUGGER
+        uint32_t executionStateDepth;
+#endif /* ESCARGOT_DEBUGGER */
         bool isFunction;
         bool isConstructor;
         bool isAssociatedWithJavaScriptCode;

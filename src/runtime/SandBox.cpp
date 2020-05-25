@@ -87,7 +87,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 #ifdef ESCARGOT_DEBUGGER
             if (i < 8 && debugger && debugger->enabled()) {
                 debugger->sendBacktraceInfo(Debugger::ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE,
-                                            m_stackTraceData[i].second.loc.actualCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column);
+                                            m_stackTraceData[i].second.loc.actualCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column, m_stackTraceData[i].second.executionStateDepth);
             }
 #endif /* ESCARGOT_DEBUGGER */
         } else {
@@ -123,6 +123,9 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
 void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state)
 {
     ExecutionState* pstate = &state;
+#ifdef ESCARGOT_DEBUGGER
+    uint32_t executionStateDepthIndex = 0;
+#endif /* ESCARGOT_DEBUGGER */
     while (pstate) {
         FunctionObject* callee = pstate->resolveCallee();
         ExecutionState* es = pstate;
@@ -180,6 +183,9 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     data.isFunction = false;
                     data.isAssociatedWithJavaScriptCode = true;
                     data.isConstructor = false;
+#ifdef ESCARGOT_DEBUGGER
+                    data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
 
                     stackTraceData.pushBack(std::make_pair(es, data));
                 }
@@ -194,6 +200,9 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 data.isFunction = false;
                 data.isAssociatedWithJavaScriptCode = true;
                 data.isConstructor = false;
+#ifdef ESCARGOT_DEBUGGER
+                data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
 
                 stackTraceData.pushBack(std::make_pair(es, data));
             } else if (callee) {
@@ -211,6 +220,9 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 data.loc = loc;
                 if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
                     data.src = cb->asInterpretedCodeBlock()->script()->src();
+#ifdef ESCARGOT_DEBUGGER
+                    data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
                 } else {
                     StringBuilder builder;
                     builder.appendString("function ");
@@ -219,6 +231,9 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     builder.appendString("[native function]");
                     builder.appendString(" } ");
                     data.src = builder.finalize();
+#ifdef ESCARGOT_DEBUGGER
+                    data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
                 }
                 data.functionName = cb->functionName().string();
                 data.isEval = false;
@@ -231,6 +246,9 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
         }
 
         pstate = pstate->parent();
+#ifdef ESCARGOT_DEBUGGER
+        executionStateDepthIndex++;
+#endif /* ESCARGOT_DEBUGGER */
     }
 }
 
