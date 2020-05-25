@@ -112,7 +112,7 @@ void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>
     send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation));
 }
 
-void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column)
+void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth)
 {
     BacktraceInfo backtraceInfo;
 
@@ -120,6 +120,7 @@ void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uin
     memcpy(&backtraceInfo.byteCode, &byteCode, sizeof(void*));
     memcpy(&backtraceInfo.line, &line, sizeof(uint32_t));
     memcpy(&backtraceInfo.column, &column, sizeof(uint32_t));
+    memcpy(&backtraceInfo.executionStateDepth, &executionStateDepth, sizeof(uint32_t));
 
     send(type, &backtraceInfo, sizeof(BacktraceInfo));
 }
@@ -287,7 +288,7 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
 
             ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
 
-            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column);
+            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column, (uint32_t)stackTraceData[i].second.executionStateDepth);
 
             if (!enabled()) {
                 return;

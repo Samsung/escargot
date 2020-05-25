@@ -429,10 +429,9 @@ class Debugger(object):
 
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
-                backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format, data[1:])
+                backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format + self.idx_format, data[1:])
                 function = self.function_list[backtrace_info[0]]
-
-                result = "%s:%d:%d" % (function.source_name, backtrace_info[1], backtrace_info[2])
+                result = "%s:%d:%d [depth:%d]" % (function.source_name, backtrace_info[1], backtrace_info[2],backtrace_info[3])
                 if function.name != "":
                     result += " (in %s)" % (function.name)
 

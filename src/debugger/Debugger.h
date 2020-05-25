@@ -211,7 +211,7 @@ public:
     void sendPointer(uint8_t type, const void* ptr);
     void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
     void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
-    void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column);
+    void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth);
     void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
     void releaseFunction(const void* ptr);
     String* getClientSource(String** sourceName);
@@ -266,6 +266,7 @@ private:
         uint8_t byteCode[sizeof(void*)];
         uint8_t line[sizeof(uint32_t)];
         uint8_t column[sizeof(uint32_t)];
+        uint8_t executionStateDepth[sizeof(uint32_t)];
     };
 
     bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
