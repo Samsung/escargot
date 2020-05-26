@@ -1109,8 +1109,6 @@
     <test id="built-ins/RegExp/prototype/Symbol.matchAll/this-tostring-flags-throws"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.search/u-lastindex-advance"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.split/u-lastindex-adv-thru-match"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/exec/failure-lastindex-access"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/exec/success-lastindex-access"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/exec/u-lastindex-adv"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/source/value-line-terminator"><reason>TODO</reason></test>
     <test id="built-ins/RegExpStringIteratorPrototype/Symbol.toStringTag"><reason>TODO</reason></test>

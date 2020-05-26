@@ -93,6 +93,9 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
             regexp->setLastIndex(state, Value(0));
             return Value(Value::Null);
         }
+    } else {
+        // dummy get lastIndex
+        regexp->computedLastIndex(state);
     }
 
     RegexMatchResult result;
