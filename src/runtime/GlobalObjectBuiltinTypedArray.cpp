@@ -28,11 +28,11 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                              \
+#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                   \
     if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                                \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                                    \
-    ArrayBufferView* NAME = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* NAME = thisValue.asPointerValue()->asTypedArrayObject();
 
 static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value& O, String* func)
 {
@@ -41,16 +41,13 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value&
     }
 
     Object* thisObject = O.asObject();
-    if (!thisObject->isTypedArrayObject() || !thisObject->isArrayBufferView()) {
+    if (!thisObject->isTypedArrayObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
-    auto wrapper = thisObject->asArrayBufferView();
+    auto wrapper = thisObject->asTypedArrayObject();
     ArrayBufferObject* buffer = wrapper->buffer();
-    if (!buffer || buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, ErrorObject::Messages::GlobalObject_DetachedBuffer);
-        return nullptr;
-    }
+    buffer->throwTypeErrorIfDetached(state);
     return buffer;
 }
 
@@ -61,7 +58,7 @@ static Object* createTypedArray(ExecutionState& state, const Value& constructor,
     validateTypedArray(state, newTypedArray, state.context()->staticStrings().TypedArray.string());
 
     if (argc == 1 && argv[0].isNumber()) {
-        double arrayLength = newTypedArray->asArrayBufferView()->arrayLength();
+        double arrayLength = newTypedArray->asTypedArrayObject()->arrayLength();
         if (arrayLength < argv[0].asNumber()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid TypedArray length");
         }
@@ -102,12 +99,12 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, Value thisValue, siz
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(T, TypedArray, constructor);
     // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
-    Value defaultConstructor = getDefaultTypedArrayConstructor(state, T->asArrayBufferView()->typedArrayType());
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, T->asTypedArrayObject()->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
     Value C = T->speciesConstructor(state, defaultConstructor);
     Value A = Object::construct(state, C, argc, argumentList);
     validateTypedArray(state, A, state.context()->staticStrings().constructor.string());
-    if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asArrayBufferView()->arrayLength() < argumentList->toNumber(state)) {
+    if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asTypedArrayObject()->arrayLength() < argumentList->toNumber(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
     return A;
@@ -234,14 +231,14 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.buffer
 static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getBuffer);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getBuffer);
     return buffer->buffer();
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.bytelength
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteLength);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getbyteLength);
     if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
@@ -251,7 +248,7 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.byteoffset
 static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteOffset);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getbyteOffset);
     if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
@@ -261,7 +258,7 @@ static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value this
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.length
 static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(buffer, TypedArray, getbyteOffset);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getbyteOffset);
     if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
@@ -295,7 +292,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     if (val.isObject() && val.asObject()->isArrayBufferObject()) {
         // $22.2.4.5 TypedArray (buffer [, byteOffset [, length] ] )
         ArrayBufferObject* buffer = val.asObject()->asArrayBufferObject();
-        TA* obj = TA::allocateTypedArray(state, newTarget.value());
+        TypedArrayObject* obj = TA::allocateTypedArray(state, newTarget.value());
 
         size_t elementSize = obj->elementSize();
         uint64_t offset = 0;
@@ -339,9 +336,9 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     if (val.isObject() && val.asObject()->isTypedArrayObject()) {
         // $22.2.4.3 TypedArray (typedArray)
         // Let O be AllocateTypedArray(NewTarget).
-        TA* obj = TA::allocateTypedArray(state, newTarget.value());
+        TypedArrayObject* obj = TA::allocateTypedArray(state, newTarget.value());
         // Let srcArray be typedArray.
-        ArrayBufferView* srcArray = val.asObject()->asArrayBufferView();
+        TypedArrayObject* srcArray = val.asObject()->asTypedArrayObject();
         // Let srcData be the value of srcArray’s [[ViewedArrayBuffer]] internal slot.
         ArrayBufferObject* srcData = srcArray->buffer();
         // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
@@ -405,7 +402,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     if (val.isObject()) {
         // $22.2.4.4 TypedArray (object)
         // Let O be ? AllocateTypedArray(constructorName, NewTarget, "%TypedArrayPrototype%").
-        TA* obj = TA::allocateTypedArray(state, newTarget.value());
+        TypedArrayObject* obj = TA::allocateTypedArray(state, newTarget.value());
 
         Object* inputObj = val.asObject();
         // Let usingIterator be ? GetMethod(object, @@iterator).
@@ -470,7 +467,7 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
 {
     // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
     validateTypedArray(state, thisValue, state.context()->staticStrings().copyWithin.string());
-    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
     double len = O->arrayLength();
@@ -552,7 +549,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    size_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asTypedArrayObject()->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -617,7 +614,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    size_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asTypedArrayObject()->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -681,7 +678,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, includes);
     validateTypedArray(state, O, state.context()->staticStrings().includes.string());
 
-    size_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asTypedArrayObject()->arrayLength();
 
     // If len is 0, return false.
     if (len == 0) {
@@ -735,7 +732,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
-    ArrayBufferView* target = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* target = thisValue.asObject()->asTypedArrayObject();
 
     double targetOffset = 0;
     if (argc > 1) {
@@ -778,7 +775,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
 
     // 22.2.3.23.2%TypedArray%.prototype.set ( typedArray [ , offset ] )
     ASSERT(src->isTypedArrayObject());
-    ArrayBufferView* srcTypedArray = src->asArrayBufferView();
+    TypedArrayObject* srcTypedArray = src->asTypedArrayObject();
     ArrayBufferObject* srcBuffer = srcTypedArray->buffer();
     srcBuffer->throwTypeErrorIfDetached(state);
 
@@ -833,7 +830,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     // Array.prototype.some as defined in 22.1.3.23 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -881,7 +878,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     ArrayBufferObject* buffer = validateTypedArray(state, O, state.context()->staticStrings().sort.string());
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    int64_t len = O->asArrayBufferView()->arrayLength();
+    int64_t len = O->asTypedArrayObject()->arrayLength();
 
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
@@ -926,7 +923,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
 static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFERVIEW(O, TypedArray, subarray);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(O, TypedArray, subarray);
 
     // Let buffer be O.[[ViewedArrayBuffer]].
     ArrayBufferObject* buffer = O->buffer();
@@ -971,7 +968,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     // Array.prototype.every as defined in 22.1.3.5 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    unsigned len = O->asArrayBufferView()->arrayLength();
+    unsigned len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1012,7 +1009,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 {
     // Perform ? ValidateTypedArray(O).
     validateTypedArray(state, thisValue, state.context()->staticStrings().fill.string());
-    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
     size_t len = O->arrayLength();
@@ -1050,7 +1047,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
 {
     // Perform ? ValidateTypedArray(O).
     validateTypedArray(state, thisValue, state.context()->staticStrings().filter.string());
-    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
     size_t len = O->arrayLength();
@@ -1109,7 +1106,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     // Array.prototype.find as defined in 22.1.3.8 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     Value predicate = argv[0];
@@ -1154,7 +1151,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     // Array.prototype.findIndex as defined in 22.1.3.9 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     Value predicate = argv[0];
@@ -1199,7 +1196,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     // Array.prototype.forEach as defined in 22.1.3.10 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -1237,7 +1234,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     // Array.prototype.join as defined in 22.1.3.12 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     Value separator = argv[0];
     size_t lenMax = STRING_MAXIMUM_LENGTH;
@@ -1281,7 +1278,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
 {
     // Perform ? ValidateTypedArray(O).
     validateTypedArray(state, thisValue, state.context()->staticStrings().map.string());
-    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
     size_t len = O->arrayLength();
@@ -1326,7 +1323,7 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     // Array.prototype.reduce as defined in 22.1.3.18 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -1368,7 +1365,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     // Array.prototype.reduceRight as defined in 22.1.3.19 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asArrayBufferView()->arrayLength();
+    double len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1421,7 +1418,7 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     // Array.prototype.reverse as defined in 22.1.3.20 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    size_t len = O->asArrayBufferView()->arrayLength();
+    size_t len = O->asTypedArrayObject()->arrayLength();
     size_t middle = std::floor(len / 2);
     size_t lower = 0;
     while (middle > lower) {
@@ -1452,7 +1449,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     // Let O be the this value.
     // Perform ? ValidateTypedArray(O).
     validateTypedArray(state, thisValue, state.context()->staticStrings().slice.string());
-    ArrayBufferView* O = thisValue.asObject()->asArrayBufferView();
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
     size_t len = O->arrayLength();
@@ -1469,7 +1466,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
 
     Value arg[1] = { Value(count) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
-    ArrayBufferView* target = A.asObject()->asArrayBufferView();
+    TypedArrayObject* target = A.asObject()->asTypedArrayObject();
 
     // If SameValue(srcType, targetType) is false, then
     if (O->typedArrayType() != target->typedArrayType()) {
@@ -1515,7 +1512,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    size_t len = array->asArrayBufferView()->arrayLength();
+    size_t len = array->asTypedArrayObject()->arrayLength();
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
         return String::emptyString;
@@ -1593,7 +1590,7 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
     }
 
     if (O.asObject()->isTypedArrayObject()) {
-        return Value(O.asObject()->asArrayBufferView()->typedArrayName(state));
+        return Value(O.asObject()->asTypedArrayObject()->typedArrayName(state));
     }
     return Value();
 }
@@ -1749,24 +1746,12 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     }
 
     m_typedArray = typedArrayFunction;
-    m_int8Array = installTypedArray<Int8ArrayObject, 1>(state, strings->Int8Array, &m_int8ArrayPrototype, typedArrayFunction);
-    m_int16Array = installTypedArray<Int16ArrayObject, 2>(state, strings->Int16Array, &m_int16ArrayPrototype, typedArrayFunction);
-    m_int32Array = installTypedArray<Int32ArrayObject, 4>(state, strings->Int32Array, &m_int32ArrayPrototype, typedArrayFunction);
-    m_uint8Array = installTypedArray<Uint8ArrayObject, 1>(state, strings->Uint8Array, &m_uint8ArrayPrototype, typedArrayFunction);
-    m_uint16Array = installTypedArray<Uint16ArrayObject, 2>(state, strings->Uint16Array, &m_uint16ArrayPrototype, typedArrayFunction);
-    m_uint32Array = installTypedArray<Uint32ArrayObject, 4>(state, strings->Uint32Array, &m_uint32ArrayPrototype, typedArrayFunction);
-    m_uint8ClampedArray = installTypedArray<Uint8ClampedArrayObject, 1>(state, strings->Uint8ClampedArray, &m_uint8ClampedArrayPrototype, typedArrayFunction);
-    m_float32Array = installTypedArray<Float32ArrayObject, 4>(state, strings->Float32Array, &m_float32ArrayPrototype, typedArrayFunction);
-    m_float64Array = installTypedArray<Float64ArrayObject, 8>(state, strings->Float64Array, &m_float64ArrayPrototype, typedArrayFunction);
     m_typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
-    m_int8ArrayPrototype = m_int8Array->getFunctionPrototype(state).asObject();
-    m_int16ArrayPrototype = m_int16Array->getFunctionPrototype(state).asObject();
-    m_int32ArrayPrototype = m_int32Array->getFunctionPrototype(state).asObject();
-    m_uint8ArrayPrototype = m_uint8Array->getFunctionPrototype(state).asObject();
-    m_uint8ClampedArrayPrototype = m_uint8ClampedArray->getFunctionPrototype(state).asObject();
-    m_uint16ArrayPrototype = m_uint16Array->getFunctionPrototype(state).asObject();
-    m_uint32ArrayPrototype = m_uint32Array->getFunctionPrototype(state).asObject();
-    m_float32ArrayPrototype = m_float32Array->getFunctionPrototype(state).asObject();
-    m_float64ArrayPrototype = m_float64Array->getFunctionPrototype(state).asObject();
+#define INSTALL_TYPEDARRAY(TYPE, type, siz)                                                                                                  \
+    m_##type##Array = installTypedArray<TYPE##ArrayObject, siz>(state, strings->TYPE##Array, &m_##type##ArrayPrototype, typedArrayFunction); \
+    m_##type##ArrayPrototype = m_##type##Array->getFunctionPrototype(state).asObject();
+
+    FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)
+#undef INSTALL_TYPEDARRAY
 }
 }

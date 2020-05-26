@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "runtime/VMInstance.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/TypedArrayInlines.h"
 
 namespace Escargot {
 

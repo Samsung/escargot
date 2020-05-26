@@ -22,18 +22,6 @@
 
 namespace Escargot {
 
-enum class TypedArrayType : unsigned {
-    Int8 = 0,
-    Int16,
-    Int32,
-    Uint8,
-    Uint16,
-    Uint32,
-    Uint8Clamped,
-    Float32,
-    Float64
-};
-
 template <typename Adapter>
 struct TypedArrayAdaptor {
     typedef typename Adapter::Type Type;
