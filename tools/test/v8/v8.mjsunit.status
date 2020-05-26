@@ -37,6 +37,7 @@
   ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],
+  'regress/regress-2438': [FAIL],
 
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
