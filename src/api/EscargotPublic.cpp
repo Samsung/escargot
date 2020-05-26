@@ -2469,6 +2469,21 @@ size_t SetObjectRef::size(ExecutionStateRef* state)
     return toImpl(this)->size(*toImpl(state));
 }
 
+IteratorObjectRef* SetObjectRef::values(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->values(*toImpl(state)));
+}
+
+IteratorObjectRef* SetObjectRef::keys(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->keys(*toImpl(state)));
+}
+
+IteratorObjectRef* SetObjectRef::entries(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->entries(*toImpl(state)));
+}
+
 WeakSetObjectRef* WeakSetObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new WeakSetObject(*toImpl(state)));
@@ -2522,6 +2537,21 @@ bool MapObjectRef::has(ExecutionStateRef* state, ValueRef* key)
 size_t MapObjectRef::size(ExecutionStateRef* state)
 {
     return toImpl(this)->size(*toImpl(state));
+}
+
+IteratorObjectRef* MapObjectRef::values(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->values(*toImpl(state)));
+}
+
+IteratorObjectRef* MapObjectRef::keys(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->keys(*toImpl(state)));
+}
+
+IteratorObjectRef* MapObjectRef::entries(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->entries(*toImpl(state)));
 }
 
 WeakMapObjectRef* WeakMapObjectRef::create(ExecutionStateRef* state)

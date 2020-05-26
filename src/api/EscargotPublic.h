@@ -1365,6 +1365,9 @@ public:
     bool deleteOperation(ExecutionStateRef* state, ValueRef* key);
     bool has(ExecutionStateRef* state, ValueRef* key);
     size_t size(ExecutionStateRef* state);
+    IteratorObjectRef* values(ExecutionStateRef* state);
+    IteratorObjectRef* keys(ExecutionStateRef* state);
+    IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT WeakSetObjectRef : public ObjectRef {
@@ -1384,6 +1387,9 @@ public:
     bool has(ExecutionStateRef* state, ValueRef* key);
     void set(ExecutionStateRef* state, ValueRef* key, ValueRef* value);
     size_t size(ExecutionStateRef* state);
+    IteratorObjectRef* values(ExecutionStateRef* state);
+    IteratorObjectRef* keys(ExecutionStateRef* state);
+    IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT WeakMapObjectRef : public ObjectRef {

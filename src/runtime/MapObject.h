@@ -48,9 +48,9 @@ public:
     void set(ExecutionState& state, const Value& key, const Value& value);
     size_t size(ExecutionState& state);
 
-    MapIteratorObject* values(ExecutionState& state);
-    MapIteratorObject* keys(ExecutionState& state);
-    MapIteratorObject* entries(ExecutionState& state);
+    IteratorObject* values(ExecutionState& state);
+    IteratorObject* keys(ExecutionState& state);
+    IteratorObject* entries(ExecutionState& state);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
