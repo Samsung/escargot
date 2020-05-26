@@ -22,8 +22,8 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
-#include "runtime/TypedArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/TypedArrayInlines.h"
 
 namespace Escargot {
 
@@ -39,62 +39,55 @@ public:
         return true;
     }
 
-    // 24.2.1.1
+    // https://www.ecma-international.org/ecma-262/#sec-getviewvalue
     Value getViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type)
     {
         double numberIndex = index.toIndex(state);
-        if (numberIndex == Value::InvalidIndexValue)
+        if (numberIndex == Value::InvalidIndexValue) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        }
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
-
         ArrayBufferObject* buffer = this->buffer();
-        if (!buffer || buffer->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
-            return Value();
-        }
+        buffer->throwTypeErrorIfDetached(state);
 
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
-
         size_t elementSize = TypedArrayHelper::elementSize(type);
 
-        if (numberIndex + elementSize > viewSize)
+        if (numberIndex + elementSize > viewSize) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
+        }
 
         size_t bufferIndex = numberIndex + viewOffset;
         return buffer->getValueFromBuffer(state, bufferIndex, type, isLittleEndian);
     }
 
-    // 24.2.1.2
+    // https://www.ecma-international.org/ecma-262/#sec-setviewvalue
     Value setViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type, Value val)
     {
         double numberIndex = index.toIndex(state);
-        if (numberIndex == Value::InvalidIndexValue)
+        if (numberIndex == Value::InvalidIndexValue) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        }
 
         double numberValue = val.toNumber(state);
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
         ArrayBufferObject* buffer = this->buffer();
-        if (!buffer || buffer->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
-            return Value();
-        }
+        buffer->throwTypeErrorIfDetached(state);
 
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
-
         size_t elementSize = TypedArrayHelper::elementSize(type);
 
-        if (numberIndex + elementSize > viewSize)
+        if (numberIndex + elementSize > viewSize) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
+        }
 
         size_t bufferIndex = numberIndex + viewOffset;
         buffer->setValueInBuffer(state, bufferIndex, type, val, isLittleEndian);
         return Value();
     }
-
-private:
 };
 }
 

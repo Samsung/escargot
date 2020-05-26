@@ -61,6 +61,7 @@ class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
+class TypedArrayObject;
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
 class IntlPluralRulesObject;
@@ -408,6 +409,13 @@ public:
         ASSERT(isFunctionObject());
         return (FunctionObject*)this;
     }
+
+    TypedArrayObject* asTypedArrayObject()
+    {
+        ASSERT(isTypedArrayObject());
+        return (TypedArrayObject*)this;
+    }
+
 
     ExtendedNativeFunctionObject* asExtendedNativeFunctionObject()
     {

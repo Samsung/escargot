@@ -542,15 +542,15 @@ bool ValueRef::isDataViewObject()
     return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isDataViewObject();
 }
 
-#define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                                                                                                \
-    bool ValueRef::is##TypeName##ArrayObject()                                                                                                                                                          \
-    {                                                                                                                                                                                                   \
-        return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArrayBufferView() && toImpl(this).asPointerValue()->asArrayBufferView()->typedArrayType() == TypedArrayType::TypeName; \
-    }                                                                                                                                                                                                   \
-                                                                                                                                                                                                        \
-    TypeName##ArrayObjectRef* ValueRef::as##TypeName##ArrayObject()                                                                                                                                     \
-    {                                                                                                                                                                                                   \
-        return toRef((TypeName##ArrayObject*)(toImpl(this).asPointerValue()->asArrayBufferView()));                                                                                                     \
+#define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                                                                                                  \
+    bool ValueRef::is##TypeName##ArrayObject()                                                                                                                                                            \
+    {                                                                                                                                                                                                     \
+        return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject() && toImpl(this).asPointerValue()->asTypedArrayObject()->typedArrayType() == TypedArrayType::TypeName; \
+    }                                                                                                                                                                                                     \
+                                                                                                                                                                                                          \
+    TypeName##ArrayObjectRef* ValueRef::as##TypeName##ArrayObject()                                                                                                                                       \
+    {                                                                                                                                                                                                     \
+        return toRef((TypeName##ArrayObject*)(toImpl(this).asPointerValue()->asTypedArrayObject()));                                                                                                      \
     }
 
 DEFINE_TYPEDARRAY_IMPL(Int8);
