@@ -18,9 +18,9 @@
  */
 
 #include "Escargot.h"
-#include "MapObject.h"
-#include "ArrayObject.h"
-#include "Context.h"
+#include "runtime/MapObject.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -134,17 +134,17 @@ void MapObject::set(ExecutionState& state, const Value& key, const Value& value)
     }
 }
 
-MapIteratorObject* MapObject::values(ExecutionState& state)
+IteratorObject* MapObject::values(ExecutionState& state)
 {
     return new MapIteratorObject(state, this, MapIteratorObject::TypeValue);
 }
 
-MapIteratorObject* MapObject::keys(ExecutionState& state)
+IteratorObject* MapObject::keys(ExecutionState& state)
 {
     return new MapIteratorObject(state, this, MapIteratorObject::TypeKey);
 }
 
-MapIteratorObject* MapObject::entries(ExecutionState& state)
+IteratorObject* MapObject::entries(ExecutionState& state)
 {
     return new MapIteratorObject(state, this, MapIteratorObject::TypeKeyValue);
 }

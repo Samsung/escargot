@@ -18,9 +18,9 @@
  */
 
 #include "Escargot.h"
-#include "SetObject.h"
-#include "ArrayObject.h"
-#include "Context.h"
+#include "runtime/SetObject.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -119,17 +119,17 @@ size_t SetObject::size(ExecutionState& state)
     return siz;
 }
 
-SetIteratorObject* SetObject::values(ExecutionState& state)
+IteratorObject* SetObject::values(ExecutionState& state)
 {
     return new SetIteratorObject(state, this, SetIteratorObject::TypeValue);
 }
 
-SetIteratorObject* SetObject::keys(ExecutionState& state)
+IteratorObject* SetObject::keys(ExecutionState& state)
 {
     return new SetIteratorObject(state, this, SetIteratorObject::TypeValue);
 }
 
-SetIteratorObject* SetObject::entries(ExecutionState& state)
+IteratorObject* SetObject::entries(ExecutionState& state)
 {
     return new SetIteratorObject(state, this, SetIteratorObject::TypeKeyValue);
 }

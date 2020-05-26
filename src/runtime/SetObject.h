@@ -47,9 +47,9 @@ public:
     bool has(ExecutionState& state, const Value& key);
     size_t size(ExecutionState& state);
 
-    SetIteratorObject* entries(ExecutionState& state);
-    SetIteratorObject* values(ExecutionState& state);
-    SetIteratorObject* keys(ExecutionState& state);
+    IteratorObject* values(ExecutionState& state);
+    IteratorObject* keys(ExecutionState& state);
+    IteratorObject* entries(ExecutionState& state);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
