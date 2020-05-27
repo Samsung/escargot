@@ -43,13 +43,13 @@ public:
     {
     }
 
-    T value()
+    T& value()
     {
         ASSERT(m_hasValue);
         return m_value;
     }
 
-    const T value() const
+    const T& value() const
     {
         ASSERT(m_hasValue);
         return m_value;

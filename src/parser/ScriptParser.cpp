@@ -285,14 +285,15 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         result.script = script;
         return result;
 
-    } catch (esprima::Error& orgError) {
+    } catch (esprima::Error* orgError) {
         // reset ASTAllocator
         m_context->astAllocator().reset();
         GC_enable();
 
         ScriptParser::InitializeScriptResult result;
-        result.parseErrorCode = orgError.errorCode;
-        result.parseErrorMessage = orgError.message;
+        result.parseErrorCode = orgError->errorCode;
+        result.parseErrorMessage = orgError->message;
+        delete orgError;
         return result;
     }
 }
@@ -311,12 +312,14 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     // Parsing
     try {
         functionNode = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
-    } catch (esprima::Error& orgError) {
+    } catch (esprima::Error* orgError) {
         // reset ASTAllocator
         m_context->astAllocator().reset();
         GC_enable();
 
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, orgError.message->toUTF8StringData().data());
+        auto str = orgError->message->toUTF8StringData();
+        delete orgError;
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, str.data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 

@@ -123,10 +123,12 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
         // reset ASTAllocator
         state.context()->astAllocator().reset();
         GC_enable();
-    } catch (esprima::Error& orgError) {
+    } catch (esprima::Error* orgError) {
         // reset ASTAllocator
         state.context()->astAllocator().reset();
         GC_enable();
+
+        delete orgError;
 
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
     }

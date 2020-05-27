@@ -749,9 +749,13 @@ public:
         NodeList args;
         NodeList elements;
         for (size_t i = 0; i < templateLiteralNode->quasis()->size(); i++) {
-            UTF16StringData& sd = (*templateLiteralNode->quasis())[i]->value;
-            String* str = new UTF16String(std::move(sd));
-            elements.append(m_allocator, new (m_allocator) LiteralNode(Value(str)));
+            Value value;
+            if ((*templateLiteralNode->quasis())[i]->value) {
+                UTF16StringData& sd = (*templateLiteralNode->quasis())[i]->value.value();
+                value = new UTF16String(std::move(sd));
+            }
+
+            elements.append(m_allocator, new (m_allocator) LiteralNode(value));
         }
 
         ArrayExpressionNode* arrayExpressionForRaw = nullptr;
