@@ -196,10 +196,11 @@ struct ScanTemplateResult {
     }
     void* operator new[](size_t size) = delete;
 
-    UTF16StringData valueCooked;
+    Optional<UTF16StringData> valueCooked;
     UTF16StringData valueRaw;
     bool head;
     bool tail;
+    Optional<esprima::Error*> error;
 };
 
 struct ScanRegExpResult {

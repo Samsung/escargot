@@ -25,7 +25,7 @@
 namespace Escargot {
 
 struct TemplateElement : public gc {
-    UTF16StringData value;
+    Optional<UTF16StringData> value;
     UTF16StringData valueRaw;
     bool tail;
 };
@@ -55,9 +55,13 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ASSERT(m_expressions.size() + 1 == m_quasis->size());
-        String* str = new UTF16String(std::move((*m_quasis)[0]->value));
-        codeBlock->m_literalData.push_back(str);
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(str)), context, this);
+        Value value;
+        if ((*m_quasis)[0]->value) {
+            String* str = new UTF16String(std::move((*m_quasis)[0]->value.value()));
+            codeBlock->m_literalData.push_back(str);
+            value = str;
+        }
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, value), context, this);
 
         size_t index = 0;
         for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
@@ -66,11 +70,18 @@ public:
             codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, eSrc, dstRegister), context, this);
             context->giveUpRegister();
 
-            String* str = new UTF16String(std::move((*m_quasis)[index + 1]->value));
-            if (str->length()) {
-                codeBlock->m_literalData.push_back(str);
+            if ((*m_quasis)[index + 1]->value) {
+                String* str = new UTF16String(std::move((*m_quasis)[index + 1]->value.value()));
+                if (str->length()) {
+                    codeBlock->m_literalData.push_back(str);
+                    size_t reg = context->getRegister();
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this);
+                    codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this);
+                    context->giveUpRegister();
+                }
+            } else {
                 size_t reg = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value()), context, this);
                 codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this);
                 context->giveUpRegister();
             }

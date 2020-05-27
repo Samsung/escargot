@@ -1915,8 +1915,7 @@ public:
     }
 
     // ECMA-262 12.2.9 Template Literals
-    // FIXME
-    TemplateElement* parseTemplateHead()
+    TemplateElement* parseTemplateHead(bool isTaggedTemplate = false)
     {
         ASSERT(this->lookahead.type == Token::TemplateToken);
 
@@ -1927,11 +1926,13 @@ public:
         tm->value = token->valueTemplate->valueCooked;
         tm->valueRaw = token->valueTemplate->valueRaw;
         tm->tail = token->valueTemplate->tail;
+        if (!isTaggedTemplate && token->valueTemplate->error) {
+            throw token->valueTemplate->error.value();
+        }
         return tm;
     }
 
-    // FIXME
-    TemplateElement* parseTemplateElement()
+    TemplateElement* parseTemplateElement(bool isTaggedTemplate = false)
     {
         if (!this->match(PunctuatorKind::RightBrace)) {
             this->throwUnexpectedToken(this->lookahead);
@@ -1947,21 +1948,24 @@ public:
         tm->value = token->valueTemplate->valueCooked;
         tm->valueRaw = token->valueTemplate->valueRaw;
         tm->tail = token->valueTemplate->tail;
+        if (!isTaggedTemplate && token->valueTemplate->error) {
+            throw token->valueTemplate->error.value();
+        }
         return tm;
     }
 
 
     template <class ASTBuilder>
-    ASTNode parseTemplateLiteral(ASTBuilder& builder)
+    ASTNode parseTemplateLiteral(ASTBuilder& builder, bool isTaggedTemplate = false)
     {
         MetaNode node = this->createNode();
 
         ASTNodeList expressions;
         TemplateElementVector* quasis = new TemplateElementVector;
-        quasis->push_back(this->parseTemplateHead());
+        quasis->push_back(this->parseTemplateHead(isTaggedTemplate));
         while (!quasis->back()->tail) {
             expressions.append(this->allocator, this->parseExpression(builder));
-            TemplateElement* quasi = this->parseTemplateElement();
+            TemplateElement* quasi = this->parseTemplateElement(isTaggedTemplate);
             quasis->push_back(quasi);
         }
         return this->finalize(node, builder.createTemplateLiteralNode(quasis, expressions));
@@ -2258,7 +2262,7 @@ public:
                     break;
                 }
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
-                ASTNode quasi = this->parseTemplateLiteral(builder);
+                ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
                 if (builder.isNodeGenerator()) {
                     this->taggedTemplateExpressionIndex++;
@@ -2322,7 +2326,7 @@ public:
                 ASTNode property = this->parseIdentifierName(builder);
                 exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true));
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
-                ASTNode quasi = this->parseTemplateLiteral(builder);
+                ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
                 if (builder.isNodeGenerator()) {
                     this->taggedTemplateExpressionIndex++;

@@ -464,7 +464,7 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     error->description = description;
     error->errorCode = code;
 
-    throw * error;
+    throw error;
 };
 
 ParserStringView Scanner::SmallScannerResult::relatedSource(const ParserStringView& source) const
@@ -1434,95 +1434,156 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
     UTF16StringDataNonGCStd cooked;
     UTF16StringDataNonGCStd raw;
     bool terminated = false;
+    Optional<esprima::Error*> error;
     size_t start = this->index;
-
+    size_t indexForError = this->index;
     bool tail = false;
 
-    while (!this->eof()) {
-        char16_t ch = this->peekCharWithoutEOF();
-        ++this->index;
-        if (ch == '`') {
-            tail = true;
-            terminated = true;
-            break;
-        } else if (ch == '$') {
-            if (this->peekChar() == '{') {
-                ++this->index;
+    try {
+        while (!this->eof()) {
+            char16_t ch = this->peekCharWithoutEOF();
+            ++this->index;
+            indexForError = this->index;
+            if (ch == '`') {
+                tail = true;
                 terminated = true;
                 break;
-            }
-            cooked += ch;
-            raw += ch;
-        } else if (ch == '\\') {
-            raw += ch;
-            ch = this->peekChar();
-            if (!isLineTerminator(ch)) {
-                auto currentIndex = this->index;
-                ++this->index;
-                switch (ch) {
-                case 'n':
-                    cooked += '\n';
+            } else if (ch == '$') {
+                if (this->peekChar() == '{') {
+                    ++this->index;
+                    indexForError = this->index;
+                    terminated = true;
                     break;
-                case 'r':
-                    cooked += '\r';
-                    break;
-                case 't':
-                    cooked += '\t';
-                    break;
-                case 'u':
-                    if (this->peekChar() == '{') {
-                        ++this->index;
-                        cooked += this->scanUnicodeCodePointEscape();
-                    } else {
-                        const size_t restore = this->index;
-                        const char32_t unescaped = this->scanHexEscape(ch);
-                        if (unescaped != EMPTY_CODE_POINT) {
-                            ParserCharPiece piece(unescaped);
-                            cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
+                }
+                cooked += ch;
+                raw += ch;
+            } else if (ch == '\\') {
+                raw += ch;
+                ch = this->peekChar();
+                if (!isLineTerminator(ch)) {
+                    auto currentIndex = this->index;
+                    ++this->index;
+                    switch (ch) {
+                    case 'n':
+                        cooked += '\n';
+                        break;
+                    case 'r':
+                        cooked += '\r';
+                        break;
+                    case 't':
+                        cooked += '\t';
+                        break;
+                    case 'u':
+                        if (this->peekChar() == '{') {
+                            ++this->index;
+                            cooked += this->scanUnicodeCodePointEscape();
                         } else {
+                            const size_t restore = this->index;
+                            const char32_t unescaped = this->scanHexEscape(ch);
+                            if (unescaped != EMPTY_CODE_POINT) {
+                                ParserCharPiece piece(unescaped);
+                                cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
+                            } else {
+                                this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
+                            }
+                        }
+                        break;
+                    case 'x': {
+                        const char32_t unescaped = this->scanHexEscape(ch);
+                        if (unescaped == EMPTY_CODE_POINT) {
                             this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
                         }
+                        ParserCharPiece piece(unescaped);
+                        cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
+                        break;
                     }
-                    break;
-                case 'x': {
-                    const char32_t unescaped = this->scanHexEscape(ch);
-                    if (unescaped == EMPTY_CODE_POINT) {
-                        this->throwUnexpectedToken(Messages::InvalidHexEscapeSequence);
-                    }
-                    ParserCharPiece piece(unescaped);
-                    cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
-                    break;
-                }
-                case 'b':
-                    cooked += '\b';
-                    break;
-                case 'f':
-                    cooked += '\f';
-                    break;
-                case 'v':
-                    cooked += '\v';
-                    break;
-                default:
-                    if (ch == '0') {
-                        if (isDecimalDigit(this->peekChar())) {
-                            // Illegal: \01 \02 and so on
+                    case 'b':
+                        cooked += '\b';
+                        break;
+                    case 'f':
+                        cooked += '\f';
+                        break;
+                    case 'v':
+                        cooked += '\v';
+                        break;
+                    default:
+                        if (ch == '0') {
+                            if (isDecimalDigit(this->peekChar())) {
+                                // Illegal: \01 \02 and so on
+                                this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
+                            }
+                            cooked += (char16_t)'\0';
+                        } else if (isOctalDigit(ch)) {
+                            // Illegal: \1 \2
                             this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
+                        } else {
+                            cooked += ch;
                         }
-                        cooked += (char16_t)'\0';
-                    } else if (isOctalDigit(ch)) {
-                        // Illegal: \1 \2
-                        this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
-                    } else {
-                        cooked += ch;
+                        break;
                     }
+                    auto endIndex = this->index;
+                    for (size_t i = currentIndex; i < endIndex; i++) {
+                        raw += this->sourceCharAt(i);
+                    }
+                } else {
+                    ++this->index;
+                    indexForError = this->index;
+                    ++this->lineNumber;
+                    if (ch == '\r' && this->peekChar() == '\n') {
+                        ++this->index;
+                        indexForError = this->index;
+                    }
+                    if (ch == 0x2028 || ch == 0x2029) {
+                        raw += ch;
+                    } else {
+                        raw += '\n';
+                    }
+                    this->lineStart = this->index;
+                }
+            } else if (isLineTerminator(ch)) {
+                ++this->lineNumber;
+                if (ch == '\r' && this->peekChar() == '\n') {
+                    ++this->index;
+                    indexForError = this->index;
+                }
+                if (ch == 0x2028 || ch == 0x2029) {
+                    raw += ch;
+                    cooked += ch;
+                } else {
+                    raw += '\n';
+                    cooked += '\n';
+                }
+                this->lineStart = this->index;
+            } else {
+                cooked += ch;
+                raw += ch;
+            }
+        }
+
+        if (!terminated) {
+            this->throwUnexpectedToken();
+        }
+    } catch (esprima::Error* err) {
+        error = new (UseGC) esprima::Error(*err);
+        delete err;
+        this->index = indexForError;
+
+        while (!this->eof()) {
+            char16_t ch = this->peekCharWithoutEOF();
+            ++this->index;
+            if (ch == '`') {
+                tail = true;
+                terminated = true;
+                break;
+            } else if (ch == '$') {
+                if (this->peekChar() == '{') {
+                    ++this->index;
+                    terminated = true;
                     break;
                 }
-                auto endIndex = this->index;
-                for (size_t i = currentIndex; i < endIndex; i++) {
-                    raw += this->sourceCharAt(i);
-                }
-            } else {
-                ++this->index;
+                cooked += ch;
+                raw += ch;
+            } else if (isLineTerminator(ch)) {
                 ++this->lineNumber;
                 if (ch == '\r' && this->peekChar() == '\n') {
                     ++this->index;
@@ -1533,35 +1594,21 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                     raw += '\n';
                 }
                 this->lineStart = this->index;
-            }
-        } else if (isLineTerminator(ch)) {
-            ++this->lineNumber;
-            if (ch == '\r' && this->peekChar() == '\n') {
-                ++this->index;
-            }
-            if (ch == 0x2028 || ch == 0x2029) {
-                raw += ch;
-                cooked += ch;
             } else {
-                raw += '\n';
-                cooked += '\n';
+                raw += ch;
             }
-            this->lineStart = this->index;
-        } else {
-            cooked += ch;
-            raw += ch;
         }
-    }
-
-    if (!terminated) {
-        this->throwUnexpectedToken();
     }
 
     ScanTemplateResult* result = new ScanTemplateResult();
     result->head = head;
     result->tail = tail;
     result->valueRaw = UTF16StringData(raw.data(), raw.length());
-    result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
+    if (error) {
+        result->error = error;
+    } else {
+        result->valueCooked = UTF16StringData(cooked.data(), cooked.length());
+    }
 
     if (head) {
         start--;
