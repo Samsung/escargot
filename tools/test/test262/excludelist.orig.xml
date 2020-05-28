@@ -2357,7 +2357,6 @@
     <test id="language/expressions/assignment/S11.13.1_A7_T3"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/destructuring/obj-prop-__proto__dup"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint-and-number"><reason>TODO</reason></test>

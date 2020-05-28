@@ -1736,7 +1736,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseObjectProperty(ASTBuilder& builder, bool& hasProto) //: Node.Property
+    ASTNode parseObjectProperty(ASTBuilder& builder, bool& propertyNameIs__proto__) //: Node.Property
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -1815,12 +1815,8 @@ public:
             if (this->match(PunctuatorKind::Colon) && !isAsync) {
                 // FIXME check !this->isParsingSingleFunction
                 isProto = !this->isParsingSingleFunction && builder.isPropertyKey(keyNode, "__proto__");
-
                 if (!computed && isProto) {
-                    if (hasProto) {
-                        this->throwError(Messages::DuplicateProtoProperty);
-                    }
-                    hasProto = true;
+                    propertyNameIs__proto__ = true;
                 }
                 this->nextToken();
                 valueNode = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, true>);
@@ -1898,18 +1894,28 @@ public:
         MetaNode node = this->createNode();
         ASTNodeList properties;
 
-        bool hasProto = false;
+        size_t __proto__Count = 0;
         while (!this->match(RightBrace)) {
             if (this->match(PeriodPeriodPeriod)) {
                 properties.append(this->allocator, this->parseSpreadElement<ASTBuilder, true>(builder));
             } else {
-                properties.append(this->allocator, this->parseObjectProperty(builder, hasProto));
+                bool propertyNameIs__proto__ = false;
+                properties.append(this->allocator, this->parseObjectProperty(builder, propertyNameIs__proto__));
+                if (propertyNameIs__proto__) {
+                    __proto__Count++;
+                }
             }
             if (!this->match(RightBrace)) {
                 this->expectCommaSeparator();
             }
         }
         this->expect(RightBrace);
+
+        // Annex B defines an early error for duplicate PropertyName of `__proto__`, in object initializers,
+        // but this does not apply to Object Assignment patterns
+        if (!this->match(PunctuatorKind::Substitution) && __proto__Count >= 2) {
+            this->throwError(Messages::DuplicateProtoProperty);
+        }
 
         return this->finalize(node, builder.createObjectExpressionNode(properties));
     }
