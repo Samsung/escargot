@@ -585,7 +585,11 @@ namespace Escargot {
     F(ObjectDateToString, "[object Date]")           \
     F(ObjectRegExpToString, "[object RegExp]")       \
     F(DotDotDotArgs, "...args")                      \
-    F(SuperDotDotDotArgs, "super(...args)")
+    F(SuperDotDotDotArgs, "super(...args)")          \
+    F(Status, "status")                              \
+    F(Fulfilled, "fulfilled")                        \
+    F(Reason, "reason")                              \
+    F(Rejected, "rejected")
 
 #if defined(ENABLE_INTL)
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)                   \
