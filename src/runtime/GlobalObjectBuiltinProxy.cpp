@@ -52,7 +52,7 @@ static Value builtinProxyRevoke(ExecutionState& state, Value thisValue, size_t a
     ASSERT(revoke);
 
     // 1. Let p be the value of F’s [[RevocableProxy]] internal slot.
-    Value p = revoke->getInternalSlot(ProxyObject::BuiltinFunctionSlot::RevocableProxy);
+    Value p = revoke->internalSlot(ProxyObject::BuiltinFunctionSlot::RevocableProxy);
 
     // 2. If p is null, return undefined.
     if (p.isNull()) {

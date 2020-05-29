@@ -39,20 +39,52 @@ public:
     void setInternalSlot(const size_t idx, const Value& value)
     {
         ASSERT(idx < slotCount());
-        internalSlots()[idx] = value;
+        internalSlots()[idx] = EncodedValue(value);
     }
 
-    EncodedValue& getInternalSlot(const size_t idx)
+    Value internalSlot(const size_t idx)
     {
         ASSERT(idx < slotCount());
-        return internalSlots()[idx];
+        return internalSlots()[idx].m_heapValue;
+    }
+
+    void setInternalSlotAsPointer(const size_t idx, void* ptr)
+    {
+        ASSERT(idx < slotCount());
+        internalSlots()[idx] = ptr;
+    }
+
+    template <typename T>
+    T* internalSlotAsPointer(const size_t idx)
+    {
+        ASSERT(idx < slotCount());
+        return (T*)internalSlots()[idx].m_pointer;
     }
 
 protected:
+    union InternalSlotData {
+        EncodedValue m_heapValue;
+        void* m_pointer;
+
+        InternalSlotData()
+            : m_heapValue()
+        {
+        }
+
+        InternalSlotData(const EncodedValue& v)
+            : m_heapValue(v)
+        {
+        }
+
+        InternalSlotData(void* ptr)
+            : m_pointer(ptr)
+        {
+        }
+    };
 #ifndef NDEBUG
     virtual size_t slotCount() const = 0;
 #endif
-    virtual EncodedValue* internalSlots() = 0;
+    virtual InternalSlotData* internalSlots() = 0;
 };
 
 template <const size_t slotNumber>
@@ -67,7 +99,7 @@ public:
     }
 
 protected:
-    virtual EncodedValue* internalSlots() override
+    virtual InternalSlotData* internalSlots() override
     {
         return m_values;
     }
@@ -80,7 +112,7 @@ protected:
 
     size_t m_slotCount;
 #endif
-    EncodedValue m_values[slotNumber];
+    InternalSlotData m_values[slotNumber];
 };
 }
 

@@ -56,7 +56,7 @@ Value asyncGeneratorResumeNextReturnProcessorFulfilledFunction(ExecutionState& s
 {
     // Let F be the active function object.
     // Set F.[[Generator]].[[AsyncGeneratorState]] to "completed".
-    AsyncGeneratorObject* generator = Value(F->getInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator)).asPointerValue()->asAsyncGeneratorObject();
+    AsyncGeneratorObject* generator = Value(F->internalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator)).asPointerValue()->asAsyncGeneratorObject();
     generator->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
     // Return ! AsyncGeneratorResolve(F.[[Generator]], value, true).
     return AsyncGeneratorObject::asyncGeneratorResolve(state, generator, value, true);
@@ -73,7 +73,7 @@ Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& st
 {
     // Let F be the active function object.
     // Set F.[[Generator]].[[AsyncGeneratorState]] to "completed".
-    AsyncGeneratorObject* generator = Value(F->getInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator)).asPointerValue()->asAsyncGeneratorObject();
+    AsyncGeneratorObject* generator = Value(F->internalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator)).asPointerValue()->asAsyncGeneratorObject();
     generator->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::Completed;
     // Return ! AsyncGeneratorReject(F.[[Generator]], reason).
     return AsyncGeneratorObject::asyncGeneratorReject(state, generator, reason);

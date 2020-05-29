@@ -234,7 +234,7 @@ Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Valu
     ExtendedNativeFunctionObject* executor = state.resolveCallee()->asExtendedNativeFunctionObject();
 
     // Let promiseCapability be F.[[Capability]].
-    Value capabilityValue = executor->getInternalSlot(PromiseObject::BuiltinFunctionSlot::Capability);
+    Value capabilityValue = executor->internalSlot(PromiseObject::BuiltinFunctionSlot::Capability);
     Object* capability = capabilityValue.asObject();
 
     // If promiseCapability.[[Resolve]] is not undefined, throw a TypeError exception.
@@ -262,11 +262,11 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
     ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
 
     // Let promise be F.[[Promise]].
-    Value promiseValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
+    Value promiseValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
     PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
 
     // Let alreadyResolved be F.[[AlreadyResolved]].
-    Value alreadyResolvedValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
+    Value alreadyResolvedValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
     Object* alreadyResolved = alreadyResolvedValue.asObject();
 
     // If alreadyResolved.[[Value]] is true, return undefined.
@@ -315,11 +315,11 @@ static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size
     ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
 
     // Let promise be F.[[Promise]].
-    Value promiseValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
+    Value promiseValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
     PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
 
     // Let alreadyResolved be F.[[AlreadyResolved]].
-    Value alreadyResolvedValue = callee->getInternalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
+    Value alreadyResolvedValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
     Object* alreadyResolved = alreadyResolvedValue.asObject();
 
     // If alreadyResolved.[[Value]] is true, return undefined.
@@ -343,29 +343,28 @@ Value PromiseObject::promiseAllResolveElementFunction(ExecutionState& state, Val
     ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
 
     // Let alreadyCalled be F.[[AlreadyCalled]].
-    Value alreadyCalled = callee->getInternalSlot(BuiltinFunctionSlot::AlreadyCalled);
+    bool* alreadyCalled = callee->internalSlotAsPointer<bool>(BuiltinFunctionSlot::AlreadyCalled);
 
     // If alreadyCalled.[[Value]] is true, return undefined.
-    if (alreadyCalled.asObject()->getOwnProperty(state, strings->value).value(state, alreadyCalled).asBoolean()) {
+    if (*alreadyCalled) {
         return Value();
     }
     // Set alreadyCalled.[[Value]] to true.
-    alreadyCalled.asObject()->setThrowsException(state, strings->value, Value(true), alreadyCalled);
+    *alreadyCalled = true;
 
-    Value index = callee->getInternalSlot(BuiltinFunctionSlot::Index);
-    Value values = callee->getInternalSlot(BuiltinFunctionSlot::Values);
-    Value resolveFunction = callee->getInternalSlot(BuiltinFunctionSlot::Resolve);
-    Value remainingElementsCount = callee->getInternalSlot(BuiltinFunctionSlot::RemainingElements);
+    Value index = callee->internalSlot(BuiltinFunctionSlot::Index);
+    ValueVector* values = callee->internalSlotAsPointer<ValueVector>(BuiltinFunctionSlot::Values);
+    Value resolveFunction = callee->internalSlot(BuiltinFunctionSlot::Resolve);
+    size_t* remainingElementsCount = callee->internalSlotAsPointer<size_t>(BuiltinFunctionSlot::RemainingElements);
 
     // Set values[index] to x.
-    values.asObject()->setThrowsException(state, ObjectPropertyName(state, index.asUInt32()), argv[0], values);
+    values->at(index.asUInt32()) = argv[0];
 
     // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
-    uint32_t elementsCount = remainingElementsCount.asObject()->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asUInt32();
-    remainingElementsCount.asObject()->setThrowsException(state, strings->value, Value(elementsCount - 1), remainingElementsCount);
+    *remainingElementsCount = *remainingElementsCount - 1;
 
-    if (elementsCount == 1) {
-        Value arguments[] = { values };
+    if (*remainingElementsCount == 0) {
+        Value arguments[] = { Object::createArrayFromList(state, *values) };
         return Object::call(state, resolveFunction, Value(), 1, arguments);
     }
     return Value();
@@ -377,7 +376,7 @@ static Value ValueThunkHelper(ExecutionState& state, Value thisValue, size_t arg
     // Let F be the active function object.
     Object* F = state.resolveCallee();
     // Return the resolve's member value
-    return F->asExtendedNativeFunctionObject()->getInternalSlot(PromiseObject::BuiltinFunctionSlot::ValueOrReason);
+    return F->asExtendedNativeFunctionObject()->internalSlot(PromiseObject::BuiltinFunctionSlot::ValueOrReason);
 }
 
 
@@ -386,7 +385,7 @@ static Value ValueThunkThrower(ExecutionState& state, Value thisValue, size_t ar
     // Let F be the active function object.
     Object* F = state.resolveCallee();
     // Throw the resolve's member value
-    state.throwException(F->asExtendedNativeFunctionObject()->getInternalSlot(PromiseObject::BuiltinFunctionSlot::ValueOrReason));
+    state.throwException(F->asExtendedNativeFunctionObject()->internalSlot(PromiseObject::BuiltinFunctionSlot::ValueOrReason));
     return Value();
 }
 
@@ -398,7 +397,7 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
     // Let F be the active function object.
     ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
     // Let onFinally be F.[[OnFinally]].
-    Value onFinally = F->getInternalSlot(BuiltinFunctionSlot::OnFinally);
+    Value onFinally = F->internalSlot(BuiltinFunctionSlot::OnFinally);
 
     // Assert: IsCallable(onFinally) is true.
     // Let result be ? Call(onFinally, undefined).
@@ -407,7 +406,7 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
 
     // Let C be F.[[Constructor]].
     // Assert: IsConstructor(C) is true.
-    Value C = F->getInternalSlot(BuiltinFunctionSlot::Constructor);
+    Value C = F->internalSlot(BuiltinFunctionSlot::Constructor);
     ASSERT(C.isConstructor());
 
     // Let promise be ? PromiseResolve(C, result).
@@ -432,7 +431,7 @@ Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue,
     // Let F be the active function object.
     ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
     // Let onFinally be F.[[OnFinally]].
-    Value onFinally = F->getInternalSlot(BuiltinFunctionSlot::OnFinally);
+    Value onFinally = F->internalSlot(BuiltinFunctionSlot::OnFinally);
 
     // Assert: IsCallable(onFinally) is true.
     // Let result be ? Call(onFinally, undefined).
@@ -441,7 +440,7 @@ Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue,
 
     // Let C be F.[[Constructor]].
     // Assert: IsConstructor(C) is true.
-    Value C = F->getInternalSlot(BuiltinFunctionSlot::Constructor);
+    Value C = F->internalSlot(BuiltinFunctionSlot::Constructor);
     ASSERT(C.isConstructor());
 
     // Let promise be ? PromiseResolve(C, result).
@@ -456,5 +455,88 @@ Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue,
     Value argument[1] = { Value(valueThunk) };
 
     return Object::call(state, then, promise, 1, argument);
+}
+
+// https://tc39.es/ecma262/#sec-promise.allsettled-resolve-element-functions
+Value PromiseObject::promiseAllSettledResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
+    // Let alreadyCalled be F.[[AlreadyCalled]].
+    bool* alreadyCalled = F->internalSlotAsPointer<bool>(BuiltinFunctionSlot::AlreadyCalled);
+    // If alreadyCalled.[[Value]] is true, return undefined.
+    if (*alreadyCalled) {
+        return Value();
+    }
+    // Set alreadyCalled.[[Value]] to true.
+    *alreadyCalled = true;
+    // Let index be F.[[Index]].
+    uint32_t index = Value(F->internalSlot(BuiltinFunctionSlot::Index)).asUInt32();
+    // Let values be F.[[Values]].
+    ValueVector* values = F->internalSlotAsPointer<ValueVector>(BuiltinFunctionSlot::Values);
+    // Let promiseCapability be F.[[Capability]].
+    // Let remainingElementsCount be F.[[RemainingElements]].
+    size_t* remainingElementsCount = F->internalSlotAsPointer<size_t>(BuiltinFunctionSlot::RemainingElements);
+    // Let obj be ! ObjectCreate(%ObjectPrototype%).
+    Object* obj = new Object(state);
+    // Perform ! CreateDataProperty(obj, "status", "fulfilled").
+    obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyStatus()), ObjectPropertyDescriptor(state.context()->staticStrings().lazyFulfilled().string(), ObjectPropertyDescriptor::AllPresent));
+    // Perform ! CreateDataProperty(obj, "value", x).
+    obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(argv[0], ObjectPropertyDescriptor::AllPresent));
+    // Set values[index] to be obj.
+    values->at(index) = obj;
+    // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+    *remainingElementsCount = *remainingElementsCount - 1;
+
+    // If remainingElementsCount.[[Value]] is 0, then
+    if (*remainingElementsCount == 0) {
+        // Let valuesArray be ! CreateArrayFromList(values).
+        Value valuesArray = ArrayObject::createArrayFromList(state, *values);
+        // Return ? Call(promiseCapability.[[Resolve]], undefined, « valuesArray »).
+        return Object::call(state, F->internalSlot(BuiltinFunctionSlot::Resolve), Value(), 1, &valuesArray);
+    }
+
+    return Value();
+}
+
+// https://tc39.es/ecma262/#sec-promise.allsettled-resolve-element-functions
+Value PromiseObject::promiseAllSettledRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
+    // Let alreadyCalled be F.[[AlreadyCalled]].
+    bool* alreadyCalled = F->internalSlotAsPointer<bool>(BuiltinFunctionSlot::AlreadyCalled);
+    // If alreadyCalled.[[Value]] is true, return undefined.
+    if (*alreadyCalled) {
+        return Value();
+    }
+    // Set alreadyCalled.[[Value]] to true.
+    *alreadyCalled = true;
+    // Let index be F.[[Index]].
+    uint32_t index = Value(F->internalSlot(BuiltinFunctionSlot::Index)).asUInt32();
+    // Let values be F.[[Values]].
+    ValueVector* values = F->internalSlotAsPointer<ValueVector>(BuiltinFunctionSlot::Values);
+    // Let promiseCapability be F.[[Capability]].
+    // Let remainingElementsCount be F.[[RemainingElements]].
+    size_t* remainingElementsCount = F->internalSlotAsPointer<size_t>(BuiltinFunctionSlot::RemainingElements);
+    // Let obj be ! OrdinaryObjectCreate(%Object.prototype%).
+    Object* obj = new Object(state);
+    // Perform ! CreateDataPropertyOrThrow(obj, "status", "rejected").
+    obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyStatus()), ObjectPropertyDescriptor(state.context()->staticStrings().lazyRejected().string(), ObjectPropertyDescriptor::AllPresent));
+    // Perform ! CreateDataPropertyOrThrow(obj, "reason", x).
+    obj->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyReason()), ObjectPropertyDescriptor(argv[0], ObjectPropertyDescriptor::AllPresent));
+    // Set values[index] to obj.
+    values->at(index) = obj;
+    // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+    *remainingElementsCount = *remainingElementsCount - 1;
+    // If remainingElementsCount.[[Value]] is 0, then
+    if (*remainingElementsCount == 0) {
+        // Let valuesArray be ! CreateArrayFromList(values).
+        Value valuesArray = ArrayObject::createArrayFromList(state, *values);
+        // Return ? Call(promiseCapability.[[Resolve]], undefined, « valuesArray »).
+        return Object::call(state, F->internalSlot(BuiltinFunctionSlot::Resolve), Value(), 1, &valuesArray);
+    }
+    // Return undefined.
+    return Value();
 }
 }

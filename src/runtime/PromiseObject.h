@@ -143,6 +143,11 @@ public:
     static Value promiseThenFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     static Value promiseCatchFinally(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
+    // https://tc39.es/ecma262/#sec-promise.allsettled-resolve-element-functions
+    static Value promiseAllSettledResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+    // https://tc39.es/ecma262/#sec-promise.allsettled-resolve-element-functions
+    static Value promiseAllSettledRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+
 private:
     PromiseState m_state;
     EncodedValue m_promiseResult;

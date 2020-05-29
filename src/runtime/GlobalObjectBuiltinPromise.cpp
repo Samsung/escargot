@@ -98,10 +98,9 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
     Value result;
     try {
         // Let values be a new empty List.
-        ArrayObject* values = new ArrayObject(state);
+        ValueVector* values = new ValueVector();
         // Let remainingElementsCount be a new Record { [[value]]: 1 }.
-        Object* remainingElementsCount = new Object(state);
-        remainingElementsCount->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(1), ObjectPropertyDescriptor::AllPresent));
+        size_t* remainingElementsCount = new (PointerFreeGC) size_t(1);
         // Let index be 0.
         int64_t index = 0;
 
@@ -122,13 +121,12 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 // set iteratorRecord.[[done]] to true.
                 iteratorRecord->m_done = true;
                 // Set remainingElementsCount.[[value]] to remainingElementsCount.[[value]] − 1.
-                int64_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asNumber();
-                remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements - 1), remainingElementsCount);
+                *remainingElementsCount = *remainingElementsCount - 1;
                 // If remainingElementsCount.[[value]] is 0,
-                if (remainingElements == 1) {
+                if (*remainingElementsCount == 0) {
                     // Let valuesArray be CreateArrayFromList(values).
                     // Perform ? Call(resultCapability.[[Resolve]], undefined, « valuesArray »).
-                    Value argv = values;
+                    Value argv = Object::createArrayFromList(state, *values);
                     Value resolveResult = Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &argv);
                 }
                 // Return resultCapability.[[Promise]].
@@ -146,7 +144,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 state.throwException(e);
             }
             // Append undefined to values.
-            values->defineOwnProperty(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+            values->pushBack(Value());
             // Let nextPromise be Invoke(constructor, "resolve", « nextValue »).
             Value nextPromise = Object::call(state, C->get(state, ObjectPropertyName(state, strings->resolve)).value(state, C), C, 1, &nextValue);
 
@@ -158,19 +156,17 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             // Set the [[Values]] internal slot of resolveElement to values.
             // Set the [[Capabilities]] internal slot of resolveElement to resultCapability.
             // Set the [[RemainingElements]] internal slot of resolveElement to remainingElementsCount.
-            Object* alreadyCalled = new Object(state);
-            alreadyCalled->defineOwnProperty(state, strings->value, ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::AllPresent));
+            bool* alreadyCalled = new (PointerFreeGC) bool(false);
 
-            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyCalled, alreadyCalled);
+            resolveElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::AlreadyCalled, alreadyCalled);
             resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Index, Value(index));
-            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Values, values);
+            resolveElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::Values, values);
             resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Resolve, promiseCapability.m_resolveFunction);
             resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Reject, promiseCapability.m_rejectFunction);
-            resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::RemainingElements, remainingElementsCount);
+            resolveElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::RemainingElements, remainingElementsCount);
 
             // Set remainingElementsCount.[[value]] to remainingElementsCount.[[value]] + 1.
-            int64_t remainingElements = remainingElementsCount->getOwnProperty(state, strings->value).value(state, remainingElementsCount).asNumber();
-            remainingElementsCount->setThrowsException(state, strings->value, Value(remainingElements + 1), remainingElementsCount);
+            *remainingElementsCount = *remainingElementsCount + 1;
             // Perform ? Invoke(nextPromise, "then", « resolveElement, resultCapability.[[Reject]] »).
             Object* nextPromiseObject = nextPromise.toObject(state);
             Value argv[] = { Value(resolveElement), Value(promiseCapability.m_rejectFunction) };
@@ -363,7 +359,6 @@ static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_
     return Object::call(state, then, thisObject, 2, arguments);
 }
 
-
 static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
@@ -372,6 +367,171 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
     Value C = thisValue.asObject()->speciesConstructor(state, state.context()->globalObject()->promise());
     PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject());
     return thisValue.asObject()->asPromiseObject()->then(state, argv[0], argv[1], promiseCapability).value();
+}
+
+// https://tc39.es/ecma262/#sec-performpromiseallsettled
+static Value performPromiseAllSettled(ExecutionState& state, IteratorRecord* iteratorRecord, Object* constructor, PromiseReaction::Capability& resultCapability)
+{
+    // Assert: ! IsConstructor(constructor) is true.
+    // Assert: resultCapability is a PromiseCapability Record.
+    // Let values be a new empty List.
+    ValueVector* values = new ValueVector();
+    // Let remainingElementsCount be a new Record { [[Value]]: 1 }.
+    size_t* remainingElementsCount = new (PointerFreeGC) size_t(1);
+    // Let index be 0.
+    size_t index = 0;
+    // Let promiseResolve be ? Get(constructor, "resolve").
+    Value promiseResolve = constructor->get(state, ObjectPropertyName(state.context()->staticStrings().resolve)).value(state, constructor);
+    // If IsCallable(promiseResolve) is false, throw a TypeError exception.
+    if (!promiseResolve.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "resolve function is not callable");
+    }
+
+    // Repeat,
+    while (true) {
+        // Let next be IteratorStep(iteratorRecord).
+        Optional<Object*> next;
+        try {
+            next = IteratorObject::iteratorStep(state, iteratorRecord);
+        } catch (const Value& e) {
+            // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+            iteratorRecord->m_done = true;
+            // ReturnIfAbrupt(next).
+            state.throwException(e);
+        }
+
+        // If next is false, then
+        if (!next.hasValue()) {
+            // Set iteratorRecord.[[Done]] to true.
+            iteratorRecord->m_done = true;
+            // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+            *remainingElementsCount = *remainingElementsCount - 1;
+            // If remainingElementsCount.[[Value]] is 0, then
+            if (*remainingElementsCount == 0) {
+                // Let valuesArray be ! CreateArrayFromList(values).
+                Value valuesArray = ArrayObject::createArrayFromList(state, *values);
+                // Perform ? Call(resultCapability.[[Resolve]], undefined, « valuesArray »).
+                Object::call(state, resultCapability.m_resolveFunction, Value(), 1, &valuesArray);
+            }
+            // Return resultCapability.[[Promise]].
+            return resultCapability.m_promise;
+        }
+
+        // Let nextValue be IteratorValue(next).
+        Value nextValue;
+        try {
+            nextValue = IteratorObject::iteratorValue(state, next.value());
+        } catch (const Value& e) {
+            // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+            iteratorRecord->m_done = true;
+            // ReturnIfAbrupt(nextValue).
+            state.throwException(e);
+        }
+
+        // Append undefined to values.
+        values->pushBack(Value());
+        // Let nextPromise be ? Call(promiseResolve, constructor, « nextValue »).
+        Value nextValueArgv = nextValue;
+        Value nextPromise = Object::call(state, promiseResolve, constructor, 1, &nextValueArgv);
+        // Let steps be the algorithm steps defined in Promise.allSettled Resolve Element Functions.
+        // Let resolveElement be ! CreateBuiltinFunction(steps, « [[AlreadyCalled]], [[Index]], [[Values]], [[Capability]], [[RemainingElements]] »).
+        // Let alreadyCalled be the Record { [[Value]]: false }.
+        bool* alreadyCalled = new (PointerFreeGC) bool(false);
+        // Set resolveElement.[[AlreadyCalled]] to alreadyCalled.
+        // Set resolveElement.[[Index]] to index.
+        // Set resolveElement.[[Values]] to values.
+        // Set resolveElement.[[Capability]] to resultCapability.
+        // Set resolveElement.[[RemainingElements]] to remainingElementsCount.
+        auto resolveElement = new ExtendedNativeFunctionObjectImpl<6>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseAllSettledResolveElementFunction, 1, NativeFunctionInfo::Strict));
+        resolveElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::AlreadyCalled, alreadyCalled);
+        resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Index, Value(index));
+        resolveElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::Values, values);
+        resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Resolve, resultCapability.m_resolveFunction);
+        resolveElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Reject, resultCapability.m_rejectFunction);
+        resolveElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::RemainingElements, remainingElementsCount);
+
+        // Let rejectSteps be the algorithm steps defined in Promise.allSettled Reject Element Functions.
+        // Let rejectElement be ! CreateBuiltinFunction(rejectSteps, « [[AlreadyCalled]], [[Index]], [[Values]], [[Capability]], [[RemainingElements]] »).
+        // Set rejectElement.[[AlreadyCalled]] to alreadyCalled.
+        // Set rejectElement.[[Index]] to index.
+        // Set rejectElement.[[Values]] to values.
+        // Set rejectElement.[[Capability]] to resultCapability.
+        // Set rejectElement.[[RemainingElements]] to remainingElementsCount.
+        auto rejectElement = new ExtendedNativeFunctionObjectImpl<6>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseAllSettledRejectElementFunction, 1, NativeFunctionInfo::Strict));
+        rejectElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::AlreadyCalled, alreadyCalled);
+        rejectElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Index, Value(index));
+        rejectElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::Values, values);
+        rejectElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Resolve, resultCapability.m_resolveFunction);
+        rejectElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Reject, resultCapability.m_rejectFunction);
+        rejectElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::RemainingElements, remainingElementsCount);
+
+        // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] + 1.
+        *remainingElementsCount = *remainingElementsCount + 1;
+        // Perform ? Invoke(nextPromise, "then", « resolveElement, rejectElement »).
+        Value argv[2] = { resolveElement, rejectElement };
+        Object::call(state, Object::getMethod(state, nextPromise, state.context()->staticStrings().then), nextPromise, 2, argv);
+        // Set index to index + 1.
+        index++;
+    }
+
+    return Value();
+}
+
+// https://tc39.es/ecma262/#sec-promise.allsettled
+static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let C be the this value.
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "this value of allSettled is not Object");
+    }
+    Object* C = thisValue.asObject();
+    // Let promiseCapability be ? NewPromiseCapability(C).
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, C);
+    // Let iteratorRecord be GetIterator(iterable).
+    // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
+    IteratorRecord* iteratorRecord;
+    try {
+        iteratorRecord = IteratorObject::getIterator(state, argv[0]);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
+    Value result;
+    // Let result be PerformPromiseAllSettled(iteratorRecord, C, promiseCapability).
+    try {
+        result = performPromiseAllSettled(state, iteratorRecord, C, promiseCapability);
+    } catch (const Value& v) {
+        Value exceptionValue = v;
+        // If result is an abrupt completion,
+        // If iteratorRecord.[[Done]] is false, set result to IteratorClose(iteratorRecord, result).
+        if (!iteratorRecord->m_done) {
+            try {
+                result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+            } catch (const Value& v) {
+                // IfAbruptRejectPromise(result, promiseCapability).
+                // If value is an abrupt completion,
+                // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+                Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exceptionValue);
+                // Return capability.[[Promise]].
+                return promiseCapability.m_promise;
+            }
+        } else {
+            // IfAbruptRejectPromise(result, promiseCapability).
+            // If value is an abrupt completion,
+            // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exceptionValue);
+            // Return capability.[[Promise]].
+            return promiseCapability.m_promise;
+        }
+    }
+    // Return Completion(result).
+    return result;
 }
 
 void GlobalObject::installPromise(ExecutionState& state)
@@ -428,6 +588,10 @@ void GlobalObject::installPromise(ExecutionState& state)
 
     m_promise->setFunctionPrototype(state, m_promisePrototype);
 
+    // Promise.allSettled ( iterable )
+    m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->allSettled),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->allSettled, builtinPromiseAllSettled, 1, NativeFunctionInfo::Strict)),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     defineOwnProperty(state, ObjectPropertyName(strings->Promise),
                       ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
