@@ -25,40 +25,231 @@ namespace Escargot {
 
 AtomicString::AtomicString(ExecutionState& ec, const char16_t* src, size_t len)
 {
-    if (isAllASCII(src, len)) {
-        init(ec.context()->m_atomicStringMap, new ASCIIString(src, len));
-    } else {
-        init(ec.context()->m_atomicStringMap, new UTF16String(src, len));
-    }
+    init(ec.context()->m_atomicStringMap, src, len);
 }
 
 AtomicString::AtomicString(ExecutionState& ec, const char* src, size_t len)
 {
-    init(ec.context()->m_atomicStringMap, new ASCIIString(src, len));
+    init(ec.context()->m_atomicStringMap, src, len);
 }
 
 AtomicString::AtomicString(ExecutionState& ec, const char* src)
 {
-    init(ec.context()->m_atomicStringMap, new ASCIIString(src, strlen(src)));
-}
-
-AtomicString::AtomicString(Context* c, const char16_t* src, size_t len)
-{
-    if (isAllASCII(src, len)) {
-        init(c->m_atomicStringMap, new ASCIIString(src, len));
-    } else {
-        init(c->m_atomicStringMap, new UTF16String(src, len));
-    }
+    init(ec.context()->m_atomicStringMap, src, strlen(src));
 }
 
 AtomicString::AtomicString(Context* c, const char* src, size_t len)
 {
-    init(c->m_atomicStringMap, new ASCIIString(src, len));
+    init(c->m_atomicStringMap, src, len);
+}
+
+AtomicString::AtomicString(Context* c, const LChar* src, size_t len)
+{
+    init(c->m_atomicStringMap, src, len);
+}
+
+AtomicString::AtomicString(Context* c, const char16_t* src, size_t len)
+{
+    init(c->m_atomicStringMap, src, len);
+}
+
+AtomicString::AtomicString(AtomicStringMap* map, const char* src, size_t len)
+{
+    init(map, src, len);
+}
+
+AtomicString::AtomicString(AtomicStringMap* map, const LChar* src, size_t len)
+{
+    init(map, src, len);
+}
+
+AtomicString::AtomicString(AtomicStringMap* map, const char16_t* src, size_t len)
+{
+    init(map, src, len);
 }
 
 AtomicString::AtomicString(ExecutionState& ec, String* name)
 {
     init(ec.context()->m_atomicStringMap, name);
+}
+
+class ASCIIStringOnStack : public String {
+public:
+    ASCIIStringOnStack(const char* str, size_t len)
+        : String()
+    {
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = len;
+        m_bufferData.buffer = str;
+    }
+
+    virtual char16_t charAt(const size_t idx) const
+    {
+        return m_bufferData.uncheckedCharAtFor8Bit(idx);
+    }
+
+    virtual const LChar* characters8() const
+    {
+        return (const LChar*)m_bufferData.buffer;
+    }
+
+    // unused
+    virtual UTF16StringData toUTF16StringData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // unused
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // unused
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    void* operator new(size_t size) = delete;
+    void* operator new(size_t, void* ptr) = delete;
+    void* operator new[](size_t size) = delete;
+};
+
+void AtomicString::init(AtomicStringMap* map, const char* src, size_t len)
+{
+    ASCIIStringOnStack stringForSearch(src, len);
+
+    auto iter = map->find(&stringForSearch);
+    if (map->end() == iter) {
+        ASCIIString* newStr = new ASCIIString(src, len);
+        map->insert(newStr);
+        m_string = newStr;
+        newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+    } else {
+        m_string = iter.operator*();
+    }
+}
+
+class Latin1StringOnStack : public String {
+public:
+    Latin1StringOnStack(const LChar* str, size_t len)
+        : String()
+    {
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = len;
+        m_bufferData.buffer = str;
+    }
+
+    virtual char16_t charAt(const size_t idx) const
+    {
+        return m_bufferData.uncheckedCharAtFor8Bit(idx);
+    }
+
+    virtual const LChar* characters8() const
+    {
+        return (const LChar*)m_bufferData.buffer;
+    }
+
+    // unused
+    virtual UTF16StringData toUTF16StringData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // unused
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // unused
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    void* operator new(size_t size) = delete;
+    void* operator new(size_t, void* ptr) = delete;
+    void* operator new[](size_t size) = delete;
+};
+
+void AtomicString::init(AtomicStringMap* map, const LChar* src, size_t len)
+{
+    Latin1StringOnStack stringForSearch(src, len);
+
+    auto iter = map->find(&stringForSearch);
+    if (map->end() == iter) {
+        Latin1String* newStr = new Latin1String(src, len);
+        map->insert(newStr);
+        m_string = newStr;
+        newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+    } else {
+        m_string = iter.operator*();
+    }
+}
+
+class UTF16StringOnStack : public String {
+public:
+    UTF16StringOnStack(const char16_t* str, size_t len)
+        : String()
+    {
+        m_bufferData.has8BitContent = false;
+        m_bufferData.length = len;
+        m_bufferData.buffer = str;
+    }
+
+    virtual char16_t charAt(const size_t idx) const
+    {
+        return m_bufferData.uncheckedCharAtFor16Bit(idx);
+    }
+
+    virtual const char16_t* characters16() const
+    {
+        return (const char16_t*)m_bufferData.buffer;
+    }
+
+    // unused
+    virtual UTF16StringData toUTF16StringData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // unused
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    // unused
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    void* operator new(size_t size) = delete;
+    void* operator new(size_t, void* ptr) = delete;
+    void* operator new[](size_t size) = delete;
+};
+
+void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
+{
+    UTF16StringOnStack stringForSearch(src, len);
+
+    auto iter = map->find(&stringForSearch);
+    if (map->end() == iter) {
+        String* newStr;
+        if (isAllASCII(src, len)) {
+            newStr = new UTF16String(src, len);
+        } else {
+            newStr = new ASCIIString(src, len);
+        }
+        map->insert(newStr);
+        m_string = newStr;
+        newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+    } else {
+        m_string = iter.operator*();
+    }
 }
 
 AtomicString::AtomicString(Context* c, const StringView& sv)

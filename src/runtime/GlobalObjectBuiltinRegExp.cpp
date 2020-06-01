@@ -255,7 +255,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
 
     String* newFlags;
     // If flags contains "u", let unicodeMatching be true.
-    if (flags->find(String::fromASCII("u")) != SIZE_MAX) {
+    if (flags->find("u") != SIZE_MAX) {
         unicodeMatching = true;
     }
 
@@ -263,7 +263,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     // Else, let newFlags be the string that is the concatenation of flags and "y".
     StringBuilder builder;
     builder.appendString(flags);
-    if (flags->find(String::fromASCII("y")) == SIZE_MAX) {
+    if (flags->find("y") == SIZE_MAX) {
         builder.appendString("y");
     }
     newFlags = builder.finalize();

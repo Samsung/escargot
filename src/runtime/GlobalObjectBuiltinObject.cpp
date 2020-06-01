@@ -89,45 +89,64 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
 static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefined()) {
-        return new ASCIIString("[object Undefined]");
+        return state.context()->staticStrings().lazyObjectUndefinedToString().string();
     } else if (thisValue.isNull()) {
-        return new ASCIIString("[object Null]");
+        return state.context()->staticStrings().lazyObjectNullToString().string();
     }
 
     Object* thisObject = thisValue.toObject(state);
-
-    StringBuilder builder;
-    builder.appendString("[object ");
-
     Value toStringTag = thisObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
     if (toStringTag.isString()) {
-        builder.appendString(toStringTag.asString());
+        String* tag = toStringTag.asString();
+        auto bad = tag->bufferAccessData();
+        if (bad.has8BitContent && bad.length < 256) {
+            LChar* buf = (LChar*)alloca(bad.length + 10);
+            size_t len = 0;
+
+            buf[0] = '[';
+            buf[1] = 'o';
+            buf[2] = 'b';
+            buf[3] = 'j';
+            buf[4] = 'e';
+            buf[5] = 'c';
+            buf[6] = 't';
+            buf[7] = ' ';
+            memcpy(buf + 8, bad.bufferAs8Bit, bad.length);
+            buf[bad.length + 8] = ']';
+            buf[bad.length + 9] = 0;
+            len = 9 + bad.length;
+
+            return AtomicString(state.context(), buf, len).string();
+        } else {
+            StringBuilder builder;
+            builder.appendString("[object ");
+            builder.appendString(tag);
+            builder.appendString("]");
+            return AtomicString(state, builder.finalize()).string();
+        }
     } else {
         if (thisObject->isArray(state)) {
-            builder.appendString("Array");
+            return state.context()->staticStrings().lazyObjectArrayToString().string();
         } else if (thisObject->isStringObject()) {
-            builder.appendString("String");
+            return state.context()->staticStrings().lazyObjectStringToString().string();
         } else if (thisObject->isArgumentsObject()) {
-            builder.appendString("Arguments");
+            return state.context()->staticStrings().lazyObjectArgumentsToString().string();
         } else if (thisObject->isCallable()) {
-            builder.appendString("Function");
+            return state.context()->staticStrings().lazyObjectFunctionToString().string();
         } else if (thisObject->isErrorObject()) {
-            builder.appendString("Error");
+            return state.context()->staticStrings().lazyObjectErrorToString().string();
         } else if (thisObject->isBooleanObject()) {
-            builder.appendString("Boolean");
+            return state.context()->staticStrings().lazyObjectBooleanToString().string();
         } else if (thisObject->isNumberObject()) {
-            builder.appendString("Number");
+            return state.context()->staticStrings().lazyObjectNumberToString().string();
         } else if (thisObject->isDateObject()) {
-            builder.appendString("Date");
+            return state.context()->staticStrings().lazyObjectDateToString().string();
         } else if (thisObject->isRegExpObject()) {
-            builder.appendString("RegExp");
+            return state.context()->staticStrings().lazyObjectRegExpToString().string();
         } else {
-            builder.appendString("Object");
+            return state.context()->staticStrings().lazyObjectObjectToString().string();
         }
     }
-    builder.appendString("]");
-
-    return AtomicString(state, builder.finalize()).string();
 }
 
 static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
