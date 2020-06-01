@@ -39,6 +39,193 @@ class FunctionObject;
     }                                                                                                                                                                                                                                           \
     String* NAME = thisValue.toString(state);
 
+
+#define GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, NAME) \
+    F(arrayBuffer, FunctionObject, NAME)          \
+    F(arrayBufferPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_ARRAY(F, NAME) \
+    F(array, FunctionObject, NAME)          \
+    F(arrayPrototype, Object, NAME)         \
+    F(arrayIteratorPrototype, Object, NAME) \
+    F(arrayPrototypeValues, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_ASYNCFROMSYNCITERATOR(F, NAME) \
+    F(asyncFromSyncIteratorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_ASYNCFUNCTION(F, NAME) \
+    F(asyncFunction, FunctionObject, NAME)          \
+    F(asyncFunctionPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_ASYNCGENERATOR(F, NAME) \
+    F(asyncGenerator, Object, NAME)                  \
+    F(asyncGeneratorPrototype, Object, NAME)         \
+    F(asyncGeneratorFunction, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_ASYNCITERATOR(F, NAME) \
+    F(asyncIteratorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_BOOLEAN(F, NAME) \
+    F(boolean, FunctionObject, NAME)          \
+    F(booleanPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_DATAVIEW(F, NAME) \
+    F(dataView, FunctionObject, NAME)          \
+    F(dataViewPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_DATE(F, NAME) \
+    F(date, FunctionObject, NAME)          \
+    F(datePrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_ERROR(F, NAME)  \
+    F(error, FunctionObject, NAME)           \
+    F(errorPrototype, Object, NAME)          \
+    F(referenceError, FunctionObject, NAME)  \
+    F(referenceErrorPrototype, Object, NAME) \
+    F(typeError, FunctionObject, NAME)       \
+    F(typeErrorPrototype, Object, NAME)      \
+    F(rangeError, FunctionObject, NAME)      \
+    F(rangeErrorPrototype, Object, NAME)     \
+    F(syntaxError, FunctionObject, NAME)     \
+    F(syntaxErrorPrototype, Object, NAME)    \
+    F(uriError, FunctionObject, NAME)        \
+    F(uriErrorPrototype, Object, NAME)       \
+    F(evalError, FunctionObject, NAME)       \
+    F(evalErrorPrototype, Object, NAME)      \
+    F(throwTypeError, FunctionObject, NAME)  \
+    F(throwerGetterSetterData, JSGetterSetter, NAME)
+#define GLOBALOBJECT_BUILTIN_EVAL(F, NAME) \
+    F(eval, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_FUNCTION(F, NAME) \
+    F(function, FunctionObject, NAME)          \
+    F(functionPrototype, FunctionObject, NAME) \
+    F(functionApply, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_GENERATOR(F, NAME) \
+    F(generatorFunction, FunctionObject, NAME)  \
+    F(generator, FunctionObject, NAME)          \
+    F(generatorPrototype, Object, NAME)
+//INTL
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#define GLOBALOBJECT_BUILTIN_INTL(F, NAME)           \
+    F(intl, Object, NAME)                            \
+    F(intlCollator, FunctionObject, NAME)            \
+    F(intlDateTimeFormat, FunctionObject, NAME)      \
+    F(intlDateTimeFormatPrototype, Object, NAME)     \
+    F(intlNumberFormat, FunctionObject, NAME)        \
+    F(intlNumberFormatPrototype, Object, NAME)       \
+    F(intlRelativeTimeFormat, FunctionObject, NAME)  \
+    F(intlRelativeTimeFormatPrototype, Object, NAME) \
+    F(intlLocale, FunctionObject, NAME)              \
+    F(intlLocalePrototype, Object, NAME)             \
+    F(intlPluralRules, FunctionObject, NAME)         \
+    F(intlPluralRulesPrototype, Object, NAME)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL(F, NAME)
+#endif
+#define GLOBALOBJECT_BUILTIN_ITERATOR(F, NAME) \
+    F(iteratorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_JSON(F, NAME) \
+    F(json, Object, NAME)                  \
+    F(jsonStringify, FunctionObject, NAME) \
+    F(jsonParse, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_MAP(F, NAME) \
+    F(map, FunctionObject, NAME)          \
+    F(mapPrototype, Object, NAME)         \
+    F(mapIteratorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_MATH(F, NAME) \
+    F(math, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_NUMBER(F, NAME) \
+    F(number, FunctionObject, NAME)          \
+    F(numberPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_OBJECT(F, NAME) \
+    F(object, FunctionObject, NAME)          \
+    F(objectCreate, FunctionObject, NAME)    \
+    F(objectFreeze, FunctionObject, NAME)    \
+    F(objectPrototype, Object, NAME)         \
+    F(objectPrototypeToString, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_OTHERS(F, NAME)   \
+    F(stringProxyObject, StringObject, NAME)   \
+    F(numberProxyObject, NumberObject, NAME)   \
+    F(booleanProxyObject, BooleanObject, NAME) \
+    F(symbolProxyObject, SymbolObject, NAME)
+#define GLOBALOBJECT_BUILTIN_PROMISE(F, NAME) \
+    F(promise, FunctionObject, NAME)          \
+    F(promisePrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_PROXY(F, NAME) \
+    F(proxy, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_REFLECT(F, NAME) \
+    F(reflect, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_REGEXP(F, NAME)     \
+    F(regexp, FunctionObject, NAME)              \
+    F(regexpExecMethod, FunctionObject, NAME)    \
+    F(regexpPrototype, Object, NAME)             \
+    F(regexpReplaceMethod, FunctionObject, NAME) \
+    F(regexpSplitMethod, FunctionObject, NAME)
+#define GLOBALOBJECT_BUILTIN_SET(F, NAME) \
+    F(set, FunctionObject, NAME)          \
+    F(setPrototype, Object, NAME)         \
+    F(setIteratorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_STRING(F, NAME) \
+    F(string, FunctionObject, NAME)          \
+    F(stringPrototype, Object, NAME)         \
+    F(stringIteratorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_SYMBOL(F, NAME) \
+    F(symbol, FunctionObject, NAME)          \
+    F(symbolPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, NAME) \
+    F(typedArray, FunctionObject, NAME)          \
+    F(typedArrayPrototype, Object, NAME)         \
+    F(int8Array, FunctionObject, NAME)           \
+    F(int8ArrayPrototype, Object, NAME)          \
+    F(uint8Array, FunctionObject, NAME)          \
+    F(uint8ArrayPrototype, Object, NAME)         \
+    F(uint8ClampedArray, FunctionObject, NAME)   \
+    F(uint8ClampedArrayPrototype, Object, NAME)  \
+    F(int16Array, FunctionObject, NAME)          \
+    F(int16ArrayPrototype, Object, NAME)         \
+    F(uint16Array, FunctionObject, NAME)         \
+    F(uint16ArrayPrototype, Object, NAME)        \
+    F(int32Array, FunctionObject, NAME)          \
+    F(int32ArrayPrototype, Object, NAME)         \
+    F(uint32Array, FunctionObject, NAME)         \
+    F(uint32ArrayPrototype, Object, NAME)        \
+    F(float32Array, FunctionObject, NAME)        \
+    F(float32ArrayPrototype, Object, NAME)       \
+    F(float64Array, FunctionObject, NAME)        \
+    F(float64ArrayPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_WEAKMAP(F, NAME) \
+    F(weakMap, FunctionObject, NAME)          \
+    F(weakMapPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_WEAKSET(F, NAME) \
+    F(weakSet, FunctionObject, NAME)          \
+    F(weakSetPrototype, Object, NAME)
+
+
+#define GLOBALOBJECT_BUILTIN_LIST(F)                                     \
+    GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, ArrayBuffer)                     \
+    GLOBALOBJECT_BUILTIN_ARRAY(F, Array)                                 \
+    GLOBALOBJECT_BUILTIN_ASYNCFROMSYNCITERATOR(F, AsyncFromSyncIterator) \
+    GLOBALOBJECT_BUILTIN_ASYNCFUNCTION(F, AsyncFunction)                 \
+    GLOBALOBJECT_BUILTIN_ASYNCGENERATOR(F, AsyncGenerator)               \
+    GLOBALOBJECT_BUILTIN_ASYNCITERATOR(F, AsyncIterator)                 \
+    GLOBALOBJECT_BUILTIN_BOOLEAN(F, Boolean)                             \
+    GLOBALOBJECT_BUILTIN_DATAVIEW(F, DataView)                           \
+    GLOBALOBJECT_BUILTIN_DATE(F, Date)                                   \
+    GLOBALOBJECT_BUILTIN_ERROR(F, Error)                                 \
+    GLOBALOBJECT_BUILTIN_EVAL(F, Eval)                                   \
+    GLOBALOBJECT_BUILTIN_FUNCTION(F, Function)                           \
+    GLOBALOBJECT_BUILTIN_GENERATOR(F, Generator)                         \
+    GLOBALOBJECT_BUILTIN_INTL(F, Intl)                                   \
+    GLOBALOBJECT_BUILTIN_ITERATOR(F, Iterator)                           \
+    GLOBALOBJECT_BUILTIN_JSON(F, JSON)                                   \
+    GLOBALOBJECT_BUILTIN_MAP(F, Map)                                     \
+    GLOBALOBJECT_BUILTIN_MATH(F, Math)                                   \
+    GLOBALOBJECT_BUILTIN_NUMBER(F, Number)                               \
+    GLOBALOBJECT_BUILTIN_OBJECT(F, Object)                               \
+    GLOBALOBJECT_BUILTIN_OTHERS(F, Others)                               \
+    GLOBALOBJECT_BUILTIN_PROMISE(F, Promise)                             \
+    GLOBALOBJECT_BUILTIN_PROXY(F, Proxy)                                 \
+    GLOBALOBJECT_BUILTIN_REFLECT(F, Reflect)                             \
+    GLOBALOBJECT_BUILTIN_REGEXP(F, RegExp)                               \
+    GLOBALOBJECT_BUILTIN_SET(F, Set)                                     \
+    GLOBALOBJECT_BUILTIN_STRING(F, String)                               \
+    GLOBALOBJECT_BUILTIN_SYMBOL(F, Symbol)                               \
+    GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, TypedArray)                       \
+    GLOBALOBJECT_BUILTIN_WEAKMAP(F, WeakMap)                             \
+    GLOBALOBJECT_BUILTIN_WEAKSET(F, WeakSet)
+
+
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
 class GlobalObject : public Object {
@@ -59,512 +246,15 @@ public:
     Value eval(ExecutionState& state, const Value& arg);
     Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation); // we get isInWithOperation as parameter because this affects bytecode
 
-    FunctionObject* object()
-    {
-        return m_object;
-    }
-    Object* objectPrototype()
-    {
-        return m_objectPrototype;
-    }
-    FunctionObject* objectPrototypeToString()
-    {
-        return m_objectPrototypeToString;
-    }
-    FunctionObject* objectCreate()
-    {
-        return m_objectCreate;
-    }
-    FunctionObject* objectFreeze()
-    {
-        return m_objectFreeze;
-    }
-    FunctionObject* function()
-    {
-        return m_function;
-    }
-    FunctionObject* functionPrototype()
-    {
-        return m_functionPrototype;
-    }
-    FunctionObject* functionApply()
-    {
-        return m_functionApply;
+#define DECLARE_BUILTIN_FUNC(builtin, TYPE, NAME) \
+    TYPE* builtin()                               \
+    {                                             \
+        ASSERT(!!m_##builtin);                    \
+        return m_##builtin;                       \
     }
 
-    FunctionObject* error()
-    {
-        return m_error;
-    }
-    Object* errorPrototype()
-    {
-        return m_errorPrototype;
-    }
-    FunctionObject* referenceError()
-    {
-        return m_referenceError;
-    }
-    Object* referenceErrorPrototype()
-    {
-        return m_referenceErrorPrototype;
-    }
-    FunctionObject* typeError()
-    {
-        return m_typeError;
-    }
-    Object* typeErrorPrototype()
-    {
-        return m_typeErrorPrototype;
-    }
-    FunctionObject* rangeError()
-    {
-        return m_rangeError;
-    }
-    Object* rangeErrorPrototype()
-    {
-        return m_rangeErrorPrototype;
-    }
-    FunctionObject* syntaxError()
-    {
-        return m_syntaxError;
-    }
-    Object* syntaxErrorPrototype()
-    {
-        return m_syntaxErrorPrototype;
-    }
-    FunctionObject* uriError()
-    {
-        return m_uriError;
-    }
-    Object* uriErrorPrototype()
-    {
-        return m_uriErrorPrototype;
-    }
-    FunctionObject* evalError()
-    {
-        return m_evalError;
-    }
-    Object* evalErrorPrototype()
-    {
-        return m_evalErrorPrototype;
-    }
-
-    FunctionObject* string()
-    {
-        return m_string;
-    }
-    Object* stringPrototype()
-    {
-        return m_stringPrototype;
-    }
-    Object* stringIteratorPrototype()
-    {
-        return m_stringIteratorPrototype;
-    }
-
-    FunctionObject* number()
-    {
-        return m_number;
-    }
-    Object* numberPrototype()
-    {
-        return m_numberPrototype;
-    }
-
-    FunctionObject* symbol()
-    {
-        return m_symbol;
-    }
-    Object* symbolPrototype()
-    {
-        return m_symbolPrototype;
-    }
-
-    FunctionObject* array()
-    {
-        return m_array;
-    }
-    Object* arrayPrototype()
-    {
-        return m_arrayPrototype;
-    }
-    Object* arrayIteratorPrototype()
-    {
-        return m_arrayIteratorPrototype;
-    }
-
-    FunctionObject* arrayPrototypeValues()
-    {
-        return m_arrayPrototypeValues;
-    }
-
-    FunctionObject* boolean()
-    {
-        return m_boolean;
-    }
-    Object* booleanPrototype()
-    {
-        return m_booleanPrototype;
-    }
-
-    FunctionObject* date()
-    {
-        return m_date;
-    }
-    Object* datePrototype()
-    {
-        return m_datePrototype;
-    }
-
-    Object* math()
-    {
-        return m_math;
-    }
-
-    FunctionObject* regexp()
-    {
-        return m_regexp;
-    }
-
-    Object* regexpPrototype()
-    {
-        return m_regexpPrototype;
-    }
-
-    FunctionObject* regexpSplitMethod()
-    {
-        return m_regexpSplitMethod;
-    }
-    FunctionObject* regexpReplaceMethod()
-    {
-        return m_regexpReplaceMethod;
-    }
-    FunctionObject* regexpExecMethod()
-    {
-        return m_regexpExecMethod;
-    }
-    Object* json()
-    {
-        return m_json;
-    }
-
-    FunctionObject* jsonStringify()
-    {
-        return m_jsonStringify;
-    }
-
-    FunctionObject* jsonParse()
-    {
-        return m_jsonParse;
-    }
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    Object* intl()
-    {
-        return m_intl;
-    }
-
-    FunctionObject* intlCollator()
-    {
-        return m_intlCollator;
-    }
-
-    FunctionObject* intlDateTimeFormat()
-    {
-        return m_intlDateTimeFormat;
-    }
-
-    Object* intlDateTimeFormatPrototype()
-    {
-        return m_intlDateTimeFormatPrototype;
-    }
-
-    FunctionObject* intlNumberFormat()
-    {
-        return m_intlNumberFormat;
-    }
-
-    Object* intlNumberFormatPrototype()
-    {
-        return m_intlNumberFormatPrototype;
-    }
-
-    FunctionObject* intlRelativeTimeFormat()
-    {
-        return m_intlRelativeTimeFormat;
-    }
-
-    Object* intlRelativeTimeFormatPrototype()
-    {
-        return m_intlRelativeTimeFormatPrototype;
-    }
-
-    FunctionObject* intlLocale()
-    {
-        return m_intlLocale;
-    }
-
-    Object* intlLocalePrototype()
-    {
-        return m_intlLocalePrototype;
-    }
-
-    FunctionObject* intlPluralRules()
-    {
-        return m_intlPluralRules;
-    }
-
-    Object* intlPluralRulesPrototype()
-    {
-        return m_intlPluralRulesPrototype;
-    }
-#endif
-    FunctionObject* promise()
-    {
-        return m_promise;
-    }
-    Object* promisePrototype()
-    {
-        return m_promisePrototype;
-    }
-    FunctionObject* proxy()
-    {
-        return m_proxy;
-    }
-    FunctionObject* arrayBuffer()
-    {
-        return m_arrayBuffer;
-    }
-    Object* arrayBufferPrototype()
-    {
-        return m_arrayBufferPrototype;
-    }
-    FunctionObject* dataView()
-    {
-        return m_dataView;
-    }
-    Object* dataViewPrototype()
-    {
-        return m_dataViewPrototype;
-    }
-    Object* typedArray()
-    {
-        return m_typedArray;
-    }
-    Object* typedArrayPrototype()
-    {
-        return m_typedArrayPrototype;
-    }
-    Object* int8Array()
-    {
-        return m_int8Array;
-    }
-    Object* int8ArrayPrototype()
-    {
-        return m_int8ArrayPrototype;
-    }
-    Object* uint8Array()
-    {
-        return m_uint8Array;
-    }
-    Object* uint8ArrayPrototype()
-    {
-        return m_uint8ArrayPrototype;
-    }
-    Object* int16Array()
-    {
-        return m_int16Array;
-    }
-    Object* int16ArrayPrototype()
-    {
-        return m_int16ArrayPrototype;
-    }
-    Object* uint16Array()
-    {
-        return m_uint16Array;
-    }
-    Object* uint16ArrayPrototype()
-    {
-        return m_uint16ArrayPrototype;
-    }
-    Object* int32Array()
-    {
-        return m_int32Array;
-    }
-    Object* int32ArrayPrototype()
-    {
-        return m_int32ArrayPrototype;
-    }
-    Object* uint32Array()
-    {
-        return m_uint32Array;
-    }
-    Object* uint32ArrayPrototype()
-    {
-        return m_uint32ArrayPrototype;
-    }
-    Object* uint8ClampedArray()
-    {
-        return m_uint8ClampedArray;
-    }
-    Object* uint8ClampedArrayPrototype()
-    {
-        return m_uint8ClampedArrayPrototype;
-    }
-    Object* float32Array()
-    {
-        return m_float32Array;
-    }
-    Object* float32ArrayPrototype()
-    {
-        return m_float32ArrayPrototype;
-    }
-    Object* float64Array()
-    {
-        return m_float64Array;
-    }
-    Object* float64ArrayPrototype()
-    {
-        return m_float64ArrayPrototype;
-    }
-
-    FunctionObject* map()
-    {
-        return m_map;
-    }
-
-    Object* mapPrototype()
-    {
-        return m_mapPrototype;
-    }
-
-    Object* mapIteratorPrototype()
-    {
-        return m_mapIteratorPrototype;
-    }
-
-    FunctionObject* set()
-    {
-        return m_set;
-    }
-
-    Object* setPrototype()
-    {
-        return m_setPrototype;
-    }
-
-    Object* setIteratorPrototype()
-    {
-        return m_setIteratorPrototype;
-    }
-
-    FunctionObject* weakMap()
-    {
-        return m_weakMap;
-    }
-
-    Object* weakMapPrototype()
-    {
-        return m_weakMapPrototype;
-    }
-
-    FunctionObject* weakSet()
-    {
-        return m_weakSet;
-    }
-
-    Object* weakSetPrototype()
-    {
-        return m_weakSetPrototype;
-    }
-
-    FunctionObject* generatorFunction()
-    {
-        return m_generatorFunction;
-    }
-
-    FunctionObject* generator()
-    {
-        return m_generator;
-    }
-
-    Object* generatorPrototype()
-    {
-        return m_generatorPrototype;
-    }
-
-    FunctionObject* asyncFunction()
-    {
-        return m_asyncFunction;
-    }
-
-    Object* asyncFunctionPrototype()
-    {
-        return m_asyncFunctionPrototype;
-    }
-
-    Object* asyncIteratorPrototype()
-    {
-        return m_asyncIteratorPrototype;
-    }
-
-    Object* asyncFromSyncIteratorPrototype()
-    {
-        return m_asyncFromSyncIteratorPrototype;
-    }
-
-    Object* asyncGenerator()
-    {
-        return m_asyncGenerator;
-    }
-
-    Object* asyncGeneratorPrototype()
-    {
-        return m_asyncGeneratorPrototype;
-    }
-
-    FunctionObject* asyncGeneratorFunction()
-    {
-        return m_asyncGeneratorFunction;
-    }
-
-    FunctionObject* eval()
-    {
-        return m_eval;
-    }
-
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-13.2.3
-    // 13.2.3 The [[ThrowTypeError]] Function Object
-    FunctionObject* throwTypeError()
-    {
-        ASSERT(m_throwTypeError);
-        return m_throwTypeError;
-    }
-
-    JSGetterSetter* throwerGetterSetterData()
-    {
-        ASSERT(m_throwerGetterSetterData);
-        return m_throwerGetterSetterData;
-    }
-
-    StringObject* stringProxyObject()
-    {
-        return m_stringProxyObject;
-    }
-
-    NumberObject* numberProxyObject()
-    {
-        return m_numberProxyObject;
-    }
-
-    BooleanObject* booleanProxyObject()
-    {
-        return m_booleanProxyObject;
-    }
-
-    SymbolObject* symbolProxyObject()
-    {
-        return m_symbolProxyObject;
-    }
+    GLOBALOBJECT_BUILTIN_LIST(DECLARE_BUILTIN_FUNC)
+#undef DECLARE_BUILTIN_FUNC
 
     virtual bool isInlineCacheable() override
     {
@@ -583,149 +273,11 @@ public:
 private:
     Context* m_context;
 
-    FunctionObject* m_object;
-    Object* m_objectPrototype;
-    FunctionObject* m_objectPrototypeToString;
-    FunctionObject* m_objectCreate;
-    FunctionObject* m_objectFreeze;
+#define DECLARE_BUILTIN_VALUE(builtin, TYPE, NAME) \
+    TYPE* m_##builtin;
 
-    FunctionObject* m_function;
-    FunctionObject* m_functionPrototype;
-    FunctionObject* m_functionApply;
-
-    Object* m_iteratorPrototype;
-
-    FunctionObject* m_error;
-    Object* m_errorPrototype;
-    FunctionObject* m_referenceError;
-    Object* m_referenceErrorPrototype;
-    FunctionObject* m_typeError;
-    Object* m_typeErrorPrototype;
-    FunctionObject* m_rangeError;
-    Object* m_rangeErrorPrototype;
-    FunctionObject* m_syntaxError;
-    Object* m_syntaxErrorPrototype;
-    FunctionObject* m_uriError;
-    Object* m_uriErrorPrototype;
-    FunctionObject* m_evalError;
-    Object* m_evalErrorPrototype;
-
-    FunctionObject* m_string;
-    Object* m_stringPrototype;
-    Object* m_stringIteratorPrototype;
-
-    FunctionObject* m_number;
-    Object* m_numberPrototype;
-
-    FunctionObject* m_symbol;
-    Object* m_symbolPrototype;
-
-    FunctionObject* m_array;
-    Object* m_arrayPrototype;
-    Object* m_arrayIteratorPrototype;
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-well-known-intrinsic-objects
-    // Well-Known Intrinsic Objects : %ArrayProto_values%
-    // The initial value of the values data property of %ArrayPrototype%
-    FunctionObject* m_arrayPrototypeValues;
-
-    FunctionObject* m_boolean;
-    Object* m_booleanPrototype;
-
-    FunctionObject* m_date;
-    Object* m_datePrototype;
-
-    FunctionObject* m_regexp;
-    Object* m_regexpPrototype;
-    FunctionObject* m_regexpSplitMethod;
-    FunctionObject* m_regexpReplaceMethod;
-    FunctionObject* m_regexpExecMethod;
-
-    Object* m_math;
-
-    FunctionObject* m_eval;
-
-    FunctionObject* m_throwTypeError;
-    JSGetterSetter* m_throwerGetterSetterData;
-
-    StringObject* m_stringProxyObject;
-    NumberObject* m_numberProxyObject;
-    BooleanObject* m_booleanProxyObject;
-    SymbolObject* m_symbolProxyObject;
-
-    Object* m_json;
-    FunctionObject* m_jsonStringify;
-    FunctionObject* m_jsonParse;
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    Object* m_intl;
-    FunctionObject* m_intlCollator;
-    FunctionObject* m_intlDateTimeFormat;
-    Object* m_intlDateTimeFormatPrototype;
-    FunctionObject* m_intlNumberFormat;
-    Object* m_intlNumberFormatPrototype;
-    FunctionObject* m_intlRelativeTimeFormat;
-    Object* m_intlRelativeTimeFormatPrototype;
-    FunctionObject* m_intlLocale; // %Locale%
-    Object* m_intlLocalePrototype; // %LocalePrototype%
-    FunctionObject* m_intlPluralRules; // %PluralRules%
-    Object* m_intlPluralRulesPrototype; // %PluralRulesPrototype%
-#endif
-
-    FunctionObject* m_promise;
-    Object* m_promisePrototype;
-
-    FunctionObject* m_proxy;
-
-    Object* m_reflect;
-
-    FunctionObject* m_arrayBuffer;
-    Object* m_arrayBufferPrototype;
-    FunctionObject* m_dataView;
-    Object* m_dataViewPrototype;
-    FunctionObject* m_typedArray;
-    Object* m_typedArrayPrototype;
-    FunctionObject* m_int8Array;
-    Object* m_int8ArrayPrototype;
-    FunctionObject* m_uint8Array;
-    Object* m_uint8ArrayPrototype;
-    FunctionObject* m_uint8ClampedArray;
-    Object* m_uint8ClampedArrayPrototype;
-    FunctionObject* m_int16Array;
-    Object* m_int16ArrayPrototype;
-    FunctionObject* m_uint16Array;
-    Object* m_uint16ArrayPrototype;
-    FunctionObject* m_int32Array;
-    Object* m_int32ArrayPrototype;
-    FunctionObject* m_uint32Array;
-    Object* m_uint32ArrayPrototype;
-    FunctionObject* m_float32Array;
-    Object* m_float32ArrayPrototype;
-    FunctionObject* m_float64Array;
-    Object* m_float64ArrayPrototype;
-
-    FunctionObject* m_map;
-    Object* m_mapPrototype;
-    Object* m_mapIteratorPrototype;
-    FunctionObject* m_set;
-    Object* m_setPrototype;
-    Object* m_setIteratorPrototype;
-    FunctionObject* m_weakMap;
-    Object* m_weakMapPrototype;
-    FunctionObject* m_weakSet;
-    Object* m_weakSetPrototype;
-
-    FunctionObject* m_generatorFunction; // %GeneratorFunction%
-    FunctionObject* m_generator; // %Generator%
-    Object* m_generatorPrototype; // %GeneratorPrototype%
-
-    FunctionObject* m_asyncFunction; // %AsyncFunction%
-    Object* m_asyncFunctionPrototype; // %AsyncFunctionPrototype%
-
-    Object* m_asyncIteratorPrototype; // %AsyncIteratorPrototype%
-    Object* m_asyncFromSyncIteratorPrototype; // %AsyncFromSyncIteratorPrototype%
-
-    Object* m_asyncGenerator; // %AsyncGenerator%
-    Object* m_asyncGeneratorPrototype; // %AsyncGeneratorPrototype%
-    FunctionObject* m_asyncGeneratorFunction; // %AsyncGeneratorFunction%
+    GLOBALOBJECT_BUILTIN_LIST(DECLARE_BUILTIN_VALUE)
+#undef DECLARE_BUILTIN_VALUE
 
     void installFunction(ExecutionState& state);
     void installObject(ExecutionState& state);
