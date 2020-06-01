@@ -23,8 +23,9 @@
 
 namespace Escargot {
 
-void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
+void StaticStrings::initStaticStrings()
 {
+    AtomicStringMap* atomicStringMap = m_atomicStringMap;
     atomicStringMap->insert(String::emptyString);
 
 #define INIT_STATIC_STRING(name) name.initStaticString(atomicStringMap, new ASCIIString(#name, strlen(#name)));
@@ -136,7 +137,22 @@ void StaticStrings::initStaticStrings(AtomicStringMap* atomicStringMap)
         buf[1] = 0;
         asciiTable[i].initStaticString(atomicStringMap, new Latin1String(buf, 1));
     }
+
+#define DECLARE_LAZY_STATIC_STRING(Name, unused) m_lazy##Name = AtomicString();
+    FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+#undef DECLARE_LAZY_STATIC_STRING
 }
+
+#define DECLARE_LAZY_STATIC_STRING(Name, stringContent)                                               \
+    AtomicString StaticStrings::lazy##Name()                                                          \
+    {                                                                                                 \
+        if (m_lazy##Name.string() == String::emptyString) {                                           \
+            m_lazy##Name = AtomicString(m_atomicStringMap, stringContent, sizeof(stringContent) - 1); \
+        }                                                                                             \
+        return m_lazy##Name;                                                                          \
+    }
+FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+#undef DECLARE_LAZY_STATIC_STRING
 
 ::Escargot::String* StaticStrings::dtoa(double d) const
 {

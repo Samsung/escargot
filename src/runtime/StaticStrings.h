@@ -436,7 +436,9 @@ namespace Escargot {
     F(PluralRules)                \
     F(select)                     \
     F(formatToParts)              \
-    F(RelativeTimeFormat)
+    F(RelativeTimeFormat)         \
+    F(globalThis)                 \
+    F(allSettled)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \
@@ -568,12 +570,31 @@ namespace Escargot {
     F(126)                        \
     F(127)
 
+// name on code, string
+#define FOR_EACH_LAZY_STATIC_STRING(F)               \
+    F(ObjectNullToString, "[object Null]")           \
+    F(ObjectUndefinedToString, "[object Undefined]") \
+    F(ObjectObjectToString, "[object Object]")       \
+    F(ObjectArrayToString, "[object Array]")         \
+    F(ObjectStringToString, "[object String]")       \
+    F(ObjectArgumentsToString, "[object Arguments]") \
+    F(ObjectFunctionToString, "[object Function]")   \
+    F(ObjectErrorToString, "[object Error]")         \
+    F(ObjectBooleanToString, "[object Boolean]")     \
+    F(ObjectNumberToString, "[object Number]")       \
+    F(ObjectDateToString, "[object Date]")           \
+    F(ObjectRegExpToString, "[object RegExp]")       \
+    F(DotDotDotArgs, "...args")                      \
+    F(SuperDotDotDotArgs, "super(...args)")
+
 class StaticStrings {
 public:
-    StaticStrings()
+    StaticStrings(AtomicStringMap* atomicStringMap)
         : dtoaCacheSize(5)
+        , m_atomicStringMap(atomicStringMap)
     {
     }
+
     AtomicString NegativeInfinity;
     AtomicString stringTrue;
     AtomicString stringFalse;
@@ -673,12 +694,23 @@ public:
     FOR_EACH_STATIC_STRING(DECLARE_STATIC_STRING);
 #undef DECLARE_STATIC_STRING
 
-    void initStaticStrings(AtomicStringMap* map);
+#define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();
+    FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+#undef DECLARE_LAZY_STATIC_STRING
+
+    void initStaticStrings();
 
     const size_t dtoaCacheSize; // 5;
     mutable Vector<std::pair<double, ::Escargot::String*>, GCUtil::gc_malloc_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
 
     ::Escargot::String* dtoa(double d) const;
+
+protected:
+    AtomicStringMap* m_atomicStringMap;
+
+#define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString m_lazy##Name;
+    FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+#undef DECLARE_LAZY_STATIC_STRING
 };
 }
 

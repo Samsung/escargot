@@ -257,7 +257,8 @@ VMInstance::~VMInstance()
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
-    : m_currentSandBox(nullptr)
+    : m_staticStrings(&m_atomicStringMap)
+    , m_currentSandBox(nullptr)
     , m_randEngine((unsigned int)time(NULL))
     , m_isFinalized(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
@@ -298,7 +299,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     if (!String::emptyString) {
         String::emptyString = new (NoGC) ASCIIString("");
     }
-    m_staticStrings.initStaticStrings(&m_atomicStringMap);
+    m_staticStrings.initStaticStrings();
 
     m_bumpPointerAllocator = new (PointerFreeGC) WTF::BumpPointerAllocator();
     m_regexpCache = new (GC) RegExpCacheMap();

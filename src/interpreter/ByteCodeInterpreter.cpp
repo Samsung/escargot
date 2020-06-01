@@ -2407,7 +2407,8 @@ NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, Cre
             functionSource.codeBlock->setAsClassConstructor();
             constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
         } else {
-            Value argv[] = { new ASCIIString("...args"), new ASCIIString("super(...args)") };
+            Value argv[] = { state.context()->staticStrings().lazyDotDotDotArgs().string(),
+                             state.context()->staticStrings().lazySuperDotDotDotArgs().string() };
             auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
             functionSource.codeBlock->setAsClassConstructor();
             functionSource.codeBlock->setAsDerivedClassConstructor();

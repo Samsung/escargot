@@ -111,7 +111,7 @@ public:
         return m_instance;
     }
 
-    const StaticStrings& staticStrings()
+    StaticStrings& staticStrings()
     {
         return m_staticStrings;
     }
