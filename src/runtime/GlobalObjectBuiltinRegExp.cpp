@@ -106,7 +106,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
             size_t eUTF = str->find(new ASCIIString((const char*)&utfRes), 0);
             if (eUTF >= str->length()) {
                 e = str->length();
-            } else {
+            } else if ((int)eUTF > e || e == (int)str->length()) {
                 e = eUTF;
             }
         }
