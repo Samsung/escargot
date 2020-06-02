@@ -360,8 +360,8 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
 #endif
 
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
-    String* initializedIntlObject = String::fromASCII("initializedIntlObject");
-    if (numberFormat->hasInternalSlot() && numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
+    AtomicString initializedIntlObject = state.context()->staticStrings().lazyInitializedIntlObject();
+    if (numberFormat->hasInternalSlot() && numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(initializedIntlObject)))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
     }
 
@@ -386,13 +386,13 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     StringMap opt;
     // Let matcher be the result of calling the GetOption abstract operation (defined in 9.2.9) with the arguments options, "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit".
     // Set opt.[[localeMatcher]] to matcher.
-    Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
-    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
+    Value matcherValues[2] = { state.context()->staticStrings().lazyLookup().string(), state.context()->staticStrings().lazyBestFit().string() };
+    Value matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
     // Set opt.[[localeMatcher]] to matcher.
     opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = Intl::getOption(state, options.asObject(), String::fromASCII("numberingSystem"), Intl::StringValue, nullptr, 0, Value());
+    Value numberingSystem = Intl::getOption(state, options.asObject(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
@@ -412,23 +412,23 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     StringMap r = Intl::resolveLocale(state, state.context()->vmInstance()->intlNumberFormatAvailableLocales(), requestedLocales, opt, intlNumberFormatRelevantExtensionKeys, intlNumberFormatRelevantExtensionKeysLength, localeDataNumberFormat);
 
     // Set the [[locale]] internal property of numberFormat to the value of r.[[locale]].
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("locale")), r.at("locale"), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), r.at("locale"), numberFormat->internalSlot());
     // Set numberFormat.[[DataLocale]] to r.[[dataLocale]].
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("dataLocale")), r.at("dataLocale"), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyDataLocale()), r.at("dataLocale"), numberFormat->internalSlot());
     // Set the [[numberingSystem]] internal property of numberFormat to the value of r.[[nu]].
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("numberingSystem")), r.at("nu"), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().numberingSystem), r.at("nu"), numberFormat->internalSlot());
 
     // SetNumberFormatUnitOptions ( intlObj, options )
     // Let s be the result of calling the GetOption abstract operation with the arguments options, "style", "string",
     // a List containing the three String values "decimal", "percent", and "currency", and "decimal".
-    Value styleValues[4] = { String::fromASCII("decimal"), String::fromASCII("percent"), String::fromASCII("currency"), String::fromASCII("unit") };
-    Value style = Intl::getOption(state, options.asObject(), String::fromASCII("style"), Intl::StringValue, styleValues, 4, styleValues[0]);
+    Value styleValues[4] = { state.context()->staticStrings().lazyDecimal().string(), state.context()->staticStrings().lazyPercent().string(), state.context()->staticStrings().lazyCurrency().string(), state.context()->staticStrings().lazyUnit().string() };
+    Value style = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyStyle().string(), Intl::StringValue, styleValues, 4, styleValues[0]);
 
     // Set the [[style]] internal property of numberFormat to s.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("style")), style, numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyStyle()), style, numberFormat->internalSlot());
 
     // Let currency be the result of calling the GetOption abstract operation with the arguments options, "currency", "string", undefined, and undefined.
-    Value currency = Intl::getOption(state, options.asObject(), String::fromASCII("currency"), Intl::StringValue, nullptr, 0, Value());
+    Value currency = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyCurrency().string(), Intl::StringValue, nullptr, 0, Value());
     // If currency is not undefined and the result of calling the IsWellFormedCurrencyCode abstract operation (defined in 6.3.1) with argument c is false, then throw a RangeError exception.
     if (!currency.isUndefined()) {
         String* currencyString = currency.asString();
@@ -439,18 +439,18 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     // If style is "currency" and currency is undefined, throw a TypeError exception.
-    if (style.equalsTo(state, String::fromASCII("currency")) && currency.isUndefined()) {
+    if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string()) && currency.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "if style option is `currency`, you must specify currency");
     }
 
     // Let currencyDisplay be ? GetOption(options, "currencyDisplay", "string", « "code", "symbol", "narrowSymbol", "name" », "symbol").
-    Value currencyDisplayValues[4] = { String::fromASCII("code"), String::fromASCII("symbol"), String::fromASCII("narrowSymbol"), String::fromASCII("name") };
-    Value currencyDisplay = Intl::getOption(state, options.asObject(), String::fromASCII("currencyDisplay"), Intl::StringValue, currencyDisplayValues, 4, currencyDisplayValues[1]);
+    Value currencyDisplayValues[4] = { state.context()->staticStrings().lazyCode().string(), state.context()->staticStrings().symbol.string(), state.context()->staticStrings().lazyNarrowSymbol().string(), state.context()->staticStrings().name.string() };
+    Value currencyDisplay = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyCurrencyDisplay().string(), Intl::StringValue, currencyDisplayValues, 4, currencyDisplayValues[1]);
     // Let currencySign be ? GetOption(options, "currencySign", "string", « "standard", "accounting" », "standard").
-    Value currencySignValues[2] = { String::fromASCII("standard"), String::fromASCII("accounting") };
-    Value currencySign = Intl::getOption(state, options.asObject(), String::fromASCII("currencySign"), Intl::StringValue, currencySignValues, 2, currencySignValues[0]);
+    Value currencySignValues[2] = { state.context()->staticStrings().lazyStandard().string(), state.context()->staticStrings().lazyAccounting().string() };
+    Value currencySign = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyCurrencySign().string(), Intl::StringValue, currencySignValues, 2, currencySignValues[0]);
     // Let unit be ? GetOption(options, "unit", "string", undefined, undefined).
-    Value unit = Intl::getOption(state, options.asObject(), String::fromASCII("unit"), Intl::StringValue, nullptr, 0, Value());
+    Value unit = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyUnit().string(), Intl::StringValue, nullptr, 0, Value());
     if (!unit.isUndefined()) {
         String* unitString = unit.asString();
         UTF8StringDataNonGCStd cc = unitString->toUTF8StringData().data();
@@ -460,35 +460,35 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     // If style is "unit" and unit is undefined, throw a TypeError exception.
-    if (style.equalsTo(state, String::fromASCII("unit")) && unit.isUndefined()) {
+    if (style.equalsTo(state, state.context()->staticStrings().lazyUnit().string()) && unit.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "if style option is `unit`, you must specify unit");
     }
 
     // Let unitDisplay be ? GetOption(options, "unitDisplay", "string", « "short", "narrow", "long" », "short").
-    Value unitDisplayValues[3] = { String::fromASCII("short"), String::fromASCII("narrow"), String::fromASCII("long") };
-    Value unitDisplay = Intl::getOption(state, options.asObject(), String::fromASCII("unitDisplay"), Intl::StringValue, unitDisplayValues, 3, unitDisplayValues[0]);
+    Value unitDisplayValues[3] = { state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyNarrow().string(), state.context()->staticStrings().lazyLong().string() };
+    Value unitDisplay = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyUnitDisplay().string(), Intl::StringValue, unitDisplayValues, 3, unitDisplayValues[0]);
 
     // If style is "currency", then
-    if (style.equalsTo(state, String::fromASCII("currency"))) {
+    if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string())) {
         // Let currency be the result of converting currency to upper case as specified in 6.1.
         String* cString = currency.toString(state);
         std::string str = cString->toUTF8StringData().data();
         std::transform(str.begin(), str.end(), str.begin(), toupper);
         currency = String::fromASCII(str.data(), str.length());
         // Set intlObj.[[Currency]] to currency.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("currency")), currency, numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCurrency()), currency, numberFormat->internalSlot());
         // Set intlObj.[[CurrencyDisplay]] to currencyDisplay.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("currencyDisplay")), currencyDisplay.asString(), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCurrencyDisplay()), currencyDisplay.asString(), numberFormat->internalSlot());
         // Set intlObj.[[CurrencySign]] to currencySign.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("currencySign")), currencySign.asString(), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCurrencySign()), currencySign.asString(), numberFormat->internalSlot());
     }
 
     // If style is "unit", then
-    if (style.equalsTo(state, String::fromASCII("unit"))) {
+    if (style.equalsTo(state, state.context()->staticStrings().lazyUnit().string())) {
         // Set intlObj.[[Unit]] to unit.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("unit")), unit.asString(), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUnit()), unit.asString(), numberFormat->internalSlot());
         // Set intlObj.[[UnitDisplay]] to unitDisplay.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("unitDisplay")), unitDisplay.asString(), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUnitDisplay()), unitDisplay.asString(), numberFormat->internalSlot());
     }
 
     size_t cDigits = 2;
@@ -497,7 +497,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
 
     // Let style be numberFormat.[[Style]].
     // If style is "currency", then
-    if (style.equalsTo(state, String::fromASCII("currency"))) {
+    if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string())) {
         // Let currency be numberFormat.[[Currency]].
         // Let cDigits be CurrencyDigits(currency).
         cDigits = currencyDigits(currency.asString());
@@ -510,7 +510,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         // Let mnfdDefault be 0.
         mnfdDefault = 0;
         // If style is "percent", then
-        if (style.equalsTo(state, String::fromASCII("currency"))) {
+        if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string())) {
             // Let mxfdDefault be 0.
             mxfdDefault = 0;
         } else {
@@ -521,41 +521,41 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     // Let notation be ? GetOption(options, "notation", "string", « "standard", "scientific", "engineering", "compact" », "standard").
-    Value notationValues[4] = { String::fromASCII("standard"), String::fromASCII("scientific"), String::fromASCII("engineering"), String::fromASCII("compact") };
-    Value notation = Intl::getOption(state, options.asObject(), String::fromASCII("notation"), Intl::StringValue, notationValues, 4, notationValues[0]);
+    Value notationValues[4] = { state.context()->staticStrings().lazyStandard().string(), state.context()->staticStrings().lazyScientific().string(), state.context()->staticStrings().lazyEngineering().string(), state.context()->staticStrings().lazyCompact().string() };
+    Value notation = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyNotation().string(), Intl::StringValue, notationValues, 4, notationValues[0]);
     // Set numberFormat.[[Notation]] to notation.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("notation")), notation, numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyNotation()), notation, numberFormat->internalSlot());
 
     // Perform ? SetNumberFormatDigitOptions(numberFormat, options, mnfdDefault, mxfdDefault, notation).
     // Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21, 1).
-    double mnid = getNumberOption(state, options.asObject(), String::fromASCII("minimumIntegerDigits"), 1, 21, 1);
+    double mnid = getNumberOption(state, options.asObject(), state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
     // Let mnfd be ? Get(options, "minimumFractionDigits").
     Value mnfd;
-    auto g = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("minimumFractionDigits")));
+    auto g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()));
     if (g.hasValue()) {
         mnfd = g.value(state, options.asObject());
     }
     // Let mxfd be ? Get(options, "maximumFractionDigits").
     Value mxfd;
-    g = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("maximumFractionDigits")));
+    g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()));
     if (g.hasValue()) {
         mxfd = g.value(state, options.asObject());
     }
     // Let mnsd be ? Get(options, "minimumSignificantDigits").
     Value mnsd;
-    g = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("minimumSignificantDigits")));
+    g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()));
     if (g.hasValue()) {
         mnsd = g.value(state, options.asObject());
     }
     // Let mxsd be ? Get(options, "maximumSignificantDigits").
     Value mxsd;
-    g = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("maximumSignificantDigits")));
+    g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()));
     if (g.hasValue()) {
         mxsd = g.value(state, options.asObject());
     }
 
     // Set intlObj.[[MinimumIntegerDigits]] to mnid.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minimumIntegerDigits")), Value(mnid), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), Value(mnid), numberFormat->internalSlot());
 
     // If mnsd is not undefined or mxsd is not undefined, then
     if (!mnsd.isUndefined() || !mxsd.isUndefined()) {
@@ -565,9 +565,9 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         // Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
         mxsd = defaultNumberOption(state, mxsd, mnsd.asNumber(), 21, 21);
         // Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minimumSignificantDigits")), mnsd, numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), mnsd, numberFormat->internalSlot());
         // Set intlObj.[[MaximumSignificantDigits]] to mxsd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("maximumSignificantDigits")), mxsd, numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), mxsd, numberFormat->internalSlot());
     } else if (!mnfd.isUndefined() || !mxfd.isUndefined()) {
         // Else if mnfd is not undefined or mxfd is not undefined, then
         // Set intlObj.[[RoundingType]] to fractionDigits.
@@ -578,43 +578,43 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         // Let mxfd be ? DefaultNumberOption(mxfd, mnfd, 20, mxfdActualDefault).
         mxfd = defaultNumberOption(state, mxfd, mnfd.asNumber(), 20, mxfdActualDefault);
         // Set intlObj.[[MinimumFractionDigits]] to mnfd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minimumFractionDigits")), mnfd, numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), mnfd, numberFormat->internalSlot());
         // Set intlObj.[[MaximumFractionDigits]] to mxfd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("maximumFractionDigits")), mxfd, numberFormat->internalSlot());
-    } else if (notation.equalsTo(state, String::fromASCII("compact"))) {
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), mxfd, numberFormat->internalSlot());
+    } else if (notation.equalsTo(state, state.context()->staticStrings().lazyCompact().string())) {
         // Else if notation is "compact", then
         // Set intlObj.[[RoundingType]] to compactRounding.
     } else {
         // Set intlObj.[[RoundingType]] to fractionDigits.
         // Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minimumFractionDigits")), Value(mnfdDefault), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), Value(mnfdDefault), numberFormat->internalSlot());
         // Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("maximumFractionDigits")), Value(mxfdDefault), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), Value(mxfdDefault), numberFormat->internalSlot());
     }
 
     // Let compactDisplay be ? GetOption(options, "compactDisplay", "string", « "short", "long" », "short").
-    Value compactDisplayValues[2] = { String::fromASCII("short"), String::fromASCII("long") };
-    Value compactDisplay = Intl::getOption(state, options.asObject(), String::fromASCII("compactDisplay"), Intl::StringValue, compactDisplayValues, 2, compactDisplayValues[0]);
+    Value compactDisplayValues[2] = { state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
+    Value compactDisplay = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyCompactDisplay().string(), Intl::StringValue, compactDisplayValues, 2, compactDisplayValues[0]);
 
     // If notation is "compact", then
-    if (notation.equalsTo(state, String::fromASCII("compact"))) {
+    if (notation.equalsTo(state, state.context()->staticStrings().lazyCompact().string())) {
         // Set numberFormat.[[CompactDisplay]] to compactDisplay.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("compactDisplay")), compactDisplay, numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCompactDisplay()), compactDisplay, numberFormat->internalSlot());
     }
 
     // Let useGrouping be ? GetOption(options, "useGrouping", "boolean", undefined, true).
-    Value useGrouping = Intl::getOption(state, options.asObject(), String::fromASCII("useGrouping"), Intl::BooleanValue, nullptr, 0, Value(true));
+    Value useGrouping = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyUseGrouping().string(), Intl::BooleanValue, nullptr, 0, Value(true));
     // Set numberFormat.[[UseGrouping]] to useGrouping.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("useGrouping")), useGrouping, numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUseGrouping()), useGrouping, numberFormat->internalSlot());
 
     // Let signDisplay be ? GetOption(options, "signDisplay", "string", « "auto", "never", "always", "exceptZero" », "auto").
-    Value signDisplayValue[4] = { String::fromASCII("auto"), String::fromASCII("never"), String::fromASCII("always"), String::fromASCII("exceptZero") };
-    Value signDisplay = Intl::getOption(state, options.asObject(), String::fromASCII("signDisplay"), Intl::StringValue, signDisplayValue, 4, signDisplayValue[0]);
+    Value signDisplayValue[4] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNever().string(), state.context()->staticStrings().lazyAlways().string(), state.context()->staticStrings().lazyExceptZero().string() };
+    Value signDisplay = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazySignDisplay().string(), Intl::StringValue, signDisplayValue, 4, signDisplayValue[0]);
     // Set numberFormat.[[SignDisplay]] to signDisplay.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("signDisplay")), signDisplay, numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySignDisplay()), signDisplay, numberFormat->internalSlot());
 
     // Set the [[initializedNumberFormat]] internal property of numberFormat to true.
-    numberFormat->internalSlot()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")), ObjectPropertyDescriptor(Value(true)));
+    numberFormat->internalSlot()->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedNumberFormat()), ObjectPropertyDescriptor(Value(true)));
     // Return numberFormat
 
     UTF16StringDataNonGCStd skeleton;
@@ -687,9 +687,9 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         }
     }
 
-    if (numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("minimumSignificantDigits")))) {
-        double mnsd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("minimumSignificantDigits"))).value(state, numberFormat->internalSlot()).toNumber(state);
-        double mxsd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("maximumSignificantDigits"))).value(state, numberFormat->internalSlot()).toNumber(state);
+    if (numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()))) {
+        double mnsd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
+        double mxsd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
 
         for (double i = 0; i < mnsd; i++) {
             skeleton += '@';
@@ -702,9 +702,9 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         skeleton += ' ';
     }
 
-    if (numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("minimumFractionDigits")))) {
-        double mnfd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("minimumFractionDigits"))).value(state, numberFormat->internalSlot()).toNumber(state);
-        double mxfd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("maximumFractionDigits"))).value(state, numberFormat->internalSlot()).toNumber(state);
+    if (numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()))) {
+        double mnfd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
+        double mxfd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
 
         skeleton += '.';
 
@@ -719,7 +719,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     {
-        double mnid = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("minimumIntegerDigits"))).value(state, numberFormat->internalSlot()).toNumber(state);
+        double mnid = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
         skeleton += u"integer-width/+";
         for (double i = 0; i < mnid; i++) {
             skeleton += '0';
@@ -769,7 +769,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
 
     skeleton += u"rounding-mode-half-up ";
 
-    String* localeOption = numberFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("locale"))).value(state, numberFormat->internalSlot()).toString(state);
+    String* localeOption = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale())).value(state, numberFormat->internalSlot()).toString(state);
 
     UErrorCode status = U_ZERO_ERROR;
     UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeOption->toNonGCUTF8StringData().data(), &status);
@@ -892,7 +892,7 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
         const Intl::NumberFieldItem& item = fields[i];
 
         Object* o = new Object(state);
-        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(item.type, x), ObjectPropertyDescriptor::AllPresent));
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, x), ObjectPropertyDescriptor::AllPresent));
         auto sub = resultString.substr(item.start, item.end - item.start);
         o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
 

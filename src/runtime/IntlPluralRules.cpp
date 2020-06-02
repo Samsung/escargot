@@ -92,29 +92,29 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     StringMap opt;
     // Let matcher be ? GetOption(options, "localeMatcher", "string", « "lookup", "best fit" », "best fit").
     // Set opt.[[localeMatcher]] to matcher.
-    Value localeMatcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
+    Value localeMatcherValues[2] = { state.context()->staticStrings().lazyLookup().string(), state.context()->staticStrings().lazyBestFit().string() };
     String* matcher = localeMatcherValues[1].asString();
     if (optionObject) {
-        matcher = Intl::getOption(state, optionObject.value(), String::fromASCII("localeMatcher"), Intl::StringValue, localeMatcherValues, 2, localeMatcherValues[1]).asString();
+        matcher = Intl::getOption(state, optionObject.value(), state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, localeMatcherValues, 2, localeMatcherValues[1]).asString();
     }
     opt.insert(std::make_pair("matcher", matcher));
 
     // Let t be ? GetOption(options, "type", "string", « "cardinal", "ordinal" », "cardinal").
-    Value typeValues[2] = { String::fromASCII("cardinal"), String::fromASCII("ordinal") };
+    Value typeValues[2] = { state.context()->staticStrings().lazyCardinal().string(), state.context()->staticStrings().lazyOrdinal().string() };
     String* t = typeValues[0].asString();
     if (optionObject) {
-        t = Intl::getOption(state, optionObject.value(), String::fromASCII("type"), Intl::StringValue, typeValues, 2, typeValues[0]).asString();
+        t = Intl::getOption(state, optionObject.value(), state.context()->staticStrings().lazyType().string(), Intl::StringValue, typeValues, 2, typeValues[0]).asString();
     }
 
     // Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
     // Let mnid be the result of calling the GetNumberOption abstract operation (defined in 9.2.10) with arguments options, "minimumIntegerDigits", 1, 21, and 1.
-    double mnid = getNumberOption(state, optionObject, String::fromASCII("minimumIntegerDigits"), 1, 21, 1);
+    double mnid = getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
     // Set the [[minimumIntegerDigits]] internal property of numberFormat to mnid.
     m_minimumIntegerDigits = mnid;
 
     double mnfdDefault = 0;
     // Let mnfd be the result of calling the GetNumberOption abstract operation with arguments options, "minimumFractionDigits", 0, 20, and mnfdDefault.
-    double mnfd = getNumberOption(state, optionObject, String::fromASCII("minimumFractionDigits"), 0, 20, mnfdDefault);
+    double mnfd = getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumFractionDigits().string(), 0, 20, mnfdDefault);
 
     // Set the [[minimumFractionDigits]] internal property of numberFormat to mnfd.
     m_minimumFractionDigits = mnfd;
@@ -122,23 +122,23 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     double mxfdDefault = 3;
 
     // Let mxfd be the result of calling the GetNumberOption abstract operation with arguments options, "maximumFractionDigits", mnfd, 20, and mxfdDefault.
-    double mxfd = getNumberOption(state, optionObject, String::fromASCII("maximumFractionDigits"), mnfd, 20, mxfdDefault);
+    double mxfd = getNumberOption(state, optionObject, state.context()->staticStrings().lazyMaximumFractionDigits().string(), mnfd, 20, mxfdDefault);
 
     // Set the [[maximumFractionDigits]] internal property of numberFormat to mxfd.
     m_maximumFractionDigits = mxfd;
 
     if (optionObject) {
         // Let mnsd be the result of calling the [[Get]] internal method of options with argument "minimumSignificantDigits".
-        Value mnsd = optionObject.value()->get(state, ObjectPropertyName(state, String::fromASCII("minimumSignificantDigits"))).value(state, optionObject.value());
+        Value mnsd = optionObject.value()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits())).value(state, optionObject.value());
         // Let mxsd be the result of calling the [[Get]] internal method of options with argument "maximumSignificantDigits".
-        Value mxsd = optionObject.value()->get(state, ObjectPropertyName(state, String::fromASCII("maximumSignificantDigits"))).value(state, optionObject.value());
+        Value mxsd = optionObject.value()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits())).value(state, optionObject.value());
 
         // If mnsd is not undefined or mxsd is not undefined, then:
         if (!mnsd.isUndefined() || !mxsd.isUndefined()) {
             // Let mnsd be the result of calling the GetNumberOption abstract operation with arguments options, "minimumSignificantDigits", 1, 21, and 1.
-            mnsd = Value(getNumberOption(state, optionObject.value(), String::fromASCII("minimumSignificantDigits"), 1, 21, 1));
+            mnsd = Value(getNumberOption(state, optionObject.value(), state.context()->staticStrings().lazyMinimumSignificantDigits().string(), 1, 21, 1));
             // Let mxsd be the result of calling the GetNumberOption abstract operation with arguments options, "maximumSignificantDigits", mnsd, 21, and 21.
-            mxsd = Value(getNumberOption(state, optionObject.value(), String::fromASCII("maximumSignificantDigits"), mnsd.asNumber(), 21, 21));
+            mxsd = Value(getNumberOption(state, optionObject.value(), state.context()->staticStrings().lazyMaximumSignificantDigits().string(), mnsd.asNumber(), 21, 21));
             // Set the [[minimumSignificantDigits]] internal property of numberFormat to mnsd,
             // and the [[maximumSignificantDigits]] internal property of numberFormat to mxsd.
             m_minimumSignificantDigits = mnsd.asNumber();

@@ -217,10 +217,12 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_platform));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
+#if defined(ENABLE_INTL)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlAvailableLocales));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlCollatorAvailableLocales));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlPluralRulesAvailableLocales));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_caseMappingAvailableLocales));
+#endif
 
         descr = GC_make_descriptor(desc, GC_WORD_LEN(VMInstance));
         typeInited = true;
@@ -344,7 +346,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
     PointerValue::g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
 
-#define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(String::fromASCII("Symbol." #name));
+#define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(new ASCIIString("Symbol." #name, sizeof("Symbol." #name) - 1, String::FromExternalMemory));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 #undef DECLARE_GLOBAL_SYMBOLS
 

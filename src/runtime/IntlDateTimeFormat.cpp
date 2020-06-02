@@ -126,7 +126,7 @@ static bool equalIgnoringASCIICase(String* timeZoneName, const UTF16StringDataNo
     return true;
 }
 
-static String* canonicalizeTimeZoneName(String* timeZoneName)
+static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneName)
 {
     // 6.4.1 IsValidTimeZoneName (timeZone)
     // The abstract operation returns true if timeZone, converted to upper case as described in 6.1, is equal to one of the Zone or Link names of the IANA Time Zone Database, converted to upper case as described in 6.1. It returns false otherwise.
@@ -172,17 +172,18 @@ static String* canonicalizeTimeZoneName(String* timeZoneName)
     uenum_close(timeZones);
 
     // 3. If ianaTimeZone is "Etc/UTC" or "Etc/GMT", then return "UTC".
-    if (canonical->equals("Etc/UTC") || canonical->equals("Etc/GMT"))
-        canonical = String::fromASCII("UTC");
+    if (canonical->equals("Etc/UTC") || canonical->equals("Etc/GMT")) {
+        canonical = state.context()->staticStrings().UTC.string();
+    }
 
     // 4. Return ianaTimeZone.
     return canonical;
 }
 
 
-static void toDateTimeOptionsTest(ExecutionState& state, Value options, const char* ch, bool& needDefaults)
+static void toDateTimeOptionsTest(ExecutionState& state, Value options, AtomicString name, bool& needDefaults)
 {
-    Value r = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII(ch))).value(state, options.asObject());
+    Value r = options.asObject()->get(state, name).value(state, options.asObject());
     if (!r.isUndefined()) {
         needDefaults = false;
     }
@@ -277,33 +278,33 @@ UTF16StringDataNonGCStd updateHourCycleInPatternDueToHourCycle(const UTF16String
 void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeFormat, Value locales, Value options)
 {
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
-    String* initializedIntlObject = String::fromASCII("initializedIntlObject");
-    if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
+    AtomicString initializedIntlObject = state.context()->staticStrings().lazyInitializedIntlObject();
+    if (dateTimeFormat->hasInternalSlot() && dateTimeFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(initializedIntlObject)))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
     }
 
     // Set the [[initializedIntlObject]] internal property of dateTimeFormat to true.
-    dateTimeFormat->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state, initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
+    dateTimeFormat->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
 
     // Let requestedLocales be the result of calling the
     // CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
 
     // Let options be the result of calling the ToDateTimeOptions abstract operation (defined below) with arguments options, "any", and "date".
-    options = toDateTimeOptions(state, options, String::fromASCII("any"), String::fromASCII("date"));
+    options = toDateTimeOptions(state, options, state.context()->staticStrings().lazyAny().string(), state.context()->staticStrings().lazyDate().string());
 
     // Let opt be a new Record.
     StringMap opt;
     // Let matcher be the result of calling the GetOption abstract operation (defined in 9.2.9) with arguments options,
     // "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit".
-    Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
-    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
+    Value matcherValues[2] = { state.context()->staticStrings().lazyLookup().string(), state.context()->staticStrings().lazyBestFit().string() };
+    Value matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
 
     // Set opt.[[localeMatcher]] to matcher.
     opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
     // Let calendar be ? GetOption(options, "calendar", "string", undefined, undefined).
-    Value calendar = Intl::getOption(state, options.asObject(), String::fromASCII("calendar"), Intl::StringValue, nullptr, 0, Value());
+    Value calendar = Intl::getOption(state, options.asObject(), state.context()->staticStrings().calendar.string(), Intl::StringValue, nullptr, 0, Value());
     // If calendar is not undefined, then
     if (!calendar.isUndefined()) {
         // If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
@@ -316,7 +317,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         opt.insert(std::make_pair("ca", calendar.toString(state)));
     }
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = Intl::getOption(state, options.asObject(), String::fromASCII("numberingSystem"), Intl::StringValue, nullptr, 0, Value());
+    Value numberingSystem = Intl::getOption(state, options.asObject(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
@@ -331,11 +332,11 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     }
 
     // Let hour12 be ? GetOption(options, "hour12", "boolean", undefined, undefined).
-    Value hour12 = Intl::getOption(state, options.asObject(), String::fromASCII("hour12"), Intl::BooleanValue, nullptr, 0, Value());
+    Value hour12 = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyHour12().string(), Intl::BooleanValue, nullptr, 0, Value());
 
     // Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11", "h12", "h23", "h24" », undefined).
-    Value hourCycleValue[4] = { String::fromASCII("h11"), String::fromASCII("h12"), String::fromASCII("h23"), String::fromASCII("h24") };
-    Value hourCycle = Intl::getOption(state, options.asObject(), String::fromASCII("hourCycle"), Intl::StringValue, hourCycleValue, 4, Value());
+    Value hourCycleValue[4] = { state.context()->staticStrings().lazyH11().string(), state.context()->staticStrings().lazyH12().string(), state.context()->staticStrings().lazyH23().string(), state.context()->staticStrings().lazyH24().string() };
+    Value hourCycle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().hourCycle.string(), Intl::StringValue, hourCycleValue, 4, Value());
     // If hour12 is not undefined, then
     if (!hour12.isUndefined()) {
         // Let hourCycle be null.
@@ -362,13 +363,13 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     }
 
     // Set the [[locale]] internal property of dateTimeFormat to the value of r.[[locale]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("locale")), r.at("locale"), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), r.at("locale"), dateTimeFormat->internalSlot());
     // Set the [[calendar]] internal property of dateTimeFormat to the value of r.[[ca]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("calendar")), r.at("ca"), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().calendar), r.at("ca"), dateTimeFormat->internalSlot());
     // Set dateTimeFormat.[[hourCycle]] to r.[[hc]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hourCycle")), r.at("hc"), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().hourCycle), r.at("hc"), dateTimeFormat->internalSlot());
     // Set the [[numberingSystem]] internal property of dateTimeFormat to the value of r.[[nu]].
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("numberingSystem")), r.at("nu"), dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().numberingSystem), r.at("nu"), dateTimeFormat->internalSlot());
 
     // Let dataLocale be the value of r.[[dataLocale]].
     Value dataLocale = r.at("dataLocale");
@@ -383,7 +384,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     }
 
     // Let tz be the result of calling the [[Get]] internal method of options with argument "timeZone".
-    Value tz = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("timeZone"))).value(state, options.asObject());
+    Value tz = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone())).value(state, options.asObject());
 
     // If tz is not undefined, then
     if (!tz.isUndefined()) {
@@ -392,7 +393,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         // Convert tz to upper case as described in 6.1.
         // NOTE:   If an implementation accepts additional time zone values, as permitted under certain conditions by the Conformance clause,
         // different casing rules apply., If tz is not "UTC", then throw a RangeError exception.
-        tz = canonicalizeTimeZoneName(tzString);
+        tz = canonicalizeTimeZoneName(state, tzString);
         tzString = tz.toString(state);
         if (tzString->length() == 0) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid timezone value");
@@ -401,7 +402,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         tz = defaultTimeZone(state);
     }
     // Set the [[timeZone]] internal property of dateTimeFormat to tz.
-    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("timeZone")), tz, dateTimeFormat->internalSlot());
+    dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone()), tz, dateTimeFormat->internalSlot());
 
     // Let opt be a new Record.
     opt.clear();
@@ -432,9 +433,9 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     StringBuilder skeletonBuilder;
 
-    Value narrowShortLongValues[3] = { String::fromASCII("narrow"), String::fromASCII("short"), String::fromASCII("long") };
+    Value narrowShortLongValues[3] = { state.context()->staticStrings().lazyNarrow().string(), state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
 
-    doTable3(String::fromASCII("weekday"), narrowShortLongValues, 3);
+    doTable3(state.context()->staticStrings().lazyWeekday().string(), narrowShortLongValues, 3);
 
     String* ret = opt.at("weekday");
 
@@ -446,7 +447,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("EEEE");
     }
 
-    doTable3(String::fromASCII("era"), narrowShortLongValues, 3);
+    doTable3(state.context()->staticStrings().lazyEra().string(), narrowShortLongValues, 3);
 
     ret = opt.at("era");
     if (ret->equals("narrow")) {
@@ -457,8 +458,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("GGGG");
     }
 
-    Value twoDightNumericValues[2] = { String::fromASCII("2-digit"), String::fromASCII("numeric") };
-    doTable3(String::fromASCII("year"), twoDightNumericValues, 2);
+    Value twoDightNumericValues[2] = { state.context()->staticStrings().lazyTwoDigit().string(), state.context()->staticStrings().numeric.string() };
+    doTable3(state.context()->staticStrings().lazyYear().string(), twoDightNumericValues, 2);
 
     ret = opt.at("year");
     if (ret->equals("2-digit")) {
@@ -467,8 +468,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("y");
     }
 
-    Value allValues[5] = { String::fromASCII("2-digit"), String::fromASCII("numeric"), String::fromASCII("narrow"), String::fromASCII("short"), String::fromASCII("long") };
-    doTable3(String::fromASCII("month"), allValues, 5);
+    Value allValues[5] = { state.context()->staticStrings().lazyTwoDigit().string(), state.context()->staticStrings().numeric.string(), state.context()->staticStrings().lazyNarrow().string(), state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
+    doTable3(state.context()->staticStrings().lazyMonth().string(), allValues, 5);
 
     ret = opt.at("month");
     if (ret->equals("2-digit")) {
@@ -483,7 +484,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("MMMM");
     }
 
-    doTable3(String::fromASCII("day"), twoDightNumericValues, 2);
+    doTable3(state.context()->staticStrings().lazyDay().string(), twoDightNumericValues, 2);
 
     ret = opt.at("day");
     if (ret->equals("2-digit")) {
@@ -492,7 +493,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("d");
     }
 
-    doTable3(String::fromASCII("hour"), twoDightNumericValues, 2);
+    doTable3(state.context()->staticStrings().lazyHour().string(), twoDightNumericValues, 2);
 
     String* hour = ret = opt.at("hour");
     Value hr12Value = hour12;
@@ -516,7 +517,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
             skeletonBuilder.appendChar('H');
     }
 
-    doTable3(String::fromASCII("minute"), twoDightNumericValues, 2);
+    doTable3(state.context()->staticStrings().lazyMinute().string(), twoDightNumericValues, 2);
 
     ret = opt.at("minute");
     if (ret->equals("2-digit")) {
@@ -525,7 +526,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("m");
     }
 
-    doTable3(String::fromASCII("second"), twoDightNumericValues, 2);
+    doTable3(state.context()->staticStrings().lazySecond().string(), twoDightNumericValues, 2);
 
     ret = opt.at("second");
     if (ret->equals("2-digit")) {
@@ -534,8 +535,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         skeletonBuilder.appendString("s");
     }
 
-    Value shortLongValues[2] = { String::fromASCII("short"), String::fromASCII("long") };
-    doTable3(String::fromASCII("timeZoneName"), shortLongValues, 2);
+    Value shortLongValues[2] = { state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
+    doTable3(state.context()->staticStrings().lazyTimeZoneName().string(), shortLongValues, 2);
 
     ret = opt.at("timeZoneName");
     if (ret->equals("short")) {
@@ -548,8 +549,8 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     // Let formats be the result of calling the [[Get]] internal method of dataLocaleData with argument "formats".
     // Let matcher be the result of calling the GetOption abstract operation with arguments options,
     // "formatMatcher", "string", a List containing the two String values "basic" and "best fit", and "best fit".
-    Value formatMatcherValues[2] = { String::fromASCII("basic"), String::fromASCII("best fit") };
-    matcher = Intl::getOption(state, options.asObject(), String::fromASCII("formatMatcher"), Intl::StringValue, formatMatcherValues, 2, formatMatcherValues[1]);
+    Value formatMatcherValues[2] = { state.context()->staticStrings().lazyBasic().string(), state.context()->staticStrings().lazyBestFit().string() };
+    matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyFormatMatcher().string(), Intl::StringValue, formatMatcherValues, 2, formatMatcherValues[1]);
 
     // Always use ICU date format generator, rather than our own pattern list and matcher.
     // Covers steps 28-36.
@@ -573,7 +574,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         ASSERT(U_SUCCESS(status));
         auto hcDefault = readHourCycleFromPattern(patternBuffer);
         // Let hc be dateTimeFormat.[[HourCycle]].
-        auto hc = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("hourCycle"))).value(state, dateTimeFormat->internalSlot()).asString();
+        auto hc = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().hourCycle)).value(state, dateTimeFormat->internalSlot()).asString();
         // If hc is null, then
         if (!hc->length()) {
             // Set hc to hcDefault.
@@ -586,30 +587,30 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
                 // If hcDefault is "h11" or "h23", then
                 if (hcDefault == "h11" || hcDefault == "h23") {
                     // Set hc to "h11".
-                    hc = String::fromASCII("h11");
+                    hc = state.context()->staticStrings().lazyH11().string();
                 } else {
                     // Set hc to "h12".
-                    hc = String::fromASCII("h12");
+                    hc = state.context()->staticStrings().lazyH12().string();
                 }
             } else {
                 // Assert: hour12 is false.
                 // If hcDefault is "h11" or "h23", then
                 if (hcDefault == "h11" || hcDefault == "h23") {
                     // Set hc to "h23".
-                    hc = String::fromASCII("h23");
+                    hc = state.context()->staticStrings().lazyH23().string();
                 } else {
                     // Else,
                     // Set hc to "h24".
-                    hc = String::fromASCII("h24");
+                    hc = state.context()->staticStrings().lazyH24().string();
                 }
             }
         }
 
         // Let dateTimeFormat.[[HourCycle]] to hc.
-        dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hourCycle")), Value(hc), dateTimeFormat->internalSlot());
+        dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().hourCycle), Value(hc), dateTimeFormat->internalSlot());
     } else {
         // Set dateTimeFormat.[[HourCycle]] to undefined.
-        dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hourCycle")), Value(), dateTimeFormat->internalSlot());
+        dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().hourCycle), Value(), dateTimeFormat->internalSlot());
         // Let pattern be bestFormat.[[pattern]].
     }
 
@@ -628,7 +629,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
         return;
     }
 
-    Value hc = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("hourCycle"))).value(state, dateTimeFormat->internalSlot());
+    Value hc = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().hourCycle)).value(state, dateTimeFormat->internalSlot());
     if (!hc.isUndefined() && hc.asString()->length()) {
         patternBuffer = updateHourCycleInPatternDueToHourCycle(patternBuffer, hc.asString());
     }
@@ -653,90 +654,90 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
         if (hasHourOption && !inQuote) {
             if (currentCharacter == 'h' || currentCharacter == 'K') {
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour12")), Value(true), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyHour12()), Value(true), dateTimeFormat->internalSlot());
             } else if (currentCharacter == 'H' || currentCharacter == 'k') {
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour12")), Value(false), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyHour12()), Value(false), dateTimeFormat->internalSlot());
             }
         }
 
         switch (currentCharacter) {
         case 'G':
             if (count <= 3)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("era")), Value(String::fromASCII("short")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyEra()), Value(state.context()->staticStrings().lazyShort().string()), dateTimeFormat->internalSlot());
             else if (count == 4)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("era")), Value(String::fromASCII("long")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyEra()), Value(state.context()->staticStrings().lazyLong().string()), dateTimeFormat->internalSlot());
             else if (count == 5)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("era")), Value(String::fromASCII("narrow")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyEra()), Value(state.context()->staticStrings().lazyNarrow().string()), dateTimeFormat->internalSlot());
             break;
         case 'y':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("year")), Value(String::fromASCII("numeric")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyYear()), Value(state.context()->staticStrings().numeric.string()), dateTimeFormat->internalSlot());
             else if (count == 2)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("year")), Value(String::fromASCII("2-digit")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyYear()), Value(state.context()->staticStrings().lazyTwoDigit().string()), dateTimeFormat->internalSlot());
             break;
         case 'M':
         case 'L':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("month")), Value(String::fromASCII("numeric")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), Value(state.context()->staticStrings().numeric.string()), dateTimeFormat->internalSlot());
             else if (count == 2)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("month")), Value(String::fromASCII("2-digit")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), Value(state.context()->staticStrings().lazyTwoDigit().string()), dateTimeFormat->internalSlot());
             else if (count == 3)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("month")), Value(String::fromASCII("short")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), Value(state.context()->staticStrings().lazyShort().string()), dateTimeFormat->internalSlot());
             else if (count == 4)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("month")), Value(String::fromASCII("long")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), Value(state.context()->staticStrings().lazyLong().string()), dateTimeFormat->internalSlot());
             else if (count == 5)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("month")), Value(String::fromASCII("narrow")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), Value(state.context()->staticStrings().lazyNarrow().string()), dateTimeFormat->internalSlot());
             break;
         case 'E':
         case 'e':
         case 'c':
             if (count <= 3)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("weekday")), Value(String::fromASCII("short")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyWeekday()), Value(state.context()->staticStrings().lazyShort().string()), dateTimeFormat->internalSlot());
             else if (count == 4)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("weekday")), Value(String::fromASCII("long")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyWeekday()), Value(state.context()->staticStrings().lazyLong().string()), dateTimeFormat->internalSlot());
             else if (count == 5)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("weekday")), Value(String::fromASCII("narrow")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyWeekday()), Value(state.context()->staticStrings().lazyNarrow().string()), dateTimeFormat->internalSlot());
             break;
         case 'd':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("day")), Value(String::fromASCII("numeric")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyDay()), Value(state.context()->staticStrings().numeric.string()), dateTimeFormat->internalSlot());
             else if (count == 2)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("day")), Value(String::fromASCII("2-digit")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyDay()), Value(state.context()->staticStrings().lazyTwoDigit().string()), dateTimeFormat->internalSlot());
             break;
         case 'h':
         case 'H':
         case 'k':
         case 'K':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour")), Value(String::fromASCII("numeric")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyHour()), Value(state.context()->staticStrings().numeric.string()), dateTimeFormat->internalSlot());
             else if (count == 2)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("hour")), Value(String::fromASCII("2-digit")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyHour()), Value(state.context()->staticStrings().lazyTwoDigit().string()), dateTimeFormat->internalSlot());
             break;
         case 'm':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minute")), Value(String::fromASCII("numeric")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinute()), Value(state.context()->staticStrings().numeric.string()), dateTimeFormat->internalSlot());
             else if (count == 2)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("minute")), Value(String::fromASCII("2-digit")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinute()), Value(state.context()->staticStrings().lazyTwoDigit().string()), dateTimeFormat->internalSlot());
             break;
         case 's':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("second")), Value(String::fromASCII("numeric")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySecond()), Value(state.context()->staticStrings().numeric.string()), dateTimeFormat->internalSlot());
             else if (count == 2)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("second")), Value(String::fromASCII("2-digit")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySecond()), Value(state.context()->staticStrings().lazyTwoDigit().string()), dateTimeFormat->internalSlot());
             break;
         case 'z':
         case 'v':
         case 'V':
             if (count == 1)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("timeZoneName")), Value(String::fromASCII("short")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZoneName()), Value(state.context()->staticStrings().lazyShort().string()), dateTimeFormat->internalSlot());
             else if (count == 4)
-                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("timeZoneName")), Value(String::fromASCII("long")), dateTimeFormat->internalSlot());
+                dateTimeFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZoneName()), Value(state.context()->staticStrings().lazyLong().string()), dateTimeFormat->internalSlot());
             break;
         }
     }
 
     status = U_ZERO_ERROR;
-    UTF16StringData timeZoneView = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state, String::fromASCII("timeZone"))).value(state, dateTimeFormat->internalSlot()).toString(state)->toUTF16StringData();
+    UTF16StringData timeZoneView = dateTimeFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone())).value(state, dateTimeFormat->internalSlot()).toString(state)->toUTF16StringData();
     UTF8StringData localeStringView = r.at("locale")->toUTF8StringData();
     UDateFormat* icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, localeStringView.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
     if (U_FAILURE(status)) {
@@ -754,7 +755,7 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     // Set dateTimeFormat.[[boundFormat]] to undefined.
     // Set dateTimeFormat.[[initializedDateTimeFormat]] to true.
-    dateTimeFormat->internalSlot()->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")), ObjectPropertyDescriptor(Value(true)));
+    dateTimeFormat->internalSlot()->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()), ObjectPropertyDescriptor(Value(true)));
 
     status = U_ZERO_ERROR;
     UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(icuDateFormat));
@@ -798,44 +799,44 @@ UTF16StringDataNonGCStd IntlDateTimeFormat::format(ExecutionState& state, Object
 }
 
 
-static String* icuFieldTypeToPartName(int32_t fieldName)
+static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
 {
     if (fieldName == -1) {
-        return String::fromASCII("literal");
+        return state.context()->staticStrings().lazyLiteral().string();
     }
 
     switch ((UDateFormatField)fieldName) {
     case UDAT_ERA_FIELD:
-        return String::fromASCII("era");
+        return state.context()->staticStrings().lazyEra().string();
     case UDAT_YEAR_FIELD:
     case UDAT_YEAR_WOY_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
     case UDAT_YEAR_NAME_FIELD:
-        return String::fromASCII("year");
+        return state.context()->staticStrings().lazyYear().string();
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
-        return String::fromASCII("month");
+        return state.context()->staticStrings().lazyMonth().string();
     case UDAT_DATE_FIELD:
     case UDAT_JULIAN_DAY_FIELD:
-        return String::fromASCII("day");
+        return state.context()->staticStrings().lazyDay().string();
     case UDAT_HOUR_OF_DAY1_FIELD:
     case UDAT_HOUR_OF_DAY0_FIELD:
     case UDAT_HOUR1_FIELD:
     case UDAT_HOUR0_FIELD:
-        return String::fromASCII("hour");
+        return state.context()->staticStrings().lazyHour().string();
     case UDAT_MINUTE_FIELD:
-        return String::fromASCII("minute");
+        return state.context()->staticStrings().lazyMinute().string();
     case UDAT_SECOND_FIELD:
-        return String::fromASCII("second");
+        return state.context()->staticStrings().lazySecond().string();
     case UDAT_DAY_OF_WEEK_FIELD:
     case UDAT_STANDALONE_DAY_FIELD:
     case UDAT_DOW_LOCAL_FIELD:
     case UDAT_DAY_OF_WEEK_IN_MONTH_FIELD:
-        return String::fromASCII("weekday");
+        return state.context()->staticStrings().lazyWeekday().string();
     case UDAT_AM_PM_FIELD:
-        return String::fromASCII("dayPeriod");
+        return state.context()->staticStrings().lazyDayPeriod().string();
     case UDAT_TIMEZONE_FIELD:
-        return String::fromASCII("timeZoneName");
+        return state.context()->staticStrings().lazyTimeZoneName().string();
     default:
         ASSERT_NOT_REACHED();
         return String::emptyString;
@@ -947,7 +948,7 @@ ArrayObject* IntlDateTimeFormat::formatToParts(ExecutionState& state, Object* da
         const FieldItem& item = fields[i];
 
         Object* o = new Object(state);
-        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(icuFieldTypeToPartName(item.type), ObjectPropertyDescriptor::AllPresent));
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(icuFieldTypeToPartName(state, item.type), ObjectPropertyDescriptor::AllPresent));
         auto sub = resultString.substr(item.start, item.end - item.start);
         o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
 
@@ -977,41 +978,41 @@ Value IntlDateTimeFormat::toDateTimeOptions(ExecutionState& state, Value options
     // Let needDefaults be true.
     bool needDefaults = true;
     // If required is "date" or "any", then
-    if (required.equalsTo(state, String::fromASCII("date")) || required.equalsTo(state, String::fromASCII("any"))) {
+    if (required.equalsTo(state, state.context()->staticStrings().lazyDate().string()) || required.equalsTo(state, state.context()->staticStrings().lazyAny().string())) {
         // For each of the property names "weekday", "year", "month", "day":
         // If the result of calling the [[Get]] internal method of options with the property name is not undefined, then let needDefaults be false.
-        toDateTimeOptionsTest(state, options, "weekday", needDefaults);
-        toDateTimeOptionsTest(state, options, "year", needDefaults);
-        toDateTimeOptionsTest(state, options, "month", needDefaults);
-        toDateTimeOptionsTest(state, options, "day", needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyWeekday(), needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyYear(), needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyMonth(), needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyDay(), needDefaults);
     }
     // If required is "time" or "any", then
-    if (required.equalsTo(state, String::fromASCII("time")) || required.equalsTo(state, String::fromASCII("any"))) {
+    if (required.equalsTo(state, state.context()->staticStrings().lazyTime().string()) || required.equalsTo(state, state.context()->staticStrings().lazyAny().string())) {
         // For each of the property names "hour", "minute", "second":
         // If the result of calling the [[Get]] internal method of options with the property name is not undefined, then let needDefaults be false.
-        toDateTimeOptionsTest(state, options, "hour", needDefaults);
-        toDateTimeOptionsTest(state, options, "minute", needDefaults);
-        toDateTimeOptionsTest(state, options, "second", needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyHour(), needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyMinute(), needDefaults);
+        toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazySecond(), needDefaults);
     }
 
     // If needDefaults is true and defaults is either "date" or "all", then
-    if (needDefaults && (defaults.equalsTo(state, String::fromASCII("date")) || defaults.equalsTo(state, String::fromASCII("all")))) {
+    if (needDefaults && (defaults.equalsTo(state, state.context()->staticStrings().lazyDate().string()) || defaults.equalsTo(state, state.context()->staticStrings().all.string()))) {
         // For each of the property names "year", "month", "day":
         // Call the [[DefineOwnProperty]] internal method of options with the property name,
         // Property Descriptor {[[Value]]: "numeric", [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        String* v = String::fromASCII("numeric");
-        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("year")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("month")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("day")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        String* v = state.context()->staticStrings().numeric.string();
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyYear()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyDay()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
     // If needDefaults is true and defaults is either "time" or "all", then
-    if (needDefaults && (defaults.equalsTo(state, String::fromASCII("time")) || defaults.equalsTo(state, String::fromASCII("all")))) {
+    if (needDefaults && (defaults.equalsTo(state, state.context()->staticStrings().lazyTime().string()) || defaults.equalsTo(state, state.context()->staticStrings().all.string()))) {
         // For each of the property names "hour", "minute", "second":
         // Call the [[DefineOwnProperty]] internal method of options with the property name, Property Descriptor {[[Value]]: "numeric", [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        String* v = String::fromASCII("numeric");
-        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("hour")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("minute")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("second")), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        String* v = state.context()->staticStrings().numeric.string();
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyHour()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinute()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySecond()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
 
     return options;

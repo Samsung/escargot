@@ -56,15 +56,26 @@ public:
     }
 
     AtomicString(AtomicStringMap* map, const char* src, size_t len);
+    AtomicString(AtomicStringMap* map, const char* src, size_t len, String::FromExternalMemoryTag);
     AtomicString(AtomicStringMap* map, const LChar* src, size_t len);
     AtomicString(AtomicStringMap* map, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, String* name);
     AtomicString(ExecutionState& ec, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, const char* src, size_t len);
+    template <const size_t srcLen>
+    AtomicString(ExecutionState& ec, const char (&src)[srcLen])
+        : AtomicString(ec, src, srcLen - 1)
+    {
+    }
     AtomicString(ExecutionState& ec, const char* src);
     AtomicString(Context* c, const char16_t* src, size_t len);
     AtomicString(Context* c, const LChar* src, size_t len);
     AtomicString(Context* c, const char* src, size_t len);
+    template <const size_t srcLen>
+    AtomicString(Context* c, const char (&src)[srcLen])
+        : AtomicString(c, src, srcLen - 1)
+    {
+    }
     AtomicString(Context* c, const StringView& sv);
     AtomicString(Context* c, String* name);
 
@@ -98,7 +109,7 @@ public:
     }
 
 private:
-    void init(AtomicStringMap* ec, const char* src, size_t len);
+    void init(AtomicStringMap* ec, const char* src, size_t len, bool fromExternalMemory = false);
     void init(AtomicStringMap* ec, const LChar* str, size_t len);
     void init(AtomicStringMap* ec, const char16_t* src, size_t len);
     void init(AtomicStringMap* ec, String* name);
