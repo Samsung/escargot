@@ -144,13 +144,13 @@ Object* IntlCollator::create(ExecutionState& state, Context* realm, Value locale
 IntlCollator::CollatorResolvedOptions IntlCollator::resolvedOptions(ExecutionState& state, Object* internalSlot)
 {
     CollatorResolvedOptions opt;
-    opt.locale = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("locale"))).value(state, internalSlot).toString(state);
-    opt.sensitivity = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("sensitivity"))).value(state, internalSlot).toString(state);
-    opt.usage = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("usage"))).value(state, internalSlot).toString(state);
-    opt.collation = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("collation"))).value(state, internalSlot).toString(state);
-    opt.numeric = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("numeric"))).value(state, internalSlot).toBoolean(state);
-    opt.ignorePunctuation = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation"))).value(state, internalSlot).toBoolean(state);
-    opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state, String::fromASCII("caseFirst"))).value(state, internalSlot).toString(state);
+    opt.locale = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale())).value(state, internalSlot).toString(state);
+    opt.sensitivity = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity())).value(state, internalSlot).toString(state);
+    opt.usage = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyUsage())).value(state, internalSlot).toString(state);
+    opt.collation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().collation)).value(state, internalSlot).toString(state);
+    opt.numeric = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().numeric)).value(state, internalSlot).toBoolean(state);
+    opt.ignorePunctuation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation())).value(state, internalSlot).toBoolean(state);
+    opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().caseFirst)).value(state, internalSlot).toString(state);
     return opt;
 }
 
@@ -160,13 +160,13 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
     collator->setPrototype(state, realm->globalObject()->intlCollator()->getFunctionPrototype(state));
     // If collator has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
-    String* initializedIntlObject = String::fromASCII("initializedIntlObject");
-    if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(state, initializedIntlObject)))) {
+    AtomicString initializedIntlObject = state.context()->staticStrings().lazyInitializedIntlObject();
+    if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(initializedIntlObject)))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
     }
 
     // Set the [[initializedIntlObject]] internal property of collator to true.
-    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state, initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
+    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
 
     // Let requestedLocales be the result of calling the
     // CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
@@ -183,18 +183,18 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
     // Let u be the result of calling the GetOption abstract operation (defined in 9.2.9) with arguments options,
     // "usage", "string", a List containing the two String values "sort" and "search", and "sort".
-    Value usageValues[2] = { String::fromASCII("sort"), String::fromASCII("search") };
-    Value u = Intl::getOption(state, options.asObject(), String::fromASCII("usage"), Intl::StringValue, usageValues, 2, usageValues[0]);
+    Value usageValues[2] = { state.context()->staticStrings().sort.string(), state.context()->staticStrings().search.string() };
+    Value u = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyUsage().string(), Intl::StringValue, usageValues, 2, usageValues[0]);
 
     // Set the [[usage]] internal property of collator to u.
-    collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("usage")), u, collator->internalSlot());
+    collator->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUsage()), u, collator->internalSlot());
 
     // Let Collator be the standard built-in object that is the initial value of Intl.Collator.
     FunctionObject* Collator = realm->globalObject()->intlCollator();
 
     // If u is "sort", then let localeData be the value of the [[sortLocaleData]] internal property of Collator;
     Intl::LocaleDataImplFunction localeData;
-    if (u.equalsTo(state, String::fromASCII("sort"))) {
+    if (u.equalsTo(state, state.context()->staticStrings().sort.string())) {
         localeData = sortLocaleData;
     } else {
         // else let localeData be the value of the [[searchLocaleData]] internal property of Collator.
@@ -206,8 +206,8 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
     // Let matcher be the result of calling the GetOption abstract operation with arguments
     // options, "localeMatcher", "string", a List containing the two String values "lookup" and "best fit", and "best fit"
-    Value matcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
-    Value matcher = Intl::getOption(state, options.asObject(), String::fromASCII("localeMatcher"), Intl::StringValue, matcherValues, 2, matcherValues[1]);
+    Value matcherValues[2] = { state.context()->staticStrings().lazyLookup().string(), state.context()->staticStrings().lazyBestFit().string() };
+    Value matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
     // Set opt.[[localeMatcher]] to matcher.
     opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
@@ -233,9 +233,9 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         opt.insert(std::make_pair(keyColumn->toNonGCUTF8StringData(), value.toString(state)));
     };
 
-    doTable1(String::fromASCII("kn"), String::fromASCII("numeric"), Intl::BooleanValue, nullptr, 0);
-    Value caseFirstValue[3] = { String::fromASCII("upper"), String::fromASCII("lower"), String::fromASCII("false") };
-    doTable1(String::fromASCII("kf"), String::fromASCII("caseFirst"), Intl::StringValue, caseFirstValue, 3);
+    doTable1(state.context()->staticStrings().lazyKn().string(), state.context()->staticStrings().numeric.string(), Intl::BooleanValue, nullptr, 0);
+    Value caseFirstValue[3] = { state.context()->staticStrings().lazyUpper().string(), state.context()->staticStrings().lazyLower().string(), state.context()->staticStrings().stringFalse.string() };
+    doTable1(state.context()->staticStrings().lazyKf().string(), state.context()->staticStrings().caseFirst.string(), Intl::StringValue, caseFirstValue, 3);
 
     // Let relevantExtensionKeys be the value of the [[relevantExtensionKeys]] internal property of Collator.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
@@ -243,8 +243,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     StringMap r = Intl::resolveLocale(state, realm->vmInstance()->intlCollatorAvailableLocales(), requestedLocales, opt, intlCollatorRelevantExtensionKeys, intlCollatorRelevantExtensionKeysLength, localeData);
 
     // Set the [[locale]] internal property of collator to the value of r.[[locale]].
-    String* localeInternalString = String::fromASCII("locale");
-    collator->internalSlot()->set(state, ObjectPropertyName(state, localeInternalString), r.at("locale"), collator->internalSlot());
+    collator->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), r.at("locale"), collator->internalSlot());
 
     // Let i be 0.
     size_t i = 0;
@@ -255,16 +254,16 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         // Let key be the result of calling the [[Get]] internal method of relevantExtensionKeys with argument ToString(i).
         const char* key = intlCollatorRelevantExtensionKeys[i];
         // If key is "co", then
-        const char* property;
+        AtomicString property;
         Value value;
         if (strcmp(key, "co") == 0) {
             // Let property be "collation".
-            property = "collation";
+            property = state.context()->staticStrings().collation;
             // Let value be the value of r.[[co]].
             auto iter = r.find("co");
             // If value is null, then let value be "default".
             if (r.end() == iter || iter->second->equals("")) {
-                value = String::fromASCII("default");
+                value = state.context()->staticStrings().stringDefault.string();
             } else {
                 value = iter->second;
             }
@@ -276,12 +275,12 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
             // Else use the row of Table 1 that contains the value of key in the Key column:
             // Let property be the name given in the Property column of the row.
-            property = "numeric";
+            property = state.context()->staticStrings().numeric;
             // Let value be the value of r.[[<key>]].
             value = r.at("kn");
             // If the name given in the Type column of the row is "boolean",
             // then let value be the result of comparing value with "true".
-            value = Value(value.equalsTo(state, String::fromASCII("true")));
+            value = Value(value.equalsTo(state, state.context()->staticStrings().stringTrue.string()));
 
         } else if (strcmp(key, "kf") == 0) {
             // Table 1 – Collator options settable through both extension keys and options properties
@@ -291,7 +290,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
             // Else use the row of Table 1 that contains the value of key in the Key column:
             // Let property be the name given in the Property column of the row.
-            property = "caseFirst";
+            property = state.context()->staticStrings().caseFirst;
             // Let value be the value of r.[[<key>]].
             value = r.at("kf");
             // If the name given in the Type column of the row is "boolean",
@@ -300,14 +299,14 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             RELEASE_ASSERT_NOT_REACHED();
         }
         // Set the [[<property>]] internal property of collator to value.
-        collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII(property)), value, collator->internalSlot());
+        collator->internalSlot()->set(state, ObjectPropertyName(property), value, collator->internalSlot());
         // Increase i by 1.
         i++;
     }
     // Let s be the result of calling the GetOption abstract operation with arguments
     // options, "sensitivity", "string", a List containing the four String values "base", "accent", "case", and "variant", and undefined.
-    Value sensitivityValue[4] = { String::fromASCII("base"), String::fromASCII("accent"), String::fromASCII("case"), String::fromASCII("variant") };
-    Value s = Intl::getOption(state, options.asObject(), Value(String::fromASCII("sensitivity")), Intl::StringValue, sensitivityValue, 4, Value());
+    Value sensitivityValue[4] = { state.context()->staticStrings().lazyBase().string(), state.context()->staticStrings().lazyAccent().string(), state.context()->staticStrings().lazyCase().string(), state.context()->staticStrings().lazyVariant().string() };
+    Value s = Intl::getOption(state, options.asObject(), Value(state.context()->staticStrings().lazySensitivity().string()), Intl::StringValue, sensitivityValue, 4, Value());
     String* sensitivityString = s.toString(state);
     // If s is undefined, then
     // If u is "sort", then let s be "variant".
@@ -316,22 +315,22 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Let dataLocaleData be the result of calling the [[Get]] internal operation of localeData with argument dataLocale.
     // Let s be the result of calling the [[Get]] internal operation of dataLocaleData with argument "sensitivity".
     if (sensitivityString->equals("base")) {
-        collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), String::fromASCII("base"), collator->internalSlot());
+        collator->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity()), state.context()->staticStrings().lazyBase().string(), collator->internalSlot());
     } else if (sensitivityString->equals("accent")) {
-        collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), String::fromASCII("accent"), collator->internalSlot());
+        collator->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity()), state.context()->staticStrings().lazyAccent().string(), collator->internalSlot());
     } else if (sensitivityString->equals("case")) {
-        collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), String::fromASCII("case"), collator->internalSlot());
+        collator->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity()), state.context()->staticStrings().lazyCase().string(), collator->internalSlot());
     } else {
-        collator->internalSlot()->set(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), String::fromASCII("variant"), collator->internalSlot());
+        collator->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity()), state.context()->staticStrings().lazyVariant().string(), collator->internalSlot());
     }
 
     // Let ip be the result of calling the GetOption abstract operation with arguments options, "ignorePunctuation", "boolean", undefined, and false.
-    Value ip = Intl::getOption(state, options.asObject(), String::fromASCII("ignorePunctuation"), Intl::BooleanValue, nullptr, 0, Value(false));
+    Value ip = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyIgnorePunctuation().string(), Intl::BooleanValue, nullptr, 0, Value(false));
     // Set the [[ignorePunctuation]] internal property of collator to ip.
-    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation")), ObjectPropertyDescriptor(ip));
+    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation()), ObjectPropertyDescriptor(ip));
     // Set the [[boundCompare]] internal property of collator to undefined.
     // Set the [[initializedCollator]] internal property of collator to true.
-    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")), ObjectPropertyDescriptor(Value(true)));
+    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()), ObjectPropertyDescriptor(Value(true)));
     // Return collator.
 
     {

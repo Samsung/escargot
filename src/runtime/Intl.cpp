@@ -1366,7 +1366,7 @@ static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, 
             return candidate;
 
         // Let pos be the character index of the last occurrence of "-" (U+002D) within candidate. If that character does not occur, return undefined.
-        size_t pos = candidate->rfind(String::fromASCII("-"), candidate->length() - 1);
+        size_t pos = candidate->rfind(state.context()->staticStrings().asciiTable[(size_t)'-'].string(), candidate->length() - 1);
         if (pos == SIZE_MAX)
             return String::emptyString;
 
@@ -1432,7 +1432,7 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
                 size_t extensionLength = locale->length() - extensionIndex;
                 size_t end = extensionIndex + 3;
                 while (end < locale->length()) {
-                    end = locale->find(String::fromASCII("-"), end);
+                    end = locale->find("-", end);
                     if (end == SIZE_MAX)
                         break;
                     if (end + 2 < locale->length() && locale->charAt(end + 2) == '-') {
@@ -1562,7 +1562,7 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
 
     Intl::IntlMatcherResult r;
     // If matcher is "lookup", then
-    if (matcher.equalsTo(state, String::fromASCII("lookup"))) {
+    if (matcher.equalsTo(state, state.context()->staticStrings().lazyLookup().string())) {
         // Let r be LookupMatcher(availableLocales, requestedLocales).
         r = lookupMatcher(state, availableLocales, requestedLocales);
     } else {
@@ -1581,7 +1581,7 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
     result.insert(std::make_pair("dataLocale", foundLocale));
 
     // Let supportedExtension be "-u".
-    String* supportedExtension = String::fromASCII("-u");
+    String* supportedExtension = state.context()->staticStrings().lazyDashU().string();
 
     // For each element key of relevantExtensionKeys in List order, do
     size_t i = 0;
@@ -1745,7 +1745,7 @@ Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil
         // Let options be ToObject(options).
         options = options.toObject(state);
         // Let matcher be the result of calling the [[Get]] internal method of options with argument "localeMatcher".
-        matcher = options.asObject()->get(state, ObjectPropertyName(state, String::fromASCII("localeMatcher"))).value(state, options.asObject());
+        matcher = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyLocaleMatcher())).value(state, options.asObject());
         // If matcher is not undefined, then
         if (!matcher.isUndefined()) {
             // Let matcher be ToString(matcher).
@@ -1759,7 +1759,7 @@ Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil
 
     // If matcher is undefined or "best fit", then
     ValueVector subset;
-    if (matcher.isUndefined() || matcher.equalsTo(state, String::fromASCII("best fit"))) {
+    if (matcher.isUndefined() || matcher.equalsTo(state, state.context()->staticStrings().lazyBestFit().string())) {
         // Let subset be the result of calling the BestFitSupportedLocales abstract operation (defined in 9.2.7) with arguments availableLocales and requestedLocales.
         subset = bestfitSupportedLocales(state, availableLocales, requestedLocales);
     } else {
@@ -1978,43 +1978,43 @@ void Intl::convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& 
               });
 }
 
-String* Intl::icuNumberFieldToString(int32_t fieldName, double d)
+String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d)
 {
     if (fieldName == -1) {
-        return String::fromASCII("literal");
+        return state.context()->staticStrings().lazyLiteral().string();
     }
 
     switch ((UNumberFormatFields)fieldName) {
     case UNUM_INTEGER_FIELD:
         if (std::isnan(d)) {
-            return String::fromASCII("nan");
+            return state.context()->staticStrings().lazySmallLetterNaN().string();
         }
         if (std::isinf(d)) {
-            return String::fromASCII("infinity");
+            return state.context()->staticStrings().lazySmallLetterInfinity().string();
         }
-        return String::fromASCII("integer");
+        return state.context()->staticStrings().lazyInteger().string();
     case UNUM_GROUPING_SEPARATOR_FIELD:
-        return String::fromASCII("group");
+        return state.context()->staticStrings().lazyGroup().string();
     case UNUM_DECIMAL_SEPARATOR_FIELD:
-        return String::fromASCII("decimal");
+        return state.context()->staticStrings().lazyDecimal().string();
     case UNUM_FRACTION_FIELD:
-        return String::fromASCII("fraction");
+        return state.context()->staticStrings().lazyFraction().string();
     case UNUM_SIGN_FIELD:
-        return std::signbit(d) ? String::fromASCII("minusSign") : String::fromASCII("plusSign");
+        return std::signbit(d) ? state.context()->staticStrings().lazyMinusSign().string() : state.context()->staticStrings().lazyPlusSign().string();
     case UNUM_PERCENT_FIELD:
-        return String::fromASCII("percentSign");
+        return state.context()->staticStrings().lazyPercentSign().string();
     case UNUM_CURRENCY_FIELD:
-        return String::fromASCII("currency");
+        return state.context()->staticStrings().lazyCurrency().string();
     case UNUM_EXPONENT_SYMBOL_FIELD:
-        return String::fromASCII("exponentSeparator");
+        return state.context()->staticStrings().lazyExponentSeparator().string();
     case UNUM_EXPONENT_SIGN_FIELD:
-        return String::fromASCII("exponentMinusSign");
+        return state.context()->staticStrings().lazyExponentMinusSign().string();
     case UNUM_EXPONENT_FIELD:
-        return String::fromASCII("exponentInteger");
+        return state.context()->staticStrings().lazyExponentInteger().string();
     case UNUM_MEASURE_UNIT_FIELD:
-        return String::fromASCII("unit");
+        return state.context()->staticStrings().lazyUnit().string();
     case UNUM_COMPACT_FIELD:
-        return String::fromASCII("compact");
+        return state.context()->staticStrings().lazyCompact().string();
     default:
         ASSERT_NOT_REACHED();
         return String::emptyString;

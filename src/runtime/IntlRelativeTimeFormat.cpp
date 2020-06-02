@@ -79,17 +79,17 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     StringMap opt;
     // Let matcher be ? GetOption(options, "localeMatcher", "string", « "lookup", "best fit" », "best fit").
     // Set opt.[[localeMatcher]] to matcher.
-    Value localeMatcherValues[2] = { String::fromASCII("lookup"), String::fromASCII("best fit") };
+    Value localeMatcherValues[2] = { state.context()->staticStrings().lazyLookup().string(), state.context()->staticStrings().lazyBestFit().string() };
     String* matcher = localeMatcherValues[1].asString();
     if (options) {
-        matcher = Intl::getOption(state, options.value(), String::fromASCII("localeMatcher"), Intl::StringValue, localeMatcherValues, 2, localeMatcherValues[1]).asString();
+        matcher = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, localeMatcherValues, 2, localeMatcherValues[1]).asString();
     }
     opt.insert(std::make_pair("matcher", matcher));
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
     Value numberingSystem;
     if (options) {
-        numberingSystem = Intl::getOption(state, options.value(), String::fromASCII("numberingSystem"), Intl::StringValue, nullptr, 0, Value());
+        numberingSystem = Intl::getOption(state, options.value(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
     }
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
@@ -115,18 +115,19 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     // Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
     m_numberingSystem = r.at("nu");
     // Let s be ? GetOption(options, "style", "string", «"long", "short", "narrow"», "long").
-    Value styleValues[3] = { String::fromASCII("long"), String::fromASCII("short"), String::fromASCII("narrow") };
+
+    Value styleValues[3] = { state.context()->staticStrings().lazyLong().string(), state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyNarrow().string() };
     String* style = styleValues[0].asString();
     // Set relativeTimeFormat.[[Style]] to s.
     if (options) {
-        style = Intl::getOption(state, options.value(), String::fromASCII("style"), Intl::StringValue, styleValues, 3, styleValues[0]).asString();
+        style = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyStyle().string(), Intl::StringValue, styleValues, 3, styleValues[0]).asString();
     }
     m_style = style;
     // Let numeric be ? GetOption(options, "numeric", "string", «"always", "auto"», "always").
-    Value numericValues[2] = { String::fromASCII("always"), String::fromASCII("auto") };
+    Value numericValues[2] = { state.context()->staticStrings().lazyAlways().string(), state.context()->staticStrings().lazyAuto().string() };
     String* numeric = numericValues[0].asString();
     if (options) {
-        numeric = Intl::getOption(state, options.value(), String::fromASCII("numeric"), Intl::StringValue, numericValues, 2, numericValues[0]).asString();
+        numeric = Intl::getOption(state, options.value(), state.context()->staticStrings().numeric.string(), Intl::StringValue, numericValues, 2, numericValues[0]).asString();
     }
     // Set relativeTimeFormat.[[Numeric]] to numeric.
     m_numeric = numeric;
@@ -307,26 +308,26 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
     Intl::convertICUNumberFieldToEcmaNumberField(fields, value, resultString);
 
     if (icuUnit == UDAT_REL_UNIT_SECOND) {
-        unit = String::fromASCII("second");
+        unit = state.context()->staticStrings().lazySecond().string();
     } else if (icuUnit == UDAT_REL_UNIT_MINUTE) {
-        unit = String::fromASCII("minute");
+        unit = state.context()->staticStrings().lazyMinute().string();
     } else if (icuUnit == UDAT_REL_UNIT_HOUR) {
-        unit = String::fromASCII("hour");
+        unit = state.context()->staticStrings().lazyHour().string();
     } else if (icuUnit == UDAT_REL_UNIT_DAY) {
-        unit = String::fromASCII("day");
+        unit = state.context()->staticStrings().lazyDay().string();
     } else if (icuUnit == UDAT_REL_UNIT_WEEK) {
-        unit = String::fromASCII("week");
+        unit = state.context()->staticStrings().lazyWeek().string();
     } else if (icuUnit == UDAT_REL_UNIT_MONTH) {
-        unit = String::fromASCII("month");
+        unit = state.context()->staticStrings().lazyMonth().string();
     } else if (icuUnit == UDAT_REL_UNIT_QUARTER) {
-        unit = String::fromASCII("quarter");
+        unit = state.context()->staticStrings().lazyQuarter().string();
     } else {
         ASSERT(icuUnit == UDAT_REL_UNIT_YEAR);
-        unit = String::fromASCII("year");
+        unit = state.context()->staticStrings().lazyYear().string();
     }
 
-    AtomicString unitAtom(state, "unit", 4);
-    AtomicString typeAtom(state, "type", 4);
+    AtomicString unitAtom(state, "unit");
+    AtomicString typeAtom(state, "type");
     AtomicString valueAtom = state.context()->staticStrings().value;
 
     ArrayObject* result = new ArrayObject(state);
@@ -334,7 +335,7 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
         const Intl::NumberFieldItem& item = fields[i];
 
         Object* o = new Object(state);
-        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(item.type, value), ObjectPropertyDescriptor::AllPresent));
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, value), ObjectPropertyDescriptor::AllPresent));
         auto sub = resultString.substr(item.start, item.end - item.start);
         o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
         if (item.type != -1) {

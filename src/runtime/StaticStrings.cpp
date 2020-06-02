@@ -28,11 +28,11 @@ void StaticStrings::initStaticStrings()
     AtomicStringMap* atomicStringMap = m_atomicStringMap;
     atomicStringMap->insert(String::emptyString);
 
-#define INIT_STATIC_STRING(name) name.initStaticString(atomicStringMap, new ASCIIString(#name, strlen(#name)));
+#define INIT_STATIC_STRING(name) name.initStaticString(atomicStringMap, new ASCIIString(#name, sizeof(#name) - 1, String::FromExternalMemory));
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
 #undef INIT_STATIC_STRING
 
-#define INIT_STATIC_STRING(atomicString, name) atomicString.initStaticString(atomicStringMap, new ASCIIString(name, strlen(name)))
+#define INIT_STATIC_STRING(atomicString, name) atomicString.initStaticString(atomicStringMap, new ASCIIString(name, sizeof(name) - 1, String::FromExternalMemory))
     INIT_STATIC_STRING(NegativeInfinity, "-Infinity");
     INIT_STATIC_STRING(stringTrue, "true");
     INIT_STATIC_STRING(stringFalse, "false");
@@ -122,7 +122,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING($Apostrophe, "$'");
 #undef INIT_STATIC_STRING
 
-#define INIT_STATIC_NUMBER(num) numbers[num].initStaticString(atomicStringMap, new ASCIIString(#num, strlen(#num)));
+#define INIT_STATIC_NUMBER(num) numbers[num].initStaticString(atomicStringMap, new ASCIIString(#num, sizeof(#num) - 1));
     FOR_EACH_STATIC_NUMBER(INIT_STATIC_NUMBER)
 #undef INIT_STATIC_NUMBER
 
@@ -140,18 +140,20 @@ void StaticStrings::initStaticStrings()
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) m_lazy##Name = AtomicString();
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 }
 
-#define DECLARE_LAZY_STATIC_STRING(Name, stringContent)                                               \
-    AtomicString StaticStrings::lazy##Name()                                                          \
-    {                                                                                                 \
-        if (m_lazy##Name.string() == String::emptyString) {                                           \
-            m_lazy##Name = AtomicString(m_atomicStringMap, stringContent, sizeof(stringContent) - 1); \
-        }                                                                                             \
-        return m_lazy##Name;                                                                          \
+#define DECLARE_LAZY_STATIC_STRING(Name, stringContent)                                                                           \
+    AtomicString StaticStrings::lazy##Name()                                                                                      \
+    {                                                                                                                             \
+        if (UNLIKELY(m_lazy##Name.string() == String::emptyString)) {                                                             \
+            m_lazy##Name = AtomicString(m_atomicStringMap, stringContent, sizeof(stringContent) - 1, String::FromExternalMemory); \
+        }                                                                                                                         \
+        return m_lazy##Name;                                                                                                      \
     }
 FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 
 ::Escargot::String* StaticStrings::dtoa(double d) const

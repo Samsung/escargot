@@ -47,7 +47,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Incorrect locale information provided");
     }
 
-    String* languageString = String::fromASCII("language");
+    String* languageString = state.context()->staticStrings().language.string();
     // Let language be ? GetOption(options, "language", "string", undefined, undefined).
     Value language = options ? Intl::getOption(state, options.value(), languageString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If language is not undefined, then
@@ -61,7 +61,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         }
     }
 
-    String* scriptString = String::fromASCII("script");
+    String* scriptString = state.context()->staticStrings().script.string();
     // Let script be ? GetOption(options, "script", "string", undefined, undefined).
     Value script = options ? Intl::getOption(state, options.value(), scriptString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If script is not undefined, then
@@ -73,7 +73,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         }
     }
 
-    String* regionString = String::fromASCII("region");
+    String* regionString = state.context()->staticStrings().region.string();
     // Let region be ? GetOption(options, "region", "string", undefined, undefined).
     Value region = options ? Intl::getOption(state, options.value(), regionString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If region is not undefined, then
@@ -207,7 +207,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     }
 
     // Let calendar be ? GetOption(options, "calendar", "string", undefined, undefined).
-    String* calendarString = String::fromASCII("calendar");
+    String* calendarString = state.context()->staticStrings().calendar.string();
     Value calendar = options ? Intl::getOption(state, options.value(), calendarString, Intl::StringValue, nullptr, 0, Value()) : Value();
     // If calendar is not undefined, then
     if (!calendar.isUndefined()) {
@@ -222,7 +222,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     }
 
     // Let collation be ? GetOption(options, "collation", "string", undefined, undefined).
-    Value collation = options ? Intl::getOption(state, options.value(), String::fromASCII("collation"), Intl::StringValue, nullptr, 0, Value()) : Value();
+    Value collation = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().collation.string(), Intl::StringValue, nullptr, 0, Value()) : Value();
     // If collation is not undefined, then
     if (!collation.isUndefined()) {
         // If collation does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
@@ -237,23 +237,23 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
 
 
     // Let hc be ? GetOption(options, "hourCycle", "string", « "h11", "h12", "h23", "h24" », undefined).
-    Value hourCycleValues[4] = { String::fromASCII("h11"), String::fromASCII("h12"), String::fromASCII("h23"), String::fromASCII("h24") };
-    Value hourCycle = options ? Intl::getOption(state, options.value(), String::fromASCII("hourCycle"), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
+    Value hourCycleValues[4] = { state.context()->staticStrings().lazyH11().string(), state.context()->staticStrings().lazyH12().string(), state.context()->staticStrings().lazyH23().string(), state.context()->staticStrings().lazyH24().string() };
+    Value hourCycle = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().hourCycle.string(), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
     // Set opt.[[hc]] to hc.
     if (!hourCycle.isUndefined()) {
         hc = hourCycle.asString();
     }
 
     // Let kf be ? GetOption(options, "caseFirst", "string", « "upper", "lower", "false" », undefined).
-    Value caseFirstValues[3] = { String::fromASCII("upper"), String::fromASCII("lower"), String::fromASCII("false") };
+    Value caseFirstValues[3] = { state.context()->staticStrings().lazyUpper().string(), state.context()->staticStrings().lazyLower().string(), state.context()->staticStrings().stringFalse.string() };
     // Set opt.[[kf]] to kf.
-    Value caseFirst = options ? Intl::getOption(state, options.value(), String::fromASCII("caseFirst"), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
+    Value caseFirst = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().caseFirst.string(), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
     if (!caseFirst.isUndefined()) {
         kf = caseFirst.asString();
     }
 
     // Let kn be ? GetOption(options, "numeric", "boolean", undefined, undefined).
-    Value numeric = options ? Intl::getOption(state, options.value(), String::fromASCII("numeric"), Intl::BooleanValue, nullptr, 0, Value()) : Value();
+    Value numeric = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().numeric.string(), Intl::BooleanValue, nullptr, 0, Value()) : Value();
     // If kn is not undefined, set kn to ! ToString(kn).
     if (!numeric.isUndefined()) {
         kn = numeric.toString(state);
@@ -261,7 +261,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     // Set opt.[[kn]] to kn.
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = options ? Intl::getOption(state, options.value(), String::fromASCII("numberingSystem"), Intl::StringValue, nullptr, 0, Value()) : Value();
+    Value numberingSystem = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value()) : Value();
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.

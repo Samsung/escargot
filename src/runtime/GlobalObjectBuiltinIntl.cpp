@@ -90,7 +90,7 @@ static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisVal
 static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
-    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
+    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
@@ -104,20 +104,19 @@ static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, 
 
 static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
-    String* compareFunctionString = String::fromASCII("compareFunction");
     FunctionObject* fn;
-    auto g = internalSlot->get(state, ObjectPropertyName(state, compareFunctionString));
+    auto g = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyCompareFunction()));
     if (g.hasValue()) {
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
-        internalSlot->set(state, ObjectPropertyName(state, compareFunctionString), Value(fn), internalSlot);
+        internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCompareFunction()), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
 
@@ -126,20 +125,20 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
 
 static Value builtinIntlCollatorResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedCollator")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
     auto r = IntlCollator::resolvedOptions(state, internalSlot);
     Object* result = new Object(state);
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("locale")), ObjectPropertyDescriptor(r.locale, ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("usage")), ObjectPropertyDescriptor(r.usage, ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("sensitivity")), ObjectPropertyDescriptor(r.sensitivity, ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("ignorePunctuation")), ObjectPropertyDescriptor(Value(r.ignorePunctuation), ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("collation")), ObjectPropertyDescriptor(r.collation, ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("numeric")), ObjectPropertyDescriptor(Value(r.numeric), ObjectPropertyDescriptor::AllPresent));
-    result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII("caseFirst")), ObjectPropertyDescriptor(Value(r.caseFirst), ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), ObjectPropertyDescriptor(r.locale, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyUsage()), ObjectPropertyDescriptor(r.usage, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity()), ObjectPropertyDescriptor(r.sensitivity, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation()), ObjectPropertyDescriptor(Value(r.ignorePunctuation), ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().collation), ObjectPropertyDescriptor(r.collation, ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().numeric), ObjectPropertyDescriptor(Value(r.numeric), ObjectPropertyDescriptor::AllPresent));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caseFirst), ObjectPropertyDescriptor(Value(r.caseFirst), ObjectPropertyDescriptor::AllPresent));
     return result;
 }
 
@@ -190,7 +189,7 @@ static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value t
 static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
-    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
+    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
@@ -208,20 +207,19 @@ static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisVa
 
 static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
-    String* formatFunctionString = String::fromASCII("format");
     FunctionObject* fn;
-    auto g = internalSlot->get(state, ObjectPropertyName(state, formatFunctionString));
+    auto g = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().format));
     if (g.hasValue()) {
         fn = g.value(state, internalSlot).asFunction();
     } else {
         const StaticStrings* strings = &state.context()->staticStrings();
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
-        internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
+        internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().format), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
 
@@ -233,7 +231,7 @@ static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value
     // Let dtf be this value.
     // If Type(dtf) is not Object, throw a TypeError exception.
     // If dtf does not have an [[InitializedDateTimeFormat]] internal slot, throw a TypeError exception.
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
     Value date = argv[0];
@@ -265,7 +263,7 @@ static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* re
 
 static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedDateTimeFormat")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
     Object* internalSlot = thisValue.asObject()->internalSlot();
@@ -310,7 +308,7 @@ static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, 
 static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
-    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
+    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedNumberFormat()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
@@ -324,19 +322,18 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
 
 static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedNumberFormat()))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
-    String* formatFunctionString = String::fromASCII("format");
     FunctionObject* fn;
-    auto g = internalSlot->get(state, ObjectPropertyName(state, formatFunctionString));
+    auto g = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().format));
     if (g.hasValue()) {
         fn = g.value(state, internalSlot).asFunction();
     } else {
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlNumberFormatFormat, 1, NativeFunctionInfo::Strict));
-        internalSlot->set(state, ObjectPropertyName(state, formatFunctionString), Value(fn), internalSlot);
+        internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().format), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
     }
 
@@ -372,7 +369,7 @@ static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thi
 
 static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
@@ -404,7 +401,7 @@ static Value builtinIntlNumberFormatFormatToParts(ExecutionState& state, Value t
     // Let nf be the this value.
     // If Type(nf) is not Object, throw a TypeError exception.
     // If nf does not have an [[InitializedNumberFormat]] internal slot, throw a TypeError exception.
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, String::fromASCII("initializedNumberFormat")))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
     // Let x be ? ToNumeric(value).
@@ -489,16 +486,16 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     // Perform ! CreateDataPropertyOrThrow(options, p, v).
 
 
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("locale"))), ObjectPropertyDescriptor(pr->locale(), ObjectPropertyDescriptor::AllPresent));
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("type"))), ObjectPropertyDescriptor(pr->type(), ObjectPropertyDescriptor::AllPresent));
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("minimumIntegerDigits"))), ObjectPropertyDescriptor(Value(pr->minimumIntegerDigits()), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), ObjectPropertyDescriptor(pr->locale(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyType()), ObjectPropertyDescriptor(pr->type(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), ObjectPropertyDescriptor(Value(pr->minimumIntegerDigits()), ObjectPropertyDescriptor::AllPresent));
 
     if (pr->minimumSignificantDigits()) {
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("minimumSignificantDigits"))), ObjectPropertyDescriptor(Value(pr->minimumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("maximumSignificantDigits"))), ObjectPropertyDescriptor(Value(pr->maximumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), ObjectPropertyDescriptor(Value(pr->minimumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), ObjectPropertyDescriptor(Value(pr->maximumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
     } else {
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("minimumFractionDigits"))), ObjectPropertyDescriptor(Value(pr->minimumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("maximumFractionDigits"))), ObjectPropertyDescriptor(Value(pr->maximumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), ObjectPropertyDescriptor(Value(pr->minimumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), ObjectPropertyDescriptor(Value(pr->maximumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
     }
 
 
@@ -525,7 +522,8 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
         i++;
     } while (true);
 
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("pluralCategories"))), ObjectPropertyDescriptor(pluralCategories, ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(AtomicString(state.context()->atomicStringMap(), "pluralCategories", sizeof("pluralCategories") - 1, String::FromExternalMemory)),
+                                              ObjectPropertyDescriptor(pluralCategories, ObjectPropertyDescriptor::AllPresent));
 
     uenum_close(ue);
     // Return options.
@@ -863,10 +861,10 @@ static Value builtinIntlRelativeTimeFormatResolvedOptions(ExecutionState& state,
     // Let options be ! ObjectCreate(%ObjectPrototype%).
     Object* options = new Object(state);
 
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("locale"))), ObjectPropertyDescriptor(r->locale(), ObjectPropertyDescriptor::AllPresent));
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("style"))), ObjectPropertyDescriptor(r->style(), ObjectPropertyDescriptor::AllPresent));
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("numeric"))), ObjectPropertyDescriptor(r->numeric(), ObjectPropertyDescriptor::AllPresent));
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(String::fromASCII("numberingSystem"))), ObjectPropertyDescriptor(r->numberingSystem(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), ObjectPropertyDescriptor(r->locale(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyStyle()), ObjectPropertyDescriptor(r->style(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().numeric), ObjectPropertyDescriptor(r->numeric(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().numberingSystem), ObjectPropertyDescriptor(r->numberingSystem(), ObjectPropertyDescriptor::AllPresent));
 
     return options;
 }

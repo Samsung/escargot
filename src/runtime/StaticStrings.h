@@ -587,6 +587,104 @@ namespace Escargot {
     F(DotDotDotArgs, "...args")                      \
     F(SuperDotDotDotArgs, "super(...args)")
 
+#if defined(ENABLE_INTL)
+#define FOR_EACH_LAZY_INTL_STATIC_STRING(F)                   \
+    F(Lookup, "lookup")                                       \
+    F(DashU, "-u")                                            \
+    F(LocaleMatcher, "localeMatcher")                         \
+    F(BestFit, "best fit")                                    \
+    F(Literal, "literal")                                     \
+    F(SmallLetterNaN, "nan")                                  \
+    F(SmallLetterInfinity, "infinity")                        \
+    F(Integer, "integer")                                     \
+    F(Group, "group")                                         \
+    F(Decimal, "decimal")                                     \
+    F(Fraction, "fraction")                                   \
+    F(PlusSign, "plusSign")                                   \
+    F(MinusSign, "minusSign")                                 \
+    F(PercentSign, "percentSign")                             \
+    F(Currency, "currency")                                   \
+    F(ExponentSeparator, "exponentSeparator")                 \
+    F(ExponentMinusSign, "exponentMinusSign")                 \
+    F(ExponentInteger, "exponentInteger")                     \
+    F(Unit, "unit")                                           \
+    F(Compact, "compact")                                     \
+    F(H11, "h11")                                             \
+    F(H12, "h12")                                             \
+    F(H23, "h23")                                             \
+    F(H24, "h24")                                             \
+    F(Upper, "upper")                                         \
+    F(Lower, "lower")                                         \
+    F(Cardinal, "cardinal")                                   \
+    F(Ordinal, "ordinal")                                     \
+    F(MinimumIntegerDigits, "minimumIntegerDigits")           \
+    F(MinimumFractionDigits, "minimumFractionDigits")         \
+    F(MaximumFractionDigits, "maximumFractionDigits")         \
+    F(MinimumSignificantDigits, "minimumSignificantDigits")   \
+    F(MaximumSignificantDigits, "maximumSignificantDigits")   \
+    F(Type, "type")                                           \
+    F(Long, "long")                                           \
+    F(Short, "short")                                         \
+    F(Narrow, "narrow")                                       \
+    F(Style, "style")                                         \
+    F(Always, "always")                                       \
+    F(Auto, "auto")                                           \
+    F(InitializedIntlObject, "initializedIntlObject")         \
+    F(InitializedCollator, "initializedCollator")             \
+    F(InitializedDateTimeFormat, "initializedDateTimeFormat") \
+    F(InitializedNumberFormat, "initializedNumberFormat")     \
+    F(CompareFunction, "compareFunction")                     \
+    F(SmallLetterLocale, "locale")                            \
+    F(Usage, "usage")                                         \
+    F(Sensitivity, "sensitivity")                             \
+    F(IgnorePunctuation, "ignorePunctuation")                 \
+    F(Any, "any")                                             \
+    F(Date, "date")                                           \
+    F(Time, "time")                                           \
+    F(Second, "second")                                       \
+    F(Minute, "minute")                                       \
+    F(Hour, "hour")                                           \
+    F(Day, "day")                                             \
+    F(Week, "week")                                           \
+    F(Weekday, "weekday")                                     \
+    F(Month, "month")                                         \
+    F(Quarter, "quarter")                                     \
+    F(Year, "year")                                           \
+    F(Era, "era")                                             \
+    F(DayPeriod, "dayPeriod")                                 \
+    F(Hour12, "hour12")                                       \
+    F(TimeZone, "timeZone")                                   \
+    F(TimeZoneName, "timeZoneName")                           \
+    F(TwoDigit, "2-digit")                                    \
+    F(Basic, "basic")                                         \
+    F(FormatMatcher, "formatMatcher")                         \
+    F(Kn, "kn")                                               \
+    F(Kf, "kf")                                               \
+    F(Base, "base")                                           \
+    F(Accent, "accent")                                       \
+    F(Case, "case")                                           \
+    F(Variant, "variant")                                     \
+    F(DataLocale, "dataLocale")                               \
+    F(Percent, "percent")                                     \
+    F(Code, "code")                                           \
+    F(NarrowSymbol, "narrowSymbol")                           \
+    F(CurrencyDisplay, "currencyDisplay")                     \
+    F(CurrencySign, "currencySign")                           \
+    F(Accounting, "accounting")                               \
+    F(Standard, "standard")                                   \
+    F(UnitDisplay, "unitDisplay")                             \
+    F(Scientific, "scientific")                               \
+    F(Engineering, "engineering")                             \
+    F(Notation, "notation")                                   \
+    F(CompactDisplay, "compactDisplay")                       \
+    F(UseGrouping, "useGrouping")                             \
+    F(Never, "never")                                         \
+    F(ExceptZero, "exceptZero")                               \
+    F(SignDisplay, "signDisplay")
+#else
+#define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
+#endif
+
 class StaticStrings {
 public:
     StaticStrings(AtomicStringMap* atomicStringMap)
@@ -696,6 +794,7 @@ public:
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 
     void initStaticStrings();
@@ -710,6 +809,7 @@ protected:
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString m_lazy##Name;
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 };
 }

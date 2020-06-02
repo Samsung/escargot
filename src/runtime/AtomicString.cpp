@@ -58,6 +58,11 @@ AtomicString::AtomicString(AtomicStringMap* map, const char* src, size_t len)
     init(map, src, len);
 }
 
+AtomicString::AtomicString(AtomicStringMap* map, const char* src, size_t len, String::FromExternalMemoryTag)
+{
+    init(map, src, len, true);
+}
+
 AtomicString::AtomicString(AtomicStringMap* map, const LChar* src, size_t len)
 {
     init(map, src, len);
@@ -116,13 +121,18 @@ public:
     void* operator new[](size_t size) = delete;
 };
 
-void AtomicString::init(AtomicStringMap* map, const char* src, size_t len)
+void AtomicString::init(AtomicStringMap* map, const char* src, size_t len, bool fromExternalMemory)
 {
     ASCIIStringOnStack stringForSearch(src, len);
 
     auto iter = map->find(&stringForSearch);
     if (map->end() == iter) {
-        ASCIIString* newStr = new ASCIIString(src, len);
+        ASCIIString* newStr;
+        if (fromExternalMemory) {
+            newStr = new ASCIIString(src, len, String::FromExternalMemory);
+        } else {
+            newStr = new ASCIIString(src, len);
+        }
         map->insert(newStr);
         m_string = newStr;
         newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
