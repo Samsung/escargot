@@ -69,7 +69,7 @@ bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
         auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
             m_storage[i]->key = nullptr;
-            m_storage[i]->data = SmallValue(nullptr);
+            m_storage[i]->data = EncodedValue(nullptr);
             return true;
         }
     }

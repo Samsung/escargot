@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ScriptArrowFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptArrowFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue)
+    ScriptArrowFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue)
         : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, codeBlock->isGenerator(), codeBlock->isAsync())
         , m_thisValue(thisValue)
     {
@@ -46,13 +46,13 @@ public:
         return false;
     }
 
-    SmallValue thisValue() const
+    Value thisValue() const
     {
         return m_thisValue;
     }
 
 private:
-    SmallValue m_thisValue;
+    EncodedValue m_thisValue;
 };
 }
 

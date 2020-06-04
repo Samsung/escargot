@@ -22,12 +22,12 @@
 
 #include "runtime/ExecutionState.h"
 #include "runtime/Value.h"
-#include "runtime/SmallValue.h"
+#include "runtime/EncodedValue.h"
 
 namespace Escargot {
 
-typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea);
-typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
+typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea);
+typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
 struct ObjectPropertyNativeGetterSetterData : public gc {
     size_t m_presentAttributes;

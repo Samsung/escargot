@@ -20,9 +20,9 @@
 #ifndef __EscargotObject__
 #define __EscargotObject__
 
+#include "runtime/EncodedValue.h"
 #include "runtime/ObjectStructure.h"
 #include "runtime/PointerValue.h"
-#include "runtime/SmallValue.h"
 #include "util/Vector.h"
 #include "util/TightVector.h"
 
@@ -333,8 +333,8 @@ public:
     }
 
 private:
-    SmallValue m_getter;
-    SmallValue m_setter;
+    EncodedValue m_getter;
+    EncodedValue m_setter;
 };
 
 class ObjectPropertyDescriptor {
@@ -1060,9 +1060,13 @@ protected:
     }
     ObjectStructure* m_structure;
     Object* m_prototype;
-    TightVectorWithNoSizeUseGCRealloc<SmallValue> m_values;
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    TightVectorWithNoSize<EncodedSmallValue, CustomAllocator<EncodedSmallValue>> m_values;
+#else
+    TightVectorWithNoSizeUseGCRealloc<EncodedValue> m_values;
+#endif
 
-    COMPILE_ASSERT(sizeof(TightVectorWithNoSize<SmallValue, GCUtil::gc_malloc_allocator<SmallValue>>) == sizeof(size_t) * 1, "");
+    COMPILE_ASSERT(sizeof(TightVectorWithNoSize<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>>) == sizeof(size_t) * 1, "");
 
     ObjectStructure* structure() const
     {
@@ -1103,7 +1107,14 @@ protected:
             m_values[idx] = newValue;
             return true;
         } else {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            EncodedValue t(m_values[idx].payload());
+            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, t, newValue);
+            m_values[idx] = t;
+            return ret;
+#else
             return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, m_values[idx], newValue);
+#endif
         }
     }
 

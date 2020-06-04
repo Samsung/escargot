@@ -19,7 +19,7 @@
 
 #include "Escargot.h"
 #include "EnumerateObject.h"
-#include "runtime/SmallValue.h"
+#include "runtime/EncodedValue.h"
 #include "runtime/ArrayObject.h"
 
 namespace Escargot {
@@ -38,12 +38,12 @@ bool EnumerateObject::checkLastEnumerateKey(ExecutionState& state)
 
 void EnumerateObject::update(ExecutionState& state)
 {
-    SmallValueVector newKeys;
+    EncodedValueVector newKeys;
     executeEnumeration(state, newKeys);
 
     Vector<Value, GCUtil::gc_malloc_allocator<Value>> differenceKeys;
     for (size_t i = 0; i < newKeys.size(); i++) {
-        const SmallValue& key = newKeys[i];
+        const auto& key = newKeys[i];
         // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
         if (std::find(m_keys.begin(), m_keys.begin() + m_index, key) == m_keys.begin() + m_index && std::find(m_keys.begin() + m_index, m_keys.end(), key) != m_keys.end()) {
             // If new properties are added to the object being enumerated during enumeration,
@@ -109,7 +109,7 @@ void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Obje
     }
 }
 
-void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, SmallValueVector& keys)
+void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, EncodedValueVector& keys)
 {
     ASSERT(!!m_object);
 
@@ -121,7 +121,7 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, S
 
     struct Properties {
         std::vector<Value::ValueIndex> indexes;
-        VectorWithInlineStorage<32, SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> strings;
+        VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
         VectorWithInlineStorage<4, Value, GCUtil::gc_malloc_allocator<Value>> symbols;
     } properties;
 
@@ -176,7 +176,7 @@ bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
     return false;
 }
 
-void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, SmallValueVector& keys)
+void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, EncodedValueVector& keys)
 {
     ASSERT(!!m_object);
     m_hiddenClassChain.clear();
@@ -213,7 +213,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Sma
         // TODO sorting properties
         struct EData {
             std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>>* keyStringSet;
-            SmallValueVector* keys;
+            EncodedValueVector* keys;
             Object* obj;
         } eData;
 
@@ -247,7 +247,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Sma
     } else {
         struct Properties {
             std::vector<Value::ValueIndex> indexes;
-            VectorWithInlineStorage<32, SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> strings;
+            VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
         } properties;
 
         m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {

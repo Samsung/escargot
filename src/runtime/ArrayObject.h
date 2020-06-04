@@ -123,7 +123,11 @@ private:
     ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
 
     uint32_t m_arrayLength;
-    SmallValue* m_fastModeData;
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    TightVectorWithNoSize<EncodedSmallValue, CustomAllocator<EncodedSmallValue>> m_fastModeData;
+#else
+    ObjectPropertyValue* m_fastModeData;
+#endif
 };
 
 class ArrayPrototypeObject : public ArrayObject {

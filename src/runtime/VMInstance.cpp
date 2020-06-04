@@ -33,12 +33,12 @@
 
 namespace Escargot {
 
-bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
 }
 
-Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
+Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
     if (privateDataFromObjectPrivateArea.isEmpty()) {
@@ -48,7 +48,7 @@ Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* s
     }
 }
 
-bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isFunctionObject());
     privateDataFromObjectPrivateArea = setterInputData;
@@ -61,13 +61,13 @@ static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterD
 static ObjectPropertyNativeGetterSetterData builtinFunctionPrototypeNativeGetterSetterData(
     false, false, false, &VMInstance::functionPrototypeNativeGetter, &VMInstance::functionPrototypeNativeSetter);
 
-Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
+Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isStringObject());
     return Value(self->asStringObject()->primitiveValue()->length());
 }
 
-bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
 }
@@ -75,7 +75,7 @@ bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, S
 static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
     false, false, false, &VMInstance::stringLengthNativeGetter, &VMInstance::stringLengthNativeSetter);
 
-Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea)
+Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     if (!self->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
@@ -83,7 +83,7 @@ Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* sel
     return self->asRegExpObject()->lastIndex();
 }
 
-bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isRegExpObject());
     self->asRegExpObject()->setLastIndex(state, setterInputData);
@@ -284,7 +284,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     },
                                    nullptr, nullptr, nullptr);
 
-
     pthread_attr_t attr;
     RELEASE_ASSERT(pthread_getattr_np(pthread_self(), &attr) == 0);
 
@@ -344,7 +343,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     PointerValue::g_arrayObjectTag = 0;
     PointerValue::g_arrayPrototypeObjectTag = 0;
     PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
-    PointerValue::g_doubleInSmallValueTag = DoubleInSmallValue(0).getTag();
+    PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
 
 #define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(new ASCIIString("Symbol." #name, sizeof("Symbol." #name) - 1, String::FromExternalMemory));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);

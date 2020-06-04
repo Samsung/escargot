@@ -17,22 +17,37 @@
  *  USA
  */
 
-#ifndef __EscargotSmallValueData__
-#define __EscargotSmallValueData__
+#ifndef __EscargotEncodedValueData__
+#define __EscargotEncodedValueData__
 
 namespace Escargot {
 
-union SmallValueData {
+union EncodedValueData {
     intptr_t payload;
-    SmallValueData()
+    EncodedValueData()
     {
     }
 
-    explicit SmallValueData(void* ptr)
+    explicit EncodedValueData(void* ptr)
         : payload((intptr_t)ptr)
     {
     }
 };
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+union EncodedSmallValueData {
+    uint32_t payload;
+    EncodedSmallValueData()
+    {
+    }
+
+    explicit EncodedSmallValueData(void* ptr)
+        : payload(static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)))
+    {
+        ASSERT((size_t)ptr <= std::numeric_limits<uint32_t>::max());
+    }
+};
+#endif
 }
 
 

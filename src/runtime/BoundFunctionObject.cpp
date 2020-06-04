@@ -20,9 +20,9 @@
 #include "Escargot.h"
 #include "Object.h"
 #include "runtime/Context.h"
-#include "runtime/SmallValue.h"
 #include "runtime/FunctionObject.h"
 #include "BoundFunctionObject.h"
+#include "EncodedValue.h"
 
 namespace Escargot {
 

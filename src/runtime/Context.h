@@ -246,7 +246,7 @@ public:
         return m_globalDeclarativeRecord;
     }
 
-    SmallValueVector* globalDeclarativeStorage()
+    EncodedValueVector* globalDeclarativeStorage()
     {
         return m_globalDeclarativeStorage;
     }
@@ -292,7 +292,7 @@ private:
     Object* m_globalObjectProxy;
     ScriptParser* m_scriptParser;
     IdentifierRecordVector* m_globalDeclarativeRecord;
-    SmallValueVector* m_globalDeclarativeStorage;
+    EncodedValueVector* m_globalDeclarativeStorage;
     GlobalVariableAccessCache* m_globalVariableAccessCache;
     LoadedModuleVector* m_loadedModules;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;

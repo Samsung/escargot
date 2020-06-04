@@ -109,7 +109,7 @@ private:
     struct AsyncGeneratorQueueData {
         PromiseReaction::Capability m_capability; // [[Capability]]
         AsyncGeneratorEnqueueType m_operationType; // [[Completion]]
-        SmallValue m_value; // [[Completion]]
+        EncodedValue m_value; // [[Completion]]
 
         AsyncGeneratorQueueData(const PromiseReaction::Capability& capability,
                                 AsyncGeneratorEnqueueType operationType,

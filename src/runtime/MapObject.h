@@ -31,7 +31,7 @@ class MapObject : public Object {
     friend class MapIteratorObject;
 
 public:
-    typedef TightVector<std::pair<SmallValue, SmallValue>, GCUtil::gc_malloc_allocator<std::pair<SmallValue, SmallValue>>> MapObjectData;
+    typedef TightVector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>> MapObjectData;
 
     explicit MapObject(ExecutionState& state);
     explicit MapObject(ExecutionState& state, Object* proto);
