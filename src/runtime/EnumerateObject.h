@@ -39,7 +39,7 @@ public:
     }
 
     size_t m_index;
-    SmallValueVector m_keys;
+    EncodedValueVector m_keys;
 
 protected:
     EnumerateObject(Object* obj)
@@ -52,7 +52,7 @@ protected:
 
     void update(ExecutionState& state);
 
-    virtual void executeEnumeration(ExecutionState& state, SmallValueVector& keys) = 0;
+    virtual void executeEnumeration(ExecutionState& state, EncodedValueVector& keys) = 0;
     virtual bool checkIfModified(ExecutionState& state) = 0;
 
     Object* m_object;
@@ -76,7 +76,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual void executeEnumeration(ExecutionState& state, SmallValueVector& keys) override;
+    virtual void executeEnumeration(ExecutionState& state, EncodedValueVector& keys) override;
     virtual bool checkIfModified(ExecutionState& state) override;
 
     ObjectStructure* m_hiddenClass;
@@ -96,7 +96,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual void executeEnumeration(ExecutionState& state, SmallValueVector& keys) override;
+    virtual void executeEnumeration(ExecutionState& state, EncodedValueVector& keys) override;
     virtual bool checkIfModified(ExecutionState& state) override;
 
     Vector<ObjectStructure*, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_hiddenClassChain;

@@ -49,7 +49,7 @@ class PromiseObject;
 class ProxyObject;
 class ArrayBufferObject;
 class ArrayBufferView;
-class DoubleInSmallValue;
+class DoubleInEncodedValue;
 class JSGetterSetter;
 class IteratorRecord;
 class IteratorObject;
@@ -92,7 +92,7 @@ class PointerValue : public gc {
     static size_t g_arrayObjectTag;
     static size_t g_arrayPrototypeObjectTag;
     static size_t g_objectRareDataTag;
-    static size_t g_doubleInSmallValueTag;
+    static size_t g_doubleInEncodedValueTag;
 
 public:
     virtual ~PointerValue() {}
@@ -127,9 +127,9 @@ public:
         return hasTag(g_objectRareDataTag);
     }
 
-    inline bool isDoubleInSmallValue() const
+    inline bool isDoubleInEncodedValue() const
     {
-        return hasTag(g_doubleInSmallValueTag);
+        return hasTag(g_doubleInEncodedValueTag);
     }
 
     // type check by virtual function call
@@ -543,10 +543,10 @@ public:
         return (ArrayBufferView*)this;
     }
 
-    DoubleInSmallValue* asDoubleInSmallValue()
+    DoubleInEncodedValue* asDoubleInEncodedValue()
     {
-        ASSERT(isDoubleInSmallValue());
-        return (DoubleInSmallValue*)this;
+        ASSERT(isDoubleInEncodedValue());
+        return (DoubleInEncodedValue*)this;
     }
 
     JSGetterSetter* asJSGetterSetter()

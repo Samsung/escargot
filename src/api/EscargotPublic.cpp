@@ -117,36 +117,36 @@ DEFINE_CAST(WeakMapObject);
 inline ValueRef* toRef(const Value& v)
 {
     ASSERT(!v.isEmpty());
-    return reinterpret_cast<ValueRef*>(SmallValue(v).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(v).payload());
 }
 
 inline Value toImpl(const ValueRef* v)
 {
     ASSERT(v);
-    return Value(SmallValue::fromPayload(v));
+    return Value(EncodedValue::fromPayload(v));
 }
 
 inline OptionalRef<ValueRef> toOptionalValue(const Value& v)
 {
-    return OptionalRef<ValueRef>(reinterpret_cast<ValueRef*>(SmallValue(v).payload()));
+    return OptionalRef<ValueRef>(reinterpret_cast<ValueRef*>(EncodedValue(v).payload()));
 }
 
 inline Value toImpl(const OptionalRef<ValueRef>& v)
 {
     if (LIKELY(v.hasValue())) {
-        return Value(SmallValue::fromPayload(v.value()));
+        return Value(EncodedValue::fromPayload(v.value()));
     }
     return Value(Value::EmptyValue);
 }
 
-inline ValueVectorRef* toRef(const SmallValueVector* v)
+inline ValueVectorRef* toRef(const EncodedValueVector* v)
 {
-    return reinterpret_cast<ValueVectorRef*>(const_cast<SmallValueVector*>(v));
+    return reinterpret_cast<ValueVectorRef*>(const_cast<EncodedValueVector*>(v));
 }
 
-inline SmallValueVector* toImpl(ValueVectorRef* v)
+inline EncodedValueVector* toImpl(ValueVectorRef* v)
 {
-    return reinterpret_cast<SmallValueVector*>(v);
+    return reinterpret_cast<EncodedValueVector*>(v);
 }
 
 inline AtomicStringRef* toRef(const AtomicString& v)
@@ -242,8 +242,8 @@ void Memory::setGCEventListener(OnGCEventListener l)
     GC_add_event_callback(gcEventListener, nullptr);
 }
 
-// I store ref count as SmallValue. this can prevent what bdwgc can see ref count as address (SmallValue store integer value as odd)
-using PersistentValueRefMapImpl = std::unordered_map<ValueRef*, SmallValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef* const, SmallValue>>>;
+// I store ref count as EncodedValue. this can prevent what bdwgc can see ref count as address (EncodedValue store integer value as odd)
+using PersistentValueRefMapImpl = std::unordered_map<ValueRef*, EncodedValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef* const, EncodedValue>>>;
 
 PersistentRefHolder<PersistentValueRefMap> PersistentValueRefMap::create()
 {
@@ -252,7 +252,7 @@ PersistentRefHolder<PersistentValueRefMap> PersistentValueRefMap::create()
 
 uint32_t PersistentValueRefMap::add(ValueRef* ptr)
 {
-    auto value = SmallValue::fromPayload(ptr);
+    auto value = EncodedValue::fromPayload(ptr);
     if (!value.isStoredInHeap()) {
         return 0;
     }
@@ -260,17 +260,17 @@ uint32_t PersistentValueRefMap::add(ValueRef* ptr)
     PersistentValueRefMapImpl* self = (PersistentValueRefMapImpl*)this;
     auto iter = self->find(ptr);
     if (iter == self->end()) {
-        self->insert(std::make_pair(ptr, SmallValue(1)));
+        self->insert(std::make_pair(ptr, EncodedValue(1)));
         return 1;
     } else {
-        iter->second = SmallValue(iter->second.asUint32() + 1);
+        iter->second = EncodedValue(iter->second.asUint32() + 1);
         return iter->second.asUint32();
     }
 }
 
 uint32_t PersistentValueRefMap::remove(ValueRef* ptr)
 {
-    auto value = SmallValue::fromPayload(ptr);
+    auto value = EncodedValue::fromPayload(ptr);
     if (!value.isStoredInHeap()) {
         return 0;
     }
@@ -284,7 +284,7 @@ uint32_t PersistentValueRefMap::remove(ValueRef* ptr)
             self->erase(iter);
             return 0;
         } else {
-            iter->second = SmallValue(iter->second.asUint32() - 1);
+            iter->second = EncodedValue(iter->second.asUint32() - 1);
             return iter->second.asUint32();
         }
     }
@@ -769,7 +769,7 @@ PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, 
 
 PlatformRef* VMInstanceRef::platform()
 {
-    return ((PlatformBridge*)toImpl(this))->m_platform;
+    return ((PlatformBridge*)toImpl(this)->platform())->m_platform;
 }
 
 void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
@@ -857,7 +857,7 @@ ScriptParserRef* ContextRef::scriptParser()
 
 ValueVectorRef* ValueVectorRef::create(size_t size)
 {
-    return toRef(new SmallValueVector(size));
+    return toRef(new EncodedValueVector(size));
 }
 
 size_t ValueVectorRef::size()
@@ -867,12 +867,12 @@ size_t ValueVectorRef::size()
 
 void ValueVectorRef::pushBack(ValueRef* val)
 {
-    toImpl(this)->pushBack(SmallValue::fromPayload(val));
+    toImpl(this)->pushBack(EncodedValueVectorElement::fromPayload(val));
 }
 
 void ValueVectorRef::insert(size_t pos, ValueRef* val)
 {
-    toImpl(this)->insert(pos, SmallValue::fromPayload(val));
+    toImpl(this)->insert(pos, EncodedValueVectorElement::fromPayload(val));
 }
 
 void ValueVectorRef::erase(size_t pos)
@@ -892,7 +892,7 @@ ValueRef* ValueVectorRef::at(const size_t idx)
 
 void ValueVectorRef::set(const size_t idx, ValueRef* newValue)
 {
-    toImpl(this)->data()[idx] = SmallValue::fromPayload(newValue);
+    toImpl(this)->data()[idx] = EncodedValueVectorElement::fromPayload(newValue);
 }
 
 void ValueVectorRef::resize(size_t newSize)
@@ -1069,7 +1069,7 @@ bool ObjectRef::defineAccessorProperty(ExecutionStateRef* state, ValueRef* prope
 
 bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, NativeDataAccessorPropertyData* publicData)
 {
-    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const SmallValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
         NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
         return toImpl(publicData->m_getter(toRef(&state), toRef(self), publicData));
     },
@@ -1078,11 +1078,11 @@ bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, Value
     if (!publicData->m_isWritable) {
         innerData->m_setter = nullptr;
     } else if (publicData->m_isWritable && !publicData->m_setter) {
-        innerData->m_setter = [](ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+        innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
             return false;
         };
     } else {
-        innerData->m_setter = [](ExecutionState& state, Object* self, SmallValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+        innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
             NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
             // ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData
             return publicData->m_setter(toRef(&state), toRef(self), publicData, toRef(setterInputData));
@@ -1826,58 +1826,58 @@ OptionalRef<ExecutionStateRef> ExecutionStateRef::parent()
 
 ValueRef* ValueRef::create(bool value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(int value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(unsigned value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(float value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(double value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(long value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(unsigned long value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(long long value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::create(unsigned long long value)
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
 }
 
 ValueRef* ValueRef::createNull()
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Null))
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Null))
                                            .payload());
 }
 
 ValueRef* ValueRef::createUndefined()
 {
-    return reinterpret_cast<ValueRef*>(SmallValue(Value(Value::Undefined))
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Undefined))
                                            .payload());
 }
 
@@ -1888,7 +1888,7 @@ bool ValueRef::isBoolean()
 
 bool ValueRef::isStoreInHeap()
 {
-    auto value = SmallValue::fromPayload(this);
+    auto value = EncodedValue::fromPayload(this);
     if (value.isStoredInHeap()) {
         return true;
     }
@@ -2008,7 +2008,7 @@ ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 
 uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
 {
-    SmallValue s = SmallValue::fromPayload(this);
+    EncodedValue s = EncodedValue::fromPayload(this);
     if (LIKELY(s.isInt32())) {
         return s.asInt32();
     } else {

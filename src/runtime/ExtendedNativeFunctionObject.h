@@ -42,7 +42,7 @@ public:
         internalSlots()[idx] = value;
     }
 
-    SmallValue& getInternalSlot(const size_t idx)
+    EncodedValue& getInternalSlot(const size_t idx)
     {
         ASSERT(idx < slotCount());
         return internalSlots()[idx];
@@ -52,7 +52,7 @@ protected:
 #ifndef NDEBUG
     virtual size_t slotCount() const = 0;
 #endif
-    virtual SmallValue* internalSlots() = 0;
+    virtual EncodedValue* internalSlots() = 0;
 };
 
 template <const size_t slotNumber>
@@ -67,7 +67,7 @@ public:
     }
 
 protected:
-    virtual SmallValue* internalSlots() override
+    virtual EncodedValue* internalSlots() override
     {
         return m_values;
     }
@@ -80,7 +80,7 @@ protected:
 
     size_t m_slotCount;
 #endif
-    SmallValue m_values[slotNumber];
+    EncodedValue m_values[slotNumber];
 };
 }
 

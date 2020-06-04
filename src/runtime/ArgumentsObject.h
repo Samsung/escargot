@@ -64,7 +64,7 @@ public:
 private:
     FunctionEnvironmentRecord* m_targetRecord;
     ScriptFunctionObject* m_sourceFunctionObject;
-    TightVectorWithNoSize<std::pair<SmallValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<SmallValue, AtomicString>>> m_parameterMap;
+    TightVectorWithNoSize<std::pair<EncodedValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, AtomicString>>> m_parameterMap;
 
     struct ModifiedArguments : public gc {
         StorePositiveIntergerAsOdd m_argc;

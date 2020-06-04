@@ -159,10 +159,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                    registerFile[code->m_registerIndex] = *((SmallValue*)slot->m_cachedAddress);
+                    registerFile[code->m_registerIndex] = *((ObjectPropertyValue*)slot->m_cachedAddress);
                     isCacheWork = true;
                 } else if (slot->m_cachedStructure == nullptr) {
-                    const SmallValue& val = ctx->globalDeclarativeStorage()->at(idx);
+                    const EncodedValueVectorElement& val = ctx->globalDeclarativeStorage()->at(idx);
                     isCacheWork = true;
                     if (UNLIKELY(val.isEmpty())) {
                         ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
@@ -192,7 +192,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                    *((SmallValue*)slot->m_cachedAddress) = registerFile[code->m_registerIndex];
+                    *((ObjectPropertyValue*)slot->m_cachedAddress) = registerFile[code->m_registerIndex];
                     isCacheWork = true;
                 } else if (slot->m_cachedStructure == nullptr) {
                     isCacheWork = true;
@@ -2074,7 +2074,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
         slot->m_cachedAddress = &go->m_values.data()[findResult.first];
         slot->m_cachedStructure = go->structure();
         slot->m_lexicalIndexCache = siz;
-        return *((SmallValue*)slot->m_cachedAddress);
+        return *((ObjectPropertyValue*)slot->m_cachedAddress);
     }
 }
 

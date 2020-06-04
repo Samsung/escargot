@@ -60,24 +60,61 @@ int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
     arr[2].from = (GC_word*)&current->m_values;
     arr[2].to = (GC_word*)current->m_values.data();
     arr[3].from = (GC_word*)&current->m_fastModeData;
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    arr[3].to = (GC_word*)current->m_fastModeData.data();
+#else
     arr[3].to = (GC_word*)current->m_fastModeData;
+#endif
     return 0;
 }
 
-GC_word* getNextValidInValueVector(GC_word* ptr, GC_word** next_ptr)
+void getNextValidInValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
-    Value* current = (Value*)ptr;
+    while (ptr < end) {
+        Value* current = (Value*)ptr;
+        if (current->isPointerValue()) {
 #ifdef ESCARGOT_32
-    *next_ptr = ptr + 2;
+            *next_ptr = ptr + 2;
 #else
-    *next_ptr = ptr + 1;
+            *next_ptr = ptr + 1;
 #endif
-    GC_word* ret = NULL;
-    if (current->isPointerValue()) {
-        ret = (GC_word*)current->asPointerValue();
+            *from = ptr;
+            *to = (GC_word*)current->asPointerValue();
+            return;
+        }
+#ifdef ESCARGOT_32
+        ptr = ptr + 2;
+#else
+        ptr = ptr + 1;
+#endif
     }
-    return ret;
+
+    *next_ptr = end;
+    *from = NULL;
+    *to = NULL;
 }
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
+{
+    while (ptr < end) {
+        EncodedSmallValue* current = (EncodedSmallValue*)ptr;
+        const auto& payload = current->payload();
+        if (payload > ValueLast && ((payload & 1) == 0)) {
+            *next_ptr = (GC_word*)((size_t)ptr + 4);
+            *from = ptr;
+            *to = reinterpret_cast<GC_word*>(payload);
+            return;
+        }
+
+        ptr = (GC_word*)((size_t)ptr + 4);
+    }
+
+    *next_ptr = end;
+    *from = NULL;
+    *to = NULL;
+}
+#endif
 
 int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
 {
@@ -129,12 +166,12 @@ int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
     return 0;
 }
 
-GC_word* getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word** next_ptr)
+void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
     GetObjectInlineCacheData* current = (GetObjectInlineCacheData*)ptr;
     *next_ptr = (GC_word*)((size_t)ptr + sizeof(GetObjectInlineCacheData));
-    GC_word* ret = (GC_word*)current->m_cachedhiddenClassChain;
-    return ret;
+    *from = (GC_word*)&current->m_cachedhiddenClassChain;
+    *to = (GC_word*)current->m_cachedhiddenClassChain;
 }
 
 void initializeCustomAllocators()
@@ -147,6 +184,12 @@ void initializeCustomAllocators()
                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInValueVector>), 0),
                                                              FALSE,
                                                              TRUE);
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind(GC_new_free_list(),
+                                                                         GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInEncodedSmallValueVector>), 0),
+                                                                         FALSE,
+                                                                         TRUE);
+#endif
 #ifdef NDEBUG
     GC_word objBitmap[GC_BITMAP_SIZE(ArrayObject)] = { 0 };
     GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_structure));
@@ -225,6 +268,21 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
     ret = (Value*)GC_GENERIC_MALLOC(size, kind);
     return ret;
 }
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+template <>
+EncodedSmallValue* CustomAllocator<EncodedSmallValue>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (Value*)GC_MALLOC(sizeof(Value) * GC_n);
+    int kind = s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind];
+    size_t size = sizeof(EncodedSmallValue) * GC_n;
+
+    EncodedSmallValue* ret;
+    ret = (EncodedSmallValue*)GC_GENERIC_MALLOC(size, kind);
+    return ret;
+}
+#endif
 
 template <>
 ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)

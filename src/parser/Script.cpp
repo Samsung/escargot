@@ -705,7 +705,7 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
     // If module.[[Status]] is "evaluated", then
     if (md->m_status == ModuleData::Evaluated) {
         // If module.[[EvaluationError]] is undefined, return index.
-        if (md->m_evaluationError == SmallValue()) {
+        if (md->m_evaluationError == EncodedValue()) {
             return Script::ModuleExecutionResult(false, Value(index));
         }
         // Otherwise return module.[[EvaluationError]].

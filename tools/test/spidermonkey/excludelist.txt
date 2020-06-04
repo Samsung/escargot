@@ -5,6 +5,10 @@ test/fixtures
 # test driver is weird. we run the script properly but test driver says fail
 non262/module/await-restricted-nested.js
 
+# TOO SLOW
+non262/extensions/regress-367501-03.js
+non262/extensions/regress-367501-04.js
+
 # Skip, These are dependent on implementation or not standard.
 non262/Array/from-iterator-close.js
 non262/Array/from_primitive.js

@@ -19,8 +19,9 @@
 
 #include "Escargot.h"
 #include "EnvironmentRecord.h"
+
 #include "runtime/Value.h"
-#include "runtime/SmallValue.h"
+#include "runtime/EncodedValue.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/ModuleNamespaceObject.h"
@@ -28,7 +29,7 @@
 
 namespace Escargot {
 
-GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, SmallValueVector* globalDeclarativeStorage)
+GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, EncodedValueVector* globalDeclarativeStorage)
     : EnvironmentRecord()
     , m_globalCodeBlock(codeBlock)
     , m_globalObject(global)
@@ -82,7 +83,7 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
         r.m_name = name;
 
         m_globalDeclarativeRecord->push_back(r);
-        m_globalDeclarativeStorage->push_back(SmallValue(SmallValue::EmptyValue));
+        m_globalDeclarativeStorage->push_back(EncodedValueVectorElement(EncodedValueVectorElement::EmptyValue));
     }
 }
 

@@ -27,7 +27,7 @@ namespace Escargot {
 size_t PointerValue::g_arrayObjectTag;
 size_t PointerValue::g_arrayPrototypeObjectTag;
 size_t PointerValue::g_objectRareDataTag;
-size_t PointerValue::g_doubleInSmallValueTag;
+size_t PointerValue::g_doubleInEncodedValueTag;
 
 Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {

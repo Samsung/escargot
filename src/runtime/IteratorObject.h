@@ -33,7 +33,7 @@ class IteratorObject;
 class IteratorRecord : public PointerValue {
 public:
     Object* m_iterator;
-    SmallValue m_nextMethod;
+    EncodedValue m_nextMethod;
     bool m_done;
 
     virtual bool isIteratorRecord() const override
@@ -41,7 +41,7 @@ public:
         return true;
     }
 
-    IteratorRecord(Object* iterator, SmallValue nextMethod, bool done)
+    IteratorRecord(Object* iterator, EncodedValue nextMethod, bool done)
         : m_iterator(iterator)
         , m_nextMethod(nextMethod)
         , m_done(done)

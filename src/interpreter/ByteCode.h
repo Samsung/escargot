@@ -23,9 +23,9 @@
 #include "interpreter/ByteCodeGenerator.h"
 #include "parser/CodeBlock.h"
 #include "parser/ast/Node.h"
-#include "runtime/SmallValue.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
+#include "runtime/EncodedValue.h"
 #include "runtime/ExecutionPauser.h"
 
 namespace Escargot {

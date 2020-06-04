@@ -58,8 +58,8 @@ private:
     virtual Object* construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget) override;
 
     Object* m_boundTargetFunction;
-    SmallValue m_boundThis;
-    SmallValueVector m_boundArguments;
+    EncodedValue m_boundThis;
+    EncodedValueVector m_boundArguments;
 };
 }
 

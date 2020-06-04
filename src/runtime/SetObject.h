@@ -31,7 +31,7 @@ class SetObject : public Object {
     friend class SetIteratorObject;
 
 public:
-    typedef TightVector<SmallValue, GCUtil::gc_malloc_allocator<SmallValue>> SetObjectData;
+    typedef TightVector<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> SetObjectData;
 
     explicit SetObject(ExecutionState& state);
     explicit SetObject(ExecutionState& state, Object* proto);

@@ -145,7 +145,7 @@ public:
 
 private:
     PromiseState m_state;
-    SmallValue m_promiseResult;
+    EncodedValue m_promiseResult;
     Reactions m_fulfillReactions;
     Reactions m_rejectReactions;
 };

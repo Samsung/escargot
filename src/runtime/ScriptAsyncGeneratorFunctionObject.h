@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ScriptAsyncGeneratorFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptAsyncGeneratorFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, SmallValue thisValue = SmallValue(SmallValue::EmptyValue), Object* homeObject = nullptr)
+    ScriptAsyncGeneratorFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue = EncodedValue(EncodedValue::EmptyValue), Object* homeObject = nullptr)
         : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, true, true)
         , m_thisValue(thisValue)
         , m_homeObject(homeObject)
@@ -43,7 +43,7 @@ public:
         return false;
     }
 
-    SmallValue thisValue() const
+    EncodedValue thisValue() const
     {
         return m_thisValue;
     }
@@ -62,7 +62,7 @@ public:
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
 private:
-    SmallValue m_thisValue;
+    EncodedValue m_thisValue;
     Object* m_homeObject;
 };
 }

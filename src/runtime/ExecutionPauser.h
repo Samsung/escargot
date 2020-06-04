@@ -65,7 +65,7 @@ public:
         m_executionState = nullptr;
         m_registerFile = nullptr;
         m_byteCodeBlock = nullptr;
-        m_resumeValue = SmallValue();
+        m_resumeValue = EncodedValue();
         m_promiseCapability.m_promise = nullptr;
         m_promiseCapability.m_resolveFunction = nullptr;
         m_promiseCapability.m_rejectFunction = nullptr;
@@ -96,7 +96,7 @@ private:
     size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
     size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
-    SmallValue m_resumeValue;
+    EncodedValue m_resumeValue;
     ByteCodeRegisterIndex m_resumeValueIndex;
     ByteCodeRegisterIndex m_resumeStateIndex;
     PromiseReaction::Capability m_promiseCapability; // async function needs this

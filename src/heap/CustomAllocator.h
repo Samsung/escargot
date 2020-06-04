@@ -49,6 +49,9 @@ class ExecutionState;
 
 enum HeapObjectKind : unsigned {
     ValueVectorKind = 0,
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    EncodedSmallValueVectorKind,
+#endif
     ArrayObjectKind,
     CodeBlockKind,
     InterpretedCodeBlockKind,
@@ -102,6 +105,11 @@ public:
     GC_Tp* allocate(size_type GC_n, const void* = 0);
 
     // __p is not permitted to be a null pointer.
+    void deallocate(pointer __p)
+    {
+        GC_FREE(__p);
+    }
+
     void deallocate(pointer __p, size_type)
     {
         GC_FREE(__p);

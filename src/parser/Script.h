@@ -96,7 +96,7 @@ public:
         // [[Status]]
         ModuleStatus m_status;
         // [[EvaluationError]]
-        SmallValue m_evaluationError;
+        EncodedValue m_evaluationError;
         // [[DFSIndex]]
         Optional<uint32_t> m_dfsIndex;
         // [[DFSAncestorIndex]]

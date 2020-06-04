@@ -291,7 +291,7 @@ class GlobalEnvironmentRecord : public EnvironmentRecord {
     friend class Debugger;
 #endif /* ESCARGOT_DEBUGGER */
 public:
-    GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, SmallValueVector* globalDeclarativeStorage);
+    GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, EncodedValueVector* globalDeclarativeStorage);
     ~GlobalEnvironmentRecord() {}
     virtual bool isGlobalEnvironmentRecord() override
     {
@@ -325,7 +325,7 @@ private:
     InterpretedCodeBlock* m_globalCodeBlock;
     GlobalObject* m_globalObject;
     IdentifierRecordVector* m_globalDeclarativeRecord;
-    SmallValueVector* m_globalDeclarativeStorage;
+    EncodedValueVector* m_globalDeclarativeStorage;
 };
 
 class DeclarativeEnvironmentRecordNotIndexed;
@@ -408,7 +408,7 @@ public:
                 cnt++;
             }
         }
-        m_heapStorage.resize(cnt, SmallValue(Value(Value::EmptyValue)));
+        m_heapStorage.resize(cnt, EncodedValueVectorElement(EncodedValueVectorElement::EmptyValue));
     }
 
     ~DeclarativeEnvironmentRecordIndexed()
@@ -543,7 +543,7 @@ public:
 
 private:
     InterpretedCodeBlock::BlockInfo* m_blockInfo;
-    SmallValueVector m_heapStorage;
+    EncodedValueVector m_heapStorage;
 };
 
 // NOTE
@@ -619,7 +619,7 @@ public:
 private:
     bool m_isVarDeclarationTarget : 1;
     bool m_isCatchClause : 1;
-    SmallValueVector m_heapStorage;
+    EncodedValueVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 
@@ -652,10 +652,10 @@ struct FunctionEnvironmentRecordPiece<false, false> {
 
 template <>
 struct FunctionEnvironmentRecordPiece<true, false> {
-    SmallValue m_thisValue;
+    EncodedValue m_thisValue;
 
     FunctionEnvironmentRecordPiece()
-        : m_thisValue(SmallValue::EmptyValue)
+        : m_thisValue(EncodedValue::EmptyValue)
     {
     }
 
@@ -721,11 +721,11 @@ struct FunctionEnvironmentRecordPiece<false, true> {
 template <>
 struct FunctionEnvironmentRecordPiece<true, true> {
     Object* m_newTarget;
-    SmallValue m_thisValue;
+    EncodedValue m_thisValue;
 
     FunctionEnvironmentRecordPiece()
         : m_newTarget(nullptr)
-        , m_thisValue(SmallValue::EmptyValue)
+        , m_thisValue(EncodedValue::EmptyValue)
     {
     }
 
@@ -792,7 +792,7 @@ public:
         return false;
     }
 
-    virtual SmallValueTightVector& heapStorage()
+    virtual EncodedValueTightVector& heapStorage()
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -1015,13 +1015,13 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    SmallValueTightVector& heapStorage() override
+    EncodedValueTightVector& heapStorage() override
     {
         return m_heapStorage;
     }
 
 private:
-    SmallValueTightVector m_heapStorage;
+    EncodedValueTightVector m_heapStorage;
 };
 
 template <bool canBindThisValue, bool hasNewTarget>
@@ -1092,7 +1092,7 @@ public:
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
 private:
-    SmallValueTightVector m_heapStorage;
+    EncodedValueTightVector m_heapStorage;
     IdentifierRecordVector m_recordVector;
 };
 
@@ -1115,7 +1115,7 @@ public:
         bool m_isMutable;
         bool m_isVarDeclaration;
         AtomicString m_localName;
-        SmallValue m_value;
+        EncodedValue m_value;
         ModuleEnvironmentRecord* m_targetRecord;
         AtomicString m_targetBindingName;
     };

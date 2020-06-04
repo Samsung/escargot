@@ -28,7 +28,7 @@ class WeakMapObject : public Object {
 public:
     struct WeakMapObjectDataItem : public gc {
         Object* key;
-        SmallValue data;
+        EncodedValue data;
 
         void* operator new(size_t size);
         void* operator new[](size_t size) = delete;
