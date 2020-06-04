@@ -90,6 +90,10 @@ private:
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_registerFile));
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_byteCodeBlock));
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_resumeValue));
+        GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_promise));
+        GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_resolveFunction));
+        GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_rejectFunction));
+        GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_asyncGeneratorQueue));
     }
 
     friend Value asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, AsyncGeneratorObject::AsyncGeneratorEnqueueType type, const Value& value);

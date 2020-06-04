@@ -67,8 +67,8 @@ public:
         m_byteCodeBlock = nullptr;
         m_resumeValue = SmallValue();
         m_promiseCapability.m_promise = nullptr;
-        m_promiseCapability.m_rejectFunction = nullptr;
         m_promiseCapability.m_resolveFunction = nullptr;
+        m_promiseCapability.m_rejectFunction = nullptr;
     }
 
     enum StartFrom {

@@ -48,8 +48,8 @@ void* ExecutionPauser::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_byteCodeBlock));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_resumeValue));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_promise));
-        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_rejectFunction));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_resolveFunction));
+        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_rejectFunction));
         descr = GC_make_descriptor(desc, GC_WORD_LEN(ExecutionPauser));
         typeInited = true;
     }
