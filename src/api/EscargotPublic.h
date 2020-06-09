@@ -574,6 +574,7 @@ public:
 
     GlobalObjectRef* globalObject();
     ObjectRef* globalObjectProxy();
+    // this setter try to update `globalThis` value on GlobalObject
     void setGlobalObjectProxy(ObjectRef* newGlobalObjectProxy);
 
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(

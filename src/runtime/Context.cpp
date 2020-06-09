@@ -101,6 +101,21 @@ void Context::throwException(ExecutionState& state, const Value& exception)
     }
 }
 
+void Context::setGlobalObjectProxy(Object* newGlobalObjectProxy)
+{
+    m_globalObjectProxy = newGlobalObjectProxy;
+
+    // this setter try to update `globalThis` value on GlobalObject
+    SandBox sb(this);
+    sb.run([](ExecutionState& state, void* data) -> Value {
+        Object* newGlobalObjectProxy = (Object*)data;
+        state.context()->globalObject()->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().globalThis),
+                                                           ObjectPropertyDescriptor(newGlobalObjectProxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+        return Value();
+    },
+           newGlobalObjectProxy);
+}
+
 #ifdef ESCARGOT_DEBUGGER
 
 bool Context::initDebugger(const char* options)
