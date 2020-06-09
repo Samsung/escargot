@@ -1580,8 +1580,6 @@
     <test id="built-ins/WeakRef/returns-new-object-from-constructor"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/target-not-object-throws"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/undefined-newtarget-throws"><reason>TODO</reason></test>
-    <test id="built-ins/global/global-object"><reason>TODO</reason></test>
-    <test id="built-ins/global/property-descriptor"><reason>TODO</reason></test>
     <test id="harness/deepEqual-primitives-bigint"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/builtin"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/de-DE"><reason>TODO</reason></test>

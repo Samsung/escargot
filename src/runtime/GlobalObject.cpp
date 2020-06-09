@@ -1161,6 +1161,12 @@ void GlobalObject::installOthers(ExecutionState& state)
 
     m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
     m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
+
+    // https://tc39.es/ecma262/#sec-globalthis
+    // The initial value of globalThis is the well-known intrinsic object %GlobalThisValue%.
+    // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
+    defineOwnProperty(state, ObjectPropertyName(strings->globalThis),
+                      ObjectPropertyDescriptor(this, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 
 } // namespace Escargot

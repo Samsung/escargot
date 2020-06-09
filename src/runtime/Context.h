@@ -206,10 +206,8 @@ public:
         return m_globalObjectProxy;
     }
 
-    void setGlobalObjectProxy(Object* newGlobalObjectProxy)
-    {
-        m_globalObjectProxy = newGlobalObjectProxy;
-    }
+    // this setter try to update `globalThis` value on GlobalObject
+    void setGlobalObjectProxy(Object* newGlobalObjectProxy);
 
     ToStringRecursionPreventer* toStringRecursionPreventer()
     {
