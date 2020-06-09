@@ -1299,11 +1299,9 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
     uint64_t index = 0;
     //8. Repeat while index < len
     while (index < len) {
-        // a. Let indexName be ToString(index).
-        auto indexName = Value(index).toString(state);
         // b. Let next be Get(obj, indexName).
         // c. ReturnIfAbrupt(next).
-        auto next = o->get(state, ObjectPropertyName(state, indexName)).value(state, o);
+        Value next = o->getIndexedProperty(state, Value(index)).value(state, o);
 
         // d. If Type(next) is not an element of elementTypes, throw a TypeError exception.
         if (!(((elementTypes & (uint8_t)ElementTypes::Undefined) && next.isUndefined()) || ((elementTypes & (uint8_t)ElementTypes::Null) && next.isNull()) || ((elementTypes & (uint8_t)ElementTypes::Boolean) && next.isBoolean()) || ((elementTypes & (uint8_t)ElementTypes::String) && next.isString()) || ((elementTypes & (uint8_t)ElementTypes::Symbol) && next.isSymbol()) || ((elementTypes & (uint8_t)ElementTypes::Number) && next.isNumber()) || ((elementTypes & (uint8_t)ElementTypes::Object) && next.isObject()))) {
