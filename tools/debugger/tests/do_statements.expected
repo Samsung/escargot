@@ -1,0 +1,51 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_statements.js:61
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:21 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:22 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:23 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:24 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:28 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:31 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:34 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:35 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:35 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:35 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:35 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:38 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:39 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:39 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:43 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:45 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:48 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:49 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:52 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:53 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:56 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:57 (in f() at line:20, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_statements.js:59 (in f() at line:20, col:1)
+(escargot-debugger) s
+Connection closed.
