@@ -3541,6 +3541,7 @@ public:
         bool allowFunctionDeclaration = !this->context->strict;
 
         this->expectKeyword(IfKeyword);
+        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
 
         test = this->parseExpression(builder);
@@ -3564,7 +3565,7 @@ public:
 
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
-        return this->finalize(this->createNode(), builder.createIfStatementNode(test, consequent, alternate));
+        return this->finalize(node, builder.createIfStatementNode(test, consequent, alternate));
     }
 
     // ECMA-262 13.7.2 The do-while Statement
@@ -3573,6 +3574,7 @@ public:
     ASTNode parseDoWhileStatement(ASTBuilder& builder)
     {
         this->expectKeyword(DoKeyword);
+        MetaNode node = this->createNode();
 
         bool previousInIteration = this->context->inIteration;
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
@@ -3592,7 +3594,7 @@ public:
             this->nextToken();
         }
 
-        return this->finalize(this->createNode(), builder.createDoWhileStatementNode(test, body));
+        return this->finalize(node, builder.createDoWhileStatementNode(test, body));
     }
 
     // ECMA-262 13.7.3 The while Statement
@@ -3606,7 +3608,9 @@ public:
         this->context->inLoop = true;
 
         this->expectKeyword(WhileKeyword);
+        MetaNode node = this->createNode();
         this->expect(LeftParenthesis);
+
         ASTNode test = this->parseExpression(builder);
         this->expect(RightParenthesis);
 
@@ -3617,7 +3621,7 @@ public:
         this->context->inLoop = prevInLoop;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
-        return this->finalize(this->createNode(), builder.createWhileStatementNode(test, body));
+        return this->finalize(node, builder.createWhileStatementNode(test, body));
     }
 
     // ECMA-262 13.7.4 The for Statement
@@ -3643,6 +3647,7 @@ public:
         bool seenAwait = false;
 
         this->expectKeyword(ForKeyword);
+        MetaNode node = this->createNode();
 
         if (this->context->await) {
             seenAwait = this->matchContextualKeyword("await");
@@ -3877,8 +3882,6 @@ public:
 
         closeBlock(iterationBlockContext);
         closeBlock(headBlockContext);
-
-        MetaNode node = this->createNode();
 
         if (type == statementTypeFor) {
             ASTNode forNode = builder.createForStatementNode(init, test, update, body, isLexicalDeclaration, headBlockContext.childLexicalBlockIndex, iterationBlockContext.childLexicalBlockIndex);
@@ -4174,8 +4177,8 @@ public:
     template <class ASTBuilder>
     ASTNode parseThrowStatement(ASTBuilder& builder)
     {
-        auto metaNode = this->createNode();
         this->expectKeyword(ThrowKeyword);
+        auto metaNode = this->createNode();
 
         if (this->hasLineTerminator) {
             this->throwError(Messages::NewlineAfterThrow);
@@ -5908,7 +5911,6 @@ public:
 
     ProgramNode* parseProgram(NodeGenerator& builder)
     {
-        MetaNode startNode = this->createNode();
         pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
 
         ParserBlockContext blockContext;
@@ -5931,7 +5933,7 @@ public:
         this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
         ProgramNode* programNode = builder.createProgramNode(container, this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector));
-        return this->finalize(startNode, programNode);
+        return this->finalize(endNode, programNode);
     }
 
     FunctionNode* parseScriptFunction(NodeGenerator& builder)
