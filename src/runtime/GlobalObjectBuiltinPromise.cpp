@@ -67,7 +67,7 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
 
 static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-promise.all
+    // https://tc39.es/ecma262/#sec-performpromiseall
     auto strings = &state.context()->staticStrings();
 
     // Let C be the this value.
@@ -101,6 +101,14 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         ValueVector* values = new ValueVector();
         // Let remainingElementsCount be a new Record { [[value]]: 1 }.
         size_t* remainingElementsCount = new (PointerFreeGC) size_t(1);
+
+        // Let promiseResolve be ? Get(constructor, "resolve").
+        Value promiseResolve = C->get(state, ObjectPropertyName(state.context()->staticStrings().resolve)).value(state, C);
+        // If ! IsCallable(promiseResolve) is false, throw a TypeError exception.
+        if (!promiseResolve.isCallable()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
+        }
+
         // Let index be 0.
         int64_t index = 0;
 
@@ -146,7 +154,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             // Append undefined to values.
             values->pushBack(Value());
             // Let nextPromise be Invoke(constructor, "resolve", « nextValue »).
-            Value nextPromise = Object::call(state, C->get(state, ObjectPropertyName(state, strings->resolve)).value(state, C), C, 1, &nextValue);
+            Value nextPromise = Object::call(state, promiseResolve, C, 1, &nextValue);
 
             // Let resolveElement be a new built-in function object as defined in Promise.all Resolve Element Functions.
             ExtendedNativeFunctionObject* resolveElement = new ExtendedNativeFunctionObjectImpl<6>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseAllResolveElementFunction, 1, NativeFunctionInfo::Strict));
@@ -200,7 +208,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-promise.race
+    // https://tc39.es/ecma262/#sec-performpromiserace
     auto strings = &state.context()->staticStrings();
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
@@ -230,6 +238,12 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
     Value result;
     try {
+        Value promiseResolve = C->get(state, ObjectPropertyName(state.context()->staticStrings().resolve)).value(state, C);
+        // If ! IsCallable(promiseResolve) is false, throw a TypeError exception.
+        if (!promiseResolve.isCallable()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
+        }
+
         // Repeat
         while (true) {
             // Let next be IteratorStep(iteratorRecord).
@@ -263,7 +277,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
             }
 
             // Let nextPromise be Invoke(C, "resolve", «nextValue»).
-            Value nextPromise = Object::call(state, C->get(state, strings->resolve).value(state, C), C, 1, &nextValue);
+            Value nextPromise = Object::call(state, promiseResolve, C, 1, &nextValue);
             // Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], resultCapability.[[Reject]] »).
             Object* nextPromiseObject = nextPromise.toObject(state);
             Value argv[] = { Value(promiseCapability.m_resolveFunction), Value(promiseCapability.m_rejectFunction) };
