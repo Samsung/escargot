@@ -138,7 +138,7 @@ def arguments_parse():
                         help="set display range")
     parser.add_argument("--exception", action="store", default=None, type=int, choices=[0, 1],
                         help="set exception config, usage 1: [Enable] or 0: [Disable]")
-    parser.add_argument("--client-source", action="store", default=None, type=str,
+    parser.add_argument("--client-source", action="store", default=[], type=str, nargs="+",
                         help="specify a javascript source file to execute")
     args = parser.parse_args()
 
@@ -285,7 +285,7 @@ class Debugger(object):
         self.frame_index = 0
         self.scope_vars = ""
         self.scopes = ""
-        self.client_sources = ""
+        self.client_sources = []
         self.last_breakpoint_hit = None
         self.next_breakpoint_index = 0
         self.active_breakpoint_list = {}
@@ -563,7 +563,7 @@ class Debugger(object):
         if not self.client_sources:
             self._exec_command(ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE)
             return
-        path = self.client_sources
+        path = self.client_sources.pop(0)
         if not path.endswith('.js'):
             sys.exit("Error: Javascript file expected!")
             return
