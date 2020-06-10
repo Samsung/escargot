@@ -555,12 +555,6 @@
     <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-override-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/setPrototypeOf/bigint"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/all/invoke-resolve-get-error-close"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/all/invoke-resolve-get-once-multiple-calls"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/all/invoke-resolve-get-once-no-calls"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/race/invoke-resolve-get-error-close"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/race/invoke-resolve-get-once-multiple-calls"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/race/invoke-resolve-get-once-no-calls"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
