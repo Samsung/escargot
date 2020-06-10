@@ -1,0 +1,24 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/client_source_multiple_2.js:21
+(escargot-debugger) n
+Print: multiple-client-source-test-file-2
+Stopped at tools/debugger/tests/client_source_multiple_1.js:21
+(escargot-debugger) n
+Print: multiple-client-source-test-file-1
+Stopped at tools/debugger/tests/client_source_multiple_1.js:33
+(escargot-debugger) s
+Stopped at tools/debugger/tests/client_source_multiple_1.js:24 (in foo() at line:23, col:1)
+(escargot-debugger) s
+Print: foo
+Stopped at tools/debugger/tests/client_source_multiple_1.js:25 (in foo() at line:23, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/client_source_multiple_2.js:24 (in bar() at line:23, col:1)
+(escargot-debugger) s
+Print: bar
+Stopped at tools/debugger/tests/client_source_multiple_2.js:25 (in bar() at line:23, col:1)
+(escargot-debugger) c
+Print: str-argument: called-from-test-file-1
+Print: crossFoo
+Print: str-argument: called-from-test-file-2
+Connection closed.
