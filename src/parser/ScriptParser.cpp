@@ -466,19 +466,21 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         result.script = script;
         return result;
 
-    } catch (esprima::Error& orgError) {
+    } catch (esprima::Error* orgError) {
         // reset ASTAllocator
         m_context->astAllocator().reset();
 
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
             m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_ERROR);
+            StringView* errorView = new StringView(orgError->message, 0, orgError->message->length());
+            m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, errorView);
         }
 
         GC_enable();
 
         ScriptParser::InitializeScriptResult result;
-        result.parseErrorCode = orgError.errorCode;
-        result.parseErrorMessage = orgError.message;
+        result.parseErrorCode = orgError->errorCode;
+        result.parseErrorMessage = orgError->message;
         return result;
     }
 }

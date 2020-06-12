@@ -820,7 +820,8 @@ class Debugger(object):
 
             elif buffer_type == ESCARGOT_MESSAGE_PARSE_ERROR:
                 logging.debug("Syntax error encountered")
-                return ""
+                error_str = self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True))
+                return "%sSyntaxError: %s%s\n" % (self.red, error_str, self.nocolor)
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT, ESCARGOT_MESSAGE_SOURCE_8BIT_END]:
                 source += data[1:]
