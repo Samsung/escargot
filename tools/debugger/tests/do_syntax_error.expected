@@ -1,0 +1,4 @@
+Connecting to: localhost:6501
+Connection created!!!
+SyntaxError: Line 21: Identifier 'a' has already been declared
+Connection closed.
