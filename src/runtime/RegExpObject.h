@@ -22,6 +22,8 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/IteratorObject.h"
+
 
 namespace JSC {
 namespace Yarr {
@@ -172,6 +174,32 @@ private:
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
     EncodedValue m_lastIndex;
     const String* m_lastExecutedString;
+};
+class RegExpStringIteratorObject : public IteratorObject {
+public:
+    RegExpStringIteratorObject(ExecutionState& state, bool global, bool unicode, RegExpObject* regexp, String* string);
+
+    virtual bool isRegExpStringIteratorObject() const override
+    {
+        return true;
+    }
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        Object::fillGCDescriptor(desc);
+
+        GC_set_bit(desc, GC_WORD_OFFSET(RegExpStringIteratorObject, m_regexp));
+        GC_set_bit(desc, GC_WORD_OFFSET(RegExpStringIteratorObject, m_string));
+    }
+    virtual std::pair<Value, bool> advance(ExecutionState& state) override;
+
+private:
+    bool m_isGlobal;
+    bool m_isUnicode;
+    bool m_isDone;
+    RegExpObject* m_regexp;
+    String* m_string;
 };
 
 typedef std::unordered_map<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,

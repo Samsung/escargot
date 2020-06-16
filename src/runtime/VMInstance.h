@@ -50,6 +50,7 @@ class CompressibleString;
     F(unscopables)               \
     F(search)                    \
     F(match)                     \
+    F(matchAll)                  \
     F(replace)                   \
     F(asyncIterator)
 

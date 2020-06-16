@@ -318,6 +318,11 @@ public:
         return false;
     }
 
+    virtual bool isRegExpStringIteratorObject() const
+    {
+        return false;
+    }
+
     virtual bool isMapIteratorObject() const
     {
         return false;

@@ -540,6 +540,35 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     }
 }
 
+static Value builtinRegExpMatchAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true,
+                                       state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+    }
+    bool global = false;
+    bool unicode = false;
+    Object* thisObj = thisValue.asObject();
+    String* s = argv[0].toString(state);
+    String* flags = thisObj->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, thisObj).toString(state);
+
+    Value c = thisObj->speciesConstructor(state, state.context()->globalObject()->regexp());
+    Value arguments[] = { thisObj, flags };
+    Object* matcher = Object::construct(state, c, 2, arguments);
+
+    size_t lastIndex = thisObj->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, thisObj).toNumber(state);
+    matcher->asRegExpObject()->setLastIndex(state, Value(lastIndex));
+
+    if (flags->find("g") != SIZE_MAX) {
+        global = true;
+    }
+    if (flags->find("u") != SIZE_MAX) {
+        unicode = true;
+    }
+    return new RegExpStringIteratorObject(state, global, unicode, matcher->asRegExpObject(), s);
+}
+
+
 static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisValue, unsigned int option)
 {
     if (!thisValue.isObject()) {
@@ -645,6 +674,15 @@ static Value builtinRegExpRightContextGetter(ExecutionState& state, Value thisVa
     return Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().rightContext));
 }
 
+static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isRegExpStringIteratorObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExpStringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+    RegExpStringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asRegExpStringIteratorObject();
+    return iter->next(state);
+}
+
 #define DEFINE_GETTER(number)                                                                                                                       \
     static Value builtinRegExpDollar##number##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
     {                                                                                                                                               \
@@ -666,6 +704,35 @@ DEFINE_GETTER(8)
 DEFINE_GETTER(9)
 
 #undef DEFINE_GETTER
+
+std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state)
+{
+    if (m_isDone) {
+        return std::make_pair(Value(), true);
+    }
+    RegExpObject* r = m_regexp;
+    String* s = m_string;
+    bool global = m_isGlobal;
+    bool unicode = m_isUnicode;
+    Value match = regExpExec(state, r, s);
+
+    if (match.isNull()) {
+        m_isDone = true;
+        return std::make_pair(Value(), true);
+    }
+    if (global) {
+        String* matchStr = match.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, match).toString(state);
+        if (matchStr->length() == 0) {
+            //21.2.5.6.8.g.iv.5
+            size_t thisIndex = r->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, r).toLength(state);
+            size_t nextIndex = s->advanceStringIndex(thisIndex, unicode);
+            r->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), r);
+        }
+        return std::make_pair(match, false);
+    }
+    m_isDone = true;
+    return std::make_pair(match, false);
+}
 
 void GlobalObject::installRegExp(ExecutionState& state)
 {
@@ -832,6 +899,18 @@ void GlobalObject::installRegExp(ExecutionState& state)
     // $21.2.5.6 RegExp.prototype[@@match]
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatch, builtinRegExpMatch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatchAll, builtinRegExpMatchAll, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_regexpStringIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_regexpStringIteratorPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_regexpStringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinRegExpStringIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_regexpStringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                      ObjectPropertyDescriptor(Value(String::fromASCII("RegExp String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

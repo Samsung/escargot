@@ -146,11 +146,12 @@ class FunctionObject;
     F(proxy, FunctionObject, NAME)
 #define GLOBALOBJECT_BUILTIN_REFLECT(F, NAME) \
     F(reflect, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_REGEXP(F, NAME)     \
-    F(regexp, FunctionObject, NAME)              \
-    F(regexpExecMethod, FunctionObject, NAME)    \
-    F(regexpPrototype, Object, NAME)             \
-    F(regexpReplaceMethod, FunctionObject, NAME) \
+#define GLOBALOBJECT_BUILTIN_REGEXP(F, NAME)       \
+    F(regexp, FunctionObject, NAME)                \
+    F(regexpExecMethod, FunctionObject, NAME)      \
+    F(regexpPrototype, Object, NAME)               \
+    F(regexpReplaceMethod, FunctionObject, NAME)   \
+    F(regexpStringIteratorPrototype, Object, NAME) \
     F(regexpSplitMethod, FunctionObject, NAME)
 #define GLOBALOBJECT_BUILTIN_SET(F, NAME) \
     F(set, FunctionObject, NAME)          \

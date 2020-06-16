@@ -26,6 +26,7 @@ namespace Escargot {
 
 class ArrayIteratorObject;
 class StringIteratorObject;
+class RegExpStringIteratorObject;
 class MapIteratorObject;
 class SetIteratorObject;
 class IteratorObject;
@@ -69,6 +70,12 @@ public:
     {
         ASSERT(isStringIteratorObject());
         return (StringIteratorObject*)this;
+    }
+
+    RegExpStringIteratorObject* asRegExpStringIteratorObject()
+    {
+        ASSERT(isRegExpStringIteratorObject());
+        return (RegExpStringIteratorObject*)this;
     }
 
     MapIteratorObject* asMapIteratorObject()
