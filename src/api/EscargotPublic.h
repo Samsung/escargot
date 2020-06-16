@@ -555,6 +555,7 @@ public:
     SymbolRef* toPrimitiveSymbol();
     SymbolRef* searchSymbol();
     SymbolRef* matchSymbol();
+    SymbolRef* matchAllSymbol();
     SymbolRef* replaceSymbol();
     SymbolRef* splitSymbol();
     SymbolRef* asyncIteratorSymbol();

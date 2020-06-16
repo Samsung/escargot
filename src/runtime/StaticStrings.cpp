@@ -98,6 +98,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
     INIT_STATIC_STRING(symbolReplace, "[Symbol.replace]");
     INIT_STATIC_STRING(symbolMatch, "[Symbol.match]");
+    INIT_STATIC_STRING(symbolMatchAll, "[Symbol.matchAll]");
     INIT_STATIC_STRING(getDescription, "get description");
     INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
     INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");

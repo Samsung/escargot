@@ -532,4 +532,29 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
         }
     }
 }
+
+RegExpStringIteratorObject::RegExpStringIteratorObject(ExecutionState& state, bool global, bool unicode, RegExpObject* regexp, String* string)
+    : IteratorObject(state, state.context()->globalObject()->regexpStringIteratorPrototype())
+    , m_isGlobal(global)
+    , m_isUnicode(unicode)
+    , m_isDone(false)
+    , m_regexp(regexp)
+    , m_string(string)
+{
+}
+
+void* RegExpStringIteratorObject::operator new(size_t size)
+{
+    ASSERT(size == sizeof(RegExpStringIteratorObject));
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpStringIteratorObject)] = { 0 };
+        fillGCDescriptor(obj_bitmap);
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RegExpStringIteratorObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    ;
+}
 }
