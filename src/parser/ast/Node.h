@@ -37,7 +37,7 @@ enum ASTNodeType {
     FunctionExpression,
     FunctionDeclaration,
     /* End */
-    /* Note: These 14 types must be in this order */
+    /* Note: These 15 types must be in this order */
     AssignmentExpression,
     AssignmentExpressionBitwiseAnd,
     AssignmentExpressionBitwiseOr,
@@ -94,6 +94,7 @@ enum ASTNodeType {
     BinaryExpressionPlus,
     BinaryExpressionSignedRightShift,
     BinaryExpressionUnsignedRightShift,
+    BinaryExpressionNullishCoalescing,
     BlockStatement,
     BreakLabelStatement,
     BreakStatement,
@@ -294,6 +295,11 @@ public:
     bool isAssignmentOperation()
     {
         return type() >= ASTNodeType::AssignmentExpression && type() <= ASTNodeType::AssignmentExpressionSimple;
+    }
+
+    bool isLogicalOperation()
+    {
+        return type() >= ASTNodeType::BinaryExpressionLogicalAnd && type() <= ASTNodeType::BinaryExpressionLogicalOr;
     }
 
     bool isRelationOperation()

@@ -2541,10 +2541,12 @@ public:
             switch (token->valuePunctuatorKind) {
             case Substitution:
                 return 0;
-            case LogicalOr:
+            case NullishCoalescing:
                 return 1;
-            case LogicalAnd:
+            case LogicalOr:
                 return 2;
+            case LogicalAnd:
+                return 3;
             case BitwiseOr:
                 return 3;
             case BitwiseXor:
@@ -2725,6 +2727,11 @@ public:
                 return builder.createBinaryExpressionLogicalOrNode(left, right);
             case LogicalAnd:
                 return builder.createBinaryExpressionLogicalAndNode(left, right);
+            case NullishCoalescing:
+                if (left->isLogicalOperation() || right->isLogicalOperation()) {
+                    this->throwError(Messages::CannotChainLogicalWithNullish);
+                }
+                return builder.createBinaryExpressionNullishCoalescingNode(left, right);
             default:
                 RELEASE_ASSERT_NOT_REACHED();
             }

@@ -67,6 +67,7 @@ namespace Escargot {
     F(BinaryExpressionSignedRightShift)       \
     F(BinaryExpressionStrictEqual)            \
     F(BinaryExpressionUnsignedRightShift)     \
+    F(BinaryExpressionNullishCoalescing)      \
     F(BlockStatement)                         \
     F(BreakLabelStatement)                    \
     F(BreakStatement)                         \
@@ -221,6 +222,16 @@ public:
     ALWAYS_INLINE bool isAssignmentOperation()
     {
         return m_nodeType >= ASTNodeType::AssignmentExpression && m_nodeType <= ASTNodeType::AssignmentExpressionSimple;
+    }
+
+    ALWAYS_INLINE bool isLogicalOperation()
+    {
+        return m_nodeType >= ASTNodeType::BinaryExpressionLogicalAnd && m_nodeType <= ASTNodeType::BinaryExpressionLogicalOr;
+    }
+
+    ALWAYS_INLINE bool isNullishOperation()
+    {
+        return type() >= ASTNodeType::BinaryExpressionNullishCoalescing;
     }
 
     ALWAYS_INLINE bool isUnaryOperation()

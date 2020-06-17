@@ -602,6 +602,19 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(JumpIfNotUndefinedNorNull)
+            :
+        {
+            JumpIfNotUndefinedNorNull* code = (JumpIfNotUndefinedNorNull*)programCounter;
+            ASSERT(code->m_jumpPosition != SIZE_MAX);
+            if (!registerFile[code->m_registerIndex].isUndefinedOrNull()) {
+                programCounter = code->m_jumpPosition;
+            } else {
+                ADD_PROGRAM_COUNTER(JumpIfNotUndefinedNorNull);
+            }
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(JumpIfFalse)
             :
         {
