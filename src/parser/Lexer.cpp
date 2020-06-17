@@ -936,6 +936,11 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         break;
     case '?':
         kind = GuessMark;
+        ch = this->peekChar();
+        if (ch == '?') {
+            ++this->index;
+            kind = NullishCoalescing;
+        }
         break;
     case '~':
         kind = Wave;
@@ -1030,7 +1035,6 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
             ++this->index;
         }
         break;
-
     case '|':
         ch = this->peekChar();
         kind = BitwiseOr;

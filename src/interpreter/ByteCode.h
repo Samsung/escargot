@@ -104,6 +104,7 @@ struct GlobalVariableAccessCacheItem;
     F(Jump, 0, 0)                                           \
     F(JumpComplexCase, 0, 0)                                \
     F(JumpIfTrue, 0, 0)                                     \
+    F(JumpIfNotUndefinedNorNull, 0, 0)                      \
     F(JumpIfFalse, 0, 0)                                    \
     F(JumpIfRelation, 0, 0)                                 \
     F(JumpIfEqual, 0, 0)                                    \
@@ -1460,6 +1461,30 @@ public:
     void dump(const char* byteCodeStart)
     {
         printf("jump if true r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+    }
+#endif
+};
+
+class JumpIfNotUndefinedNorNull : public JumpByteCode {
+public:
+    JumpIfNotUndefinedNorNull(const ByteCodeLOC& loc, const size_t registerIndex)
+        : JumpByteCode(Opcode::JumpIfNotUndefinedNorNullOpcode, loc, SIZE_MAX)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    JumpIfNotUndefinedNorNull(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
+        : JumpByteCode(Opcode::JumpIfNotUndefinedNorNullOpcode, loc, pos)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+
+#ifndef NDEBUG
+    void dump(const char* byteCodeStart)
+    {
+        printf("jump if undefined or null r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
     }
 #endif
 };

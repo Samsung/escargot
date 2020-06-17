@@ -95,6 +95,7 @@ public:
     static constexpr const char* BadGetterArity = "Getter must not have any formal parameters";
     static constexpr const char* BadSetterArity = "Setter must have exactly one formal parameter";
     static constexpr const char* BadSetterRestParameter = "Setter function argument must not be a rest parameter";
+    static constexpr const char* CannotChainLogicalWithNullish = "Cannot chain logical expression with nullish operator";
 };
 
 } // namespace esprima

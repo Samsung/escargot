@@ -516,6 +516,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
+            case JumpIfNotUndefinedNorNullOpcode: {
+                JumpIfNotUndefinedNorNull* cd = (JumpIfNotUndefinedNorNull*)currentCode;
+                cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                break;
+            }
             case JumpIfFalseOpcode: {
                 JumpIfFalse* cd = (JumpIfFalse*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
@@ -611,7 +617,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             case BinarySignedRightShiftOpcode:
             case BinaryUnsignedRightShiftOpcode:
             case BinaryInOperationOpcode:
-            case BinaryInstanceOfOperationOpcode: {
+            case BinaryInstanceOfOperationOpcode:
+            case BinaryExponentiationOpcode: {
                 BinaryPlus* plus = (BinaryPlus*)currentCode;
                 ASSIGN_STACKINDEX_IF_NEEDED(plus->m_srcIndex0, stackBase, stackBaseWillBe, stackVariableSize);
                 ASSIGN_STACKINDEX_IF_NEEDED(plus->m_srcIndex1, stackBase, stackBaseWillBe, stackVariableSize);

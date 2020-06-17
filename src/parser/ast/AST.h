@@ -43,6 +43,7 @@
 #include "BinaryExpressionDivisionNode.h"
 #include "BinaryExpressionEqualNode.h"
 #include "BinaryExpressionExponentiationNode.h"
+#include "BinaryExpressionNullishCoalescingNode.h"
 #include "BinaryExpressionGreaterThanNode.h"
 #include "BinaryExpressionGreaterThanOrEqualNode.h"
 #include "BinaryExpressionInNode.h"

@@ -54,6 +54,7 @@ enum PunctuatorKind : uint8_t {
     LeftSquareBracket,
     RightSquareBracket,
     GuessMark,
+    NullishCoalescing,
     Wave,
     UnsignedRightShift,
     RightShift,
