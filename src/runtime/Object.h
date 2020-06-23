@@ -720,11 +720,11 @@ class Object : public PointerValue {
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
     friend struct ObjectRareData;
+    friend class ObjectTemplate;
 
 public:
     explicit Object(ExecutionState& state);
     explicit Object(ExecutionState& state, Object* proto);
-
     enum PrototypeIsNullTag { PrototypeIsNull };
     explicit Object(ExecutionState& state, PrototypeIsNullTag); // I added new function for reducing checking null for prototype
 
@@ -1041,6 +1041,18 @@ public:
     Value speciesConstructor(ExecutionState& state, const Value& defaultConstructor);
     void markAsPrototypeObject(ExecutionState& state);
 
+    ALWAYS_INLINE Value uncheckedGetOwnDataProperty(size_t idx)
+    {
+        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
+        return m_values[idx];
+    }
+
+    ALWAYS_INLINE void uncheckedSetOwnDataProperty(size_t idx, const Value& newValue)
+    {
+        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
+        m_values[idx] = newValue;
+    }
+
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {
@@ -1052,6 +1064,8 @@ protected:
     explicit Object(ExecutionState& state, Object* proto, size_t defaultSpace);
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     explicit Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin);
+    // ctor for ObjectTemplate
+    explicit Object(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto);
 
     inline ObjectRareData* rareData() const
     {
@@ -1060,29 +1074,13 @@ protected:
     }
     ObjectStructure* m_structure;
     Object* m_prototype;
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    TightVectorWithNoSize<EncodedSmallValue, CustomAllocator<EncodedSmallValue>> m_values;
-#else
-    TightVectorWithNoSizeUseGCRealloc<EncodedValue> m_values;
-#endif
+    ObjectPropertyValueVector m_values;
 
     COMPILE_ASSERT(sizeof(TightVectorWithNoSize<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>>) == sizeof(size_t) * 1, "");
 
     ObjectStructure* structure() const
     {
         return m_structure;
-    }
-
-    ALWAYS_INLINE Value uncheckedGetOwnDataProperty(ExecutionState& state, size_t idx)
-    {
-        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
-        return m_values[idx];
-    }
-
-    ALWAYS_INLINE void uncheckedSetOwnDataProperty(ExecutionState& state, size_t idx, const Value& newValue)
-    {
-        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
-        m_values[idx] = newValue;
     }
 
     ALWAYS_INLINE Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx)
@@ -1108,7 +1106,7 @@ protected:
             return true;
         } else {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-            EncodedValue t(m_values[idx].payload());
+            EncodedValue t = m_values[idx];
             bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, t, newValue);
             m_values[idx] = t;
             return ret;

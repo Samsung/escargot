@@ -498,11 +498,13 @@ using ObjectPropertyValue = EncodedSmallValue;
 typedef ObjectPropertyValue EncodedValueVectorElement;
 typedef Vector<EncodedValueVectorElement, CustomAllocator<EncodedValueVectorElement>> EncodedValueVector;
 typedef TightVector<EncodedValueVectorElement, CustomAllocator<EncodedValueVectorElement>> EncodedValueTightVector;
+typedef TightVectorWithNoSize<EncodedSmallValue, CustomAllocator<EncodedSmallValue>> ObjectPropertyValueVector;
 #else
 using ObjectPropertyValue = EncodedValue;
 typedef ObjectPropertyValue EncodedValueVectorElement;
 typedef Vector<EncodedValueVectorElement, GCUtil::gc_malloc_allocator<EncodedValueVectorElement>> EncodedValueVector;
 typedef TightVector<EncodedValueVectorElement, GCUtil::gc_malloc_allocator<EncodedValueVectorElement>> EncodedValueTightVector;
+typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPropertyValueVector;
 #endif
 }
 

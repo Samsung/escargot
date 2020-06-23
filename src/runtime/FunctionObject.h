@@ -143,6 +143,7 @@ public:
 
 protected:
     FunctionObject(ExecutionState& state, Object* proto, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
+    FunctionObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto); // ctor for FunctionTemplate
 
     void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator, bool isAsync);
     virtual size_t functionPrototypeIndex()
