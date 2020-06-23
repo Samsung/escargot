@@ -70,6 +70,14 @@ FunctionObject::FunctionObject(ExecutionState& state, Object* proto, size_t defa
 {
 }
 
+FunctionObject::FunctionObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto)
+    : Object(structure, std::move(values), proto)
+#ifndef NDEBUG
+    , m_codeBlock((CodeBlock*)SIZE_MAX)
+#endif
+{
+}
+
 FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall)
 {
     StringBuilder src, srcToTest;

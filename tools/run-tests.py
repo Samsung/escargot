@@ -507,6 +507,16 @@ def run_intl(engine, arch):
     if fails > 0:
         raise Exception('Intl tests failed')
 
+@runner('cctest', default=False)
+def run_cctest(engine, arch):
+    if engine is "escargot":
+        engine = "cctest"
+    proc = Popen([engine], stdout=PIPE)
+    stdout, _ = proc.communicate()
+    print(stdout)
+    if '  PASSED  ' not in stdout:
+        raise Exception('Not all tests succeeded')
+
 @runner('debugger-server-source', default=True)
 def run_escargot_debugger(engine, arch):
     ESCARGOT_DEBUGGER_TEST_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'tests')

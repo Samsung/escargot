@@ -84,6 +84,9 @@ class ScriptParserRef;
 class ExecutionStateRef;
 class ValueVectorRef;
 class JobRef;
+class TemplateRef;
+class ObjectTemplateRef;
+class FunctionTemplateRef;
 
 class ESCARGOT_EXPORT Globals {
 public:
@@ -1401,6 +1404,66 @@ public:
     ValueRef* get(ExecutionStateRef* state, ObjectRef* key);
     bool has(ExecutionStateRef* state, ObjectRef* key);
     void set(ExecutionStateRef* state, ObjectRef* key, ValueRef* value);
+};
+
+class ESCARGOT_EXPORT TemplatePropertyNameRef {
+public:
+    TemplatePropertyNameRef(StringRef* name)
+        : m_ptr(name)
+    {
+    }
+    TemplatePropertyNameRef(SymbolRef* name)
+        : m_ptr(name)
+    {
+    }
+
+    PointerValueRef* value() const
+    {
+        return m_ptr;
+    }
+
+private:
+    PointerValueRef* m_ptr;
+};
+
+// don't modify template after instantiate object
+// it is not intented operation
+class ESCARGOT_EXPORT TemplateRef {
+public:
+    void set(const TemplatePropertyNameRef& name, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
+    void set(const TemplatePropertyNameRef& name, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
+    void setAccessorProperty(const TemplatePropertyNameRef& name, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable);
+    void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
+                                       bool isWritable, bool isEnumerable, bool isConfigurable);
+    void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyData* data);
+
+    bool has(const TemplatePropertyNameRef& name);
+    // return true if removed
+    bool remove(const TemplatePropertyNameRef& name);
+
+    ObjectRef* instantiate(ContextRef* ctx);
+    bool didInstantiate();
+};
+
+class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
+public:
+    static ObjectTemplateRef* create();
+};
+
+// FunctionTemplateRef returns the unique function instance in context.
+class ESCARGOT_EXPORT FunctionTemplateRef : public TemplateRef {
+public:
+    static FunctionTemplateRef* create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
+                                       FunctionObjectRef::NativeFunctionPointer fn, OptionalRef<ObjectTemplateRef> instanceTemplate);
+
+    ObjectTemplateRef* prototypeTemplate();
+
+    // if there is no instance template, we will use default object
+    OptionalRef<ObjectTemplateRef> instanceTemplate();
+    void setInstanceTemplate(OptionalRef<ObjectTemplateRef> s);
+
+    void inherit(OptionalRef<FunctionTemplateRef> parent);
+    OptionalRef<FunctionTemplateRef> parent();
 };
 
 class ESCARGOT_EXPORT ScriptParserRef {

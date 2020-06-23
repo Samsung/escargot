@@ -52,7 +52,11 @@
 #include "runtime/WeakMapObject.h"
 #include "runtime/GlobalObjectProxyObject.h"
 #include "runtime/CompressibleString.h"
+#include "runtime/Template.h"
+#include "runtime/ObjectTemplate.h"
+#include "runtime/FunctionTemplate.h"
 #include "interpreter/ByteCode.h"
+#include "api/internal/ValueAdapter.h"
 
 namespace Escargot {
 
@@ -111,20 +115,11 @@ DEFINE_CAST(SetObject);
 DEFINE_CAST(WeakSetObject);
 DEFINE_CAST(MapObject);
 DEFINE_CAST(WeakMapObject);
+DEFINE_CAST(Template);
+DEFINE_CAST(ObjectTemplate);
+DEFINE_CAST(FunctionTemplate);
 
 #undef DEFINE_CAST
-
-inline ValueRef* toRef(const Value& v)
-{
-    ASSERT(!v.isEmpty());
-    return reinterpret_cast<ValueRef*>(EncodedValue(v).payload());
-}
-
-inline Value toImpl(const ValueRef* v)
-{
-    ASSERT(v);
-    return Value(EncodedValue::fromPayload(v));
-}
 
 inline OptionalRef<ValueRef> toOptionalValue(const Value& v)
 {
@@ -1084,7 +1079,6 @@ bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, Value
     } else {
         innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
             NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
-            // ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData
             return publicData->m_setter(toRef(&state), toRef(self), publicData, toRef(setterInputData));
         };
     }
@@ -2577,6 +2571,141 @@ void WeakMapObjectRef::set(ExecutionStateRef* state, ObjectRef* key, ValueRef* v
 bool WeakMapObjectRef::has(ExecutionStateRef* state, ObjectRef* key)
 {
     return toImpl(this)->has(*toImpl(state), toImpl(key));
+}
+
+void TemplateRef::set(const TemplatePropertyNameRef& name, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
+{
+    toImpl(this)->set(TemplatePropertyName(toImpl(name.value())), toImpl(data), isWritable, isEnumerable, isConfigurable);
+}
+
+void TemplateRef::set(const TemplatePropertyNameRef& name, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
+{
+    toImpl(this)->set(TemplatePropertyName(toImpl(name.value())), toImpl(data), isWritable, isEnumerable, isConfigurable);
+}
+
+void TemplateRef::setAccessorProperty(const TemplatePropertyNameRef& name, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable)
+{
+    Optional<FunctionTemplate*> getterImpl(toImpl(getter.get()));
+    Optional<FunctionTemplate*> setterImpl(toImpl(setter.get()));
+
+    toImpl(this)->setAccessorProperty(TemplatePropertyName(toImpl(name.value())), getterImpl, setterImpl, isEnumerable, isConfigurable);
+}
+
+void TemplateRef::setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
+                                                bool isWritable, bool isEnumerable, bool isConfigurable)
+{
+    ObjectRef::NativeDataAccessorPropertyData* publicData = new ObjectRef::NativeDataAccessorPropertyData(isWritable, isEnumerable, isConfigurable, getter, setter);
+
+    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(isWritable, isEnumerable, isConfigurable, [](ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+        ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+        return toImpl(publicData->m_getter(toRef(&state), toRef(self), publicData));
+    },
+                                                                                               nullptr);
+    if (!isWritable) {
+        innerData->m_setter = nullptr;
+    } else if (publicData->m_isWritable && !publicData->m_setter) {
+        innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+            return false;
+        };
+    } else {
+        innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+            ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+            return publicData->m_setter(toRef(&state), toRef(self), publicData, toRef(setterInputData));
+        };
+    }
+
+    toImpl(this)->setNativeDataAccessorProperty(TemplatePropertyName(toImpl(name.value())), innerData, publicData);
+}
+
+void TemplateRef::setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyData* publicData)
+{
+    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable,
+                                                                                               [](ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                   ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+                                                                                                   return toImpl(publicData->m_getter(toRef(&state), toRef(self), publicData));
+                                                                                               },
+                                                                                               nullptr);
+    if (!publicData->m_isWritable) {
+        innerData->m_setter = nullptr;
+    } else if (publicData->m_isWritable && !publicData->m_setter) {
+        innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+            return false;
+        };
+    } else {
+        innerData->m_setter = [](ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
+            ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+            return publicData->m_setter(toRef(&state), toRef(self), publicData, toRef(setterInputData));
+        };
+    }
+
+    toImpl(this)->setNativeDataAccessorProperty(TemplatePropertyName(toImpl(name.value())), innerData, publicData);
+}
+
+bool TemplateRef::has(const TemplatePropertyNameRef& name)
+{
+    return toImpl(this)->has(TemplatePropertyName(toImpl(name.value())));
+}
+
+bool TemplateRef::remove(const TemplatePropertyNameRef& name)
+{
+    return toImpl(this)->remove(TemplatePropertyName(toImpl(name.value())));
+}
+
+ObjectRef* TemplateRef::instantiate(ContextRef* ctx)
+{
+    return toRef(toImpl(this)->instantiate(toImpl(ctx)));
+}
+
+bool TemplateRef::didInstantiate()
+{
+    return toImpl(this)->didInstantiate();
+}
+
+ObjectTemplateRef* ObjectTemplateRef::create()
+{
+    return toRef(new ObjectTemplate());
+}
+
+FunctionTemplateRef* FunctionTemplateRef::create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
+                                                 FunctionObjectRef::NativeFunctionPointer fn, OptionalRef<ObjectTemplateRef> instanceTemplate)
+{
+    return toRef(new FunctionTemplate(toImpl(name), argumentCount, isStrict, isConstructor, fn, toImpl(instanceTemplate.value())));
+}
+
+ObjectTemplateRef* FunctionTemplateRef::prototypeTemplate()
+{
+    return toRef(toImpl(this)->prototypeTemplate());
+}
+
+OptionalRef<ObjectTemplateRef> FunctionTemplateRef::instanceTemplate()
+{
+    if (toImpl(this)->instanceTemplate()) {
+        return toRef(toImpl(this)->instanceTemplate().value());
+    }
+    return nullptr;
+}
+
+void FunctionTemplateRef::setInstanceTemplate(OptionalRef<ObjectTemplateRef> s)
+{
+    if (s) {
+        toImpl(this)->setInstanceTemplate(toImpl(s.value()));
+    } else {
+        toImpl(this)->setInstanceTemplate(nullptr);
+    }
+}
+
+void FunctionTemplateRef::inherit(OptionalRef<FunctionTemplateRef> parent)
+{
+    toImpl(this)->inherit(toImpl(parent.value()));
+}
+
+OptionalRef<FunctionTemplateRef> FunctionTemplateRef::parent()
+{
+    if (toImpl(this)->parent()) {
+        return toRef(toImpl(this)->parent().value());
+    } else {
+        return nullptr;
+    }
 }
 
 ScriptParserRef::InitializeScriptResult::InitializeScriptResult()

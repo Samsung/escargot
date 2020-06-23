@@ -465,6 +465,15 @@ Object::Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin)
     m_values.resizeWithUninitializedValues(0, defaultSpace);
 }
 
+Object::Object(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto)
+    : m_structure(structure)
+    , m_prototype(proto)
+    , m_values(std::move(values))
+{
+    ASSERT(!!structure);
+    ASSERT(!!proto);
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-isconcatspreadable
 bool Object::isConcatSpreadable(ExecutionState& state)
 {

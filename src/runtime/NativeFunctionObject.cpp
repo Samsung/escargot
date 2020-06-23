@@ -88,6 +88,12 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     ASSERT(codeBlock()->hasCallNativeFunctionCode());
 }
 
+NativeFunctionObject::NativeFunctionObject(CodeBlock* codeBlock, ObjectStructure* structure, ObjectPropertyValueVector&& values)
+    : FunctionObject(structure, std::move(values), codeBlock->context()->globalObject()->functionPrototype())
+{
+    m_codeBlock = codeBlock;
+}
+
 bool NativeFunctionObject::isConstructor() const
 {
     return m_codeBlock->isNativeFunctionConstructor();

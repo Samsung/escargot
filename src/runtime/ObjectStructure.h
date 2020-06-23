@@ -265,6 +265,13 @@ public:
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
+    ObjectStructureWithMap(bool hasIndexPropertyName, ObjectStructureItemTightVector&& properties)
+        : m_hasIndexPropertyName(hasIndexPropertyName)
+    {
+        m_properties = new ObjectStructureItemVector(std::move(properties));
+        m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(m_properties);
+    }
+
     virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override;
     virtual const ObjectStructureItem& readProperty(size_t idx) override;
     virtual const ObjectStructureItem* properties() const override;

@@ -25,6 +25,9 @@
 namespace Escargot {
 
 class NativeFunctionObject : public FunctionObject {
+    friend class FunctionTemplate;
+    NativeFunctionObject(CodeBlock* codeBlock, ObjectStructure* structure, ObjectPropertyValueVector&& values);
+
 public:
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info);
     NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock);

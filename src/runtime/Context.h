@@ -39,6 +39,7 @@ class ControlFlowRecord;
 class SandBox;
 class ByteCodeBlock;
 class ToStringRecursionPreventer;
+class FunctionTemplate;
 class Debugger;
 
 struct IdentifierRecord {
@@ -72,6 +73,9 @@ struct GlobalVariableAccessCacheItem : public gc {
 typedef std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
                            GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
     GlobalVariableAccessCache;
+
+typedef Vector<std::pair<FunctionTemplate*, FunctionObject*>, GCUtil::gc_malloc_allocator<std::pair<FunctionTemplate*, FunctionObject*>>>
+    InstantiatedFunctionObjects;
 
 class Context : public gc {
     friend class AtomicString;
@@ -266,6 +270,11 @@ public:
         return m_regexpStatus;
     }
 
+    InstantiatedFunctionObjects& instantiatedFunctionObjects()
+    {
+        return m_instantiatedFunctionObjects;
+    }
+
 #ifdef ESCARGOT_DEBUGGER
     Debugger* debugger()
     {
@@ -320,6 +329,8 @@ private:
     // For non-standard, read-only properties of RegExp
     // contains the result of the last matched regular expressions
     RegExpStatus m_regexpStatus;
+
+    InstantiatedFunctionObjects m_instantiatedFunctionObjects;
 
 #ifdef ESCARGOT_DEBUGGER
     // debugger support
