@@ -677,10 +677,6 @@
     <test id="built-ins/Proxy/create-handler-is-revoked-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/create-target-is-revoked-function-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/create-target-is-revoked-proxy"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable"><reason>TODO</reason></test>
-    <test id="built-ins/Proxy/preventExtensions/trap-is-missing-target-is-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/revocable/handler-is-revoked-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/revocable/target-is-revoked-function-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/revocable/target-is-revoked-proxy"><reason>TODO</reason></test>

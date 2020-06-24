@@ -35,6 +35,13 @@
   'bugs/*': [FAIL],
 
   ##############################################################################
+
+  # ES6 ES10 difference proxy.
+  'es6/proxies-define-property': [SKIP],
+  'es6/proxies-get-own-property-descriptor': [SKIP],
+  'es6/proxies-json': [SKIP],
+  'es6/regress/regress-cr493566': [SKIP],
+
   # Fails.
   'regress/regress-1119': [FAIL],
   'regress/regress-2438': [FAIL],

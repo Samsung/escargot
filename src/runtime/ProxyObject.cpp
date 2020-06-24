@@ -190,6 +190,12 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             return false;
         }
+        if (targetDesc.isDataProperty() && !targetDesc.isConfigurable() && targetDesc.isWritable()) {
+            if (desc.isWritablePresent() && !desc.isWritable()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
+                return false;
+            }
+        }
     }
 
     return true;
@@ -248,7 +254,10 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
         return false;
     }
-
+    if (!target.asObject()->isExtensible(state)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
+        return false;
+    }
     return true;
 }
 
@@ -336,6 +345,9 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
         // a. If targetDesc is undefined or targetDesc.[[Configurable]] is true, then
         if (!targetDesc.hasValue() || targetDesc.isConfigurable()) {
             // i. Throw a TypeError exception.
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Proxy::getOwnPropertyDescriptor error");
+        }
+        if (resultDesc.isWritablePresent() && !resultDesc.isWritable() && targetDesc.isWritable()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Proxy::getOwnPropertyDescriptor error");
         }
     }
