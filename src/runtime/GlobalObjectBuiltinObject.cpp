@@ -82,7 +82,9 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
         return argv[0];
     }
     Object* o = argv[0].asObject();
-    o->preventExtensions(state);
+    if (!o->preventExtensions(state)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().preventExtensions.string(), "PreventExtensions is false");
+    }
     return o;
 }
 
