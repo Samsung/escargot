@@ -4561,7 +4561,6 @@
     <test id="built-ins/RegExp/property-escapes/generated/XID_Continue"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/property-escapes/generated/XID_Start"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.match/builtin-infer-unicode"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.replace/coerce-lastindex"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.replace/result-coerce-groups"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.replace/result-coerce-groups-err"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.search/u-lastindex-advance"><reason>TODO</reason></test>

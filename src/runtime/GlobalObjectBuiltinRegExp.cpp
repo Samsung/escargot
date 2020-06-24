@@ -418,8 +418,8 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         }
         Value matchStr = result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result);
         if (matchStr.toString(state)->length() == 0 && global) {
-            size_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
-            size_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
+            uint64_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
+            uint64_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
             rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(nextIndex), rx);
         }
     }
@@ -531,8 +531,8 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
             A->defineOwnProperty(state, ObjectPropertyName(state, Value(n).toString(state)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
             if (matchStr.asString()->length() == 0) {
                 //21.2.5.6.8.g.iv.5
-                size_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
-                size_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
+                uint64_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
+                uint64_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
                 rx.asObject()->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), rx);
             }
             n++;
@@ -724,8 +724,8 @@ std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state
         String* matchStr = match.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, match).toString(state);
         if (matchStr->length() == 0) {
             //21.2.5.6.8.g.iv.5
-            size_t thisIndex = r->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, r).toLength(state);
-            size_t nextIndex = s->advanceStringIndex(thisIndex, unicode);
+            uint64_t thisIndex = r->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, r).toLength(state);
+            uint64_t nextIndex = s->advanceStringIndex(thisIndex, unicode);
             r->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), r);
         }
         return std::make_pair(match, false);

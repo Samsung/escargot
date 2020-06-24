@@ -853,13 +853,11 @@ String* String::substring(size_t from, size_t to)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-advancestringindex
-size_t String::advanceStringIndex(size_t index, bool unicode)
+uint64_t String::advanceStringIndex(uint64_t index, bool unicode)
 {
     ASSERT(isString());
-#ifndef ESCARGOT_32
-    // in 32bit, this assert is always true
     ASSERT(index <= (1ULL << 53) - 1);
-#endif
+
     // If unicode is false, return index + 1.
     if (!unicode) {
         return index + 1;

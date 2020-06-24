@@ -469,7 +469,7 @@ public:
         return nullptr;
     }
 
-    size_t advanceStringIndex(size_t index, bool unicode);
+    uint64_t advanceStringIndex(uint64_t index, bool unicode);
 
     bool isAllSpecialCharacters(bool (*fn)(char));
 
