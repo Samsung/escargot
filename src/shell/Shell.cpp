@@ -540,30 +540,30 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
 
     auto scriptInitializeResult = context->scriptParser()->initializeScript(str, fileName, isModule);
     if (!scriptInitializeResult.script) {
-        printf("Script parsing error: ");
+        fprintf(stderr, "Script parsing error: ");
         switch (scriptInitializeResult.parseErrorCode) {
         case Escargot::ErrorObjectRef::Code::SyntaxError:
-            printf("SyntaxError");
+            fprintf(stderr, "SyntaxError");
             break;
         case Escargot::ErrorObjectRef::Code::EvalError:
-            printf("EvalError");
+            fprintf(stderr, "EvalError");
             break;
         case Escargot::ErrorObjectRef::Code::RangeError:
-            printf("RangeError");
+            fprintf(stderr, "RangeError");
             break;
         case Escargot::ErrorObjectRef::Code::ReferenceError:
-            printf("ReferenceError");
+            fprintf(stderr, "ReferenceError");
             break;
         case Escargot::ErrorObjectRef::Code::TypeError:
-            printf("TypeError");
+            fprintf(stderr, "TypeError");
             break;
         case Escargot::ErrorObjectRef::Code::URIError:
-            printf("URIError");
+            fprintf(stderr, "URIError");
             break;
         default:
             break;
         }
-        printf(": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
+        fprintf(stderr, ": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
         return false;
     }
 
@@ -573,9 +573,9 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
                                          scriptInitializeResult.script.get());
 
     if (!evalResult.isSuccessful()) {
-        printf("Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+        fprintf(stderr, "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
         for (size_t i = 0; i < evalResult.stackTraceData.size(); i++) {
-            printf("%s (%d:%d)\n", evalResult.stackTraceData[i].src->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
+            fprintf(stderr, "%s (%d:%d)\n", evalResult.stackTraceData[i].src->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
         }
         return false;
     }
@@ -588,9 +588,9 @@ static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName,
         auto jobResult = context->vmInstance()->executePendingPromiseJob();
         if (shouldPrintScriptResult) {
             if (jobResult.error) {
-                printf("Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                fprintf(stderr, "Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
             } else {
-                printf("%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                fprintf(stderr, "%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
             }
         }
     }

@@ -259,7 +259,11 @@ class TestCase(object):
     self.validate()
 
   def NegativeMatch(self, stderr):
-    neg = re.compile(self.GetNegative())
+    negative_data = self.GetNegative()
+    if type(negative_data) is dict:
+        neg = negative_data["type"]
+    else:
+        neg = re.compile(negative_data)
     return re.search(neg, stderr)
 
   def GetNegative(self):
