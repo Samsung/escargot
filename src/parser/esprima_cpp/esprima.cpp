@@ -39,6 +39,7 @@
 
 #include "Escargot.h"
 #include "esprima.h"
+
 #include "Messages.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ast/AST.h"
@@ -46,6 +47,7 @@
 #include "parser/Lexer.h"
 #include "parser/Script.h"
 #include "parser/ASTBuilder.h"
+#include "parser/esprima_cpp/ParserContext.h"
 #include "util/BloomFilter.h"
 
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
@@ -80,36 +82,6 @@ typedef Escargot::BloomFilter<64> BlockUsingNameBloomFilter;
 
 namespace Escargot {
 namespace esprima {
-
-struct Context {
-    // Escargot::esprima::Context always allocated on the stack
-    MAKE_STACK_ALLOCATED();
-
-    bool allowIn : 1;
-    bool allowYield : 1;
-    bool allowLexicalDeclaration : 1;
-    bool allowSuperCall : 1;
-    bool allowSuperProperty : 1;
-    bool allowNewTarget : 1;
-    bool allowStrictDirective : 1;
-    bool await : 1;
-    bool isAssignmentTarget : 1;
-    bool isBindingElement : 1;
-    bool inFunctionBody : 1;
-    bool inIteration : 1;
-    bool inSwitch : 1;
-    bool inArrowFunction : 1;
-    bool inWith : 1;
-    bool inCatchClause : 1;
-    bool inLoop : 1;
-    bool inParameterParsing : 1;
-    bool inParameterNameParsing : 1;
-    bool hasRestrictedWordInArrayOrObjectInitializer : 1;
-    bool strict : 1;
-    Scanner::SmallScannerResult firstCoverInitializedNameError;
-    std::vector<std::pair<AtomicString, LexicalBlockIndex>> catchClauseSimplyDeclaredVariableNames;
-    std::vector<std::pair<AtomicString, bool>> labelSet; // <LabelString, continue accepted>
-};
 
 struct Marker {
     size_t index;
@@ -157,8 +129,8 @@ public:
 
     Script::ModuleData* moduleData;
 
-    Context contextInstance;
-    Context* context;
+    ParserContext contextInstance;
+    ParserContext* context;
 
     InterpretedCodeBlock* codeBlock;
     Marker baseMarker;
@@ -202,7 +174,7 @@ public:
     };
 
     Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
-        : scannerInstance(escargotContext, code, startLoc.line, startLoc.column)
+        : scannerInstance(escargotContext, &contextInstance, code, startLoc.line, startLoc.column)
         , allocator(escargotContext->astAllocator())
         , fakeContext(escargotContext->astAllocator())
     {
@@ -794,7 +766,7 @@ public:
     template <const size_t len>
     bool matchContextualKeyword(const char (&keyword)[len])
     {
-        return this->lookahead.type == Token::IdentifierToken && this->lookahead.valueStringLiteral(this->scanner).equals(keyword);
+        return this->lookahead.type == Token::IdentifierToken && !this->lookahead.hasAllocatedString && this->lookahead.valueStringLiteral(this->scanner).equals(keyword);
     }
 
     // Return true if the next token is an assignment operator
@@ -1162,6 +1134,12 @@ public:
     void validateParam(ParseFormalParametersResult& options, const Scanner::SmallScannerResult& param, AtomicString name)
     {
         ASSERT(param);
+        if (UNLIKELY(this->currentScopeContext->m_isGenerator && name.string()->equals("yield"))) {
+            this->throwUnexpectedToken(param, Messages::UnexpectedToken);
+        } else if (UNLIKELY(this->currentScopeContext->m_isAsync && name.string()->equals("await"))) {
+            this->throwUnexpectedToken(param, Messages::UnexpectedToken);
+        }
+
         if (this->context->strict) {
             if (this->scanner->isRestrictedWord(name)) {
                 options.stricted = param;
@@ -1179,7 +1157,7 @@ public:
                 options.firstRestricted = param;
                 options.message = Messages::StrictReservedWord;
             } else if (std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end()) {
-                options.stricted = param;
+                options.firstRestricted = param;
                 options.message = Messages::StrictParamDupe;
             }
         }
@@ -1785,8 +1763,16 @@ public:
             if (d.length == 3) {
                 if (d.equalsSameLength("get")) {
                     isGet = true;
+                    // if token->hasAllocatedString is true, the token has escaped string like '\uxxet'
+                    if (UNLIKELY(token->hasAllocatedString)) {
+                        this->throwUnexpectedToken(*token, Messages::KeywordMustNotContainEscapedCharacters);
+                    }
                 } else if (d.equalsSameLength("set")) {
                     isSet = true;
+                    // if token->hasAllocatedString is true, the token has escaped string like '\uxxet'
+                    if (UNLIKELY(token->hasAllocatedString)) {
+                        this->throwUnexpectedToken(*token, Messages::KeywordMustNotContainEscapedCharacters);
+                    }
                 }
             }
         }
@@ -2148,6 +2134,9 @@ public:
     template <class ASTBuilder>
     ASTNode parseNewExpression(ASTBuilder& builder)
     {
+        if (this->lookahead.end - this->lookahead.start != 3) {
+            this->throwUnexpectedToken(this->lookahead, Messages::KeywordMustNotContainEscapedCharacters);
+        }
         this->nextToken();
 
         if (this->match(Period)) {
@@ -4747,6 +4736,18 @@ public:
                     message = Messages::StrictReservedWord;
                 }
             }
+
+            if (UNLIKELY(this->context->strict && isGenerator)) {
+                if (id->asIdentifier()->name().string()->equals("yield")) {
+                    this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
+                }
+            }
+            // in global scope, await is allowed
+            if (UNLIKELY(isAsync && !builder.isNodeGenerator())) {
+                if (id->asIdentifier()->name().string()->equals("await")) {
+                    this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
+                }
+            }
         }
 
         ASSERT(id);
@@ -4941,6 +4942,18 @@ public:
                 } else if (this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictReservedWord;
+                }
+            }
+
+            if (UNLIKELY(this->context->strict && isGenerator)) {
+                if (id->asIdentifier()->name().string()->equals("yield")) {
+                    this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
+                }
+            }
+            // in global scope, await is allowed
+            if (UNLIKELY(isAsync && !builder.isNodeGenerator())) {
+                if (id->asIdentifier()->name().string()->equals("await")) {
+                    this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
             }
         }
@@ -5458,8 +5471,17 @@ public:
         AtomicString id;
 
         if (!identifierIsOptional || this->lookahead.type == Token::IdentifierToken) {
+            ALLOC_TOKEN(idToken);
+            *idToken = this->lookahead;
             idNode = this->parseVariableIdentifier(builder);
             id = idNode->asIdentifier()->name();
+
+            if (this->sourceType == Module && id.string()->equals("await")) {
+                this->throwUnexpectedToken(*idToken, Messages::UnexpectedReserved);
+            }
+            if (this->scanner->isStrictModeReservedWord(id)) {
+                this->throwUnexpectedToken(*idToken, Messages::UnexpectedReserved);
+            }
         }
 
         if (!identifierIsOptional && id.string()->length()) {
@@ -5795,6 +5817,9 @@ public:
         ASTNode exportDeclaration = nullptr;
         if (this->matchKeyword(KeywordKind::DefaultKeyword)) {
             // export default ...
+            if (this->lookahead.end - this->lookahead.start != 7) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
 
             this->nextToken();
             if (this->matchKeyword(KeywordKind::FunctionKeyword)) {

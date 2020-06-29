@@ -25,6 +25,10 @@
 
 namespace Escargot {
 
+namespace esprima {
+struct ParserContext;
+}
+
 namespace EscargotLexer {
 
 enum Token {
@@ -230,6 +234,7 @@ public:
     static constexpr const char* UnexpectedTokenIllegal = "Unexpected token ILLEGAL";
     static constexpr const char* UnterminatedRegExp = "Invalid regular expression: missing /";
     static constexpr const char* TemplateOctalLiteral = "Octal literals are not allowed in template strings.";
+    static constexpr const char* KeywordMustNotContainEscapedCharacters = "Keyword must not contain escaped characters";
 };
 
 class Scanner {
@@ -469,6 +474,7 @@ public:
     ParserStringView source;
     StringView sourceAsNormalView;
     ::Escargot::Context* escargotContext;
+    ::Escargot::esprima::ParserContext* parserContext;
     StringBufferAccessData sourceCodeAccessData;
 
     size_t length;
@@ -480,7 +486,7 @@ public:
     {
     }
 
-    Scanner(::Escargot::Context* escargotContext, StringView code, size_t startLine = 0, size_t startColumn = 0);
+    Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, size_t startLine = 0, size_t startColumn = 0);
 
     // Scanner always allocated on the stack
     MAKE_STACK_ALLOCATED();
