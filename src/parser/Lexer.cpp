@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "parser/Lexer.h"
 #include "parser/UnicodeIdentifierTables.h"
+#include "parser/esprima_cpp/ParserContext.h"
 
 // These two must be the last because they overwrite the ASSERT macro.
 #include "double-conversion.h"
@@ -636,10 +637,11 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
     this->valueStringLiteralData.m_stringIfNewlyAllocated = newStr;
 }
 
-Scanner::Scanner(::Escargot::Context* escargotContext, StringView code, size_t startLine, size_t startColumn)
+Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, size_t startLine, size_t startColumn)
     : source(code, 0, code.length())
     , sourceAsNormalView(code)
     , escargotContext(escargotContext)
+    , parserContext(parserContext)
     , sourceCodeAccessData(code.bufferAccessData())
     , length(code.length())
     , index(0)
@@ -836,6 +838,11 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
     }
 
     String* str = new UTF16String(id.data(), id.length());
+
+    if (UNLIKELY(this->parserContext->await && id == u"await")) {
+        this->throwUnexpectedToken(Messages::KeywordMustNotContainEscapedCharacters);
+    }
+
     return std::make_tuple(str->bufferAccessData(), str);
 }
 

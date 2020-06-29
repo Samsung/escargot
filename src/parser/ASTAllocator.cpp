@@ -54,7 +54,6 @@ void ASTAllocator::reset()
         m_astPoolEnd = m_astPoolMemory + astPoolSize();
     } else {
         m_astPoolMemory = static_cast<char*>(currentPool());
-        m_astPoolEnd = m_astPoolMemory + astPoolSize();
     }
 }
 
