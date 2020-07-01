@@ -29,11 +29,12 @@ namespace Escargot {
 
 class MemberExpressionNode : public ExpressionNode {
 public:
-    MemberExpressionNode(Node* object, Node* property, bool computed)
+    MemberExpressionNode(Node* object, Node* property, bool computed, bool optional)
         : ExpressionNode()
         , m_object(object)
         , m_property(property)
-        , m_computed(computed)
+        , m_isPreComputedCase(computed)
+        , m_isOptional(optional)
     {
     }
 
@@ -50,7 +51,11 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::MemberExpression; }
     bool isPreComputedCase()
     {
-        return m_computed;
+        return m_isPreComputedCase;
+    }
+    bool isOptional()
+    {
+        return m_isOptional;
     }
 
     inline AtomicString propertyName()
@@ -67,6 +72,10 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
+        if (isOptional()) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstIndex, Value()), context, this);
+        }
+
         bool prevHead = context->m_isHeadOfMemberExpression;
         context->m_isHeadOfMemberExpression = false;
 
@@ -90,6 +99,12 @@ public:
         }
 
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
+
+        size_t optionalJumpPos = SIZE_MAX;
+        if (isOptional()) {
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, objectIndex), context, this);
+            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+        }
 
         if (isPreComputedCase()) {
             ASSERT(m_property->isIdentifier());
@@ -123,10 +138,15 @@ public:
         if (!(context->m_inCallingExpressionScope && prevHead)) {
             context->giveUpRegister();
         }
+
+        if (isOptional()) {
+            codeBlock->peekCode<JumpIfUndefinedOrNull>(optionalJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+        }
     }
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf) override
     {
+        ASSERT(!isOptional());
         if (isPreComputedCase()) {
             size_t valueIndex;
             size_t objectIndex;
@@ -254,7 +274,8 @@ private:
     Node* m_object; // object: Expression;
     Node* m_property; // property: Identifier | Expression;
 
-    bool m_computed : 1;
+    bool m_isPreComputedCase;
+    bool m_isOptional;
 };
 }
 

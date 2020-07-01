@@ -602,15 +602,19 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(JumpIfNotUndefinedNorNull)
+        DEFINE_OPCODE(JumpIfUndefinedOrNull)
             :
         {
-            JumpIfNotUndefinedNorNull* code = (JumpIfNotUndefinedNorNull*)programCounter;
+            JumpIfUndefinedOrNull* code = (JumpIfUndefinedOrNull*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (!registerFile[code->m_registerIndex].isUndefinedOrNull()) {
+            bool cond = registerFile[code->m_registerIndex].isUndefinedOrNull();
+            if (code->m_shouldNegate) {
+                cond = !cond;
+            }
+            if (cond) {
                 programCounter = code->m_jumpPosition;
             } else {
-                ADD_PROGRAM_COUNTER(JumpIfNotUndefinedNorNull);
+                ADD_PROGRAM_COUNTER(JumpIfUndefinedOrNull);
             }
             NEXT_INSTRUCTION();
         }
@@ -2744,16 +2748,21 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
             receiverObj = state.context()->globalObjectProxy();
         }
 
-        if (code->m_hasSpreadElement) {
-            ValueVector spreadArgs;
-            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-            registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+        if (code->m_isOptional && callee.isUndefinedOrNull()) {
+            registerFile[code->m_resultIndex] = Value();
         } else {
-            registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            if (code->m_hasSpreadElement) {
+                ValueVector spreadArgs;
+                spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
+            } else {
+                registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            }
         }
         break;
     }
     case CallFunctionComplexCase::MayBuiltinApply: {
+        ASSERT(!code->m_isOptional);
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = registerFile[code->m_receiverIndex];
         if (UNLIKELY(!callee.isPointerValue() || !receiver.isPointerValue())) {
@@ -2804,34 +2813,39 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         }
 
         Value eval = registerFile[code->m_calleeIndex];
-        if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
-            // do eval
-            Value arg;
-            if (argc) {
-                arg = argv[0];
-            }
-            Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-            registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
+        if (code->m_isOptional && eval.isUndefinedOrNull()) {
+            registerFile[code->m_resultIndex] = Value();
         } else {
-            Value thisValue;
-            if (code->m_inWithScope) {
-                LexicalEnvironment* env = state.lexicalEnvironment();
-                while (env) {
-                    EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
-                    if (result.m_hasBindingValue) {
-                        break;
+            if (eval.equalsTo(state, state.context()->globalObject()->eval())) {
+                // do eval
+                Value arg;
+                if (argc) {
+                    arg = argv[0];
+                }
+                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
+            } else {
+                Value thisValue;
+                if (code->m_inWithScope) {
+                    LexicalEnvironment* env = state.lexicalEnvironment();
+                    while (env) {
+                        EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, state.context()->staticStrings().eval);
+                        if (result.m_hasBindingValue) {
+                            break;
+                        }
+                        env = env->outerEnvironment();
                     }
-                    env = env->outerEnvironment();
+                    if (env && env->record()->isObjectEnvironmentRecord()) {
+                        thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
+                    }
                 }
-                if (env && env->record()->isObjectEnvironmentRecord()) {
-                    thisValue = env->record()->asObjectEnvironmentRecord()->bindingObject();
-                }
+                registerFile[code->m_resultIndex] = Object::call(state, eval, thisValue, argc, argv);
             }
-            registerFile[code->m_resultIndex] = Object::call(state, eval, thisValue, argc, argv);
         }
         break;
     }
     case CallFunctionComplexCase::WithSpreadElement: {
+        ASSERT(!code->m_isOptional);
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
 
@@ -2851,6 +2865,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         break;
     }
     case CallFunctionComplexCase::Super: {
+        ASSERT(!code->m_isOptional);
         // Let newTarget be GetNewTarget().
         Object* newTarget = state.getNewTarget();
         // If newTarget is undefined, throw a ReferenceError exception. <-- we checked this at superOperation

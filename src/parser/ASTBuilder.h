@@ -71,7 +71,6 @@ namespace Escargot {
     F(BlockStatement)                         \
     F(BreakLabelStatement)                    \
     F(BreakStatement)                         \
-    F(CallExpression)                         \
     F(CatchClause)                            \
     F(ClassBody)                              \
     F(ClassElement)                           \
@@ -219,6 +218,12 @@ public:
         return m_flag;
     }
 
+    bool isOptional()
+    {
+        ASSERT(m_nodeType == ASTNodeType::MemberExpression);
+        return m_flag;
+    }
+
     ALWAYS_INLINE bool isAssignmentOperation()
     {
         return m_nodeType >= ASTNodeType::AssignmentExpression && m_nodeType <= ASTNodeType::AssignmentExpressionSimple;
@@ -318,6 +323,12 @@ public:
     ALWAYS_INLINE SyntaxNode* asArrowParameterPlaceHolder()
     {
         ASSERT(m_nodeType == ArrowParameterPlaceHolder);
+        return this;
+    }
+
+    ALWAYS_INLINE SyntaxNode* asMemberExpression()
+    {
+        ASSERT(m_nodeType == MemberExpression);
         return this;
     }
 
@@ -553,6 +564,16 @@ public:
         return SyntaxNode(ASTNodeType::ArrowParameterPlaceHolder, async);
     }
 
+    ALWAYS_INLINE SyntaxNode createMemberExpressionNode(SyntaxNode object, SyntaxNode property, bool computed, bool optional)
+    {
+        return SyntaxNode(MemberExpression, optional);
+    }
+
+    ALWAYS_INLINE SyntaxNode createCallExpressionNode(SyntaxNode callee, const SyntaxNodeList& arguments, bool isOptional = false, bool isSubSequenceOfOptionalExpression = false)
+    {
+        return SyntaxNode(CallExpression);
+    }
+
 #define DECLARE_CREATE_FUNCTION(name)                         \
     template <typename... Args>                               \
     ALWAYS_INLINE SyntaxNode create##name##Node(Args... args) \
@@ -671,6 +692,24 @@ public:
     AssignmentPatternNode* createAssignmentPatternNode(Node* left, Node* right)
     {
         return new (m_allocator) AssignmentPatternNode(left, right);
+    }
+
+    MemberExpressionNode* createMemberExpressionNode(Node* object, Node* property, bool computed, bool optional)
+    {
+        return new (m_allocator) MemberExpressionNode(object, property, computed, optional);
+    }
+
+    CallExpressionNode* createCallExpressionNode(Node* callee, const NodeList& arguments, bool isOptional = false, bool isSubSequenceOfOptionalExpression = false)
+    {
+        if (LIKELY(!isOptional && !isSubSequenceOfOptionalExpression)) {
+            return new (m_allocator) CallExpressionNode(callee, arguments);
+        } else if (isOptional && !isSubSequenceOfOptionalExpression) {
+            return new (m_allocator) CallExpressionNodeOptional<true, false>(callee, arguments);
+        } else if (!isOptional && isSubSequenceOfOptionalExpression) {
+            return new (m_allocator) CallExpressionNodeOptional<false, true>(callee, arguments);
+        } else {
+            return new (m_allocator) CallExpressionNodeOptional<true, true>(callee, arguments);
+        }
     }
 
     StatementContainer* createStatementContainer()

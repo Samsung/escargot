@@ -516,8 +516,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case JumpIfNotUndefinedNorNullOpcode: {
-                JumpIfNotUndefinedNorNull* cd = (JumpIfNotUndefinedNorNull*)currentCode;
+            case JumpIfUndefinedOrNullOpcode: {
+                JumpIfUndefinedOrNull* cd = (JumpIfUndefinedOrNull*)currentCode;
                 cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
