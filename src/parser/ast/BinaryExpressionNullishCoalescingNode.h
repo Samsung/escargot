@@ -46,12 +46,12 @@ public:
 
         m_left->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
 
-        codeBlock->pushCode<JumpIfNotUndefinedNorNull>(JumpIfNotUndefinedNorNull(ByteCodeLOC(m_loc.index), resultRegisterExpected), context, this);
-        size_t pos = codeBlock->lastCodePosition<JumpIfNotUndefinedNorNull>();
+        codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, resultRegisterExpected), context, this);
+        size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
         m_right->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
 
-        codeBlock->peekCode<JumpIfNotUndefinedNorNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         context->m_canSkipCopyToRegister = directBefore;
     }

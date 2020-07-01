@@ -104,7 +104,7 @@ struct GlobalVariableAccessCacheItem;
     F(Jump, 0, 0)                                           \
     F(JumpComplexCase, 0, 0)                                \
     F(JumpIfTrue, 0, 0)                                     \
-    F(JumpIfNotUndefinedNorNull, 0, 0)                      \
+    F(JumpIfUndefinedOrNull, 0, 0)                          \
     F(JumpIfFalse, 0, 0)                                    \
     F(JumpIfRelation, 0, 0)                                 \
     F(JumpIfEqual, 0, 0)                                    \
@@ -1465,26 +1465,33 @@ public:
 #endif
 };
 
-class JumpIfNotUndefinedNorNull : public JumpByteCode {
+class JumpIfUndefinedOrNull : public JumpByteCode {
 public:
-    JumpIfNotUndefinedNorNull(const ByteCodeLOC& loc, const size_t registerIndex)
-        : JumpByteCode(Opcode::JumpIfNotUndefinedNorNullOpcode, loc, SIZE_MAX)
+    JumpIfUndefinedOrNull(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex)
+        : JumpByteCode(Opcode::JumpIfUndefinedOrNullOpcode, loc, SIZE_MAX)
+        , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
-    JumpIfNotUndefinedNorNull(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
-        : JumpByteCode(Opcode::JumpIfNotUndefinedNorNullOpcode, loc, pos)
+    JumpIfUndefinedOrNull(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex, size_t pos)
+        : JumpByteCode(Opcode::JumpIfUndefinedOrNullOpcode, loc, pos)
+        , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
+    bool m_shouldNegate;
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("jump if undefined or null r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        if (m_shouldNegate) {
+            printf("jump if not undefined nor null r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        } else {
+            printf("jump if undefined or null r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        }
     }
 #endif
 };
@@ -1643,12 +1650,13 @@ public:
     };
 
     CallFunctionComplexCase(const ByteCodeLOC& loc, Kind kind,
-                            bool inWithScope, bool hasSpreadElement,
+                            bool inWithScope, bool hasSpreadElement, bool isOptional,
                             const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
         : ByteCode(Opcode::CallFunctionComplexCaseOpcode, loc)
         , m_kind(kind)
         , m_inWithScope(inWithScope)
         , m_hasSpreadElement(hasSpreadElement)
+        , m_isOptional(isOptional)
         , m_argumentCount(argumentCount)
         , m_receiverIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
@@ -1657,12 +1665,13 @@ public:
     {
     }
 
-    CallFunctionComplexCase(const ByteCodeLOC& loc, bool hasSpreadElement,
+    CallFunctionComplexCase(const ByteCodeLOC& loc, bool hasSpreadElement, bool isOptional,
                             AtomicString calleeName, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
         : ByteCode(Opcode::CallFunctionComplexCaseOpcode, loc)
         , m_kind(InWithScope)
         , m_inWithScope(true)
         , m_hasSpreadElement(hasSpreadElement)
+        , m_isOptional(isOptional)
         , m_argumentCount(argumentCount)
         , m_calleeName(calleeName)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1673,6 +1682,7 @@ public:
     Kind m_kind : 3;
     bool m_inWithScope : 1;
     bool m_hasSpreadElement : 1;
+    bool m_isOptional : 1;
     uint16_t m_argumentCount : 16;
 
     union {

@@ -916,6 +916,9 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         if (ch == '?') {
             ++this->index;
             kind = NullishCoalescing;
+        } else if (ch == '.') {
+            ++this->index;
+            kind = GuessDot;
         }
         break;
     case '~':

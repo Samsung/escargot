@@ -36,6 +36,16 @@ public:
     {
     }
 
+    virtual bool isOptional()
+    {
+        return false;
+    }
+
+    virtual bool isSubSequenceOfOptionalExpression()
+    {
+        return false;
+    }
+
     Node* callee() { return m_callee; }
     const NodeList& arguments() { return m_arguments; }
     virtual ASTNodeType type() override { return ASTNodeType::CallExpression; }
@@ -139,6 +149,8 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        bool isOptional = this->isOptional();
+        bool isSubSequenceOfOptionalExpression = this->isSubSequenceOfOptionalExpression();
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
@@ -146,7 +158,7 @@ public:
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
-                                                        REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                                        isOptional, REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
                                 context, this);
             return;
         }
@@ -166,7 +178,7 @@ public:
             auto args = generateArguments(codeBlock, context);
             ByteCodeRegisterIndex startIndex = args.first;
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second,
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second, isOptional,
                                                         calleeName, startIndex, dstRegister, m_arguments.size()),
                                 context, this);
             return;
@@ -177,7 +189,7 @@ public:
         bool maySpecialBuiltinApplyCall = false; // ex) function.apply(<any>, arguments)
         bool calleeIsMemberExpression = m_callee->isMemberExpression();
 
-        if (calleeIsMemberExpression && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
+        if (calleeIsMemberExpression && !isOptional && !isSubSequenceOfOptionalExpression && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
             if (m_arguments.size() == 2 && codeBlock->m_codeBlock->parameterCount() == 0) {
                 auto node = m_arguments.begin();
                 node = node->next();
@@ -207,7 +219,7 @@ public:
             context->giveUpRegister();
             context->giveUpRegister();
 
-            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinApply, false, false,
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinApply, false, false, false,
                                                         receiverIndex, calleeIndex, firstArgumentRegister, dstRegister, m_arguments.size()),
                                 context, this);
 
@@ -216,12 +228,21 @@ public:
             return;
         }
 
+        if (isOptional || isSubSequenceOfOptionalExpression) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this);
+        }
+
         ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
         ByteCodeRegisterIndex calleeIndex = REGISTER_LIMIT;
 
         calleeIndex = m_callee->getRegister(codeBlock, context);
         m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
 
+        size_t optionalJumpPos = SIZE_MAX;
+        if (isSubSequenceOfOptionalExpression) {
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this);
+            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+        }
 
         if (isCalleeHasReceiver) {
             receiverIndex = context->getLastRegisterIndex();
@@ -236,6 +257,12 @@ public:
         ByteCodeRegisterIndex argumentsStartIndex = args.first;
         bool hasSpreadElement = args.second;
 
+        if (isOptional) {
+            ASSERT(optionalJumpPos == SIZE_MAX);
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this);
+            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+        }
+
         // drop callee, receiver registers
         if (isCalleeHasReceiver) {
             context->giveUpRegister();
@@ -245,17 +272,21 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Super, false, args.second,
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Super, false, args.second, false,
                                                         REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this);
         } else if (hasSpreadElement) {
-            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::WithSpreadElement, false, args.second,
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::WithSpreadElement, false, args.second, false,
                                                         receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this);
         } else if (isCalleeHasReceiver) {
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
         } else {
             codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+        }
+
+        if (isOptional || isSubSequenceOfOptionalExpression) {
+            codeBlock->peekCode<JumpIfUndefinedOrNull>(optionalJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
         }
 
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
@@ -283,6 +314,24 @@ public:
 private:
     Node* m_callee; // callee: Expression;
     NodeList m_arguments; // arguments: [ Expression ];
+};
+
+template <const bool isOptionalValue = false, const bool isSubSequenceOfOptionalExpressionValue = false>
+class CallExpressionNodeOptional : public CallExpressionNode {
+public:
+    CallExpressionNodeOptional(Node* callee, const NodeList& arguments)
+        : CallExpressionNode(callee, arguments)
+    {
+    }
+
+    virtual bool isOptional() override
+    {
+        return isOptionalValue;
+    }
+    virtual bool isSubSequenceOfOptionalExpression() override
+    {
+        return isSubSequenceOfOptionalExpressionValue;
+    }
 };
 }
 
