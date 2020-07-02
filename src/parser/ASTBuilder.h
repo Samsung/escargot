@@ -342,12 +342,12 @@ public:
         return *tempVector;
     }
 
-    ASTFunctionScopeContext* scopeContext()
+    ASTScopeContext* scopeContext()
     {
         // dummy function for scopeContext() of FunctionDeclarationNode
         // this function should never be invoked
         RELEASE_ASSERT_NOT_REACHED();
-        ASTFunctionScopeContext* scopeContext;
+        ASTScopeContext* scopeContext;
         return scopeContext;
     }
 
@@ -528,7 +528,7 @@ public:
         return SyntaxNode(ASTNodeType::Function);
     }
 
-    ALWAYS_INLINE SyntaxNode createProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
+    ALWAYS_INLINE SyntaxNode createProgramNode(StatementContainer* body, ASTScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
     {
         return SyntaxNode(ASTNodeType::Program);
     }
@@ -596,7 +596,7 @@ public:
         return node;
     }
 
-    SyntaxNode convertTaggedTemplateExpressionToCallExpression(SyntaxNode templateLiteral, SyntaxNode taggedTemplateExpressionNode, size_t taggedTemplateExpressionIndex, ASTFunctionScopeContext* scopeContext, AtomicString raw)
+    SyntaxNode convertTaggedTemplateExpressionToCallExpression(SyntaxNode templateLiteral, SyntaxNode taggedTemplateExpressionNode, size_t taggedTemplateExpressionIndex, ASTScopeContext* scopeContext, AtomicString raw)
     {
         return SyntaxNode(CallExpression);
     }
@@ -663,7 +663,7 @@ public:
         return new (m_allocator) FunctionNode(params, body, std::forward<NumeralLiteralVector>(numeralLiteralVector));
     }
 
-    ProgramNode* createProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
+    ProgramNode* createProgramNode(StatementContainer* body, ASTScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
     {
         return new (m_allocator) ProgramNode(body, scopeContext, moduleData, std::forward<NumeralLiteralVector>(numeralLiteralVector));
     }
@@ -754,7 +754,7 @@ public:
         return paramNode;
     }
 
-    Node* convertTaggedTemplateExpressionToCallExpression(Node* templateLiteral, Node* taggedTemplateExpressionNode, size_t taggedTemplateExpressionIndex, ASTFunctionScopeContext* scopeContext, AtomicString raw)
+    Node* convertTaggedTemplateExpressionToCallExpression(Node* templateLiteral, Node* taggedTemplateExpressionNode, size_t taggedTemplateExpressionIndex, ASTScopeContext* scopeContext, AtomicString raw)
     {
         TemplateLiteralNode* templateLiteralNode = (TemplateLiteralNode*)templateLiteral;
         NodeList args;

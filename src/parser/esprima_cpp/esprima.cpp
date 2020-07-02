@@ -165,8 +165,8 @@ public:
     Marker startMarker;
     Marker lastMarker;
 
-    ASTFunctionScopeContext* currentScopeContext;
-    ASTFunctionScopeContext* lastPoppedScopeContext;
+    ASTScopeContext* currentScopeContext;
+    ASTScopeContext* lastPoppedScopeContext;
 
     AtomicString lastUsingName;
     std::function<void(AtomicString, LexicalBlockIndex, KeywordKind, bool)> nameDeclaredCallback;
@@ -178,13 +178,13 @@ public:
     size_t subCodeBlockIndex;
     size_t taggedTemplateExpressionIndex;
 
-    ASTBlockScopeContext* currentBlockContext;
+    ASTBlockContext* currentBlockContext;
     LexicalBlockIndex lexicalBlockIndex;
     LexicalBlockIndex lexicalBlockCount;
 
     NumeralLiteralVector numeralLiteralVector;
 
-    ASTFunctionScopeContext fakeContext;
+    ASTScopeContext fakeContext;
 
     AtomicString stringArguments;
 
@@ -297,7 +297,7 @@ public:
         }
     }
 
-    ASTFunctionScopeContext* popScopeContext(ASTFunctionScopeContext* lastPushedScopeContext)
+    ASTScopeContext* popScopeContext(ASTScopeContext* lastPushedScopeContext)
     {
         auto ret = this->currentScopeContext;
         this->lastUsingName = AtomicString();
@@ -306,7 +306,7 @@ public:
         return ret;
     }
 
-    void pushScopeContext(ASTFunctionScopeContext* ctx)
+    void pushScopeContext(ASTScopeContext* ctx)
     {
         this->currentScopeContext = ctx;
         this->lastUsingName = AtomicString();
@@ -317,17 +317,17 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
     }
 
-    ASTFunctionScopeContext* pushScopeContext(AtomicString functionName)
+    ASTScopeContext* pushScopeContext(AtomicString functionName)
     {
         auto parentContext = this->currentScopeContext;
         // initialize subCodeBlockIndex before parsing of an internal function
         this->subCodeBlockIndex = 0;
         if (this->isParsingSingleFunction) {
-            fakeContext = ASTFunctionScopeContext(this->allocator);
+            fakeContext = ASTScopeContext(this->allocator);
             pushScopeContext(&fakeContext);
             return parentContext;
         }
-        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
+        pushScopeContext(new (this->allocator) ASTScopeContext(this->allocator, this->context->strict));
         this->currentScopeContext->m_functionName = functionName;
         this->currentScopeContext->m_inWith = this->context->inWith;
 
@@ -3130,7 +3130,7 @@ public:
         size_t lexicalBlockIndexBefore;
         size_t childLexicalBlockIndex;
 
-        ASTBlockScopeContext* oldBlockScopeContext;
+        ASTBlockContext* oldBlockScopeContext;
 
         ParserBlockContext()
             : lexicalBlockCountBefore(SIZE_MAX)
@@ -3185,7 +3185,7 @@ public:
 
                 bool isThereFunctionExists = false;
 
-                ASTFunctionScopeContext* child = currentFunctionScope->m_firstChild;
+                ASTScopeContext* child = currentFunctionScope->m_firstChild;
                 while (child) {
                     if (child->m_nodeType == ASTNodeType::FunctionDeclaration
                         && child->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
@@ -3868,7 +3868,7 @@ public:
 
         this->expect(RightParenthesis);
 
-        ASTBlockScopeContext* headBlockContextInstance = this->currentScopeContext->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
+        ASTBlockContext* headBlockContextInstance = this->currentScopeContext->findBlockFromBackward(headBlockContext.childLexicalBlockIndex);
         if (headBlockContextInstance->m_names.size()) {
             // if there are names on headContext (let, const)
             // we should copy names into to iterationBlock
@@ -5918,7 +5918,7 @@ public:
 
     ProgramNode* parseProgram(NodeGenerator& builder)
     {
-        pushScopeContext(new (this->allocator) ASTFunctionScopeContext(this->allocator, this->context->strict));
+        pushScopeContext(new (this->allocator) ASTScopeContext(this->allocator, this->context->strict));
 
         ParserBlockContext blockContext;
         openBlock(blockContext);
@@ -6107,7 +6107,7 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isMo
     return nd;
 }
 
-FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain)
+FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
@@ -6127,7 +6127,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.isParsingSingleFunction = true;
     parser.codeBlock = codeBlock;
 
-    scopeContext = new (ctx->astAllocator()) ASTFunctionScopeContext(ctx->astAllocator(), codeBlock->isStrict());
+    ASTScopeContext* scopeContext = new (ctx->astAllocator()) ASTScopeContext(ctx->astAllocator(), codeBlock->isStrict());
     parser.pushScopeContext(scopeContext);
     parser.currentScopeContext->m_functionBodyBlockIndex = codeBlock->functionBodyBlockIndex();
 

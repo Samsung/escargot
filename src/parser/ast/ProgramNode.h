@@ -29,7 +29,7 @@ namespace Escargot {
 
 class ProgramNode : public StatementNode {
 public:
-    ProgramNode(StatementContainer* body, ASTFunctionScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
+    ProgramNode(StatementContainer* body, ASTScopeContext* scopeContext, Script::ModuleData* moduleData, NumeralLiteralVector&& numeralLiteralVector)
         : StatementNode()
         , m_container(body)
         , m_scopeContext(scopeContext)
@@ -39,7 +39,7 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::Program; }
-    ASTFunctionScopeContext* scopeContext() { return m_scopeContext; }
+    ASTScopeContext* scopeContext() { return m_scopeContext; }
     Script::ModuleData* moduleData() { return m_moduleData; }
     NumeralLiteralVector& numeralLiteralVector() { return m_numeralLiteralVector; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
@@ -73,7 +73,7 @@ public:
 
 private:
     StatementContainer* m_container;
-    ASTFunctionScopeContext* m_scopeContext;
+    ASTScopeContext* m_scopeContext;
     Script::ModuleData* m_moduleData;
     NumeralLiteralVector m_numeralLiteralVector;
 };

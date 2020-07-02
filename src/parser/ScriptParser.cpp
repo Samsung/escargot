@@ -37,7 +37,7 @@ ScriptParser::ScriptParser(Context* c)
 {
 }
 
-InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
 {
     InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
@@ -189,7 +189,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         }
     }
 
-    ASTFunctionScopeContext* child = scopeCtx->firstChild();
+    ASTScopeContext* child = scopeCtx->firstChild();
     InterpretedCodeBlock* refer = nullptr;
     while (child) {
         InterpretedCodeBlock* newBlock = generateCodeBlockTreeFromASTWalker(ctx, source, script, child, codeBlock, isEvalCode, isEvalCodeInFunction);
@@ -274,7 +274,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 
         // Generate ByteCode
         if (LIKELY(needByteCodeGeneration)) {
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, programNode->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, isEvalMode, !isEvalCodeInFunction, inWith);
         }
 
         // reset ASTAllocator
@@ -307,11 +307,10 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     GC_disable();
 
     FunctionNode* functionNode;
-    ASTFunctionScopeContext* scopeContext = nullptr;
 
     // Parsing
     try {
-        functionNode = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, stackSizeRemain);
+        functionNode = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
     } catch (esprima::Error* orgError) {
         // reset ASTAllocator
         m_context->astAllocator().reset();
@@ -324,7 +323,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     }
 
     // Generate ByteCode
-    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode, scopeContext, false, false, false, false);
+    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode, false, false, false, false);
 
     // reset ASTAllocator
     m_context->astAllocator().reset();
@@ -369,11 +368,9 @@ void ScriptParser::recursivelyGenerateByteCode(InterpretedCodeBlock* topCodeBloc
             continue;
         }
 
-        ASTFunctionScopeContext* scopeContext = nullptr;
-
         // Errors caught by the caller.
-        FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, scopeContext, SIZE_MAX);
-        codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode, scopeContext, false, false, false, false);
+        FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, SIZE_MAX);
+        codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode, false, false, false, false);
 
         if (m_context->debugger() != NULL && m_context->debugger()->enabled()) {
             String* functionName = codeBlock->functionName().string();
@@ -443,7 +440,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         ASSERT(script->m_topCodeBlock == topCodeBlock);
 
         // Generate ByteCode
-        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, programNode->scopeContext(), isEvalMode, !isEvalCodeInFunction, inWith);
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, isEvalMode, !isEvalCodeInFunction, inWith);
 
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
             m_context->debugger()->sendFunctionInfo(topCodeBlock);

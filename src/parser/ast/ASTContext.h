@@ -24,9 +24,9 @@
 
 namespace Escargot {
 
-class ASTFunctionScopeContextNameInfo {
+class ASTScopeContextNameInfo {
 public:
-    ASTFunctionScopeContextNameInfo()
+    ASTScopeContextNameInfo()
     {
         m_isParameterName = false;
         m_isExplicitlyDeclaredOrParameterName = false;
@@ -93,17 +93,17 @@ private:
     AtomicString m_name;
 };
 
-typedef TightVector<ASTFunctionScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTFunctionScopeContextNameInfo>> ASTFunctionScopeContextNameInfoVector;
+typedef TightVector<ASTScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTScopeContextNameInfo>> ASTScopeContextNameInfoVector;
 
 // store only let, const names
-class ASTBlockScopeContextNameInfo {
+class ASTBlockContextNameInfo {
 public:
-    ASTBlockScopeContextNameInfo()
+    ASTBlockContextNameInfo()
     {
         m_value = (size_t)AtomicString().string();
     }
 
-    ASTBlockScopeContextNameInfo(AtomicString name, bool isConstBinding)
+    ASTBlockContextNameInfo(AtomicString name, bool isConstBinding)
     {
         m_value = (size_t)name.string();
         m_value |= isConstBinding ? 1 : 0;
@@ -136,19 +136,19 @@ private:
     size_t m_value;
 };
 
-typedef TightVector<ASTBlockScopeContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContextNameInfo>> ASTBlockScopeContextNameInfoVector;
+typedef TightVector<ASTBlockContextNameInfo, GCUtil::gc_malloc_atomic_allocator<ASTBlockContextNameInfo>> ASTBlockContextNameInfoVector;
 // context for block in function or program
-struct ASTBlockScopeContext {
+struct ASTBlockContext {
     ASTNodeType m_nodeType;
     LexicalBlockIndex m_blockIndex;
     LexicalBlockIndex m_parentBlockIndex;
-    ASTBlockScopeContextNameInfoVector m_names;
+    ASTBlockContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
 #ifndef NDEBUG
     ExtendedNodeLOC m_loc;
 #endif
 
-    // ASTBlockScopeContext is allocated by ASTAllocator
+    // ASTBlockContext is allocated by ASTAllocator
     inline void *operator new(size_t size, ASTAllocator &allocator)
     {
         return allocator.allocate(size);
@@ -159,7 +159,7 @@ struct ASTBlockScopeContext {
     void operator delete(void *) = delete;
     void operator delete[](void *) = delete;
 
-    ASTBlockScopeContext()
+    ASTBlockContext()
         : m_nodeType(ASTNodeType::ASTNodeTypeError)
         , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
         , m_parentBlockIndex(LEXICAL_BLOCK_INDEX_MAX)
@@ -170,14 +170,14 @@ struct ASTBlockScopeContext {
     }
 };
 
-typedef Vector<ASTBlockScopeContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockScopeContext *>, ComputeReservedCapacityFunctionWithLog2<>> ASTBlockScopeContextVector;
+typedef Vector<ASTBlockContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockContext *>, ComputeReservedCapacityFunctionWithLog2<>> ASTBlockContextVector;
 typedef std::unordered_map<AtomicString, StorePositiveIntergerAsOdd, std::hash<AtomicString>, std::equal_to<AtomicString>,
                            GCUtil::gc_malloc_allocator<std::pair<AtomicString const, StorePositiveIntergerAsOdd>>>
     FunctionContextVarMap;
 
 
 // context for function or program
-struct ASTFunctionScopeContext {
+struct ASTScopeContext {
     bool m_isStrict : 1;
     bool m_hasEval : 1;
     bool m_hasWith : 1;
@@ -203,14 +203,14 @@ struct ASTFunctionScopeContext {
     unsigned int m_parameterCount : 16; // represent the number of parameter element nodes
     LexicalBlockIndex m_functionBodyBlockIndex : 16;
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
-    ASTFunctionScopeContextNameInfoVector m_varNames;
+    ASTScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 
-    ASTFunctionScopeContext *m_firstChild;
-    ASTFunctionScopeContext *m_nextSibling;
-    ASTBlockScopeContextVector m_childBlockScopes;
+    ASTScopeContext *m_firstChild;
+    ASTScopeContext *m_nextSibling;
+    ASTBlockContextVector m_childBlockScopes;
 
     ExtendedNodeLOC m_functionStartLOC;
 #if !(defined NDEBUG)
@@ -219,7 +219,7 @@ struct ASTFunctionScopeContext {
     NodeLOC m_bodyEndLOC;
 #endif
 
-    // ASTFunctionScopeContext is allocated by ASTAllocator
+    // ASTScopeContext is allocated by ASTAllocator
     inline void *operator new(size_t size, ASTAllocator &allocator)
     {
         return allocator.allocate(size);
@@ -230,13 +230,13 @@ struct ASTFunctionScopeContext {
     void operator delete(void *) = delete;
     void operator delete[](void *) = delete;
 
-    void appendChild(ASTFunctionScopeContext *child)
+    void appendChild(ASTScopeContext *child)
     {
         ASSERT(child->m_nextSibling == nullptr);
         if (m_firstChild == nullptr) {
             m_firstChild = child;
         } else {
-            ASTFunctionScopeContext *tail = firstChild();
+            ASTScopeContext *tail = firstChild();
             while (tail->m_nextSibling != nullptr) {
                 tail = tail->m_nextSibling;
             }
@@ -244,12 +244,12 @@ struct ASTFunctionScopeContext {
         }
     }
 
-    ASTFunctionScopeContext *firstChild()
+    ASTScopeContext *firstChild()
     {
         return m_firstChild;
     }
 
-    ASTFunctionScopeContext *nextSibling()
+    ASTScopeContext *nextSibling()
     {
         return m_nextSibling;
     }
@@ -311,7 +311,7 @@ struct ASTFunctionScopeContext {
         }
     }
 
-    ASTBlockScopeContext *findBlock(LexicalBlockIndex blockIndex)
+    ASTBlockContext *findBlock(LexicalBlockIndex blockIndex)
     {
         size_t b = m_childBlockScopes.size();
         for (size_t i = 0; i < b; i++) {
@@ -323,7 +323,7 @@ struct ASTFunctionScopeContext {
         return nullptr;
     }
 
-    ASTBlockScopeContext *findBlockFromBackward(LexicalBlockIndex blockIndex)
+    ASTBlockContext *findBlockFromBackward(LexicalBlockIndex blockIndex)
     {
         int32_t b = (int32_t)m_childBlockScopes.size() - 1;
         return m_childBlockScopes[findBlockFromBackward(blockIndex, b)];
@@ -348,7 +348,7 @@ struct ASTFunctionScopeContext {
     bool hasNameAtBlock(AtomicString name, LexicalBlockIndex blockIndex)
     {
         while (blockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-            ASTBlockScopeContext *blockContext = findBlock(blockIndex);
+            ASTBlockContext *blockContext = findBlock(blockIndex);
             for (size_t i = 0; i < blockContext->m_names.size(); i++) {
                 if (blockContext->m_names[i].name() == name) {
                     return true;
@@ -377,7 +377,7 @@ struct ASTFunctionScopeContext {
             return;
         }
 
-        ASTFunctionScopeContextNameInfo info;
+        ASTScopeContextNameInfo info;
         info.setName(name);
         info.setIsParameterName(isParameterName);
         info.setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
@@ -396,7 +396,7 @@ struct ASTFunctionScopeContext {
         }
     }
 
-    ASTBlockScopeContext *insertBlockScope(ASTAllocator &allocator, LexicalBlockIndex blockIndex, LexicalBlockIndex parentBlockIndex, ExtendedNodeLOC loc)
+    ASTBlockContext *insertBlockScope(ASTAllocator &allocator, LexicalBlockIndex blockIndex, LexicalBlockIndex parentBlockIndex, ExtendedNodeLOC loc)
     {
 #ifndef NDEBUG
         size_t b = m_childBlockScopes.size();
@@ -407,7 +407,7 @@ struct ASTFunctionScopeContext {
         }
 #endif
 
-        ASTBlockScopeContext *newContext = new (allocator) ASTBlockScopeContext();
+        ASTBlockContext *newContext = new (allocator) ASTBlockContext();
         newContext->m_blockIndex = blockIndex;
         newContext->m_parentBlockIndex = parentBlockIndex;
 #ifndef NDEBUG
@@ -420,20 +420,20 @@ struct ASTFunctionScopeContext {
 
     bool insertNameAtBlock(AtomicString name, LexicalBlockIndex blockIndex, bool isConstBinding)
     {
-        ASTBlockScopeContext *blockContext = findBlockFromBackward(blockIndex);
+        ASTBlockContext *blockContext = findBlockFromBackward(blockIndex);
         for (size_t i = 0; i < blockContext->m_names.size(); i++) {
             if (blockContext->m_names[i].name() == name) {
                 return false;
             }
         }
 
-        blockContext->m_names.push_back(ASTBlockScopeContextNameInfo(name, isConstBinding));
+        blockContext->m_names.push_back(ASTBlockContextNameInfo(name, isConstBinding));
         return true;
     }
 
     bool blockHasName(AtomicString name, size_t blockIndex)
     {
-        ASTBlockScopeContext *blockContext = findBlockFromBackward(blockIndex);
+        ASTBlockContext *blockContext = findBlockFromBackward(blockIndex);
         for (size_t i = 0; i < blockContext->m_names.size(); i++) {
             if (blockContext->m_names[i].name() == name) {
                 return true;
@@ -460,7 +460,7 @@ struct ASTFunctionScopeContext {
         if (isVarName) {
             int32_t findBlockIndex = m_childBlockScopes.size() - 1;
             findBlockIndex = findBlockFromBackward(blockIndex, findBlockIndex);
-            ASTBlockScopeContext *cb = m_childBlockScopes[findBlockIndex];
+            ASTBlockContext *cb = m_childBlockScopes[findBlockIndex];
             while (true) {
                 size_t siz = cb->m_names.size();
                 for (size_t i = 0; i < siz; i++) {
@@ -495,7 +495,7 @@ struct ASTFunctionScopeContext {
         return true;
     }
 
-    explicit ASTFunctionScopeContext(ASTAllocator &allocator, bool isStrict = false)
+    explicit ASTScopeContext(ASTAllocator &allocator, bool isStrict = false)
         : m_isStrict(isStrict)
         , m_hasEval(false)
         , m_hasWith(false)
@@ -537,7 +537,7 @@ struct ASTFunctionScopeContext {
 namespace std {
 
 template <>
-struct is_fundamental<Escargot::ASTFunctionScopeContextNameInfo> : public true_type {
+struct is_fundamental<Escargot::ASTScopeContextNameInfo> : public true_type {
 };
 }
 
