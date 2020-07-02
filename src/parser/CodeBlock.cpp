@@ -163,9 +163,9 @@ CodeBlock::CodeBlock(Context* ctx, AtomicString name, size_t argc, bool isStrict
 {
 }
 
-void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx)
+void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
 {
-    const ASTBlockScopeContextVector& blockScopes = scopeCtx->m_childBlockScopes;
+    const ASTBlockContextVector& blockScopes = scopeCtx->m_childBlockScopes;
     m_blockInfos.resizeWithUninitializedValues(blockScopes.size());
     for (size_t i = 0; i < blockScopes.size(); i++) {
         BlockInfo* info = new BlockInfo(
@@ -199,7 +199,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTFunctionScopeContext* sc
     }
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(src)
     , m_parameterCount(0)
@@ -259,7 +259,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
 
-    const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
+    const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
@@ -277,7 +277,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     initBlockScopeInformation(scopeCtx);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : m_script(script)
     , m_src(StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index))
     , m_parameterCount(scopeCtx->m_parameterCount)
@@ -351,7 +351,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     m_canAllocateVariablesOnStack = true;
     m_hasDescendantUsesNonIndexedVariableStorage = false;
 
-    const ASTFunctionScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
+    const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;

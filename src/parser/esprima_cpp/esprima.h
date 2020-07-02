@@ -62,7 +62,7 @@ struct Error : public gc {
 #define ESPRIMA_RECURSIVE_LIMIT 1024
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside);
-FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, ASTFunctionScopeContext*& scopeContext, size_t stackRemain);
+FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
 }
 }
 

@@ -733,7 +733,7 @@ public:
 #endif
 
 #ifndef NDEBUG
-    ASTFunctionScopeContext* scopeContext()
+    ASTScopeContext* scopeContext()
     {
         return m_scopeContext;
     }
@@ -774,12 +774,12 @@ public:
 
 protected:
     // init global codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
 
     void computeBlockVariables(LexicalBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
-    void initBlockScopeInformation(ASTFunctionScopeContext* scopeCtx);
+    void initBlockScopeInformation(ASTScopeContext* scopeCtx);
 
     // You can use this function on ScriptParser only
     std::tuple<bool, size_t, size_t> findNameWithinBlock(LexicalBlockIndex blockIndex, AtomicString name)
@@ -852,7 +852,7 @@ protected:
     ExtendedNodeLOC m_bodyEndLOC;
 #endif
 #ifndef NDEBUG
-    ASTFunctionScopeContext* m_scopeContext;
+    ASTScopeContext* m_scopeContext;
 #endif
 };
 }

@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-struct ASTFunctionScopeContext;
+struct ASTScopeContext;
 class CodeBlock;
 class InterpretedCodeBlock;
 class Context;
@@ -68,7 +68,7 @@ public:
 
 private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
-    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTFunctionScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
     void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
 #ifndef NDEBUG
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);

@@ -155,7 +155,7 @@ static const uint8_t byteCodeLengths[] = {
 #undef ITER_BYTE_CODE
 };
 
-ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, ASTFunctionScopeContext* scopeCtx, bool isEvalMode, bool isOnGlobal, bool inWithFromRuntime, bool shouldGenerateLOCData)
+ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, bool isEvalMode, bool isOnGlobal, bool inWithFromRuntime, bool shouldGenerateLOCData)
 {
     ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
     block->m_isEvalMode = isEvalMode;
