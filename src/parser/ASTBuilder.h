@@ -696,7 +696,19 @@ public:
 
     MemberExpressionNode* createMemberExpressionNode(Node* object, Node* property, bool computed, bool optional)
     {
-        return new (m_allocator) MemberExpressionNode(object, property, computed, optional);
+        if (computed) {
+            if (UNLIKELY(optional)) {
+                return new (m_allocator) MemberExpressionNodeOptional<true, true>(object, property);
+            } else {
+                return new (m_allocator) MemberExpressionNodeOptional<true, false>(object, property);
+            }
+        } else {
+            if (UNLIKELY(optional)) {
+                return new (m_allocator) MemberExpressionNodeOptional<false, true>(object, property);
+            } else {
+                return new (m_allocator) MemberExpressionNode(object, property);
+            }
+        }
     }
 
     CallExpressionNode* createCallExpressionNode(Node* callee, const NodeList& arguments, bool isOptional = false, bool isSubSequenceOfOptionalExpression = false)
