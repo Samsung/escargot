@@ -29,12 +29,10 @@ namespace Escargot {
 
 class MemberExpressionNode : public ExpressionNode {
 public:
-    MemberExpressionNode(Node* object, Node* property, bool computed, bool optional)
+    MemberExpressionNode(Node* object, Node* property)
         : ExpressionNode()
         , m_object(object)
         , m_property(property)
-        , m_isPreComputedCase(computed)
-        , m_isOptional(optional)
     {
     }
 
@@ -49,13 +47,14 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::MemberExpression; }
-    bool isPreComputedCase()
+    virtual bool isPreComputedCase()
     {
-        return m_isPreComputedCase;
+        return false;
     }
-    bool isOptional()
+
+    virtual bool isOptional()
     {
-        return m_isOptional;
+        return false;
     }
 
     inline AtomicString propertyName()
@@ -273,9 +272,25 @@ public:
 private:
     Node* m_object; // object: Expression;
     Node* m_property; // property: Identifier | Expression;
+};
 
-    bool m_isPreComputedCase;
-    bool m_isOptional;
+template <const bool isPreComputedCaseValue = false, const bool isOptionalValue = false>
+class MemberExpressionNodeOptional : public MemberExpressionNode {
+public:
+    MemberExpressionNodeOptional(Node* object, Node* property)
+        : MemberExpressionNode(object, property)
+    {
+    }
+
+    virtual bool isPreComputedCase() override
+    {
+        return isPreComputedCaseValue;
+    }
+
+    virtual bool isOptional() override
+    {
+        return isOptionalValue;
+    }
 };
 }
 
