@@ -25,8 +25,8 @@ namespace Escargot {
 
 ASTAllocator::ASTAllocator()
 {
-    m_astPoolMemory = static_cast<char*>(malloc(initialASTPoolSize));
-    m_astPoolEnd = m_astPoolMemory + initialASTPoolSize;
+    m_astPoolMemory = static_cast<char*>(malloc(astPoolSize()));
+    m_astPoolEnd = m_astPoolMemory + astPoolSize();
 }
 
 ASTAllocator::~ASTAllocator()
@@ -43,20 +43,27 @@ void ASTAllocator::reset()
     ASSERT(m_astPoolMemory != nullptr && m_astPoolEnd != nullptr);
     ASSERT(static_cast<size_t>(m_astPoolEnd - m_astPoolMemory) >= 0);
 
-    for (size_t i = 0; i < m_astPools.size(); i++) {
-        free(m_astPools[i]);
-    }
-    m_astPools.clear();
+    if (m_astPools.size()) {
+        m_astPoolMemory = static_cast<char*>(m_astPools[0]);
 
-    m_astPoolMemory = static_cast<char*>(currentPool());
+        free(m_astPoolEnd - astPoolSize());
+        for (size_t i = 1; i < m_astPools.size(); i++) {
+            free(m_astPools[i]);
+        }
+        m_astPools.clear();
+        m_astPoolEnd = m_astPoolMemory + astPoolSize();
+    } else {
+        m_astPoolMemory = static_cast<char*>(currentPool());
+        m_astPoolEnd = m_astPoolMemory + astPoolSize();
+    }
 }
 
 void* ASTAllocator::allocate(size_t size)
 {
     ASSERT(size > 0);
-    ASSERT(size <= initialASTPoolSize);
+    ASSERT(size <= astPoolSize());
     size_t alignedSize = alignSize(size);
-    ASSERT(alignedSize <= initialASTPoolSize);
+    ASSERT(alignedSize <= astPoolSize());
     if (UNLIKELY(static_cast<size_t>(m_astPoolEnd - m_astPoolMemory) < alignedSize)) {
         allocatePool();
     }
@@ -72,8 +79,8 @@ void ASTAllocator::allocatePool()
 
     m_astPools.push_back(currentPool());
 
-    char* pool = static_cast<char*>(malloc(initialASTPoolSize));
+    char* pool = static_cast<char*>(malloc(astPoolSize()));
     m_astPoolMemory = pool;
-    m_astPoolEnd = pool + initialASTPoolSize;
+    m_astPoolEnd = pool + astPoolSize();
 }
 }

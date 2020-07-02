@@ -22,7 +22,6 @@
 
 namespace Escargot {
 
-
 class Node;
 
 class ASTAllocator {
@@ -42,8 +41,18 @@ public:
     }
 
 private:
-    // default pool size is set to 128 KB
-    static const size_t initialASTPoolSize = 1024 * 128;
+    inline size_t astPoolSize()
+    {
+        const size_t astPoolSizeMap[] = {
+            1024 * 4,
+            1024 * 16,
+            1024 * 128
+        };
+        if (m_astPools.size() >= (sizeof(astPoolSizeMap) / sizeof(size_t))) {
+            return astPoolSizeMap[(sizeof(astPoolSizeMap) / sizeof(size_t)) - 1];
+        }
+        return astPoolSizeMap[m_astPools.size()];
+    }
 
     size_t alignSize(size_t size)
     {
@@ -55,7 +64,7 @@ private:
         ASSERT(m_astPoolMemory != nullptr && m_astPoolEnd != nullptr);
         ASSERT(static_cast<size_t>(m_astPoolEnd - m_astPoolMemory) >= 0);
 
-        return m_astPoolEnd - initialASTPoolSize;
+        return m_astPoolEnd - astPoolSize();
     }
 
     char* m_astPoolMemory;

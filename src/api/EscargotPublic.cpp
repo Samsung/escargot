@@ -379,13 +379,6 @@ StringRef* StringRef::createFromUTF8ToCompressibleString(ContextRef* context, co
     return nullptr;
 }
 
-StringRef* StringRef::createCompressibleString(ContextRef* context, const unsigned char* s, size_t len)
-{
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
-    RELEASE_ASSERT_NOT_REACHED();
-    return nullptr;
-}
-
 StringRef* StringRef::createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
@@ -411,7 +404,6 @@ void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();
-    return nullptr;
 }
 
 StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit)
