@@ -149,7 +149,8 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         } else {
             // resume
             startPos = self->m_extraDataByteCodePosition;
-            LexicalEnvironment* env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(originalState->resolveCallee()), nullptr
+            ASSERT(originalState->resolveCallee()->isScriptFunctionObject());
+            LexicalEnvironment* env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(originalState->resolveCallee()->asScriptFunctionObject()), nullptr
 #ifndef NDEBUG
                                                              ,
                                                              true

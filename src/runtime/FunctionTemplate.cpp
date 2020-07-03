@@ -45,6 +45,13 @@ void* FunctionTemplate::operator new(size_t size)
 
 class CallFunctionTemplateFunctionData : public CallNativeFunctionData {
 public:
+    CallFunctionTemplateFunctionData(NativeFunctionPointer fn, NativeFunctionPointer callback, FunctionTemplate* functionTemplate)
+        : CallNativeFunctionData(fn)
+        , m_callback(callback)
+        , m_functionTemplate(functionTemplate)
+    {
+    }
+
     NativeFunctionPointer m_callback;
     FunctionTemplate* m_functionTemplate;
 };
@@ -58,12 +65,9 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
     , m_prototypeTemplate(new ObjectTemplate())
     , m_instanceTemplate(instanceTemplate)
 {
-    auto fnData = new CallFunctionTemplateFunctionData();
-    fnData->m_functionTemplate = this;
-    fnData->m_callback = fn;
-    fnData->m_fn = [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
+    auto fnData = new CallFunctionTemplateFunctionData([](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
         FunctionObject* activeFunction = state.resolveCallee();
-        CallFunctionTemplateFunctionData* data = (CallFunctionTemplateFunctionData*)activeFunction->codeBlock()->nativeFunctionData();
+        CallFunctionTemplateFunctionData* data = (CallFunctionTemplateFunctionData*)activeFunction->codeBlock()->asNativeCodeBlock()->nativeFunctionData();
         if (newTarget) {
             Object* ret;
             if (data->m_functionTemplate->instanceTemplate()) {
@@ -76,12 +80,20 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
         } else {
             return data->m_callback(state, thisValue, argc, argv, newTarget);
         }
-    };
+    },
+                                                       fn, this);
     m_nativeFunctionData = fnData;
 }
 
 class CallFunctionTemplatePublicFunctionData : public CallNativeFunctionData {
 public:
+    CallFunctionTemplatePublicFunctionData(NativeFunctionPointer fn, FunctionObjectRef::NativeFunctionPointer callback, FunctionTemplate* functionTemplate)
+        : CallNativeFunctionData(fn)
+        , m_callback(callback)
+        , m_functionTemplate(functionTemplate)
+    {
+    }
+
     FunctionObjectRef::NativeFunctionPointer m_callback;
     FunctionTemplate* m_functionTemplate;
 };
@@ -95,12 +107,9 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
     , m_prototypeTemplate(new ObjectTemplate())
     , m_instanceTemplate(instanceTemplate)
 {
-    auto fnData = new CallFunctionTemplatePublicFunctionData();
-    fnData->m_functionTemplate = this;
-    fnData->m_callback = fn;
-    fnData->m_fn = [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
+    auto fnData = new CallFunctionTemplatePublicFunctionData([](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
         FunctionObject* activeFunction = state.resolveCallee();
-        CallFunctionTemplatePublicFunctionData* data = (CallFunctionTemplatePublicFunctionData*)activeFunction->codeBlock()->nativeFunctionData();
+        CallFunctionTemplatePublicFunctionData* data = (CallFunctionTemplatePublicFunctionData*)activeFunction->codeBlock()->asNativeCodeBlock()->nativeFunctionData();
         if (newTarget) {
             Object* ret;
             if (data->m_functionTemplate->instanceTemplate()) {
@@ -117,7 +126,8 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
             }
             return toImpl(data->m_callback((ExecutionStateRef*)(&state), toRef(thisValue), argc, newArgv, newTarget.hasValue()));
         }
-    };
+    },
+                                                             fn, this);
     m_nativeFunctionData = fnData;
 }
 
@@ -182,8 +192,10 @@ Object* FunctionTemplate::instantiate(Context* ctx)
         constructObjectPropertyValues(ctx, baseValues, 2, objectPropertyValues);
     }
 
-    CodeBlock* codeBlock = new CodeBlock(ctx, m_name, m_argumentCount, m_isStrict, m_isConstructor, m_nativeFunctionData);
-    NativeFunctionObject* result = new NativeFunctionObject(codeBlock, m_cachedObjectStructure, std::move(objectPropertyValues));
+    int flags = 0;
+    flags |= m_isStrict ? NativeFunctionInfo::Strict : 0;
+    flags |= m_isConstructor ? NativeFunctionInfo::Constructor : 0;
+    NativeFunctionObject* result = new NativeFunctionObject(ctx, m_cachedObjectStructure, std::move(objectPropertyValues), NativeFunctionInfo(m_name, nullptr, m_argumentCount, flags), m_nativeFunctionData);
     if (m_isConstructor) {
         auto idx = m_prototypeTemplate->cachedObjectStructure()->findProperty(ctx->staticStrings().constructor).first;
         result->uncheckedGetOwnDataProperty(0).asPointerValue()->asObject()->uncheckedSetOwnDataProperty(idx, result);

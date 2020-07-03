@@ -53,7 +53,6 @@ enum HeapObjectKind : unsigned {
     EncodedSmallValueVectorKind,
 #endif
     ArrayObjectKind,
-    CodeBlockKind,
     InterpretedCodeBlockKind,
     ArrayBufferObjectKind,
     GetObjectInlineCacheDataKind,

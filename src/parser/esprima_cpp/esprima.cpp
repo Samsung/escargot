@@ -160,7 +160,7 @@ public:
     Context contextInstance;
     Context* context;
 
-    CodeBlock* codeBlock;
+    InterpretedCodeBlock* codeBlock;
     Marker baseMarker;
     Marker startMarker;
     Marker lastMarker;
@@ -482,7 +482,7 @@ public:
             return false;
         }
 
-        InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
+        InterpretedCodeBlock* currentTarget = this->codeBlock;
         size_t orgIndex = this->lookahead.start;
         this->expect(LeftParenthesis);
 
@@ -1395,7 +1395,7 @@ public:
                 result = builder.createCallExpressionNode(result, ASTNodeList());
             } else {
                 auto startNode = this->createNode();
-                InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
+                InterpretedCodeBlock* currentTarget = this->codeBlock;
                 size_t orgIndex = this->lookahead.start;
 
                 InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
@@ -2921,7 +2921,7 @@ public:
                     this->scanner->lineStart = startMarker.lineStart;
                     this->nextToken();
 
-                    InterpretedCodeBlock* currentTarget = this->codeBlock->asInterpretedCodeBlock();
+                    InterpretedCodeBlock* currentTarget = this->codeBlock;
                     size_t orgIndex = this->lookahead.start;
 
                     InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
@@ -3258,8 +3258,8 @@ public:
     {
         if (this->isParsingSingleFunction) {
             bool finded = false;
-            for (size_t i = 0; i < this->codeBlock->asInterpretedCodeBlock()->blockInfos().size(); i++) {
-                if (this->codeBlock->asInterpretedCodeBlock()->blockInfos()[i]->m_blockIndex == ctx.childLexicalBlockIndex) {
+            for (size_t i = 0; i < this->codeBlock->blockInfos().size(); i++) {
+                if (this->codeBlock->blockInfos()[i]->m_blockIndex == ctx.childLexicalBlockIndex) {
                     finded = true;
                     break;
                 }

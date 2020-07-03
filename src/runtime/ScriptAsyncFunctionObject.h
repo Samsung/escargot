@@ -30,7 +30,7 @@ namespace Escargot {
 class ScriptAsyncFunctionObject : public ScriptFunctionObject {
 public:
     // both thisValue, homeObject are optional
-    ScriptAsyncFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue = EncodedValue(EncodedValue::EmptyValue), Object* homeObject = nullptr);
+    ScriptAsyncFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue = EncodedValue(EncodedValue::EmptyValue), Object* homeObject = nullptr);
 
     virtual bool isScriptAsyncFunctionObject() const override
     {

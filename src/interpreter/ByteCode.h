@@ -420,7 +420,7 @@ public:
 
 class CreateFunction : public ByteCode {
 public:
-    CreateFunction(const ByteCodeLOC& loc, const size_t registerIndex, const size_t homeObjectRegisterIndex, CodeBlock* cb)
+    CreateFunction(const ByteCodeLOC& loc, const size_t registerIndex, const size_t homeObjectRegisterIndex, InterpretedCodeBlock* cb)
         : ByteCode(Opcode::CreateFunctionOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_homeObjectRegisterIndex(homeObjectRegisterIndex)
@@ -430,7 +430,7 @@ public:
 
     ByteCodeRegisterIndex m_registerIndex;
     ByteCodeRegisterIndex m_homeObjectRegisterIndex;
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
@@ -445,7 +445,7 @@ public:
 
 class CreateClass : public ByteCode {
 public:
-    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, CodeBlock* cb, String* src)
+    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src)
         : ByteCode(Opcode::CreateClassOpcode, loc)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
@@ -458,7 +458,7 @@ public:
     ByteCodeRegisterIndex m_classConstructorRegisterIndex;
     ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
     ByteCodeRegisterIndex m_superClassRegisterIndex;
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock;
     String* m_classSrc;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -2512,8 +2512,8 @@ public:
         {
             CodeType& t = const_cast<CodeType&>(code);
             if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
-                if (idx != SIZE_MAX && !m_codeBlock->hasCallNativeFunctionCode()) {
-                    auto loc = computeNodeLOC(m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->asInterpretedCodeBlock()->functionStart(), idx);
+                if (idx != SIZE_MAX) {
+                    auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
                     t.m_loc.line = loc.line;
                     t.m_loc.column = loc.column;
                 }
@@ -2599,7 +2599,7 @@ public:
         return siz;
     }
 
-    ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb);
+    ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb);
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLocDataIfNeeded(Context* c);
 

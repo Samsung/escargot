@@ -78,13 +78,14 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFun
     m_parameterMap.resizeWithUninitializedValues(0, len);
 
     if (isMapped) {
+        InterpretedCodeBlock* codeBlock = m_sourceFunctionObject->interpretedCodeBlock();
         m_structure = state.context()->defaultStructureForMappedArgumentsObject();
 
         // https://www.ecma-international.org/ecma-262/6.0/#sec-createmappedargumentsobject
         // Let numberOfParameters be the number of elements in parameterNames
-        int numberOfParameters = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parameterNames().size();
+        int numberOfParameters = codeBlock->parameterNames().size();
         // all parameters are pure identifier nodes, so function length is same as the number of parameters
-        ASSERT(numberOfParameters == m_sourceFunctionObject->codeBlock()->functionLength());
+        ASSERT(numberOfParameters == codeBlock->functionLength());
         // Let index be 0.
         int index = 0;
         // Repeat while index < len ,
@@ -109,7 +110,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFun
         // Repeat while index ≥ 0 ,
         while (index >= 0) {
             // Let name be parameterNames[index].
-            AtomicString name = m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock()->parameterNames()[index];
+            AtomicString name = codeBlock->parameterNames()[index];
             // If name is not an element of mappedNames, then
             if (std::find(mappedNames.begin(), mappedNames.end(), name) == mappedNames.end()) {
                 // Add name as an element of the list mappedNames.
@@ -324,7 +325,7 @@ Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uin
         // when there was parameter on source function,
         // source function must uses heap env record
         ASSERT(m_targetRecord != nullptr);
-        return ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock(), m_parameterMap[index].second);
+        return ArgumentsObjectNativeGetter(state, this, m_targetRecord, m_sourceFunctionObject->interpretedCodeBlock(), m_parameterMap[index].second);
     } else {
         return m_parameterMap[index].first;
     }
@@ -339,7 +340,7 @@ void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint
         // when there was parameter on source function,
         // source function must uses heap env record
         ASSERT(m_targetRecord != nullptr);
-        ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_sourceFunctionObject->codeBlock()->asInterpretedCodeBlock(), m_parameterMap[index].second);
+        ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_sourceFunctionObject->interpretedCodeBlock(), m_parameterMap[index].second);
     } else {
         return m_parameterMap[index].first = value;
     }

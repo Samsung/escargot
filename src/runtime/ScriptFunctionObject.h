@@ -27,32 +27,72 @@ namespace Escargot {
 class ScriptFunctionObject : public FunctionObject {
     friend class Script;
     friend class ByteCodeInterpreter;
+    friend class FunctionObjectProcessCallGenerator;
 
 public:
-    ScriptFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator, bool isAsync);
+    enum ConstructorKind {
+        Base,
+        Derived,
+    };
+
+    enum ThisMode {
+        Lexical,
+        Strict,
+        Global,
+    };
+
+    ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator, bool isAsync);
+
+    virtual bool isGenerator() const override
+    {
+        return interpretedCodeBlock()->isGenerator();
+    }
+
+    InterpretedCodeBlock* interpretedCodeBlock() const
+    {
+        ASSERT(m_codeBlock->isInterpretedCodeBlock());
+        return (InterpretedCodeBlock*)m_codeBlock;
+    }
+
+    ConstructorKind constructorKind()
+    {
+        ASSERT(isConstructor());
+        return interpretedCodeBlock()->isDerivedClassConstructor() ? ConstructorKind::Derived : ConstructorKind::Base;
+    }
+
+    ThisMode thisMode()
+    {
+        InterpretedCodeBlock* codeBlock = interpretedCodeBlock();
+        if (codeBlock->isArrowFunctionExpression()) {
+            return ThisMode::Lexical;
+        } else if (codeBlock->isStrict()) {
+            return ThisMode::Strict;
+        } else {
+            return ThisMode::Global;
+        }
+    }
 
 protected:
-    ScriptFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount);
+    ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount);
 
-    friend class FunctionObjectProcessCallGenerator;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
-
-    LexicalEnvironment* outerEnvironment()
-    {
-        return m_outerEnvironment;
-    }
 
     virtual bool isScriptFunctionObject() const override
     {
         return true;
     }
 
-    bool isConstructor() const override
+    virtual bool isConstructor() const override
     {
         return true;
+    }
+
+    LexicalEnvironment* outerEnvironment()
+    {
+        return m_outerEnvironment;
     }
 
     void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped);

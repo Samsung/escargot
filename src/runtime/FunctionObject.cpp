@@ -64,17 +64,13 @@ void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstr
 // function for derived classes. derived class MUST initlize member variable of FunctionObject.
 FunctionObject::FunctionObject(ExecutionState& state, Object* proto, size_t defaultSpace)
     : Object(state, proto, defaultSpace)
-#ifndef NDEBUG
-    , m_codeBlock((CodeBlock*)SIZE_MAX)
-#endif
+    , m_codeBlock(nullptr)
 {
 }
 
 FunctionObject::FunctionObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto)
     : Object(structure, std::move(values), proto)
-#ifndef NDEBUG
-    , m_codeBlock((CodeBlock*)SIZE_MAX)
-#endif
+    , m_codeBlock(nullptr)
 {
 }
 

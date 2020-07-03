@@ -1528,12 +1528,18 @@ ObjectRef* GlobalObjectRef::float64ArrayPrototype()
 
 class CallPublicFunctionData : public CallNativeFunctionData {
 public:
+    CallPublicFunctionData(NativeFunctionPointer fn, FunctionObjectRef::NativeFunctionPointer publicFn)
+        : CallNativeFunctionData(fn)
+        , m_publicFn(publicFn)
+    {
+    }
+
     FunctionObjectRef::NativeFunctionPointer m_publicFn;
 };
 
 static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, Optional<Object*> newTarget)
 {
-    CodeBlock* dataCb = state.resolveCallee()->codeBlock();
+    NativeCodeBlock* dataCb = state.resolveCallee()->codeBlock()->asNativeCodeBlock();
     CallPublicFunctionData* code = (CallPublicFunctionData*)(dataCb->nativeFunctionData());
 
     ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*, state);
@@ -1562,17 +1568,19 @@ void GlobalObjectProxyObjectRef::setTarget(GlobalObjectRef* target)
 
 static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info, bool isBuiltin)
 {
-    CallPublicFunctionData* data = new CallPublicFunctionData();
-    data->m_fn = publicFunctionBridge;
-    data->m_publicFn = info.m_nativeFunction;
+    CallPublicFunctionData* data = new CallPublicFunctionData(publicFunctionBridge, info.m_nativeFunction);
 
-    CodeBlock* cb = new CodeBlock(toImpl(state)->context(), toImpl(info.m_name), info.m_argumentCount, info.m_isStrict, info.m_isConstructor, data);
-    FunctionObject* f;
+    int flags = 0;
+    flags |= info.m_isStrict ? NativeFunctionInfo::Strict : 0;
+    flags |= info.m_isConstructor ? NativeFunctionInfo::Constructor : 0;
+    NativeFunctionInfo nativeInfo(toImpl(info.m_name), publicFunctionBridge, info.m_argumentCount, flags);
+
+    FunctionObject* func;
     if (isBuiltin)
-        f = new NativeFunctionObject(*toImpl(state), cb, NativeFunctionObject::__ForBuiltinConstructor__);
+        func = new NativeFunctionObject(*toImpl(state), nativeInfo, data, NativeFunctionObject::__ForBuiltinConstructor__);
     else
-        f = new NativeFunctionObject(*toImpl(state), cb);
-    return toRef(f);
+        func = new NativeFunctionObject(*toImpl(state), nativeInfo, data);
+    return toRef(func);
 }
 
 FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info)
@@ -1618,9 +1626,10 @@ static void markEvalToCodeblock(InterpretedCodeBlock* cb)
 void FunctionObjectRef::markFunctionNeedsSlowVirtualIdentifierOperation()
 {
     FunctionObject* o = toImpl(this);
-    if (o->codeBlock()->isInterpretedCodeBlock()) {
-        markEvalToCodeblock(o->codeBlock()->asInterpretedCodeBlock());
-        o->codeBlock()->setNeedsVirtualIDOperation();
+    if (o->isScriptFunctionObject()) {
+        ScriptFunctionObject* func = o->asScriptFunctionObject();
+        markEvalToCodeblock(func->interpretedCodeBlock());
+        func->interpretedCodeBlock()->setNeedsVirtualIDOperation();
     }
 }
 

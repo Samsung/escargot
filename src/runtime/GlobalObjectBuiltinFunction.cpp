@@ -76,14 +76,15 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
                 return fn->asScriptFunctionObject()->asScriptClassConstructorFunctionObject()->classSourceCode();
             } else {
                 StringBuilder builder;
-                if (fn->codeBlock()->isInterpretedCodeBlock() && fn->codeBlock()->asInterpretedCodeBlock()->script() != nullptr) {
-                    StringView src = fn->codeBlock()->asInterpretedCodeBlock()->src();
+                if (fn->isScriptFunctionObject()) {
+                    StringView src = fn->asScriptFunctionObject()->interpretedCodeBlock()->src();
                     size_t length = src.length();
                     while (length > 0 && EscargotLexer::isWhiteSpaceOrLineTerminator(src[length - 1])) {
                         length--;
                     }
                     builder.appendString(new StringView(src, 0, length));
                 } else {
+                    ASSERT(fn->isNativeFunctionObject());
                     builder.appendString("function ");
                     builder.appendString(fn->codeBlock()->functionName().string());
                     builder.appendString("() { [native code] }");
@@ -205,7 +206,7 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
 
 void GlobalObject::installFunction(ExecutionState& state)
 {
-    m_functionPrototype = new NativeFunctionObject(state, new CodeBlock(state.context(), NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict)),
+    m_functionPrototype = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict),
                                                    NativeFunctionObject::__ForGlobalBuiltin__);
     m_functionPrototype->setGlobalIntrinsicObject(state, true);
 

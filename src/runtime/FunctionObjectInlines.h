@@ -102,20 +102,19 @@ public:
         }
 
         ASSERT(self->codeBlock()->isInterpretedCodeBlock());
-
-        CodeBlock* codeBlock = self->codeBlock();
+        InterpretedCodeBlock* codeBlock = self->interpretedCodeBlock();
 
         // prepare ByteCodeBlock if needed
-        if (UNLIKELY(codeBlock->asInterpretedCodeBlock()->byteCodeBlock() == nullptr)) {
+        if (UNLIKELY(codeBlock->byteCodeBlock() == nullptr)) {
             self->generateByteCodeBlock(state);
         }
 
-        ByteCodeBlock* blk = codeBlock->asInterpretedCodeBlock()->byteCodeBlock();
+        ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
         bool isStrict = codeBlock->isStrict();
         size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-        size_t identifierOnStackCount = codeBlock->asInterpretedCodeBlock()->identifierOnStackCount();
-        size_t stackStorageSize = codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize();
+        size_t identifierOnStackCount = codeBlock->identifierOnStackCount();
+        size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
         size_t literalStorageSize = blk->m_numeralLiteralData.size();
         Value* literalStorageSrc = blk->m_numeralLiteralData.data();
 

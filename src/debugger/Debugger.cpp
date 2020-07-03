@@ -264,7 +264,7 @@ bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8
 
     try {
         Value asValue(str);
-        Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), true));
+        Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock, true));
         str = result.toStringWithoutException(*state);
     } catch (const Value& val) {
         type = ESCARGOT_MESSAGE_EVAL_FAILED_8BIT;

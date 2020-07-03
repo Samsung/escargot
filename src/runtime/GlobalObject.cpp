@@ -108,8 +108,8 @@ static Value builtinIsFunctionAllocatedOnStack(ExecutionState& state, Value this
     bool result = false;
 
     Value arg = argv[0];
-    if (arg.isFunction()) {
-        result = arg.asFunction()->codeBlock()->canAllocateEnvironmentOnStack();
+    if (arg.isObject() && arg.asObject()->isScriptFunctionObject()) {
+        result = arg.asObject()->asScriptFunctionObject()->interpretedCodeBlock()->canAllocateEnvironmentOnStack();
     }
 
     return Value(result);
@@ -121,8 +121,8 @@ static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisVal
 
     Value arg = argv[0];
     auto blockIndex = argv[1].toInt32(state);
-    if (arg.isFunction() && arg.asFunction()->codeBlock()->isInterpretedCodeBlock()) {
-        auto bi = arg.asFunction()->codeBlock()->asInterpretedCodeBlock()->blockInfo((uint16_t)blockIndex);
+    if (arg.isObject() && arg.asObject()->isScriptFunctionObject()) {
+        auto bi = arg.asObject()->asScriptFunctionObject()->interpretedCodeBlock()->blockInfo((uint16_t)blockIndex);
         if (bi) {
             result = bi->m_canAllocateEnvironmentOnStack;
         }
@@ -964,8 +964,16 @@ static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value 
     if (thisValue.isCallable()) {
         if (thisValue.isFunction()) {
             targetFunction = thisValue.asFunction();
-            if (targetFunction->codeBlock()->isStrict() || targetFunction->codeBlock()->isArrowFunctionExpression() || targetFunction->codeBlock()->isGenerator()) {
-                needThrow = true;
+            if (targetFunction->isScriptFunctionObject()) {
+                InterpretedCodeBlock* codeBlock = targetFunction->asScriptFunctionObject()->interpretedCodeBlock();
+                if (codeBlock->isStrict() || codeBlock->isArrowFunctionExpression() || codeBlock->isGenerator()) {
+                    needThrow = true;
+                }
+            } else {
+                ASSERT(targetFunction->isNativeFunctionObject());
+                if (targetFunction->asNativeFunctionObject()->nativeCodeBlock()->isStrict()) {
+                    needThrow = true;
+                }
             }
         } else if (thisValue.isObject()) {
             auto object = thisValue.asObject();

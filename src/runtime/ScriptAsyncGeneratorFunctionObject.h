@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ScriptAsyncGeneratorFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptAsyncGeneratorFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue = EncodedValue(EncodedValue::EmptyValue), Object* homeObject = nullptr)
+    ScriptAsyncGeneratorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue = EncodedValue(EncodedValue::EmptyValue), Object* homeObject = nullptr)
         : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, true, true)
         , m_thisValue(thisValue)
         , m_homeObject(homeObject)

@@ -90,7 +90,7 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 #ifdef ESCARGOT_DEBUGGER
 size_t ByteCodeGenerateContext::calculateBreakpointLineOffset(size_t index, ExtendedNodeLOC sourceElementStart)
 {
-    StringView src = m_codeBlock->asInterpretedCodeBlock()->src();
+    StringView src = m_codeBlock->src();
     size_t lastLineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
     index -= sourceElementStart.index;
 
@@ -116,7 +116,7 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
     ASSERT(m_breakpointContext != nullptr);
     ASSERT(index != SIZE_MAX);
 
-    ExtendedNodeLOC sourceElementStart = m_codeBlock->asInterpretedCodeBlock()->functionStart();
+    ExtendedNodeLOC sourceElementStart = m_codeBlock->functionStart();
     size_t lastLineOffset = calculateBreakpointLineOffset(index, sourceElementStart);
 
     if (lastLineOffset != m_breakpointContext->m_lastBreakpointLineOffset) {
@@ -718,7 +718,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
 #ifndef NDEBUG
     if (!shouldGenerateLOCData && getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) {
-        printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->m_functionName.string()->toUTF8StringData().data(), (int)codeBlock->functionStart().line, (int)codeBlock->functionStart().column);
+        printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->functionName().string()->toUTF8StringData().data(), (int)codeBlock->functionStart().line, (int)codeBlock->functionStart().column);
         printf("register info.. (stack variable total(%d), this + function + var (%d), max lexical depth (%d)) [", (int)codeBlock->totalStackAllocatedVariableSize(), (int)codeBlock->identifierOnStackCount(), (int)codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth());
         for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {
             printf("r%d,", (int)i);
@@ -731,9 +731,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
             b++;
         }
 
-        for (size_t i = 0; i < block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos().size(); i++) {
-            if (block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos()[i].m_needToAllocateOnStack) {
-                auto name = block->m_codeBlock->asInterpretedCodeBlock()->identifierInfos()[i].m_name.string()->toNonGCUTF8StringData();
+        for (size_t i = 0; i < block->m_codeBlock->identifierInfos().size(); i++) {
+            if (block->m_codeBlock->identifierInfos()[i].m_needToAllocateOnStack) {
+                auto name = block->m_codeBlock->identifierInfos()[i].m_name.string()->toNonGCUTF8StringData();
                 if (i == 0 && block->m_codeBlock->isFunctionExpression()) {
                     name += "(function name)";
                 }
@@ -743,7 +743,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
 
 
         size_t lexIndex = 0;
-        for (size_t i = 0; i < block->m_codeBlock->asInterpretedCodeBlock()->lexicalBlockStackAllocatedIdentifierMaximumDepth(); i++) {
+        for (size_t i = 0; i < block->m_codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth(); i++) {
             printf("`r%d,%d lexical`,", (int)b++, (int)lexIndex++);
         }
 

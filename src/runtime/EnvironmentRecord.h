@@ -316,7 +316,7 @@ public:
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override;
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
-    CodeBlock* globalCodeBlock()
+    InterpretedCodeBlock* globalCodeBlock()
     {
         return m_globalCodeBlock;
     }
@@ -761,13 +761,13 @@ class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ScriptFunctionObject;
 
 public:
-    FunctionEnvironmentRecord(FunctionObject* function)
+    FunctionEnvironmentRecord(ScriptFunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
     {
     }
 
-    FunctionObject::ThisMode thisMode()
+    ScriptFunctionObject::ThisMode thisMode()
     {
         return functionObject()->thisMode();
     }
@@ -815,7 +815,7 @@ public:
         return m_argumentsObject;
     }
 
-    FunctionObject* functionObject()
+    ScriptFunctionObject* functionObject()
     {
         if (m_argumentsObject->isArgumentsObject()) {
             return m_argumentsObject->sourceFunctionObject();
@@ -825,7 +825,7 @@ public:
 
     virtual bool hasSuperBinding() override
     {
-        if (thisMode() == FunctionObject::ThisMode::Lexical) {
+        if (thisMode() == ScriptFunctionObject::ThisMode::Lexical) {
             return false;
         }
 
@@ -834,7 +834,7 @@ public:
 
     virtual bool hasThisBinding() override
     {
-        return thisMode() != FunctionObject::ThisMode::Lexical;
+        return thisMode() != ScriptFunctionObject::ThisMode::Lexical;
     }
 
     Value getSuperBase(ExecutionState& state)
@@ -878,7 +878,7 @@ public:
 private:
     // ArgumentsObject is constructed on EnsureArgumentsObject opcode
     union {
-        FunctionObject* m_functionObject;
+        ScriptFunctionObject* m_functionObject;
         ArgumentsObject* m_argumentsObject;
     };
 };
@@ -890,7 +890,7 @@ class FunctionEnvironmentRecordWithExtraData : public FunctionEnvironmentRecord 
     friend class ByteCodeInterpreter;
 
 public:
-    ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(FunctionObject* function)
+    ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(ScriptFunctionObject* function)
         : FunctionEnvironmentRecord(function)
     {
     }
@@ -922,7 +922,7 @@ protected:
 template <bool canBindThisValue, bool hasNewTarget>
 class FunctionEnvironmentRecordOnStack : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
 public:
-    FunctionEnvironmentRecordOnStack(FunctionObject* function)
+    FunctionEnvironmentRecordOnStack(ScriptFunctionObject* function)
         : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
     {
     }
@@ -945,7 +945,7 @@ class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecordWithExtr
     friend class ScriptFunctionObject;
 
 public:
-    FunctionEnvironmentRecordOnHeap(FunctionObject* function);
+    FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function);
 
     virtual bool isFunctionEnvironmentRecordOnHeap() override
     {
@@ -964,7 +964,7 @@ public:
 
     virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -976,7 +976,7 @@ public:
 
     virtual EnvironmentRecord::BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -1004,7 +1004,7 @@ public:
 
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -1029,7 +1029,7 @@ class FunctionEnvironmentRecordNotIndexed : public FunctionEnvironmentRecordWith
     friend class LexicalEnvironment;
 
 public:
-    FunctionEnvironmentRecordNotIndexed(FunctionObject* function);
+    FunctionEnvironmentRecordNotIndexed(ScriptFunctionObject* function);
 
     virtual bool isFunctionEnvironmentRecordNotIndexed() override
     {
@@ -1098,7 +1098,7 @@ private:
 
 class FunctionEnvironmentRecordNotIndexedWithVirtualID : public FunctionEnvironmentRecordNotIndexed<true, true> {
 public:
-    FunctionEnvironmentRecordNotIndexedWithVirtualID(FunctionObject* function)
+    FunctionEnvironmentRecordNotIndexedWithVirtualID(ScriptFunctionObject* function)
         : FunctionEnvironmentRecordNotIndexed(function)
     {
     }

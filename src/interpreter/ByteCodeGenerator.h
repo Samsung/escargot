@@ -85,7 +85,7 @@ struct ByteCodeBreakpointContext {
 #endif /* ESCARGOT_DEBUGGER */
 
 struct ByteCodeGenerateContext {
-    ByteCodeGenerateContext(CodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, NumeralLiteralVector* numeralLiteralData)
+    ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, NumeralLiteralVector* numeralLiteralData)
         : m_baseRegisterCount(0)
         , m_codeBlock(codeBlock)
         , m_byteCodeBlock(byteCodeBlock)
@@ -351,7 +351,7 @@ struct ByteCodeGenerateContext {
     // NOTE this is counter! not index!!!!!!
     size_t m_baseRegisterCount;
 
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock;
     ByteCodeBlock* m_byteCodeBlock;
     bool m_isGlobalScope : 1;
     bool m_isEvalCode : 1;
