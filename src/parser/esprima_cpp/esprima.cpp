@@ -1267,13 +1267,7 @@ public:
             computed = this->match(LeftSquareBracket);
             if (computed) {
                 this->nextToken();
-                if (this->context->inParameterParsing) {
-                    // if parameter object pattern property has direct eval
-                    // we should wrap object pattern property into arrow function(it should have own env record)
-                    keyNode = this->parseAssignmentExpressionAndWrapIntoArrowFunctionIfFoundDirectEval(builder).first;
-                } else {
-                    keyNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-                }
+                keyNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
                 this->expect(RightSquareBracket);
             } else {
                 keyNode = this->parseObjectPropertyKey(builder);
@@ -1327,76 +1321,6 @@ public:
         }
     }
 
-    // returns <resultNode, originalNode>
-    template <class ASTBuilder>
-    std::pair<ASTNode, ASTNode> parseAssignmentExpressionAndWrapIntoArrowFunctionIfFoundDirectEval(ASTBuilder& builder)
-    {
-        ASTNode result;
-        bool oldHasEval = this->currentScopeContext->m_hasEval;
-        Marker startMarker = this->startMarker;
-
-        this->currentScopeContext->m_hasEval = false;
-        ASTNode originalNode = result = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-
-        if (this->currentScopeContext->m_hasEval) {
-            if (!this->isParsingSingleFunction) {
-                // we need to reparse for tracking using name correctly(expression will be wrapped by arrow function)
-                // rewind scanner to begin
-                this->scanner->index = startMarker.index;
-                this->scanner->lineNumber = startMarker.lineNumber;
-                this->scanner->lineStart = startMarker.lineStart;
-                this->nextToken();
-
-                // reparse
-                BEGIN_FUNCTION_SCANNING(AtomicString());
-                auto startNode = this->createNode();
-
-                this->currentScopeContext->m_functionStartLOC.index = startNode.index;
-                this->currentScopeContext->m_functionStartLOC.column = startNode.column;
-                this->currentScopeContext->m_functionStartLOC.line = startNode.line;
-
-                this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-
-                this->currentScopeContext->m_isArrowFunctionExpression = true;
-                this->currentScopeContext->m_isOneExpressionOnlyArrowFunctionExpression = true;
-                this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
-
-                this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
-#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
-                this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
-                this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
-#endif
-                END_FUNCTION_SCANNING();
-
-                // wrap right expression with arrow function
-                result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
-                result = builder.createCallExpressionNode(result, ASTNodeList());
-            } else {
-                auto startNode = this->createNode();
-                InterpretedCodeBlock* currentTarget = this->codeBlock;
-                size_t orgIndex = this->lookahead.start;
-
-                InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
-                this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
-                this->scanner->lineNumber = childBlock->functionStart().line;
-                this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
-
-                this->lookahead.lineNumber = this->scanner->lineNumber;
-                this->lookahead.lineStart = this->scanner->lineStart;
-                this->nextToken();
-
-                // increase subCodeBlockIndex because parsing of an internal function is skipped
-                this->subCodeBlockIndex++;
-
-                result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
-                result = builder.createCallExpressionNode(result, ASTNodeList());
-            }
-        }
-
-        this->currentScopeContext->m_hasEval = oldHasEval;
-        return std::make_pair(result, originalNode);
-    }
-
     template <class ASTBuilder>
     ASTNode parsePatternWithDefault(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
@@ -1418,20 +1342,9 @@ public:
             const bool previousInParameterNameParsing = this->context->inParameterNameParsing;
             this->context->inParameterNameParsing = false;
 
-            // if parameter default value has direct eval call,
-            // we should wrap default value into arrow function(it should have own env record)
-            ASTNode right;
-            if (this->context->inParameterParsing) {
-                auto result = this->parseAssignmentExpressionAndWrapIntoArrowFunctionIfFoundDirectEval(builder);
-                right = result.first;
-                if (pattern->isIdentifier()) {
-                    this->addImplicitName(result.second, pattern->asIdentifier()->name());
-                }
-            } else {
-                right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-                if (pattern->isIdentifier()) {
-                    this->addImplicitName(right, pattern->asIdentifier()->name());
-                }
+            ASTNode right = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            if (pattern->isIdentifier()) {
+                this->addImplicitName(right, pattern->asIdentifier()->name());
             }
 
             this->context->inParameterNameParsing = previousInParameterNameParsing;
