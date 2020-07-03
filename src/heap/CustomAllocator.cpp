@@ -116,16 +116,6 @@ void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word**
 }
 #endif
 
-int getValidValueInCodeBlock(void* ptr, GC_mark_custom_result* arr)
-{
-    CodeBlock* current = (CodeBlock*)ptr;
-    arr[0].from = (GC_word*)&current->m_context;
-    arr[0].to = (GC_word*)current->m_context;
-    arr[1].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[1].to = (GC_word*)current->m_byteCodeBlock;
-    return 0;
-}
-
 int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
 {
     InterpretedCodeBlock* current = (InterpretedCodeBlock*)ptr;
@@ -133,20 +123,20 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[0].to = (GC_word*)current->m_context;
     arr[1].from = (GC_word*)&current->m_script;
     arr[1].to = (GC_word*)current->m_script;
-    arr[2].from = (GC_word*)&current->m_identifierInfos;
-    arr[2].to = (GC_word*)current->m_identifierInfos.data();
-    arr[3].from = (GC_word*)&current->m_parameterNames;
-    arr[3].to = (GC_word*)current->m_parameterNames.data();
-    arr[4].from = (GC_word*)&current->m_rareData;
-    arr[4].to = (GC_word*)current->m_rareData;
-    arr[5].from = (GC_word*)&current->m_parentCodeBlock;
-    arr[5].to = (GC_word*)current->m_parentCodeBlock;
-    arr[6].from = (GC_word*)&current->m_nextSibling;
-    arr[6].to = (GC_word*)current->m_nextSibling;
-    arr[7].from = (GC_word*)&current->m_firstChild;
-    arr[7].to = (GC_word*)current->m_firstChild;
-    arr[8].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[8].to = (GC_word*)current->m_byteCodeBlock;
+    arr[2].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[2].to = (GC_word*)current->m_byteCodeBlock;
+    arr[3].from = (GC_word*)&current->m_parentCodeBlock;
+    arr[3].to = (GC_word*)current->m_parentCodeBlock;
+    arr[4].from = (GC_word*)&current->m_firstChild;
+    arr[4].to = (GC_word*)current->m_firstChild;
+    arr[5].from = (GC_word*)&current->m_nextSibling;
+    arr[5].to = (GC_word*)current->m_nextSibling;
+    arr[6].from = (GC_word*)&current->m_rareData;
+    arr[6].to = (GC_word*)current->m_rareData;
+    arr[7].from = (GC_word*)&current->m_parameterNames;
+    arr[7].to = (GC_word*)current->m_parameterNames.data();
+    arr[8].from = (GC_word*)&current->m_identifierInfos;
+    arr[8].to = (GC_word*)current->m_identifierInfos.data();
     arr[9].from = (GC_word*)&current->m_blockInfos;
     arr[9].to = (GC_word*)current->m_blockInfos.data();
     return 0;
@@ -208,10 +198,6 @@ void initializeCustomAllocators()
                                                                         FALSE,
                                                                         TRUE);
 #endif
-    s_gcKinds[HeapObjectKind::CodeBlockKind] = GC_new_kind(GC_new_free_list(),
-                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInCodeBlock, 2>), 0),
-                                                           FALSE,
-                                                           TRUE);
 
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 10>), 0),
@@ -292,16 +278,6 @@ ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::ArrayObjectKind];
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
-}
-
-template <>
-CodeBlock* CustomAllocator<CodeBlock>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (CodeBlock*)GC_MALLOC(sizeof(CodeBlock));
-    ASSERT(GC_n == 1);
-    int kind = s_gcKinds[HeapObjectKind::CodeBlockKind];
-    return (CodeBlock*)GC_GENERIC_MALLOC(sizeof(CodeBlock), kind);
 }
 
 template <>

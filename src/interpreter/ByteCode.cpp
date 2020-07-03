@@ -130,7 +130,7 @@ void* ByteCodeBlock::operator new(size_t size)
 
 void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 {
-    if (!m_codeBlock->isInterpretedCodeBlock() || m_locData || (m_codeBlock->isInterpretedCodeBlock() && m_codeBlock->asInterpretedCodeBlock()->src().length() == 0)) {
+    if (m_locData || m_codeBlock->src().length() == 0) {
         return;
     }
 
@@ -145,12 +145,12 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 
     ByteCodeBlock* block;
     // TODO give correct stack limit to parser
-    if (m_codeBlock->asInterpretedCodeBlock()->isGlobalScopeCodeBlock()) {
-        ProgramNode* nd = esprima::parseProgram(c, m_codeBlock->asInterpretedCodeBlock()->src(), m_codeBlock->script()->isModule(), m_codeBlock->asInterpretedCodeBlock()->isStrict(), m_codeBlock->inWith(), SIZE_MAX, false, false, false);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), nd, m_isEvalMode, m_isOnGlobal, false, true);
+    if (m_codeBlock->isGlobalScopeCodeBlock()) {
+        ProgramNode* nd = esprima::parseProgram(c, m_codeBlock->src(), m_codeBlock->script()->isModule(), m_codeBlock->isStrict(), m_codeBlock->inWith(), SIZE_MAX, false, false, false);
+        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock, nd, m_isEvalMode, m_isOnGlobal, false, true);
     } else {
-        auto body = esprima::parseSingleFunction(c, m_codeBlock->asInterpretedCodeBlock(), SIZE_MAX);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock->asInterpretedCodeBlock(), body, m_isEvalMode, m_isOnGlobal, false, true);
+        auto body = esprima::parseSingleFunction(c, m_codeBlock, SIZE_MAX);
+        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock, body, m_isEvalMode, m_isOnGlobal, false, true);
     }
     m_locData = block->m_locData;
     block->m_locData = nullptr;
@@ -168,7 +168,7 @@ void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
 #endif /* ESCARGOT_DEBUGGER */
 }
 
-ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, CodeBlock* cb)
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb)
 {
     if (codePosition == SIZE_MAX) {
         return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
@@ -188,9 +188,9 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     }
 
     size_t indexRelatedWithScript = index;
-    index -= cb->asInterpretedCodeBlock()->functionStart().index;
+    index -= cb->functionStart().index;
 
-    auto result = computeNodeLOC(cb->asInterpretedCodeBlock()->src(), cb->asInterpretedCodeBlock()->functionStart(), index);
+    auto result = computeNodeLOC(cb->src(), cb->functionStart(), index);
     result.index = indexRelatedWithScript;
 
     return result;
@@ -218,10 +218,10 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
 
 void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
 {
-    InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
+    InterpretedCodeBlock* codeBlock = context->m_codeBlock;
     InterpretedCodeBlock* child = codeBlock->firstChild();
     while (child) {
-        if (child->isFunctionDeclaration() && child->asInterpretedCodeBlock()->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
+        if (child->isFunctionDeclaration() && child->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
             IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(child->functionName());
             id->m_loc = node->m_loc;
 
@@ -259,7 +259,7 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
 ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside)
 {
     ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
-    InterpretedCodeBlock* codeBlock = context->m_codeBlock->asInterpretedCodeBlock();
+    InterpretedCodeBlock* codeBlock = context->m_codeBlock;
 
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 

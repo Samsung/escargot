@@ -38,14 +38,14 @@
 
 namespace Escargot {
 
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator, bool isAsync)
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator, bool isAsync)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnv,
                            ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
 {
     initStructureAndValues(state, isConstructor, isGenerator, isAsync);
 }
 
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount)
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount)
     : FunctionObject(state, proto, defaultPropertyCount)
 {
     m_codeBlock = codeBlock;
@@ -63,7 +63,7 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto,
 
 NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& state)
 {
-    ASSERT(!m_codeBlock->hasCallNativeFunctionCode());
+    ASSERT(m_codeBlock->isInterpretedCodeBlock());
 
     volatile int sp;
     size_t currentStackBase = (size_t)&sp;
@@ -73,10 +73,10 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
 
-    state.context()->scriptParser().generateFunctionByteCode(state, m_codeBlock->asInterpretedCodeBlock(), stackRemainApprox);
+    state.context()->scriptParser().generateFunctionByteCode(state, interpretedCodeBlock(), stackRemainApprox);
 
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
-    currentCodeSizeTotal += m_codeBlock->m_byteCodeBlock->memoryAllocatedSize();
+    currentCodeSizeTotal += interpretedCodeBlock()->byteCodeBlock()->memoryAllocatedSize();
 }
 
 Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
@@ -155,7 +155,7 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
         }
         environmentRecordWillArgumentsObjectBeLocatedIn->initializeBinding(state, arguments, newArgumentsObject);
     } else {
-        const InterpretedCodeBlock::IdentifierInfoVector& v = codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+        const InterpretedCodeBlock::IdentifierInfoVector& v = interpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
                 if (v[i].m_needToAllocateOnStack) {

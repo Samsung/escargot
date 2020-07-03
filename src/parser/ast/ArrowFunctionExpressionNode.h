@@ -72,7 +72,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ArrowFunctionExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlockAt(m_subCodeBlockIndex);
+        InterpretedCodeBlock* blk = context->m_codeBlock->childBlockAt(m_subCodeBlockIndex);
         if (blk->usesArgumentsObject() && !codeBlock->m_codeBlock->isArrowFunctionExpression()) {
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
         }

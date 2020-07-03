@@ -34,7 +34,7 @@ public:
     AtomicString functionName() { return m_functionName; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        CodeBlock* blk = context->m_codeBlock->asInterpretedCodeBlock()->childBlockAt(m_subCodeBlockIndex);
+        InterpretedCodeBlock* blk = context->m_codeBlock->childBlockAt(m_subCodeBlockIndex);
         if (UNLIKELY(blk->isClassConstructor())) {
             codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, blk, context->m_classInfo.m_src), context, this);
         } else if (UNLIKELY(blk->isObjectMethod() || blk->isClassMethod() || blk->isClassStaticMethod())) {

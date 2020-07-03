@@ -160,7 +160,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
         if (!alreadyExists) {
             if (!callee && es && es->lexicalEnvironment()) {
                 // can be null on module outer env
-                CodeBlock* cb;
+                InterpretedCodeBlock* cb;
                 if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
                     cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
                 } else {
@@ -168,7 +168,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     cb = es->lexicalEnvironment()->outerEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
                 }
                 if (cb) {
-                    ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
+                    ByteCodeBlock* b = cb->byteCodeBlock();
                     ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
                     ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
                     if (pstate->m_programCounter != nullptr) {
@@ -177,8 +177,8 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     }
                     SandBox::StackTraceData data;
                     data.loc = loc;
-                    data.src = cb->asInterpretedCodeBlock()->script()->src();
-                    data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
+                    data.src = cb->script()->src();
+                    data.sourceCode = cb->script()->sourceCode();
                     data.isEval = true;
                     data.isFunction = false;
                     data.isAssociatedWithJavaScriptCode = true;

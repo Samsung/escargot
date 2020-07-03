@@ -25,7 +25,7 @@
 
 namespace Escargot {
 
-ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue, Object* homeObject)
+ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue, Object* homeObject)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, false, true)
     , m_thisValue(thisValue)
     , m_homeObject(homeObject)
@@ -64,7 +64,7 @@ public:
                 }
             }
         } else {
-            ASSERT(self->codeBlock()->isArrowFunctionExpression());
+            ASSERT(self->interpretedCodeBlock()->isArrowFunctionExpression());
             return thisValue;
         }
     }

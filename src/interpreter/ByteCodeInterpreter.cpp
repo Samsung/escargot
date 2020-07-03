@@ -137,7 +137,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             Move* code = (Move*)programCounter;
-            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->asInterpretedCodeBlock()->totalStackAllocatedVariableSize() + 1));
+            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->totalStackAllocatedVariableSize() + 1));
             ASSERT(!registerFile[code->m_registerIndex0].isEmpty());
             registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
             ADD_PROGRAM_COUNTER(Move);
@@ -2159,7 +2159,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& 
 
 NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    CodeBlock* cb = code->m_codeBlock;
+    InterpretedCodeBlock* cb = code->m_codeBlock;
 
     LexicalEnvironment* outerLexicalEnvironment = state.mostNearestHeapAllocatedLexicalEnvironment();
 
@@ -2172,23 +2172,23 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
         proto = functionRealm->globalObject()->asyncGenerator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
-        registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+        registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isGenerator)) {
         proto = functionRealm->globalObject()->generator();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
-        registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+        registerFile[code->m_registerIndex] = new ScriptGeneratorFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isAsync)) {
         proto = functionRealm->globalObject()->asyncFunctionPrototype();
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
-        registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, thisValue, homeObject);
+        registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
     } else if (cb->isArrowFunctionExpression()) {
-        registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
+        registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize]);
     } else if (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) {
-        registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
+        registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
     } else {
-        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, proto, code->m_codeBlock, outerLexicalEnvironment, true, false, false);
+        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, proto, cb, outerLexicalEnvironment, true, false, false);
     }
 }
 
@@ -2482,7 +2482,7 @@ NEVER_INLINE void ByteCodeInterpreter::superSetObjectOperation(ExecutionState& s
     if (UNLIKELY(!result)) {
         // testing is strict mode || IsStrictReference(V)
         // IsStrictReference returns true if code is class method
-        if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->isObjectMethod()) {
+        if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->asInterpretedCodeBlock()->isObjectMethod()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }
     }
@@ -3020,7 +3020,7 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
 #ifndef NDEBUG
         if (orgTreePointer->hasRareData() && orgTreePointer->pauseSource()) {
             // this ExecutuionState must be allocated by generatorResume function;
-            ASSERT(tmpTreePointer->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->isGenerator());
+            ASSERT(tmpTreePointer->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->interpretedCodeBlock()->isGenerator());
         }
 #endif
         auto tmpTreePointerSave = tmpTreePointer;
@@ -3533,7 +3533,7 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
 {
     auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
     auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
-    bool isMapped = functionObject->codeBlock()->shouldHaveMappedArguments();
+    bool isMapped = functionObject->interpretedCodeBlock()->shouldHaveMappedArguments();
     functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
 }
 }

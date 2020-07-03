@@ -102,7 +102,7 @@ public:
     bool mayNeedsResolveAddress(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                     if (context->m_isWithScope) {
@@ -147,7 +147,7 @@ public:
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization, true);
 
             if (!info.m_isResultSaved) {
@@ -204,7 +204,7 @@ public:
                 }
             }
         } else {
-            ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
+            ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
             size_t addressRegisterIndex = SIZE_MAX;
             if (mayNeedsResolveAddress(codeBlock, context) && !needToReferenceSelf) {
                 addressRegisterIndex = context->getLastRegisterIndex();
@@ -233,7 +233,7 @@ public:
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, false);
 
             if (!info.m_isResultSaved) {
@@ -259,7 +259,7 @@ public:
                 }
             }
         } else {
-            ASSERT(!context->m_codeBlock->asInterpretedCodeBlock()->canAllocateEnvironmentOnStack());
+            ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
         }
     }
@@ -283,8 +283,8 @@ public:
             return std::make_tuple(false, REGISTER_LIMIT, InterpretedCodeBlock::IndexedIdentifierInfo());
         }
 
-        if (context->m_codeBlock->asInterpretedCodeBlock()->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->asInterpretedCodeBlock()->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
             if (!info.m_isResultSaved) {
                 return std::make_tuple(false, REGISTER_LIMIT, info);
             } else {

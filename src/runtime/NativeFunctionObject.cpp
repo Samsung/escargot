@@ -24,79 +24,72 @@
 
 namespace Escargot {
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock)
-    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
-{
-    m_codeBlock = codeBlock;
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
-    if (NativeFunctionObject::isConstructor())
-        m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
-
-    ASSERT(FunctionObject::codeBlock()->hasCallNativeFunctionCode());
-}
-
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
-    m_codeBlock = new CodeBlock(state.context(), info);
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
+    m_codeBlock = new NativeCodeBlock(state.context(), info);
+    initStructureAndValues(state, info.m_isConstructor, false, false);
 }
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin)
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData)
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+{
+    m_codeBlock = new NativeCodeBlock(state.context(), info, nativeData);
+    initStructureAndValues(state, info.m_isConstructor, false, false);
+}
+
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForGlobalBuiltin)
     : FunctionObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
-    m_codeBlock = codeBlock;
+    m_codeBlock = new NativeCodeBlock(state.context(), info);
     ASSERT(!NativeFunctionObject::isConstructor());
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
-}
-
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltinConstructor)
-    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), codeBlock->isNativeFunctionConstructor() ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
-{
-    m_codeBlock = codeBlock;
-
-    initStructureAndValues(state, codeBlock->isNativeFunctionConstructor(), false, false);
-    if (NativeFunctionObject::isConstructor())
-        m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
-
-    ASSERT(FunctionObject::codeBlock()->hasCallNativeFunctionCode());
+    initStructureAndValues(state, info.m_isConstructor, false, false);
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor)
+    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
+{
+    m_codeBlock = new NativeCodeBlock(state.context(), info);
+    initStructureAndValues(state, info.m_isConstructor, false, false);
+    if (NativeFunctionObject::isConstructor())
+        m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
+
+    ASSERT(FunctionObject::codeBlock()->isNativeCodeBlock());
+}
+
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData, ForBuiltinConstructor)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
 {
-    m_codeBlock = new CodeBlock(state.context(), info);
-
-    initStructureAndValues(state, m_codeBlock->isNativeFunctionConstructor(), false, false);
+    m_codeBlock = new NativeCodeBlock(state.context(), info, nativeData);
+    initStructureAndValues(state, info.m_isConstructor, false, false);
     m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
 
     ASSERT(NativeFunctionObject::isConstructor());
-    ASSERT(codeBlock()->hasCallNativeFunctionCode());
+    ASSERT(codeBlock()->isNativeCodeBlock());
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
-    m_codeBlock = new CodeBlock(state.context(), info);
-
+    m_codeBlock = new NativeCodeBlock(state.context(), info);
     // The Proxy constructor does not have a prototype property
     m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionLength()));
 
     ASSERT(NativeFunctionObject::isConstructor());
-    ASSERT(codeBlock()->hasCallNativeFunctionCode());
+    ASSERT(codeBlock()->isNativeCodeBlock());
 }
 
-NativeFunctionObject::NativeFunctionObject(CodeBlock* codeBlock, ObjectStructure* structure, ObjectPropertyValueVector&& values)
-    : FunctionObject(structure, std::move(values), codeBlock->context()->globalObject()->functionPrototype())
+NativeFunctionObject::NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, NativeFunctionInfo info, CallNativeFunctionData* nativeData)
+    : FunctionObject(structure, std::move(values), context->globalObject()->functionPrototype())
 {
-    m_codeBlock = codeBlock;
+    m_codeBlock = new NativeCodeBlock(context, info, nativeData);
 }
 
 bool NativeFunctionObject::isConstructor() const
 {
-    return m_codeBlock->isNativeFunctionConstructor();
+    return nativeCodeBlock()->isNativeConstructor();
 }
 
 template <bool isConstruct>
@@ -112,12 +105,13 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
     }
 
-    Context* ctx = m_codeBlock->context();
-    bool isStrict = m_codeBlock->isStrict();
+    NativeCodeBlock* codeBlock = nativeCodeBlock();
+    Context* ctx = codeBlock->context();
+    bool isStrict = codeBlock->isStrict();
 
-    CallNativeFunctionData* code = m_codeBlock->nativeFunctionData();
+    CallNativeFunctionData* code = codeBlock->nativeFunctionData();
 
-    size_t len = m_codeBlock->functionLength();
+    size_t len = codeBlock->functionLength();
     if (argc < len) {
         Value* newArgv = (Value*)alloca(sizeof(Value) * len);
         for (size_t i = 0; i < argc; i++) {
@@ -162,7 +156,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 
 Value NativeFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
 {
-    ASSERT(codeBlock()->hasCallNativeFunctionCode());
+    ASSERT(codeBlock()->isNativeCodeBlock());
     return processNativeFunctionCall<false>(state, thisValue, argc, argv, nullptr);
 }
 
@@ -171,7 +165,7 @@ Object* NativeFunctionObject::construct(ExecutionState& state, const size_t argc
     // Assert: Type(newTarget) is Object.
     ASSERT(newTarget->isObject());
     ASSERT(newTarget->isConstructor());
-    ASSERT(codeBlock()->hasCallNativeFunctionCode());
+    ASSERT(codeBlock()->isNativeCodeBlock());
 
     Value result = processNativeFunctionCall<true>(state, Value(), argc, argv, newTarget);
     return result.asObject();

@@ -40,12 +40,6 @@ class FunctionObject : public Object {
     friend class Script;
 
 public:
-    enum ThisMode {
-        Lexical,
-        Strict,
-        Global,
-    };
-
     enum ConstructorKind {
         Base,
         Derived,
@@ -76,19 +70,9 @@ public:
         }
     }
 
-    bool isArrowFunction()
+    virtual bool isGenerator() const
     {
-        return m_codeBlock->isArrowFunctionExpression();
-    }
-
-    bool isClassConstructor()
-    {
-        return m_codeBlock->isClassConstructor();
-    }
-
-    bool isGenerator()
-    {
-        return m_codeBlock->isGenerator();
+        return false;
     }
 
     virtual bool isFunctionObject() const override
@@ -106,22 +90,6 @@ public:
         return m_codeBlock;
     }
 
-    ThisMode thisMode()
-    {
-        if (isArrowFunction()) {
-            return ThisMode::Lexical;
-        } else if (m_codeBlock->isStrict()) {
-            return ThisMode::Strict;
-        } else {
-            return ThisMode::Global;
-        }
-    }
-
-    ConstructorKind constructorKind()
-    {
-        return codeBlock()->isDerivedClassConstructor() ? ConstructorKind::Derived : ConstructorKind::Base;
-    }
-
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects
     // internal [[homeObject]] slot
     virtual Object* homeObject()
@@ -136,7 +104,7 @@ public:
 
     struct FunctionSource {
         Script* script;
-        CodeBlock* codeBlock;
+        InterpretedCodeBlock* codeBlock;
         LexicalEnvironment* outerEnvironment;
     };
     static FunctionSource createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall);

@@ -54,9 +54,6 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     codeBlock->m_bodyEndLOC = scopeCtx->m_bodyEndLOC;
 #endif
-#ifndef NDEBUG
-    codeBlock->m_scopeContext = scopeCtx;
-#endif
 
     if (parentCodeBlock) {
         if (!codeBlock->canUseIndexedVariableStorage()) {
@@ -527,11 +524,11 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
 
         PRINT_TAB_BLOCK()
         printf("Block information: ");
-        ASSERT(cb->m_scopeContext->m_childBlockScopes.size() == cb->m_blockInfos.size());
+        ASSERT(cb->scopeContext()->m_childBlockScopes.size() == cb->m_blockInfos.size());
         for (size_t i = 0; i < cb->m_blockInfos.size(); i++) {
             puts("");
             PRINT_TAB_BLOCK()
-            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->m_scopeContext->m_childBlockScopes[i]->m_loc.line, (int)cb->m_scopeContext->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->m_blockIndex, (int)cb->m_blockInfos[i]->m_parentBlockIndex, cb->m_blockInfos[i]->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap", cb->m_blockInfos[i]->m_shouldAllocateEnvironment ? "Allocated" : "Skipped");
+            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.line, (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->m_blockIndex, (int)cb->m_blockInfos[i]->m_parentBlockIndex, cb->m_blockInfos[i]->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap", cb->m_blockInfos[i]->m_shouldAllocateEnvironment ? "Allocated" : "Skipped");
 
             puts("");
             PRINT_TAB_BLOCK()
@@ -547,8 +544,8 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
             puts("");
             PRINT_TAB_BLOCK()
             printf("Using names : ");
-            for (size_t j = 0; j < cb->m_scopeContext->m_childBlockScopes[i]->m_usingNames.size(); j++) {
-                printf("%s, ", cb->m_scopeContext->m_childBlockScopes[i]->m_usingNames[j].string()->toUTF8StringData().data());
+            for (size_t j = 0; j < cb->scopeContext()->m_childBlockScopes[i]->m_usingNames.size(); j++) {
+                printf("%s, ", cb->scopeContext()->m_childBlockScopes[i]->m_usingNames[j].string()->toUTF8StringData().data());
             }
         }
 

@@ -62,7 +62,7 @@ public:
                 }
             }
         } else {
-            ASSERT(self->codeBlock()->isArrowFunctionExpression());
+            ASSERT(self->interpretedCodeBlock()->isArrowFunctionExpression());
             return thisValue;
         }
     }

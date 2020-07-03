@@ -26,21 +26,22 @@ namespace Escargot {
 
 class NativeFunctionObject : public FunctionObject {
     friend class FunctionTemplate;
-    NativeFunctionObject(CodeBlock* codeBlock, ObjectStructure* structure, ObjectPropertyValueVector&& values);
 
 public:
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info);
-    NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock);
+    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData);
 
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
-    NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForGlobalBuiltin);
+    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForGlobalBuiltin);
 
     enum ForBuiltinConstructor { __ForBuiltinConstructor__ };
-    NativeFunctionObject(ExecutionState& state, CodeBlock* codeBlock, ForBuiltinConstructor);
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor);
+    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData, ForBuiltinConstructor);
 
     enum ForBuiltinProxyConstructor { __ForBuiltinProxyConstructor__ };
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor);
+
+    NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, NativeFunctionInfo info, CallNativeFunctionData* nativeData);
 
     virtual bool isNativeFunctionObject() const override
     {
@@ -49,9 +50,14 @@ public:
 
     virtual bool isConstructor() const override;
 
-    friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
     virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
+
+    NativeCodeBlock* nativeCodeBlock() const
+    {
+        ASSERT(m_codeBlock->isNativeCodeBlock());
+        return (NativeCodeBlock*)m_codeBlock;
+    }
 
 protected:
     template <bool isConstruct>

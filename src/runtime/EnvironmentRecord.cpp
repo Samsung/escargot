@@ -277,9 +277,9 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
-FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordOnHeap(FunctionObject* function)
+FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function)
     : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
-    , m_heapStorage(function->codeBlock()->asInterpretedCodeBlock()->identifierOnHeapCount())
+    , m_heapStorage(function->interpretedCodeBlock()->identifierOnHeapCount())
 {
 }
 
@@ -287,7 +287,7 @@ template <bool canBindThisValue, bool hasNewTarget>
 void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
 {
     // Storing to const variable check only (TDZ check is already done by bytecode generation)
-    const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+    const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
     if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
         if (state.inStrictMode()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
@@ -298,11 +298,11 @@ void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutable
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
-FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordNotIndexed(FunctionObject* function)
+FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordNotIndexed(ScriptFunctionObject* function)
     : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
     , m_heapStorage()
 {
-    const InterpretedCodeBlock::IdentifierInfoVector& vec = function->codeBlock()->asInterpretedCodeBlock()->identifierInfos();
+    const InterpretedCodeBlock::IdentifierInfoVector& vec = function->interpretedCodeBlock()->identifierInfos();
     size_t len = vec.size();
     m_recordVector.resizeWithUninitializedValues(len);
     m_heapStorage.resizeWithUninitializedValues(len);

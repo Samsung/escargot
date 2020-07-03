@@ -24,7 +24,7 @@
 #include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
-ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
+ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, 2)
     , m_homeObject(homeObject)
     , m_classSourceCode(classSourceCode)
@@ -52,7 +52,7 @@ public:
         // Let envRec be localEnv’s EnvironmentRecord.
         // Assert: The next step never returns an abrupt completion because envRec.[[thisBindingStatus]] is not "uninitialized".
         // Return envRec.BindThisValue(thisValue).
-        if (self->constructorKind() == FunctionObject::ConstructorKind::Base) {
+        if (self->constructorKind() == ScriptFunctionObject::ConstructorKind::Base) {
             calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(calleeState, thisArgument);
         }
 
@@ -80,7 +80,7 @@ public:
             return result;
         }
         // If kind is "base", return NormalCompletion(thisArgument).
-        if (self->constructorKind() == FunctionObject::ConstructorKind::Base) {
+        if (self->constructorKind() == ScriptFunctionObject::ConstructorKind::Base) {
             return thisArgument;
         }
         // If result.[[value]] is not undefined, throw a TypeError exception.

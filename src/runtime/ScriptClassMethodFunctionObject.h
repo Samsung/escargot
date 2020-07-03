@@ -27,7 +27,7 @@ namespace Escargot {
 // {method, get, set} of object literal also uses this class
 class ScriptClassMethodFunctionObject : public ScriptFunctionObject {
 public:
-    ScriptClassMethodFunctionObject(ExecutionState& state, Object* proto, CodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject)
+    ScriptClassMethodFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject)
         : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, codeBlock->isGenerator(), codeBlock->isAsync())
         , m_homeObject(homeObject)
     {
