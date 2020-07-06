@@ -2354,7 +2354,7 @@ public:
 
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
             if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                this->throwError(Messages::InvalidLHSInAssignment);
             }
             if (this->context->strict && exprNode->type() == Identifier && this->scanner->isRestrictedWord(exprNode->asIdentifier()->name())) {
                 this->throwError(Messages::StrictLHSPrefix);
@@ -2382,7 +2382,7 @@ public:
             if (!this->hasLineTerminator && this->lookahead.type == Token::PunctuatorToken && (this->match(PlusPlus) || this->match(MinusMinus))) {
                 bool isPlus = this->match(PlusPlus);
                 if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                    this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                    this->throwError(Messages::InvalidLHSInAssignment);
                 }
                 if (this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(exprNode->asIdentifier()->name())) {
                     this->throwError(Messages::StrictLHSPostfix);
@@ -2959,7 +2959,7 @@ public:
                             this->throwError(Messages::InvalidLHSInAssignment);
                         }
                         if (this->context->strict) {
-                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                            this->throwError(Messages::InvalidLHSInAssignment);
                         }
                     }
 
@@ -2986,7 +2986,7 @@ public:
                         exprNode = builder.reinterpretExpressionAsPattern(exprNode);
 
                         if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                            this->throwError(Messages::InvalidLHSInAssignment, String::emptyString, String::emptyString, ErrorObject::ReferenceError);
+                            this->throwError(Messages::InvalidLHSInAssignment);
                         }
                     }
 

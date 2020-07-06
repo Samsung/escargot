@@ -605,7 +605,6 @@
     <test id="built-ins/Object/freeze/throws-when-false"><reason>TODO</reason></test>
     <test id="built-ins/Object/isFrozen/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="built-ins/Object/isSealed/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
-    <test id="built-ins/Object/preventExtensions/throws-when-false"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/Object.prototype.toString.call-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/proxy-revoked-during-get-call"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-non-str-bigint"><reason>TODO</reason></test>
@@ -2310,14 +2309,9 @@
     <test id="language/expressions/assignment/dstr/syntax-error-ident-ref-protected-escaped"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/syntax-error-ident-ref-public-escaped"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/syntax-error-ident-ref-static-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/non-simple-target"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/target-boolean"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/target-cover-newtarget"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/target-cover-yieldexpr"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/target-newtarget"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/target-null"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/target-number"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/target-string"><reason>TODO</reason></test>
     <test id="language/expressions/async-arrow-function/await-as-param-ident-nested-arrow-parameter-position"><reason>TODO</reason></test>
     <test id="language/expressions/async-arrow-function/await-as-param-nested-arrow-body-position"><reason>TODO</reason></test>
     <test id="language/expressions/async-arrow-function/await-as-param-nested-arrow-parameter-position"><reason>TODO</reason></test>
@@ -4767,7 +4761,6 @@
     <test id="language/expressions/tagged-template/tco-call"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/tco-member"><reason>TODO</reason></test>
     <test id="language/expressions/tco-pos"><reason>TODO</reason></test>
-    <test id="language/expressions/this/S11.1.1_A1"><reason>TODO</reason></test>
     <test id="language/expressions/typeof/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/unary-minus/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/unary-minus/bigint-non-primitive"><reason>TODO</reason></test>
@@ -4949,14 +4942,8 @@
     <test id="language/module-code/early-import-eval"><reason>TODO</reason></test>
     <test id="language/module-code/eval-rqstd-once"><reason>TODO</reason></test>
     <test id="language/module-code/export-star-as-dflt"><reason>TODO</reason></test>
-    <test id="language/module-code/instn-resolve-empty-export"><reason>TODO</reason></test>
-    <test id="language/module-code/instn-resolve-empty-import"><reason>TODO</reason></test>
-    <test id="language/module-code/instn-resolve-err-syntax-2"><reason>TODO</reason></test>
-    <test id="language/module-code/instn-resolve-order-depth"><reason>TODO</reason></test>
-    <test id="language/module-code/instn-resolve-order-src"><reason>TODO</reason></test>
     <test id="language/module-code/parse-err-hoist-lex-fun"><reason>TODO</reason></test>
     <test id="language/module-code/parse-err-hoist-lex-gen"><reason>TODO</reason></test>
-    <test id="language/module-code/parse-err-syntax-2"><reason>TODO</reason></test>
     <test id="language/module-code/privatename-valid-no-earlyerr"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/await-awaits-thenable-not-callable"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/await-awaits-thenables"><reason>TODO</reason></test>
@@ -5192,9 +5179,6 @@
     <test id="language/module-code/top-level-await/void-await-expr"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/while-dynamic-evaluation"><reason>TODO</reason></test>
     <test id="language/module-code/verify-dfs"><reason>TODO</reason></test>
-    <test id="language/reserved-words/ident-reference-false-escaped"><reason>TODO</reason></test>
-    <test id="language/reserved-words/ident-reference-null-escaped"><reason>TODO</reason></test>
-    <test id="language/reserved-words/ident-reference-true-escaped"><reason>TODO</reason></test>
     <test id="language/statements/async-function/early-errors-declaration-await-in-formals-default"><reason>TODO</reason></test>
     <test id="language/statements/async-generator/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/statements/async-generator/generator-created-after-decl-inst"><reason>TODO</reason></test>
@@ -7138,8 +7122,4 @@
     <test id="language/statements/with/decl-cls"><reason>TODO</reason></test>
     <test id="language/statements/with/labelled-fn-stmt"><reason>TODO</reason></test>
     <test id="language/statements/with/let-array-with-newline"><reason>TODO</reason></test>
-    <test id="language/types/boolean/S8.3_A2.1"><reason>TODO</reason></test>
-    <test id="language/types/boolean/S8.3_A2.2"><reason>TODO</reason></test>
-    <test id="language/types/reference/S8.7.2_A1_T1"><reason>TODO</reason></test>
-    <test id="language/types/reference/S8.7.2_A1_T2"><reason>TODO</reason></test>
 </excludeList>

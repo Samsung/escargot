@@ -519,7 +519,7 @@ Running all tests
 [Error] sourceInfo_12.js .......... Skip (different error message)
 [Error] sourceInfo_13.js .......... Skip (different error message)
 [Error] sourceInfo_20.js .......... Skip (different error message)
-[Error] variousErrors.js .......... Pass
+[Error] variousErrors.js .......... Skip (test is outdated)
 [Error] RuntimeCompileStackOverflow.js .......... Skip (different error message)
 [Error] encodeoverflow.js .......... Skip (FIXME: take too much time)
 [Error] bug560940.js .......... Pass
@@ -2041,7 +2041,7 @@ TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
             Closures		24		17		0		7		(70%)
              Strings		38		26		0		12		(68%)
                 Date		12		4		0		8		(33%)
-               Error		25		2		0		23		(8%)
+               Error		25		1		0		24		(4%)
              Boolean		7		6		0		1		(85%)
               Number		8		6		0		2		(75%)
          ControlFlow		17		14		0		3		(82%)
@@ -2074,4 +2074,4 @@ TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
      switchStatement		28		24		0		4		(85%)
       DebuggerCommon		205		68		0		137		(33%)
 ==========================================================
-               Total		1998		1155		0		843		(57%)
+               Total		1998		1154		0		844		(57%)

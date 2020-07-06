@@ -125,6 +125,7 @@
   </test>
   <test>
     <default>
+      <escargot-skip>test is outdated</escargot-skip>
       <files>variousErrors.js</files>
       <baseline>variousErrors3.baseline</baseline>
     </default>
