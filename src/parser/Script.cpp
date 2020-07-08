@@ -943,4 +943,31 @@ ModuleNamespaceObject* Script::getModuleNamespace(ExecutionState& state)
 
     return moduleData()->m_namespace.value();
 }
+
+Object* Script::importMetaProperty(ExecutionState& state)
+{
+    ASSERT(isModule());
+    // Let importMeta be module.[[ImportMeta]].
+    // If importMeta is empty, then
+    if (!moduleData()->m_importMeta) {
+        // Set importMeta to ! OrdinaryObjectCreate(null).
+        Object* importMeta = new Object(state, Object::PrototypeIsNull);
+        // Let importMetaValues be ! HostGetImportMetaProperties(module).
+        // For each Record { [[Key]], [[Value]] } p that is an element of importMetaValues, do
+        //     Perform ! CreateDataPropertyOrThrow(importMeta, p.[[Key]], p.[[Value]]).
+        // Perform ! HostFinalizeImportMeta(importMeta, module).
+        importMeta->defineOwnProperty(state, state.context()->staticStrings().lazyURL(),
+                                      ObjectPropertyDescriptor(Value(src()), ObjectPropertyDescriptor::AllPresent));
+
+        // Set module.[[ImportMeta]] to importMeta.
+        moduleData()->m_importMeta = importMeta;
+        // Return importMeta.
+        return importMeta;
+    } else {
+        // Else,
+        // Assert: Type(importMeta) is Object.
+        // Return importMeta.
+        return moduleData()->m_importMeta.value();
+    }
+}
 }

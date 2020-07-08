@@ -27,16 +27,29 @@ namespace Escargot {
 
 class MetaPropertyNode : public ExpressionNode {
 public:
-    MetaPropertyNode()
+    enum Type {
+        NewTarget,
+        ImportMeta
+    };
+    MetaPropertyNode(Type t)
         : ExpressionNode()
+        , m_type(t)
     {
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::MetaProperty; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        codeBlock->pushCode(NewTargetOperation(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+        if (m_type == Type::NewTarget) {
+            codeBlock->pushCode(MetaPropertyOperation(ByteCodeLOC(m_loc.index), MetaPropertyOperation::NewTarget, dstRegister), context, this);
+        } else {
+            ASSERT(m_type == Type::ImportMeta);
+            codeBlock->pushCode(MetaPropertyOperation(ByteCodeLOC(m_loc.index), MetaPropertyOperation::ImportMeta, dstRegister), context, this);
+        }
     }
+
+private:
+    Type m_type;
 };
 }
 

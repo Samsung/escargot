@@ -591,7 +591,8 @@ namespace Escargot {
     F(Status, "status")                              \
     F(Fulfilled, "fulfilled")                        \
     F(Reason, "reason")                              \
-    F(Rejected, "rejected")
+    F(Rejected, "rejected")                          \
+    F(URL, "url")
 
 #if defined(ENABLE_INTL)
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)                   \

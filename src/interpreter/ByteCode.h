@@ -129,7 +129,7 @@ struct GlobalVariableAccessCacheItem;
     F(BindingRestElement, 1, 0)                             \
     F(ExecutionResume, 0, 0)                                \
     F(ExecutionPause, 0, 0)                                 \
-    F(NewTargetOperation, 1, 0)                             \
+    F(MetaPropertyOperation, 1, 0)                          \
     F(BlockOperation, 0, 0)                                 \
     F(ReplaceBlockLexicalEnvironmentOperation, 0, 0)        \
     F(TaggedTemplateOperation, 0, 0)                        \
@@ -278,13 +278,21 @@ public:
 #endif
 };
 
-class NewTargetOperation : public ByteCode {
+class MetaPropertyOperation : public ByteCode {
 public:
-    NewTargetOperation(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::NewTargetOperationOpcode, loc)
+    enum Type {
+        NewTarget,
+        ImportMeta
+    };
+
+    MetaPropertyOperation(const ByteCodeLOC& loc, Type type, const size_t registerIndex)
+        : ByteCode(Opcode::MetaPropertyOperationOpcode, loc)
+        , m_type(type)
         , m_registerIndex(registerIndex)
     {
     }
+
+    Type m_type : 1;
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
@@ -294,6 +302,8 @@ public:
     }
 #endif
 };
+
+BYTECODE_SIZE_CHECK_IN_32BIT(MetaPropertyOperation, sizeof(size_t) * 2);
 
 class LoadByName : public ByteCode {
 public:
