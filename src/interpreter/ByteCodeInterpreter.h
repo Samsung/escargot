@@ -50,7 +50,7 @@ class BinaryInstanceOfOperation;
 class UnaryDelete;
 class TemplateOperation;
 class DeclareFunctionDeclarations;
-class NewTargetOperation;
+class MetaPropertyOperation;
 class ObjectDefineOwnPropertyOperation;
 class ObjectDefineOwnPropertyWithNameOperation;
 class ArrayDefineOwnPropertyOperation;
@@ -129,7 +129,7 @@ private:
     static Value executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
     static Value executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
-    static void newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile);
+    static void metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static void objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile);
     static void objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, Value* registerFile);

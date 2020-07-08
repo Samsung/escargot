@@ -4613,11 +4613,6 @@
     <test id="language/expressions/greater-than/bigint-and-number-extremes"><reason>TODO</reason></test>
     <test id="language/expressions/greater-than/bigint-and-string"><reason>TODO</reason></test>
     <test id="language/expressions/greater-than/bigint-and-symbol"><reason>TODO</reason></test>
-    <test id="language/expressions/import.meta/distinct-for-each-module"><reason>TODO</reason></test>
-    <test id="language/expressions/import.meta/import-meta-is-an-ordinary-object"><reason>TODO</reason></test>
-    <test id="language/expressions/import.meta/same-object-returned"><reason>TODO</reason></test>
-    <test id="language/expressions/import.meta/syntax/goal-module"><reason>TODO</reason></test>
-    <test id="language/expressions/import.meta/syntax/goal-module-nested-function"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint-errors"><reason>TODO</reason></test>

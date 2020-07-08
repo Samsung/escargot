@@ -691,8 +691,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* c, InterpretedCodeBl
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_catchedValueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }
-            case NewTargetOperationOpcode: {
-                NewTargetOperation* cd = (NewTargetOperation*)currentCode;
+            case MetaPropertyOperationOpcode: {
+                MetaPropertyOperation* cd = (MetaPropertyOperation*)currentCode;
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 break;
             }

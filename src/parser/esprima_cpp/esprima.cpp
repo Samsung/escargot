@@ -681,6 +681,14 @@ public:
         return n;
     }
 
+    void rewind(const Marker& marker)
+    {
+        this->scanner->index = marker.index;
+        this->scanner->lineNumber = marker.lineNumber;
+        this->scanner->lineStart = marker.lineStart;
+        this->nextToken();
+    }
+
     // FIXME remove finalize methods
     template <typename T>
     ALWAYS_INLINE T* finalize(MetaNode meta, T* node)
@@ -2058,7 +2066,7 @@ public:
                 this->nextToken();
                 this->currentScopeContext->m_hasSuperOrNewTarget = true;
                 MetaNode node = this->createNode();
-                return this->finalize(node, builder.createMetaPropertyNode());
+                return this->finalize(node, builder.createMetaPropertyNode(MetaPropertyNode::NewTarget));
             } else {
                 this->throwUnexpectedToken(this->lookahead);
             }
@@ -2074,6 +2082,31 @@ public:
         this->context->isBindingElement = false;
 
         return this->finalize(node, builder.createNewExpressionNode(callee, args));
+    }
+
+    template <class ASTBuilder>
+    ASTNode parseImportExpression(ASTBuilder& builder)
+    {
+        if (this->sourceType != Module) {
+            this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
+        }
+
+        MetaNode node = this->createNode();
+        // check escaped
+        if (this->lookahead.end - this->lookahead.start != 6) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
+        this->expectKeyword(ImportKeyword);
+        this->expect(Period);
+        ALLOC_TOKEN(nameToken);
+        *nameToken = this->lookahead;
+        TrackUsingNameBlocker blocker(this);
+        ASTNode property = this->parseIdentifierName(builder);
+        AtomicString name = property->asIdentifier()->name();
+        if (!name.string()->equals("meta") || nameToken->hasAllocatedString /* is escaped */) {
+            this->throwUnexpectedToken(*nameToken);
+        }
+        return this->finalize(node, builder.createMetaPropertyNode(MetaPropertyNode::ImportMeta));
     }
 
     template <class ASTBuilder>
@@ -2127,8 +2160,12 @@ public:
             this->currentScopeContext->m_hasSuperOrNewTarget = true;
 
             exprNode = this->finalize(this->createNode(), builder.createSuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
-        } else if (this->matchKeyword(NewKeyword)) {
+        } else if (UNLIKELY(this->matchKeyword(NewKeyword))) {
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseNewExpression<ASTBuilder>);
+        } else if (UNLIKELY(this->matchKeyword(ImportKeyword))) {
+            this->context->isBindingElement = false;
+            this->context->isAssignmentTarget = false;
+            exprNode = this->inheritCoverGrammar(builder, &Parser::parseImportExpression<ASTBuilder>);
         } else {
             exprNode = this->inheritCoverGrammar(builder, &Parser::parsePrimaryExpression<ASTBuilder>);
         }
@@ -2259,8 +2296,12 @@ public:
 
         if (this->matchKeyword(SuperKeyword) && this->context->inFunctionBody) {
             exprNode = this->parseSuper(builder);
-        } else if (this->matchKeyword(NewKeyword)) {
+        } else if (UNLIKELY(this->matchKeyword(NewKeyword))) {
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseNewExpression<ASTBuilder>);
+        } else if (UNLIKELY(this->matchKeyword(ImportKeyword))) {
+            this->context->isBindingElement = false;
+            this->context->isAssignmentTarget = false;
+            exprNode = this->inheritCoverGrammar(builder, &Parser::parseImportExpression<ASTBuilder>);
         } else {
             exprNode = this->inheritCoverGrammar(builder, &Parser::parsePrimaryExpression<ASTBuilder>);
         }
@@ -3797,7 +3838,7 @@ public:
                 this->context->allowIn = previousAllowIn;
 
                 if (this->matchKeyword(InKeyword)) {
-                    if (initNodeType == ASTNodeType::Literal || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple) || initNodeType == ASTNodeType::ThisExpression) {
+                    if (UNLIKELY(initNodeType == ASTNodeType::Literal || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple) || initNodeType == ASTNodeType::ThisExpression || initNodeType == ASTNodeType::MetaProperty)) {
                         this->throwError(Messages::InvalidLHSInForIn);
                     }
                     if (seenAwait) {
@@ -5528,14 +5569,7 @@ public:
     template <class ASTBuilder>
     ASTNode parseImportDeclaration(ASTBuilder& builder)
     {
-        if (this->context->inFunctionBody) {
-            this->throwError(Messages::IllegalImportDeclaration);
-        }
-
-        if (this->lexicalBlockIndex != 0) {
-            this->throwError(Messages::IllegalImportDeclaration);
-        }
-
+        Marker startMarker = this->startMarker;
         MetaNode node = this->createNode();
         this->expectKeyword(KeywordKind::ImportKeyword);
 
@@ -5544,10 +5578,24 @@ public:
         Script::ImportEntryVector importEntrys;
         ASTNodeList specifiers;
         if (this->lookahead.type == Token::StringLiteralToken) {
+            if (this->context->inFunctionBody || this->lexicalBlockIndex != 0) {
+                this->throwError(Messages::IllegalImportDeclaration);
+            }
             // import 'foo';
             src = this->parseModuleSpecifier(builder);
             appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
         } else {
+            if (this->match(PunctuatorKind::Period)) {
+                rewind(startMarker);
+                auto expr = this->inheritCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
+                this->consumeSemicolon();
+                return this->finalize(node, builder.createExpressionStatementNode(expr));
+            }
+
+            if (this->context->inFunctionBody || this->lexicalBlockIndex != 0) {
+                this->throwError(Messages::IllegalImportDeclaration);
+            }
+
             if (this->match(PunctuatorKind::LeftBrace)) {
                 // import {bar}
                 specifiers = this->parseNamedImports(builder);
@@ -6152,7 +6200,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, codeBlock->src(), false, stackRemain, codeBlock->functionStart());
+    Parser parser(ctx, codeBlock->src(), codeBlock->script()->isModule(), stackRemain, codeBlock->functionStart());
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;

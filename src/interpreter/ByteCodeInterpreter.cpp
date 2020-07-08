@@ -1193,12 +1193,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(NewTargetOperation)
+        DEFINE_OPCODE(MetaPropertyOperation)
             :
         {
-            NewTargetOperation* code = (NewTargetOperation*)programCounter;
-            newTargetOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(NewTargetOperation);
+            MetaPropertyOperation* code = (MetaPropertyOperation*)programCounter;
+            metaPropertyOperation(*state, code, byteCodeBlock, registerFile);
+            ADD_PROGRAM_COUNTER(MetaPropertyOperation);
             NEXT_INSTRUCTION();
         }
 
@@ -3056,13 +3056,20 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::newTargetOperation(ExecutionState& state, NewTargetOperation* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    auto newTarget = state.getNewTarget();
-    if (newTarget) {
-        registerFile[code->m_registerIndex] = state.getNewTarget();
+    if (code->m_type == MetaPropertyOperation::NewTarget) {
+        auto newTarget = state.getNewTarget();
+        if (newTarget) {
+            registerFile[code->m_registerIndex] = state.getNewTarget();
+        } else {
+            registerFile[code->m_registerIndex] = Value();
+        }
     } else {
-        registerFile[code->m_registerIndex] = Value();
+        ASSERT(code->m_type == MetaPropertyOperation::ImportMeta);
+        ASSERT(byteCodeBlock->m_codeBlock->script()->isModule());
+
+        registerFile[code->m_registerIndex] = byteCodeBlock->m_codeBlock->script()->importMetaProperty(state);
     }
 }
 

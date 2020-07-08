@@ -103,6 +103,8 @@ public:
         Optional<uint32_t> m_dfsAncestorIndex;
         // [[RequestedModules]] is same with moduleRequests
         StringVector m_requestedModules;
+        // [[ImportMeta]]
+        Optional<Object*> m_importMeta;
 
         ModuleData()
             : m_didCallLoadedCallback(false)
@@ -144,6 +146,9 @@ public:
     String* moduleRequest(size_t i);
 
     bool isExecuted();
+
+    // https://www.ecma-international.org/ecma-262/#sec-meta-properties-runtime-semantics-evaluation
+    Object* importMetaProperty(ExecutionState& state);
 
 private:
     Script(String* src, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
