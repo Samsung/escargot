@@ -843,6 +843,7 @@ public:
         if (taggedTemplateExpressionNode->isIdentifier() && taggedTemplateExpressionNode->asIdentifier()->name() == "eval") {
             scopeContext->m_hasEval = true;
         }
+
         return new (m_allocator) CallExpressionNode(taggedTemplateExpressionNode, args);
     }
 

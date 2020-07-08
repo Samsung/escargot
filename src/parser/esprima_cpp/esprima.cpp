@@ -2319,6 +2319,9 @@ public:
                 if (builder.isNodeGenerator()) {
                     this->taggedTemplateExpressionIndex++;
                 }
+
+                // CodeBlock should allocate a RareData for caching
+                this->currentScopeContext->m_needRareData = true;
                 exprNode = this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
             } else {
                 break;
@@ -2383,6 +2386,9 @@ public:
                 if (builder.isNodeGenerator()) {
                     this->taggedTemplateExpressionIndex++;
                 }
+
+                // CodeBlock should allocate a RareData for caching
+                this->currentScopeContext->m_needRareData = true;
                 exprNode = this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
             } else if (this->lookahead.valuePunctuatorKind == GuessDot) {
                 bool oldBindingElement = this->context->isBindingElement;

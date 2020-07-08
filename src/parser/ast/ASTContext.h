@@ -198,6 +198,7 @@ struct ASTScopeContext {
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
+    bool m_needRareData : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
     unsigned int m_functionLength : 16; // represent the number of consecutive identifier parameters from the start of parameter list (function length)
     unsigned int m_parameterCount : 16; // represent the number of parameter element nodes
@@ -389,6 +390,8 @@ struct ASTScopeContext {
             m_varNamesMap->insert(std::make_pair(name, m_varNames.size() - 1));
         } else if (UNLIKELY(m_varNames.size() > 36)) {
             m_varNamesMap = new (GC) FunctionContextVarMap;
+            // m_varNamesMap should be allocated in the InterpretedCodeBlock's RareData
+            m_needRareData = true;
 
             for (size_t i = 0; i < m_varNames.size(); i++) {
                 m_varNamesMap->insert(std::make_pair(m_varNames[i].name(), i));
@@ -515,6 +518,7 @@ struct ASTScopeContext {
         , m_hasParameterOtherThanIdentifier(false)
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
+        , m_needRareData(false)
         , m_nodeType(ASTNodeType::Program)
         , m_functionLength(0)
         , m_parameterCount(0)
