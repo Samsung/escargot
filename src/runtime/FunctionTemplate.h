@@ -27,8 +27,14 @@
 
 namespace Escargot {
 
+class CallTemplateFunctionData;
+
 class FunctionTemplate : public Template {
 public:
+    enum BuiltinFunctionSlot : size_t {
+        CallTemplateFunctionDataIndex = 0,
+    };
+
     FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
                      NativeFunctionPointer fn, Optional<ObjectTemplate*> instanceTemplate);
 
@@ -74,7 +80,7 @@ protected:
     size_t m_argumentCount;
     bool m_isStrict;
     bool m_isConstructor;
-    CallNativeFunctionData* m_nativeFunctionData;
+    CallTemplateFunctionData* m_nativeFunctionData;
     ObjectTemplate* m_prototypeTemplate;
     Optional<ObjectTemplate*> m_instanceTemplate;
     Optional<FunctionTemplate*> m_parent;

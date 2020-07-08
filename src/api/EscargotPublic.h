@@ -1117,6 +1117,10 @@ public:
     // in constructor call, function must return newly created object && thisValue is always undefined
     typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall);
 
+    enum BuiltinFunctionSlot : size_t {
+        PublicFunctionIndex = 0,
+    };
+
     struct NativeFunctionInfo {
         bool m_isStrict;
         bool m_isConstructor;

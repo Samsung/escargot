@@ -34,7 +34,6 @@ void* NativeCodeBlock::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(NativeCodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NativeCodeBlock, m_context));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NativeCodeBlock, m_nativeFunctionData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(NativeCodeBlock));
         typeInited = true;
     }

@@ -26,11 +26,6 @@ namespace Escargot {
 
 class ExtendedNativeFunctionObject : public NativeFunctionObject {
 public:
-    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
-        : NativeFunctionObject(state, info)
-    {
-    }
-
     virtual bool isExtendedNativeFunctionObject() const
     {
         return true;
@@ -81,6 +76,22 @@ protected:
         {
         }
     };
+
+    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
+        : NativeFunctionObject(state, info)
+    {
+    }
+
+    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, NativeFunctionObject::ForBuiltinConstructor flag)
+        : NativeFunctionObject(state, info, flag)
+    {
+    }
+
+    ExtendedNativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, const NativeFunctionInfo& info)
+        : NativeFunctionObject(context, structure, std::forward<ObjectPropertyValueVector>(values), info)
+    {
+    }
+
 #ifndef NDEBUG
     virtual size_t slotCount() const = 0;
 #endif
@@ -92,6 +103,23 @@ class ExtendedNativeFunctionObjectImpl : public ExtendedNativeFunctionObject {
 public:
     ExtendedNativeFunctionObjectImpl(ExecutionState& state, NativeFunctionInfo info)
         : ExtendedNativeFunctionObject(state, info)
+#ifndef NDEBUG
+        , m_slotCount(slotNumber)
+#endif
+    {
+    }
+
+    ExtendedNativeFunctionObjectImpl(ExecutionState& state, NativeFunctionInfo info, NativeFunctionObject::ForBuiltinConstructor flag)
+        : ExtendedNativeFunctionObject(state, info, flag)
+#ifndef NDEBUG
+        , m_slotCount(slotNumber)
+#endif
+    {
+    }
+
+    // used only for FunctionTemplate instantiation
+    ExtendedNativeFunctionObjectImpl(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, const NativeFunctionInfo& info)
+        : ExtendedNativeFunctionObject(context, structure, std::forward<ObjectPropertyValueVector>(values), info)
 #ifndef NDEBUG
         , m_slotCount(slotNumber)
 #endif

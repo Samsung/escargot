@@ -25,23 +25,17 @@
 namespace Escargot {
 
 class NativeFunctionObject : public FunctionObject {
-    friend class FunctionTemplate;
-
 public:
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info);
-    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData);
 
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForGlobalBuiltin);
 
     enum ForBuiltinConstructor { __ForBuiltinConstructor__ };
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor);
-    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData, ForBuiltinConstructor);
 
     enum ForBuiltinProxyConstructor { __ForBuiltinProxyConstructor__ };
     NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor);
-
-    NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, NativeFunctionInfo info, CallNativeFunctionData* nativeData);
 
     virtual bool isNativeFunctionObject() const override
     {
@@ -60,6 +54,8 @@ public:
     }
 
 protected:
+    NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, const NativeFunctionInfo& info);
+
     template <bool isConstruct>
     ALWAYS_INLINE Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Optional<Object*> newTarget);
 };
