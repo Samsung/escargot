@@ -55,6 +55,7 @@
 #include "runtime/Template.h"
 #include "runtime/ObjectTemplate.h"
 #include "runtime/FunctionTemplate.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
 
@@ -1518,11 +1519,10 @@ ObjectRef* GlobalObjectRef::float64ArrayPrototype()
     return toRef(toImpl(this)->float64ArrayPrototype());
 }
 
-class CallPublicFunctionData : public CallNativeFunctionData {
+class CallPublicFunctionData : public gc {
 public:
-    CallPublicFunctionData(NativeFunctionPointer fn, FunctionObjectRef::NativeFunctionPointer publicFn)
-        : CallNativeFunctionData(fn)
-        , m_publicFn(publicFn)
+    CallPublicFunctionData(FunctionObjectRef::NativeFunctionPointer publicFn)
+        : m_publicFn(publicFn)
     {
     }
 
@@ -1531,8 +1531,8 @@ public:
 
 static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, Optional<Object*> newTarget)
 {
-    NativeCodeBlock* dataCb = state.resolveCallee()->codeBlock()->asNativeCodeBlock();
-    CallPublicFunctionData* code = (CallPublicFunctionData*)(dataCb->nativeFunctionData());
+    ExtendedNativeFunctionObject* func = state.resolveCallee()->asExtendedNativeFunctionObject();
+    CallPublicFunctionData* code = func->internalSlotAsPointer<CallPublicFunctionData>(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex);
 
     ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*, state);
     for (size_t i = 0; i < calledArgc; i++) {
@@ -1560,18 +1560,20 @@ void GlobalObjectProxyObjectRef::setTarget(GlobalObjectRef* target)
 
 static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info, bool isBuiltin)
 {
-    CallPublicFunctionData* data = new CallPublicFunctionData(publicFunctionBridge, info.m_nativeFunction);
-
     int flags = 0;
     flags |= info.m_isStrict ? NativeFunctionInfo::Strict : 0;
     flags |= info.m_isConstructor ? NativeFunctionInfo::Constructor : 0;
     NativeFunctionInfo nativeInfo(toImpl(info.m_name), publicFunctionBridge, info.m_argumentCount, flags);
 
-    FunctionObject* func;
+    ExtendedNativeFunctionObject* func;
     if (isBuiltin)
-        func = new NativeFunctionObject(*toImpl(state), nativeInfo, data, NativeFunctionObject::__ForBuiltinConstructor__);
+        func = new ExtendedNativeFunctionObjectImpl<1>(*toImpl(state), nativeInfo, NativeFunctionObject::__ForBuiltinConstructor__);
     else
-        func = new NativeFunctionObject(*toImpl(state), nativeInfo, data);
+        func = new ExtendedNativeFunctionObjectImpl<1>(*toImpl(state), nativeInfo);
+
+    CallPublicFunctionData* data = new CallPublicFunctionData(info.m_nativeFunction);
+    func->setInternalSlotAsPointer(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex, data);
+
     return toRef(func);
 }
 

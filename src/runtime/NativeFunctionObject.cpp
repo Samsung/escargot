@@ -31,19 +31,12 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     initStructureAndValues(state, info.m_isConstructor, false, false);
 }
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData)
-    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
-{
-    m_codeBlock = new NativeCodeBlock(state.context(), info, nativeData);
-    initStructureAndValues(state, info.m_isConstructor, false, false);
-}
-
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForGlobalBuiltin)
     : FunctionObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
-    ASSERT(!NativeFunctionObject::isConstructor());
     initStructureAndValues(state, info.m_isConstructor, false, false);
+    ASSERT(!NativeFunctionObject::isConstructor());
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor)
@@ -51,21 +44,9 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
     initStructureAndValues(state, info.m_isConstructor, false, false);
-    if (NativeFunctionObject::isConstructor())
+    if (info.m_isConstructor) {
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
-
-    ASSERT(FunctionObject::codeBlock()->isNativeCodeBlock());
-}
-
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, CallNativeFunctionData* nativeData, ForBuiltinConstructor)
-    : FunctionObject(state, state.context()->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
-{
-    m_codeBlock = new NativeCodeBlock(state.context(), info, nativeData);
-    initStructureAndValues(state, info.m_isConstructor, false, false);
-    m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
-
-    ASSERT(NativeFunctionObject::isConstructor());
-    ASSERT(codeBlock()->isNativeCodeBlock());
+    }
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
@@ -78,13 +59,12 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionLength()));
 
     ASSERT(NativeFunctionObject::isConstructor());
-    ASSERT(codeBlock()->isNativeCodeBlock());
 }
 
-NativeFunctionObject::NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, NativeFunctionInfo info, CallNativeFunctionData* nativeData)
+NativeFunctionObject::NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, const NativeFunctionInfo& info)
     : FunctionObject(structure, std::move(values), context->globalObject()->functionPrototype())
 {
-    m_codeBlock = new NativeCodeBlock(context, info, nativeData);
+    m_codeBlock = new NativeCodeBlock(context, info);
 }
 
 bool NativeFunctionObject::isConstructor() const
@@ -109,7 +89,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     Context* ctx = codeBlock->context();
     bool isStrict = codeBlock->isStrict();
 
-    CallNativeFunctionData* code = codeBlock->nativeFunctionData();
+    NativeFunctionPointer nativeFunc = codeBlock->nativeFunction();
 
     size_t len = codeBlock->functionLength();
     if (argc < len) {
@@ -139,13 +119,13 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 
     Value result;
     if (isConstruct) {
-        result = code->m_fn(newState, receiver, argc, argv, newTarget);
+        result = nativeFunc(newState, receiver, argc, argv, newTarget);
         if (UNLIKELY(!result.isObject())) {
             ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
         }
     } else {
         ASSERT(!newTarget);
-        result = code->m_fn(newState, receiver, argc, argv, nullptr);
+        result = nativeFunc(newState, receiver, argc, argv, nullptr);
     }
 
 #ifdef ESCARGOT_DEBUGGER

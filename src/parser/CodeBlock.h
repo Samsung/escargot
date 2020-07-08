@@ -61,16 +61,6 @@ struct NativeFunctionInfo {
     }
 };
 
-class CallNativeFunctionData : public gc {
-public:
-    CallNativeFunctionData(NativeFunctionPointer fn)
-        : m_fn(fn)
-    {
-    }
-
-    NativeFunctionPointer m_fn;
-};
-
 class NativeCodeBlock;
 class InterpretedCodeBlock;
 
@@ -136,17 +126,7 @@ public:
         , m_isStrict(info.m_isStrict)
         , m_functionLength(info.m_argumentCount)
         , m_functionName(info.m_name)
-        , m_nativeFunctionData((CallNativeFunctionData*)(new (PointerFreeGC) CallNativeFunctionData(info.m_nativeFunction)))
-    {
-    }
-
-    NativeCodeBlock(Context* ctx, const NativeFunctionInfo& info, CallNativeFunctionData* nativeData)
-        : CodeBlock(ctx)
-        , m_isNativeConstructor(info.m_isConstructor)
-        , m_isStrict(info.m_isStrict)
-        , m_functionLength(info.m_argumentCount)
-        , m_functionName(info.m_name)
-        , m_nativeFunctionData(nativeData)
+        , m_nativeFunction(info.m_nativeFunction)
     {
     }
 
@@ -175,9 +155,9 @@ public:
         return m_isStrict;
     }
 
-    CallNativeFunctionData* nativeFunctionData()
+    NativeFunctionPointer nativeFunction()
     {
-        return m_nativeFunctionData;
+        return m_nativeFunction;
     }
 
 private:
@@ -185,7 +165,7 @@ private:
     bool m_isStrict : 1;
     uint16_t m_functionLength;
     AtomicString m_functionName;
-    CallNativeFunctionData* m_nativeFunctionData;
+    NativeFunctionPointer m_nativeFunction;
 };
 
 struct InterpretedCodeBlockRareData : public gc {
