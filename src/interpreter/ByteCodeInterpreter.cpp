@@ -3482,7 +3482,7 @@ NEVER_INLINE void ByteCodeInterpreter::taggedTemplateOperation(ExecutionState& s
 {
     TaggedTemplateOperation* code = (TaggedTemplateOperation*)programCounter;
     InterpretedCodeBlock* cb = byteCodeBlock->m_codeBlock;
-    auto& cache = cb->ensureRareData()->m_taggedTemplateLiteralCache;
+    auto& cache = cb->taggedTemplateLiteralCache();
 
     if (code->m_operaton == TaggedTemplateOperation::TestCacheOperation) {
         if (cache.size() > code->m_testCacheOperationData.m_cacheIndex && cache[code->m_testCacheOperationData.m_cacheIndex]) {

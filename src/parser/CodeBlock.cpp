@@ -56,11 +56,36 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_firstChild));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_nextSibling));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_rareData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlock));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+
+void* InterpretedCodeBlockWithRareData::operator new(size_t size)
+{
+#ifdef GC_DEBUG
+    return CustomAllocator<InterpretedCodeBlockWithRareData>().allocate(1);
+#else
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlockWithRareData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_script));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_byteCodeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parentCodeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_firstChild));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_nextSibling));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterNames));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_identifierInfos));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_rareData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlockWithRareData));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
@@ -116,6 +141,24 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
     }
 }
 
+InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+{
+    if (UNLIKELY(scopeCtx->m_needRareData)) {
+        return new InterpretedCodeBlockWithRareData(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction);
+    }
+
+    return new InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction);
+}
+
+InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+{
+    if (UNLIKELY(scopeCtx->m_needRareData)) {
+        return new InterpretedCodeBlockWithRareData(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
+    }
+
+    return new InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
+}
+
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : CodeBlock(ctx)
     , m_script(script)
@@ -124,7 +167,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_parentCodeBlock(nullptr)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
-    , m_rareData(scopeCtx->m_varNamesMap ? (new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap)) : nullptr)
     , m_functionStart(1, 1, 0)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -180,7 +222,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_parentCodeBlock(parentBlock)
     , m_firstChild(nullptr)
     , m_nextSibling(nullptr)
-    , m_rareData(scopeCtx->m_varNamesMap ? (new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap)) : nullptr)
     , m_functionName(scopeCtx->m_functionName)
     , m_functionStart(scopeCtx->m_functionStartLOC)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER

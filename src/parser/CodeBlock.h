@@ -188,6 +188,16 @@ private:
     CallNativeFunctionData* m_nativeFunctionData;
 };
 
+struct InterpretedCodeBlockRareData : public gc {
+    FunctionContextVarMap* m_identifierInfoMap;
+    TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
+
+    InterpretedCodeBlockRareData(FunctionContextVarMap* map)
+        : m_identifierInfoMap(map)
+    {
+    }
+};
+
 class InterpretedCodeBlock : public CodeBlock {
     friend class Script;
     friend class ScriptParser;
@@ -279,20 +289,8 @@ public:
 
     typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_allocator<IdentifierInfo>> IdentifierInfoVector;
 
-    struct InterpretedCodeBlockRareData : public gc {
-        FunctionContextVarMap* m_identifierInfoMap;
-        TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
-
-        InterpretedCodeBlockRareData(FunctionContextVarMap* map)
-            : m_identifierInfoMap(map)
-        {
-        }
-    };
-
-    // init global codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
-    // init function codeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -310,6 +308,24 @@ public:
     virtual AtomicString functionName() const override
     {
         return m_functionName;
+    }
+
+    virtual InterpretedCodeBlockRareData* rareData() const
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        return nullptr;
+    }
+
+    virtual TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>>& taggedTemplateLiteralCache()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>>* tempVector;
+        return *tempVector;
+    }
+
+    virtual Optional<FunctionContextVarMap*> identifierInfoMap()
+    {
+        return nullptr;
     }
 
     bool isKindOfFunction() const
@@ -345,14 +361,6 @@ public:
     InterpretedCodeBlock* nextSibling()
     {
         return m_nextSibling;
-    }
-
-    InterpretedCodeBlockRareData* ensureRareData()
-    {
-        if (!m_rareData) {
-            m_rareData = new InterpretedCodeBlockRareData(nullptr);
-        }
-        return m_rareData;
     }
 
     const AtomicStringTightVector& parameterNames() const
@@ -776,11 +784,6 @@ public:
 
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
-    Optional<FunctionContextVarMap*> identifierInfoMap()
-    {
-        return m_rareData ? m_rareData->m_identifierInfoMap : nullptr;
-    }
-
 #ifndef NDEBUG
     ASTScopeContext* scopeContext()
     {
@@ -789,7 +792,7 @@ public:
     }
 #endif
 
-private:
+protected:
     Script* m_script;
     StringView m_src; // function source including parameters
     ByteCodeBlock* m_byteCodeBlock;
@@ -797,8 +800,6 @@ private:
     InterpretedCodeBlock* m_parentCodeBlock;
     InterpretedCodeBlock* m_firstChild;
     InterpretedCodeBlock* m_nextSibling;
-
-    InterpretedCodeBlockRareData* m_rareData;
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
@@ -857,6 +858,11 @@ private:
     ASTScopeContext* m_scopeContext;
 #endif
 
+    // init global codeBlock
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    // init function codeBlock
+    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     void recordFunctionParsingInfo(ASTScopeContext* scopeCtxm, bool isEvalCode, bool isEvalCodeInFunction);
 
@@ -909,6 +915,50 @@ private:
 
         return std::make_tuple(false, SIZE_MAX, SIZE_MAX);
     }
+};
+
+class InterpretedCodeBlockWithRareData : public InterpretedCodeBlock {
+    friend class InterpretedCodeBlock;
+    friend int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_result* arr);
+
+public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    virtual InterpretedCodeBlockRareData* rareData() const override
+    {
+        ASSERT(!!m_rareData);
+        return m_rareData;
+    }
+
+    virtual TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>>& taggedTemplateLiteralCache() override
+    {
+        ASSERT(!!m_rareData);
+        return m_rareData->m_taggedTemplateLiteralCache;
+    }
+
+    virtual Optional<FunctionContextVarMap*> identifierInfoMap() override
+    {
+        ASSERT(!!m_rareData);
+        return m_rareData->m_identifierInfoMap;
+    }
+
+private:
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+        : InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction)
+        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap))
+    {
+        ASSERT(scopeCtx->m_needRareData);
+    }
+
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+        : InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction)
+        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap))
+    {
+        ASSERT(scopeCtx->m_needRareData);
+    }
+
+    InterpretedCodeBlockRareData* m_rareData;
 };
 }
 

@@ -42,9 +42,9 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
     InterpretedCodeBlock* codeBlock;
     if (parentCodeBlock == nullptr) {
         // globalBlock
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, isEvalCode, isEvalCodeInFunction);
+        codeBlock = InterpretedCodeBlock::createInterpretedCodeBlock(ctx, script, source, scopeCtx, isEvalCode, isEvalCodeInFunction);
     } else {
-        codeBlock = new InterpretedCodeBlock(ctx, script, source, scopeCtx, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
+        codeBlock = InterpretedCodeBlock::createInterpretedCodeBlock(ctx, script, source, scopeCtx, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
     }
 
     // child scopes are don't need this
