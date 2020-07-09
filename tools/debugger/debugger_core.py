@@ -874,6 +874,9 @@ class Debugger(object):
                 name = ""
                 locations = []
 
+            elif buffer_type == ESCARGOT_MESSAGE_RELEASE_FUNCTION:
+                self._release_function(data)
+
             else:
                 logging.error("Parser error!")
                 raise Exception("Unexpected message: %d" % (buffer_type))
