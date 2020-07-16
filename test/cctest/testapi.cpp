@@ -344,6 +344,15 @@ TEST(EvalScript, RuntimeError) {
 
 TEST(ObjectTemplate, Basic1) {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();
+
+    EXPECT_TRUE(tpl->isObjectTemplate());
+    EXPECT_FALSE(tpl->isFunctionTemplate());
+
+    int a = 100;
+    int* testPtr = &a;
+
+    tpl->setInstanceExtraData(testPtr);
+
     tpl->set(StringRef::createFromASCII("asdf"), StringRef::createFromASCII("asdfData"), false, false, false);
 
     ObjectTemplateRef* another = ObjectTemplateRef::create();
@@ -351,6 +360,8 @@ TEST(ObjectTemplate, Basic1) {
 
 
     ObjectRef* obj = tpl->instantiate(g_context.get());
+
+    EXPECT_TRUE(obj->extraData() == testPtr);
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         auto desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("asdf"));
@@ -387,17 +398,17 @@ TEST(ObjectTemplate, Basic2) {
 
     auto getter = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
         return ValueRef::create(12);
-    }, nullptr);
+    });
 
     tpl->setAccessorProperty(StringRef::createFromASCII("asdf"), getter, nullptr, false, true);
 
     auto getter2 = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
         return (ValueRef*)thisValue->asObject()->extraData();
-    }, nullptr);
+    });
     auto setter = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
         thisValue->asObject()->setExtraData(argv[0]);
         return ValueRef::createUndefined();
-    }, nullptr);
+    });
     tpl->setAccessorProperty(StringRef::createFromASCII("asdf2"), getter2, setter, false, true);
 
     ObjectRef* obj = tpl->instantiate(g_context.get());
@@ -480,9 +491,18 @@ TEST(FunctionTemplate, Basic1) {
     auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
         EXPECT_TRUE(argc == 1);
         return argv[0];
-    }, nullptr);
+    });
+
+    int a = 100;
+    int* testPtr = &a;
+    ft->setInstanceExtraData(testPtr);
+
+    EXPECT_FALSE(ft->isObjectTemplate());
+    EXPECT_TRUE(ft->isFunctionTemplate());
 
     FunctionObjectRef* fn = ft->instantiate(g_context.get())->asFunctionObject();
+
+    EXPECT_TRUE(fn->extraData() == testPtr);
 
     // same instance on same context
     EXPECT_EQ(fn, ft->instantiate(g_context.get())->asFunctionObject());
@@ -495,24 +515,51 @@ TEST(FunctionTemplate, Basic1) {
 }
 
 TEST(FunctionTemplate, Basic2) {
+    auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2, true, false, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+        EXPECT_TRUE(argc == 1);
+        return argv[0];
+    });
+
+    int a = 100;
+    int* testPtr = &a;
+    ft->setInstanceExtraData(testPtr);
+
+    EXPECT_FALSE(ft->isObjectTemplate());
+    EXPECT_TRUE(ft->isFunctionTemplate());
+
+    FunctionObjectRef* fn = ft->instantiate(g_context.get())->asFunctionObject();
+
+    EXPECT_TRUE(fn->extraData() == testPtr);
+
+    // same instance on same context
+    EXPECT_EQ(fn, ft->instantiate(g_context.get())->asFunctionObject());
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
+        ValueRef* arr[1] = { ValueRef::create(123) };
+        EXPECT_TRUE(fn->call(state, ValueRef::createUndefined(), 1, arr)->equalsTo(state, ValueRef::create(123)));
+        return ValueRef::createUndefined();
+    }, fn);
+}
+
+TEST(FunctionTemplate, Basic3) {
     auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "parent"), 0,
         true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
         return ValueRef::createUndefined();
-    }, nullptr);
+    });
     ft->prototypeTemplate()->set(StringRef::createFromASCII("asdf1"), ValueRef::create(1), true, true, true);
 
-    auto ftchildobj = ObjectTemplateRef::create();
-    ftchildobj->set(StringRef::createFromASCII("asdf"), ValueRef::create(0), true, true, true);
     auto ftchild = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2,
         true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
         return ValueRef::create(123);
-    }, ftchildobj);
+    });
+    auto ftchildobj = ftchild->instanceTemplate();
+    ftchildobj->set(StringRef::createFromASCII("asdf"), ValueRef::create(0), true, true, true);
 
     ftchild->prototypeTemplate()->set(StringRef::createFromASCII("asdf2"), ValueRef::create(2), true, true, true);
     ftchild->inherit(ft);
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* ftchild) -> ValueRef* {
-        ObjectRef* ref = ftchild->instantiate(g_context.get())->construct(state, 0, 0);
+        ObjectRef* ref = ftchild->instanceTemplate()->instantiate(state->context());
 
         EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("asdf"))->equalsTo(state, ValueRef::create(0)));
         EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("asdf")));

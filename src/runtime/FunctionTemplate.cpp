@@ -83,13 +83,13 @@ public:
 };
 
 FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                   NativeFunctionPointer fn, Optional<ObjectTemplate*> instanceTemplate)
+                                   NativeFunctionPointer fn)
     : m_name(name)
     , m_argumentCount(argumentCount)
     , m_isStrict(isStrict)
     , m_isConstructor(isConstructor)
     , m_prototypeTemplate(new ObjectTemplate())
-    , m_instanceTemplate(instanceTemplate)
+    , m_instanceTemplate(new ObjectTemplate(this))
 {
     auto fnData = new CallTemplateFunctionData(this, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
         ExtendedNativeFunctionObject* activeFunction = state.resolveCallee()->asExtendedNativeFunctionObject();
@@ -112,13 +112,13 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
 }
 
 FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                   FunctionObjectRef::NativeFunctionPointer fn, Optional<ObjectTemplate*> instanceTemplate)
+                                   FunctionObjectRef::NativeFunctionPointer fn)
     : m_name(name)
     , m_argumentCount(argumentCount)
     , m_isStrict(isStrict)
     , m_isConstructor(isConstructor)
     , m_prototypeTemplate(new ObjectTemplate())
-    , m_instanceTemplate(instanceTemplate)
+    , m_instanceTemplate(new ObjectTemplate(this))
 {
     auto fnData = new CallTemplateFunctionData(this, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
         ExtendedNativeFunctionObject* activeFunction = state.resolveCallee()->asExtendedNativeFunctionObject();
@@ -200,8 +200,8 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     } else {
         // [name, length]
         ObjectPropertyValue baseValues[2];
-        objectPropertyValues[0] = m_name.string();
-        objectPropertyValues[1] = Value(m_argumentCount);
+        baseValues[0] = m_name.string();
+        baseValues[1] = Value(m_argumentCount);
         constructObjectPropertyValues(ctx, baseValues, 2, objectPropertyValues);
     }
 
@@ -214,7 +214,7 @@ Object* FunctionTemplate::instantiate(Context* ctx)
 
     if (m_isConstructor) {
         auto idx = m_prototypeTemplate->cachedObjectStructure()->findProperty(ctx->staticStrings().constructor).first;
-        result->uncheckedGetOwnDataProperty(0).asPointerValue()->asObject()->uncheckedSetOwnDataProperty(idx, result);
+        result->uncheckedGetOwnDataProperty(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).asPointerValue()->asObject()->uncheckedSetOwnDataProperty(idx, result);
 
         struct Sender {
             FunctionTemplate* functionTemplate;
@@ -235,7 +235,7 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     }
 
     instantiatedFunctionObjects.pushBack(std::make_pair(this, result));
-
+    postProcessing(result);
     return result;
 }
 }

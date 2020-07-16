@@ -36,10 +36,10 @@ public:
     };
 
     FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                     NativeFunctionPointer fn, Optional<ObjectTemplate*> instanceTemplate);
+                     NativeFunctionPointer fn);
 
     FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                     FunctionObjectRef::NativeFunctionPointer fn, Optional<ObjectTemplate*> instanceTemplate);
+                     FunctionObjectRef::NativeFunctionPointer fn);
 
     // returns the unique function instance in context.
     virtual Object* instantiate(Context* ctx) override;
@@ -50,14 +50,9 @@ public:
     }
 
     // ObjectTemplate for new'ed instance of this functionTemplate
-    // if there is no instance template, we will make make default object
-    Optional<ObjectTemplate*> instanceTemplate() const
+    ObjectTemplate* instanceTemplate() const
     {
         return m_instanceTemplate;
-    }
-    void setInstanceTemplate(Optional<ObjectTemplate*> s)
-    {
-        m_instanceTemplate = s;
     }
 
     void inherit(Optional<FunctionTemplate*> parent)
@@ -72,6 +67,16 @@ public:
         return m_parent;
     }
 
+    virtual bool isFunctionTemplate() const override
+    {
+        return true;
+    }
+
+    bool isConstructor() const
+    {
+        return m_isConstructor;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -82,7 +87,7 @@ protected:
     bool m_isConstructor;
     CallTemplateFunctionData* m_nativeFunctionData;
     ObjectTemplate* m_prototypeTemplate;
-    Optional<ObjectTemplate*> m_instanceTemplate;
+    ObjectTemplate* m_instanceTemplate;
     Optional<FunctionTemplate*> m_parent;
 };
 }

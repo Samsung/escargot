@@ -33,13 +33,15 @@ void* ObjectTemplate::operator new(size_t size)
     if (!typeInited) {
         GC_word objBitmap[GC_BITMAP_SIZE(ObjectTemplate)] = { 0 };
         ObjectTemplate::fillGCDescriptor(objBitmap);
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_constructor));
         descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectTemplate));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-ObjectTemplate::ObjectTemplate()
+ObjectTemplate::ObjectTemplate(Optional<FunctionTemplate*> constructor)
+    : m_constructor(constructor)
 {
 }
 
@@ -52,6 +54,14 @@ Object* ObjectTemplate::instantiate(Context* ctx)
     ObjectPropertyValueVector objectPropertyValues;
     constructObjectPropertyValues(ctx, nullptr, 0, objectPropertyValues);
 
-    return new Object(m_cachedObjectStructure, std::move(objectPropertyValues), ctx->globalObject()->objectPrototype());
+    Object* result;
+    if (m_constructor && m_constructor->isConstructor()) {
+        FunctionObject* fn = m_constructor->instantiate(ctx)->asFunctionObject();
+        result = new Object(m_cachedObjectStructure, std::move(objectPropertyValues), fn->uncheckedGetOwnDataProperty(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).asPointerValue()->asObject());
+    } else {
+        result = new Object(m_cachedObjectStructure, std::move(objectPropertyValues), ctx->globalObject()->objectPrototype());
+    }
+    postProcessing(result);
+    return result;
 }
 }

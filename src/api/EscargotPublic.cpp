@@ -2664,15 +2664,35 @@ bool TemplateRef::didInstantiate()
     return toImpl(this)->didInstantiate();
 }
 
+bool TemplateRef::isObjectTemplate()
+{
+    return toImpl(this)->isObjectTemplate();
+}
+
+bool TemplateRef::isFunctionTemplate()
+{
+    return toImpl(this)->isFunctionTemplate();
+}
+
+void TemplateRef::setInstanceExtraData(void* ptr)
+{
+    toImpl(this)->setInstanceExtraData(ptr);
+}
+
+void* TemplateRef::instanceExtraData()
+{
+    return toImpl(this)->instanceExtraData();
+}
+
 ObjectTemplateRef* ObjectTemplateRef::create()
 {
     return toRef(new ObjectTemplate());
 }
 
 FunctionTemplateRef* FunctionTemplateRef::create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                                 FunctionObjectRef::NativeFunctionPointer fn, OptionalRef<ObjectTemplateRef> instanceTemplate)
+                                                 FunctionObjectRef::NativeFunctionPointer fn)
 {
-    return toRef(new FunctionTemplate(toImpl(name), argumentCount, isStrict, isConstructor, fn, toImpl(instanceTemplate.value())));
+    return toRef(new FunctionTemplate(toImpl(name), argumentCount, isStrict, isConstructor, fn));
 }
 
 ObjectTemplateRef* FunctionTemplateRef::prototypeTemplate()
@@ -2680,21 +2700,9 @@ ObjectTemplateRef* FunctionTemplateRef::prototypeTemplate()
     return toRef(toImpl(this)->prototypeTemplate());
 }
 
-OptionalRef<ObjectTemplateRef> FunctionTemplateRef::instanceTemplate()
+ObjectTemplateRef* FunctionTemplateRef::instanceTemplate()
 {
-    if (toImpl(this)->instanceTemplate()) {
-        return toRef(toImpl(this)->instanceTemplate().value());
-    }
-    return nullptr;
-}
-
-void FunctionTemplateRef::setInstanceTemplate(OptionalRef<ObjectTemplateRef> s)
-{
-    if (s) {
-        toImpl(this)->setInstanceTemplate(toImpl(s.value()));
-    } else {
-        toImpl(this)->setInstanceTemplate(nullptr);
-    }
+    return toRef(toImpl(this)->instanceTemplate());
 }
 
 void FunctionTemplateRef::inherit(OptionalRef<FunctionTemplateRef> parent)
