@@ -24,16 +24,24 @@
 
 namespace Escargot {
 
+class FunctionTemplate;
+
 class ObjectTemplate : public Template {
 public:
-    ObjectTemplate();
+    ObjectTemplate(Optional<FunctionTemplate*> constructor = nullptr);
 
-    virtual Object* instantiate(Context* ctx);
+    virtual bool isObjectTemplate() const override
+    {
+        return true;
+    }
+
+    virtual Object* instantiate(Context* ctx) override;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
+    Optional<FunctionTemplate*> m_constructor;
 };
 }
 

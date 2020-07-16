@@ -1447,6 +1447,12 @@ public:
 
     ObjectRef* instantiate(ContextRef* ctx);
     bool didInstantiate();
+
+    bool isObjectTemplate();
+    bool isFunctionTemplate();
+
+    void setInstanceExtraData(void* ptr);
+    void* instanceExtraData();
 };
 
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
@@ -1458,13 +1464,11 @@ public:
 class ESCARGOT_EXPORT FunctionTemplateRef : public TemplateRef {
 public:
     static FunctionTemplateRef* create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                       FunctionObjectRef::NativeFunctionPointer fn, OptionalRef<ObjectTemplateRef> instanceTemplate);
+                                       FunctionObjectRef::NativeFunctionPointer fn);
 
     ObjectTemplateRef* prototypeTemplate();
-
-    // if there is no instance template, we will use default object
-    OptionalRef<ObjectTemplateRef> instanceTemplate();
-    void setInstanceTemplate(OptionalRef<ObjectTemplateRef> s);
+    // ObjectTemplate for new'ed instance of this functionTemplate
+    ObjectTemplateRef* instanceTemplate();
 
     void inherit(OptionalRef<FunctionTemplateRef> parent);
     OptionalRef<FunctionTemplateRef> parent();

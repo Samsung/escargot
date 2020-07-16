@@ -94,9 +94,17 @@ static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 
-#define COMPRESSIBLE_COMPRESS_CHECK_INTERVAL 1000
-#define COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL 1000
-#define COMPRESSIBLE_COMPRESS_MIN_SIZE 1024 * 128
+#ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_CHECK_INTERVAL
+#define ESCARGOT_COMPRESSIBLE_COMPRESS_CHECK_INTERVAL 1000
+#endif
+
+#ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL
+#define ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL 1000
+#endif
+
+#ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_MIN_SIZE
+#define ESCARGOT_COMPRESSIBLE_COMPRESS_MIN_SIZE 1024 * 128
+#endif
 
 void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
 {
@@ -105,7 +113,9 @@ void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
     size_t mostBigIndex = SIZE_MAX;
 
     for (size_t i = 0; i < currentAllocatedCompressibleStringsCount; i++) {
-        if (!currentAllocatedCompressibleStrings[i]->isCompressed() && currentTickCount - currentAllocatedCompressibleStrings[i]->m_lastUsedTickcount > COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL && currentAllocatedCompressibleStrings[i]->decomressedBufferSize() > COMPRESSIBLE_COMPRESS_MIN_SIZE) {
+        if (!currentAllocatedCompressibleStrings[i]->isCompressed()
+            && currentTickCount - currentAllocatedCompressibleStrings[i]->m_lastUsedTickcount > ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL
+            && currentAllocatedCompressibleStrings[i]->decomressedBufferSize() > ESCARGOT_COMPRESSIBLE_COMPRESS_MIN_SIZE) {
             if (mostBigIndex == SIZE_MAX) {
                 mostBigIndex = i;
             } else if (currentAllocatedCompressibleStrings[i]->decomressedBufferSize() > currentAllocatedCompressibleStrings[mostBigIndex]->decomressedBufferSize()) {
@@ -147,7 +157,7 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
     } else if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
 #if defined(ENABLE_COMPRESSIBLE_STRING)
         auto currentTick = fastTickCount();
-        if (currentTick - self->m_lastCompressibleStringsTestTime > COMPRESSIBLE_COMPRESS_CHECK_INTERVAL) {
+        if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_CHECK_INTERVAL) {
             self->compressStringsIfNeeds(currentTick);
             self->m_lastCompressibleStringsTestTime = currentTick;
         }

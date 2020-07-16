@@ -129,11 +129,29 @@ public:
     // return true if removed
     bool remove(const TemplatePropertyName& name);
 
-    virtual Object* instantiate(Context* ctx) = 0;
+    void setInstanceExtraData(void* ptr)
+    {
+        m_instanceExtraData = ptr;
+    }
+    void* instanceExtraData()
+    {
+        return m_instanceExtraData;
+    }
 
+    virtual Object* instantiate(Context* ctx) = 0;
     bool didInstantiate() const
     {
         return m_cachedObjectStructure;
+    }
+
+    virtual bool isObjectTemplate() const
+    {
+        return false;
+    }
+
+    virtual bool isFunctionTemplate() const
+    {
+        return false;
     }
 
     Optional<ObjectStructure*> cachedObjectStructure()
@@ -144,9 +162,11 @@ public:
 protected:
     ObjectStructure* constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount);
     void constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues);
+    void postProcessing(Object* instantiatedObject);
 
     Template()
-        : m_cachedObjectStructure(nullptr)
+        : m_instanceExtraData(nullptr)
+        , m_cachedObjectStructure(nullptr)
     {
     }
     virtual ~Template()
@@ -156,6 +176,7 @@ protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {
         GC_set_bit(desc, GC_WORD_OFFSET(Template, m_properties));
+        GC_set_bit(desc, GC_WORD_OFFSET(Template, m_instanceExtraData));
         GC_set_bit(desc, GC_WORD_OFFSET(Template, m_cachedObjectStructure));
     }
 
@@ -291,6 +312,7 @@ protected:
     static_assert(sizeof(TemplatePropertyData) == sizeof(size_t) * 3, "");
 
     Vector<std::pair<TemplatePropertyName, TemplatePropertyData>, GCUtil::gc_malloc_allocator<std::pair<TemplatePropertyName, TemplatePropertyData>>> m_properties;
+    void* m_instanceExtraData;
     ObjectStructure* m_cachedObjectStructure;
 };
 }

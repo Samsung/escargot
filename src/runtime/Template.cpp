@@ -143,4 +143,11 @@ void Template::constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* 
         }
     }
 }
+
+void Template::postProcessing(Object* instantiatedObject)
+{
+    if (m_instanceExtraData) {
+        instantiatedObject->setExtraData(m_instanceExtraData);
+    }
+}
 }
