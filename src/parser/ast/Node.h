@@ -30,7 +30,7 @@ class ByteCodeBlock;
 class InterpretedCodeBlock;
 struct ByteCodeGenerateContext;
 
-enum ASTNodeType {
+enum ASTNodeType : uint16_t {
     /* Note: These 4 types must be in this order */
     Program,
     ArrowFunctionExpression,

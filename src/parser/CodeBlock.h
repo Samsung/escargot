@@ -178,6 +178,8 @@ struct InterpretedCodeBlockRareData : public gc {
     }
 };
 
+typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<InterpretedCodeBlock*>> InterpretedCodeBlockVector;
+
 class InterpretedCodeBlock : public CodeBlock {
     friend class Script;
     friend class ScriptParser;
@@ -225,9 +227,9 @@ public:
     typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
 
     struct BlockInfo : public gc {
-        ASTNodeType m_nodeType : 16;
         bool m_canAllocateEnvironmentOnStack : 1;
         bool m_shouldAllocateEnvironment : 1;
+        ASTNodeType m_nodeType : 16;
         LexicalBlockIndex m_parentBlockIndex;
         LexicalBlockIndex m_blockIndex;
         BlockIdentifierInfoVector m_identifiers;
@@ -240,9 +242,9 @@ public:
             ExtendedNodeLOC loc
 #endif
             )
-            : m_nodeType(ASTNodeType::ASTNodeTypeError)
-            , m_canAllocateEnvironmentOnStack(false)
+            : m_canAllocateEnvironmentOnStack(false)
             , m_shouldAllocateEnvironment(false)
+            , m_nodeType(ASTNodeType::ASTNodeTypeError)
             , m_parentBlockIndex(LEXICAL_BLOCK_INDEX_MAX)
             , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
 #ifndef NDEBUG
@@ -290,6 +292,11 @@ public:
         return m_functionName;
     }
 
+    virtual bool hasRareData() const
+    {
+        return false;
+    }
+
     virtual InterpretedCodeBlockRareData* rareData() const
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -328,19 +335,36 @@ public:
         return m_byteCodeBlock;
     }
 
-    InterpretedCodeBlock* parentCodeBlock()
+    InterpretedCodeBlock* parent()
     {
-        return m_parentCodeBlock;
+        return m_parent;
     }
 
-    InterpretedCodeBlock* firstChild()
+    bool hasChildren() const
     {
-        return m_firstChild;
+        if (!!m_children) {
+            ASSERT(m_children->size() > 0);
+            return true;
+        }
+        return false;
     }
 
-    InterpretedCodeBlock* nextSibling()
+    InterpretedCodeBlockVector& children() const
     {
-        return m_nextSibling;
+        ASSERT(!!m_children);
+        return *m_children;
+    }
+
+    void setChildren(InterpretedCodeBlockVector* codeBlockVector)
+    {
+        ASSERT(!m_children);
+        m_children = codeBlockVector;
+    }
+
+    InterpretedCodeBlock* childBlockAt(size_t idx)
+    {
+        ASSERT(!!m_children && idx < m_children->size());
+        return (*m_children)[idx];
     }
 
     const AtomicStringTightVector& parameterNames() const
@@ -616,60 +640,24 @@ public:
 
     bool isGlobalScopeCodeBlock() const
     {
-        return m_parentCodeBlock == nullptr;
+        return m_parent == nullptr;
     }
 
     bool hasAncestorUsesNonIndexedVariableStorage()
     {
-        auto ptr = m_parentCodeBlock;
+        auto ptr = m_parent;
 
         while (ptr) {
             if (!ptr->canUseIndexedVariableStorage()) {
                 return true;
             }
-            ptr = ptr->parentCodeBlock();
+            ptr = ptr->parent();
         }
 
         return false;
     }
 
     IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, LexicalBlockIndex blockIndex);
-
-    void appendChild(InterpretedCodeBlock* child)
-    {
-        ASSERT(child->m_nextSibling == nullptr);
-        if (m_firstChild == nullptr) {
-            m_firstChild = child;
-        } else {
-            InterpretedCodeBlock* tail = firstChild();
-            while (tail->m_nextSibling != nullptr) {
-                tail = tail->m_nextSibling;
-            }
-            tail->m_nextSibling = child;
-        }
-    }
-
-    void appendChild(InterpretedCodeBlock* child, InterpretedCodeBlock* referNode)
-    {
-        if (referNode == nullptr) {
-            appendChild(child);
-        } else {
-            referNode->m_nextSibling = child;
-        }
-    }
-
-    InterpretedCodeBlock* childBlockAt(size_t idx)
-    {
-        ASSERT(!!m_firstChild);
-        InterpretedCodeBlock* c = m_firstChild;
-
-        for (size_t i = 0; i < idx; i++) {
-            ASSERT(c->nextSibling());
-            c = c->nextSibling();
-        }
-
-        return c;
-    }
 
     size_t findVarName(const AtomicString& name)
     {
@@ -777,9 +765,8 @@ protected:
     StringView m_src; // function source including parameters
     ByteCodeBlock* m_byteCodeBlock;
 
-    InterpretedCodeBlock* m_parentCodeBlock;
-    InterpretedCodeBlock* m_firstChild;
-    InterpretedCodeBlock* m_nextSibling;
+    InterpretedCodeBlock* m_parent;
+    InterpretedCodeBlockVector* m_children;
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
@@ -904,6 +891,11 @@ class InterpretedCodeBlockWithRareData : public InterpretedCodeBlock {
 public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    virtual bool hasRareData() const override
+    {
+        return true;
+    }
 
     virtual InterpretedCodeBlockRareData* rareData() const override
     {

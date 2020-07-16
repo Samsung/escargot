@@ -255,6 +255,17 @@ struct ASTScopeContext {
         return m_nextSibling;
     }
 
+    size_t childCount()
+    {
+        size_t count = 0;
+        ASTScopeContext *child = m_firstChild;
+        while (child) {
+            count++;
+            child = child->nextSibling();
+        }
+        return count;
+    }
+
     size_t findVarName(const AtomicString &name)
     {
         if (UNLIKELY(hasVarNamesMap())) {

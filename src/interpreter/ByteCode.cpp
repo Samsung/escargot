@@ -219,8 +219,13 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
 void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
 {
     InterpretedCodeBlock* codeBlock = context->m_codeBlock;
-    InterpretedCodeBlock* child = codeBlock->firstChild();
-    while (child) {
+    if (!codeBlock->hasChildren()) {
+        return;
+    }
+
+    InterpretedCodeBlockVector& childrenVector = codeBlock->children();
+    for (size_t i = 0; i < childrenVector.size(); i++) {
+        InterpretedCodeBlock* child = childrenVector[i];
         if (child->isFunctionDeclaration() && child->lexicalBlockIndexFunctionLocatedIn() == context->m_lexicalBlockIndex) {
             IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(child->functionName());
             id->m_loc = node->m_loc;
@@ -251,8 +256,6 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
 
             context->giveUpRegister(); // give up useless register
         }
-
-        child = child->nextSibling();
     }
 }
 

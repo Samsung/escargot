@@ -265,14 +265,16 @@ static bool canDeclareGlobalFunction(ExecutionState& state, Object* globalObject
 
 static void testDeclareGlobalFunctions(ExecutionState& state, InterpretedCodeBlock* topCodeBlock, Object* globalObject)
 {
-    auto c = topCodeBlock->firstChild();
-    while (c) {
-        if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
-            if (!canDeclareGlobalFunction(state, globalObject, c->functionName())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Identifier '%s' has already been declared", c->functionName());
+    if (topCodeBlock->hasChildren()) {
+        InterpretedCodeBlockVector& childrenVector = topCodeBlock->children();
+        for (size_t i = 0; i < childrenVector.size(); i++) {
+            auto c = childrenVector[i];
+            if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
+                if (!canDeclareGlobalFunction(state, globalObject, c->functionName())) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Identifier '%s' has already been declared", c->functionName());
+                }
             }
         }
-        c = c->nextSibling();
     }
 }
 
@@ -338,14 +340,16 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     size_t globalLexicalVectorLen = globalLexicalVector.size();
 
     if (!isExecuteOnEvalFunction) {
-        InterpretedCodeBlock* child = m_topCodeBlock->firstChild();
-        while (child) {
-            if (child->isFunctionDeclaration()) {
-                if (child->lexicalBlockIndexFunctionLocatedIn() == 0 && !state.context()->globalObject()->defineOwnProperty(state, child->functionName(), ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
+        if (m_topCodeBlock->hasChildren()) {
+            InterpretedCodeBlockVector& childrenVector = m_topCodeBlock->children();
+            for (size_t i = 0; i < childrenVector.size(); i++) {
+                InterpretedCodeBlock* child = childrenVector[i];
+                if (child->isFunctionDeclaration()) {
+                    if (child->lexicalBlockIndexFunctionLocatedIn() == 0 && !state.context()->globalObject()->defineOwnProperty(state, child->functionName(), ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
+                        ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
+                    }
                 }
             }
-            child = child->nextSibling();
         }
 
         // https://www.ecma-international.org/ecma-262/#sec-globaldeclarationinstantiation
