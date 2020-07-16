@@ -246,6 +246,20 @@ public:
         }
     }
 
+    void* operator new(size_t size)
+    {
+        static bool typeInited = false;
+        static GC_descr descr;
+        if (!typeInited) {
+            GC_word desc[GC_BITMAP_SIZE(TightVector)] = { 0 };
+            GC_set_bit(desc, GC_WORD_OFFSET(TightVector, m_buffer));
+            descr = GC_make_descriptor(desc, GC_WORD_LEN(TightVector));
+            typeInited = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    }
+    void* operator new[](size_t size) = delete;
+
 protected:
     T* m_buffer;
     size_t m_size;

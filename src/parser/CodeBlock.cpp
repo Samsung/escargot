@@ -52,9 +52,8 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parentCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_firstChild));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_nextSibling));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
@@ -77,9 +76,8 @@ void* InterpretedCodeBlockWithRareData::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_script));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_byteCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parentCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_firstChild));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_nextSibling));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterNames));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
@@ -114,7 +112,6 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
             blockScopes[i]->m_loc
 #endif
             );
-        info->m_nodeType = blockScopes[i]->m_nodeType;
 
         // if block comes from switch statement, we should allocate variables on heap.
         // because our we can track only heap variables are initialized by user
@@ -123,16 +120,17 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
         m_canAllocateEnvironmentOnStack = m_canAllocateEnvironmentOnStack && !everyVariablesShouldUseHeapStorage;
         info->m_canAllocateEnvironmentOnStack = m_canAllocateEnvironmentOnStack;
         info->m_shouldAllocateEnvironment = true;
-        info->m_blockIndex = blockScopes[i]->m_blockIndex;
+        info->m_nodeType = blockScopes[i]->m_nodeType;
         info->m_parentBlockIndex = blockScopes[i]->m_parentBlockIndex;
+        info->m_blockIndex = blockScopes[i]->m_blockIndex;
 
         info->m_identifiers.resizeWithUninitializedValues(blockScopes[i]->m_names.size());
         for (size_t j = 0; j < blockScopes[i]->m_names.size(); j++) {
             BlockIdentifierInfo idInfo;
-            idInfo.m_name = blockScopes[i]->m_names[j].name();
             idInfo.m_needToAllocateOnStack = m_canUseIndexedVariableStorage && !everyVariablesShouldUseHeapStorage;
             idInfo.m_isMutable = !blockScopes[i]->m_names[j].isConstBinding();
             idInfo.m_indexForIndexedStorage = SIZE_MAX;
+            idInfo.m_name = blockScopes[i]->m_names[j].name();
             info->m_identifiers[j] = idInfo;
         }
 
@@ -163,9 +161,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_script(script)
     , m_src(src)
     , m_byteCodeBlock(nullptr)
-    , m_parentCodeBlock(nullptr)
-    , m_firstChild(nullptr)
-    , m_nextSibling(nullptr)
+    , m_parent(nullptr)
+    , m_children(nullptr)
     , m_functionStart(1, 1, 0)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
@@ -218,9 +215,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_script(script)
     , m_src(StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index))
     , m_byteCodeBlock(nullptr)
-    , m_parentCodeBlock(parentBlock)
-    , m_firstChild(nullptr)
-    , m_nextSibling(nullptr)
+    , m_parent(parentBlock)
+    , m_children(nullptr)
     , m_functionName(scopeCtx->m_functionName)
     , m_functionStart(scopeCtx->m_functionStartLOC)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -358,16 +354,16 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
     m_hasDescendantUsesNonIndexedVariableStorage = false;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
-    m_identifierInfos.resize(innerIdentifiers.size());
+    m_identifierInfos.resizeWithUninitializedValues(innerIdentifiers.size());
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
-        info.m_name = innerIdentifiers[i].name();
         info.m_needToAllocateOnStack = m_canUseIndexedVariableStorage;
         info.m_isMutable = true;
-        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_isParameterName = innerIdentifiers[i].isParameterName();
-        info.m_indexForIndexedStorage = SIZE_MAX;
+        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
+        info.m_indexForIndexedStorage = SIZE_MAX;
+        info.m_name = innerIdentifiers[i].name();
         m_identifierInfos[i] = info;
     }
 
@@ -474,7 +470,7 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
             return;
         }
 
-        c = c->parentCodeBlock();
+        c = c->parent();
     }
 }
 
@@ -724,7 +720,7 @@ bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
         return true;
     }
     if (isArrowFunctionExpression()) {
-        InterpretedCodeBlock* cb = m_parentCodeBlock;
+        InterpretedCodeBlock* cb = m_parent;
         while (cb) {
             if (cb->isArrowFunctionExpression()) {
                 // pass through
@@ -734,7 +730,7 @@ bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
                 break;
             }
 
-            cb = cb->m_parentCodeBlock;
+            cb = cb->m_parent;
         }
         return false;
     }
@@ -824,7 +820,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
         }
 
         startBlockIndex = blockIndex = blk->lexicalBlockIndexFunctionLocatedIn();
-        blk = blk->parentCodeBlock();
+        blk = blk->parent();
     }
 
     return info;

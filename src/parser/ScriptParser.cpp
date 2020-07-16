@@ -60,7 +60,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
                 c->m_hasDescendantUsesNonIndexedVariableStorage = true;
-                c = c->parentCodeBlock();
+                c = c->parent();
             }
         }
 
@@ -79,7 +79,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                         break;
                     }
                 }
-                c = c->parentCodeBlock();
+                c = c->parent();
             }
         }
 
@@ -90,7 +90,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     c->m_canAllocateEnvironmentOnStack = false;
                     break;
                 }
-                c = c->parentCodeBlock();
+                c = c->parent();
             }
         }
 
@@ -112,12 +112,12 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                                 hasKindOfArgumentsHolderOnAncestors = true;
                                 break;
                             }
-                            argumentsObjectHolder = argumentsObjectHolder->parentCodeBlock();
+                            argumentsObjectHolder = argumentsObjectHolder->parent();
                         }
 
                         if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->hasParameterName(arguments)) {
                             InterpretedCodeBlock* argumentsVariableHolder = nullptr;
-                            InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                            InterpretedCodeBlock* c = codeBlock->parent();
                             while (c && !c->isGlobalScopeCodeBlock()) {
                                 if (c->hasParameterName(arguments)) {
                                     argumentsVariableHolder = c;
@@ -126,7 +126,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                                     argumentsVariableHolder = c;
                                     break;
                                 }
-                                c = c->parentCodeBlock();
+                                c = c->parent();
                             }
 
                             if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
@@ -139,7 +139,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                                         break;
                                     }
                                     p->m_usesArgumentsObject = true;
-                                    p = p->parentCodeBlock();
+                                    p = p->parent();
                                 }
                                 if (argumentsVariableHolder) {
                                     argumentsVariableHolder->captureArguments();
@@ -158,7 +158,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                         usingNameIsResolvedOnCompileTime = true;
                     } else {
                         auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
-                        InterpretedCodeBlock* c = codeBlock->parentCodeBlock();
+                        InterpretedCodeBlock* c = codeBlock->parent();
                         while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
                             auto r = c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname);
 
@@ -178,7 +178,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                                 break;
                             }
                             parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
-                            c = c->parentCodeBlock();
+                            c = c->parent();
                         }
                     }
                 }
@@ -186,13 +186,21 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         }
     }
 
-    ASTScopeContext* child = scopeCtx->firstChild();
-    InterpretedCodeBlock* refer = nullptr;
-    while (child) {
-        InterpretedCodeBlock* newBlock = generateCodeBlockTreeFromASTWalker(ctx, source, script, child, codeBlock, isEvalCode, isEvalCodeInFunction);
-        codeBlock->appendChild(newBlock, refer);
-        refer = newBlock;
-        child = child->nextSibling();
+    size_t childCount = scopeCtx->childCount();
+    if (childCount > 0) {
+        InterpretedCodeBlockVector* codeBlockVector = new InterpretedCodeBlockVector();
+        codeBlockVector->resizeWithUninitializedValues(childCount);
+
+        ASTScopeContext* childScope = scopeCtx->firstChild();
+        for (size_t i = 0; i < childCount; i++) {
+            ASSERT(!!childScope);
+            InterpretedCodeBlock* newBlock = generateCodeBlockTreeFromASTWalker(ctx, source, script, childScope, codeBlock, isEvalCode, isEvalCodeInFunction);
+            (*codeBlockVector)[i] = newBlock;
+            childScope = childScope->nextSibling();
+        }
+
+        ASSERT(!codeBlock->m_children);
+        codeBlock->setChildren(codeBlockVector);
     }
 
     return codeBlock;
@@ -206,11 +214,14 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, S
 
 void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
 {
-    InterpretedCodeBlock* child = cb->firstChild();
-    while (child) {
-        generateCodeBlockTreeFromASTWalkerPostProcess(child);
-        child = child->nextSibling();
+    if (cb->hasChildren()) {
+        InterpretedCodeBlockVector& childrenVector = cb->children();
+        for (size_t i = 0; i < childrenVector.size(); i++) {
+            InterpretedCodeBlock* child = childrenVector[i];
+            generateCodeBlockTreeFromASTWalkerPostProcess(child);
+        }
     }
+
     cb->computeVariables();
     if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT || cb->m_lexicalBlockStackAllocatedIdentifierMaximumDepth > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
@@ -225,7 +236,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
 ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
 #ifdef ESCARGOT_DEBUGGER
-    if (LIKELY(needByteCodeGeneration) && m_context->debugger() != NULL && m_context->debugger()->enabled()) {
+    if (LIKELY(needByteCodeGeneration) && m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
         return initializeScriptWithDebugger(scriptSource, fileName, isModule, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, allowSuperCall, allowSuperProperty, allowNewTarget);
     }
 #endif /* ESCARGOT_DEBUGGER */
@@ -298,7 +309,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
 #ifdef ESCARGOT_DEBUGGER
-    ASSERT(m_context->debugger() == NULL || !m_context->debugger()->enabled());
+    ASSERT(m_context->debugger() == nullptr || !m_context->debugger()->enabled());
 #endif /* ESCARGOT_DEBUGGER */
 
     GC_disable();
@@ -329,47 +340,23 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 
 #ifdef ESCARGOT_DEBUGGER
 
-void ScriptParser::recursivelyGenerateByteCode(InterpretedCodeBlock* topCodeBlock)
+void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* parent)
 {
-    InterpretedCodeBlock* codeBlock = topCodeBlock;
-    bool directionDown = true;
+    ASSERT(GC_is_disabled());
 
-    if (codeBlock->m_firstChild == NULL) {
+    if (!parent->hasChildren()) {
         return;
     }
 
-    while (true) {
-        if (directionDown) {
-            if (codeBlock->m_firstChild != NULL) {
-                codeBlock = codeBlock->m_firstChild;
-            } else if (codeBlock->m_nextSibling != NULL) {
-                codeBlock = codeBlock->m_nextSibling;
-            } else {
-                directionDown = false;
-                codeBlock = codeBlock->m_parentCodeBlock;
-
-                if (codeBlock == topCodeBlock) {
-                    return;
-                }
-                continue;
-            }
-        } else if (codeBlock->m_nextSibling != NULL) {
-            codeBlock = codeBlock->m_nextSibling;
-            directionDown = true;
-        } else {
-            codeBlock = codeBlock->m_parentCodeBlock;
-
-            if (codeBlock == topCodeBlock) {
-                return;
-            }
-            continue;
-        }
+    InterpretedCodeBlockVector& childrenVector = parent->children();
+    for (size_t i = 0; i < childrenVector.size(); i++) {
+        InterpretedCodeBlock* codeBlock = childrenVector[i];
 
         // Errors caught by the caller.
         FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, SIZE_MAX);
         codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode, false, false, false, false);
 
-        if (m_context->debugger() != NULL && m_context->debugger()->enabled()) {
+        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
             String* functionName = codeBlock->functionName().string();
             if (functionName->length() > 0) {
                 StringView* functionNameView = new StringView(functionName);
@@ -382,6 +369,10 @@ void ScriptParser::recursivelyGenerateByteCode(InterpretedCodeBlock* topCodeBloc
         }
 
         m_context->astAllocator().reset();
+    }
+
+    for (size_t i = 0; i < childrenVector.size(); i++) {
+        recursivelyGenerateChildrenByteCode(childrenVector[i]);
     }
 }
 
@@ -447,7 +438,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         m_context->astAllocator().reset();
 
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-            recursivelyGenerateByteCode(topCodeBlock);
+            recursivelyGenerateChildrenByteCode(topCodeBlock);
             m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_DONE);
             if (m_context->debugger()->pendingWait()) {
                 m_context->debugger()->waitForResolvingPendingBreakpoints();
@@ -551,10 +542,12 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
 
         puts("");
 
-        InterpretedCodeBlock* child = cb->firstChild();
-        while (child) {
-            fn(child, depth + 1);
-            child = child->nextSibling();
+        if (cb->hasChildren()) {
+            InterpretedCodeBlockVector& childrenVector = cb->children();
+            for (size_t i = 0; i < childrenVector.size(); i++) {
+                InterpretedCodeBlock* child = childrenVector[i];
+                fn(child, depth + 1);
+            }
         }
 
     };

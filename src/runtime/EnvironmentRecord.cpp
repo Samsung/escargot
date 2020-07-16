@@ -36,7 +36,7 @@ GlobalEnvironmentRecord::GlobalEnvironmentRecord(ExecutionState& state, Interpre
     , m_globalDeclarativeRecord(globalDeclarativeRecord)
     , m_globalDeclarativeStorage(globalDeclarativeStorage)
 {
-    ASSERT(codeBlock == nullptr || codeBlock->parentCodeBlock() == nullptr);
+    ASSERT(codeBlock == nullptr || codeBlock->parent() == nullptr);
 }
 
 void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicString& name, bool canDelete, bool isMutable, bool isVarDeclaration, Optional<InterpretedCodeBlock*> relatedCodeBlock)
@@ -61,17 +61,19 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
         } else {
             // we should update record of property
             ASSERT(relatedCodeBlock);
-            auto c = relatedCodeBlock->firstChild();
-            while (c) {
-                if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
-                    if (desc.isDataProperty()) {
-                        m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(desc.value(state, m_globalObject), attribute));
-                    } else {
-                        m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(Value(), attribute));
+            if (relatedCodeBlock->hasChildren()) {
+                InterpretedCodeBlockVector& childrenVector = relatedCodeBlock->children();
+                for (size_t i = 0; i < childrenVector.size(); i++) {
+                    InterpretedCodeBlock* c = childrenVector[i];
+                    if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
+                        if (desc.isDataProperty()) {
+                            m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(desc.value(state, m_globalObject), attribute));
+                        } else {
+                            m_globalObject->defineOwnProperty(state, name, ObjectPropertyDescriptor(Value(), attribute));
+                        }
+                        break;
                     }
-                    break;
                 }
-                c = c->nextSibling();
             }
         }
     } else {
