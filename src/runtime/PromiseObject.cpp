@@ -110,7 +110,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
 
     // Let promise be ? Construct(C, « executor »).
     Value arguments[] = { executor };
-    Object* promise = Object::construct(state, constructor, 1, arguments);
+    Object* promise = Object::construct(state, constructor, 1, arguments).toObject(state);
 
     Value resolveFunction = capability->get(state, strings->resolve).value(state, capability);
     Value rejectFunction = capability->get(state, strings->reject).value(state, capability);

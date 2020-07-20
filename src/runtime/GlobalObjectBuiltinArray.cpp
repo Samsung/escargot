@@ -136,7 +136,7 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
     }
     // Return Construct(C, <<length>>).
     Value argv[1] = { Value(length) };
-    return Object::construct(state, C, 1, argv);
+    return Object::construct(state, C, 1, argv).toObject(state);
 }
 
 // http://ecma-international.org/ecma-262/10.0/#sec-flattenintoarray
@@ -221,7 +221,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         // If IsConstructor(C) is true, then
         if (C.isConstructor()) {
             // Let A be ? Construct(C).
-            A = Object::construct(state, C, 0, nullptr);
+            A = Object::construct(state, C, 0, nullptr).toObject(state);
         } else {
             // Let A be ArrayCreate(0).
             A = new ArrayObject(state);
@@ -292,7 +292,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     if (C.isConstructor()) {
         // Let A be ? Construct(C, « len »).
         Value vlen(len);
-        A = Object::construct(state, C, 1, &vlen);
+        A = Object::construct(state, C, 1, &vlen).toObject(state);
     } else {
         // Else,
         // Let A be ? ArrayCreate(len).
@@ -337,7 +337,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
     Object* A;
     if (C.isConstructor()) {
         Value arg[1] = { Value(len) };
-        A = Object::construct(state, C, 1, arg);
+        A = Object::construct(state, C, 1, arg).toObject(state);
     } else {
         A = new ArrayObject(state, static_cast<double>(len));
     }

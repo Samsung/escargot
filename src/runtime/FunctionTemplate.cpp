@@ -24,6 +24,8 @@
 #include "runtime/SandBox.h"
 #include "api/internal/ValueAdapter.h"
 
+#include "runtime/FunctionObjectInlines.h"
+
 namespace Escargot {
 
 void* FunctionTemplate::operator new(size_t size)
@@ -43,16 +45,22 @@ void* FunctionTemplate::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-class CallTemplateFunctionData : public gc {
+class FunctionTemplateNativeFunctionObject : public ExtendedNativeFunctionObjectImpl<1> {
 public:
-    CallTemplateFunctionData(FunctionTemplate* functionTemplate, NativeFunctionPointer fn, NativeFunctionPointer callback)
-        : m_functionTemplate(functionTemplate)
-        , m_nativeFunction(fn)
-        , m_callback(callback)
+    FunctionTemplateNativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, const NativeFunctionInfo& info)
+        : ExtendedNativeFunctionObjectImpl<1>(context, structure, std::move(values), info)
     {
     }
 
-    CallTemplateFunctionData(FunctionTemplate* functionTemplate, NativeFunctionPointer fn, FunctionObjectRef::NativeFunctionPointer callback)
+    virtual Value construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override
+    {
+        return processNativeFunctionCall<true, false>(state, Value(), argc, argv, newTarget);
+    }
+};
+
+class CallTemplateFunctionData : public gc {
+public:
+    CallTemplateFunctionData(FunctionTemplate* functionTemplate, NativeFunctionPointer fn, FunctionTemplateRef::NativeFunctionPointer callback)
         : m_functionTemplate(functionTemplate)
         , m_nativeFunction(fn)
         , m_publicCallback(callback)
@@ -76,14 +84,11 @@ public:
 
     FunctionTemplate* m_functionTemplate;
     NativeFunctionPointer m_nativeFunction;
-    union {
-        NativeFunctionPointer m_callback;
-        FunctionObjectRef::NativeFunctionPointer m_publicCallback;
-    };
+    FunctionTemplateRef::NativeFunctionPointer m_publicCallback;
 };
 
 FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                   NativeFunctionPointer fn)
+                                   FunctionTemplateRef::NativeFunctionPointer fn)
     : m_name(name)
     , m_argumentCount(argumentCount)
     , m_isStrict(isStrict)
@@ -94,54 +99,25 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
     auto fnData = new CallTemplateFunctionData(this, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
         ExtendedNativeFunctionObject* activeFunction = state.resolveCallee()->asExtendedNativeFunctionObject();
         CallTemplateFunctionData* data = activeFunction->internalSlotAsPointer<CallTemplateFunctionData>(FunctionTemplate::BuiltinFunctionSlot::CallTemplateFunctionDataIndex);
+        ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * argc, ValueRef*, state);
+        for (size_t i = 0; i < argc; i++) {
+            newArgv[i] = toRef(argv[i]);
+        }
         if (newTarget) {
-            Object* ret;
-            if (data->m_functionTemplate->instanceTemplate()) {
-                ret = data->m_functionTemplate->instanceTemplate()->instantiate(state.context());
-            } else {
-                ret = new Object(state);
-            }
-            ret->setPrototype(state, activeFunction->getFunctionPrototype(state));
-            return ret;
+            Object* newThisValue = data->m_functionTemplate->instanceTemplate()->instantiate(state.context());
+            newThisValue->setPrototype(state, activeFunction->getFunctionPrototype(state));
+            return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(newThisValue), argc, newArgv, OptionalRef<ObjectRef>(toRef(newTarget.value()))));
         } else {
-            return data->m_callback(state, thisValue, argc, argv, newTarget);
+            return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(thisValue), argc, newArgv, nullptr));
         }
     },
                                                fn);
     m_nativeFunctionData = fnData;
 }
 
-FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                   FunctionObjectRef::NativeFunctionPointer fn)
-    : m_name(name)
-    , m_argumentCount(argumentCount)
-    , m_isStrict(isStrict)
-    , m_isConstructor(isConstructor)
-    , m_prototypeTemplate(new ObjectTemplate())
-    , m_instanceTemplate(new ObjectTemplate(this))
+void FunctionTemplate::updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn)
 {
-    auto fnData = new CallTemplateFunctionData(this, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
-        ExtendedNativeFunctionObject* activeFunction = state.resolveCallee()->asExtendedNativeFunctionObject();
-        CallTemplateFunctionData* data = activeFunction->internalSlotAsPointer<CallTemplateFunctionData>(FunctionTemplate::BuiltinFunctionSlot::CallTemplateFunctionDataIndex);
-        if (newTarget) {
-            Object* ret;
-            if (data->m_functionTemplate->instanceTemplate()) {
-                ret = data->m_functionTemplate->instanceTemplate()->instantiate(state.context());
-            } else {
-                ret = new Object(state);
-            }
-            ret->setPrototype(state, activeFunction->getFunctionPrototype(state));
-            return ret;
-        } else {
-            ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * argc, ValueRef*, state);
-            for (size_t i = 0; i < argc; i++) {
-                newArgv[i] = toRef(argv[i]);
-            }
-            return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(thisValue), argc, newArgv, newTarget.hasValue()));
-        }
-    },
-                                               fn);
-    m_nativeFunctionData = fnData;
+    m_nativeFunctionData->m_publicCallback = fn;
 }
 
 Object* FunctionTemplate::instantiate(Context* ctx)
@@ -209,7 +185,7 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     flags |= m_isStrict ? NativeFunctionInfo::Strict : 0;
     flags |= m_isConstructor ? NativeFunctionInfo::Constructor : 0;
 
-    ExtendedNativeFunctionObject* result = new ExtendedNativeFunctionObjectImpl<1>(ctx, m_cachedObjectStructure, std::move(objectPropertyValues), NativeFunctionInfo(m_name, m_nativeFunctionData->m_nativeFunction, m_argumentCount, flags));
+    FunctionTemplateNativeFunctionObject* result = new FunctionTemplateNativeFunctionObject(ctx, m_cachedObjectStructure, std::move(objectPropertyValues), NativeFunctionInfo(m_name, m_nativeFunctionData->m_nativeFunction, m_argumentCount, flags));
     result->setInternalSlotAsPointer(FunctionTemplate::BuiltinFunctionSlot::CallTemplateFunctionDataIndex, m_nativeFunctionData);
 
     if (m_isConstructor) {

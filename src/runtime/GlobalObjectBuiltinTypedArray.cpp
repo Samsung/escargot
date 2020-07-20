@@ -54,7 +54,7 @@ static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value&
 // https://www.ecma-international.org/ecma-262/10.0/#typedarray-create
 static Object* createTypedArray(ExecutionState& state, const Value& constructor, size_t argc, Value* argv)
 {
-    Object* newTypedArray = Object::construct(state, constructor, argc, argv);
+    Object* newTypedArray = Object::construct(state, constructor, argc, argv).toObject(state);
     validateTypedArray(state, newTypedArray, state.context()->staticStrings().TypedArray.string());
 
     if (argc == 1 && argv[0].isNumber()) {

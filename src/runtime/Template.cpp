@@ -88,22 +88,23 @@ ObjectStructure* Template::constructObjectStructure(Context* ctx, ObjectStructur
     bool hasIndexStringAsPropertyName = false;
     bool hasNonAtomicPropertyName = false;
     for (size_t i = baseItemCount; i < propertyCount; i++) {
-        auto propertyName = m_properties[i].first.toObjectStructurePropertyName(ctx);
+        auto propertyIndex = i - baseItemCount;
+        auto propertyName = m_properties[propertyIndex].first.toObjectStructurePropertyName(ctx);
         if (!hasIndexStringAsPropertyName) {
             hasIndexStringAsPropertyName |= propertyName.isIndexString();
         }
 
         hasNonAtomicPropertyName |= !propertyName.hasAtomicString();
 
-        auto type = m_properties[i].second.propertyType();
+        auto type = m_properties[propertyIndex].second.propertyType();
         ObjectStructurePropertyDescriptor desc;
         if (type == Template::TemplatePropertyData::PropertyType::PropertyValueData || type == Template::TemplatePropertyData::PropertyType::PropertyTemplateData) {
-            desc = ObjectStructurePropertyDescriptor::createDataDescriptor(m_properties[i].second.presentAttributes());
+            desc = ObjectStructurePropertyDescriptor::createDataDescriptor(m_properties[propertyIndex].second.presentAttributes());
         } else if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
-            desc = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(m_properties[i].second.nativeAccessorData());
+            desc = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(m_properties[propertyIndex].second.nativeAccessorData());
         } else {
             ASSERT(type == Template::TemplatePropertyData::PropertyType::PropertyAccessorData);
-            desc = ObjectStructurePropertyDescriptor::createAccessorDescriptor(m_properties[i].second.presentAttributes());
+            desc = ObjectStructurePropertyDescriptor::createAccessorDescriptor(m_properties[propertyIndex].second.presentAttributes());
         }
         structureItemVector[i] = ObjectStructureItem(propertyName, desc);
     }
@@ -128,17 +129,18 @@ void Template::constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* 
     }
 
     for (size_t i = baseItemCount; i < propertyCount; i++) {
-        auto type = m_properties[i].second.propertyType();
+        auto propertyIndex = i - baseItemCount;
+        auto type = m_properties[propertyIndex].second.propertyType();
         if (type == Template::TemplatePropertyData::PropertyType::PropertyValueData) {
-            objectPropertyValues[i] = m_properties[i].second.valueData();
+            objectPropertyValues[i] = m_properties[propertyIndex].second.valueData();
         } else if (type == Template::TemplatePropertyData::PropertyType::PropertyTemplateData) {
-            objectPropertyValues[i] = m_properties[i].second.templateData()->instantiate(ctx);
+            objectPropertyValues[i] = m_properties[propertyIndex].second.templateData()->instantiate(ctx);
         } else if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
-            objectPropertyValues[i] = Value(Value::FromPayload, (intptr_t)m_properties[i].second.nativeAccessorPrivateData());
+            objectPropertyValues[i] = Value(Value::FromPayload, (intptr_t)m_properties[propertyIndex].second.nativeAccessorPrivateData());
         } else {
             ASSERT(type == Template::TemplatePropertyData::PropertyType::PropertyAccessorData);
-            Value getter = m_properties[i].second.accessorData().m_getterTemplate ? m_properties[i].second.accessorData().m_getterTemplate->instantiate(ctx) : Value(Value::EmptyValue);
-            Value setter = m_properties[i].second.accessorData().m_setterTemplate ? m_properties[i].second.accessorData().m_setterTemplate->instantiate(ctx) : Value(Value::EmptyValue);
+            Value getter = m_properties[propertyIndex].second.accessorData().m_getterTemplate ? m_properties[propertyIndex].second.accessorData().m_getterTemplate->instantiate(ctx) : Value(Value::EmptyValue);
+            Value setter = m_properties[propertyIndex].second.accessorData().m_setterTemplate ? m_properties[propertyIndex].second.accessorData().m_setterTemplate->instantiate(ctx) : Value(Value::EmptyValue);
             objectPropertyValues[i] = new JSGetterSetter(getter, setter);
         }
     }

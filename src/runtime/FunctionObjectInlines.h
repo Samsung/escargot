@@ -31,6 +31,7 @@
 #include "runtime/GeneratorObject.h"
 #include "runtime/AsyncGeneratorObject.h"
 #include "runtime/ExecutionPauser.h"
+#include "runtime/NativeFunctionObject.h"
 #include "util/Util.h"
 
 namespace Escargot {
@@ -254,6 +255,68 @@ public:
         return returnValue;
     }
 };
+
+template <bool isConstruct, bool shouldReturnsObjectOnConstructCall>
+Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    volatile int sp;
+    size_t currentStackBase = (size_t)&sp;
+#ifdef STACK_GROWS_DOWN
+    if (UNLIKELY(state.stackLimit() > currentStackBase)) {
+#else
+    if (UNLIKELY(state.stackLimit() < currentStackBase)) {
+#endif
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+    }
+
+    NativeCodeBlock* codeBlock = nativeCodeBlock();
+    Context* ctx = codeBlock->context();
+    bool isStrict = codeBlock->isStrict();
+
+    NativeFunctionPointer nativeFunc = codeBlock->nativeFunction();
+
+    size_t len = codeBlock->functionLength();
+    if (argc < len) {
+        Value* newArgv = (Value*)alloca(sizeof(Value) * len);
+        for (size_t i = 0; i < argc; i++) {
+            newArgv[i] = argv[i];
+        }
+        for (size_t i = argc; i < len; i++) {
+            newArgv[i] = Value();
+        }
+        argv = newArgv;
+    }
+
+    Value receiver = receiverSrc;
+    ExecutionState newState(ctx, &state, this, argc, argv, isStrict);
+
+    if (!isConstruct) {
+        // prepare receiver
+        if (UNLIKELY(!isStrict)) {
+            if (receiver.isUndefinedOrNull()) {
+                receiver = ctx->globalObject();
+            } else {
+                receiver = receiver.toObject(newState);
+            }
+        }
+    }
+
+    Value result;
+    if (isConstruct) {
+        result = nativeFunc(newState, receiver, argc, argv, newTarget);
+        if (shouldReturnsObjectOnConstructCall && UNLIKELY(!result.isObject())) {
+            ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
+        }
+    } else {
+        ASSERT(!newTarget);
+        result = nativeFunc(newState, receiver, argc, argv, nullptr);
+    }
+
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::updateStopState(state.context()->debugger(), &newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
+#endif /* ESCARGOT_DEBUGGER */
+    return result;
+}
 }
 
 #endif

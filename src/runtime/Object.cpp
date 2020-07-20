@@ -1110,7 +1110,7 @@ Value Object::call(ExecutionState& state, const Value& callee, const Value& this
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-construct
-Object* Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     // If newTarget was not passed, let newTarget be F.
     if (newTarget == nullptr) {

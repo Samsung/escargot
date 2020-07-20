@@ -73,10 +73,10 @@ Value ScriptAsyncGeneratorFunctionObject::call(ExecutionState& state, const Valu
     return FunctionObjectProcessCallGenerator::processCall<ScriptAsyncGeneratorFunctionObject, false, false, false, ScriptAsyncGeneratorFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 
-Object* ScriptAsyncGeneratorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ScriptAsyncGeneratorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "AsyncGenerator cannot be invoked with 'new'");
     ASSERT_NOT_REACHED();
-    return nullptr;
+    return Value();
 }
 }

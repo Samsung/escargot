@@ -998,13 +998,13 @@ Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
-Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return nullptr;
+        return Value();
     }
 
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -1026,7 +1026,7 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     // b. Return Construct(target, argumentsList, newTarget).
     if (trap.isUndefined()) {
         ASSERT(target.isConstructor());
-        return Object::construct(state, target, argc, argv, newTarget);
+        return Object::construct(state, target, argc, argv, newTarget).toObject(state);
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
@@ -1039,10 +1039,10 @@ Object* ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABL
     // 11. If Type(newObj) is not Object, throw a TypeError exception.
     if (!newObj.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: The result of [[Construct]] must be an Object.");
-        return nullptr;
+        return Value();
     }
 
     // 12. Return newObj.
-    return newObj.asObject();
+    return newObj;
 }
 }

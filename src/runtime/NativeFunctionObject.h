@@ -45,7 +45,7 @@ public:
     virtual bool isConstructor() const override;
 
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
+    virtual Value construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
     NativeCodeBlock* nativeCodeBlock() const
     {
@@ -56,7 +56,7 @@ public:
 protected:
     NativeFunctionObject(Context* context, ObjectStructure* structure, ObjectPropertyValueVector&& values, const NativeFunctionInfo& info);
 
-    template <bool isConstruct>
+    template <bool isConstruct, bool shouldReturnsObjectOnConstructCall = true>
     ALWAYS_INLINE Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Optional<Object*> newTarget);
 };
 }

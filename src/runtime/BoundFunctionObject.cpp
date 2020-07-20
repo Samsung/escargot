@@ -65,7 +65,7 @@ Value BoundFunctionObject::call(ExecutionState& state, const Value& thisValue, c
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
-Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget)
+Value BoundFunctionObject::construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget)
 {
     ASSERT(m_boundTargetFunction && m_boundTargetFunction->isConstructor());
 
@@ -88,6 +88,6 @@ Object* BoundFunctionObject::construct(ExecutionState& state, const size_t calle
     }
 
     // Return Construct(target, args, newTarget).
-    return Object::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newTarget);
+    return Object::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newTarget).toObject(state);
 }
 }

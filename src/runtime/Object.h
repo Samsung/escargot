@@ -156,6 +156,12 @@ public:
         ASSERT(!isUIntType());
     }
 
+    ObjectPropertyName(const ObjectStructurePropertyName& v)
+    {
+        m_name = v;
+        ASSERT(!isUIntType());
+    }
+
     inline bool isUIntType() const
     {
         return m_uintData & OBJECT_PROPERTY_NAME_UINT32_VIAS;
@@ -541,7 +547,6 @@ protected:
             ASSERT_NOT_REACHED();
         }
     }
-    MAKE_STACK_ALLOCATED();
 };
 
 class ObjectGetResult {
@@ -856,7 +861,7 @@ public:
     // https://www.ecma-international.org/ecma-262/10.0/#sec-isarray
     bool isArray(ExecutionState& state);
 
-    bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
+    virtual bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
     {
         return getOwnProperty(state, propertyName).hasValue();
     }
@@ -1010,7 +1015,7 @@ public:
     }
 
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
-    static Object* construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
+    static Value construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
     static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
