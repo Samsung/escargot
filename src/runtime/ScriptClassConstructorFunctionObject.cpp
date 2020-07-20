@@ -94,7 +94,7 @@ public:
 };
 
 
-Object* ScriptClassConstructorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     // Assert: Type(newTarget) is Object.
     CodeBlock* cb = codeBlock();

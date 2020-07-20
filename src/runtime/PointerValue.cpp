@@ -39,7 +39,7 @@ Value PointerValue::call(ExecutionState& state, const Value& thisValue, const si
     return Value(Value::EmptyValue);
 }
 
-Object* PointerValue::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value PointerValue::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     ASSERT(!isConstructor());
     if (isFunctionObject()) {
@@ -49,6 +49,6 @@ Object* PointerValue::construct(ExecutionState& state, const size_t argc, NULLAB
     ASSERT_NOT_REACHED();
 
     // never get here. but I add return statement for removing compile warning
-    return nullptr;
+    return Value();
 }
 }

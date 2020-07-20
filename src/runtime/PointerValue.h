@@ -657,7 +657,7 @@ private:
     }
 
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
-    virtual Object* construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget);
+    virtual Value construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget);
 };
 }
 

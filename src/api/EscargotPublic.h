@@ -757,7 +757,7 @@ public:
     bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // ===
     bool instanceOf(ExecutionStateRef* state, const ValueRef* other) const;
     ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
-    ObjectRef* construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv); // same with new expression in js
+    ValueRef* construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv); // same with new expression in js
 };
 
 class ESCARGOT_EXPORT ValueVectorRef {
@@ -866,6 +866,45 @@ public:
     static SymbolRef* fromGlobalSymbolRegistry(VMInstanceRef* context, StringRef* desc); // this is same with Symbol.for
     StringRef* description();
     StringRef* symbolDescriptiveString();
+};
+
+class ObjectPropertyDescriptorRef {
+public:
+    ObjectPropertyDescriptorRef(ValueRef* value);
+    ObjectPropertyDescriptorRef(ValueRef* value, bool writable);
+    ObjectPropertyDescriptorRef(ValueRef* getter, ValueRef* setter);
+
+    ObjectPropertyDescriptorRef(const ObjectPropertyDescriptorRef& src);
+    const ObjectPropertyDescriptorRef& operator=(const ObjectPropertyDescriptorRef& src);
+    ~ObjectPropertyDescriptorRef();
+
+    ValueRef* value();
+    bool hasValue();
+
+    ValueRef* getter();
+    bool hasGetter();
+    ValueRef* setter();
+    bool hasSetter();
+
+    bool isEnumerable();
+    void setEnumerable(bool enumerable);
+    bool hasEnumerable();
+
+    bool isConfigurable();
+    void setConfigurable(bool configurable);
+    bool hasConfigurable();
+
+    bool isWritable();
+    bool hasWritable();
+
+    static void* operator new(size_t) = delete;
+    static void* operator new[](size_t) = delete;
+
+private:
+    friend class ObjectWithNamedPropertyHandler;
+    ObjectPropertyDescriptorRef(void* src);
+
+    void* m_privateData;
 };
 
 struct ESCARGOT_EXPORT ExposableObjectGetOwnPropertyCallbackResult {
@@ -1114,8 +1153,9 @@ public:
 
 class ESCARGOT_EXPORT FunctionObjectRef : public ObjectRef {
 public:
+    // if newTarget is present, that means constructor call
     // in constructor call, function must return newly created object && thisValue is always undefined
-    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall);
+    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall);
 
     enum BuiltinFunctionSlot : size_t {
         PublicFunctionIndex = 0,
@@ -1412,7 +1452,7 @@ public:
 
 class ESCARGOT_EXPORT TemplatePropertyNameRef {
 public:
-    TemplatePropertyNameRef(StringRef* name)
+    TemplatePropertyNameRef(StringRef* name = StringRef::emptyString())
         : m_ptr(name)
     {
     }
@@ -1455,16 +1495,76 @@ public:
     void* instanceExtraData();
 };
 
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+// if intercepted you may returns non-empty value.
+// the returned value will be use futuer operation(you can return true, or false)
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value);
+enum TemplatePropertyAttribute {
+    TemplatePropertyAttributeNotExist = 1 << 0,
+    TemplatePropertyAttributeExist = 1 << 1,
+    TemplatePropertyAttributeWritable = 1 << 2,
+    TemplatePropertyAttributeEnumerable = 1 << 3,
+    TemplatePropertyAttributeConfigurable = 1 << 4,
+};
+typedef TemplatePropertyAttribute (*TemplateNamedPropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+// if intercepted you may returns non-empty value.
+// the returned value will be use futuer operation(you can return true, or false)
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+typedef GCManagedVector<TemplatePropertyNameRef> TemplateNamedPropertyHandlerEnumerationCallbackResultVector;
+typedef TemplateNamedPropertyHandlerEnumerationCallbackResultVector (*TemplateNamedPropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, void* data);
+// if intercepted you may returns non-empty value.
+// the returned value will be use futuer operation(you can return true, or false)
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc);
+typedef OptionalRef<ObjectRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, void* data);
+
+struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
+    TemplateNamedPropertyHandlerGetterCallback getter;
+    TemplateNamedPropertyHandlerSetterCallback setter;
+    TemplateNamedPropertyHandlerQueryCallback query;
+    TemplateNamedPropertyHandlerDeleteCallback deleter;
+    TemplateNamedPropertyHandlerEnumerationCallback enumerator;
+    TemplateNamedPropertyHandlerDefineOwnPropertyCallback definer;
+    TemplateNamedPropertyHandlerGetPropertyDescriptorCallback descriptor;
+    void* data;
+
+    ObjectTemplateNamedPropertyHandlerData(
+        TemplateNamedPropertyHandlerGetterCallback getter = nullptr,
+        TemplateNamedPropertyHandlerSetterCallback setter = nullptr,
+        TemplateNamedPropertyHandlerQueryCallback query = nullptr,
+        TemplateNamedPropertyHandlerDeleteCallback deleter = nullptr,
+        TemplateNamedPropertyHandlerEnumerationCallback enumerator = nullptr,
+        TemplateNamedPropertyHandlerDefineOwnPropertyCallback definer = nullptr,
+        TemplateNamedPropertyHandlerGetPropertyDescriptorCallback descriptor = nullptr,
+        void* data = nullptr)
+        : getter(getter)
+        , setter(setter)
+        , query(query)
+        , deleter(deleter)
+        , enumerator(enumerator)
+        , definer(definer)
+        , descriptor(descriptor)
+        , data(data)
+    {
+    }
+};
+
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
 public:
     static ObjectTemplateRef* create();
+    void setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data);
+    void removeNamedPropertyHandler();
 };
 
 // FunctionTemplateRef returns the unique function instance in context.
 class ESCARGOT_EXPORT FunctionTemplateRef : public TemplateRef {
 public:
+    // in constructor call, thisValue is default consturcted object
+    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget);
+
     static FunctionTemplateRef* create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                       FunctionObjectRef::NativeFunctionPointer fn);
+                                       FunctionTemplateRef::NativeFunctionPointer fn);
+
+    void updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn);
 
     ObjectTemplateRef* prototypeTemplate();
     // ObjectTemplate for new'ed instance of this functionTemplate

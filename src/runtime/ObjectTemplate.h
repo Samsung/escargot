@@ -21,6 +21,7 @@
 #define __EscargotObjectTemplate__
 
 #include "runtime/Template.h"
+#include "api/EscargotPublic.h"
 
 namespace Escargot {
 
@@ -40,8 +41,12 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    void setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data);
+    void removeNamedPropertyHandler();
+
 protected:
     Optional<FunctionTemplate*> m_constructor;
+    ObjectTemplateNamedPropertyHandlerData* m_namedPropertyHandler;
 };
 }
 

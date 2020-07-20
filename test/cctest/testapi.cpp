@@ -396,16 +396,16 @@ TEST(ObjectTemplate, Basic1) {
 TEST(ObjectTemplate, Basic2) {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();
 
-    auto getter = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+    auto getter = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
         return ValueRef::create(12);
     });
 
     tpl->setAccessorProperty(StringRef::createFromASCII("asdf"), getter, nullptr, false, true);
 
-    auto getter2 = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+    auto getter2 = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
         return (ValueRef*)thisValue->asObject()->extraData();
     });
-    auto setter = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+    auto setter = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 1, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
         thisValue->asObject()->setExtraData(argv[0]);
         return ValueRef::createUndefined();
     });
@@ -487,10 +487,143 @@ TEST(ObjectTemplate, Basic3) {
     }, obj);
 }
 
+TEST(ObjectTemplate, Basic4) {
+    ObjectTemplateRef* tpl = ObjectTemplateRef::create();
+
+    ObjectTemplateNamedPropertyHandlerData handler;
+    handler.getter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("aaa", 3)) {
+            return (ValueRef*)self->extraData();
+        }
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ccc", 3)) {
+            return ValueRef::create(555.555);
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    handler.setter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value) -> OptionalRef<ValueRef> {
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("aaa", 3)) {
+            self->setExtraData(value);
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ccc", 3)) {
+            self->setExtraData(ValueRef::create(123));
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    handler.query = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> TemplatePropertyAttribute {
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("aaa", 3)) {
+            return (TemplatePropertyAttribute)(TemplatePropertyAttribute::TemplatePropertyAttributeWritable | TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable | TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
+        }
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ccc", 3)) {
+            return (TemplatePropertyAttribute)(TemplatePropertyAttribute::TemplatePropertyAttributeWritable);
+        }
+        return TemplatePropertyAttribute::TemplatePropertyAttributeNotExist;
+    };
+
+    handler.enumerator = [](ExecutionStateRef* state, ObjectRef* self, void* data) -> TemplateNamedPropertyHandlerEnumerationCallbackResultVector {
+        TemplateNamedPropertyHandlerEnumerationCallbackResultVector v(2);
+        v[0] = StringRef::createFromASCII("aaa");
+        v[1] = StringRef::createFromASCII("ccc");
+        return v;
+    };
+
+    handler.deleter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ddd", 3)) {
+            return OptionalRef<ValueRef>(ValueRef::create(false));
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    tpl->setNamedPropertyHandler(handler);
+
+    ObjectRef* obj = tpl->instantiate(g_context.get());
+    obj->setExtraData(ValueRef::create(123));
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        EXPECT_TRUE(obj->set(state, StringRef::createFromASCII("aaa"), ValueRef::createNull()));
+        ValueRef* aaa = obj->get(state, StringRef::createFromASCII("aaa"));
+        EXPECT_TRUE(aaa->isNull());
+
+        ValueRef* bbb = obj->get(state, StringRef::createFromASCII("bbb"));
+        EXPECT_TRUE(bbb->isUndefined());
+
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("ccc"), ValueRef::create(333), true, true, true));
+        ValueRef* cccResult = obj->get(state, StringRef::createFromASCII("aaa"));
+        EXPECT_TRUE(cccResult->equalsTo(state, ValueRef::create(123)));
+
+        ValueRef* desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("aaa"));
+
+        ValueRef* json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":123,\"writable\":true,\"enumerable\":true,\"configurable\":true}");
+
+        desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("ccc"));
+        json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":555.555,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
+
+        int pcnt = 0;
+        obj->enumerateObjectOwnProperies(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)->bool {
+            if (pcnt == 0) {
+                EXPECT_TRUE(propertyName->toString(state)->toStdUTF8String() == "aaa");
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(isEnumerable);
+                EXPECT_TRUE(isConfigurable);
+            } else if (pcnt == 1) {
+                EXPECT_TRUE(propertyName->toString(state)->toStdUTF8String() == "ccc");
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(!isEnumerable);
+                EXPECT_TRUE(!isConfigurable);
+            }
+            pcnt++;
+            return true;
+        });
+
+        EXPECT_TRUE(pcnt == 2);
+
+        EXPECT_TRUE(obj->deleteOwnProperty(state, StringRef::createFromASCII("fff")));
+        EXPECT_FALSE(obj->deleteOwnProperty(state, StringRef::createFromASCII("ddd")));
+
+        return ValueRef::createUndefined();
+    }, obj);
+
+
+    ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
+    ObjectTemplateNamedPropertyHandlerData handler2;
+    handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+        return OptionalRef<ValueRef>();
+    };
+    handler2.definer = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc) -> OptionalRef<ValueRef> {
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ttt", 3)) {
+            return OptionalRef<ValueRef>(ValueRef::create(false));
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    tpl2->setNamedPropertyHandler(handler2);
+
+    obj = tpl2->instantiate(g_context.get());
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        EXPECT_FALSE(obj->defineDataProperty(state, StringRef::createFromASCII("ttt"), ValueRef::create(111), false, false, false));
+        return ValueRef::createUndefined();
+    }, obj);
+}
+
 TEST(FunctionTemplate, Basic1) {
-    auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
-        EXPECT_TRUE(argc == 1);
-        return argv[0];
+    auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2, true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+        if (newTarget) {
+            EXPECT_TRUE(thisValue->isObject());
+            return ValueRef::createNull();
+        } else {
+            EXPECT_TRUE(argc == 1);
+            EXPECT_TRUE(argv[0]->toString(state)->toStdUTF8String() == "123");
+            return argv[0];
+        }
     });
 
     int a = 100;
@@ -507,15 +640,19 @@ TEST(FunctionTemplate, Basic1) {
     // same instance on same context
     EXPECT_EQ(fn, ft->instantiate(g_context.get())->asFunctionObject());
 
-    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
+    auto r = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
         ValueRef* arr[1] = { ValueRef::create(123) };
         EXPECT_TRUE(fn->call(state, ValueRef::createUndefined(), 1, arr)->equalsTo(state, ValueRef::create(123)));
+
+        ValueRef* ret = fn->construct(state, 0, nullptr);
+        EXPECT_TRUE(ret->isNull());
         return ValueRef::createUndefined();
     }, fn);
+    EXPECT_TRUE(r.isSuccessful());
 }
 
 TEST(FunctionTemplate, Basic2) {
-    auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2, true, false, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+    auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2, true, false, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
         EXPECT_TRUE(argc == 1);
         return argv[0];
     });
@@ -543,13 +680,13 @@ TEST(FunctionTemplate, Basic2) {
 
 TEST(FunctionTemplate, Basic3) {
     auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "parent"), 0,
-        true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+        true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
         return ValueRef::createUndefined();
     });
     ft->prototypeTemplate()->set(StringRef::createFromASCII("asdf1"), ValueRef::create(1), true, true, true);
 
     auto ftchild = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2,
-        true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+        true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
         return ValueRef::create(123);
     });
     auto ftchildobj = ftchild->instanceTemplate();

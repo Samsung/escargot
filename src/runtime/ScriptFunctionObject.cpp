@@ -118,7 +118,7 @@ public:
     }
 };
 
-Object* ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     // Assert: Type(newTarget) is Object.
     ASSERT(newTarget->isObject());

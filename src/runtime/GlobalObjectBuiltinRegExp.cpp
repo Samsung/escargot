@@ -270,7 +270,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
 
     // Let splitter be Construct(C, <<rx, newFlags>>).
     Value params[2] = { rx, newFlags };
-    Object* splitter = Object::construct(state, C, 2, params);
+    Object* splitter = Object::construct(state, C, 2, params).toObject(state);
 
     // Let A be ArrayCreate(0).
     ArrayObject* A = new ArrayObject(state);
@@ -554,7 +554,7 @@ static Value builtinRegExpMatchAll(ExecutionState& state, Value thisValue, size_
 
     Value c = thisObj->speciesConstructor(state, state.context()->globalObject()->regexp());
     Value arguments[] = { thisObj, flags };
-    Object* matcher = Object::construct(state, c, 2, arguments);
+    Object* matcher = Object::construct(state, c, 2, arguments).toObject(state);
 
     size_t lastIndex = thisObj->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, thisObj).toNumber(state);
     matcher->asRegExpObject()->setLastIndex(state, Value(lastIndex));

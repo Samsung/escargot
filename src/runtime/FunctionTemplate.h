@@ -36,10 +36,9 @@ public:
     };
 
     FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                     NativeFunctionPointer fn);
+                     FunctionTemplateRef::NativeFunctionPointer fn);
 
-    FunctionTemplate(AtomicString name, size_t argumentCount, bool isStrict, bool isConstructor,
-                     FunctionObjectRef::NativeFunctionPointer fn);
+    void updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn);
 
     // returns the unique function instance in context.
     virtual Object* instantiate(Context* ctx) override;

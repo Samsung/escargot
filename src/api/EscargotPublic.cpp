@@ -61,67 +61,6 @@
 
 namespace Escargot {
 
-#define DEFINE_CAST(ClassName)                       \
-    inline ClassName* toImpl(ClassName##Ref* v)      \
-    {                                                \
-        return reinterpret_cast<ClassName*>(v);      \
-    }                                                \
-    inline ClassName##Ref* toRef(ClassName* v)       \
-    {                                                \
-        return reinterpret_cast<ClassName##Ref*>(v); \
-    }
-
-DEFINE_CAST(VMInstance);
-DEFINE_CAST(Context);
-DEFINE_CAST(ExecutionState);
-DEFINE_CAST(String);
-DEFINE_CAST(Symbol);
-DEFINE_CAST(PointerValue);
-DEFINE_CAST(Object);
-DEFINE_CAST(IteratorObject);
-DEFINE_CAST(ArrayObject)
-DEFINE_CAST(StringObject)
-DEFINE_CAST(SymbolObject)
-DEFINE_CAST(NumberObject)
-DEFINE_CAST(BooleanObject)
-DEFINE_CAST(RegExpObject)
-DEFINE_CAST(ErrorObject)
-DEFINE_CAST(ReferenceErrorObject);
-DEFINE_CAST(TypeErrorObject);
-DEFINE_CAST(SyntaxErrorObject);
-DEFINE_CAST(RangeErrorObject);
-DEFINE_CAST(URIErrorObject);
-DEFINE_CAST(EvalErrorObject);
-DEFINE_CAST(GlobalObject);
-DEFINE_CAST(GlobalObjectProxyObject);
-DEFINE_CAST(FunctionObject);
-DEFINE_CAST(DateObject);
-DEFINE_CAST(PromiseObject);
-DEFINE_CAST(ProxyObject);
-DEFINE_CAST(Job);
-DEFINE_CAST(Script);
-DEFINE_CAST(ScriptParser);
-DEFINE_CAST(ArrayBufferObject);
-DEFINE_CAST(ArrayBufferView);
-DEFINE_CAST(Int8ArrayObject);
-DEFINE_CAST(Uint8ArrayObject);
-DEFINE_CAST(Int16ArrayObject);
-DEFINE_CAST(Uint16ArrayObject);
-DEFINE_CAST(Int32ArrayObject);
-DEFINE_CAST(Uint32ArrayObject);
-DEFINE_CAST(Uint8ClampedArrayObject);
-DEFINE_CAST(Float32ArrayObject);
-DEFINE_CAST(Float64ArrayObject);
-DEFINE_CAST(SetObject);
-DEFINE_CAST(WeakSetObject);
-DEFINE_CAST(MapObject);
-DEFINE_CAST(WeakMapObject);
-DEFINE_CAST(Template);
-DEFINE_CAST(ObjectTemplate);
-DEFINE_CAST(FunctionTemplate);
-
-#undef DEFINE_CAST
-
 inline OptionalRef<ValueRef> toOptionalValue(const Value& v)
 {
     return OptionalRef<ValueRef>(reinterpret_cast<ValueRef*>(EncodedValue(v).payload()));
@@ -588,7 +527,11 @@ bool ValueRef::isMapIteratorObject()
 
 ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
 {
-    PointerValue* o = toImpl(this).asPointerValue();
+    auto impl = toImpl(this);
+    if (UNLIKELY(!impl.isPointerValue())) {
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    PointerValue* o = impl.asPointerValue();
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
@@ -596,9 +539,13 @@ ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const siz
     return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
 }
 
-ObjectRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
+ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
 {
-    PointerValue* o = toImpl(this).asPointerValue();
+    auto impl = toImpl(this);
+    if (UNLIKELY(!impl.isPointerValue())) {
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    PointerValue* o = impl.asPointerValue();
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
@@ -886,6 +833,116 @@ void ValueVectorRef::set(const size_t idx, ValueRef* newValue)
 void ValueVectorRef::resize(size_t newSize)
 {
     toImpl(this)->resize(newSize);
+}
+
+ObjectPropertyDescriptorRef::~ObjectPropertyDescriptorRef()
+{
+    ((ObjectPropertyDescriptor*)m_privateData)->~ObjectPropertyDescriptor();
+    GC_FREE(m_privateData);
+}
+
+ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(void* src)
+    : m_privateData(new (UseGC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src)))
+{
+}
+
+ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value)
+    : m_privateData(new (UseGC) ObjectPropertyDescriptor(toImpl(value), ObjectPropertyDescriptor::ValuePresent))
+{
+}
+
+ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value, bool writable)
+    : m_privateData(new (UseGC) ObjectPropertyDescriptor(toImpl(value),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : 0) | ObjectPropertyDescriptor::ValuePresent)))
+{
+}
+
+ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* getter, ValueRef* setter)
+    : m_privateData(new (UseGC) ObjectPropertyDescriptor(JSGetterSetter(toImpl(getter), toImpl(setter)), ObjectPropertyDescriptor::NotPresent))
+{
+}
+
+ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(const ObjectPropertyDescriptorRef& src)
+    : m_privateData(new (UseGC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src.m_privateData)))
+{
+}
+
+const ObjectPropertyDescriptorRef& ObjectPropertyDescriptorRef::operator=(const ObjectPropertyDescriptorRef& src)
+{
+    ((ObjectPropertyDescriptor*)m_privateData)->~ObjectPropertyDescriptor();
+    new (m_privateData) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src.m_privateData));
+    return *this;
+}
+
+ValueRef* ObjectPropertyDescriptorRef::value()
+{
+    return toRef(((ObjectPropertyDescriptor*)m_privateData)->value());
+}
+
+bool ObjectPropertyDescriptorRef::hasValue()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isDataDescriptor();
+}
+
+ValueRef* ObjectPropertyDescriptorRef::getter()
+{
+    return toRef(((ObjectPropertyDescriptor*)m_privateData)->getterSetter().getter());
+}
+
+bool ObjectPropertyDescriptorRef::hasGetter()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->hasJSGetter();
+}
+
+ValueRef* ObjectPropertyDescriptorRef::setter()
+{
+    return toRef(((ObjectPropertyDescriptor*)m_privateData)->getterSetter().setter());
+}
+
+bool ObjectPropertyDescriptorRef::hasSetter()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->hasJSSetter();
+}
+
+
+bool ObjectPropertyDescriptorRef::isEnumerable()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isEnumerable();
+}
+
+void ObjectPropertyDescriptorRef::setEnumerable(bool enumerable)
+{
+    ((ObjectPropertyDescriptor*)m_privateData)->setEnumerable(enumerable);
+}
+
+bool ObjectPropertyDescriptorRef::hasEnumerable()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isEnumerablePresent();
+}
+
+void ObjectPropertyDescriptorRef::setConfigurable(bool configurable)
+{
+    ((ObjectPropertyDescriptor*)m_privateData)->setEnumerable(configurable);
+}
+
+bool ObjectPropertyDescriptorRef::isConfigurable()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isConfigurablePresent();
+}
+
+bool ObjectPropertyDescriptorRef::hasConfigurable()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isConfigurablePresent();
+}
+
+bool ObjectPropertyDescriptorRef::isWritable()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isWritable();
+}
+
+bool ObjectPropertyDescriptorRef::hasWritable()
+{
+    return ((ObjectPropertyDescriptor*)m_privateData)->isWritablePresent();
 }
 
 ObjectRef* ObjectRef::create(ExecutionStateRef* state)
@@ -1538,6 +1595,7 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
     for (size_t i = 0; i < calledArgc; i++) {
         newArgv[i] = toRef(calledArgv[i]);
     }
+
     return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, newTarget.hasValue()));
 }
 
@@ -2689,10 +2747,25 @@ ObjectTemplateRef* ObjectTemplateRef::create()
     return toRef(new ObjectTemplate());
 }
 
+void ObjectTemplateRef::setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data)
+{
+    toImpl(this)->setNamedPropertyHandler(data);
+}
+
+void ObjectTemplateRef::removeNamedPropertyHandler()
+{
+    toImpl(this)->removeNamedPropertyHandler();
+}
+
 FunctionTemplateRef* FunctionTemplateRef::create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
-                                                 FunctionObjectRef::NativeFunctionPointer fn)
+                                                 FunctionTemplateRef::NativeFunctionPointer fn)
 {
     return toRef(new FunctionTemplate(toImpl(name), argumentCount, isStrict, isConstructor, fn));
+}
+
+void FunctionTemplateRef::updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn)
+{
+    toImpl(this)->updateCallbackFunction(fn);
 }
 
 ObjectTemplateRef* FunctionTemplateRef::prototypeTemplate()

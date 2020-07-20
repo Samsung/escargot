@@ -84,7 +84,7 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
 
     Value constructor = obj->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
     Value arguments[] = { Value(newLen) };
-    Object* newValue = Object::construct(state, constructor, 1, arguments);
+    Object* newValue = Object::construct(state, constructor, 1, arguments).toObject(state);
     if (!newValue->isArrayBufferObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
