@@ -21,6 +21,9 @@
 #define __EscargotScript__
 
 #include "runtime/Value.h"
+#if defined(ENABLE_CODE_CACHE)
+#include "codecache/CodeCache.h"
+#endif
 
 namespace Escargot {
 
@@ -150,6 +153,19 @@ public:
     // https://www.ecma-international.org/ecma-262/#sec-meta-properties-runtime-semantics-evaluation
     Object* importMetaProperty(ExecutionState& state);
 
+#if defined(ENABLE_CODE_CACHE)
+    void setCodeCacheMetaInfo(CodeCacheMetaInfoMap* map)
+    {
+        ASSERT(!m_codeCacheMetaInfoMap);
+        m_codeCacheMetaInfoMap = map;
+    }
+
+    CodeCacheMetaInfoMap* codeCacheMetaInfoMap()
+    {
+        return m_codeCacheMetaInfoMap;
+    }
+#endif
+
 private:
     Script(String* src, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
         : m_canExecuteAgain(canExecuteAgain && !moduleData)
@@ -157,6 +173,9 @@ private:
         , m_sourceCode(sourceCode)
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
+#if defined(ENABLE_CODE_CACHE)
+        , m_codeCacheMetaInfoMap(nullptr)
+#endif
     {
     }
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
@@ -232,6 +251,9 @@ private:
     String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
+#if defined(ENABLE_CODE_CACHE)
+    CodeCacheMetaInfoMap* m_codeCacheMetaInfoMap;
+#endif
 };
 }
 

@@ -38,6 +38,9 @@ class JobQueue;
 class Job;
 class ASTAllocator;
 class CompressibleString;
+#if defined(ENABLE_CODE_CACHE)
+class CodeCache;
+#endif
 
 #define DEFINE_GLOBAL_SYMBOLS(F) \
     F(hasInstance)               \
@@ -235,6 +238,14 @@ public:
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& caseMappingAvailableLocales();
 #endif
 
+#if defined(ENABLE_CODE_CACHE)
+    CodeCache* codeCache()
+    {
+        ASSERT(!!m_codeCache);
+        return m_codeCache;
+    }
+#endif
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -309,6 +320,10 @@ private:
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlCollatorAvailableLocales;
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_intlPluralRulesAvailableLocales;
     Vector<String*, GCUtil::gc_malloc_allocator<String*>> m_caseMappingAvailableLocales;
+#endif
+
+#if defined(ENABLE_CODE_CACHE)
+    CodeCache* m_codeCache;
 #endif
 };
 } // namespace Escargot

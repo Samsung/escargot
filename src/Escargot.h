@@ -46,6 +46,10 @@
 #define COMPILER_QUIRK_FINAL_IS_CALLED_SEALED 1
 #endif
 
+#if defined(ENABLE_CODE_CACHE) && defined(ESCARGOT_DEBUGGER)
+#error "Code Cache does not support Debugger mode"
+#endif
+
 /* ALWAYS_INLINE */
 #ifndef ALWAYS_INLINE
 #if (defined(COMPILER_GCC) || defined(COMPILER_CLANG)) && defined(NDEBUG) && !defined(COMPILER_MINGW)

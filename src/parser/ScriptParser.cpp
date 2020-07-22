@@ -29,6 +29,9 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "debugger/Debugger.h"
+#if defined(ENABLE_CODE_CACHE)
+#include "codecache/CodeCache.h"
+#endif
 
 namespace Escargot {
 
@@ -264,12 +267,35 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
             programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
             programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
+            generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
         } else {
+#if defined(ENABLE_CODE_CACHE)
+            m_context->vmInstance()->codeCache()->loadMetaInfos(script);
+            if (getenv("LOAD_CODE_CACHE") && script->codeCacheMetaInfoMap()) {
+                CacheStringTable* table = m_context->vmInstance()->codeCache()->loadStringTable(m_context, script);
+                topCodeBlock = m_context->vmInstance()->codeCache()->loadCodeBlockTree(m_context, script, table);
+            } else {
+                topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode, isEvalMode, isEvalCodeInFunction);
+                generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+            }
+#else
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode, isEvalMode, isEvalCodeInFunction);
+            generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+#endif
         }
-        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
 
         script->m_topCodeBlock = topCodeBlock;
+
+#if defined(ENABLE_CODE_CACHE)
+        // Code Cache does not support eval code and dynamic function code
+        if (getenv("STORE_CODE_CACHE")) {
+            if (!fileName->equals(m_context->staticStrings().lazyEvalInput().string()) && !fileName->equals(m_context->staticStrings().lazyFunctionInput().string())) {
+                ASSERT(!isEvalMode && !parentCodeBlock);
+                m_context->vmInstance()->codeCache()->storeCodeBlockTree(script);
+                m_context->vmInstance()->codeCache()->storeStringTable(script);
+            }
+        }
+#endif
 
 // dump Code Block
 #ifndef NDEBUG

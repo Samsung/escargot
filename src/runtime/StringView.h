@@ -80,6 +80,16 @@ public:
         return !operator==(src);
     }
 
+    size_t start() const
+    {
+        return m_start;
+    }
+
+    size_t end() const
+    {
+        return m_start + m_bufferData.length;
+    }
+
     virtual UTF16StringData toUTF16StringData() const override
     {
         UTF16StringData ret;
