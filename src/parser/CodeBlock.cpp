@@ -156,6 +156,16 @@ InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* 
     return new InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
 }
 
+// create an empty InterpretedCodeBlock
+InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData)
+{
+    if (UNLIKELY(needRareData)) {
+        return new InterpretedCodeBlockWithRareData(ctx, script);
+    }
+
+    return new InterpretedCodeBlock(ctx, script);
+}
+
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : CodeBlock(ctx)
     , m_script(script)
@@ -263,6 +273,57 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 #endif
 {
     recordFunctionParsingInfo(scopeCtx, isEvalCode, isEvalCodeInFunction);
+}
+
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
+    : CodeBlock(ctx)
+    , m_script(script)
+    , m_src()
+    , m_byteCodeBlock(nullptr)
+    , m_parent(nullptr)
+    , m_children(nullptr)
+    , m_functionName()
+    , m_functionStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+    , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+#endif
+    , m_functionLength(0)
+    , m_parameterCount(0)
+    , m_identifierOnStackCount(0)
+    , m_identifierOnHeapCount(0)
+    , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
+    , m_functionBodyBlockIndex(0)
+    , m_lexicalBlockIndexFunctionLocatedIn(0)
+    , m_isFunctionNameSaveOnHeap(false)
+    , m_isFunctionNameExplicitlyDeclared(false)
+    , m_canUseIndexedVariableStorage(false)
+    , m_canAllocateVariablesOnStack(false)
+    , m_canAllocateEnvironmentOnStack(false)
+    , m_hasDescendantUsesNonIndexedVariableStorage(false)
+    , m_hasEval(false)
+    , m_hasWith(false)
+    , m_isStrict(false)
+    , m_inWith(false)
+    , m_isEvalCode(false)
+    , m_isEvalCodeInFunction(false)
+    , m_usesArgumentsObject(false)
+    , m_isFunctionExpression(false)
+    , m_isFunctionDeclaration(false)
+    , m_isArrowFunctionExpression(false)
+    , m_isOneExpressionOnlyArrowFunctionExpression(false)
+    , m_isClassConstructor(false)
+    , m_isDerivedClassConstructor(false)
+    , m_isObjectMethod(false)
+    , m_isClassMethod(false)
+    , m_isClassStaticMethod(false)
+    , m_isGenerator(false)
+    , m_isAsync(false)
+    , m_needsVirtualIDOperation(false)
+    , m_hasArrowParameterPlaceHolder(false)
+    , m_hasParameterOtherThanIdentifier(false)
+    , m_allowSuperCall(false)
+    , m_allowSuperProperty(false)
+{
 }
 
 void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)

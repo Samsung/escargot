@@ -133,6 +133,10 @@ ENDIF()
 
 SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_COMPRESSIBLE_STRING)
 
+IF (ESCARGOT_CODE_CACHE)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_CODE_CACHE)
+ENDIF()
+
 #######################################################
 # flags for $(MODE) : debug/release
 #######################################################

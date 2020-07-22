@@ -574,6 +574,8 @@ namespace Escargot {
 
 // name on code, string
 #define FOR_EACH_LAZY_STATIC_STRING(F)               \
+    F(EvalInput, "eval input")                       \
+    F(FunctionInput, "function input")               \
     F(ObjectNullToString, "[object Null]")           \
     F(ObjectUndefinedToString, "[object Undefined]") \
     F(ObjectObjectToString, "[object Object]")       \

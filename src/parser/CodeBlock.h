@@ -172,6 +172,11 @@ struct InterpretedCodeBlockRareData : public gc {
     FunctionContextVarMap* m_identifierInfoMap;
     TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
 
+    InterpretedCodeBlockRareData()
+        : m_identifierInfoMap(nullptr)
+    {
+    }
+
     InterpretedCodeBlockRareData(FunctionContextVarMap* map)
         : m_identifierInfoMap(map)
     {
@@ -185,6 +190,10 @@ class InterpretedCodeBlock : public CodeBlock {
     friend class ScriptParser;
     friend class VMInstance;
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
+#if defined(ENABLE_CODE_CACHE)
+    friend class CodeCacheWriter;
+    friend class CodeCacheReader;
+#endif
 
 public:
     struct IndexedIdentifierInfo {
@@ -273,6 +282,7 @@ public:
 
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData = false);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -353,6 +363,11 @@ public:
     {
         ASSERT(!!m_children);
         return *m_children;
+    }
+
+    void setParent(InterpretedCodeBlock* parentCodeBlock)
+    {
+        m_parent = parentCodeBlock;
     }
 
     void setChildren(InterpretedCodeBlockVector* codeBlockVector)
@@ -825,10 +840,12 @@ protected:
     ASTScopeContext* m_scopeContext;
 #endif
 
-    // init global codeBlock
+    // init global CodeBlock
     InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
-    // init function codeBlock
+    // init function CodeBlock
     InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    // empty CodeBlock
+    InterpretedCodeBlock(Context* ctx, Script* script);
 
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     void recordFunctionParsingInfo(ASTScopeContext* scopeCtxm, bool isEvalCode, bool isEvalCodeInFunction);
@@ -928,6 +945,12 @@ private:
         , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap))
     {
         ASSERT(scopeCtx->m_needRareData);
+    }
+
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script)
+        : InterpretedCodeBlock(ctx, script)
+        , m_rareData(new InterpretedCodeBlockRareData())
+    {
     }
 
     InterpretedCodeBlockRareData* m_rareData;

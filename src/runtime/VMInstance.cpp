@@ -28,6 +28,9 @@
 #include "runtime/Intl.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ASTAllocator.h"
+#if defined(ENABLE_CODE_CACHE)
+#include "codecache/CodeCache.h"
+#endif
 
 #include <pthread.h>
 
@@ -266,6 +269,10 @@ VMInstance::~VMInstance()
     vzone_close(m_timezone);
 #endif
     delete m_astAllocator;
+
+#if defined(ENABLE_CODE_CACHE)
+    delete m_codeCache;
+#endif
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
@@ -419,6 +426,10 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForUnmappedArgumentsObject->addProperty(m_staticStrings.callee, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
 
     m_jobQueue = new JobQueue();
+
+#if defined(ENABLE_CODE_CACHE)
+    m_codeCache = new CodeCache();
+#endif
 }
 
 #if defined(ENABLE_ICU)
