@@ -236,13 +236,43 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     }
 }
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView scriptSource, String* srcName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
 #ifdef ESCARGOT_DEBUGGER
     if (LIKELY(needByteCodeGeneration) && m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-        return initializeScriptWithDebugger(scriptSource, fileName, isModule, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, allowSuperCall, allowSuperProperty, allowNewTarget);
+        return initializeScriptWithDebugger(scriptSource, srcName, isModule, parentCodeBlock, strictFromOutside, isEvalCodeInFunction, isEvalMode, inWithOperation, allowSuperCall, allowSuperProperty, allowNewTarget);
     }
 #endif /* ESCARGOT_DEBUGGER */
+
+
+#if defined(ENABLE_CODE_CACHE)
+    bool cacheable = needByteCodeGeneration && !isModule && !isEvalMode && !srcName->equals(m_context->staticStrings().lazyFunctionInput().string());
+    CodeCache* codeCache = m_context->vmInstance()->codeCache();
+
+    if (cacheable && getenv("LOAD_CODE_CACHE")) {
+        ASSERT(!parentCodeBlock);
+        Script* script = new Script(srcName, new StringView(scriptSource), nullptr, !parentCodeBlock);
+
+        if (codeCache->loadMetaInfos(script)) {
+            GC_disable();
+
+            CacheStringTable* table = codeCache->loadStringTable(m_context, script);
+
+            // load CodeBlockTree
+            InterpretedCodeBlock* topCodeBlock = codeCache->loadCodeBlockTree(m_context, script, table);
+            script->m_topCodeBlock = topCodeBlock;
+
+            // load global ByteCodeBlock
+            topCodeBlock->m_byteCodeBlock = codeCache->loadByteCodeBlock(m_context, script, table);
+
+            GC_enable();
+
+            ScriptParser::InitializeScriptResult result;
+            result.script = script;
+            return result;
+        }
+    }
+#endif
 
     GC_disable();
 
@@ -255,7 +285,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
         InterpretedCodeBlock* topCodeBlock = nullptr;
         ProgramNode* programNode = esprima::parseProgram(m_context, scriptSource, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget);
 
-        Script* script = new Script(fileName, new StringView(scriptSource), programNode->moduleData(), !parentCodeBlock);
+        Script* script = new Script(srcName, new StringView(scriptSource), programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
@@ -269,39 +299,19 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, scriptSource, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
             generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
         } else {
-#if defined(ENABLE_CODE_CACHE)
-            m_context->vmInstance()->codeCache()->loadMetaInfos(script);
-            if (getenv("LOAD_CODE_CACHE") && script->codeCacheMetaInfoMap()) {
-                CacheStringTable* table = m_context->vmInstance()->codeCache()->loadStringTable(m_context, script);
-                topCodeBlock = m_context->vmInstance()->codeCache()->loadCodeBlockTree(m_context, script, table);
-            } else {
-                topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode, isEvalMode, isEvalCodeInFunction);
-                generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
-            }
-#else
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, scriptSource, script, programNode, isEvalMode, isEvalCodeInFunction);
             generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
-#endif
         }
 
         script->m_topCodeBlock = topCodeBlock;
 
-#if defined(ENABLE_CODE_CACHE)
-        // Code Cache does not support eval code and dynamic function code
-        if (getenv("STORE_CODE_CACHE")) {
-            if (!fileName->equals(m_context->staticStrings().lazyEvalInput().string()) && !fileName->equals(m_context->staticStrings().lazyFunctionInput().string())) {
-                ASSERT(!isEvalMode && !parentCodeBlock);
-                m_context->vmInstance()->codeCache()->storeCodeBlockTree(script);
-                m_context->vmInstance()->codeCache()->storeStringTable(script);
-            }
-        }
-#endif
-
 // dump Code Block
 #ifndef NDEBUG
-        char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
-        if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
-            dumpCodeBlockTree(topCodeBlock);
+        {
+            char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
+            if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
+                dumpCodeBlockTree(topCodeBlock);
+            }
         }
 #endif
 
@@ -309,11 +319,23 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 
         // Generate ByteCode
         if (LIKELY(needByteCodeGeneration)) {
+#if defined(ENABLE_CODE_CACHE)
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, isEvalMode, !isEvalCodeInFunction, inWith, false, cacheable);
+#else
             topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, isEvalMode, !isEvalCodeInFunction, inWith);
+#endif
         }
 
         // reset ASTAllocator
         m_context->astAllocator().reset();
+
+#if defined(ENABLE_CODE_CACHE)
+        if (cacheable && getenv("STORE_CODE_CACHE")) {
+            codeCache->storeCodeBlockTree(script);
+            codeCache->storeStringTable(script);
+        }
+#endif
+
         GC_enable();
 
         ScriptParser::InitializeScriptResult result;
@@ -403,7 +425,7 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
     }
 }
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(StringView scriptSource, String* srcName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
     GC_disable();
 
@@ -422,12 +444,12 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
             m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_SOURCE_8BIT, scriptSourceView);
 
             if (m_context->debugger()->enabled()) {
-                StringView* fileNameView = new StringView(fileName);
-                m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_FILE_NAME_8BIT, fileNameView);
+                StringView* srcNameView = new StringView(srcName);
+                m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_FILE_NAME_8BIT, srcNameView);
             }
         }
 
-        Script* script = new Script(fileName, scriptSourceView, programNode->moduleData(), !parentCodeBlock);
+        Script* script = new Script(srcName, scriptSourceView, programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
             programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
@@ -447,9 +469,11 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
 // dump Code Block
 #ifndef NDEBUG
-        char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
-        if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
-            dumpCodeBlockTree(topCodeBlock);
+        {
+            char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
+            if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
+                dumpCodeBlockTree(topCodeBlock);
+            }
         }
 #endif
 

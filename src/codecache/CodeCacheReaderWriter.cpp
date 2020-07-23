@@ -23,7 +23,10 @@
 #include "CodeCacheReaderWriter.h"
 #include "parser/Script.h"
 #include "parser/CodeBlock.h"
+#include "interpreter/ByteCode.h"
+#include "runtime/Context.h"
 #include "runtime/AtomicString.h"
+#include "runtime/ObjectStructurePropertyName.h"
 
 namespace Escargot {
 
@@ -96,7 +99,6 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
 {
     ASSERT(GC_is_disabled());
     ASSERT(!!codeBlock && codeBlock->isInterpretedCodeBlock());
-    ASSERT(!codeBlock->m_byteCodeBlock);
 
     size_t size;
 
@@ -258,6 +260,270 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     }
 }
 
+void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
+{
+    ASSERT(GC_is_disabled());
+    ASSERT(!!block);
+
+    size_t size;
+
+    m_buffer.ensureSize(4 * sizeof(bool) + sizeof(uint16_t));
+    m_buffer.put(block->m_isEvalMode);
+    m_buffer.put(block->m_isOnGlobal);
+    m_buffer.put(block->m_shouldClearStack);
+    m_buffer.put(block->m_isOwnerMayFreed);
+    m_buffer.put((uint16_t)block->m_requiredRegisterFileSizeInValueSize);
+
+    // ByteCodeBlock::m_numeralLiteralData
+    ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;
+    m_buffer.putData(numeralLiteralData.data(), numeralLiteralData.size());
+
+    // ByteCodeBlock::m_stringLiteralData
+    ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
+    size = stringLiteralData.size();
+    m_buffer.ensureSize(sizeof(size_t));
+    m_buffer.put(size);
+    for (size_t i = 0; i < size; i++) {
+        m_buffer.putString(stringLiteralData[i]);
+    }
+
+    // ByteCodeBlock::m_otherLiteralData
+    ByteCodeOtherLiteralData& otherLiteralData = block->m_otherLiteralData;
+    size = otherLiteralData.size();
+    m_buffer.ensureSize(sizeof(size_t) + size * sizeof(ControlFlowRecord));
+    m_buffer.put(size);
+    for (size_t i = 0; i < size; i++) {
+        ControlFlowRecord* record = (ControlFlowRecord*)otherLiteralData[i];
+        ASSERT(record->m_reason == ControlFlowRecord::NeedsJump);
+        m_buffer.put(*record);
+    }
+
+    // ByteCodeBlock::m_code bytecode stream
+    storeByteCodeStream(block);
+
+    // Do not store m_inlineCacheDataSize and m_locData
+    // these members are used during the runtime
+    ASSERT(block->m_inlineCacheDataSize == 0);
+    ASSERT(!block->m_locData);
+}
+
+#define STORE_ATOMICSTRING_RELOC(member)                 \
+    size_t stringIndex = m_stringTable->add(bc->member); \
+    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+
+
+void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
+{
+    ByteCodeBlockData& byteCodeStream = block->m_code;
+    ASSERT(byteCodeStream.size() > 0);
+
+    // store ByteCode stream
+    m_buffer.putData(byteCodeStream.data(), byteCodeStream.size());
+
+    Vector<ByteCodeRelocInfo, std::allocator<ByteCodeRelocInfo>> relocInfoVector;
+    ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
+
+    // mark bytecode relocation infos
+    {
+        char* code = byteCodeStream.data();
+        size_t codeBase = (size_t)code;
+        char* end = code + byteCodeStream.size();
+
+        Context* context = block->codeBlock()->context();
+
+        while (code < end) {
+            ByteCode* currentCode = (ByteCode*)code;
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+            Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
+#else
+            Opcode opcode = currentCode->m_opcode;
+#endif
+            switch (opcode) {
+            case LoadLiteralOpcode: {
+                LoadLiteral* bc = (LoadLiteral*)currentCode;
+                if (bc->m_value.isPointerValue()) {
+                    ASSERT(bc->m_value.asPointerValue()->isString());
+                    String* string = bc->m_value.asPointerValue()->asString();
+                    size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
+                    if (stringIndex != VectorUtil::invalidIndex) {
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                    } else {
+                        ASSERT(string->isAtomicStringSource());
+                        stringIndex = m_stringTable->add(AtomicString(context, string));
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                    }
+                }
+                break;
+            }
+            case LoadByNameOpcode: {
+                LoadByName* bc = (LoadByName*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case StoreByNameOpcode: {
+                StoreByName* bc = (StoreByName*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case InitializeByNameOpcode: {
+                InitializeByName* bc = (InitializeByName*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case CreateFunctionOpcode: {
+                CreateFunction* bc = (CreateFunction*)currentCode;
+                InterpretedCodeBlock* codeBlock = bc->m_codeBlock;
+                ASSERT(!!codeBlock);
+                size_t codeBlockIndex = VectorUtil::findInVector(block->codeBlock()->children(), codeBlock);
+                ASSERT(codeBlockIndex != VectorUtil::invalidIndex);
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CODEBLOCK, (size_t)currentCode - codeBase, codeBlockIndex));
+                break;
+            }
+            case CreateClassOpcode: {
+                CreateClass* bc = (CreateClass*)currentCode;
+                InterpretedCodeBlock* codeBlock = bc->m_codeBlock;
+                if (codeBlock) {
+                    size_t codeBlockIndex = VectorUtil::findInVector(block->codeBlock()->children(), codeBlock);
+                    ASSERT(codeBlockIndex != VectorUtil::invalidIndex);
+                    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CODEBLOCK, (size_t)currentCode - codeBase, codeBlockIndex));
+                }
+
+                String* string = bc->m_classSrc;
+                ASSERT(!!string && string->length() > 0);
+                size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
+
+                ASSERT(stringIndex != VectorUtil::invalidIndex);
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                break;
+            }
+            case ObjectDefineOwnPropertyWithNameOperationOpcode: {
+                ObjectDefineOwnPropertyWithNameOperation* bc = (ObjectDefineOwnPropertyWithNameOperation*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_propertyName);
+                break;
+            }
+            case InitializeGlobalVariableOpcode: {
+                InitializeGlobalVariable* bc = (InitializeGlobalVariable*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_variableName);
+                break;
+            }
+            case UnaryTypeofOpcode: {
+                UnaryTypeof* bc = (UnaryTypeof*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_id);
+                break;
+            }
+            case UnaryDeleteOpcode: {
+                UnaryDelete* bc = (UnaryDelete*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_id);
+                break;
+            }
+            case JumpComplexCaseOpcode: {
+                JumpComplexCase* bc = (JumpComplexCase*)currentCode;
+                ControlFlowRecord* record = bc->m_controlFlowRecord;
+                size_t recordIndex = VectorUtil::findInVector(block->m_otherLiteralData, (void*)record);
+                ASSERT(recordIndex != VectorUtil::invalidIndex);
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CONTROLFLOWRECORD, (size_t)currentCode - codeBase, recordIndex));
+                break;
+            }
+            case CallFunctionComplexCaseOpcode: {
+                CallFunctionComplexCase* bc = (CallFunctionComplexCase*)currentCode;
+                if (bc->m_kind == CallFunctionComplexCase::InWithScope) {
+                    STORE_ATOMICSTRING_RELOC(m_calleeName);
+                }
+                break;
+            }
+            case GetMethodOpcode: {
+                GetMethod* bc = (GetMethod*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_propertyName);
+                break;
+            }
+            case LoadRegexpOpcode: {
+                LoadRegexp* bc = (LoadRegexp*)currentCode;
+
+                String* bodyString = bc->m_body;
+                String* optionString = bc->m_option;
+                ASSERT(!!bodyString && bodyString->length() > 0);
+                ASSERT(!!optionString && optionString->length() > 0);
+
+                size_t bodyIndex = VectorUtil::findInVector(stringLiteralData, bodyString);
+                size_t optionIndex = VectorUtil::findInVector(stringLiteralData, optionString);
+                ASSERT(bodyIndex != VectorUtil::invalidIndex);
+                ASSERT(optionIndex != VectorUtil::invalidIndex);
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, bodyIndex));
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, optionIndex));
+                break;
+            }
+            case BlockOperationOpcode: {
+                BlockOperation* bc = (BlockOperation*)currentCode;
+                InterpretedCodeBlock::BlockInfo* info = bc->m_blockInfo;
+                size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
+                ASSERT(infoIndex != VectorUtil::invalidIndex);
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
+                break;
+            }
+            case ReplaceBlockLexicalEnvironmentOperationOpcode: {
+                ReplaceBlockLexicalEnvironmentOperation* bc = (ReplaceBlockLexicalEnvironmentOperation*)currentCode;
+                InterpretedCodeBlock::BlockInfo* info = bc->m_blockInfo;
+                size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
+                ASSERT(infoIndex != VectorUtil::invalidIndex);
+                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
+                break;
+            }
+            case ResolveNameAddressOpcode: {
+                ResolveNameAddress* bc = (ResolveNameAddress*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case StoreByNameWithAddressOpcode: {
+                StoreByNameWithAddress* bc = (StoreByNameWithAddress*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case GetObjectPreComputedCaseOpcode: {
+                GetObjectPreComputedCase* bc = (GetObjectPreComputedCase*)currentCode;
+                ASSERT(!bc->m_inlineCache);
+                ASSERT(bc->m_propertyName.hasAtomicString());
+                STORE_ATOMICSTRING_RELOC(m_propertyName.asAtomicString());
+                break;
+            }
+            case SetObjectPreComputedCaseOpcode: {
+                SetObjectPreComputedCase* bc = (SetObjectPreComputedCase*)currentCode;
+                ASSERT(!bc->m_inlineCache);
+                ASSERT(bc->m_propertyName.hasAtomicString());
+                STORE_ATOMICSTRING_RELOC(m_propertyName.asAtomicString());
+                break;
+            }
+            case GetGlobalVariableOpcode: {
+                GetGlobalVariable* bc = (GetGlobalVariable*)currentCode;
+                ASSERT(!!bc->m_slot);
+                STORE_ATOMICSTRING_RELOC(m_slot->m_propertyName);
+                break;
+            }
+            case SetGlobalVariableOpcode: {
+                SetGlobalVariable* bc = (SetGlobalVariable*)currentCode;
+                ASSERT(!!bc->m_slot);
+                STORE_ATOMICSTRING_RELOC(m_slot->m_propertyName);
+                break;
+            }
+            // TODO
+            case ThrowStaticErrorOperationOpcode:
+            case ExecutionResumeOpcode:
+                RELEASE_ASSERT_NOT_REACHED();
+                break;
+            default:
+                break;
+            }
+
+            ASSERT(opcode <= EndOpcode);
+            code += byteCodeLengths[opcode];
+        }
+    }
+
+    // store relocInfoVector
+    {
+        m_buffer.putData(relocInfoVector.data(), relocInfoVector.size());
+    }
+}
+
 void CodeCacheReader::CacheBuffer::resize(size_t size)
 {
     ASSERT(!m_buffer && m_capacity == 0 && m_index == 0);
@@ -361,11 +627,12 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         size_t vectorSize = m_buffer.get<size_t>();
         info->m_identifiers.resizeWithUninitializedValues(vectorSize);
         for (size_t j = 0; j < vectorSize; j++) {
-            InterpretedCodeBlock::BlockIdentifierInfo info;
-            info.m_needToAllocateOnStack = m_buffer.get<bool>();
-            info.m_isMutable = m_buffer.get<bool>();
-            info.m_indexForIndexedStorage = m_buffer.get<size_t>();
-            info.m_name = m_stringTable->get(m_buffer.get<size_t>());
+            InterpretedCodeBlock::BlockIdentifierInfo idInfo;
+            idInfo.m_needToAllocateOnStack = m_buffer.get<bool>();
+            idInfo.m_isMutable = m_buffer.get<bool>();
+            idInfo.m_indexForIndexedStorage = m_buffer.get<size_t>();
+            idInfo.m_name = m_stringTable->get(m_buffer.get<size_t>());
+            info->m_identifiers[j] = idInfo;
         }
 
         blockInfoVector[i] = info;
@@ -438,6 +705,264 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     }
 
     return codeBlock;
+}
+
+ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, Script* script)
+{
+    ASSERT(GC_is_disabled());
+    ASSERT(!!script->topCodeBlock());
+
+    size_t size;
+    ByteCodeBlock* block = new ByteCodeBlock(script->topCodeBlock());
+
+    block->m_isEvalMode = m_buffer.get<bool>();
+    block->m_isOnGlobal = m_buffer.get<bool>();
+    block->m_shouldClearStack = m_buffer.get<bool>();
+    block->m_isOwnerMayFreed = m_buffer.get<bool>();
+    block->m_requiredRegisterFileSizeInValueSize = m_buffer.get<uint16_t>();
+
+    // ByteCodeBlock::m_numeralLiteralData
+    ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;
+    size = m_buffer.get<size_t>();
+    numeralLiteralData.resizeWithUninitializedValues(size);
+    m_buffer.getData(numeralLiteralData.data(), size);
+
+    // ByteCodeBlock::m_stringLiteralData
+    ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
+    size = m_buffer.get<size_t>();
+    stringLiteralData.resizeWithUninitializedValues(size);
+    for (size_t i = 0; i < size; i++) {
+        stringLiteralData[i] = m_buffer.getString();
+    }
+
+    // ByteCodeBlock::m_otherLiteralData
+    ByteCodeOtherLiteralData& otherLiteralData = block->m_otherLiteralData;
+    size = m_buffer.get<size_t>();
+    otherLiteralData.resizeWithUninitializedValues(size);
+    for (size_t i = 0; i < size; i++) {
+        ControlFlowRecord* record = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, SIZE_MAX, SIZE_MAX);
+        m_buffer.getData(record, 1);
+        otherLiteralData[i] = record;
+    }
+
+    // ByteCodeBlock::m_code bytecode stream
+    loadByteCodeStream(context, block);
+
+    // finally, relocate opcode address and register index for each bytecode
+    ByteCodeGenerator::relocateByteCode(block);
+
+    return block;
+}
+
+#define LOAD_ATOMICSTRING_RELOC(member)   \
+    size_t stringIndex = info.dataOffset; \
+    bc->member = m_stringTable->get(stringIndex);
+
+void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
+{
+    ByteCodeBlockData& byteCodeStream = block->m_code;
+
+    // load ByteCode stream
+    {
+        size_t codeSize = m_buffer.get<size_t>();
+        byteCodeStream.resizeWithUninitializedValues(codeSize);
+        m_buffer.getData(byteCodeStream.data(), codeSize);
+    }
+
+    Vector<ByteCodeRelocInfo, std::allocator<ByteCodeRelocInfo>> relocInfoVector;
+    ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
+
+    // load relocInfoVector
+    {
+        size_t relocSize = m_buffer.get<size_t>();
+        relocInfoVector.resizeWithUninitializedValues(relocSize);
+        m_buffer.getData(relocInfoVector.data(), relocSize);
+    }
+
+    // relocate ByteCodeStream
+    {
+        char* code = byteCodeStream.data();
+        size_t codeBase = (size_t)code;
+        char* end = code + byteCodeStream.size();
+
+        InterpretedCodeBlock* codeBlock = block->codeBlock();
+
+        // mark for LoadRegexp bytecode
+        bool bodyStringForLoadRegexp = true;
+
+        for (size_t i = 0; i < relocInfoVector.size(); i++) {
+            ByteCodeRelocInfo& info = relocInfoVector[i];
+            ByteCode* currentCode = (ByteCode*)(code + info.codeOffset);
+
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+            Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
+#else
+            Opcode opcode = currentCode->m_opcode;
+#endif
+            switch (opcode) {
+            case LoadLiteralOpcode: {
+                LoadLiteral* bc = (LoadLiteral*)currentCode;
+                size_t stringIndex = info.dataOffset;
+
+                if (info.relocType == ByteCodeRelocType::RELOC_STRING) {
+                    ASSERT(stringIndex < stringLiteralData.size());
+                    String* string = stringLiteralData[stringIndex];
+                    bc->m_value = Value(string);
+                } else {
+                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING);
+                    bc->m_value = Value(m_stringTable->get(stringIndex).string());
+                }
+                break;
+            }
+            case LoadByNameOpcode: {
+                LoadByName* bc = (LoadByName*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case StoreByNameOpcode: {
+                StoreByName* bc = (StoreByName*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case InitializeByNameOpcode: {
+                InitializeByName* bc = (InitializeByName*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case CreateFunctionOpcode: {
+                CreateFunction* bc = (CreateFunction*)currentCode;
+                InterpretedCodeBlockVector& children = codeBlock->children();
+                size_t childIndex = info.dataOffset;
+                ASSERT(childIndex < children.size());
+                bc->m_codeBlock = children[childIndex];
+                break;
+            }
+            case CreateClassOpcode: {
+                CreateClass* bc = (CreateClass*)currentCode;
+
+                if (info.relocType == ByteCodeRelocType::RELOC_CODEBLOCK) {
+                    InterpretedCodeBlockVector& children = codeBlock->children();
+                    size_t childIndex = info.dataOffset;
+                    ASSERT(childIndex < children.size());
+                    bc->m_codeBlock = children[childIndex];
+                } else {
+                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_STRING);
+                    size_t stringIndex = info.dataOffset;
+                    ASSERT(stringIndex < stringLiteralData.size());
+                    bc->m_classSrc = stringLiteralData[stringIndex];
+                }
+                break;
+            }
+            case ObjectDefineOwnPropertyWithNameOperationOpcode: {
+                ObjectDefineOwnPropertyWithNameOperation* bc = (ObjectDefineOwnPropertyWithNameOperation*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_propertyName);
+                break;
+            }
+            case InitializeGlobalVariableOpcode: {
+                InitializeGlobalVariable* bc = (InitializeGlobalVariable*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_variableName);
+                break;
+            }
+            case UnaryTypeofOpcode: {
+                UnaryTypeof* bc = (UnaryTypeof*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_id);
+                break;
+            }
+            case UnaryDeleteOpcode: {
+                UnaryDelete* bc = (UnaryDelete*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_id);
+                break;
+            }
+            case JumpComplexCaseOpcode: {
+                JumpComplexCase* bc = (JumpComplexCase*)currentCode;
+                size_t recordIndex = info.dataOffset;
+                ByteCodeOtherLiteralData& otherLiteralData = block->m_otherLiteralData;
+                ASSERT(recordIndex < otherLiteralData.size());
+                bc->m_controlFlowRecord = (ControlFlowRecord*)otherLiteralData[recordIndex];
+                break;
+            }
+            case CallFunctionComplexCaseOpcode: {
+                CallFunctionComplexCase* bc = (CallFunctionComplexCase*)currentCode;
+                ASSERT(bc->m_kind == CallFunctionComplexCase::InWithScope);
+                LOAD_ATOMICSTRING_RELOC(m_calleeName);
+                break;
+            }
+            case GetMethodOpcode: {
+                GetMethod* bc = (GetMethod*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_propertyName);
+                break;
+            }
+            case LoadRegexpOpcode: {
+                LoadRegexp* bc = (LoadRegexp*)currentCode;
+
+                String* bodyString = bc->m_body;
+                String* optionString = bc->m_option;
+
+                if (bodyStringForLoadRegexp) {
+                    ASSERT(info.dataOffset < stringLiteralData.size());
+                    bc->m_body = stringLiteralData[info.dataOffset];
+                    bodyStringForLoadRegexp = false;
+                } else {
+                    ASSERT(info.dataOffset < stringLiteralData.size());
+                    bc->m_option = stringLiteralData[info.dataOffset];
+                    bodyStringForLoadRegexp = true;
+                }
+                break;
+            }
+            case BlockOperationOpcode: {
+                BlockOperation* bc = (BlockOperation*)currentCode;
+                size_t blockIndex = info.dataOffset;
+                ASSERT(blockIndex < codeBlock->m_blockInfos.size());
+                bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
+                break;
+            }
+            case ReplaceBlockLexicalEnvironmentOperationOpcode: {
+                ReplaceBlockLexicalEnvironmentOperation* bc = (ReplaceBlockLexicalEnvironmentOperation*)currentCode;
+                size_t blockIndex = info.dataOffset;
+                ASSERT(blockIndex < codeBlock->m_blockInfos.size());
+                bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
+                break;
+            }
+            case ResolveNameAddressOpcode: {
+                ResolveNameAddress* bc = (ResolveNameAddress*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case StoreByNameWithAddressOpcode: {
+                StoreByNameWithAddress* bc = (StoreByNameWithAddress*)currentCode;
+                LOAD_ATOMICSTRING_RELOC(m_name);
+                break;
+            }
+            case GetObjectPreComputedCaseOpcode: {
+                GetObjectPreComputedCase* bc = (GetObjectPreComputedCase*)currentCode;
+                ASSERT(!bc->m_inlineCache);
+                LOAD_ATOMICSTRING_RELOC(m_propertyName);
+                break;
+            }
+            case SetObjectPreComputedCaseOpcode: {
+                SetObjectPreComputedCase* bc = (SetObjectPreComputedCase*)currentCode;
+                ASSERT(!bc->m_inlineCache);
+                LOAD_ATOMICSTRING_RELOC(m_propertyName);
+                break;
+            }
+            case GetGlobalVariableOpcode: {
+                GetGlobalVariable* bc = (GetGlobalVariable*)currentCode;
+                size_t stringIndex = info.dataOffset;
+                bc->m_slot = context->ensureGlobalVariableAccessCacheSlot(m_stringTable->get(stringIndex));
+                break;
+            }
+            case SetGlobalVariableOpcode: {
+                SetGlobalVariable* bc = (SetGlobalVariable*)currentCode;
+                size_t stringIndex = info.dataOffset;
+                bc->m_slot = context->ensureGlobalVariableAccessCacheSlot(m_stringTable->get(stringIndex));
+                break;
+            }
+            default:
+                RELEASE_ASSERT_NOT_REACHED();
+                break;
+            }
+        }
+    }
 }
 }
 

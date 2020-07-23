@@ -1380,8 +1380,16 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 FillOpcodeTableLbl:
-#define REGISTER_TABLE(opcode, pushCount, popCount) g_opcodeTable.m_table[opcode##Opcode] = &&opcode##OpcodeLbl;
+#if defined(ENABLE_CODE_CACHE)
+#define REGISTER_TABLE(opcode, pushCount, popCount)                     \
+    g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl; \
+    g_opcodeTable.m_opcodeMap.insert(std::make_pair(&&opcode##OpcodeLbl, (size_t)opcode##Opcode));
+#else
+#define REGISTER_TABLE(opcode, pushCount, popCount) \
+    g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl;
+#endif
     FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
+
 #undef REGISTER_TABLE
 #endif
 
@@ -1798,7 +1806,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         code->m_inlineCache = new GetObjectInlineCache();
         block->m_inlineCacheDataSize += sizeof(GetObjectInlineCache);
         currentCodeSizeTotal += sizeof(GetObjectInlineCache);
-        block->m_literalData.push_back(code->m_inlineCache);
+        block->m_otherLiteralData.push_back(code->m_inlineCache);
     }
 
     auto inlineCache = code->m_inlineCache;
@@ -1945,7 +1953,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         code->m_inlineCache = new SetObjectInlineCache();
         block->m_inlineCacheDataSize += sizeof(SetObjectInlineCache);
         currentCodeSizeTotal += sizeof(SetObjectInlineCache);
-        block->m_literalData.push_back(code->m_inlineCache);
+        block->m_otherLiteralData.push_back(code->m_inlineCache);
     }
 
     auto inlineCache = code->m_inlineCache;

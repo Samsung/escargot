@@ -120,9 +120,9 @@ public:
     };
 
     Value execute(ExecutionState& state, bool isExecuteOnEvalFunction = false, bool inStrictMode = false);
-    String* src()
+    String* srcName()
     {
-        return m_src;
+        return m_srcName;
     }
 
     String* sourceCode()
@@ -161,30 +161,38 @@ public:
     ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
 
 #if defined(ENABLE_CODE_CACHE)
-    void setCodeCacheMetaInfo(CodeCacheMetaInfoMap* map)
+    void setCodeCacheMetaInfo(CodeCacheMetaInfoMap* codeBlockMap, CodeCacheMetaInfoMap* byteCodeMap)
     {
-        ASSERT(!m_codeCacheMetaInfoMap);
-        m_codeCacheMetaInfoMap = map;
+        ASSERT(!m_codeBlockMetaInfoMap && !m_byteCodeMetaInfoMap);
+        m_codeBlockMetaInfoMap = codeBlockMap;
+        m_byteCodeMetaInfoMap = byteCodeMap;
     }
 
-    CodeCacheMetaInfoMap* codeCacheMetaInfoMap()
+    CodeCacheMetaInfoMap* codeBlockMetaInfoMap()
     {
-        return m_codeCacheMetaInfoMap;
+        return m_codeBlockMetaInfoMap;
+    }
+
+    CodeCacheMetaInfoMap* byteCodeMetaInfoMap()
+    {
+        return m_byteCodeMetaInfoMap;
     }
 #endif
 
 private:
-    Script(String* src, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
+    Script(String* srcName, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
         : m_canExecuteAgain(canExecuteAgain && !moduleData)
-        , m_src(src)
+        , m_srcName(srcName)
         , m_sourceCode(sourceCode)
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
 #if defined(ENABLE_CODE_CACHE)
-        , m_codeCacheMetaInfoMap(nullptr)
+        , m_codeBlockMetaInfoMap(nullptr)
+        , m_byteCodeMetaInfoMap(nullptr)
 #endif
     {
     }
+
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
     Script* loadModuleFromScript(ExecutionState& state, String* src);
     void loadExternalModule(ExecutionState& state);
@@ -251,12 +259,13 @@ private:
     ModuleExecutionResult moduleExecute(ExecutionState& state);
 
     bool m_canExecuteAgain;
-    String* m_src;
+    String* m_srcName;
     String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
 #if defined(ENABLE_CODE_CACHE)
-    CodeCacheMetaInfoMap* m_codeCacheMetaInfoMap;
+    CodeCacheMetaInfoMap* m_codeBlockMetaInfoMap;
+    CodeCacheMetaInfoMap* m_byteCodeMetaInfoMap;
 #endif
 };
 }

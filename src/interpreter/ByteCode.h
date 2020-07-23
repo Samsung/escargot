@@ -22,15 +22,11 @@
 
 #include "interpreter/ByteCodeGenerator.h"
 #include "parser/CodeBlock.h"
-#include "parser/ast/Node.h"
-#include "runtime/String.h"
-#include "runtime/Value.h"
-#include "runtime/EncodedValue.h"
 #include "runtime/ExecutionPauser.h"
 
 namespace Escargot {
-class ObjectStructure;
 class Node;
+class ObjectStructure;
 struct GlobalVariableAccessCacheItem;
 
 // <OpcodeName, PushCount, PopCount>
@@ -154,8 +150,12 @@ enum Opcode {
 #endif
 
 struct OpcodeTable {
-    void* m_table[OpcodeKindEnd];
     OpcodeTable();
+
+    void* m_addressTable[OpcodeKindEnd];
+#if defined(ENABLE_CODE_CACHE)
+    std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<void*, size_t>>> m_opcodeMap;
+#endif
 };
 
 extern OpcodeTable g_opcodeTable;
@@ -201,17 +201,20 @@ public:
 
     void assignOpcodeInAddress()
     {
-#ifndef NDEBUG
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-        m_orgOpcode = (Opcode)(size_t)m_opcodeInAddress;
-#else
-        m_orgOpcode = m_opcode;
-#endif
-#endif
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-        m_opcodeInAddress = g_opcodeTable.m_table[(Opcode)(size_t)m_opcodeInAddress];
+        m_opcodeInAddress = g_opcodeTable.m_addressTable[(Opcode)(size_t)m_opcodeInAddress];
 #endif
     }
+
+#if defined(ENABLE_CODE_CACHE)
+    void assignAddressInOpcode()
+    {
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+        ASSERT(g_opcodeTable.m_opcodeMap.find(m_opcodeInAddress) != g_opcodeTable.m_opcodeMap.end());
+        m_opcodeInAddress = (void*)g_opcodeTable.m_opcodeMap.find(m_opcodeInAddress)->second;
+#endif
+    }
+#endif
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
     void* m_opcodeInAddress;
@@ -879,31 +882,6 @@ public:
 #endif
 };
 
-class ObjectStructureChainItem : public gc {
-public:
-    ObjectStructureChainItem()
-        : m_objectStructure(nullptr)
-    {
-    }
-
-    ObjectStructureChainItem(ObjectStructure* structure)
-        : m_objectStructure(structure)
-    {
-    }
-
-    ObjectStructure* m_objectStructure;
-
-    bool operator==(const ObjectStructureChainItem& item) const
-    {
-        return m_objectStructure == item.m_objectStructure;
-    }
-
-    bool operator!=(const ObjectStructureChainItem& item) const
-    {
-        return !operator==(item);
-    }
-};
-
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
     {
@@ -1343,6 +1321,10 @@ public:
 
 class ControlFlowRecord : public gc {
     friend class ByteCodeInterpreter;
+#if defined(ENABLE_CODE_CACHE)
+    friend class CodeCacheWriter;
+    friend class CodeCacheReader;
+#endif
 
 public:
     enum ControlFlowReason {
@@ -1674,6 +1656,7 @@ public:
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_resultIndex(resultIndex)
     {
+        ASSERT(m_kind != InWithScope);
     }
 
     CallFunctionComplexCase(const ByteCodeLOC& loc, bool hasSpreadElement, bool isOptional,
@@ -2497,23 +2480,18 @@ public:
 #endif
 };
 
-
 typedef Vector<char, std::allocator<char>, ComputeReservedCapacityFunctionWithLog2<200>> ByteCodeBlockData;
-typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
-typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeLiteralData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
+typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>> ByteCodeStringLiteralData;
+typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeOtherLiteralData;
+
+typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 
 class ByteCodeBlock : public gc {
-    friend struct OpcodeTable;
-    friend class VMInstance;
-    friend int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr);
-
-    ByteCodeBlock()
-    {
-    }
-
 public:
     explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock);
+
+    void* operator new(size_t size);
 
     template <typename CodeType>
     void pushCode(const CodeType& code, ByteCodeGenerateContext* context, Node* node)
@@ -2532,12 +2510,6 @@ public:
                 }
             }
         }
-#endif
-
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-        Opcode opcode = (Opcode)(size_t)code.m_opcodeInAddress;
-#else
-        Opcode opcode = code.m_opcode;
 #endif
 
         char* first = (char*)&code;
@@ -2575,6 +2547,7 @@ public:
         {
         }
     };
+
     ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside = true);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
     void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
@@ -2582,6 +2555,7 @@ public:
     void updateMaxPauseStatementExtraDataLength(ByteCodeGenerateContext* context);
     void pushPauseStatementExtraData(ByteCodeGenerateContext* context);
 
+    InterpretedCodeBlock* codeBlock() { return m_codeBlock; }
     template <typename CodeType>
     CodeType* peekCode(size_t position)
     {
@@ -2607,7 +2581,8 @@ public:
         siz += sizeof(ByteCodeBlock);
         siz += m_locData ? (m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0;
         siz += m_numeralLiteralData.size() * sizeof(Value);
-        siz += m_literalData.size() * sizeof(size_t);
+        siz += m_stringLiteralData.size() * sizeof(intptr_t);
+        siz += m_otherLiteralData.size() * sizeof(intptr_t);
         siz += m_inlineCacheDataSize;
         return siz;
     }
@@ -2621,16 +2596,19 @@ public:
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
     ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize : REGISTER_INDEX_IN_BIT;
+    size_t m_inlineCacheDataSize;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
-    ByteCodeLiteralData m_literalData;
-    size_t m_inlineCacheDataSize;
 
-    ByteCodeLOCData* m_locData;
+    // m_stringLiteralData only holds String addesses not to be deallocated by GC
+    ByteCodeStringLiteralData m_stringLiteralData;
+    // m_otherLiteralData only holds various typed addesses not to be deallocated by GC
+    ByteCodeOtherLiteralData m_otherLiteralData;
+
     InterpretedCodeBlock* m_codeBlock;
 
-    void* operator new(size_t size);
+    ByteCodeLOCData* m_locData;
 };
 } // namespace Escargot
 

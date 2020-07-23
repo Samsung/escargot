@@ -29,7 +29,37 @@ namespace Escargot {
 class Script;
 class StringView;
 class AtomicString;
+class ByteCodeBlock;
 class InterpretedCodeBlock;
+
+enum class ByteCodeRelocType : uint8_t {
+    RELOC_INVALID,
+    RELOC_STRING,
+    RELOC_ATOMICSTRING,
+    RELOC_CODEBLOCK,
+    RELOC_CONTROLFLOWRECORD,
+    RELOC_BLOCKINFO,
+};
+
+struct ByteCodeRelocInfo {
+    ByteCodeRelocInfo()
+        : relocType(ByteCodeRelocType::RELOC_INVALID)
+        , codeOffset(SIZE_MAX)
+        , dataOffset(SIZE_MAX)
+    {
+    }
+
+    ByteCodeRelocInfo(ByteCodeRelocType type, size_t cOffset, size_t dOffset)
+        : relocType(type)
+        , codeOffset(cOffset)
+        , dataOffset(dOffset)
+    {
+    }
+
+    ByteCodeRelocType relocType;
+    size_t codeOffset;
+    size_t dataOffset;
+};
 
 class CacheStringTable {
 public:
@@ -95,6 +125,29 @@ public:
             m_index += sizeof(IntegralType);
         }
 
+        template <typename IntegralType>
+        void putData(IntegralType* data, size_t size)
+        {
+            ensureSize(sizeof(size_t) + size * sizeof(IntegralType));
+            put(size);
+            memcpy(m_buffer + m_index, data, size * sizeof(IntegralType));
+            m_index += (size * sizeof(IntegralType));
+        }
+
+        void putString(String* string)
+        {
+            bool is8Bit = string->has8BitContent();
+            ensureSize(sizeof(bool));
+            put(is8Bit);
+
+            if (LIKELY(is8Bit)) {
+                putData(string->characters8(), string->length());
+            } else {
+                ASSERT(string->length() > 0);
+                putData(string->characters16(), string->length());
+            }
+        }
+
     private:
         char* m_buffer;
         size_t m_capacity;
@@ -116,15 +169,23 @@ public:
         m_stringTable = table;
     }
 
+    CacheStringTable* stringTable()
+    {
+        return m_stringTable;
+    }
+
     char* bufferData() { return m_buffer.data(); }
     size_t bufferSize() { return m_buffer.size(); }
     void clear() { m_buffer.reset(); }
     void storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock);
-    void storeByteCodeBlock();
+    void storeByteCodeBlock(ByteCodeBlock* block);
 
 private:
     CacheBuffer m_buffer;
     CacheStringTable* m_stringTable;
+
+    void storeByteCodeStream(ByteCodeBlock* block);
+    void storeGlobalVariableAccessCache(Context* context);
 };
 
 class CodeCacheReader {
@@ -158,6 +219,42 @@ public:
             return value;
         }
 
+        template <typename IntegralType>
+        void getData(IntegralType* data, size_t size)
+        {
+            size_t dataSize = size * sizeof(IntegralType);
+            memcpy(data, m_buffer + m_index, dataSize);
+            m_index += dataSize;
+        }
+
+        // FIXME
+        String* getString()
+        {
+            String* str = nullptr;
+            bool is8Bit = get<bool>();
+            if (LIKELY(is8Bit)) {
+                size_t length = get<size_t>();
+                if (length == 0) {
+                    str = String::emptyString;
+                } else {
+                    LChar* buffer = new LChar[length + 1];
+                    buffer[length] = '\0';
+                    getData(buffer, length);
+                    str = new Latin1String(buffer, length);
+                    delete[] buffer;
+                }
+            } else {
+                size_t length = get<size_t>();
+                ASSERT(length > 0);
+                UChar* buffer = new UChar[length + 1];
+                buffer[length] = '\0';
+                getData(buffer, length);
+                str = new UTF16String(buffer, length);
+                delete[] buffer;
+            }
+            return str;
+        }
+
     private:
         char* m_buffer;
         size_t m_capacity;
@@ -179,16 +276,25 @@ public:
         m_stringTable = table;
     }
 
+    CacheStringTable* stringTable()
+    {
+        return m_stringTable;
+    }
+
     char* bufferData() { return m_buffer.data(); }
     size_t bufferIndex() { return m_buffer.index(); }
     void clear() { m_buffer.reset(); }
     void loadDataFile(FILE*, size_t);
 
     InterpretedCodeBlock* loadInterpretedCodeBlock(Context* context, Script* script);
+    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script);
 
 private:
     CacheBuffer m_buffer;
     CacheStringTable* m_stringTable;
+
+    void loadByteCodeStream(Context* context, ByteCodeBlock* block);
+    void loadGlobalVariableAccessCache(Context* context);
 };
 }
 

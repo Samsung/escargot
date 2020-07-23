@@ -74,7 +74,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             StackTraceData traceData;
             traceData.loc = loc;
             InterpretedCodeBlock* cb = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock;
-            traceData.src = cb->script()->src();
+            traceData.src = cb->script()->srcName();
             traceData.sourceCode = cb->script()->sourceCode();
             traceData.functionName = m_stackTraceData[i].second.functionName;
             traceData.isFunction = m_stackTraceData[i].second.isFunction;
@@ -177,7 +177,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     }
                     SandBox::StackTraceData data;
                     data.loc = loc;
-                    data.src = cb->script()->src();
+                    data.src = cb->script()->srcName();
                     data.sourceCode = cb->script()->sourceCode();
                     data.isEval = true;
                     data.isFunction = false;
@@ -194,7 +194,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
                 SandBox::StackTraceData data;
                 data.loc = loc;
-                data.src = cb->asInterpretedCodeBlock()->script()->src();
+                data.src = cb->asInterpretedCodeBlock()->script()->srcName();
                 data.sourceCode = String::emptyString;
                 data.isEval = true;
                 data.isFunction = false;
@@ -219,7 +219,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 SandBox::StackTraceData data;
                 data.loc = loc;
                 if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
-                    data.src = cb->asInterpretedCodeBlock()->script()->src();
+                    data.src = cb->asInterpretedCodeBlock()->script()->srcName();
 #ifdef ESCARGOT_DEBUGGER
                     data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
@@ -338,7 +338,7 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
         } else {
             ExtendedNodeLOC loc = gcValues[i].byteCodeBlock->computeNodeLOCFromByteCode(context,
                                                                                         nonGCValues[i].byteCodePosition, gcValues[i].byteCodeBlock->m_codeBlock);
-            builder.appendString(gcValues[i].byteCodeBlock->m_codeBlock->script()->src());
+            builder.appendString(gcValues[i].byteCodeBlock->m_codeBlock->script()->srcName());
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.line));
             builder.appendChar(':');

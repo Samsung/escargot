@@ -1601,7 +1601,7 @@ public:
         ScriptRef* fetchScriptThrowsExceptionIfParseError(ExecutionStateRef* state);
     };
 
-    InitializeScriptResult initializeScript(StringRef* scriptSource, StringRef* fileName, bool isModule = false);
+    InitializeScriptResult initializeScript(StringRef* scriptSource, StringRef* srcName, bool isModule = false);
 };
 
 class ESCARGOT_EXPORT ScriptRef {

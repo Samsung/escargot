@@ -28,6 +28,7 @@ class Script;
 class CodeCacheWriter;
 class CodeCacheReader;
 class CacheStringTable;
+class ByteCodeBlock;
 class InterpretedCodeBlock;
 
 enum class CodeCacheType : uint8_t {
@@ -66,13 +67,16 @@ public:
 
     CacheStringTable* addStringTable(Script* script);
 
-    void loadMetaInfos(Script* script);
+    bool loadMetaInfos(Script* script);
 
     void storeStringTable(Script* script);
     CacheStringTable* loadStringTable(Context* context, Script* script);
 
     void storeCodeBlockTree(Script* script);
+    void storeByteCodeBlock(Script* script, ByteCodeBlock* block);
+
     InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script, CacheStringTable* table);
+    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script, CacheStringTable* table);
 
 private:
     CodeCacheWriter* m_writer;
@@ -85,11 +89,13 @@ private:
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);
 
     void writeCodeBlockToFile(Script* script, size_t nodeCount);
+    void writeByteCodeBlockToFile(Script* script);
     void loadFromDataFile(Script* script, CodeCacheMetaInfo& metaInfo);
 
     void getMetaFileName(Script* script, char* buffer);
     void getStringFileName(Script* script, char* buffer);
     void getDataFileName(Script* script, char* buffer);
+    void getByteDataFileName(Script* script, char* buffer);
 };
 }
 
