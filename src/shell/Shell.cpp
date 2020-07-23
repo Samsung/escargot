@@ -563,13 +563,13 @@ public:
     }
 };
 
-static bool evalScript(ContextRef* context, StringRef* str, StringRef* fileName, bool shouldPrintScriptResult, bool isModule)
+static bool evalScript(ContextRef* context, StringRef* str, StringRef* srcName, bool shouldPrintScriptResult, bool isModule)
 {
-    if (stringEndsWith(fileName->toStdUTF8String(), "mjs")) {
+    if (stringEndsWith(srcName->toStdUTF8String(), "mjs")) {
         isModule = isModule || true;
     }
 
-    auto scriptInitializeResult = context->scriptParser()->initializeScript(str, fileName, isModule);
+    auto scriptInitializeResult = context->scriptParser()->initializeScript(str, srcName, isModule);
     if (!scriptInitializeResult.script) {
         fprintf(stderr, "Script parsing error: ");
         switch (scriptInitializeResult.parseErrorCode) {

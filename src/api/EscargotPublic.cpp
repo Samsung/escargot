@@ -2827,9 +2827,9 @@ ScriptRef* ScriptParserRef::InitializeScriptResult::fetchScriptThrowsExceptionIf
     return script.value();
 }
 
-ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* script, StringRef* fileName, bool isModule)
+ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* script, StringRef* srcName, bool isModule)
 {
-    auto internalResult = toImpl(this)->initializeScript(toImpl(script), toImpl(fileName), isModule);
+    auto internalResult = toImpl(this)->initializeScript(toImpl(script), toImpl(srcName), isModule);
     ScriptParserRef::InitializeScriptResult result;
     if (internalResult.script) {
         result.script = toRef(internalResult.script.value());
@@ -2853,7 +2853,7 @@ bool ScriptRef::isExecuted()
 
 StringRef* ScriptRef::src()
 {
-    return toRef(toImpl(this)->src());
+    return toRef(toImpl(this)->srcName());
 }
 
 StringRef* ScriptRef::sourceCode()

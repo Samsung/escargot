@@ -58,10 +58,10 @@ public:
         }
     };
 
-    InitializeScriptResult initializeScript(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
-    InitializeScriptResult initializeScript(String* scriptSource, String* fileName, bool isModule, bool strictFromOutside = false, bool isRunningEvalOnFunction = false, bool isEvalMode = false, size_t stackSizeRemain = SIZE_MAX)
+    InitializeScriptResult initializeScript(StringView scriptSource, String* srcName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, size_t stackSizeRemain, bool needByteCodeGeneration, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
+    InitializeScriptResult initializeScript(String* scriptSource, String* srcName, bool isModule, bool strictFromOutside = false, bool isRunningEvalOnFunction = false, bool isEvalMode = false, size_t stackSizeRemain = SIZE_MAX)
     {
-        return initializeScript(StringView(scriptSource, 0, scriptSource->length()), fileName, isModule, nullptr, strictFromOutside, isRunningEvalOnFunction, isEvalMode, false, stackSizeRemain, true, false, false, false);
+        return initializeScript(StringView(scriptSource, 0, scriptSource->length()), srcName, isModule, nullptr, strictFromOutside, isRunningEvalOnFunction, isEvalMode, false, stackSizeRemain, true, false, false, false);
     }
 
     void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
@@ -76,7 +76,7 @@ private:
 
 #ifdef ESCARGOT_DEBUGGER
     void recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* topCodeBlock);
-    InitializeScriptResult initializeScriptWithDebugger(StringView scriptSource, String* fileName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
+    InitializeScriptResult initializeScriptWithDebugger(StringView scriptSource, String* srcName, bool isModule, InterpretedCodeBlock* parentCodeBlock, bool strictFromOutside, bool isEvalCodeInFunction, bool isEvalMode, bool inWithOperation, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
 #endif /* ESCARGOT_DEBUGGER */
 
     Context* m_context;

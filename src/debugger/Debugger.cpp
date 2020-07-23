@@ -647,15 +647,15 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
             if (buffer[1] != 0) {
-                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_table[BreakpointDisabledOpcode]) {
+                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_addressTable[BreakpointDisabledOpcode]) {
                     break;
                 }
-                breakpoint->m_opcodeInAddress = g_opcodeTable.m_table[BreakpointEnabledOpcode];
+                breakpoint->m_opcodeInAddress = g_opcodeTable.m_addressTable[BreakpointEnabledOpcode];
             } else {
-                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_table[BreakpointEnabledOpcode]) {
+                if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_addressTable[BreakpointEnabledOpcode]) {
                     break;
                 }
-                breakpoint->m_opcodeInAddress = g_opcodeTable.m_table[BreakpointDisabledOpcode];
+                breakpoint->m_opcodeInAddress = g_opcodeTable.m_addressTable[BreakpointDisabledOpcode];
             }
 #else
             if (buffer[1] != 0) {

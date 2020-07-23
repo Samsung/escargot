@@ -214,7 +214,7 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
         // Assert: A default export was not explicitly defined by this module.
         // Throw a SyntaxError exception.
         // NOTE A default export cannot be provided by an export *.
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "The module '%s' does not provide an export named 'default'", src());
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "The module '%s' does not provide an export named 'default'", srcName());
     }
 
     // Let starResolution be null.
@@ -298,7 +298,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             ESCARGOT_LOG_ERROR("You cannot re-execute this type of Script object");
             RELEASE_ASSERT_NOT_REACHED();
         }
-        m_topCodeBlock = state.context()->scriptParser().initializeScript(m_sourceCode, m_src, m_moduleData).script->m_topCodeBlock;
+        m_topCodeBlock = state.context()->scriptParser().initializeScript(m_sourceCode, m_srcName, m_moduleData).script->m_topCodeBlock;
     }
 
     if (isModule()) {
@@ -975,7 +975,7 @@ Object* Script::importMetaProperty(ExecutionState& state)
         //     Perform ! CreateDataPropertyOrThrow(importMeta, p.[[Key]], p.[[Value]]).
         // Perform ! HostFinalizeImportMeta(importMeta, module).
         importMeta->defineOwnProperty(state, state.context()->staticStrings().lazyURL(),
-                                      ObjectPropertyDescriptor(Value(src()), ObjectPropertyDescriptor::AllPresent));
+                                      ObjectPropertyDescriptor(Value(srcName()), ObjectPropertyDescriptor::AllPresent));
 
         // Set module.[[ImportMeta]] to importMeta.
         moduleData()->m_importMeta = importMeta;

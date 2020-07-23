@@ -83,6 +83,10 @@ class Context : public gc {
     friend class ByteCodeInterpreter;
     friend struct OpcodeTable;
     friend class ContextRef;
+#if defined(ENABLE_CODE_CACHE)
+    friend class CodeCacheWriter;
+    friend class CodeCacheReader;
+#endif
 
 public:
     struct RegExpStatus {

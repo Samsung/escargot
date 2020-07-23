@@ -39,8 +39,8 @@ public:
     String* flag() { return m_flag; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        codeBlock->m_literalData.pushBack(m_body);
-        codeBlock->m_literalData.pushBack(m_flag);
+        codeBlock->m_stringLiteralData.pushBack(m_body);
+        codeBlock->m_stringLiteralData.pushBack(m_flag);
         codeBlock->pushCode(LoadRegexp(ByteCodeLOC(m_loc.index), dstRegister, m_body, m_flag), context, this);
     }
 

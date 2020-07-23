@@ -181,7 +181,7 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
             // Let targetEnv be targetModule.[[Environment]].
             if (!targetModule->moduleData()->m_moduleRecord) {
                 // If targetEnv is undefined, throw a ReferenceError exception.
-                ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->src());
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
                 return ObjectGetResult();
             }
             // Let targetEnvRec be targetEnv’s EnvironmentRecord.
@@ -228,7 +228,7 @@ void ModuleNamespaceObject::enumeration(ExecutionState& state, bool (*callback)(
         }
         Script* targetModule = std::get<0>(binding.m_record.value());
         if (!targetModule->moduleData()->m_moduleRecord) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->src());
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
         }
         targetModule->moduleData()->m_moduleRecord->getBindingValue(state, std::get<1>(binding.m_record.value()));
     }

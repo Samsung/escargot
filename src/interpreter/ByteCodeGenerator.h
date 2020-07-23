@@ -20,17 +20,18 @@
 #ifndef __EscargotByteCodeGenerator__
 #define __EscargotByteCodeGenerator__
 
-#include "parser/CodeBlock.h"
-#include "runtime/String.h"
-#include "runtime/Value.h"
+#include "parser/ast/Node.h"
 #include "debugger/Debugger.h"
 
 namespace Escargot {
+
+extern const uint8_t byteCodeLengths[];
 
 class Context;
 class CodeBlock;
 class ByteCodeBlock;
 class Node;
+class InterpretedCodeBlock;
 
 struct ClassContextInformation {
     ClassContextInformation()
@@ -63,11 +64,6 @@ struct ParserContextInformation {
     bool m_isEvalCode : 1;
     bool m_isForGlobalScope : 1;
     bool m_isWithScope : 1;
-};
-
-struct ByteCodeGenerateError {
-    size_t m_index;
-    std::string m_message;
 };
 
 #ifdef ESCARGOT_DEBUGGER
@@ -405,7 +401,12 @@ struct ByteCodeGenerateContext {
 
 class ByteCodeGenerator {
 public:
-    static ByteCodeBlock* generateByteCode(Context* c, InterpretedCodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false, bool inWithFromRuntime = false, bool shouldGenerateLOCData = false);
+    static ByteCodeBlock* generateByteCode(Context* context, InterpretedCodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false, bool inWithFromRuntime = false, bool shouldGenerateLOCData = false, bool cacheByteCode = false);
+    static void relocateByteCode(ByteCodeBlock* block);
+
+#ifndef NDEBUG
+    static void printByteCode(Context* context, ByteCodeBlock* block);
+#endif
 };
 }
 

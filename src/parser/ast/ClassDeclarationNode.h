@@ -55,7 +55,7 @@ public:
 
         context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : AtomicString();
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
-        codeBlock->m_literalData.push_back(context->m_classInfo.m_src);
+        codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
 
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;

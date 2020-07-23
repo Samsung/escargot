@@ -84,8 +84,8 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     , m_isOwnerMayFreed(false)
     , m_requiredRegisterFileSizeInValueSize(2)
     , m_inlineCacheDataSize(0)
-    , m_locData(nullptr)
     , m_codeBlock(codeBlock)
+    , m_locData(nullptr)
 {
     auto& v = m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
     v.push_back(this);
@@ -99,8 +99,8 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
         }
 #endif /* ESCARGOT_DEBUGGER */
 
-        self->m_numeralLiteralData.clear();
         self->m_code.clear();
+        self->m_numeralLiteralData.clear();
         if (self->m_locData) {
             delete self->m_locData;
             self->m_locData = nullptr;
@@ -120,7 +120,8 @@ void* ByteCodeBlock::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ByteCodeBlock)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_literalData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_stringLiteralData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_otherLiteralData));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_codeBlock));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ByteCodeBlock));
         typeInited = true;

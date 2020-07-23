@@ -288,10 +288,12 @@ public:
     {
         return m_bufferData.length;
     }
+
     virtual char16_t charAt(const size_t idx) const
     {
         return bufferAccessData().charAt(idx);
     }
+
     char16_t operator[](const size_t idx) const
     {
         return charAt(idx);
@@ -303,6 +305,11 @@ public:
             return const_cast<String*>(this)->bufferAccessDataSpecialImpl();
         }
         return m_bufferData;
+    }
+
+    bool isAtomicStringSource() const
+    {
+        return (m_tag > POINTER_VALUE_STRING_TAG_IN_DATA);
     }
 
     bool equals(const String* src) const;
