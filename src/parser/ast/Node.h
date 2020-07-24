@@ -127,6 +127,7 @@ enum ASTNodeType : uint16_t {
     Function,
     Identifier,
     IfStatement,
+    ImportCall,
     ImportDeclaration,
     ImportDefaultSpecifier,
     ImportNamespaceSpecifier,
