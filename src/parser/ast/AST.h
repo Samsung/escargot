@@ -96,6 +96,7 @@
 #include "IdentifierNode.h"
 #include "InitializeParameterExpressionNode.h"
 #include "IfStatementNode.h"
+#include "ImportCallNode.h"
 #include "ImportDeclarationNode.h"
 #include "ImportSpecifierNode.h"
 #include "ImportDefaultSpecifierNode.h"

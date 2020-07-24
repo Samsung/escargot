@@ -91,6 +91,7 @@ namespace Escargot {
     F(FunctionDeclaration)                    \
     F(FunctionExpression)                     \
     F(IfStatement)                            \
+    F(ImportCall)                             \
     F(ImportDeclaration)                      \
     F(ImportDefaultSpecifier)                 \
     F(ImportNamespaceSpecifier)               \

@@ -1656,7 +1656,8 @@ public:
         MayBuiltinApply,
         MayBuiltinEval,
         InWithScope,
-        Super
+        Super,
+        Import
     };
 
     CallFunctionComplexCase(const ByteCodeLOC& loc, Kind kind,

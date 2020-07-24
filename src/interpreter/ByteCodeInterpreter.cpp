@@ -2898,6 +2898,35 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         registerFile[code->m_resultIndex] = result;
         break;
     }
+    case CallFunctionComplexCase::Import: {
+        // https://www.ecma-international.org/ecma-262/#sec-import-calls
+        // Let referencingScriptOrModule be ! GetActiveScriptOrModule().
+        Script* referencingScriptOrModule = byteCodeBlock->m_codeBlock->script();
+
+        // Let argRef be the result of evaluating AssignmentExpression.
+        // Let specifier be ? GetValue(argRef).
+        const Value& specifier = registerFile[code->m_argumentsStartIndex];
+        // Let promiseCapability be ! NewPromiseCapability(%Promise%).
+        auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+        // Let specifierString be ToString(specifier).
+        String* specifierString = String::emptyString;
+        // IfAbruptRejectPromise(specifierString, promiseCapability).
+        try {
+            specifierString = specifier.toString(state);
+        } catch (const Value& v) {
+            Value thrownValue = v;
+            // If value is an abrupt completion,
+            // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+            // Return capability.[[Promise]].
+            registerFile[code->m_resultIndex] = promiseCapability.m_promise;
+            break;
+        }
+        // Perform ! HostImportModuleDynamically(referencingScriptOrModule, specifierString, promiseCapability).
+        // Return promiseCapability.[[Promise]].
+        registerFile[code->m_resultIndex] = promiseCapability.m_promise;
+        break;
+    }
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }

@@ -2060,7 +2060,7 @@ public:
         }
         this->nextToken();
 
-        if (this->match(Period)) {
+        if (UNLIKELY(this->match(Period))) {
             this->nextToken();
             if (this->lookahead.type == Token::IdentifierToken && this->context->allowNewTarget && this->lookahead.relatedSource(this->scanner->source) == "target") {
                 this->nextToken();
@@ -2073,7 +2073,13 @@ public:
         }
 
         MetaNode node = this->createNode();
+        bool seenLeftParenthesis = this->match(LeftParenthesis);
         ASTNode callee = this->isolateCoverGrammar(builder, &Parser::parseLeftHandSideExpression<ASTBuilder>);
+
+        if (UNLIKELY(callee->type() == ASTNodeType::ImportCall && !seenLeftParenthesis)) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
+
         ASTNodeList args;
         if (this->match(LeftParenthesis)) {
             args = this->parseArguments(builder);
@@ -2087,26 +2093,37 @@ public:
     template <class ASTBuilder>
     ASTNode parseImportExpression(ASTBuilder& builder)
     {
-        if (this->sourceType != Module) {
-            this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
-        }
-
         MetaNode node = this->createNode();
         // check escaped
         if (this->lookahead.end - this->lookahead.start != 6) {
             this->throwUnexpectedToken(this->lookahead);
         }
         this->expectKeyword(ImportKeyword);
-        this->expect(Period);
-        ALLOC_TOKEN(nameToken);
-        *nameToken = this->lookahead;
-        TrackUsingNameBlocker blocker(this);
-        ASTNode property = this->parseIdentifierName(builder);
-        AtomicString name = property->asIdentifier()->name();
-        if (!name.string()->equals("meta") || nameToken->hasAllocatedString /* is escaped */) {
-            this->throwUnexpectedToken(*nameToken);
+        if (this->match(Period)) {
+            if (this->sourceType != Module) {
+                this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
+            }
+
+            this->nextToken();
+            ALLOC_TOKEN(nameToken);
+            *nameToken = this->lookahead;
+            TrackUsingNameBlocker blocker(this);
+            ASTNode property = this->parseIdentifierName(builder);
+            AtomicString name = property->asIdentifier()->name();
+            if (!name.string()->equals("meta") || nameToken->hasAllocatedString /* is escaped */) {
+                this->throwUnexpectedToken(*nameToken);
+            }
+            return this->finalize(node, builder.createMetaPropertyNode(MetaPropertyNode::ImportMeta));
+        } else if (this->match(LeftParenthesis)) {
+            this->nextToken();
+            ASTNode arg = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            this->expect(RightParenthesis);
+            return this->finalize(node, builder.createImportCallNode(arg));
+        } else {
+            this->throwUnexpectedToken(this->lookahead);
+            ASSERT_NOT_REACHED();
+            return nullptr;
         }
-        return this->finalize(node, builder.createMetaPropertyNode(MetaPropertyNode::ImportMeta));
     }
 
     template <class ASTBuilder>
@@ -2405,7 +2422,11 @@ public:
                 this->throwError(Messages::InvalidLHSInAssignment);
             }
 
-            if (exprNode->type() == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional()) {
+            auto exprNodeType = exprNode->type();
+            if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional())) {
+                this->throwError(Messages::InvalidLHSInAssignment);
+            }
+            if (UNLIKELY(exprNodeType == ASTNodeType::ImportCall)) {
                 this->throwError(Messages::InvalidLHSInAssignment);
             }
 
@@ -2431,8 +2452,11 @@ public:
                 if (!this->context->isAssignmentTarget && this->context->strict) {
                     this->throwError(Messages::InvalidLHSInAssignment);
                 }
-
-                if (exprNode->type() == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional()) {
+                auto exprNodeType = exprNode->type();
+                if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional())) {
+                    this->throwError(Messages::InvalidLHSInAssignment);
+                }
+                if (UNLIKELY(exprNodeType == ASTNodeType::ImportCall)) {
                     this->throwError(Messages::InvalidLHSInAssignment);
                 }
 
@@ -2996,7 +3020,11 @@ public:
                         if (type == ArrayExpression || type == ObjectExpression) {
                             this->throwError(Messages::InvalidLHSInAssignment);
                         }
-                        if (exprNode->type() == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional()) {
+                        auto exprNodeType = exprNode->type();
+                        if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional())) {
+                            this->throwError(Messages::InvalidLHSInAssignment);
+                        }
+                        if (UNLIKELY(exprNodeType == ASTNodeType::ImportCall)) {
                             this->throwError(Messages::InvalidLHSInAssignment);
                         }
                         if (this->context->strict) {
@@ -3143,9 +3171,6 @@ public:
                 statement = this->parseExportDeclaration(builder);
                 break;
             case ImportKeyword:
-                if (this->sourceType != Module) {
-                    this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
-                }
                 statement = this->parseImportDeclaration(builder);
                 break;
             case ConstKeyword:
@@ -5578,6 +5603,9 @@ public:
         Script::ImportEntryVector importEntrys;
         ASTNodeList specifiers;
         if (this->lookahead.type == Token::StringLiteralToken) {
+            if (this->sourceType != Module) {
+                this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
+            }
             if (this->context->inFunctionBody || this->lexicalBlockIndex != 0) {
                 this->throwError(Messages::IllegalImportDeclaration);
             }
@@ -5585,11 +5613,15 @@ public:
             src = this->parseModuleSpecifier(builder);
             appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
         } else {
-            if (this->match(PunctuatorKind::Period)) {
+            if (this->match(PunctuatorKind::Period) || this->match(PunctuatorKind::LeftParenthesis)) {
                 rewind(startMarker);
                 auto expr = this->inheritCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
                 this->consumeSemicolon();
                 return this->finalize(node, builder.createExpressionStatementNode(expr));
+            }
+
+            if (this->sourceType != Module) {
+                this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
             }
 
             if (this->context->inFunctionBody || this->lexicalBlockIndex != 0) {
