@@ -2277,7 +2277,8 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             newState->context()->vmInstance()->currentSandBox()->fillStackDataIntoErrorObject(val);
 
 #ifndef NDEBUG
-            if (getenv("DUMP_ERROR_IN_TRY_CATCH") && strlen(getenv("DUMP_ERROR_IN_TRY_CATCH"))) {
+            char* dumpErrorInTryCatch = getenv("DUMP_ERROR_IN_TRY_CATCH");
+            if (dumpErrorInTryCatch && (strcmp(dumpErrorInTryCatch, "1") == 0)) {
                 ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(newState->context()->vmInstance()->currentSandBox());
                 StringBuilder builder;
                 builder.appendString("Caught error in try-catch block\n");

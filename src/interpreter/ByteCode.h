@@ -2521,7 +2521,9 @@ public:
 #ifndef NDEBUG
         {
             CodeType& t = const_cast<CodeType&>(code);
-            if ((getenv("DUMP_BYTECODE") && strlen(getenv("DUMP_BYTECODE"))) || (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE")))) {
+            char* dumpByteCode = getenv("DUMP_BYTECODE");
+            char* dumpCodeblockTree = getenv("DUMP_CODEBLOCK_TREE");
+            if ((dumpByteCode && (strcmp(dumpByteCode, "1") == 0)) || (dumpCodeblockTree && (strcmp(dumpCodeblockTree, "1") == 0))) {
                 if (idx != SIZE_MAX) {
                     auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
                     t.m_loc.line = loc.line;
