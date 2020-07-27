@@ -40,6 +40,7 @@
 #include "runtime/NumberObject.h"
 #include "runtime/BooleanObject.h"
 #include "runtime/RegExpObject.h"
+#include "runtime/ModuleNamespaceObject.h"
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
 #include "runtime/PromiseObject.h"
@@ -594,6 +595,11 @@ public:
         } else {
             m_platform->didLoadModule(toRef(relatedContext), nullptr, toRef(loadedModule));
         }
+    }
+
+    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
+    {
+        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
     }
 
     PlatformRef* m_platform;
@@ -2856,6 +2862,21 @@ size_t ScriptRef::moduleRequestsLength()
 StringRef* ScriptRef::moduleRequest(size_t i)
 {
     return toRef(toImpl(this)->moduleRequest(i));
+}
+
+ObjectRef* ScriptRef::moduleNamespace(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->getModuleNamespace(*toImpl(state))->asObject());
+}
+
+bool ScriptRef::wasThereErrorOnModuleEvaluation()
+{
+    return toImpl(this)->wasThereErrorOnModuleEvaluation();
+}
+
+ValueRef* ScriptRef::moduleEvaluationError()
+{
+    return toRef(toImpl(this)->moduleEvaluationError());
 }
 
 PlatformRef::LoadModuleResult::LoadModuleResult(ScriptRef* result)

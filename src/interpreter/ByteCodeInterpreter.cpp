@@ -2903,6 +2903,10 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // Let referencingScriptOrModule be ! GetActiveScriptOrModule().
         Script* referencingScriptOrModule = byteCodeBlock->m_codeBlock->script();
 
+        while (referencingScriptOrModule->topCodeBlock()->isEvalCode() || referencingScriptOrModule->topCodeBlock()->isEvalCodeInFunction()) {
+            referencingScriptOrModule = referencingScriptOrModule->topCodeBlock()->parent()->script();
+        }
+
         // Let argRef be the result of evaluating AssignmentExpression.
         // Let specifier be ? GetValue(argRef).
         const Value& specifier = registerFile[code->m_argumentsStartIndex];
@@ -2923,6 +2927,8 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
             break;
         }
         // Perform ! HostImportModuleDynamically(referencingScriptOrModule, specifierString, promiseCapability).
+        state.context()->vmInstance()->platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
+                                                                               referencingScriptOrModule, specifierString, promiseCapability.m_promise->asPromiseObject());
         // Return promiseCapability.[[Promise]].
         registerFile[code->m_resultIndex] = promiseCapability.m_promise;
         break;

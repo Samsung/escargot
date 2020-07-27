@@ -25,6 +25,7 @@
 namespace Escargot {
 
 class ArrayBufferObject;
+class PromiseObject;
 class Context;
 class Job;
 
@@ -46,6 +47,7 @@ public:
     };
     virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) = 0;
     virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) = 0;
+    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) = 0;
 };
 }
 

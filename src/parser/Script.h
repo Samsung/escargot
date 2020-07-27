@@ -99,6 +99,7 @@ public:
         // [[Status]]
         ModuleStatus m_status;
         // [[EvaluationError]]
+        bool m_hasEvaluationError;
         EncodedValue m_evaluationError;
         // [[DFSIndex]]
         Optional<uint32_t> m_dfsIndex;
@@ -113,6 +114,7 @@ public:
             : m_didCallLoadedCallback(false)
             , m_moduleRecord(nullptr)
             , m_status(Uninstantiated)
+            , m_hasEvaluationError(false)
         {
         }
     };
@@ -149,9 +151,14 @@ public:
     String* moduleRequest(size_t i);
 
     bool isExecuted();
+    bool wasThereErrorOnModuleEvaluation();
+    Value moduleEvaluationError();
 
     // https://www.ecma-international.org/ecma-262/#sec-meta-properties-runtime-semantics-evaluation
     Object* importMetaProperty(ExecutionState& state);
+
+    // https://www.ecma-international.org/ecma-262/#sec-getmodulenamespace
+    ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
 
 #if defined(ENABLE_CODE_CACHE)
     void setCodeCacheMetaInfo(CodeCacheMetaInfoMap* map)
@@ -242,9 +249,6 @@ private:
     // https://www.ecma-international.org/ecma-262/#sec-source-text-module-record-execute-module
     // returns gotExecption and Value
     ModuleExecutionResult moduleExecute(ExecutionState& state);
-
-    // https://www.ecma-international.org/ecma-262/#sec-getmodulenamespace
-    ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
 
     bool m_canExecuteAgain;
     String* m_src;
