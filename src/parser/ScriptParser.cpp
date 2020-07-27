@@ -273,7 +273,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(StringView s
 
 // dump Code Block
 #ifndef NDEBUG
-        if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
+        char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
+        if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
             dumpCodeBlockTree(topCodeBlock);
         }
 #endif
@@ -420,7 +421,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
 // dump Code Block
 #ifndef NDEBUG
-        if (getenv("DUMP_CODEBLOCK_TREE") && strlen(getenv("DUMP_CODEBLOCK_TREE"))) {
+        char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
+        if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
             dumpCodeBlockTree(topCodeBlock);
         }
 #endif
