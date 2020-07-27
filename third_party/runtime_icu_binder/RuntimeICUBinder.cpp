@@ -88,7 +88,10 @@ void ICU::loadSo(ICU::Soname name)
     }
 
     if (!handle) {
-        fputs(dlerror(), stderr);
+        char *error = dlerror();
+        if (error) {
+            fputs(error, stderr);
+        }
         die("failed to open so");
     }
     m_soHandles[name] = handle;
@@ -131,7 +134,10 @@ void *ICU::loadFunction(Soname soname, Function kind)
 
     if (!fn) {
         fputs("failed to load", stderr);
-        fputs(dlerror(), stderr);
+        char *error = dlerror();
+        if (error) {
+            fputs(error, stderr);
+        }
         die(nameBuffer);
     }
 
