@@ -125,7 +125,7 @@ public:
 
         if (LIKELY(codeBlock->canAllocateEnvironmentOnStack())) {
             // no capture, very simple case
-            record = new (alloca(sizeof(FunctionEnvironmentRecord))) FunctionEnvironmentRecordOnStack<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
+            record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>))) FunctionEnvironmentRecordOnStack<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
             lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, self->outerEnvironment()
 #ifndef NDEBUG
                                                                                              ,

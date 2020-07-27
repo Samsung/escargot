@@ -37,7 +37,20 @@ namespace Escargot {
 
 bool Script::isExecuted()
 {
+    if (isModule()) {
+        return m_moduleData->m_status != ModuleData::ModuleStatus::Uninstantiated;
+    }
     return m_topCodeBlock->byteCodeBlock() == nullptr;
+}
+
+bool Script::wasThereErrorOnModuleEvaluation()
+{
+    return m_moduleData && m_moduleData->m_hasEvaluationError;
+}
+
+Value Script::moduleEvaluationError()
+{
+    return m_moduleData ? Value(m_moduleData->m_evaluationError) : Value();
 }
 
 Context* Script::context()
@@ -687,6 +700,7 @@ Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
             // Assert: module.[[Status]] is "evaluated" and module.[[EvaluationError]] is result.
             stack[i]->moduleData()->m_status = ModuleData::Evaluated;
             stack[i]->moduleData()->m_evaluationError = result.value;
+            stack[i]->moduleData()->m_hasEvaluationError = true;
         }
         // Return result.
         return result;

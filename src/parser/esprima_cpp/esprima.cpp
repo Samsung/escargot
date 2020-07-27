@@ -4742,7 +4742,7 @@ public:
         // https://www.ecma-international.org/ecma-262/10.0/#sec-web-compat-functiondeclarationinstantiation
         bool isTopScope = (!this->lexicalBlockIndex || this->currentScopeContext->m_functionBodyBlockIndex == this->lexicalBlockIndex);
         if (this->context->strict) {
-            if (isTopScope) {
+            if (isTopScope && UNLIKELY(this->sourceType != SourceType::Module)) {
                 addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
             } else {
                 addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword);
@@ -5240,6 +5240,7 @@ public:
             case KeywordKind::TypeofKeyword:
             case KeywordKind::VoidKeyword:
             case KeywordKind::YieldKeyword:
+            case KeywordKind::ImportKeyword:
                 start = true;
                 break;
             default:
@@ -5825,7 +5826,7 @@ public:
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
                     AtomicString fnName = declaration->asFunctionDeclaration()->functionName();
                     entry.m_localName = fnName.string()->length() ? fnName : this->escargotContext->staticStrings().stringStarDefaultStar;
-                    addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::VarKeyword);
+                    // addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                     addExportDeclarationEntry(entry);
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));

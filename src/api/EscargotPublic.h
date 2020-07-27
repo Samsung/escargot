@@ -1601,8 +1601,12 @@ public:
     StringRef* sourceCode();
     ValueRef* execute(ExecutionStateRef* state);
 
+    // only module can use these functions
     size_t moduleRequestsLength();
     StringRef* moduleRequest(size_t i);
+    ObjectRef* moduleNamespace(ExecutionStateRef* state);
+    bool wasThereErrorOnModuleEvaluation();
+    ValueRef* moduleEvaluationError();
 };
 
 class ESCARGOT_EXPORT PlatformRef {
@@ -1635,6 +1639,9 @@ public:
     };
     virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) = 0;
     virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> whereRequestFrom, ScriptRef* loadedModule) = 0;
+
+    // Dynamic Import
+    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) = 0;
 };
 
 } // namespace Escargot
