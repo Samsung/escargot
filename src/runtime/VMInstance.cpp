@@ -143,13 +143,13 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
     const bool debuggerEnabled = false;
 #endif /* ESCARGOT_DEBUGGER */
 
-    if (t == GC_EventType::GC_EVENT_MARK_START && !debuggerEnabled) {
-        if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX) {
+    if (t == GC_EventType::GC_EVENT_MARK_START && LIKELY(!debuggerEnabled)) {
+        if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->m_inEnterIdleMode)) {
             self->m_regexpCache->clear();
         }
 
         auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-        if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX) {
+        if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX || UNLIKELY(self->m_inEnterIdleMode)) {
             currentCodeSizeTotal = std::numeric_limits<size_t>::max();
             auto& v = self->compiledByteCodeBlocks();
             for (size_t i = 0; i < v.size(); i++) {
@@ -264,7 +264,7 @@ VMInstance::~VMInstance()
     if (m_onVMInstanceDestroy) {
         m_onVMInstanceDestroy(this, m_onVMInstanceDestroyData);
     }
-    clearCaches();
+    clearCachesRelatedWithContext();
 #ifdef ENABLE_ICU
     vzone_close(m_timezone);
 #endif
@@ -280,6 +280,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_currentSandBox(nullptr)
     , m_randEngine((unsigned int)time(NULL))
     , m_isFinalized(false)
+    , m_inEnterIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
 #ifdef ESCARGOT_DEBUGGER
     , m_debuggerEnabled(false)
@@ -362,7 +363,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
     PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
 
-#define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(new ASCIIString("Symbol." #name, sizeof("Symbol." #name) - 1, String::FromExternalMemory));
+#define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(new ASCIIStringFromExternalMemory("Symbol." #name, sizeof("Symbol." #name) - 1));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 #undef DECLARE_GLOBAL_SYMBOLS
 
@@ -466,11 +467,33 @@ void VMInstance::ensureTimezone()
 }
 #endif
 
-void VMInstance::clearCaches()
+void VMInstance::clearCachesRelatedWithContext()
 {
     m_regexpCache->clear();
     m_cachedUTC = nullptr;
     globalSymbolRegistry().clear();
+}
+
+void VMInstance::enterIdleMode()
+{
+    m_inEnterIdleMode = true;
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    auto& currentAllocatedCompressibleStrings = compressibleStrings();
+    const size_t& currentAllocatedCompressibleStringsCount = currentAllocatedCompressibleStrings.size();
+
+    for (size_t i = 0; i < currentAllocatedCompressibleStringsCount; i++) {
+        if (!currentAllocatedCompressibleStrings[i]->isCompressed()) {
+            currentAllocatedCompressibleStrings[i]->compress();
+        }
+    }
+#endif
+
+
+    m_inEnterIdleMode = false;
 }
 
 void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)

@@ -56,7 +56,11 @@ public:
     }
 
     AtomicString(AtomicStringMap* map, const char* src, size_t len);
-    AtomicString(AtomicStringMap* map, const char* src, size_t len, String::FromExternalMemoryTag);
+    enum FromExternalMemoryTag {
+        FromExternalMemory
+    };
+
+    AtomicString(AtomicStringMap* map, const char* src, size_t len, FromExternalMemoryTag);
     AtomicString(AtomicStringMap* map, const LChar* src, size_t len);
     AtomicString(AtomicStringMap* map, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, String* name);

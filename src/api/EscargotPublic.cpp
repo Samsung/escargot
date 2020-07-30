@@ -254,17 +254,17 @@ StringRef* StringRef::createFromLatin1(const unsigned char* s, size_t len)
 
 StringRef* StringRef::createExternalFromASCII(const char* s, size_t len)
 {
-    return toRef(new ASCIIString(s, len, String::FromExternalMemory));
+    return toRef(new ASCIIStringFromExternalMemory(s, len));
 }
 
 StringRef* StringRef::createExternalFromLatin1(const unsigned char* s, size_t len)
 {
-    return toRef(new Latin1String(s, len, String::FromExternalMemory));
+    return toRef(new Latin1StringFromExternalMemory(s, len));
 }
 
 StringRef* StringRef::createExternalFromUTF16(const char16_t* s, size_t len)
 {
-    return toRef(new UTF16String(s, len, String::FromExternalMemory));
+    return toRef(new UTF16StringFromExternalMemory(s, len));
 }
 
 bool StringRef::isCompressibleStringEnabled()
@@ -369,6 +369,16 @@ char16_t StringRef::charAt(size_t idx)
 size_t StringRef::length()
 {
     return toImpl(this)->length();
+}
+
+bool StringRef::hasExternalMemory()
+{
+    return toImpl(this)->hasExternalMemory();
+}
+
+bool StringRef::isCompressibleString()
+{
+    return toImpl(this)->isCompressibleString();
 }
 
 bool StringRef::equals(StringRef* src)
@@ -723,12 +733,14 @@ void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
                                        (void*)cb);
 }
 
+void VMInstanceRef::enterIdleMode()
+{
+    toImpl(this)->enterIdleMode();
+}
+
 void VMInstanceRef::clearCachesRelatedWithContext()
 {
-    VMInstance* imp = toImpl(this);
-    imp->m_regexpCache->clear();
-    imp->m_cachedUTC = nullptr;
-    imp->globalSymbolRegistry().clear();
+    toImpl(this)->clearCachesRelatedWithContext();
 }
 
 #define DECLARE_GLOBAL_SYMBOLS(name)                      \

@@ -83,7 +83,8 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    void clearCaches();
+    void enterIdleMode();
+    void clearCachesRelatedWithContext();
 
     const GlobalSymbols& globalSymbols()
     {
@@ -256,6 +257,7 @@ private:
     std::mt19937 m_randEngine;
 
     bool m_isFinalized;
+    bool m_inEnterIdleMode;
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;
 #ifdef ESCARGOT_DEBUGGER

@@ -545,6 +545,13 @@ public:
     typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
     void setOnVMInstanceDelete(OnVMInstanceDelete cb);
 
+    // this function enforce do gc,
+    // remove every compiled bytecodes,
+    // remove regexp cache,
+    // and compress every comressible strings if we can
+    void enterIdleMode();
+    // force clear every caches related with context
+    // you can call this function if you don't want to use every alive contexts
     void clearCachesRelatedWithContext();
 
     PlatformRef* platform();
@@ -815,6 +822,10 @@ public:
 
     char16_t charAt(size_t idx);
     size_t length();
+
+    bool hasExternalMemory();
+    bool isCompressibleString();
+
     bool equals(StringRef* src);
     bool equalsWithASCIIString(const char* buf, size_t len);
 

@@ -245,10 +245,6 @@ protected:
     };
 
 public:
-    enum FromExternalMemoryTag {
-        FromExternalMemory
-    };
-
     virtual bool isStringView()
     {
         return false;
@@ -267,6 +263,11 @@ public:
     bool has8BitContent() const
     {
         return m_bufferData.has8BitContent;
+    }
+
+    virtual bool hasExternalMemory()
+    {
+        return false;
     }
 
     static String* fromASCII(const char* s);
@@ -530,6 +531,13 @@ inline int stringCompare(const String& a, const String& b)
 
 class ASCIIString : public String {
 public:
+    explicit ASCIIString()
+        : String()
+    {
+        ASCIIStringData stringData;
+        initBufferAccessData(stringData);
+    }
+
     explicit ASCIIString(ASCIIStringData&& src)
         : String()
     {
@@ -565,21 +573,12 @@ public:
         initBufferAccessData(stringData);
     }
 
-    ASCIIString(const char* str, size_t len, FromExternalMemoryTag)
-        : String()
-    {
-        m_bufferData.bufferAs8Bit = str;
-        m_bufferData.length = len;
-        m_bufferData.hasSpecialImpl = false;
-        m_bufferData.has8BitContent = true;
-    }
-
-    virtual char16_t charAt(const size_t idx) const
+    virtual char16_t charAt(const size_t idx) const override
     {
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual const LChar* characters8() const
+    virtual const LChar* characters8() const override
     {
         return (const LChar*)m_bufferData.buffer;
     }
@@ -591,9 +590,9 @@ public:
         m_bufferData.buffer = stringData.takeBuffer();
     }
 
-    virtual UTF16StringData toUTF16StringData() const;
-    virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const;
+    virtual UTF16StringData toUTF16StringData() const override;
+    virtual UTF8StringData toUTF8StringData() const override;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
     void* operator new(size_t size);
     void* operator new(size_t size, GCPlacement p)
@@ -607,8 +606,32 @@ public:
     void* operator new[](size_t size) = delete;
 };
 
+class ASCIIStringFromExternalMemory : public ASCIIString {
+public:
+    ASCIIStringFromExternalMemory(const char* str, size_t len)
+        : ASCIIString()
+    {
+        m_bufferData.buffer = str;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = true;
+    }
+
+    virtual bool hasExternalMemory() override
+    {
+        return true;
+    }
+};
+
 class Latin1String : public String {
 public:
+    explicit Latin1String()
+        : String()
+    {
+        Latin1StringData data;
+        initBufferAccessData(data);
+    }
+
     explicit Latin1String(Latin1StringData&& src)
         : String()
     {
@@ -630,15 +653,6 @@ public:
         Latin1StringData data;
         data.append((const LChar*)str, len);
         initBufferAccessData(data);
-    }
-
-    Latin1String(const LChar* str, size_t len, FromExternalMemoryTag)
-        : String()
-    {
-        m_bufferData.buffer = str;
-        m_bufferData.length = len;
-        m_bufferData.hasSpecialImpl = false;
-        m_bufferData.has8BitContent = true;
     }
 
     Latin1String(const LChar* str, size_t len)
@@ -669,26 +683,50 @@ public:
         m_bufferData.buffer = stringData.takeBuffer();
     }
 
-    virtual char16_t charAt(const size_t idx) const
+    virtual char16_t charAt(const size_t idx) const override
     {
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual const LChar* characters8() const
+    virtual const LChar* characters8() const override
     {
         return (const LChar*)m_bufferData.buffer;
     }
 
-    virtual UTF16StringData toUTF16StringData() const;
-    virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const;
+    virtual UTF16StringData toUTF16StringData() const override;
+    virtual UTF8StringData toUTF8StringData() const override;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 };
 
+class Latin1StringFromExternalMemory : public Latin1String {
+public:
+    Latin1StringFromExternalMemory(const unsigned char* str, size_t len)
+        : Latin1String()
+    {
+        m_bufferData.buffer = str;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = true;
+    }
+
+    virtual bool hasExternalMemory() override
+    {
+        return true;
+    }
+};
+
 class UTF16String : public String {
 public:
+    explicit UTF16String()
+        : String()
+    {
+        UTF16StringData data;
+        initBufferAccessData(data);
+    }
+
     explicit UTF16String(UTF16StringData&& src)
         : String()
     {
@@ -704,15 +742,6 @@ public:
         initBufferAccessData(data);
     }
 
-    UTF16String(const char16_t* str, size_t len, FromExternalMemoryTag)
-        : String()
-    {
-        m_bufferData.bufferAs16Bit = str;
-        m_bufferData.length = len;
-        m_bufferData.hasSpecialImpl = false;
-        m_bufferData.has8BitContent = false;
-    }
-
     void initBufferAccessData(UTF16StringData& stringData)
     {
         m_bufferData.has8BitContent = false;
@@ -720,23 +749,41 @@ public:
         m_bufferData.buffer = stringData.takeBuffer();
     }
 
-    virtual char16_t charAt(const size_t idx) const
+    virtual char16_t charAt(const size_t idx) const override
     {
         return m_bufferData.uncheckedCharAtFor16Bit(idx);
     }
 
-    virtual const char16_t* characters16() const
+    virtual const char16_t* characters16() const override
     {
         return (const char16_t*)m_bufferData.buffer;
     }
 
-    virtual UTF16StringData toUTF16StringData() const;
-    virtual UTF8StringData toUTF8StringData() const;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const;
+    virtual UTF16StringData toUTF16StringData() const override;
+    virtual UTF8StringData toUTF8StringData() const override;
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 };
+
+class UTF16StringFromExternalMemory : public UTF16String {
+public:
+    UTF16StringFromExternalMemory(const char16_t* str, size_t len)
+        : UTF16String()
+    {
+        m_bufferData.buffer = str;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = false;
+    }
+
+    virtual bool hasExternalMemory() override
+    {
+        return true;
+    }
+};
+
 
 inline String* String::fromCharCode(char32_t code)
 {
