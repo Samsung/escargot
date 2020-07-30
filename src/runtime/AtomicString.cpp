@@ -58,7 +58,7 @@ AtomicString::AtomicString(AtomicStringMap* map, const char* src, size_t len)
     init(map, src, len);
 }
 
-AtomicString::AtomicString(AtomicStringMap* map, const char* src, size_t len, String::FromExternalMemoryTag)
+AtomicString::AtomicString(AtomicStringMap* map, const char* src, size_t len, AtomicString::FromExternalMemoryTag)
 {
     init(map, src, len, true);
 }
@@ -129,7 +129,7 @@ void AtomicString::init(AtomicStringMap* map, const char* src, size_t len, bool 
     if (map->end() == iter) {
         ASCIIString* newStr;
         if (fromExternalMemory) {
-            newStr = new ASCIIString(src, len, String::FromExternalMemory);
+            newStr = new ASCIIStringFromExternalMemory(src, len);
         } else {
             newStr = new ASCIIString(src, len);
         }

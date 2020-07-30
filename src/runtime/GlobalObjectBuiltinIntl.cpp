@@ -522,7 +522,7 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
         i++;
     } while (true);
 
-    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(AtomicString(state.context()->atomicStringMap(), "pluralCategories", sizeof("pluralCategories") - 1, String::FromExternalMemory)),
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(AtomicString(state.context()->atomicStringMap(), "pluralCategories", sizeof("pluralCategories") - 1, AtomicString::FromExternalMemory)),
                                               ObjectPropertyDescriptor(pluralCategories, ObjectPropertyDescriptor::AllPresent));
 
     uenum_close(ue);
