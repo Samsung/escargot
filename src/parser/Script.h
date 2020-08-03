@@ -119,6 +119,9 @@ public:
         }
     };
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     Value execute(ExecutionState& state, bool isExecuteOnEvalFunction = false, bool inStrictMode = false);
     String* srcName()
     {

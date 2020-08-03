@@ -161,7 +161,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     ScriptParser parser(state.context());
     String* scriptSource = src.finalize(&state);
 
-    Script* script = parser.initializeScript(StringView(scriptSource, 0, scriptSource->length()), state.context()->staticStrings().lazyFunctionInput().string(), false, nullptr, false, false, false, false, SIZE_MAX, false, allowSuperCall, false, true).scriptThrowsExceptionIfParseError(state);
+    Script* script = parser.initializeScript(scriptSource, state.context()->staticStrings().lazyFunctionInput().string(), nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlockAt(0);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), state.context()->globalDeclarativeRecord(), state.context()->globalDeclarativeStorage()), nullptr);
 

@@ -54,7 +54,7 @@ public:
 
 #ifdef ESCARGOT_DEBUGGER
         if (context->m_breakpointContext->m_breakpointLocations.size() == 0) {
-            if (codeBlock->m_isEvalMode) {
+            if (context->m_isEvalCode) {
                 context->insertBreakpointAt(1, this);
             } else {
                 insertBreakpoint(context);

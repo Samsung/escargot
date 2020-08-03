@@ -1869,12 +1869,24 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceD
     GCManagedVector<Evaluator::StackTraceData> result;
 
     new (&result) GCManagedVector<Evaluator::StackTraceData>(stackTraceData.size());
+    ByteCodeLOCDataMap locMap;
     for (size_t i = 0; i < stackTraceData.size(); i++) {
         if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
             ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+
+            ByteCodeLOCData* locData;
+            auto iterMap = locMap.find(byteCodeBlock);
+            if (iterMap == locMap.end()) {
+                locData = new ByteCodeLOCData();
+                locMap.insert(std::make_pair(byteCodeBlock, locData));
+            } else {
+                locData = iterMap->second;
+            }
+
             size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
-            stackTraceData[i].second.loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
+            stackTraceData[i].second.loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
         }
+
         Evaluator::StackTraceData t;
         t.src = toRef(stackTraceData[i].second.src);
         t.sourceCode = toRef(stackTraceData[i].second.sourceCode);
@@ -1887,6 +1899,9 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceD
         t.isAssociatedWithJavaScriptCode = stackTraceData[i].second.isAssociatedWithJavaScriptCode;
         t.isEval = stackTraceData[i].second.isEval;
         result[i] = t;
+    }
+    for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
+        delete iter->second;
     }
 
     return result;
@@ -2827,9 +2842,9 @@ ScriptRef* ScriptParserRef::InitializeScriptResult::fetchScriptThrowsExceptionIf
     return script.value();
 }
 
-ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* script, StringRef* srcName, bool isModule)
+ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* source, StringRef* srcName, bool isModule)
 {
-    auto internalResult = toImpl(this)->initializeScript(toImpl(script), toImpl(srcName), isModule);
+    auto internalResult = toImpl(this)->initializeScript(toImpl(source), toImpl(srcName), isModule);
     ScriptParserRef::InitializeScriptResult result;
     if (internalResult.script) {
         result.script = toRef(internalResult.script.value());

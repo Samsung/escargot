@@ -171,19 +171,9 @@ public:
         return m_enabled;
     }
 
-    bool computeLocation(void)
-    {
-        return m_computeLocation;
-    }
-
     bool pendingWait(void)
     {
         return m_pendingWait;
-    }
-
-    void setComputeLocation(bool value)
-    {
-        m_computeLocation = value;
     }
 
     inline void processDisabledBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
@@ -210,7 +200,7 @@ public:
 
     void sendType(uint8_t type);
     void sendSubtype(uint8_t type, uint8_t subType);
-    void sendString(uint8_t type, StringView* string);
+    void sendString(uint8_t type, String* string);
     void sendPointer(uint8_t type, const void* ptr);
     void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
     void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
@@ -225,7 +215,6 @@ protected:
     Debugger()
         : m_enabled(false)
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
-        , m_computeLocation(false)
         , m_pendingWait(false)
         , m_waitForResume(false)
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
@@ -286,7 +275,6 @@ private:
     bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
 
     uint8_t m_delay;
-    bool m_computeLocation : 1;
     bool m_pendingWait : 1;
     bool m_waitForResume : 1;
     ExecutionState* m_stopState;

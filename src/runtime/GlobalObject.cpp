@@ -201,7 +201,8 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #else
         size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
-        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), state.context()->staticStrings().lazyEvalInput().string(), false, nullptr, strictFromOutside, false, true, false, stackRemainApprox, true, false, false, false).scriptThrowsExceptionIfParseError(state);
+
+        Script* script = parser.initializeScript(arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -250,7 +251,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
 
-        Script* script = parser.initializeScript(StringView(arg.asString(), 0, arg.asString()->length()), state.context()->staticStrings().lazyEvalInput().string(), false, parentCodeBlock, strictFromOutside, isRunningEvalOnFunction, true, inWithOperation, stackRemainApprox, true, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty(), allowNewTarget).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), parentCodeBlock, false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty(), allowNewTarget, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;

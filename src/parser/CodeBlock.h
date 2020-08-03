@@ -653,9 +653,16 @@ public:
 
     bool needsToLoadThisBindingFromEnvironment();
 
-    bool isGlobalScopeCodeBlock() const
+    bool isGlobalCodeBlock() const
     {
         return m_parent == nullptr;
+    }
+
+    bool isGlobalScope() const
+    {
+        // For eval code which is not called inside a function
+        // it is handled in the global scope
+        return m_isEvalCode ? !m_isEvalCodeInFunction : isGlobalCodeBlock();
     }
 
     bool hasAncestorUsesNonIndexedVariableStorage()

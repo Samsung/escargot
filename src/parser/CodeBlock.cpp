@@ -435,7 +435,7 @@ void InterpretedCodeBlock::captureArguments()
 {
     AtomicString arguments = m_context->staticStrings().arguments;
     ASSERT(!hasParameterName(arguments));
-    ASSERT(!isGlobalScopeCodeBlock() && !isArrowFunctionExpression());
+    ASSERT(!isGlobalCodeBlock() && !isArrowFunctionExpression());
 
     if (m_usesArgumentsObject) {
         return;
@@ -613,8 +613,8 @@ void InterpretedCodeBlock::computeVariables()
         }
     }
 
-    if (canUseIndexedVariableStorage() && !isGlobalScopeCodeBlock()) {
-        size_t s = isGlobalScopeCodeBlock() ? 1 : 2;
+    if (canUseIndexedVariableStorage() && !isGlobalCodeBlock()) {
+        size_t s = isGlobalCodeBlock() ? 1 : 2;
         size_t h = 0;
 
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
@@ -654,7 +654,7 @@ void InterpretedCodeBlock::computeVariables()
 
         m_identifierOnStackCount = s;
         m_identifierOnHeapCount = h;
-    } else if (isGlobalScopeCodeBlock() && script()->isModule()) {
+    } else if (isGlobalCodeBlock() && script()->isModule()) {
         size_t s = 1;
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
@@ -678,7 +678,7 @@ void InterpretedCodeBlock::computeVariables()
                 }
             }
         } else {
-            ASSERT(isGlobalScopeCodeBlock());
+            ASSERT(isGlobalCodeBlock());
 
             size_t currentStackAllocatedVariableIndex = 0;
             size_t maxStackAllocatedVariableDepth = 0;
@@ -713,7 +713,7 @@ void InterpretedCodeBlock::computeVariables()
             }
         }
 
-        size_t s = isGlobalScopeCodeBlock() ? 1 : 2;
+        size_t s = isGlobalCodeBlock() ? 1 : 2;
         size_t h = 0;
         for (size_t i = 0; i < m_identifierInfos.size(); i++) {
             m_identifierInfos[i].m_needToAllocateOnStack = false;
@@ -746,7 +746,7 @@ void InterpretedCodeBlock::computeVariables()
                 }
             }
         } else {
-            ASSERT(isGlobalScopeCodeBlock());
+            ASSERT(isGlobalCodeBlock());
 
             size_t currentStackAllocatedVariableIndex = 0;
             size_t maxStackAllocatedVariableDepth = 0;
@@ -754,7 +754,7 @@ void InterpretedCodeBlock::computeVariables()
             m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
         }
 
-        if (isGlobalScopeCodeBlock()) {
+        if (isGlobalCodeBlock()) {
             InterpretedCodeBlock::BlockInfo* bi = nullptr;
             for (size_t i = 0; i < m_blockInfos.size(); i++) {
                 if (m_blockInfos[i]->m_blockIndex == 0) {
@@ -828,7 +828,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                     info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
                     info.m_blockIndex = bi->m_blockIndex;
 
-                    if (blk->isGlobalScopeCodeBlock() && !blk->script()->isModule() && bi->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                    if (blk->isGlobalCodeBlock() && !blk->script()->isModule() && bi->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
                         info.m_isGlobalLexicalVariable = true;
                     } else {
                         info.m_isGlobalLexicalVariable = false;
@@ -848,7 +848,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
             blockIndex = bi->m_parentBlockIndex;
         }
 
-        if (blk->isGlobalScopeCodeBlock() && !blk->script()->isModule()) {
+        if (blk->isGlobalCodeBlock() && !blk->script()->isModule()) {
             break;
         }
 
