@@ -267,9 +267,7 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
 
     size_t size;
 
-    m_buffer.ensureSize(4 * sizeof(bool) + sizeof(uint16_t));
-    m_buffer.put(block->m_isEvalMode);
-    m_buffer.put(block->m_isOnGlobal);
+    m_buffer.ensureSize(2 * sizeof(bool) + sizeof(uint16_t));
     m_buffer.put(block->m_shouldClearStack);
     m_buffer.put(block->m_isOwnerMayFreed);
     m_buffer.put((uint16_t)block->m_requiredRegisterFileSizeInValueSize);
@@ -715,8 +713,6 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, Script* scri
     size_t size;
     ByteCodeBlock* block = new ByteCodeBlock(script->topCodeBlock());
 
-    block->m_isEvalMode = m_buffer.get<bool>();
-    block->m_isOnGlobal = m_buffer.get<bool>();
     block->m_shouldClearStack = m_buffer.get<bool>();
     block->m_isOwnerMayFreed = m_buffer.get<bool>();
     block->m_requiredRegisterFileSizeInValueSize = m_buffer.get<uint16_t>();

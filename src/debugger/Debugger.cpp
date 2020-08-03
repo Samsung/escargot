@@ -41,7 +41,7 @@ void Debugger::sendSubtype(uint8_t type, uint8_t subType)
     send(type, &subType, 1);
 }
 
-void Debugger::sendString(uint8_t type, StringView* string)
+void Debugger::sendString(uint8_t type, String* string)
 {
     size_t length = string->length();
 
@@ -306,12 +306,22 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
         minDepth = total;
     }
 
+    ByteCodeLOCDataMap locMap;
     for (uint32_t i = minDepth; i < maxDepth; i++) {
         if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
             ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
             size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
 
-            ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock);
+            ByteCodeLOCData* locData;
+            auto iterMap = locMap.find(byteCodeBlock);
+            if (iterMap == locMap.end()) {
+                locData = new ByteCodeLOCData();
+                locMap.insert(std::make_pair(byteCodeBlock, locData));
+            } else {
+                locData = iterMap->second;
+            }
+
+            ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
 
             sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column, (uint32_t)stackTraceData[i].second.executionStateDepth);
 
@@ -319,6 +329,9 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
                 return;
             }
         }
+    }
+    for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
+        delete iter->second;
     }
 
     sendType(ESCARGOT_MESSAGE_BACKTRACE_END);

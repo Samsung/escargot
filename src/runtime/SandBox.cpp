@@ -66,14 +66,27 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
     }
 #endif /* ESCARGOT_DEBUGGER */
 
+    ByteCodeLOCDataMap locMap;
     for (size_t i = 0; i < m_stackTraceData.size(); i++) {
         if ((size_t)m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
             // this means loc not computed yet.
-            ExtendedNodeLOC loc = m_stackTraceData[i].second.loc.actualCodeBlock->computeNodeLOCFromByteCode(m_context,
-                                                                                                             m_stackTraceData[i].second.loc.byteCodePosition, m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock);
+            ByteCodeBlock* block = m_stackTraceData[i].second.loc.actualCodeBlock;
+
+            ByteCodeLOCData* locData;
+            auto iterMap = locMap.find(block);
+            if (iterMap == locMap.end()) {
+                locData = new ByteCodeLOCData();
+                locMap.insert(std::make_pair(block, locData));
+            } else {
+                locData = iterMap->second;
+            }
+
+            ExtendedNodeLOC loc = block->computeNodeLOCFromByteCode(m_context,
+                                                                    m_stackTraceData[i].second.loc.byteCodePosition, block->m_codeBlock, locData);
+
             StackTraceData traceData;
             traceData.loc = loc;
-            InterpretedCodeBlock* cb = m_stackTraceData[i].second.loc.actualCodeBlock->m_codeBlock;
+            InterpretedCodeBlock* cb = block->m_codeBlock;
             traceData.src = cb->script()->srcName();
             traceData.sourceCode = cb->script()->sourceCode();
             traceData.functionName = m_stackTraceData[i].second.functionName;
@@ -87,12 +100,15 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 #ifdef ESCARGOT_DEBUGGER
             if (i < 8 && debugger && debugger->enabled()) {
                 debugger->sendBacktraceInfo(Debugger::ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE,
-                                            m_stackTraceData[i].second.loc.actualCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column, m_stackTraceData[i].second.executionStateDepth);
+                                            block, (uint32_t)loc.line, (uint32_t)loc.column, m_stackTraceData[i].second.executionStateDepth);
             }
 #endif /* ESCARGOT_DEBUGGER */
         } else {
             result.stackTraceData.pushBack(m_stackTraceData[i].second);
         }
+    }
+    for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
+        delete iter->second;
     }
 }
 
@@ -331,20 +347,34 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
             return Value();
         });
     }
+
+    ByteCodeLOCDataMap locMap;
     for (size_t i = 0; i < gcValues.size(); i++) {
         builder.appendString("at ");
         if (nonGCValues[i].byteCodePosition == SIZE_MAX) {
             builder.appendString(gcValues[i].infoString);
         } else {
+            ByteCodeBlock* block = gcValues[i].byteCodeBlock;
+
+            ByteCodeLOCData* locData;
+            auto iterMap = locMap.find(block);
+            if (iterMap == locMap.end()) {
+                locData = new ByteCodeLOCData();
+                locMap.insert(std::make_pair(block, locData));
+            } else {
+                locData = iterMap->second;
+            }
+
             ExtendedNodeLOC loc = gcValues[i].byteCodeBlock->computeNodeLOCFromByteCode(context,
-                                                                                        nonGCValues[i].byteCodePosition, gcValues[i].byteCodeBlock->m_codeBlock);
-            builder.appendString(gcValues[i].byteCodeBlock->m_codeBlock->script()->srcName());
+                                                                                        nonGCValues[i].byteCodePosition, block->m_codeBlock, locData);
+
+            builder.appendString(block->m_codeBlock->script()->srcName());
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.line));
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.column));
 
-            String* src = gcValues[i].byteCodeBlock->m_codeBlock->script()->sourceCode();
+            String* src = block->m_codeBlock->script()->sourceCode();
             if (src->length()) {
                 const size_t preLineMax = 40;
                 const size_t afterLineMax = 40;
@@ -396,6 +426,9 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
         if (i != gcValues.size() - 1) {
             builder.appendChar('\n');
         }
+    }
+    for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
+        delete iter->second;
     }
 }
 

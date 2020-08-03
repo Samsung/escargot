@@ -77,15 +77,22 @@ void SetGlobalVariable::dump(const char* byteCodeStart)
 }
 #endif
 
+ByteCodeBlock::ByteCodeBlock()
+    : m_shouldClearStack(false)
+    , m_isOwnerMayFreed(false)
+    , m_requiredRegisterFileSizeInValueSize(2)
+    , m_inlineCacheDataSize(0)
+    , m_codeBlock(nullptr)
+{
+    // This constructor is used to allocate a ByteCodeBlock on the stack
+}
+
 ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
-    : m_isEvalMode(false)
-    , m_isOnGlobal(false)
-    , m_shouldClearStack(false)
+    : m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_requiredRegisterFileSizeInValueSize(2)
     , m_inlineCacheDataSize(0)
     , m_codeBlock(codeBlock)
-    , m_locData(nullptr)
 {
     auto& v = m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
     v.push_back(this);
@@ -101,10 +108,6 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
 
         self->m_code.clear();
         self->m_numeralLiteralData.clear();
-        if (self->m_locData) {
-            delete self->m_locData;
-            self->m_locData = nullptr;
-        }
 
         if (!self->m_isOwnerMayFreed) {
             auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
@@ -129,58 +132,38 @@ void* ByteCodeBlock::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void ByteCodeBlock::fillLocDataIfNeeded(Context* c)
+void ByteCodeBlock::fillLOCData(Context* context, ByteCodeLOCData* locData)
 {
-    if (m_locData || m_codeBlock->src().length() == 0) {
+    ASSERT(!!locData && locData->size() == 0);
+
+    if (m_codeBlock->src().length() == 0) {
+        // prevent infinate fillLOCData if m_locData.size() == 0 in here
+        locData->push_back(std::make_pair(SIZE_MAX, SIZE_MAX));
         return;
     }
 
-#ifdef ESCARGOT_DEBUGGER
-    if (c->debugger()) {
-        ASSERT(!c->debugger()->computeLocation());
-        c->debugger()->setComputeLocation(true);
-    }
-#endif /* ESCARGOT_DEBUGGER */
+    ByteCodeGenerator::collectByteCodeLOCData(context, m_codeBlock, locData);
 
-    GC_disable();
-
-    ByteCodeBlock* block;
-    // TODO give correct stack limit to parser
-    if (m_codeBlock->isGlobalScopeCodeBlock()) {
-        ProgramNode* nd = esprima::parseProgram(c, m_codeBlock->src(), m_codeBlock->script()->isModule(), m_codeBlock->isStrict(), m_codeBlock->inWith(), SIZE_MAX, false, false, false);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock, nd, m_isEvalMode, m_isOnGlobal, false, true);
-    } else {
-        auto body = esprima::parseSingleFunction(c, m_codeBlock, SIZE_MAX);
-        block = ByteCodeGenerator::generateByteCode(c, m_codeBlock, body, m_isEvalMode, m_isOnGlobal, false, true);
-    }
-    m_locData = block->m_locData;
-    block->m_locData = nullptr;
-    // prevent infinate fillLocDataIfNeeded if m_locData.size() == 0 in here
-    m_locData->push_back(std::make_pair(SIZE_MAX, SIZE_MAX));
-
-    // reset ASTAllocator
-    c->astAllocator().reset();
-    GC_enable();
-
-#ifdef ESCARGOT_DEBUGGER
-    if (c->debugger()) {
-        c->debugger()->setComputeLocation(false);
-    }
-#endif /* ESCARGOT_DEBUGGER */
+    // prevent infinate fillLOCData if m_locData.size() == 0 in here
+    locData->push_back(std::make_pair(SIZE_MAX, SIZE_MAX));
 }
 
-ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb)
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData)
 {
+    ASSERT(!!locData);
+
     if (codePosition == SIZE_MAX) {
         return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
     }
 
-    fillLocDataIfNeeded(c);
+    if (!locData->size()) {
+        fillLOCData(c, locData);
+    }
 
     size_t index = 0;
-    for (size_t i = 0; i < m_locData->size(); i++) {
-        if ((*m_locData)[i].first == codePosition) {
-            index = (*m_locData)[i].second;
+    for (size_t i = 0; i < locData->size(); i++) {
+        if ((*locData)[i].first == codePosition) {
+            index = (*locData)[i].second;
             if (index == SIZE_MAX) {
                 return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             }

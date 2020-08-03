@@ -318,7 +318,7 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     tempCodeBlockMap.clear();
     m_reader->clear();
 
-    ASSERT(topCodeBlock->isGlobalScopeCodeBlock());
+    ASSERT(topCodeBlock->isGlobalCodeBlock());
     // return topCodeBlock
     return topCodeBlock;
 }

@@ -50,22 +50,6 @@ struct ClassContextInformation {
     String* m_src;
 };
 
-struct ParserContextInformation {
-    ParserContextInformation(bool isEvalCode = false, bool isForGlobalScope = false, bool isStrict = false, bool isWithScope = false)
-        : m_isEvalCode(isEvalCode)
-        , m_isForGlobalScope(isForGlobalScope)
-        , m_isWithScope(isWithScope)
-    {
-        // NOTE: ES5 10.4.2.1
-        if (isEvalCode && isStrict)
-            m_isForGlobalScope = false;
-    }
-
-    bool m_isEvalCode : 1;
-    bool m_isForGlobalScope : 1;
-    bool m_isWithScope : 1;
-};
-
 #ifdef ESCARGOT_DEBUGGER
 struct ByteCodeBreakpointContext {
     size_t m_lastBreakpointLineOffset;
@@ -81,22 +65,24 @@ struct ByteCodeBreakpointContext {
 #endif /* ESCARGOT_DEBUGGER */
 
 struct ByteCodeGenerateContext {
-    ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, ParserContextInformation& parserContextInformation, NumeralLiteralVector* numeralLiteralData)
+    ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode, bool isWithScope, NumeralLiteralVector* numeralLiteralData)
         : m_baseRegisterCount(0)
         , m_codeBlock(codeBlock)
         , m_byteCodeBlock(byteCodeBlock)
-        , m_isGlobalScope(parserContextInformation.m_isForGlobalScope)
-        , m_isEvalCode(parserContextInformation.m_isEvalCode)
+        , m_locData(nullptr)
+        , m_isGlobalScope(isGlobalScope)
+        , m_isEvalCode(isEvalCode)
         , m_isOutermostContext(true)
-        , m_isWithScope(parserContextInformation.m_isWithScope)
+        , m_isWithScope(isWithScope)
         , m_isFunctionDeclarationBindingInitialization(false)
         , m_isVarDeclaredBindingInitialization(false)
         , m_isLexicallyDeclaredBindingInitialization(false)
         , m_canSkipCopyToRegister(true)
         , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
+        , m_inCallingExpressionScope(false)
         , m_inObjectDestruction(false)
         , m_inParameterInitialization(false)
-        , m_shouldGenerateLOCData(false)
+        , m_isHeadOfMemberExpression(false)
         , m_forInOfVarBinding(false)
         , m_isLeftBindingAffectedByRightExpression(false)
         , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
@@ -113,8 +99,6 @@ struct ByteCodeGenerateContext {
         , m_breakpointContext(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
     {
-        m_inCallingExpressionScope = false;
-        m_isHeadOfMemberExpression = false;
         m_classInfo = ClassContextInformation();
     }
 
@@ -122,6 +106,7 @@ struct ByteCodeGenerateContext {
         : m_baseRegisterCount(contextBefore.m_baseRegisterCount)
         , m_codeBlock(contextBefore.m_codeBlock)
         , m_byteCodeBlock(contextBefore.m_byteCodeBlock)
+        , m_locData(contextBefore.m_locData)
         , m_isGlobalScope(contextBefore.m_isGlobalScope)
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
@@ -134,7 +119,7 @@ struct ByteCodeGenerateContext {
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
         , m_inObjectDestruction(contextBefore.m_inObjectDestruction)
         , m_inParameterInitialization(contextBefore.m_inParameterInitialization)
-        , m_shouldGenerateLOCData(contextBefore.m_shouldGenerateLOCData)
+        , m_isHeadOfMemberExpression(false)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
         , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
         , m_registerStack(contextBefore.m_registerStack)
@@ -153,9 +138,7 @@ struct ByteCodeGenerateContext {
         , m_breakpointContext(contextBefore.m_breakpointContext)
 #endif /* ESCARGOT_DEBUGGER */
     {
-        m_isHeadOfMemberExpression = false;
     }
-
 
     ~ByteCodeGenerateContext()
     {
@@ -281,10 +264,6 @@ struct ByteCodeGenerateContext {
     void consumeContinuePositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);
     void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
     void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos, size_t outerLimitCount = SIZE_MAX);
-    bool isGlobalScope()
-    {
-        return m_isGlobalScope;
-    }
 
     bool shouldCareScriptExecutionResult()
     {
@@ -349,6 +328,8 @@ struct ByteCodeGenerateContext {
 
     InterpretedCodeBlock* m_codeBlock;
     ByteCodeBlock* m_byteCodeBlock;
+    std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>>* m_locData; // used only for calculating location info
+
     bool m_isGlobalScope : 1;
     bool m_isEvalCode : 1;
     bool m_isOutermostContext : 1;
@@ -362,7 +343,6 @@ struct ByteCodeGenerateContext {
     bool m_inObjectDestruction : 1;
     bool m_inParameterInitialization : 1;
     bool m_isHeadOfMemberExpression : 1;
-    bool m_shouldGenerateLOCData : 1;
     bool m_forInOfVarBinding : 1;
     bool m_isLeftBindingAffectedByRightExpression : 1; // x = delete x; or x = eval("var x"), 1;
 
@@ -401,7 +381,8 @@ struct ByteCodeGenerateContext {
 
 class ByteCodeGenerator {
 public:
-    static ByteCodeBlock* generateByteCode(Context* context, InterpretedCodeBlock* codeBlock, Node* ast, bool isEvalMode = false, bool isOnGlobal = false, bool inWithFromRuntime = false, bool shouldGenerateLOCData = false, bool cacheByteCode = false);
+    static ByteCodeBlock* generateByteCode(Context* context, InterpretedCodeBlock* codeBlock, Node* ast, bool inWithFromRuntime = false, bool cacheByteCode = false);
+    static void collectByteCodeLOCData(Context* context, InterpretedCodeBlock* codeBlock, std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>>* locData);
     static void relocateByteCode(ByteCodeBlock* block);
 
 #ifndef NDEBUG

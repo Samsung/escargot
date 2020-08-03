@@ -46,7 +46,7 @@ public:
                 }
             }
             if (nameCase) {
-                if (name.string()->equals("arguments") && !context->isGlobalScope()) {
+                if (name.string()->equals("arguments") && !context->m_isGlobalScope) {
                     size_t srcIndex = m_argument->getRegister(codeBlock, context);
                     m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
                     context->giveUpRegister();

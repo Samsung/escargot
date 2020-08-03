@@ -158,19 +158,11 @@ const uint8_t byteCodeLengths[] = {
 #undef ITER_BYTE_CODE
 };
 
-ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, InterpretedCodeBlock* codeBlock, Node* ast, bool isEvalMode, bool isOnGlobal, bool inWithFromRuntime, bool shouldGenerateLOCData, bool cacheByteCode)
+ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, InterpretedCodeBlock* codeBlock, Node* ast, bool inWithFromRuntime, bool cacheByteCode)
 {
-    ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
-    block->m_isEvalMode = isEvalMode;
-    block->m_isOnGlobal = isOnGlobal;
+    ASSERT(!codeBlock->byteCodeBlock());
 
-    bool isGlobalScope;
-    if (!isEvalMode) {
-        isGlobalScope = codeBlock->isGlobalScopeCodeBlock();
-    } else {
-        isGlobalScope = isOnGlobal;
-    }
-    ParserContextInformation info(isEvalMode, isGlobalScope, codeBlock->isStrict(), inWithFromRuntime || codeBlock->inWith());
+    ByteCodeBlock* block = new ByteCodeBlock(codeBlock);
 
     NumeralLiteralVector* nData = nullptr;
 
@@ -184,17 +176,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         nData = nullptr;
     }
 
-    ByteCodeGenerateContext ctx(codeBlock, block, info, nData);
+    ByteCodeGenerateContext ctx(codeBlock, block, codeBlock->isGlobalScope(), codeBlock->isEvalCode(), inWithFromRuntime || codeBlock->inWith(), nData);
 
 #ifdef ESCARGOT_DEBUGGER
     ByteCodeBreakpointContext breakpointContext;
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
-
-    ctx.m_shouldGenerateLOCData = shouldGenerateLOCData;
-    if (shouldGenerateLOCData) {
-        block->m_locData = new ByteCodeLOCData();
-    }
 
     // generate common codes
     {
@@ -219,7 +206,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         ast->generateStatementByteCode(block, &ctx);
 
 #ifdef ESCARGOT_DEBUGGER
-        if (context->debugger() && context->debugger()->enabled() && !context->debugger()->computeLocation()) {
+        if (context->debugger() && context->debugger()->enabled()) {
             context->debugger()->sendBreakpointLocations(breakpointContext.m_breakpointLocations);
         }
 #endif /* ESCARGOT_DEBUGGER */
@@ -250,12 +237,78 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     ByteCodeGenerator::relocateByteCode(block);
 
 #ifndef NDEBUG
-    if (!shouldGenerateLOCData) {
-        ByteCodeGenerator::printByteCode(context, block);
-    }
+    ByteCodeGenerator::printByteCode(context, block);
 #endif
 
     return block;
+}
+
+void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCodeBlock* codeBlock, ByteCodeLOCData* locData)
+{
+    // this function is called only to calculate location info of each bytecode
+    ASSERT(!!locData && !locData->size());
+
+    GC_disable();
+
+    // Parsing
+    Node* ast = nullptr;
+    if (codeBlock->isGlobalCodeBlock()) {
+        ast = esprima::parseProgram(context, codeBlock->src(), codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), SIZE_MAX, false, false, false);
+    } else {
+        ast = esprima::parseSingleFunction(context, codeBlock, SIZE_MAX);
+    }
+
+    // Generate ByteCode
+    // ByteCodeBlock is temporally allocated on the stack
+    ByteCodeBlock block;
+    block.m_codeBlock = codeBlock;
+
+    NumeralLiteralVector* nData = nullptr;
+
+    if (ast->type() == ASTNodeType::Program) {
+        nData = &((ProgramNode*)ast)->numeralLiteralVector();
+    } else {
+        nData = &((FunctionNode*)ast)->numeralLiteralVector();
+    }
+
+    if (nData->size() == 0) {
+        nData = nullptr;
+    }
+
+    ByteCodeGenerateContext ctx(codeBlock, &block, codeBlock->isGlobalScope(), codeBlock->isEvalCode(), codeBlock->inWith(), nData);
+    ctx.m_locData = locData;
+
+#ifdef ESCARGOT_DEBUGGER
+    ByteCodeBreakpointContext breakpointContext;
+    ctx.m_breakpointContext = &breakpointContext;
+#endif /* ESCARGOT_DEBUGGER */
+
+    // generate common codes
+    {
+        AtomicString name = codeBlock->functionName();
+        if (name.string()->length()) {
+            if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
+                if (codeBlock->canUseIndexedVariableStorage()) {
+                    if (!codeBlock->isFunctionNameSaveOnHeap()) {
+                        auto r = ctx.getRegister();
+                        block.pushCode(LoadLiteral(ByteCodeLOC(0), r, Value()), &ctx, nullptr);
+                        block.pushCode(Move(ByteCodeLOC(0), r, REGULAR_REGISTER_LIMIT + 1), &ctx, nullptr);
+                        ctx.giveUpRegister();
+                    }
+                }
+            } else if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap() && !name.string()->equals("arguments"))) {
+                ctx.m_isVarDeclaredBindingInitialization = true;
+                IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(codeBlock->functionName());
+                id->generateStoreByteCode(&block, &ctx, REGULAR_REGISTER_LIMIT + 1, true);
+            }
+        }
+
+        ast->generateStatementByteCode(&block, &ctx);
+    }
+
+    // reset ASTAllocator
+    context->astAllocator().reset();
+    GC_enable();
 }
 
 void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
@@ -740,7 +793,7 @@ void ByteCodeGenerator::printByteCode(Context* context, ByteCodeBlock* block)
 
         size_t b = block->m_requiredRegisterFileSizeInValueSize + 1;
         printf("`r%d this`,", (int)block->m_requiredRegisterFileSizeInValueSize);
-        if (!codeBlock->isGlobalScopeCodeBlock()) {
+        if (!codeBlock->isGlobalCodeBlock()) {
             printf("`r%d function`,", (int)b);
             b++;
         }

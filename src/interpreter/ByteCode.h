@@ -2486,17 +2486,21 @@ typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>> ByteCodeStringLite
 typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeOtherLiteralData;
 
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
+typedef std::unordered_map<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
 
 class ByteCodeBlock : public gc {
 public:
+    explicit ByteCodeBlock();
     explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock);
 
     void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     template <typename CodeType>
     void pushCode(const CodeType& code, ByteCodeGenerateContext* context, Node* node)
     {
         size_t idx = node ? node->m_loc.index : SIZE_MAX;
+
 #ifndef NDEBUG
         {
             CodeType& t = const_cast<CodeType&>(code);
@@ -2514,8 +2518,10 @@ public:
 
         char* first = (char*)&code;
         size_t start = m_code.size();
-        if (context->m_shouldGenerateLOCData)
-            m_locData->push_back(std::make_pair(start, idx));
+
+        if (UNLIKELY(!!context->m_locData)) {
+            context->m_locData->push_back(std::make_pair(start, idx));
+        }
 
         m_code.resizeWithUninitializedValues(m_code.size() + sizeof(CodeType));
         for (size_t i = 0; i < sizeof(CodeType); i++) {
@@ -2579,7 +2585,6 @@ public:
     {
         size_t siz = m_code.capacity();
         siz += sizeof(ByteCodeBlock);
-        siz += m_locData ? (m_locData->size() * sizeof(std::pair<size_t, size_t>)) : 0;
         siz += m_numeralLiteralData.size() * sizeof(Value);
         siz += m_stringLiteralData.size() * sizeof(intptr_t);
         siz += m_otherLiteralData.size() * sizeof(intptr_t);
@@ -2587,12 +2592,10 @@ public:
         return siz;
     }
 
-    ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb);
+    ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData);
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
-    void fillLocDataIfNeeded(Context* c);
+    void fillLOCData(Context* c, ByteCodeLOCData* locData);
 
-    bool m_isEvalMode : 1;
-    bool m_isOnGlobal : 1;
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
     ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize : REGISTER_INDEX_IN_BIT;
@@ -2607,8 +2610,6 @@ public:
     ByteCodeOtherLiteralData m_otherLiteralData;
 
     InterpretedCodeBlock* m_codeBlock;
-
-    ByteCodeLOCData* m_locData;
 };
 } // namespace Escargot
 

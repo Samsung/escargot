@@ -35,6 +35,22 @@
 
 namespace Escargot {
 
+void* Script::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(Script)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_srcName));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_sourceCode));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_topCodeBlock));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_moduleData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Script));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 bool Script::isExecuted()
 {
     if (isModule()) {
