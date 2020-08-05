@@ -33,68 +33,68 @@ void* CompressibleString::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(CompressibleString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_context));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_vmInstance));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CompressibleString));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-CompressibleString::CompressibleString(Context* context)
+CompressibleString::CompressibleString(VMInstance* instance)
     : String()
     , m_isOwnerMayFreed(false)
     , m_isCompressed(false)
-    , m_context(context)
+    , m_vmInstance(instance)
     , m_lastUsedTickcount(fastTickCount())
 {
     m_bufferData.hasSpecialImpl = true;
 
-    auto& v = context->vmInstance()->compressibleStrings();
+    auto& v = instance->compressibleStrings();
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         CompressibleString* self = (CompressibleString*)obj;
         if (self->isCompressed()) {
             self->m_compressedData.~CompressedDataVector();
         } else {
-            deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer));
+            deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2));
         }
 
         if (!self->m_isOwnerMayFreed) {
-            self->m_context->vmInstance()->compressibleStringsUncomressedBufferSize() -= self->decomressedBufferSize();
+            self->m_vmInstance->compressibleStringsUncomressedBufferSize() -= self->decomressedBufferSize();
 
-            auto& v = self->m_context->vmInstance()->compressibleStrings();
+            auto& v = self->m_vmInstance->compressibleStrings();
             v.erase(std::find(v.begin(), v.end(), self));
         }
     },
                                    nullptr, nullptr, nullptr);
 }
 
-CompressibleString::CompressibleString(Context* context, const char* str, size_t len)
-    : CompressibleString(context)
+CompressibleString::CompressibleString(VMInstance* instance, const char* str, size_t len)
+    : CompressibleString(instance)
 {
     char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len);
     memcpy(buf, str, len);
     initBufferAccessData(buf, len, true);
 }
 
-CompressibleString::CompressibleString(Context* context, const LChar* str, size_t len)
-    : CompressibleString(context)
+CompressibleString::CompressibleString(VMInstance* instance, const LChar* str, size_t len)
+    : CompressibleString(instance)
 {
     char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len);
     memcpy(buf, str, len);
     initBufferAccessData(buf, len, true);
 }
 
-CompressibleString::CompressibleString(Context* context, const char16_t* str, size_t len)
-    : CompressibleString(context)
+CompressibleString::CompressibleString(VMInstance* instance, const char16_t* str, size_t len)
+    : CompressibleString(instance)
 {
     char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len * 2);
     memcpy(buf, str, len * 2);
     initBufferAccessData(buf, len, false);
 }
 
-CompressibleString::CompressibleString(Context* context, void* buffer, size_t stringLength, bool is8bit)
-    : CompressibleString(context)
+CompressibleString::CompressibleString(VMInstance* instance, void* buffer, size_t stringLength, bool is8bit)
+    : CompressibleString(instance)
 {
     initBufferAccessData(buffer, stringLength, is8bit);
 }
@@ -105,7 +105,7 @@ void CompressibleString::initBufferAccessData(void* data, size_t len, bool is8bi
     m_bufferData.length = len;
     m_bufferData.buffer = data;
 
-    m_context->vmInstance()->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
+    m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
 }
 
 UTF8StringDataNonGCStd CompressibleString::toNonGCUTF8StringData(int options) const
@@ -138,7 +138,7 @@ void* CompressibleString::allocateStringDataBuffer(size_t byteLength)
     return malloc(byteLength);
 }
 
-void CompressibleString::deallocateStringDataBuffer(void* ptr)
+void CompressibleString::deallocateStringDataBuffer(void* ptr, size_t byteLength)
 {
     free(ptr);
 }
@@ -182,9 +182,9 @@ bool CompressibleString::compressWorker(void* callerSP)
 
 #if defined(STACK_GROWS_DOWN)
     size_t* start = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-    size_t* end = (size_t*)m_context->vmInstance()->stackStartAddress();
+    size_t* end = (size_t*)m_vmInstance->stackStartAddress();
 #else
-    size_t* start = (size_t*)m_context->vmInstance()->stackStartAddress();
+    size_t* start = (size_t*)m_vmInstance->stackStartAddress();
     size_t* end = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
 #endif
 
@@ -217,13 +217,22 @@ bool CompressibleString::compressWorker(void* callerSP)
         m_compressedData.push_back(std::vector<char>(compBuffer.get(), compBuffer.get() + compressedLength));
     }
 
-    m_context->vmInstance()->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
+    m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
 
     // immediately free the original string after compression when there is no reference on stack
-    deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer));
+    deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
 
     m_bufferData.bufferAs8Bit = nullptr;
     m_isCompressed = true;
+
+    /*
+    size_t compressedSize = 0;
+    for (size_t i = 0; i < m_compressedData.size(); i ++) {
+        compressedSize += m_compressedData[i].size();
+    }
+    ESCARGOT_LOG_INFO("CompressibleString::compressWorker %fKB -> %fKB\n", originByteLength / 1024.f, compressedSize / 1024.f);
+    */
+
     return true;
 }
 
@@ -255,7 +264,7 @@ void CompressibleString::decompressWorker()
     m_bufferData.bufferAs8Bit = const_cast<const char*>(dstBuffer);
     m_isCompressed = false;
 
-    m_context->vmInstance()->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
+    m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
 }
 }
 

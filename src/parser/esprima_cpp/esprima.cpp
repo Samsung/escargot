@@ -57,8 +57,14 @@
 #define ASTSentinelNode typename ASTBuilder::ASTSentinelNode
 #define ASTNodeList typename ASTBuilder::ASTNodeList
 
+#if defined(ESCARGOT_SMALL_CONFIG)
+#define NEW_FUNCTION_AST_BUILDER() NodeGenerator newBuilder(this->allocator, false);
+#else
+#define NEW_FUNCTION_AST_BUILDER() SyntaxChecker newBuilder;
+#endif
+
 #define BEGIN_FUNCTION_SCANNING(name)                                    \
-    SyntaxChecker newBuilder;                                            \
+    NEW_FUNCTION_AST_BUILDER()                                           \
     auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex;               \
     auto oldScopeContext = pushScopeContext(name);                       \
     LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex; \
@@ -1025,7 +1031,7 @@ public:
                 ALLOC_TOKEN(token);
                 this->nextToken(token);
                 // raw = this->getTokenRaw(token);
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     if (token->type == Token::NumericLiteralToken) {
                         double d = token->valueNumberLiteral(this->scanner);
                         if (this->context->inLoop || d == 0) {
@@ -1050,7 +1056,7 @@ public:
             // raw = this->getTokenRaw(token);
             {
                 bool value = token->relatedSource(this->scanner->source) == "true";
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     this->insertNumeralLiteral(Value(value));
                 }
                 return this->finalize(node, builder.createLiteralNode(Value(value)));
@@ -1065,7 +1071,7 @@ public:
             this->nextToken(token);
             // token.value = null;
             // raw = this->getTokenRaw(token);
-            if (builder.isNodeGenerator()) {
+            if (builder.willGenerateByteCode()) {
                 this->insertNumeralLiteral(Value(Value::Null));
             }
             return this->finalize(node, builder.createLiteralNode(Value(Value::Null)));
@@ -1388,7 +1394,7 @@ public:
     {
         // parseFormalParameters only scans the parameter list of function
         // should be invoked only during the global parsing (program)
-        ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
+        ASSERT(!builder.willGenerateByteCode() && !this->isParsingSingleFunction);
 
         bool oldInParameterParsing = this->context->inParameterParsing;
         bool oldInParameterNameParsing = this->context->inParameterNameParsing;
@@ -1590,14 +1596,16 @@ public:
             {
                 Value v;
                 if (builder.isNodeGenerator()) {
-                    if (token->type == Token::NumericLiteralToken) {
-                        double d = token->valueNumberLiteral(this->scanner);
-                        if (this->context->inLoop || d == 0) {
-                            this->insertNumeralLiteral(Value(d));
+                    if (builder.willGenerateByteCode()) {
+                        if (token->type == Token::NumericLiteralToken) {
+                            double d = token->valueNumberLiteral(this->scanner);
+                            if (this->context->inLoop || d == 0) {
+                                this->insertNumeralLiteral(Value(d));
+                            }
+                            v = Value(d);
+                        } else {
+                            v = token->valueStringLiteralToValue(this->scanner);
                         }
-                        v = Value(d);
-                    } else {
-                        v = token->valueStringLiteralToValue(this->scanner);
                     }
                 } else {
                     if (token->type == Token::StringLiteralToken) {
@@ -2272,7 +2280,7 @@ public:
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     this->taggedTemplateExpressionIndex++;
                 }
 
@@ -2343,7 +2351,7 @@ public:
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     this->taggedTemplateExpressionIndex++;
                 }
 
@@ -2973,8 +2981,11 @@ public:
                     this->parseFunctionSourceElements(newBuilder);
                 } else {
                     auto oldNameCallback = this->nameDeclaredCallback;
-
+#if defined(ESCARGOT_SMALL_CONFIG)
+                    this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+#else
                     this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<SyntaxChecker, false>);
+#endif
 
                     this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -4605,7 +4616,7 @@ public:
     {
         // parseFunctionSourceElements only scans the body of function
         // should be invoked only during the global parsing (program)
-        ASSERT(!builder.isNodeGenerator() && !this->isParsingSingleFunction);
+        ASSERT(!builder.willGenerateByteCode() && !this->isParsingSingleFunction);
 
         // return empty node because the function body node is never used now
         ASTNode result = nullptr;
@@ -4722,7 +4733,7 @@ public:
                 }
             }
             // in global scope, await is allowed
-            if (UNLIKELY(isAsync && !builder.isNodeGenerator())) {
+            if (UNLIKELY(isAsync && !builder.willGenerateByteCode())) {
                 if (id->asIdentifier()->name().string()->equals("await")) {
                     this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
@@ -4930,7 +4941,7 @@ public:
                 }
             }
             // in global scope, await is allowed
-            if (UNLIKELY(isAsync && !builder.isNodeGenerator())) {
+            if (UNLIKELY(isAsync && !builder.willGenerateByteCode())) {
                 if (id->asIdentifier()->name().string()->equals("await")) {
                     this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
@@ -5633,7 +5644,7 @@ public:
                 // import {bar}
                 specifiers = this->parseNamedImports(builder);
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     for (ASTSentinelNode specifier = specifiers.begin(); specifier != specifiers.end(); specifier = specifier->next()) {
                         Script::ImportEntry entry;
                         entry.m_importName = specifier->astNode()->asImportSpecifier()->imported()->name();
@@ -5645,7 +5656,7 @@ public:
                 // import * as foo
                 specifiers.append(this->allocator, this->parseImportNamespaceSpecifier(builder));
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     Script::ImportEntry entry;
                     entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
                     entry.m_localName = specifiers.back()->astNode()->asImportNamespaceSpecifier()->local()->name();
@@ -5655,7 +5666,7 @@ public:
                 // import foo
                 specifiers.append(this->allocator, this->parseImportDefaultSpecifier(builder));
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     Script::ImportEntry entry;
                     entry.m_importName = this->escargotContext->staticStrings().stringDefault;
                     entry.m_localName = specifiers.back()->astNode()->asImportDefaultSpecifier()->local()->name();
@@ -5668,7 +5679,7 @@ public:
                         // import foo, * as foo
                         specifiers.append(this->allocator, this->parseImportNamespaceSpecifier(builder));
 
-                        if (builder.isNodeGenerator()) {
+                        if (builder.willGenerateByteCode()) {
                             Script::ImportEntry entry;
                             entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
                             entry.m_localName = specifiers.back()->astNode()->asImportNamespaceSpecifier()->local()->name();
@@ -5678,7 +5689,7 @@ public:
                         // import foo, {bar}
                         auto v = this->parseNamedImports(builder);
 
-                        if (builder.isNodeGenerator()) {
+                        if (builder.willGenerateByteCode()) {
                             for (ASTSentinelNode n = v.begin(); n != v.end(); n = n->next()) {
                                 Script::ImportEntry entry;
                                 entry.m_importName = n->astNode()->asImportSpecifier()->imported()->name();
@@ -5706,7 +5717,7 @@ public:
         }
         this->consumeSemicolon();
 
-        if (builder.isNodeGenerator()) {
+        if (builder.willGenerateByteCode()) {
             for (size_t i = 0; i < importEntrys.size(); i++) {
                 importEntrys[i].m_moduleRequest = src->asLiteral()->value().asString();
                 addDeclaredNameIntoContext(importEntrys[i].m_localName, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
@@ -5821,7 +5832,7 @@ public:
                 // export default function () {}
                 ASTNode declaration = this->parseFunctionDeclaration<ASTBuilder, true>(builder);
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
                     AtomicString fnName = declaration->asFunctionDeclaration()->functionName();
@@ -5835,7 +5846,7 @@ public:
                 // export default class foo {}
                 auto classNode = this->parseClassExpression(builder);
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     this->addImplicitName(classNode, this->escargotContext->staticStrings().stringDefault);
 
                     Script::ExportEntry entry;
@@ -5889,7 +5900,7 @@ public:
                 }
                 ASTNode src = this->parseModuleSpecifier(builder);
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
                     entry.m_moduleRequest = src->asLiteral()->value().asString();
@@ -5922,7 +5933,7 @@ public:
 
                 ASTNode src = this->parseModuleSpecifier(builder);
 
-                if (builder.isNodeGenerator()) {
+                if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = name;
                     entry.m_moduleRequest = src->asLiteral()->value().asString();
@@ -5941,7 +5952,7 @@ public:
             // export var f = 1;
             auto oldNameCallback = this->nameDeclaredCallback;
             AtomicStringVector declaredNames;
-            if (builder.isNodeGenerator()) {
+            if (builder.willGenerateByteCode()) {
                 this->nameDeclaredCallback = [&declaredNames](AtomicString name, LexicalBlockIndex, KeywordKind, bool) {
                     for (size_t i = 0; i < declaredNames.size(); i++) {
                         if (declaredNames[i] == name) {
@@ -6013,7 +6024,7 @@ public:
                 this->consumeSemicolon();
             }
 
-            if (builder.isNodeGenerator()) {
+            if (builder.willGenerateByteCode()) {
                 for (ASTSentinelNode specifier = specifiers.begin(); specifier != specifiers.end(); specifier = specifier->next()) {
                     Script::ExportEntry entry;
                     if (seenFrom) {
@@ -6237,6 +6248,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;
+    parser.context->inFunctionBody = true;
     parser.context->allowLexicalDeclaration = true;
     parser.context->allowSuperCall = true;
     parser.context->allowSuperProperty = true;
