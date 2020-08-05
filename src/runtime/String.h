@@ -76,7 +76,7 @@ class Latin1String;
 class UTF16String;
 class RopeString;
 class StringView;
-class Context;
+class VMInstance;
 
 class StringWriteOption {
 public:
@@ -281,7 +281,7 @@ public:
     }
     static String* fromUTF8(const char* src, size_t len);
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-    static String* fromUTF8ToCompressibleString(Context* context, const char* src, size_t len);
+    static String* fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len);
 #endif
 
     size_t length() const

@@ -60,10 +60,13 @@ struct HashTable {
     }
 };
 
+#if defined(ENABLE_ICU)
 #include "UnicodePatternTables.h"
+#endif
 
 Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodePropertyName, WTF::String unicodePropertyValue)
 {
+#if defined(ENABLE_ICU)
     int propertyIndex = -1;
 
     if (unicodePropertyName == "Script" || unicodePropertyName == "sc")
@@ -77,10 +80,14 @@ Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodeP
         return nullptr;
 
     return Optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
+#else
+    return nullptr;
+#endif
 }
 
 Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodePropertyValue)
 {
+#if defined(ENABLE_ICU)
     int propertyIndex = -1;
 
     propertyIndex = binaryPropertyHashTable.entry(unicodePropertyValue);
@@ -91,13 +98,21 @@ Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodeProper
         return nullptr;
 
     return Optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
+#else
+    return nullptr;
+#endif
 }
 
 std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
 {
+#if defined(ENABLE_ICU)
     unsigned unicodePropertyIndex = static_cast<unsigned>(unicodeClassID) - static_cast<unsigned>(BuiltInCharacterClassID::BaseUnicodePropertyID);
 
     return createFunctions[unicodePropertyIndex]();
+#else
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+#endif
 }
 }
 } // namespace JSC::Yarr

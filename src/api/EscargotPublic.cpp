@@ -277,24 +277,24 @@ bool StringRef::isCompressibleStringEnabled()
 }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-StringRef* StringRef::createFromUTF8ToCompressibleString(ContextRef* context, const char* s, size_t len)
+StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
-    return toRef(String::fromUTF8ToCompressibleString(toImpl(context), s, len));
+    return toRef(String::fromUTF8ToCompressibleString(toImpl(instance), s, len));
 }
 
-StringRef* StringRef::createFromUTF16ToCompressibleString(ContextRef* context, const char16_t* s, size_t len)
+StringRef* StringRef::createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len)
 {
-    return toRef(new CompressibleString(toImpl(context), s, len));
+    return toRef(new CompressibleString(toImpl(instance), s, len));
 }
 
-StringRef* StringRef::createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len)
+StringRef* StringRef::createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
-    return toRef(new CompressibleString(toImpl(context), s, len));
+    return toRef(new CompressibleString(toImpl(instance), s, len));
 }
 
-StringRef* StringRef::createFromLatin1ToCompressibleString(ContextRef* context, const unsigned char* s, size_t len)
+StringRef* StringRef::createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t len)
 {
-    return toRef(new CompressibleString(toImpl(context), s, len));
+    return toRef(new CompressibleString(toImpl(instance), s, len));
 }
 
 void* StringRef::allocateStringDataBufferForCompressibleString(size_t byteLength)
@@ -302,32 +302,32 @@ void* StringRef::allocateStringDataBufferForCompressibleString(size_t byteLength
     return CompressibleString::allocateStringDataBuffer(byteLength);
 }
 
-void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr)
+void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr, size_t byteLength)
 {
-    CompressibleString::deallocateStringDataBuffer(ptr);
+    CompressibleString::deallocateStringDataBuffer(ptr, byteLength);
 }
 
-StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit)
+StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(VMInstanceRef* instance, void* buffer, size_t stringLen, bool is8Bit)
 {
-    return toRef(new CompressibleString(toImpl(context), buffer, stringLen, is8Bit));
+    return toRef(new CompressibleString(toImpl(instance), buffer, stringLen, is8Bit));
 }
 
 #else
-StringRef* StringRef::createFromUTF8ToCompressibleString(ContextRef* context, const char* s, size_t len)
+StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
-StringRef* StringRef::createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len)
+StringRef* StringRef::createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
-StringRef* StringRef::createFromLatin1ToCompressibleString(ContextRef* context, const unsigned char* s, size_t len)
+StringRef* StringRef::createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t len)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();
@@ -341,13 +341,13 @@ void* StringRef::allocateStringDataBufferForCompressibleString(size_t byteLength
     return nullptr;
 }
 
-void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr)
+void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr, size_t byteLength)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit)
+StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(VMInstanceRef* instance, void* buffer, size_t stringLen, bool is8Bit)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();

@@ -482,6 +482,7 @@ void VMInstance::enterIdleMode()
     GC_gcollect_and_unmap();
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
+    // ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize before %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
     auto& currentAllocatedCompressibleStrings = compressibleStrings();
     const size_t& currentAllocatedCompressibleStringsCount = currentAllocatedCompressibleStrings.size();
 
@@ -490,6 +491,7 @@ void VMInstance::enterIdleMode()
             currentAllocatedCompressibleStrings[i]->compress();
         }
     }
+// ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize after %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
 #endif
 
 

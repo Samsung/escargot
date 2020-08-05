@@ -178,9 +178,9 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         if (StringRef::isCompressibleStringEnabled()) {
             if (state) {
                 if (hasNonLatin1Content) {
-                    src = StringRef::createFromUTF8ToCompressibleString(state->context(), utf8Str.data(), utf8Str.length());
+                    src = StringRef::createFromUTF8ToCompressibleString(state->context()->vmInstance(), utf8Str.data(), utf8Str.length());
                 } else {
-                    src = StringRef::createFromLatin1ToCompressibleString(state->context(), str.data(), str.length());
+                    src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), str.data(), str.length());
                 }
             } else {
                 if (hasNonLatin1Content) {

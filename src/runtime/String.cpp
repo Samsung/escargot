@@ -637,13 +637,13 @@ String* String::fromUTF8(const char* src, size_t len)
 }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-String* String::fromUTF8ToCompressibleString(Context* context, const char* src, size_t len)
+String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len)
 {
     if (isAllASCII(src, len)) {
-        return new CompressibleString(context, src, len);
+        return new CompressibleString(instance, src, len);
     } else {
         auto s = utf8StringToUTF16StringNonGC(src, len);
-        return new CompressibleString(context, s.data(), s.length());
+        return new CompressibleString(instance, s.data(), s.length());
     }
 }
 #endif

@@ -100,6 +100,13 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
+
+    // if buffer is null, the ArrayBuffer object still seems deatched
+    if (buffer == nullptr) {
+        ASSERT(bytelength == 0);
+        buffer = m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, 0);
+    }
+
     m_data = (uint8_t*)buffer;
     m_bytelength = bytelength;
 }

@@ -508,9 +508,13 @@ public:
     SyntaxChecker()
         : m_valueStringLiteral()
     {
+#if defined(ESCARGOT_SMALL_CONFIG)
+        ASSERT_NOT_REACHED();
+#endif
     }
 
     bool isNodeGenerator() { return false; }
+    bool willGenerateByteCode() { return false; }
     SyntaxNode createIdentifierNode(const AtomicString& name)
     {
         return SyntaxNode(ASTNodeType::Identifier, name);
@@ -658,11 +662,27 @@ public:
 
     MAKE_STACK_ALLOCATED();
 
-    NodeGenerator(ASTAllocator& allocator)
+    NodeGenerator(ASTAllocator& allocator
+#if defined(ESCARGOT_SMALL_CONFIG)
+                  ,
+                  bool willGenerateByteCode = true
+#endif
+                  )
         : m_allocator(allocator)
+#if defined(ESCARGOT_SMALL_CONFIG)
+        , m_willGenerateByteCode(willGenerateByteCode)
+#endif
     {
     }
 
+    bool willGenerateByteCode()
+    {
+#if defined(ESCARGOT_SMALL_CONFIG)
+        return m_willGenerateByteCode;
+#else
+        return true;
+#endif
+    }
     bool isNodeGenerator() { return true; }
     IdentifierNode* createIdentifierNode(const AtomicString& name)
     {
@@ -869,6 +889,9 @@ public:
 
 private:
     ASTAllocator& m_allocator;
+#if defined(ESCARGOT_SMALL_CONFIG)
+    bool m_willGenerateByteCode;
+#endif
 };
 
 } // Escargot

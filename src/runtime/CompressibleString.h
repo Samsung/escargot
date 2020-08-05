@@ -26,21 +26,21 @@
 
 namespace Escargot {
 
-class Context;
+class VMInstance;
 
 class CompressibleString : public String {
     friend class VMInstance;
 
 public:
     // 8bit string constructor
-    CompressibleString(Context* context, const char* str, size_t len);
-    CompressibleString(Context* context, const LChar* str, size_t len);
+    CompressibleString(VMInstance* instance, const char* str, size_t len);
+    CompressibleString(VMInstance* instance, const LChar* str, size_t len);
 
     // 16bit string constructor
-    CompressibleString(Context* context, const char16_t* str, size_t len);
+    CompressibleString(VMInstance* instance, const char16_t* str, size_t len);
 
     // from already allocated buffer
-    CompressibleString(Context* context, void* buffer, size_t stringLength, bool is8bit);
+    CompressibleString(VMInstance* instance, void* buffer, size_t stringLength, bool is8bit);
 
     virtual bool isCompressibleString() override
     {
@@ -80,13 +80,13 @@ public:
     void operator delete[](void*) = delete;
 
     static void* allocateStringDataBuffer(size_t byteLength);
-    static void deallocateStringDataBuffer(void* ptr);
+    static void deallocateStringDataBuffer(void* ptr, size_t byteLength);
 
     bool compress();
     void decompress();
 
 private:
-    CompressibleString(Context* context);
+    CompressibleString(VMInstance* instance);
 
     void initBufferAccessData(void* data, size_t len, bool is8bit);
 
@@ -106,7 +106,7 @@ private:
 
     bool m_isOwnerMayFreed;
     bool m_isCompressed;
-    Context* m_context;
+    VMInstance* m_vmInstance;
     uint64_t m_lastUsedTickcount;
     typedef std::vector<std::vector<char>> CompressedDataVector;
     CompressedDataVector m_compressedData;

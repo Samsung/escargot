@@ -808,15 +808,14 @@ public:
     static StringRef* createExternalFromUTF16(const char16_t* s, size_t len);
 
     // you can use these functions only if you enabled source compression
-    // you don't need to use CompressibleString when string is small(~128KB)
     static bool isCompressibleStringEnabled();
-    static StringRef* createFromUTF8ToCompressibleString(ContextRef* context, const char* s, size_t len);
-    static StringRef* createFromUTF16ToCompressibleString(ContextRef* context, const char16_t* s, size_t len);
-    static StringRef* createFromASCIIToCompressibleString(ContextRef* context, const char* s, size_t len);
-    static StringRef* createFromLatin1ToCompressibleString(ContextRef* context, const unsigned char* s, size_t len);
+    static StringRef* createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len);
+    static StringRef* createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len);
+    static StringRef* createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len);
+    static StringRef* createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t len);
     static void* allocateStringDataBufferForCompressibleString(size_t byteLength);
-    static void deallocateStringDataBufferForCompressibleString(void* ptr);
-    static StringRef* createFromAlreadyAllocatedBufferToCompressibleString(ContextRef* context, void* buffer, size_t stringLen, bool is8Bit /* is ASCII or Latin1 */);
+    static void deallocateStringDataBufferForCompressibleString(void* ptr, size_t byteLength);
+    static StringRef* createFromAlreadyAllocatedBufferToCompressibleString(VMInstanceRef* instance, void* buffer, size_t stringLen, bool is8Bit /* is ASCII or Latin1 */);
 
     static StringRef* emptyString();
 

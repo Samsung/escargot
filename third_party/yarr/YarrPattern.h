@@ -68,16 +68,7 @@ public:
     // they may have an optional m_table for faster lookups (which must match the
     // specified matches and ranges)
     CharacterClass()
-        : m_table(0)
-        , m_tableInverted(false)
-        , m_hasNonBMPCharacters(false)
-        , m_anyCharacter(false)
-    {
-    }
-    CharacterClass(const char* table, bool inverted)
-        : m_table(table)
-        , m_tableInverted(inverted)
-        , m_hasNonBMPCharacters(false)
+        : m_hasNonBMPCharacters(false)
         , m_anyCharacter(false)
     {
     }
@@ -86,8 +77,6 @@ public:
         , m_ranges(ranges)
         , m_matchesUnicode(matchesUnicode)
         , m_rangesUnicode(rangesUnicode)
-        , m_table(0)
-        , m_tableInverted(false)
         , m_hasNonBMPCharacters(false)
         , m_anyCharacter(false)
     {
@@ -98,8 +87,6 @@ public:
     Vector<UChar32> m_matchesUnicode;
     Vector<CharacterRange> m_rangesUnicode;
 
-    const char* m_table;
-    bool m_tableInverted : 1;
     bool m_hasNonBMPCharacters : 1;
     bool m_anyCharacter : 1;
 };
