@@ -36,21 +36,14 @@ public:
     {
         if (m_argument->isIdentifier()) {
             AtomicString name = m_argument->asIdentifier()->name();
-            bool nameCase = false;
-            if (!context->m_codeBlock->canUseIndexedVariableStorage()) {
-                nameCase = true;
-            } else {
-                InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name, context->m_lexicalBlockIndex);
-                if (!info.m_isResultSaved) {
-                    nameCase = true;
-                }
-            }
-            if (nameCase) {
-                if (name.string()->equals("arguments") && !context->m_isGlobalScope) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name, context->m_lexicalBlockIndex);
+
+            if (!info.m_isResultSaved) {
+                if (UNLIKELY(m_argument->asIdentifier()->isPointsArgumentsObject(context))) {
                     size_t srcIndex = m_argument->getRegister(codeBlock, context);
                     m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
-                    context->giveUpRegister();
                     codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
+                    context->giveUpRegister();
                 } else {
                     codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), SIZE_MAX, dstRegister, name), context, this);
                 }
@@ -60,8 +53,8 @@ public:
 
         size_t srcIndex = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
-        context->giveUpRegister();
         codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
+        context->giveUpRegister();
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
