@@ -382,15 +382,18 @@ public:
         return m_value;
     }
 
-    bool operator==(const OptionalRef<T*>& other) const
+    const OptionalRef<T>& operator=(const OptionalRef<T>& other)
     {
-        if (hasValue() != other.hasValue()) {
-            return false;
-        }
-        return hasValue() ? *m_value == *other.m_value : true;
+        m_value = other.m_value;
+        return *this;
     }
 
-    bool operator!=(const OptionalRef<T*>& other) const
+    bool operator==(const OptionalRef<T>& other) const
+    {
+        return m_value == other.m_value;
+    }
+
+    bool operator!=(const OptionalRef<T>& other) const
     {
         return !this->operator==(other);
     }
