@@ -1938,6 +1938,7 @@ void GlobalObject::installArray(ExecutionState& state)
 
 
     Object* blackList = new Object(state);
+    blackList->markThisObjectDontNeedStructureTransitionTable();
     blackList->setPrototype(state, Value(Value::Null));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().copyWithin), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().entries), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));

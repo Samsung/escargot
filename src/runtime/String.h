@@ -255,6 +255,11 @@ public:
         return false;
     }
 
+    virtual bool isReloadableString()
+    {
+        return false;
+    }
+
     virtual bool isRopeString()
     {
         return false;

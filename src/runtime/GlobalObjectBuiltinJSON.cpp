@@ -138,6 +138,9 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         return arr;
     } else if (value.IsObject()) {
         Object* obj = new Object(state);
+#if defined(ESCARGOT_SMALL_CONFIG)
+        obj->markThisObjectDontNeedStructureTransitionTable();
+#endif
         auto iter = value.MemberBegin();
         while (iter != value.MemberEnd()) {
             Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);

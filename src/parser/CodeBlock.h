@@ -802,15 +802,15 @@ protected:
     ExtendedNodeLOC m_bodyEndLOC;
 #endif
 
-    uint16_t m_functionLength;
-    uint16_t m_parameterCount; // number of parameter elements
+    uint16_t m_functionLength : 16;
+    uint16_t m_parameterCount : 16; // number of parameter elements
 
-    uint16_t m_identifierOnStackCount; // this member variable only count `var`
-    uint16_t m_identifierOnHeapCount; // this member variable only count `var`
-    uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth; // this member variable only count `let`
+    uint16_t m_identifierOnStackCount : 16; // this member variable only count `var`
+    uint16_t m_identifierOnHeapCount : 16; // this member variable only count `var`
+    uint16_t m_lexicalBlockStackAllocatedIdentifierMaximumDepth : 16; // this member variable only count `let`
 
-    LexicalBlockIndex m_functionBodyBlockIndex;
-    LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn;
+    LexicalBlockIndex m_functionBodyBlockIndex : 16;
+    LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
 
     bool m_isFunctionNameSaveOnHeap : 1;
     bool m_isFunctionNameExplicitlyDeclared : 1;

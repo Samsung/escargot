@@ -53,6 +53,7 @@
 #include "runtime/WeakMapObject.h"
 #include "runtime/GlobalObjectProxyObject.h"
 #include "runtime/CompressibleString.h"
+#include "runtime/ReloadableString.h"
 #include "runtime/Template.h"
 #include "runtime/ObjectTemplate.h"
 #include "runtime/FunctionTemplate.h"
@@ -315,45 +316,73 @@ StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(VMIns
 #else
 StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
 StringRef* StringRef::createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
 StringRef* StringRef::createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t len)
 {
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
 void* StringRef::allocateStringDataBufferForCompressibleString(size_t byteLength)
 {
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
 void StringRef::deallocateStringDataBufferForCompressibleString(void* ptr, size_t byteLength)
 {
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();
 }
 
 StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(VMInstanceRef* instance, void* buffer, size_t stringLen, bool is8Bit)
 {
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
+#endif
+
+bool StringRef::isReloadableStringEnabled()
+{
+#if defined(ENABLE_RELOADABLE_STRING)
+    return true;
+#else
+    return false;
+#endif
+}
+
+
+#if defined(ENABLE_RELOADABLE_STRING)
+StringRef* StringRef::createReloadableString(VMInstanceRef* instance,
+                                             bool is8BitString, size_t len, void* callbackData,
+                                             void* (*loadCallback)(void* callbackData),
+                                             void (*unloadCallback)(void* memoryPtr, void* callbackData))
+{
+    return toRef(new ReloadableString(toImpl(instance), is8BitString, len, callbackData, loadCallback, unloadCallback));
+}
+#else
+static StringRef* StringRef::createReloadableString(VMInstanceRef* instance, bool is8BitString, size_t len, void* callbackData,
+                                                    void* (*loadCallback)(void* callbackData), void (*unloadCallback)(void* memoryPtr, void* callbackData))
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
 #endif
 
 StringRef* StringRef::emptyString()
@@ -379,6 +408,11 @@ bool StringRef::hasExternalMemory()
 bool StringRef::isCompressibleString()
 {
     return toImpl(this)->isCompressibleString();
+}
+
+bool StringRef::isReloadableString()
+{
+    return toImpl(this)->isReloadableString();
 }
 
 bool StringRef::equals(StringRef* src)
@@ -965,7 +999,13 @@ bool ObjectPropertyDescriptorRef::hasWritable()
 
 ObjectRef* ObjectRef::create(ExecutionStateRef* state)
 {
+#if defined(ESCARGOT_SMALL_CONFIG)
+    auto obj = new Object(*toImpl(state));
+    obj->markThisObjectDontNeedStructureTransitionTable();
+    return toRef(obj);
+#else
     return toRef(new Object(*toImpl(state)));
+#endif
 }
 
 
