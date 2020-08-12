@@ -37,7 +37,12 @@ class CodeBlock;
 class JobQueue;
 class Job;
 class ASTAllocator;
+#if defined(ENABLE_COMPRESSIBLE_STRING)
 class CompressibleString;
+#endif
+#if defined(ENABLE_RELOADABLE_STRING)
+class ReloadableString;
+#endif
 #if defined(ENABLE_CODE_CACHE)
 class CodeCache;
 #endif
@@ -198,6 +203,13 @@ public:
     }
 #endif
 
+#if defined(ENABLE_RELOADABLE_STRING)
+    std::vector<ReloadableString*>& reloadableStrings()
+    {
+        return m_reloadableStrings;
+    }
+#endif
+
     std::mt19937& randEngine()
     {
         return m_randEngine;
@@ -286,6 +298,9 @@ private:
     std::vector<CompressibleString*> m_compressibleStrings;
 
     NEVER_INLINE void compressStringsIfNeeds(uint64_t currentTickCount = fastTickCount());
+#endif
+#if defined(ENABLE_RELOADABLE_STRING)
+    std::vector<ReloadableString*> m_reloadableStrings;
 #endif
 
     static void gcEventCallback(GC_EventType t, void* data);

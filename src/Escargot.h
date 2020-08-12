@@ -52,12 +52,16 @@
 
 /* ALWAYS_INLINE */
 #ifndef ALWAYS_INLINE
+#if defined(ESCARGOT_SMALL_CONFIG)
+#define ALWAYS_INLINE inline
+#else
 #if (defined(COMPILER_GCC) || defined(COMPILER_CLANG)) && defined(NDEBUG) && !defined(COMPILER_MINGW)
 #define ALWAYS_INLINE inline __attribute__((__always_inline__))
 #elif defined(COMPILER_MSVC) && defined(NDEBUG)
 #define ALWAYS_INLINE __forceinline
 #else
 #define ALWAYS_INLINE inline
+#endif
 #endif
 #endif
 
@@ -427,7 +431,6 @@ typedef uint16_t LexicalBlockIndex;
 #ifndef REGEXP_CACHE_SIZE_MAX
 #define REGEXP_CACHE_SIZE_MAX 64
 #endif
-
 
 #ifndef ROPE_STRING_MIN_LENGTH
 #define ROPE_STRING_MIN_LENGTH 24

@@ -970,6 +970,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             CreateObject* code = (CreateObject*)programCounter;
             registerFile[code->m_registerIndex] = new Object(*state);
+#if defined(ESCARGOT_SMALL_CONFIG)
+            registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
+#endif
             ADD_PROGRAM_COUNTER(CreateObject);
             NEXT_INSTRUCTION();
         }
@@ -1774,6 +1777,10 @@ NEVER_INLINE Value ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMi
         return Value(obj->asArrayObject()->arrayLength(state));
     }
 
+#if defined(ESCARGOT_SMALL_CONFIG)
+    return obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+#endif
+
     const int maxCacheMissCount = 16;
     const int minCacheFillCount = 3;
     const size_t maxCacheCount = 6;
@@ -1925,6 +1932,12 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         }
         return;
     }
+
+#if defined(ESCARGOT_SMALL_CONFIG)
+    originalObject->markThisObjectDontNeedStructureTransitionTable();
+    originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
+    return;
+#endif
 
     const int maxCacheMissCount = 16;
     const int minCacheFillCount = 3;

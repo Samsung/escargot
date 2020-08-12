@@ -25,6 +25,7 @@
 #include "runtime/StringObject.h"
 #include "runtime/JobQueue.h"
 #include "runtime/CompressibleString.h"
+#include "runtime/ReloadableString.h"
 #include "runtime/Intl.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ASTAllocator.h"
@@ -494,6 +495,16 @@ void VMInstance::enterIdleMode()
 // ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize after %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
 #endif
 
+#if defined(ENABLE_RELOADABLE_STRING)
+    auto& currentAllocatedReloadableStrings = reloadableStrings();
+    const size_t& currentAllocatedReloadableStringsCount = currentAllocatedReloadableStrings.size();
+
+    for (size_t i = 0; i < currentAllocatedReloadableStringsCount; i++) {
+        if (!currentAllocatedReloadableStrings[i]->isUnloaded()) {
+            currentAllocatedReloadableStrings[i]->unload();
+        }
+    }
+#endif
 
     m_inEnterIdleMode = false;
 }

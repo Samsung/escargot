@@ -810,7 +810,7 @@ public:
     static StringRef* createExternalFromLatin1(const unsigned char* s, size_t len);
     static StringRef* createExternalFromUTF16(const char16_t* s, size_t len);
 
-    // you can use these functions only if you enabled source compression
+    // you can use these functions only if you enabled string compression
     static bool isCompressibleStringEnabled();
     static StringRef* createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len);
     static StringRef* createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len);
@@ -820,6 +820,13 @@ public:
     static void deallocateStringDataBufferForCompressibleString(void* ptr, size_t byteLength);
     static StringRef* createFromAlreadyAllocatedBufferToCompressibleString(VMInstanceRef* instance, void* buffer, size_t stringLen, bool is8Bit /* is ASCII or Latin1 */);
 
+    // you can use these functions only if you enabled reloadable string
+    static bool isReloadableStringEnabled();
+    static StringRef* createReloadableString(VMInstanceRef* instance,
+                                             bool is8BitString, size_t len, void* callbackData,
+                                             void* (*loadCallback)(void* callbackData), // you should returns string buffer
+                                             void (*unloadCallback)(void* memoryPtr, void* callbackData)); // you should free memoryPtr
+
     static StringRef* emptyString();
 
     char16_t charAt(size_t idx);
@@ -827,6 +834,7 @@ public:
 
     bool hasExternalMemory();
     bool isCompressibleString();
+    bool isReloadableString();
 
     bool equals(StringRef* src);
     bool equalsWithASCIIString(const char* buf, size_t len);
