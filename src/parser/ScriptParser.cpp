@@ -246,24 +246,29 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 
 
 #if defined(ENABLE_CODE_CACHE)
-    bool cacheable = needByteCodeGeneration && !isModule && !isEvalMode;
+    bool cached = false;
+    bool cacheable = needByteCodeGeneration && !isModule && !isEvalMode && source->length() > CODE_CACHE_MIN_SOURCE_LENGTH;
     CodeCache* codeCache = m_context->vmInstance()->codeCache();
 
-    if (cacheable && getenv("LOAD_CODE_CACHE")) {
+    if (cacheable) {
         ASSERT(!parentCodeBlock);
-        Script* script = new Script(srcName, source, nullptr, !parentCodeBlock);
+        auto result = codeCache->tryLoadCodeCacheMetaInfo(srcName, source);
+        if (result.first) {
+            cached = true;
 
-        if (codeCache->loadMetaInfos(script)) {
             GC_disable();
 
+            Script* script = new Script(srcName, source, nullptr, false);
+
+            // load StringTable
             CacheStringTable* table = codeCache->loadStringTable(m_context, script);
 
             // load CodeBlockTree
-            InterpretedCodeBlock* topCodeBlock = codeCache->loadCodeBlockTree(m_context, script, table);
+            InterpretedCodeBlock* topCodeBlock = codeCache->loadCodeBlockTree(m_context, script, table, result.second.first);
             script->m_topCodeBlock = topCodeBlock;
 
             // load global ByteCodeBlock
-            topCodeBlock->m_byteCodeBlock = codeCache->loadByteCodeBlock(m_context, script, table);
+            topCodeBlock->m_byteCodeBlock = codeCache->loadByteCodeBlock(m_context, script, table, result.second.second);
 
             GC_enable();
 
@@ -322,7 +327,11 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
         // Generate ByteCode
         if (LIKELY(needByteCodeGeneration)) {
 #if defined(ENABLE_CODE_CACHE)
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, cacheable);
+            bool needToCache = cacheable && !cached;
+            if (needToCache) {
+                codeCache->storeCodeBlockTree(script);
+            }
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, needToCache);
 #else
             topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 #endif
@@ -330,13 +339,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 
         // reset ASTAllocator
         m_context->astAllocator().reset();
-
-#if defined(ENABLE_CODE_CACHE)
-        if (cacheable && getenv("STORE_CODE_CACHE")) {
-            codeCache->storeCodeBlockTree(script);
-            codeCache->storeStringTable(script);
-        }
-#endif
 
         GC_enable();
 

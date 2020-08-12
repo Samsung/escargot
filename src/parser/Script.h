@@ -21,9 +21,6 @@
 #define __EscargotScript__
 
 #include "runtime/Value.h"
-#if defined(ENABLE_CODE_CACHE)
-#include "codecache/CodeCache.h"
-#endif
 
 namespace Escargot {
 
@@ -119,6 +116,15 @@ public:
         }
     };
 
+    Script(String* srcName, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
+        : m_canExecuteAgain(canExecuteAgain && !moduleData)
+        , m_srcName(srcName)
+        , m_sourceCode(sourceCode)
+        , m_topCodeBlock(nullptr)
+        , m_moduleData(moduleData)
+    {
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -163,39 +169,7 @@ public:
     // https://www.ecma-international.org/ecma-262/#sec-getmodulenamespace
     ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
 
-#if defined(ENABLE_CODE_CACHE)
-    void setCodeCacheMetaInfo(CodeCacheMetaInfoMap* codeBlockMap, CodeCacheMetaInfoMap* byteCodeMap)
-    {
-        ASSERT(!m_codeBlockMetaInfoMap && !m_byteCodeMetaInfoMap);
-        m_codeBlockMetaInfoMap = codeBlockMap;
-        m_byteCodeMetaInfoMap = byteCodeMap;
-    }
-
-    CodeCacheMetaInfoMap* codeBlockMetaInfoMap()
-    {
-        return m_codeBlockMetaInfoMap;
-    }
-
-    CodeCacheMetaInfoMap* byteCodeMetaInfoMap()
-    {
-        return m_byteCodeMetaInfoMap;
-    }
-#endif
-
 private:
-    Script(String* srcName, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
-        : m_canExecuteAgain(canExecuteAgain && !moduleData)
-        , m_srcName(srcName)
-        , m_sourceCode(sourceCode)
-        , m_topCodeBlock(nullptr)
-        , m_moduleData(moduleData)
-#if defined(ENABLE_CODE_CACHE)
-        , m_codeBlockMetaInfoMap(nullptr)
-        , m_byteCodeMetaInfoMap(nullptr)
-#endif
-    {
-    }
-
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
     Script* loadModuleFromScript(ExecutionState& state, String* src);
     void loadExternalModule(ExecutionState& state);
@@ -266,10 +240,6 @@ private:
     String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
-#if defined(ENABLE_CODE_CACHE)
-    CodeCacheMetaInfoMap* m_codeBlockMetaInfoMap;
-    CodeCacheMetaInfoMap* m_byteCodeMetaInfoMap;
-#endif
 };
 }
 

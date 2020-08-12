@@ -154,7 +154,7 @@ struct OpcodeTable {
 
     void* m_addressTable[OpcodeKindEnd];
 #if defined(ENABLE_CODE_CACHE)
-    std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<void*, size_t>>> m_opcodeMap;
+    std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<void* const, size_t>>> m_opcodeMap;
 #endif
 };
 

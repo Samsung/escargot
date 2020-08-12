@@ -25,6 +25,10 @@
 #include "debugger/Debugger.h"
 #include "runtime/VMInstance.h"
 
+#if defined(ENABLE_CODE_CACHE)
+#include "codecache/CodeCache.h"
+#endif
+
 namespace Escargot {
 
 void ByteCodeGenerateContext::consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
@@ -228,9 +232,9 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
 
 #if defined(ENABLE_CODE_CACHE)
     // cache bytecode right before relocation
-    if (UNLIKELY(cacheByteCode && getenv("STORE_CODE_CACHE"))) {
-        String* srcName = codeBlock->script()->srcName();
+    if (UNLIKELY(cacheByteCode)) {
         context->vmInstance()->codeCache()->storeByteCodeBlock(codeBlock->script(), block);
+        context->vmInstance()->codeCache()->storeStringTable(codeBlock->script());
     }
 #endif
 

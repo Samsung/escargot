@@ -22,9 +22,13 @@
 
 #if defined(ENABLE_CODE_CACHE)
 
+#define CODE_CACHE_FILE_NAME_LENGTH 32
+#define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 4
+
 namespace Escargot {
 
 class Script;
+class Context;
 class CodeCacheWriter;
 class CodeCacheReader;
 class CacheStringTable;
@@ -67,7 +71,7 @@ public:
 
     CacheStringTable* addStringTable(Script* script);
 
-    bool loadMetaInfos(Script* script);
+    std::pair<bool, std::pair<CodeCacheMetaInfo, CodeCacheMetaInfo>> tryLoadCodeCacheMetaInfo(String* srcName, String* source);
 
     void storeStringTable(Script* script);
     CacheStringTable* loadStringTable(Context* context, Script* script);
@@ -75,10 +79,12 @@ public:
     void storeCodeBlockTree(Script* script);
     void storeByteCodeBlock(Script* script, ByteCodeBlock* block);
 
-    InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script, CacheStringTable* table);
-    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script, CacheStringTable* table);
+    InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script, CacheStringTable* table, CodeCacheMetaInfo metaInfo);
+    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script, CacheStringTable* table, CodeCacheMetaInfo metaInfo);
 
 private:
+    static const char* filePathPrefix;
+
     CodeCacheWriter* m_writer;
     CodeCacheReader* m_reader;
 
@@ -90,12 +96,14 @@ private:
 
     void writeCodeBlockToFile(Script* script, size_t nodeCount);
     void writeByteCodeBlockToFile(Script* script);
-    void loadFromDataFile(Script* script, CodeCacheMetaInfo& metaInfo);
 
-    void getMetaFileName(Script* script, char* buffer);
-    void getStringFileName(Script* script, char* buffer);
-    void getDataFileName(Script* script, char* buffer);
-    void getByteDataFileName(Script* script, char* buffer);
+    void loadFromDataFile(String* srcName, CodeCacheMetaInfo& metaInfo);
+    void removeCacheFiles(String* srcName);
+
+    void getMetaFileName(String* srcName, char* buffer);
+    void getStringFileName(String* srcName, char* buffer);
+    void getCodeBlockFileName(String* srcName, char* buffer);
+    void getByteCodeFileName(String* srcName, char* buffer);
 };
 }
 
