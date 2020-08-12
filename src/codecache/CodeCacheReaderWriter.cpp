@@ -302,7 +302,6 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     // Do not store m_inlineCacheDataSize and m_locData
     // these members are used during the runtime
     ASSERT(block->m_inlineCacheDataSize == 0);
-    ASSERT(!block->m_locData);
 }
 
 #define STORE_ATOMICSTRING_RELOC(member)                 \

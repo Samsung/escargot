@@ -27,6 +27,7 @@
 namespace Escargot {
 
 class Script;
+class Context;
 class StringView;
 class AtomicString;
 class ByteCodeBlock;
