@@ -260,6 +260,14 @@ VMInstance::~VMInstance()
         }
     }
 #endif
+#if defined(ENABLE_RELOADABLE_STRING)
+    {
+        auto& v = reloadableStrings();
+        for (size_t i = 0; i < v.size(); i++) {
+            v[i]->m_isOwnerMayFreed = true;
+        }
+    }
+#endif
     m_isFinalized = true;
     GC_remove_event_callback(gcEventCallback, this);
     if (m_onVMInstanceDestroy) {
