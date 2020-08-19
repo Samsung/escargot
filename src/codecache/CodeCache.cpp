@@ -28,7 +28,11 @@
 
 namespace Escargot {
 
+#if defined(ESCARGOT_ENABLE_TEST)
+const char* CodeCache::filePathPrefix = "";
+#else
 const char* CodeCache::filePathPrefix = "/tmp/";
+#endif
 
 CodeCache::CodeCache()
     : m_writer(new CodeCacheWriter())
@@ -116,6 +120,9 @@ std::pair<bool, std::pair<CodeCacheMetaInfo, CodeCacheMetaInfo>> CodeCache::tryL
         ASSERT(metaCount == 2);
 
         success = true;
+#if defined(ESCARGOT_ENABLE_TEST)
+        ESCARGOT_LOG_INFO("CODECACHE: Load Cache Success\n");
+#endif
     }
 
     return std::make_pair(success, std::make_pair(codeBlockTreeInfo, byteCodeInfo));
@@ -165,6 +172,9 @@ void CodeCache::storeStringTable(Script* script)
     }
 
     fclose(stringFile);
+#if defined(ESCARGOT_ENABLE_TEST)
+    ESCARGOT_LOG_INFO("CODECACHE: Store StringTable\n");
+#endif
 }
 
 CacheStringTable* CodeCache::loadStringTable(Context* context, Script* script)
@@ -244,6 +254,9 @@ void CodeCache::storeCodeBlockTree(Script* script)
     writeCodeBlockToFile(script, nodeCount);
 
     m_writer->clear();
+#if defined(ESCARGOT_ENABLE_TEST)
+    ESCARGOT_LOG_INFO("CODECACHE: Store CodeBlockTree\n");
+#endif
 }
 
 void CodeCache::storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount)
@@ -270,6 +283,9 @@ void CodeCache::storeByteCodeBlock(Script* script, ByteCodeBlock* block)
     writeByteCodeBlockToFile(script);
 
     m_writer->clear();
+#if defined(ESCARGOT_ENABLE_TEST)
+    ESCARGOT_LOG_INFO("CODECACHE: Store ByteCodeBlock\n");
+#endif
 }
 
 InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* script, CacheStringTable* table, CodeCacheMetaInfo metaInfo)

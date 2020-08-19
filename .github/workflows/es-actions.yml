@@ -1,0 +1,30 @@
+name: Escargot Actions
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  RUNNER: tools/run-tests.py
+
+jobs:
+  codecache_x86-64_Test:
+    runs-on: ubuntu-20.04
+    env:
+      BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja 
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Install Packages
+      run: sudo apt get install ninja-build
+    - name: Build
+      run: |
+        cmake -H. -Bout/linux/x64/codecache $BUILD_OPTIONS
+        ninja -Cout/linux/x64/codecache
+    - name: Run SunSpider [Cache Store]
+      run: $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache" sunspider-js
+    - name: Run SunSpider [Cache Load]
+      run: $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache" sunspider-js
