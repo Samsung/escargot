@@ -439,7 +439,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 String* bodyString = bc->m_body;
                 String* optionString = bc->m_option;
                 ASSERT(!!bodyString && bodyString->length() > 0);
-                ASSERT(!!optionString && optionString->length() > 0);
+                ASSERT(!!optionString);
 
                 size_t bodyIndex = VectorUtil::findInVector(stringLiteralData, bodyString);
                 size_t optionIndex = VectorUtil::findInVector(stringLiteralData, optionString);
@@ -501,8 +501,11 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 STORE_ATOMICSTRING_RELOC(m_slot->m_propertyName);
                 break;
             }
-            // TODO
-            case ThrowStaticErrorOperationOpcode:
+            case ThrowStaticErrorOperationOpcode: {
+                ThrowStaticErrorOperation* bc = (ThrowStaticErrorOperation*)currentCode;
+                STORE_ATOMICSTRING_RELOC(m_templateDataString);
+                break;
+            }
             case ExecutionResumeOpcode:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;
@@ -950,6 +953,12 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 SetGlobalVariable* bc = (SetGlobalVariable*)currentCode;
                 size_t stringIndex = info.dataOffset;
                 bc->m_slot = context->ensureGlobalVariableAccessCacheSlot(m_stringTable->get(stringIndex));
+                break;
+            }
+            case ThrowStaticErrorOperationOpcode: {
+                ThrowStaticErrorOperation* bc = (ThrowStaticErrorOperation*)currentCode;
+                bc->m_errorMessage = ErrorObject::Messages::CodeCache_Loaded_StaticError;
+                LOAD_ATOMICSTRING_RELOC(m_templateDataString);
                 break;
             }
             default:

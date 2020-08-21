@@ -109,6 +109,7 @@ public:
         static constexpr const char* GlobalObject_CalledOnIncompatibleReceiver = "%s: called on incompatible receiver";
         static constexpr const char* GlobalObject_IllegalFirstArgument = "%s: illegal first argument";
         static constexpr const char* String_InvalidStringLength = "Invalid string length";
+        static constexpr const char* CodeCache_Loaded_StaticError = "[CodeCache] Default Error Message of ThrowStaticError: %s";
     };
 
     enum Code {

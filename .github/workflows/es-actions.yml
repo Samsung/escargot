@@ -24,7 +24,11 @@ jobs:
       run: |
         cmake -H. -Bout/linux/x64/codecache $BUILD_OPTIONS
         ninja -Cout/linux/x64/codecache
-    - name: Run SunSpider [Cache Store]
-      run: $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" sunspider-js
-    - name: Run SunSpider [Cache Load]
-      run: $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" sunspider-js
+    - name: Run sunspider-js
+      run: |
+        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" sunspider-js
+        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" sunspider-js
+    - name: Run new-es 
+      run: |
+        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" new-es 
+        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" new-es
