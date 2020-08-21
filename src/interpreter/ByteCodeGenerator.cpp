@@ -342,8 +342,8 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case LoadRegexpOpcode: {
-            LoadRegexp* cd = (LoadRegexp*)currentCode;
+        case LoadRegExpOpcode: {
+            LoadRegExp* cd = (LoadRegExp*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }

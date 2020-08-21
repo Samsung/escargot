@@ -433,8 +433,8 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 STORE_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
-            case LoadRegexpOpcode: {
-                LoadRegexp* bc = (LoadRegexp*)currentCode;
+            case LoadRegExpOpcode: {
+                LoadRegExp* bc = (LoadRegExp*)currentCode;
 
                 String* bodyString = bc->m_body;
                 String* optionString = bc->m_option;
@@ -785,8 +785,8 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
 
         InterpretedCodeBlock* codeBlock = block->codeBlock();
 
-        // mark for LoadRegexp bytecode
-        bool bodyStringForLoadRegexp = true;
+        // mark for LoadRegExp bytecode
+        bool bodyStringForLoadRegExp = true;
 
         for (size_t i = 0; i < relocInfoVector.size(); i++) {
             ByteCodeRelocInfo& info = relocInfoVector[i];
@@ -890,20 +890,20 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 LOAD_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
-            case LoadRegexpOpcode: {
-                LoadRegexp* bc = (LoadRegexp*)currentCode;
+            case LoadRegExpOpcode: {
+                LoadRegExp* bc = (LoadRegExp*)currentCode;
 
                 String* bodyString = bc->m_body;
                 String* optionString = bc->m_option;
 
-                if (bodyStringForLoadRegexp) {
+                if (bodyStringForLoadRegExp) {
                     ASSERT(info.dataOffset < stringLiteralData.size());
                     bc->m_body = stringLiteralData[info.dataOffset];
-                    bodyStringForLoadRegexp = false;
+                    bodyStringForLoadRegExp = false;
                 } else {
                     ASSERT(info.dataOffset < stringLiteralData.size());
                     bc->m_option = stringLiteralData[info.dataOffset];
-                    bodyStringForLoadRegexp = true;
+                    bodyStringForLoadRegExp = true;
                 }
                 break;
             }

@@ -1148,12 +1148,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(LoadRegexp)
+        DEFINE_OPCODE(LoadRegExp)
             :
         {
-            LoadRegexp* code = (LoadRegexp*)programCounter;
+            LoadRegExp* code = (LoadRegExp*)programCounter;
             registerFile[code->m_registerIndex] = new RegExpObject(*state, code->m_body, code->m_option);
-            ADD_PROGRAM_COUNTER(LoadRegexp);
+            ADD_PROGRAM_COUNTER(LoadRegExp);
             NEXT_INSTRUCTION();
         }
 

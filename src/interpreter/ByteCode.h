@@ -118,7 +118,7 @@ struct GlobalVariableAccessCacheItem;
     F(MarkEnumerateKey, 2, 0)                               \
     F(IteratorOperation, 0, 0)                              \
     F(GetMethod, 0, 0)                                      \
-    F(LoadRegexp, 1, 0)                                     \
+    F(LoadRegExp, 1, 0)                                     \
     F(WithOperation, 0, 0)                                  \
     F(ObjectDefineGetterSetter, 0, 0)                       \
     F(CallFunctionComplexCase, 0, 0)                        \
@@ -2231,10 +2231,10 @@ public:
 #endif
 };
 
-class LoadRegexp : public ByteCode {
+class LoadRegExp : public ByteCode {
 public:
-    LoadRegexp(const ByteCodeLOC& loc, const size_t registerIndex, String* body, String* opt)
-        : ByteCode(Opcode::LoadRegexpOpcode, loc)
+    LoadRegExp(const ByteCodeLOC& loc, const size_t registerIndex, String* body, String* opt)
+        : ByteCode(Opcode::LoadRegExpOpcode, loc)
         , m_registerIndex(registerIndex)
         , m_body(body)
         , m_option(opt)

@@ -1721,7 +1721,7 @@ void Scanner::scanRegExp(Scanner::ScannerResult* token)
     result.body = body;
     result.flags = flags;
     token->setResult(Token::RegularExpressionToken, this->lineNumber, this->lineStart, start, this->index);
-    token->valueRegexp = result;
+    token->valueRegExp = result;
 }
 
 // ECMA-262 11.6.2.1 Keywords
