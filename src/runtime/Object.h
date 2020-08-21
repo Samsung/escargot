@@ -49,7 +49,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
     bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
-    bool m_hasNonWritableLastIndexRegexpObject : 1;
+    bool m_hasNonWritableLastIndexRegExpObject : 1;
     uint8_t m_arrayObjectFastModeBufferExpandCount : 8;
     void* m_extraData;
     Object* m_prototype;

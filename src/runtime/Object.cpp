@@ -93,7 +93,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     m_isArrayObjectLengthWritable = true;
     m_isSpreadArrayObject = false;
     m_shouldUpdateEnumerateObject = false;
-    m_hasNonWritableLastIndexRegexpObject = false;
+    m_hasNonWritableLastIndexRegExpObject = false;
     m_arrayObjectFastModeBufferExpandCount = 0;
     m_extraData = nullptr;
     m_internalSlot = nullptr;

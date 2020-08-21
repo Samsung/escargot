@@ -260,7 +260,7 @@ public:
             , lineStart(0)
             , start(0)
             , end(0)
-            , valueRegexp()
+            , valueRegExp()
         {
         }
 
@@ -286,7 +286,7 @@ public:
             ScannerSourceStringView valueStringLiteralData;
             double valueNumber;
             ScanTemplateResult* valueTemplate;
-            ScanRegExpResult valueRegexp;
+            ScanRegExpResult valueRegExp;
             KeywordKind valueKeywordKind;
         };
 

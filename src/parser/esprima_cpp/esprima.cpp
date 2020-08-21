@@ -1097,7 +1097,7 @@ public:
                 ALLOC_TOKEN(token);
                 this->nextRegexToken(token);
                 // raw = this->getTokenRaw(token);
-                return this->finalize(node, builder.createRegExpLiteralNode(token->valueRegexp.body, token->valueRegexp.flags));
+                return this->finalize(node, builder.createRegExpLiteralNode(token->valueRegExp.body, token->valueRegExp.flags));
             }
             default: {
                 ALLOC_TOKEN(token);
