@@ -20,9 +20,9 @@
 #ifndef __ESCARGOT_PUBLIC__
 #define __ESCARGOT_PUBLIC__
 
-#ifndef ESCARGOT_EXPORT
+#if !defined(ESCARGOT_EXPORT)
 #if defined(_MSC_VER)
-#define ESCARGOT_EXPORT __declspec(dllESCARGOT_EXPORT)
+#define ESCARGOT_EXPORT __declspec(dllexport)
 #else
 #define ESCARGOT_EXPORT __attribute__((visibility("default")))
 #endif
