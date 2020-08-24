@@ -174,6 +174,19 @@ void CompressibleString::decompress()
 constexpr static const size_t g_compressChunkSize = 1044465;
 static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
 
+static ATTRIBUTE_NO_SANITIZE_ADDRESS bool testPointerExistsOnStack(size_t* start, size_t* end, const void* ptr)
+{
+    while (start != end) {
+        if (UNLIKELY(*start == (size_t)ptr)) {
+            // if there is reference on stack, we cannot compress string.
+            return true;
+        }
+        start++;
+    }
+
+    return false;
+}
+
 template <typename StringType>
 bool CompressibleString::compressWorker(void* callerSP)
 {
@@ -188,12 +201,8 @@ bool CompressibleString::compressWorker(void* callerSP)
     size_t* end = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
 #endif
 
-    while (start != end) {
-        if (UNLIKELY(*start == (size_t)m_bufferData.buffer)) {
-            // if there is reference on stack, we cannot compress string.
-            return false;
-        }
-        start++;
+    if (testPointerExistsOnStack(start, end, m_bufferData.buffer)) {
+        return false;
     }
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
