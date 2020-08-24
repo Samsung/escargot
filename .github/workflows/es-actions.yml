@@ -10,6 +10,33 @@ env:
   RUNNER: tools/run-tests.py
 
 jobs:
+  codecache_x86_test:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja 
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Install Packages
+      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+    - name: Install ICU
+      run: |
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
+        dpkg -X libicu-dev_66.1-2ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
+    - name: Build
+      run: |
+        CXXFLAGS=" -I$GITHUB_WORKSPACE/icu32/usr/include" LDFLAGS=" -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu" cmake -H. -Bout/x86 $BUILD_OPTIONS
+        ninja -Cout/x86
+    - name: Run sunspider-js
+      run: |
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/x86/escargot" sunspider-js
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/x86/escargot" sunspider-js
+    - name: Run new-es 
+      run: |
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/x86/escargot" new-es 
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/x86/escargot" new-es
+
   codecache_x86-64_test:
     runs-on: ubuntu-latest
     env:
@@ -22,13 +49,13 @@ jobs:
       run: sudo apt-get install ninja-build
     - name: Build
       run: |
-        cmake -H. -Bout/linux/x64/codecache $BUILD_OPTIONS
-        ninja -Cout/linux/x64/codecache
+        cmake -H. -Bout/x64 $BUILD_OPTIONS
+        ninja -Cout/x64
     - name: Run sunspider-js
       run: |
-        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" sunspider-js
-        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" sunspider-js
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/x64/escargot" sunspider-js
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/x64/escargot" sunspider-js
     - name: Run new-es 
       run: |
-        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" new-es 
-        $RUNNER --arch=x86_64 --engine="./out/linux/x64/codecache/escargot" new-es
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/x64/escargot" new-es 
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/x64/escargot" new-es
