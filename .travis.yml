@@ -1,143 +1,28 @@
 language: cpp
-compiler:
-  - gcc
 
-matrix:
-  include:
-    - name: "linux.debug"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev, gcc-multilib g++-multilib, "libicu-dev:i386" ]
-      script:
-        - cmake -H. -Bout/linux/x64/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
-        - ninja -Cout/linux/x64/debug
-        - cp ./out/linux/x64/debug/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 sunspider-js modifiedVendorTest regression-tests es2015 intl
-        - gcc -shared -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
-        - export GC_FREE_SPACE_DIVISOR=1
-        - export ESCARGOT_LD_PRELOAD=${TRAVIS_BUILD_DIR}/backtrace-hooking.so
-        - travis_wait 30 tools/run-tests.py --arch=x86_64 test262
-        - unset GC_FREE_SPACE_DIVISOR
-        - unset ESCARGOT_LD_PRELOAD
-        - rm -rf ./out
-        - cmake -H. -Bout/linux/x86/debug -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=bin -GNinja
-        - ninja -Cout/linux/x86/debug
-        - cp ./out/linux/x86/debug/escargot ./escargot
-        - tools/run-tests.py --arch=x86 sunspider-js modifiedVendorTest regression-tests es2015 intl
-        - gcc -shared -m32 -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
-        - export GC_FREE_SPACE_DIVISOR=1
-        - export ESCARGOT_LD_PRELOAD=${TRAVIS_BUILD_DIR}/backtrace-hooking.so
-        - travis_wait 30 tools/run-tests.py --arch=x86 test262
+# Ubuntu Focal 20.04
+os: linux
+dist: focal
 
-    - name: "linux.x64.release"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev, npm ]
-      install:
-        - npm install
-      script:
-        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/linux/x64/release
-        - cp ./out/linux/x64/release/escargot ./escargot
-        - travis_wait 30 tools/run-tests.py --arch=x86_64 octane
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
-        - export GC_FREE_SPACE_DIVISOR=1
-        - travis_wait 40 tools/run-tests.py --arch=x86_64 test262
+before_install:
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
+addons:
+  apt:
+    packages: [ninja-build]
+  coverity_scan:
+    project:
+      name: "Samsung/escargot"
+      description: "Memory optimized JavaScript engine for mid-range devices."
+    notification_email:
+      secure: "JfIhVUO4jdJiBiB+2QEyzMJwqb2ilVIwkBGQqxQJAifoyrxR1Wydo0l31Nx00km75/K62zItH3S+/CbWl9rx3acvNKuL3XK0pi2uSl/M32CkaH09GMAzLH1+xeb6Ls00WboB5Zex/m64BORe5oqytfGJ9KZijED49csC6X7ycpSUryXGdreRsDlRmZKqJ7E6gfh9+2PDeA44vk8FE8L7XkZ12cu5xtMaWjMeBLmMJScXv+jDXFbSp7nVuISPlRmXQINInU/Eh6MIr3FfOmtbEB/LM3G3yYuVQ3UfOCCa2vUpmjWl80r7t1wcwhX70IejCJ+s0fFet1oC5DzxyNw0pC28jS5HFA1UQ9HfoafUCYR4ejaLceBHW5u19OS99nbyc56RNJjzFsubnofYxYLcECu9lPucfpfQxSsQnZdjvLlUonwG/LA/OFZlcYfy6BJ72VqNnM0eS11krzgw+BUlKaIO30rpmEiJTdJ3vMYrcNLa7ZINJctgxeExaWoIjNn6ePgmI9TQG85I6oBRQWr3cxdR/NwKUWj7KYdJuwvVYI03L9LNZPprMh73gOf7v2wqj4JNPEz99CBp6glGGgR3+Ob2N7fesMl6/kA9O4FV0NE1zNWFGV+NEOHU1y9f8tiJphS7B2DNXk+4Qzx6rGzzmK8e6PEqEhEIIRPK5ZYWIrI="
+    build_command_prepend: "cmake -H./ -Bout/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja"
+    build_command: "ninja -Cout/release"
+    branch_pattern: master
 
-    - name: "linux.x64.release.jetstream"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev, npm ]
-      install:
-        - npm install
-      script:
-        - cmake -H. -Bout/linux/x64/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/linux/x64/release
-        - cp ./out/linux/x64/release/escargot ./escargot
-        - travis_wait 30 tools/run-tests.py --arch=x86_64 jetstream-only-simple
+script:
+  - cmake -H./ -Bout/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+  - ninja -Cout/release
 
-
-    - name: "linux.x86.release"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386", npm ]
-      install:
-        - npm install
-      script:
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/linux/x86/release
-        - cp ./out/linux/x86/release/escargot ./escargot
-        - travis_wait 30 tools/run-tests.py --arch=x86 octane
-        - tools/run-tests.py --arch=x86 jetstream-only-cdjs sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey regression-tests es2015 intl chakracore
-        - export GC_FREE_SPACE_DIVISOR=1
-        - travis_wait 40 tools/run-tests.py --arch=x86 test262
-
-
-    - name: "linux.x86.release.jetstream"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, gcc-multilib g++-multilib, "libicu-dev:i386", npm ]
-      install:
-        - npm install
-      script:
-        - cmake -H. -Bout/linux/x86/release -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/linux/x86/release
-        - cp ./out/linux/x86/release/escargot ./escargot
-        - travis_wait 30 tools/run-tests.py --arch=x86 jetstream-only-simple
-
-
-    - name: "check"
-      addons:
-        apt:
-          packages: [ clang-format-3.9 ]
-      script:
-        - python tools/check_tidy.py
-
-    - name: "darwin.x64.release"
-      os: osx
-      addons:
-        homebrew:
-          update: true
-          packages: [ autoconf, automake, cmake, libtool, ninja, pkg-config, icu4c ]
-      install:
-        - npm install
-      env:
-        - PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
-      script:
-        - cmake -H. -Bout/darwin/x64/release -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=bin -DVENDORTEST=1 -GNinja
-        - ninja -Cout/darwin/x64/release
-        - cp ./out/darwin/x64/release/escargot ./escargot
-        - tools/run-tests.py --arch=x86_64 jetstream-only-cdjs sunspider-js modifiedVendorTest jsc-stress regression-tests v8 es2015 intl
-        - tools/run-tests.py test262
-        # FIXME: jetstream-only-simple and octane takes too long running time on darwin
-        # jetstream-only-simple and octane are skipped now.
-        # - travis_wait 40 tools/run-tests.py --arch=x86_64 jetstream-only-simple octane
-        # FIXME: chakracore fails on darwin
-        # ChakraCore's test runner uses `readlink -f` to determine the test root directory.
-        # However, `readlink` has no `-f` option on macOS.
-        # FIXME: spidermonkey fails on darwin
-        # SpiderMonkey's ecma/String/15.5.4.12-3.js tests String.prototype.toUpperCase(),
-        # which relies on ICU. Recent ICU versions (installed on macOS) support Unicode 11.0,
-        # which returns upper case letters from the Gregorian Extended block (0x1C90-0x1CBF)
-        # for Gregorian letters (0x10D0-0x10FF). Unfortunately, the test case expects
-        # Unicode 1.0 compatible(?) behaviour, i.e., to return letters unmodified.
-
-
-    - name: "SonarQube"
-      addons:
-        apt:
-          packages: [ autoconf, automake, libtool, ninja-build, libicu-dev ]
-        sonarcloud:
-          organization: "lws-project"
-      cache:
-        directories:
-          - '$HOME/.sonar/cache'
-      script:
-        - ./tools/check_sonarqube.sh
-
-  allow_failures:
-    - name: "darwin.x64.release"
-    - name: "SonarQube"
-
-  fast_finish: true
+notifications:
+  email: false

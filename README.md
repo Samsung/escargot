@@ -4,6 +4,7 @@
 [![GitHub release (latestSemVer)](https://img.shields.io/github/v/release/Samsung/escargot)](https://github.com/Samsung/escargot/releases)
 ![Build status](http://13.209.201.68:8080/job/escargot-pr/job/master/badge/icon)
 [![Actions Status](https://github.com/Samsung/escargot/workflows/Escargot%20Actions/badge.svg)](https://github.com/Samsung/escargot/actions)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/21647/badge.svg)](https://scan.coverity.com/projects/samsung-escargot)
 
 ## Prerequisites
 
