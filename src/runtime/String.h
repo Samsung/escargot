@@ -265,6 +265,12 @@ public:
         return false;
     }
 
+    RopeString* asRopeString()
+    {
+        ASSERT(isRopeString());
+        return (RopeString*)this;
+    }
+
     bool has8BitContent() const
     {
         return m_bufferData.has8BitContent;

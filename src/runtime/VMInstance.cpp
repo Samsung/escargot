@@ -486,9 +486,13 @@ void VMInstance::clearCachesRelatedWithContext()
 void VMInstance::enterIdleMode()
 {
     m_inEnterIdleMode = true;
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
-    GC_gcollect_and_unmap();
+
+    // user can call this function many times without many performance concern
+    if (GC_get_bytes_since_gc() > 4096) {
+        GC_gcollect_and_unmap();
+        GC_gcollect_and_unmap();
+        GC_gcollect_and_unmap();
+    }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     // ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize before %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);

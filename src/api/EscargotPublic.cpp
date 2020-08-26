@@ -400,6 +400,11 @@ size_t StringRef::length()
     return toImpl(this)->length();
 }
 
+bool StringRef::has8BitContent()
+{
+    return toImpl(this)->has8BitContent();
+}
+
 bool StringRef::hasExternalMemory()
 {
     return toImpl(this)->hasExternalMemory();
@@ -413,6 +418,16 @@ bool StringRef::isCompressibleString()
 bool StringRef::isReloadableString()
 {
     return toImpl(this)->isReloadableString();
+}
+
+bool StringRef::isRopeString()
+{
+    return toImpl(this)->isRopeString();
+}
+
+RopeStringRef* StringRef::asRopeString()
+{
+    return toRef(toImpl(this)->asRopeString());
 }
 
 bool StringRef::equals(StringRef* src)
@@ -445,6 +460,29 @@ StringRef::StringBufferAccessDataRef StringRef::stringBufferAccessData()
     ref.length = implRef.length;
 
     return ref;
+}
+
+bool RopeStringRef::wasFlattened()
+{
+    return toImpl(this)->wasFlattened();
+}
+
+OptionalRef<StringRef> RopeStringRef::left()
+{
+    if (toImpl(this)->wasFlattened()) {
+        return nullptr;
+    } else {
+        return toRef(toImpl(this)->left());
+    }
+}
+
+OptionalRef<StringRef> RopeStringRef::right()
+{
+    if (toImpl(this)->wasFlattened()) {
+        return nullptr;
+    } else {
+        return toRef(toImpl(this)->right());
+    }
 }
 
 SymbolRef* SymbolRef::create(StringRef* desc)

@@ -217,6 +217,9 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
     Value reviver = argv[1];
     if (reviver.isCallable()) {
         Object* root = new Object(state);
+#if defined(ESCARGOT_SMALL_CONFIG)
+        root->markThisObjectDontNeedStructureTransitionTable();
+#endif
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&)> Walk;
         Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {

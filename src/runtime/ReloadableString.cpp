@@ -58,6 +58,9 @@ ReloadableString::ReloadableString(VMInstance* instance, bool is8Bit, size_t str
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         ReloadableString* self = (ReloadableString*)obj;
+        if (!self->m_isUnloaded) {
+            self->m_stringUnloadCallback(const_cast<void*>(self->m_bufferData.buffer), self->m_callbackData);
+        }
         if (!self->m_isOwnerMayFreed) {
             auto& v = self->m_vmInstance->reloadableStrings();
             v.erase(std::find(v.begin(), v.end(), self));
