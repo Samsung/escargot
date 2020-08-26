@@ -56,6 +56,7 @@ DEFINE_CAST(VMInstance);
 DEFINE_CAST(Context);
 DEFINE_CAST(ExecutionState);
 DEFINE_CAST(String);
+DEFINE_CAST(RopeString);
 DEFINE_CAST(Symbol);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object)

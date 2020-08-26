@@ -63,6 +63,23 @@ public:
         return (const char16_t*)bufferAccessData().buffer;
     }
 
+    bool wasFlattened() const
+    {
+        return !m_bufferData.hasSpecialImpl;
+    }
+
+    String* left() const
+    {
+        ASSERT(!wasFlattened());
+        return m_left;
+    }
+
+    String* right() const
+    {
+        ASSERT(!wasFlattened());
+        return (String*)m_bufferData.buffer;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

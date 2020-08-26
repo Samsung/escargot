@@ -46,6 +46,7 @@ namespace Escargot {
 class VMInstanceRef;
 class ContextRef;
 class StringRef;
+class RopeStringRef;
 class SymbolRef;
 class ValueRef;
 class PointerValueRef;
@@ -831,10 +832,14 @@ public:
 
     char16_t charAt(size_t idx);
     size_t length();
+    bool has8BitContent();
 
     bool hasExternalMemory();
     bool isCompressibleString();
     bool isReloadableString();
+
+    bool isRopeString();
+    RopeStringRef* asRopeString();
 
     bool equals(StringRef* src);
     bool equalsWithASCIIString(const char* buf, size_t len);
@@ -879,6 +884,15 @@ public:
     };
 
     StringBufferAccessDataRef stringBufferAccessData();
+};
+
+class ESCARGOT_EXPORT RopeStringRef : public StringRef {
+public:
+    bool wasFlattened();
+
+    // you can get left, right value when RopeString is not flattened
+    OptionalRef<StringRef> left();
+    OptionalRef<StringRef> right();
 };
 
 class ESCARGOT_EXPORT SymbolRef : public PointerValueRef {

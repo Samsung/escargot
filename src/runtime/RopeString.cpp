@@ -110,8 +110,8 @@ void RopeString::flattenRopeStringWorker()
 {
     ResultType* result = (ResultType*)GC_MALLOC_ATOMIC(sizeof(ResultType) * m_bufferData.length);
     std::vector<String*> queue;
-    queue.push_back(m_left);
-    queue.push_back((String*)m_bufferData.buffer);
+    queue.push_back(left());
+    queue.push_back(right());
     size_t pos = m_bufferData.length;
     size_t k = 0;
     while (!queue.empty()) {
@@ -120,8 +120,8 @@ void RopeString::flattenRopeStringWorker()
         if (cur->isRopeString()) {
             RopeString* cur2 = (RopeString*)cur;
             if (cur2->m_bufferData.hasSpecialImpl) {
-                queue.push_back(cur2->m_left);
-                queue.push_back((String*)cur2->m_bufferData.buffer);
+                queue.push_back(cur2->left());
+                queue.push_back(cur2->right());
                 continue;
             }
         }
