@@ -47,15 +47,20 @@ public:
         context->getRegister(); // To ensure that the result of the classDeclaration is undefined
         size_t classIndex = context->getRegister();
         Node* classIdent = m_class.id();
+        bool hasSuper = m_class.superClass();
 
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_constructorIndex = classIndex;
         context->m_classInfo.m_prototypeIndex = context->getRegister();
-        context->m_classInfo.m_superIndex = m_class.superClass() ? context->getRegister() : SIZE_MAX;
+        context->m_classInfo.m_superIndex = hasSuper ? context->getRegister() : SIZE_MAX;
 
         context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : AtomicString();
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
+
+        if (hasSuper && !m_class.superClass()->isIdentifier()) {
+            m_class.superClass()->generateExpressionByteCode(codeBlock, context, context->m_classInfo.m_superIndex);
+        }
 
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
@@ -65,7 +70,7 @@ public:
             blockContext = codeBlock->pushLexicalBlock(context, bi, this);
         }
 
-        if (m_class.superClass() != nullptr) {
+        if (hasSuper && m_class.superClass()->isIdentifier()) {
             m_class.superClass()->generateExpressionByteCode(codeBlock, context, context->m_classInfo.m_superIndex);
         }
 
