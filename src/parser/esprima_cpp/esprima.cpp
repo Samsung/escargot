@@ -5012,14 +5012,16 @@ public:
     // ECMA-262 14.1.1 Directive Prologues
 
     template <class ASTBuilder>
-    ASTNode parseDirective(ASTBuilder& builder)
+    ASTNode parseDirective(ASTBuilder& builder, bool& isStrictDirective)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         ASSERT(token->type == StringLiteralToken);
+        ASSERT(!isStrictDirective);
 
         // check strict mode early before lexing of following tokens
         if (!token->hasAllocatedString && token->valueStringLiteral(this->scanner).equals("use strict")) {
+            isStrictDirective = true;
             this->currentScopeContext->m_isStrict = this->context->strict = true;
             if (!this->context->allowStrictDirective) {
                 this->throwError("Illegal 'use strict' directive in function with non-simple parameter list");
@@ -5049,8 +5051,14 @@ public:
                 break;
             }
 
-            ASTNode statement = this->parseDirective(builder);
-            container->appendChild(statement);
+            bool isStrictDirective = false;
+            ASTNode statement = this->parseDirective(builder, isStrictDirective);
+
+            if (!isStrictDirective || !this->isParsingSingleFunction) {
+                // skip adding the strict directive node only when its in the function scope
+                // e.g. eval("'use strict'") == "use strict"
+                container->appendChild(statement);
+            }
 
             if (statement->type() != Directive) {
                 break;
