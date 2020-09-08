@@ -40,22 +40,21 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
     if (argc == 0) {
         double n_inf = -1 * std::numeric_limits<double>::infinity();
         return Value(n_inf);
-    } else {
-        double maxValue = argv[0].toNumber(state);
-        for (unsigned i = 1; i < argc; i++) {
-            double value = argv[i].toNumber(state);
-            if (std::isnan(value))
-                is_NaN = true;
-            if (value > maxValue || (!value && !maxValue && !std::signbit(value)))
-                maxValue = value;
-        }
-        if (is_NaN) {
-            double qnan = std::numeric_limits<double>::quiet_NaN();
-            return Value(qnan);
-        }
-        return Value(maxValue);
     }
-    return Value();
+
+    double maxValue = argv[0].toNumber(state);
+    for (unsigned i = 1; i < argc; i++) {
+        double value = argv[i].toNumber(state);
+        if (std::isnan(value))
+            is_NaN = true;
+        if (value > maxValue || (!value && !maxValue && !std::signbit(value)))
+            maxValue = value;
+    }
+    if (is_NaN) {
+        double qnan = std::numeric_limits<double>::quiet_NaN();
+        return Value(qnan);
+    }
+    return Value(maxValue);
 }
 
 static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -152,9 +151,9 @@ static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc
 
 static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    double x = argv[0].toNumber(state);
-    double y = argv[1].toNumber(state);
-    return Value(ieee754::atan2(x, y));
+    double y = argv[0].toNumber(state);
+    double x = argv[1].toNumber(state);
+    return Value(ieee754::atan2(y, x));
 }
 
 static Value builtinMathAtanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

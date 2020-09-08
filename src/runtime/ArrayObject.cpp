@@ -434,83 +434,68 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     rareData()->m_arrayObjectFastModeBufferCapacity = 0;
                 }
             } else {
+                ASSERT(newLength > 128);
+
                 const size_t minExpandCountForUsingLog2Function = 3;
                 bool hasRD = hasRareData();
                 size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : oldLength;
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-                if (newLength) {
-                    auto rd = ensureRareData();
-                    if (newLength > oldCapacity) {
-                        size_t newCapacity;
-                        if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
-                            ComputeReservedCapacityFunctionWithLog2<> f;
-                            newCapacity = f(newLength);
-                        } else {
-                            ComputeReservedCapacityFunctionWithPercent<130> f;
-                            newCapacity = f(newLength);
-                        }
-                        m_fastModeData.resizeWithUninitializedValues(oldLength, newCapacity);
-
-                        for (size_t i = oldLength; i < newLength; i++) {
-                            m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
-                        }
-
-                        rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
-                        if (rd->m_arrayObjectFastModeBufferExpandCount < minExpandCountForUsingLog2Function) {
-                            rd->m_arrayObjectFastModeBufferExpandCount++;
-                        }
+                auto rd = ensureRareData();
+                if (newLength > oldCapacity) {
+                    size_t newCapacity;
+                    if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
+                        ComputeReservedCapacityFunctionWithLog2<> f;
+                        newCapacity = f(newLength);
                     } else {
-                        for (size_t i = oldLength; i < newLength; i++) {
-                            m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
-                        }
-                        rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
+                        ComputeReservedCapacityFunctionWithPercent<130> f;
+                        newCapacity = f(newLength);
+                    }
+                    m_fastModeData.resizeWithUninitializedValues(oldLength, newCapacity);
+
+                    for (size_t i = oldLength; i < newLength; i++) {
+                        m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
+                    }
+
+                    rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
+                    if (rd->m_arrayObjectFastModeBufferExpandCount < minExpandCountForUsingLog2Function) {
+                        rd->m_arrayObjectFastModeBufferExpandCount++;
                     }
                 } else {
-                    m_fastModeData.resizeWithUninitializedValues(oldLength, 0);
-
-                    if (hasRD) {
-                        rareData()->m_arrayObjectFastModeBufferCapacity = 0;
+                    for (size_t i = oldLength; i < newLength; i++) {
+                        m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
                     }
+                    rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
                 }
 #else
-                if (newLength) {
-                    auto rd = ensureRareData();
-                    if (newLength > oldCapacity) {
-                        size_t newCapacity;
-                        if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
-                            ComputeReservedCapacityFunctionWithLog2<> f;
-                            newCapacity = f(newLength);
-                        } else {
-                            ComputeReservedCapacityFunctionWithPercent<130> f;
-                            newCapacity = f(newLength);
-                        }
-                        auto newFastModeData = (EncodedValue*)GC_MALLOC(sizeof(EncodedValue) * newCapacity);
-                        memcpy(newFastModeData, m_fastModeData, sizeof(EncodedValue) * oldLength);
-                        GC_FREE(m_fastModeData);
-                        m_fastModeData = newFastModeData;
-
-                        for (size_t i = oldLength; i < newLength; i++) {
-                            m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
-                        }
-
-                        rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
-                        if (rd->m_arrayObjectFastModeBufferExpandCount < minExpandCountForUsingLog2Function) {
-                            rd->m_arrayObjectFastModeBufferExpandCount++;
-                        }
+                auto rd = ensureRareData();
+                if (newLength > oldCapacity) {
+                    size_t newCapacity;
+                    if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
+                        ComputeReservedCapacityFunctionWithLog2<> f;
+                        newCapacity = f(newLength);
                     } else {
-                        for (size_t i = oldLength; i < newLength; i++) {
-                            m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
-                        }
-                        rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
+                        ComputeReservedCapacityFunctionWithPercent<130> f;
+                        newCapacity = f(newLength);
+                    }
+                    auto newFastModeData = (EncodedValue*)GC_MALLOC(sizeof(EncodedValue) * newCapacity);
+                    memcpy(newFastModeData, m_fastModeData, sizeof(EncodedValue) * oldLength);
+                    GC_FREE(m_fastModeData);
+                    m_fastModeData = newFastModeData;
+
+                    for (size_t i = oldLength; i < newLength; i++) {
+                        m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
+                    }
+
+                    rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
+                    if (rd->m_arrayObjectFastModeBufferExpandCount < minExpandCountForUsingLog2Function) {
+                        rd->m_arrayObjectFastModeBufferExpandCount++;
                     }
                 } else {
-                    GC_FREE(m_fastModeData);
-                    m_fastModeData = nullptr;
-
-                    if (hasRD) {
-                        rareData()->m_arrayObjectFastModeBufferCapacity = 0;
+                    for (size_t i = oldLength; i < newLength; i++) {
+                        m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
                     }
+                    rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
                 }
 #endif
             }

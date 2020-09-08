@@ -30,6 +30,14 @@ class ExecutionState;
 class StringBuilder {
     MAKE_STACK_ALLOCATED();
     struct StringBuilderPiece {
+        StringBuilderPiece()
+            : m_type(Char)
+            , m_string(nullptr)
+            , m_start(0)
+            , m_end(0)
+        {
+        }
+
         enum Type {
             Latin1StringPiece,
             UTF16StringStringPiece,

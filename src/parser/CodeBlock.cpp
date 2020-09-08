@@ -356,13 +356,13 @@ void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bo
 
     for (size_t i = 0; i < innerIdentifiers.size(); i++) {
         IdentifierInfo info;
-        info.m_name = innerIdentifiers[i].name();
         info.m_needToAllocateOnStack = false;
         info.m_isMutable = true;
-        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_isParameterName = innerIdentifiers[i].isParameterName();
+        info.m_isExplicitlyDeclaredOrParameterName = innerIdentifiers[i].isExplicitlyDeclaredOrParameterName();
         info.m_isVarDeclaration = innerIdentifiers[i].isVarDeclaration();
         info.m_indexForIndexedStorage = SIZE_MAX;
+        info.m_name = innerIdentifiers[i].name();
         m_identifierInfos[i] = info;
     }
 
@@ -444,10 +444,13 @@ void InterpretedCodeBlock::captureArguments()
     m_usesArgumentsObject = true;
     if (findVarName(arguments) == SIZE_MAX) {
         IdentifierInfo info;
-        info.m_indexForIndexedStorage = SIZE_MAX;
-        info.m_name = arguments;
         info.m_needToAllocateOnStack = true;
         info.m_isMutable = true;
+        info.m_isParameterName = false;
+        info.m_isExplicitlyDeclaredOrParameterName = false;
+        info.m_isVarDeclaration = false;
+        info.m_indexForIndexedStorage = SIZE_MAX;
+        info.m_name = arguments;
         m_identifierInfos.pushBack(info);
 
         auto idMap = identifierInfoMap();
