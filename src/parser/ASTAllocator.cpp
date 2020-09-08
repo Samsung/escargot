@@ -32,6 +32,7 @@ ASTAllocator::ASTAllocator()
 ASTAllocator::~ASTAllocator()
 {
     ASSERT(m_astPools.size() == 0);
+    ASSERT(m_astPoolMemory == currentPool());
 
     free(currentPool());
 }

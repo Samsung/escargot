@@ -196,10 +196,17 @@ protected:
     String()
     {
         m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
-        m_bufferData.hasSpecialImpl = false;
     }
 
     struct StringBufferData {
+        StringBufferData()
+            : has8BitContent(true)
+            , hasSpecialImpl(false)
+            , length(0)
+            , buffer(nullptr)
+        {
+        }
+
         bool has8BitContent : 1;
         bool hasSpecialImpl : 1;
 #if defined(ESCARGOT_32)

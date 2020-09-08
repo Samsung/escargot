@@ -467,7 +467,7 @@ public:
         if (!absPath) {
             return std::string();
         }
-        std::string utf8AbsolutePath = absPath ? absPath : "";
+        std::string utf8AbsolutePath = absPath;
         free(absPath);
 
         return utf8AbsolutePath;
