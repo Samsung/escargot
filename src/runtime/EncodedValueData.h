@@ -25,6 +25,7 @@ namespace Escargot {
 union EncodedValueData {
     intptr_t payload;
     EncodedValueData()
+        : payload(0)
     {
     }
 
