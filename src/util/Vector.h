@@ -227,10 +227,11 @@ public:
             ComputeReservedCapacityFunction f;
             m_capacity = f(m_size + 1);
             T* newBuffer = Allocator().allocate(m_capacity);
-            VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
 
-            if (m_buffer)
+            if (m_buffer) {
+                VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
                 Allocator().deallocate(m_buffer, oldc);
+            }
             m_buffer = newBuffer;
         }
         m_buffer[m_size] = val;

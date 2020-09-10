@@ -356,7 +356,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         // Let elementSize be the Element Size value in Table 49 for constructorName.
         size_t elementSize = obj->elementSize();
         // Let byteLength be elementSize × elementLength.
-        uint64_t byteLength = elementSize * elementLength;
+        uint64_t byteLength = static_cast<uint64_t>(elementSize) * elementLength;
 
         ArrayBufferObject* data;
         // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
@@ -439,7 +439,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         size_t len = arrayLike->length(state);
         // Perform ? AllocateTypedArrayBuffer(O, len).
         size_t elementSize = obj->elementSize();
-        uint64_t byteLength = len * elementSize;
+        uint64_t byteLength = static_cast<uint64_t>(len) * elementSize;
         ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
         obj->setBuffer(buffer, 0, byteLength, len);
 
