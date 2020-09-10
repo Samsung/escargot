@@ -51,7 +51,7 @@ ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto,
     m_codeBlock = codeBlock;
     m_outerEnvironment = outerEnvironment;
 
-#ifdef NDEBUG
+#ifndef NDEBUG
     if (m_outerEnvironment) {
         ASSERT(m_outerEnvironment->isAllocatedOnHeap());
         if (m_outerEnvironment->record()->isDeclarativeEnvironmentRecord() && m_outerEnvironment->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
