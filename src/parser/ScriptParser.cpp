@@ -246,30 +246,29 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 
 
 #if defined(ENABLE_CODE_CACHE)
-    bool cached = false;
-    bool cacheable = needByteCodeGeneration && !isModule && !isEvalMode && source->length() > CODE_CACHE_MIN_SOURCE_LENGTH;
+    bool cacheable = needByteCodeGeneration && !isModule && !isEvalMode && srcName->length() && source->length() > CODE_CACHE_MIN_SOURCE_LENGTH;
     CodeCache* codeCache = m_context->vmInstance()->codeCache();
 
     if (cacheable) {
         ASSERT(!parentCodeBlock);
         auto result = codeCache->tryLoadCodeCacheMetaInfo(srcName, source);
         if (result.first) {
-            cached = true;
-
             GC_disable();
 
             Script* script = new Script(srcName, source, nullptr, false);
 
             // load StringTable
-            CacheStringTable* table = codeCache->loadStringTable(m_context, script);
+            CacheStringTable* table = codeCache->loadStringTable(m_context, script, result.second.stringInfo);
+            codeCache->context().initStringTable(table);
 
             // load CodeBlockTree
-            InterpretedCodeBlock* topCodeBlock = codeCache->loadCodeBlockTree(m_context, script, table, result.second.first);
+            InterpretedCodeBlock* topCodeBlock = codeCache->loadCodeBlockTree(m_context, script, result.second.codeBlockInfo);
             script->m_topCodeBlock = topCodeBlock;
 
             // load global ByteCodeBlock
-            topCodeBlock->m_byteCodeBlock = codeCache->loadByteCodeBlock(m_context, script, table, result.second.second);
+            topCodeBlock->m_byteCodeBlock = codeCache->loadByteCodeBlock(m_context, script, result.second.byteCodeInfo);
 
+            codeCache->context().reset();
             GC_enable();
 
             ScriptParser::InitializeScriptResult result;
@@ -322,16 +321,21 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
         }
 #endif
 
-        ASSERT(script->m_topCodeBlock == topCodeBlock);
+        ASSERT(script->topCodeBlock() == topCodeBlock);
 
         // Generate ByteCode
         if (LIKELY(needByteCodeGeneration)) {
 #if defined(ENABLE_CODE_CACHE)
-            bool needToCache = cacheable && !cached;
-            if (needToCache) {
-                codeCache->storeCodeBlockTree(script);
+            if (cacheable) {
+                // For storing cache, CodeBlockTree is firstly saved
+                codeCache->context().initStringTable();
+                codeCache->storeCodeBlockTree(topCodeBlock);
+                // After CodeBlockTree, ByteCode and StringTable are stored sequentially
+                topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
+                codeCache->context().reset();
+            } else {
+                topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
             }
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, needToCache);
 #else
             topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 #endif

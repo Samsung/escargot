@@ -39,6 +39,7 @@ enum class CodeCacheType : uint8_t {
     CACHE_INVALID,
     CACHE_CODEBLOCK,
     CACHE_BYTECODE,
+    CACHE_STRING,
 };
 
 struct CodeCacheMetaInfo {
@@ -57,53 +58,71 @@ struct CodeCacheMetaInfo {
     }
 
     CodeCacheType cacheType;
-    size_t dataOffset;
+    union {
+        size_t dataOffset; // data offset in cache data file
+        size_t codeBlockCount; // total count of CodeBlocks used only for CodeBlockTree caching
+    };
     size_t dataSize;
 };
 
-// GC atomic allocator is used since Script has a reference to this map structure
-typedef std::unordered_map<size_t, CodeCacheMetaInfo, std::hash<size_t>, std::equal_to<size_t>, GCUtil::gc_malloc_atomic_allocator<std::pair<size_t const, CodeCacheMetaInfo>>> CodeCacheMetaInfoMap;
+struct CodeCacheMetaChunk {
+    CodeCacheMetaInfo codeBlockInfo;
+    CodeCacheMetaInfo byteCodeInfo;
+    CodeCacheMetaInfo stringInfo;
+};
 
 class CodeCache {
 public:
+    struct CodeCacheContext {
+        static const char* filePathPrefix;
+
+        CodeCacheContext()
+            : dataOffset(0)
+            , stringTable(nullptr)
+            , metaFileName(nullptr)
+            , dataFileName(nullptr)
+        {
+        }
+
+        void initStringTable();
+        void initStringTable(CacheStringTable* table);
+        void initFileName(String* srcName);
+        void reset();
+
+        size_t srcHashValue; // hash value of target source code
+        size_t dataOffset; // current offset in cache data file
+        CacheStringTable* stringTable; // current CacheStringTable
+
+        char* metaFileName;
+        char* dataFileName;
+    };
+
     CodeCache();
     ~CodeCache();
 
-    CacheStringTable* addStringTable(Script* script);
+    std::pair<bool, CodeCacheMetaChunk> tryLoadCodeCacheMetaInfo(String* srcName, String* source);
 
-    std::pair<bool, std::pair<CodeCacheMetaInfo, CodeCacheMetaInfo>> tryLoadCodeCacheMetaInfo(String* srcName, String* source);
+    CodeCacheContext& context() { return m_context; }
+    void storeStringTable();
+    void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
+    void storeByteCodeBlock(ByteCodeBlock* block);
 
-    void storeStringTable(Script* script);
-    CacheStringTable* loadStringTable(Context* context, Script* script);
-
-    void storeCodeBlockTree(Script* script);
-    void storeByteCodeBlock(Script* script, ByteCodeBlock* block);
-
-    InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script, CacheStringTable* table, CodeCacheMetaInfo metaInfo);
-    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script, CacheStringTable* table, CodeCacheMetaInfo metaInfo);
+    CacheStringTable* loadStringTable(Context* context, Script* script, CodeCacheMetaInfo metaInfo);
+    InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script, CodeCacheMetaInfo metaInfo);
+    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script, CodeCacheMetaInfo metaInfo);
 
 private:
-    static const char* filePathPrefix;
+    CodeCacheContext m_context;
 
     CodeCacheWriter* m_writer;
     CodeCacheReader* m_reader;
 
-    typedef std::unordered_map<Script*, CacheStringTable*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<Script* const, CacheStringTable*>>> CacheStringTableMap;
-    CacheStringTableMap* m_stringTableMap;
-
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);
 
-    void writeCodeBlockToFile(Script* script, size_t nodeCount);
-    void writeByteCodeBlockToFile(Script* script);
-
-    void loadFromDataFile(String* srcName, CodeCacheMetaInfo& metaInfo);
-    void removeCacheFiles(String* srcName);
-
-    void getMetaFileName(String* srcName, char* buffer);
-    void getStringFileName(String* srcName, char* buffer);
-    void getCodeBlockFileName(String* srcName, char* buffer);
-    void getByteCodeFileName(String* srcName, char* buffer);
+    void writeCacheToFile(CodeCacheType type, size_t extraCount = 0);
+    void loadCacheFromDataFile(CodeCacheMetaInfo& metaInfo);
+    void removeCacheFiles();
 };
 }
 

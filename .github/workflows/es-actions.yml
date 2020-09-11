@@ -118,7 +118,7 @@ jobs:
         tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
     - name: Build
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
         export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
         cmake -H. -Bout/coverity_scan $BUILD_OPTIONS
