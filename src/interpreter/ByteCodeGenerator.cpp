@@ -233,8 +233,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
 #if defined(ENABLE_CODE_CACHE)
     // cache bytecode right before relocation
     if (UNLIKELY(cacheByteCode)) {
-        context->vmInstance()->codeCache()->storeByteCodeBlock(codeBlock->script(), block);
-        context->vmInstance()->codeCache()->storeStringTable(codeBlock->script());
+        context->vmInstance()->codeCache()->storeByteCodeBlock(block);
+        context->vmInstance()->codeCache()->storeStringTable();
     }
 #endif
 

@@ -78,8 +78,11 @@ void CodeCacheWriter::CacheBuffer::ensureSize(size_t size)
         size_t newCapacity = f(m_capacity + size);
 
         char* newBuffer = static_cast<char*>(malloc(newCapacity));
-        memcpy(newBuffer, m_buffer, m_index);
-        free(m_buffer);
+
+        if (LIKELY(!!m_buffer)) {
+            memcpy(newBuffer, m_buffer, m_index);
+            free(m_buffer);
+        }
 
         m_buffer = newBuffer;
         m_capacity = newCapacity;
@@ -304,10 +307,47 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     ASSERT(block->m_inlineCacheDataSize == 0);
 }
 
+void CodeCacheWriter::storeStringTable()
+{
+    ASSERT(!!m_stringTable);
+
+    Vector<AtomicString, std::allocator<AtomicString>>& table = m_stringTable->table();
+
+    bool has16BitString = m_stringTable->has16BitString();
+    size_t maxLength = m_stringTable->maxLength();
+    size_t tableSize = table.size();
+
+    m_buffer.ensureSize(sizeof(bool) + 2 * sizeof(size_t));
+    m_buffer.put(has16BitString);
+    m_buffer.put(maxLength);
+    m_buffer.put(tableSize);
+
+    if (LIKELY(!has16BitString)) {
+        for (size_t i = 0; i < tableSize; i++) {
+            String* string = table[i].string();
+            ASSERT(string->has8BitContent());
+
+            m_buffer.putData(string->characters8(), string->length());
+        }
+    } else {
+        for (size_t i = 0; i < tableSize; i++) {
+            String* string = table[i].string();
+            bool is8Bit = string->has8BitContent();
+
+            m_buffer.ensureSize(sizeof(bool));
+            m_buffer.put(is8Bit);
+            if (is8Bit) {
+                m_buffer.putData(string->characters8(), string->length());
+            } else {
+                m_buffer.putData(string->characters16(), string->length());
+            }
+        }
+    }
+}
+
 #define STORE_ATOMICSTRING_RELOC(member)                 \
     size_t stringIndex = m_stringTable->add(bc->member); \
     relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
-
 
 void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
 {
@@ -750,6 +790,66 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, Script* scri
     ByteCodeGenerator::relocateByteCode(block);
 
     return block;
+}
+
+CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
+{
+    CacheStringTable* table = new CacheStringTable();
+
+    bool has16BitString = m_buffer.get<bool>();
+    size_t maxLength = m_buffer.get<size_t>();
+    size_t tableSize = m_buffer.get<size_t>();
+
+    size_t length;
+    if (LIKELY(!has16BitString)) {
+        LChar* buffer = new LChar[maxLength + 1];
+        for (size_t i = 0; i < tableSize; i++) {
+            length = m_buffer.get<size_t>();
+            m_buffer.getData(buffer, length);
+            buffer[length] = '\0';
+
+            if (UNLIKELY(length == 0)) {
+                table->initAdd(AtomicString());
+            } else {
+                table->initAdd(AtomicString(context, buffer, length));
+            }
+        }
+
+        delete[] buffer;
+
+    } else {
+        bool is8Bit;
+        size_t length;
+        LChar* lBuffer = new LChar[maxLength + 1];
+        UChar* uBuffer = new UChar[maxLength + 1];
+        for (size_t i = 0; i < tableSize; i++) {
+            is8Bit = m_buffer.get<bool>();
+            length = m_buffer.get<size_t>();
+
+            if (is8Bit) {
+                m_buffer.getData(lBuffer, length);
+                lBuffer[length] = '\0';
+
+                if (UNLIKELY(length == 0)) {
+                    table->initAdd(AtomicString());
+                } else {
+                    table->initAdd(AtomicString(context, lBuffer, length));
+                }
+            } else {
+                ASSERT(length > 0);
+                m_buffer.getData(uBuffer, length);
+                uBuffer[length] = '\0';
+
+                table->initAdd(AtomicString(context, uBuffer, length));
+            }
+        }
+
+        delete[] lBuffer;
+        delete[] uBuffer;
+    }
+
+    ASSERT(table->table().size() == tableSize);
+    return table;
 }
 
 #define LOAD_ATOMICSTRING_RELOC(member)   \

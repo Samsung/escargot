@@ -22,8 +22,6 @@
 
 #if defined(ENABLE_CODE_CACHE)
 
-#define INITIAL_CACHE_BUFFER_SIZE 1024 * 4
-
 namespace Escargot {
 
 class Script;
@@ -97,8 +95,8 @@ public:
     class CacheBuffer {
     public:
         CacheBuffer()
-            : m_buffer(static_cast<char*>(malloc(INITIAL_CACHE_BUFFER_SIZE)))
-            , m_capacity(INITIAL_CACHE_BUFFER_SIZE)
+            : m_buffer(nullptr)
+            , m_capacity(0)
             , m_index(0)
         {
         }
@@ -162,11 +160,12 @@ public:
 
     ~CodeCacheWriter()
     {
-        clear();
+        clearBuffer();
     }
 
     void setStringTable(CacheStringTable* table)
     {
+        ASSERT(!!table);
         m_stringTable = table;
     }
 
@@ -177,9 +176,10 @@ public:
 
     char* bufferData() { return m_buffer.data(); }
     size_t bufferSize() { return m_buffer.size(); }
-    void clear() { m_buffer.reset(); }
+    void clearBuffer() { m_buffer.reset(); }
     void storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock);
     void storeByteCodeBlock(ByteCodeBlock* block);
+    void storeStringTable();
 
 private:
     CacheBuffer m_buffer;
@@ -269,11 +269,12 @@ public:
 
     ~CodeCacheReader()
     {
-        clear();
+        clearBuffer();
     }
 
     void setStringTable(CacheStringTable* table)
     {
+        ASSERT(!!table);
         m_stringTable = table;
     }
 
@@ -284,11 +285,12 @@ public:
 
     char* bufferData() { return m_buffer.data(); }
     size_t bufferIndex() { return m_buffer.index(); }
-    void clear() { m_buffer.reset(); }
+    void clearBuffer() { m_buffer.reset(); }
     void loadDataFile(FILE*, size_t);
 
     InterpretedCodeBlock* loadInterpretedCodeBlock(Context* context, Script* script);
     ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script);
+    CacheStringTable* loadStringTable(Context* context);
 
 private:
     CacheBuffer m_buffer;
