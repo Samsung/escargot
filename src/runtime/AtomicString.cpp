@@ -250,9 +250,9 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
     if (map->end() == iter) {
         String* newStr;
         if (isAllASCII(src, len)) {
-            newStr = new UTF16String(src, len);
-        } else {
             newStr = new ASCIIString(src, len);
+        } else {
+            newStr = new UTF16String(src, len);
         }
         map->insert(newStr);
         m_string = newStr;
