@@ -581,7 +581,7 @@ void CodeCacheReader::CacheBuffer::reset()
     m_index = 0;
 }
 
-void CodeCacheReader::loadDataFile(FILE* file, size_t size)
+void CodeCacheReader::loadData(FILE* file, size_t size)
 {
     m_buffer.resize(size);
     fread((void*)bufferData(), sizeof(char), size, file);
@@ -747,13 +747,13 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     return codeBlock;
 }
 
-ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, Script* script)
+ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock)
 {
     ASSERT(GC_is_disabled());
-    ASSERT(!!script->topCodeBlock());
+    ASSERT(!!topCodeBlock);
 
     size_t size;
-    ByteCodeBlock* block = new ByteCodeBlock(script->topCodeBlock());
+    ByteCodeBlock* block = new ByteCodeBlock(topCodeBlock);
 
     block->m_shouldClearStack = m_buffer.get<bool>();
     block->m_isOwnerMayFreed = m_buffer.get<bool>();

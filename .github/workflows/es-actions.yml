@@ -91,14 +91,18 @@ jobs:
       run: |
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" sunspider-js
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" sunspider-js
+        rm -rf $HOME/Escargot-cache/
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+        rm -rf $HOME/Escargot-cache/
     - name: Run new-es 
       run: |
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
+        rm -rf $HOME/Escargot-cache/
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" new-es
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" new-es
+        rm -rf $HOME/Escargot-cache/
 
   coverity_scan:
     if: github.event_name == 'push'
