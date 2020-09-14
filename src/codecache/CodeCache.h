@@ -22,8 +22,11 @@
 
 #if defined(ENABLE_CODE_CACHE)
 
-#define CODE_CACHE_FILE_NAME_LENGTH 32
+#if defined(ESCARGOT_ENABLE_TEST)
+#define CODE_CACHE_MIN_SOURCE_LENGTH 1024
+#else
 #define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 4
+#endif
 
 namespace Escargot {
 
@@ -36,10 +39,11 @@ class ByteCodeBlock;
 class InterpretedCodeBlock;
 
 enum class CodeCacheType : uint8_t {
-    CACHE_INVALID,
-    CACHE_CODEBLOCK,
-    CACHE_BYTECODE,
-    CACHE_STRING,
+    CACHE_CODEBLOCK = 0,
+    CACHE_BYTECODE = 1,
+    CACHE_STRING = 2,
+    CACHE_INVALID = 3,
+    CACHE_TYPE_NUM = CACHE_INVALID
 };
 
 struct CodeCacheMetaInfo {
@@ -65,64 +69,88 @@ struct CodeCacheMetaInfo {
     size_t dataSize;
 };
 
-struct CodeCacheMetaChunk {
-    CodeCacheMetaInfo codeBlockInfo;
-    CodeCacheMetaInfo byteCodeInfo;
-    CodeCacheMetaInfo stringInfo;
+struct CodeCacheEntry {
+    CodeCacheEntry()
+        : m_lastUsedTimeStamp(0)
+    {
+    }
+
+    void reset()
+    {
+        m_lastUsedTimeStamp = 0;
+        for (size_t i = 0; i < (size_t)CodeCacheType::CACHE_TYPE_NUM; i++) {
+            m_metaInfos[i].cacheType = CodeCacheType::CACHE_INVALID;
+        }
+    }
+
+    uint64_t m_lastUsedTimeStamp;
+    CodeCacheMetaInfo m_metaInfos[(size_t)CodeCacheType::CACHE_TYPE_NUM];
+};
+
+struct CodeCacheContext {
+    CodeCacheContext()
+        : m_cacheStringTable(nullptr)
+        , m_cacheDataOffset(0)
+    {
+    }
+
+    void reset();
+
+    std::string m_cacheFilePath; // current cache data file path
+    CodeCacheEntry m_cacheEntry; // current cache entry
+    CacheStringTable* m_cacheStringTable; // current CacheStringTable
+    size_t m_cacheDataOffset; // current offset in cache data file
 };
 
 class CodeCache {
 public:
-    struct CodeCacheContext {
-        static const char* filePathPrefix;
-
-        CodeCacheContext()
-            : dataOffset(0)
-            , stringTable(nullptr)
-            , metaFileName(nullptr)
-            , dataFileName(nullptr)
-        {
-        }
-
-        void initStringTable();
-        void initStringTable(CacheStringTable* table);
-        void initFileName(String* srcName);
-        void reset();
-
-        size_t srcHashValue; // hash value of target source code
-        size_t dataOffset; // current offset in cache data file
-        CacheStringTable* stringTable; // current CacheStringTable
-
-        char* metaFileName;
-        char* dataFileName;
-    };
-
-    CodeCache();
+    CodeCache(const char* baseCacheDir);
     ~CodeCache();
 
-    std::pair<bool, CodeCacheMetaChunk> tryLoadCodeCacheMetaInfo(String* srcName, String* source);
+    bool enabled() { return m_enabled; }
+    std::pair<bool, CodeCacheEntry> searchCache(size_t srcHash);
 
-    CodeCacheContext& context() { return m_context; }
+    void prepareCacheLoading(Context* context, size_t srcHash, const CodeCacheEntry& entry);
+    void prepareCacheRecording(size_t srcHash);
+    void postCacheLoading();
+    void postCacheRecording(size_t srcHash);
+
     void storeStringTable();
     void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
     void storeByteCodeBlock(ByteCodeBlock* block);
 
-    CacheStringTable* loadStringTable(Context* context, Script* script, CodeCacheMetaInfo metaInfo);
-    InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script, CodeCacheMetaInfo metaInfo);
-    ByteCodeBlock* loadByteCodeBlock(Context* context, Script* script, CodeCacheMetaInfo metaInfo);
+    CacheStringTable* loadCacheStringTable(Context* context);
+    InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script);
+    ByteCodeBlock* loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock);
 
 private:
-    CodeCacheContext m_context;
+    std::string m_cacheFileDir;
 
-    CodeCacheWriter* m_writer;
-    CodeCacheReader* m_reader;
+    CodeCacheContext m_currentContext; // current CodeCache infos
+
+    typedef std::unordered_map<size_t, CodeCacheEntry, std::hash<size_t>, std::equal_to<size_t>, std::allocator<std::pair<size_t const, CodeCacheEntry>>> CodeCacheListMap;
+    CodeCacheListMap m_cacheList;
+
+    CodeCacheWriter* m_cacheWriter;
+    CodeCacheReader* m_cacheReader;
+
+    bool m_enabled; // CodeCache enabled
+    bool m_modified; // denote that some CacheEntry has been changed
+
+    void initialize(const char* baseCacheDir);
+    bool tryInitCacheList();
+    void clear();
+    void reset();
+    void setCacheEntry(size_t hash, const CodeCacheEntry& entry);
+    void addCacheEntry(size_t hash, const CodeCacheEntry& entry);
 
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);
 
-    void writeCacheToFile(CodeCacheType type, size_t extraCount = 0);
-    void loadCacheFromDataFile(CodeCacheMetaInfo& metaInfo);
-    void removeCacheFiles();
+    void recordCacheList();
+    void recordCacheData(CodeCacheType type, size_t extraCount = 0);
+    void loadCacheData(CodeCacheMetaInfo& metaInfo);
+    void removeCacheFile(size_t srcHash);
 };
 }
 
