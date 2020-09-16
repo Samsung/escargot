@@ -516,8 +516,6 @@ void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
     // For initialization of GlobalObject's intrinsic objects
     // These objects have fixed properties, so transition table is not used for memory optimization
     ASSERT(m_prototype);
-    ASSERT(!hasRareData());
-    ASSERT(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty());
     ASSERT(!structure()->hasIndexPropertyName());
 
     markThisObjectDontNeedStructureTransitionTable();
