@@ -22,6 +22,10 @@
 
 #if defined(ENABLE_CODE_CACHE)
 
+#ifndef OS_POSIX
+#error "Code Cache does not support OS other than POSIX"
+#endif
+
 #if defined(ESCARGOT_ENABLE_TEST)
 #define CODE_CACHE_MIN_SOURCE_LENGTH 1024
 #else
@@ -104,6 +108,14 @@ struct CodeCacheContext {
 
 class CodeCache {
 public:
+    enum class Status : uint8_t {
+        NONE,
+        READY,
+        IN_PROGRESS,
+        FINISH,
+        FAILED,
+    };
+
     CodeCache(const char* baseCacheDir);
     ~CodeCache();
 
@@ -111,9 +123,9 @@ public:
     std::pair<bool, CodeCacheEntry> searchCache(size_t srcHash);
 
     void prepareCacheLoading(Context* context, size_t srcHash, const CodeCacheEntry& entry);
-    void prepareCacheRecording(size_t srcHash);
-    void postCacheLoading();
-    void postCacheRecording(size_t srcHash);
+    void prepareCacheWriting(size_t srcHash);
+    bool postCacheLoading();
+    void postCacheWriting(size_t srcHash);
 
     void storeStringTable();
     void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
@@ -124,7 +136,7 @@ public:
     ByteCodeBlock* loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock);
 
 private:
-    std::string m_cacheFileDir;
+    std::string m_cacheDirPath;
 
     CodeCacheContext m_currentContext; // current CodeCache infos
 
@@ -134,12 +146,20 @@ private:
     CodeCacheWriter* m_cacheWriter;
     CodeCacheReader* m_cacheReader;
 
+    int m_cacheDirFD; // CodeCache directory file descriptor
     bool m_enabled; // CodeCache enabled
     bool m_modified; // denote that some CacheEntry has been changed
 
+    Status m_status; // current caching status
+
     void initialize(const char* baseCacheDir);
+    bool tryInitCacheDir();
     bool tryInitCacheList();
+    void unLockAndCloseCacheDir();
+    void clearCacheDir();
+
     void clear();
+    void clearAll();
     void reset();
     void setCacheEntry(size_t hash, const CodeCacheEntry& entry);
     void addCacheEntry(size_t hash, const CodeCacheEntry& entry);
@@ -147,10 +167,9 @@ private:
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);
 
-    void recordCacheList();
-    void recordCacheData(CodeCacheType type, size_t extraCount = 0);
-    void loadCacheData(CodeCacheMetaInfo& metaInfo);
-    void removeCacheFile(size_t srcHash);
+    bool writeCacheList();
+    bool writeCacheData(CodeCacheType type, size_t extraCount = 0);
+    bool readCacheData(CodeCacheMetaInfo& metaInfo);
 };
 }
 

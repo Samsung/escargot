@@ -160,6 +160,7 @@ public:
 
     ~CodeCacheWriter()
     {
+        m_stringTable = nullptr;
         clearBuffer();
     }
 
@@ -269,6 +270,7 @@ public:
 
     ~CodeCacheReader()
     {
+        m_stringTable = nullptr;
         clearBuffer();
     }
 
@@ -286,7 +288,7 @@ public:
     char* bufferData() { return m_buffer.data(); }
     size_t bufferIndex() { return m_buffer.index(); }
     void clearBuffer() { m_buffer.reset(); }
-    void loadData(FILE*, size_t);
+    bool loadData(FILE*, size_t);
 
     InterpretedCodeBlock* loadInterpretedCodeBlock(Context* context, Script* script);
     ByteCodeBlock* loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock);
