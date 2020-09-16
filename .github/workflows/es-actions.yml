@@ -43,8 +43,8 @@ jobs:
         ninja -Cout/debugger
     - name: Debugger Test
       run: |
-        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-server-source 
-        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-client-source 
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-server-source
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-client-source
 
   cctest:
     runs-on: ubuntu-latest
@@ -95,7 +95,7 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         rm -rf $HOME/Escargot-cache/
-    - name: Run new-es 
+    - name: Run new-es
       run: |
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
@@ -103,6 +103,16 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" new-es
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" new-es
         rm -rf $HOME/Escargot-cache/
+    - name: Handle error cases
+      run: |
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+        rm $HOME/Escargot-cache/3217641879501852439
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+        ls -1q $HOME/Escargot-cache/ | wc -l
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+        rm $HOME/Escargot-cache/cache_list
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+
 
   coverity_scan:
     if: github.event_name == 'push'

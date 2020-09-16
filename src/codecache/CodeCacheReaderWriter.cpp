@@ -581,10 +581,15 @@ void CodeCacheReader::CacheBuffer::reset()
     m_index = 0;
 }
 
-void CodeCacheReader::loadData(FILE* file, size_t size)
+bool CodeCacheReader::loadData(FILE* file, size_t size)
 {
     m_buffer.resize(size);
-    fread((void*)bufferData(), sizeof(char), size, file);
+    if (UNLIKELY(fread((void*)bufferData(), sizeof(char), size, file) != size)) {
+        clearBuffer();
+        return false;
+    }
+
+    return true;
 }
 
 InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context, Script* script)
@@ -738,7 +743,6 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         for (size_t i = 0; i < mapSize; i++) {
             size_t stringIndex = m_buffer.get<size_t>();
             size_t index = m_buffer.get<size_t>();
-            m_stringTable->get(stringIndex);
             varMap->insert(std::make_pair(m_stringTable->get(stringIndex), index));
         }
         codeBlock->rareData()->m_identifierInfoMap = varMap;
