@@ -376,8 +376,8 @@ StringRef* StringRef::createReloadableString(VMInstanceRef* instance,
     return toRef(new ReloadableString(toImpl(instance), is8BitString, len, callbackData, loadCallback, unloadCallback));
 }
 #else
-static StringRef* StringRef::createReloadableString(VMInstanceRef* instance, bool is8BitString, size_t len, void* callbackData,
-                                                    void* (*loadCallback)(void* callbackData), void (*unloadCallback)(void* memoryPtr, void* callbackData))
+StringRef* StringRef::createReloadableString(VMInstanceRef* instance, bool is8BitString, size_t len, void* callbackData,
+                                             void* (*loadCallback)(void* callbackData), void (*unloadCallback)(void* memoryPtr, void* callbackData))
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable source compression");
     RELEASE_ASSERT_NOT_REACHED();
