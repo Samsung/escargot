@@ -37,7 +37,7 @@
 
 namespace Escargot {
 
-void CodeCacheContext::reset()
+void CodeCache::CodeCacheContext::reset()
 {
     m_cacheFilePath.clear();
     m_cacheEntry.reset();
@@ -52,7 +52,6 @@ CodeCache::CodeCache(const char* baseCacheDir)
     , m_cacheReader(nullptr)
     , m_cacheDirFD(-1)
     , m_enabled(false)
-    , m_modified(false)
     , m_status(Status::NONE)
 {
     initialize(baseCacheDir);
@@ -101,23 +100,27 @@ bool CodeCache::tryInitCacheDir()
     if (cacheDir) {
         int ret = closedir(cacheDir);
         if (ret != 0) {
+            ESCARGOT_LOG_ERROR("[CodeCache] can't properly close cache directory %s\n", m_cacheDirPath.data());
             return false;
         }
     } else {
         int ret = mkdir(m_cacheDirPath.data(), 0755);
         if (ret != 0) {
+            ESCARGOT_LOG_ERROR("[CodeCache] can't properly generate cache directory %s\n", m_cacheDirPath.data());
             return false;
         }
     }
 
     // open cache directory
     if ((m_cacheDirFD = open(m_cacheDirPath.data(), O_RDONLY)) == -1) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't properly open cache directory %s\n", m_cacheDirPath.data());
         return false;
     }
 
     // lock cache directory
     ASSERT(m_cacheDirFD != -1);
     if (flock(m_cacheDirFD, LOCK_EX | LOCK_NB) == -1) {
+        ESCARGOT_LOG_INFO("[CodeCache] cache directory (%s) lock failed\n", m_cacheDirPath.data());
         close(m_cacheDirFD);
         m_cacheDirFD = -1;
         return false;
@@ -131,39 +134,48 @@ bool CodeCache::tryInitCacheList()
     ASSERT(m_cacheList.size() == 0);
     ASSERT(m_cacheDirPath.length());
 
+    std::string listFilePath = m_cacheDirPath + CODE_CACHE_LIST_FILE_NAME;
+
+    struct stat statFile;
+    if (stat(listFilePath.data(), &statFile) != 0) {
+        // there is no list file
+        // cache has not been saved or all files might be removed
+        return true;
+    }
+
     // check file permission
-    std::string cacheListFilePath = m_cacheDirPath + CODE_CACHE_LIST_FILE_NAME;
-    FILE* listFile = fopen(cacheListFilePath.data(), "ab");
-    if (!listFile) {
+    if (!S_ISREG(statFile.st_mode) || !(statFile.st_mode & S_IRUSR) || !(statFile.st_mode & S_IWUSR)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] limited cache file (%s) permission\n", listFilePath.data());
         return false;
     }
-    fclose(listFile);
 
     // load list entries from file
-    listFile = fopen(cacheListFilePath.data(), "rb");
-    if (listFile) {
-        size_t srcHash;
-        CodeCacheEntry entry;
-        bool failLoad = false;
-
-        while (!feof(listFile)) {
-            if (fread(&srcHash, sizeof(size_t), 1, listFile) != 1) {
-                break;
-            }
-            if (fread(&entry, sizeof(CodeCacheEntry), 1, listFile) != 1) {
-                failLoad = true;
-                break;
-            }
-
-            setCacheEntry(srcHash, entry);
-        }
-        fclose(listFile);
-
-        if (failLoad) {
-            return false;
-        }
+    FILE* listFile = fopen(listFilePath.data(), "rb");
+    if (!listFile) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache list file %s\n", listFilePath.data());
+        return false;
     }
 
+    size_t listSize;
+    if (UNLIKELY(fread(&listSize, sizeof(size_t), 1, listFile) != 1)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] fread of %s failed\n", listFilePath.data());
+        fclose(listFile);
+        return false;
+    }
+
+    ASSERT(listSize > 0);
+    for (size_t i = 0; i < listSize; i++) {
+        CodeCacheEntryChunk entryChunk;
+        if (UNLIKELY(fread(&entryChunk, sizeof(CodeCacheEntryChunk), 1, listFile) != 1)) {
+            ESCARGOT_LOG_ERROR("[CodeCache] fread of %s failed\n", listFilePath.data());
+            fclose(listFile);
+            return false;
+        }
+
+        setCacheEntry(entryChunk);
+    }
+
+    fclose(listFile);
     return true;
 }
 
@@ -202,7 +214,7 @@ void CodeCache::clearCacheDir()
 
         struct stat statEntry;
         // stat error
-        if (stat(entryPath.data(), &statEntry) < 0) {
+        if (stat(entryPath.data(), &statEntry) != 0) {
             ESCARGOT_LOG_ERROR("[CodeCache] stat error of %s occurred during clearing cache directory\n", entryPath.data());
             continue;
         }
@@ -255,13 +267,13 @@ void CodeCache::reset()
     m_currentContext.reset();
 }
 
-void CodeCache::setCacheEntry(size_t hash, const CodeCacheEntry& entry)
+void CodeCache::setCacheEntry(const CodeCacheEntryChunk& entryChunk)
 {
 #ifndef NDEBUG
-    auto iter = m_cacheList.find(hash);
+    auto iter = m_cacheList.find(entryChunk.m_srcHash);
     ASSERT(iter == m_cacheList.end());
 #endif
-    m_cacheList.insert(std::make_pair(hash, entry));
+    m_cacheList.insert(std::make_pair(entryChunk.m_srcHash, entryChunk.m_entry));
 }
 
 void CodeCache::addCacheEntry(size_t hash, const CodeCacheEntry& entry)
@@ -274,8 +286,6 @@ void CodeCache::addCacheEntry(size_t hash, const CodeCacheEntry& entry)
     } else {
         m_cacheList.insert(std::make_pair(hash, entry));
     }
-
-    m_modified = true;
 }
 
 std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash)
@@ -296,7 +306,7 @@ std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash)
 
 void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, const CodeCacheEntry& entry)
 {
-    ASSERT(m_enabled && !m_modified && m_status == Status::READY);
+    ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
     ASSERT(!m_currentContext.m_cacheFilePath.length());
     ASSERT(!m_currentContext.m_cacheStringTable);
@@ -310,7 +320,7 @@ void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, const Code
 
 void CodeCache::prepareCacheWriting(size_t srcHash)
 {
-    ASSERT(m_enabled && !m_modified && m_status == Status::READY);
+    ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
     ASSERT(!m_currentContext.m_cacheFilePath.length());
     ASSERT(!m_currentContext.m_cacheStringTable);
@@ -557,42 +567,48 @@ ByteCodeBlock* CodeCache::loadByteCodeBlock(Context* context, InterpretedCodeBlo
 
 bool CodeCache::writeCacheList()
 {
-    ASSERT(m_enabled && m_modified);
+    ASSERT(m_enabled);
     ASSERT(m_cacheList.size() > 0);
     ASSERT(m_cacheDirPath.length());
 
     std::string cacheListFilePath = m_cacheDirPath + CODE_CACHE_LIST_FILE_NAME;
     FILE* listFile = fopen(cacheListFilePath.data(), "wb");
     if (UNLIKELY(!listFile)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache list file %s\n", cacheListFilePath.data());
         return false;
     }
 
-    bool failed = false;
-    for (auto iter = m_cacheList.begin(); iter != m_cacheList.end(); iter++) {
-        size_t srcHash = iter->first;
-        CodeCacheEntry entry = iter->second;
-        if (UNLIKELY(fwrite(&srcHash, sizeof(size_t), 1, listFile) != 1)) {
-            failed = true;
-            break;
-        }
-        if (UNLIKELY(fwrite(&entry, sizeof(CodeCacheEntry), 1, listFile) != 1)) {
-            failed = true;
-            break;
-        }
-    }
-
-    if (UNLIKELY(failed)) {
+    size_t listSize = m_cacheList.size();
+    // first write the number of cache entries
+    if (UNLIKELY(fwrite(&listSize, sizeof(size_t), 1, listFile) != 1)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
         fclose(listFile);
         return false;
     }
 
-    // FIXME frequent flush and fsync call can slow down the overall performance
-    // cache list is the main file of code cache, so we directly flush and sync it
-    fflush(listFile);
-    fsync(fileno(listFile));
-    fclose(listFile);
-    m_modified = false;
+    size_t entryCount = 0;
+    auto iter = m_cacheList.begin();
+    while (entryCount < listSize) {
+        ASSERT(iter != m_cacheList.end());
 
+        CodeCacheEntryChunk entryChunk(iter->first, iter->second);
+        if (UNLIKELY(fwrite(&entryChunk, sizeof(CodeCacheEntryChunk), 1, listFile) != 1)) {
+            ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
+            fclose(listFile);
+            return false;
+        }
+
+        entryCount++;
+        iter++;
+    }
+    ASSERT(iter == m_cacheList.end());
+
+    fflush(listFile);
+    // FIXME frequent fsync calls can slow down the overall performance
+    /* for performance issue, fsync is skipped for now
+    fsync(fileno(listFile));
+    */
+    fclose(listFile);
     return true;
 }
 
@@ -617,19 +633,21 @@ bool CodeCache::writeCacheData(CodeCacheType type, size_t extraCount)
     m_currentContext.m_cacheEntry.m_metaInfos[(size_t)type] = meta;
 
     if (UNLIKELY(!dataFile)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
         return false;
     }
 
     // write cache data
     if (UNLIKELY(fwrite(m_cacheWriter->bufferData(), sizeof(char), m_cacheWriter->bufferSize(), dataFile) != m_cacheWriter->bufferSize())) {
+        ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", m_currentContext.m_cacheFilePath.data());
         fclose(dataFile);
         m_cacheWriter->clearBuffer();
         return false;
     }
 
-    // FIXME frequent flush and fsync call can slow down the overall performance
-    /* for performance issue, flush and fsync are skipped for cache data file now
     fflush(dataFile);
+    // FIXME frequent fsync calls can slow down the overall performance
+    /* for performance issue, fsync is skipped for now
     fsync(fileno(dataFile));
     */
     fclose(dataFile);
@@ -658,6 +676,7 @@ bool CodeCache::readCacheData(CodeCacheMetaInfo& metaInfo)
     }
 
     if (UNLIKELY(!m_cacheReader->loadData(dataFile, metaInfo.dataSize))) {
+        fclose(dataFile);
         return false;
     }
 
