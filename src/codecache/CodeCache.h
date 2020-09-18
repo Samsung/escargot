@@ -91,21 +91,6 @@ struct CodeCacheEntry {
     CodeCacheMetaInfo m_metaInfos[(size_t)CodeCacheType::CACHE_TYPE_NUM];
 };
 
-struct CodeCacheContext {
-    CodeCacheContext()
-        : m_cacheStringTable(nullptr)
-        , m_cacheDataOffset(0)
-    {
-    }
-
-    void reset();
-
-    std::string m_cacheFilePath; // current cache data file path
-    CodeCacheEntry m_cacheEntry; // current cache entry
-    CacheStringTable* m_cacheStringTable; // current CacheStringTable
-    size_t m_cacheDataOffset; // current offset in cache data file
-};
-
 class CodeCache {
 public:
     enum class Status : uint8_t {
@@ -114,6 +99,37 @@ public:
         IN_PROGRESS,
         FINISH,
         FAILED,
+    };
+
+    struct CodeCacheContext {
+        CodeCacheContext()
+            : m_cacheStringTable(nullptr)
+            , m_cacheDataOffset(0)
+        {
+        }
+
+        void reset();
+
+        std::string m_cacheFilePath; // current cache data file path
+        CodeCacheEntry m_cacheEntry; // current cache entry
+        CacheStringTable* m_cacheStringTable; // current CacheStringTable
+        size_t m_cacheDataOffset; // current offset in cache data file
+    };
+
+    struct CodeCacheEntryChunk {
+        CodeCacheEntryChunk()
+            : m_srcHash(0)
+        {
+        }
+
+        CodeCacheEntryChunk(size_t srcHash, const CodeCacheEntry& entry)
+            : m_srcHash(srcHash)
+            , m_entry(entry)
+        {
+        }
+
+        size_t m_srcHash;
+        CodeCacheEntry m_entry;
     };
 
     CodeCache(const char* baseCacheDir);
@@ -148,7 +164,6 @@ private:
 
     int m_cacheDirFD; // CodeCache directory file descriptor
     bool m_enabled; // CodeCache enabled
-    bool m_modified; // denote that some CacheEntry has been changed
 
     Status m_status; // current caching status
 
@@ -161,7 +176,7 @@ private:
     void clear();
     void clearAll();
     void reset();
-    void setCacheEntry(size_t hash, const CodeCacheEntry& entry);
+    void setCacheEntry(const CodeCacheEntryChunk& entryChunk);
     void addCacheEntry(size_t hash, const CodeCacheEntry& entry);
 
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
