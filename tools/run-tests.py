@@ -147,6 +147,16 @@ def run_octane(engine, arch):
     raise last_error
 
 
+@runner('octane-loading', default=True)
+def run_octane_loading(engine, arch):
+    OCTANE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'octane')
+    OCTANE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'octane')
+    copy(join(OCTANE_OVERRIDE_DIR, 'runLoading.js'), join(OCTANE_DIR, 'runLoading.js'))
+
+    run([engine, 'runLoading.js'],
+         cwd=OCTANE_DIR)
+
+
 @runner('modifiedVendorTest', default=True)
 def run_internal_test(engine, arch):
     INTERNAL_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'ModifiedVendorTest')

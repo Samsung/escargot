@@ -87,21 +87,23 @@ jobs:
       run: |
         cmake -H. -Bout/codecache/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/x64
-    - name: Run sunspider-js
+    - name: Run x86 test
       run: |
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" sunspider-js
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" sunspider-js
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" octane-loading
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" octane-loading
         rm -rf $HOME/Escargot-cache/
-        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
-        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
-        rm -rf $HOME/Escargot-cache/
-    - name: Run new-es
+    - name: Run x64 test
       run: |
-        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
-        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" new-es
-        rm -rf $HOME/Escargot-cache/
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" new-es
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" new-es
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" octane-loading
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" octane-loading
         rm -rf $HOME/Escargot-cache/
     - name: Handle error cases
       run: |
