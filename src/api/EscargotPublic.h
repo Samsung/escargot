@@ -205,7 +205,7 @@ public:
 private:
     void initHolderSpace(T* initialValue)
     {
-        m_holder = (T**)Memory::gcMallocUncollectable(sizeof(T**));
+        m_holder = (T**)Memory::gcMallocUncollectable(sizeof(T*));
         *m_holder = initialValue;
     }
 
