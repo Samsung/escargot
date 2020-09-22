@@ -75,19 +75,19 @@ struct CodeCacheMetaInfo {
 
 struct CodeCacheEntry {
     CodeCacheEntry()
-        : m_lastUsedTimeStamp(0)
+        : m_lastWrittenTimeStamp(0)
     {
     }
 
     void reset()
     {
-        m_lastUsedTimeStamp = 0;
+        m_lastWrittenTimeStamp = 0;
         for (size_t i = 0; i < (size_t)CodeCacheType::CACHE_TYPE_NUM; i++) {
             m_metaInfos[i].cacheType = CodeCacheType::CACHE_INVALID;
         }
     }
 
-    uint64_t m_lastUsedTimeStamp;
+    uint64_t m_lastWrittenTimeStamp;
     CodeCacheMetaInfo m_metaInfos[(size_t)CodeCacheType::CACHE_TYPE_NUM];
 };
 
@@ -177,7 +177,10 @@ private:
     void clearAll();
     void reset();
     void setCacheEntry(const CodeCacheEntryChunk& entryChunk);
-    void addCacheEntry(size_t hash, const CodeCacheEntry& entry);
+    bool addCacheEntry(size_t hash, const CodeCacheEntry& entry);
+
+    bool removeLRUCacheEntry();
+    bool removeCacheFile(size_t hash);
 
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);

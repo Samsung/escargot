@@ -34,6 +34,7 @@
 
 #define CODE_CACHE_FILE_DIR "/Escargot-cache/"
 #define CODE_CACHE_LIST_FILE_NAME "cache_list"
+#define CODE_CACHE_MAX_CACHE_NUM 32
 
 namespace Escargot {
 
@@ -163,7 +164,7 @@ bool CodeCache::tryInitCacheList()
         return false;
     }
 
-    ASSERT(listSize > 0);
+    ASSERT(listSize > 0 && listSize <= CODE_CACHE_MAX_CACHE_NUM);
     for (size_t i = 0; i < listSize; i++) {
         CodeCacheEntryChunk entryChunk;
         if (UNLIKELY(fread(&entryChunk, sizeof(CodeCacheEntryChunk), 1, listFile) != 1)) {
@@ -276,16 +277,68 @@ void CodeCache::setCacheEntry(const CodeCacheEntryChunk& entryChunk)
     m_cacheList.insert(std::make_pair(entryChunk.m_srcHash, entryChunk.m_entry));
 }
 
-void CodeCache::addCacheEntry(size_t hash, const CodeCacheEntry& entry)
+bool CodeCache::addCacheEntry(size_t hash, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled);
 
+#ifndef NDEBUG
     auto iter = m_cacheList.find(hash);
-    if (iter != m_cacheList.end()) {
-        iter->second = entry;
-    } else {
-        m_cacheList.insert(std::make_pair(hash, entry));
+    ASSERT(iter == m_cacheList.end());
+#endif
+    if (m_cacheList.size() == CODE_CACHE_MAX_CACHE_NUM) {
+        if (UNLIKELY(!removeLRUCacheEntry())) {
+            return false;
+        }
     }
+
+    m_cacheList.insert(std::make_pair(hash, entry));
+    return true;
+}
+
+bool CodeCache::removeLRUCacheEntry()
+{
+    ASSERT(m_enabled);
+    ASSERT(m_cacheList.size() == CODE_CACHE_MAX_CACHE_NUM);
+
+#ifndef NDEBUG
+    uint64_t currentTimeStamp = fastTickCount();
+#endif
+    size_t lruHash = 0;
+    uint64_t lruTimeStamp = std::numeric_limits<uint64_t>::max();
+    for (auto iter = m_cacheList.begin(); iter != m_cacheList.end(); iter++) {
+        uint64_t timeStamp = iter->second.m_lastWrittenTimeStamp;
+#ifndef NDEBUG
+        ASSERT(timeStamp <= currentTimeStamp);
+#endif
+        if (lruTimeStamp > timeStamp) {
+            lruHash = iter->first;
+            lruTimeStamp = timeStamp;
+        }
+    }
+
+    if (UNLIKELY(!removeCacheFile(lruHash))) {
+        return false;
+    }
+
+    size_t eraseReturn = m_cacheList.erase(lruHash);
+    ASSERT(eraseReturn == 1 && m_cacheList.size() == CODE_CACHE_MAX_CACHE_NUM - 1);
+
+    return true;
+}
+
+bool CodeCache::removeCacheFile(size_t hash)
+{
+    ASSERT(m_enabled);
+    ASSERT(m_cacheDirPath.length());
+
+    std::string filePath = m_cacheDirPath + std::to_string(hash);
+
+    if (remove(filePath.data()) != 0) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can`t remove a cache file %s\n", filePath.data());
+        return false;
+    }
+
+    return true;
 }
 
 std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash)
@@ -353,12 +406,19 @@ void CodeCache::postCacheWriting(size_t srcHash)
     ASSERT(m_enabled);
 
     if (LIKELY(m_status == Status::FINISH)) {
-        addCacheEntry(srcHash, m_currentContext.m_cacheEntry);
-        if (writeCacheList()) {
-            reset();
-            m_status = Status::READY;
+        CodeCacheEntry& entry = m_currentContext.m_cacheEntry;
+        ASSERT(entry.m_lastWrittenTimeStamp == 0);
 
-            return;
+        // write time stamp
+        entry.m_lastWrittenTimeStamp = fastTickCount();
+
+        if (addCacheEntry(srcHash, m_currentContext.m_cacheEntry)) {
+            if (writeCacheList()) {
+                reset();
+                m_status = Status::READY;
+
+                return;
+            }
         }
     }
 
@@ -568,7 +628,7 @@ ByteCodeBlock* CodeCache::loadByteCodeBlock(Context* context, InterpretedCodeBlo
 bool CodeCache::writeCacheList()
 {
     ASSERT(m_enabled);
-    ASSERT(m_cacheList.size() > 0);
+    ASSERT(m_cacheList.size() > 0 && m_cacheList.size() <= CODE_CACHE_MAX_CACHE_NUM);
     ASSERT(m_cacheDirPath.length());
 
     std::string cacheListFilePath = m_cacheDirPath + CODE_CACHE_LIST_FILE_NAME;
