@@ -628,6 +628,7 @@ struct FunctionEnvironmentRecordPiece;
 
 template <>
 struct FunctionEnvironmentRecordPiece<false, false> {
+    FunctionEnvironmentRecordPiece() {}
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         RELEASE_ASSERT_NOT_REACHED();
