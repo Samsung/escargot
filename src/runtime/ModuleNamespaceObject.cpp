@@ -229,6 +229,7 @@ void ModuleNamespaceObject::enumeration(ExecutionState& state, bool (*callback)(
         Script* targetModule = std::get<0>(binding.m_record.value());
         if (!targetModule->moduleData()->m_moduleRecord) {
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
+            return;
         }
         targetModule->moduleData()->m_moduleRecord->getBindingValue(state, std::get<1>(binding.m_record.value()));
     }
