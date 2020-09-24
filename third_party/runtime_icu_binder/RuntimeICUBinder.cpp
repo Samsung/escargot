@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <locale.h>
 #include <string>
 
 #ifdef _WIN32
