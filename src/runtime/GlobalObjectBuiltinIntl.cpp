@@ -114,7 +114,6 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
     if (g.hasValue()) {
         fn = g.value(state, internalSlot).asFunction();
     } else {
-        const StaticStrings* strings = &state.context()->staticStrings();
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCompareFunction()), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);
@@ -217,7 +216,6 @@ static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value 
     if (g.hasValue()) {
         fn = g.value(state, internalSlot).asFunction();
     } else {
-        const StaticStrings* strings = &state.context()->staticStrings();
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().format), Value(fn), internalSlot);
         fn->setInternalSlot(internalSlot);

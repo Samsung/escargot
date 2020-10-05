@@ -155,34 +155,28 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     }
                 }
 
-                bool usingNameIsResolvedOnCompileTime = false;
-                if (codeBlock->canUseIndexedVariableStorage()) {
-                    if (codeBlock->hasName(blockIndex, uname)) {
-                        usingNameIsResolvedOnCompileTime = true;
-                    } else {
-                        auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
-                        InterpretedCodeBlock* c = codeBlock->parent();
-                        while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
-                            auto r = c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname);
+                if (codeBlock->canUseIndexedVariableStorage() && !codeBlock->hasName(blockIndex, uname)) {
+                    auto parentBlockIndex = codeBlock->lexicalBlockIndexFunctionLocatedIn();
+                    InterpretedCodeBlock* c = codeBlock->parent();
+                    while (c && parentBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
+                        auto r = c->tryCaptureIdentifiersFromChildCodeBlock(parentBlockIndex, uname);
 
-                            if (r.first) {
-                                usingNameIsResolvedOnCompileTime = true;
-                                // if variable is global variable, we don't need to capture it
-                                if (!codeBlock->hasAncestorUsesNonIndexedVariableStorage() && !c->isKindOfFunction() && (r.second == SIZE_MAX || c->blockInfos()[r.second]->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX)) {
+                        if (r.first) {
+                            // if variable is global variable, we don't need to capture it
+                            if (!codeBlock->hasAncestorUsesNonIndexedVariableStorage() && !c->isKindOfFunction() && (r.second == SIZE_MAX || c->blockInfos()[r.second]->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX)) {
+                            } else {
+                                if (r.second == SIZE_MAX) {
+                                    // captured variable is `var` declared variable
+                                    c->markHeapAllocatedEnvironmentFromHere(LEXICAL_BLOCK_INDEX_MAX, c);
                                 } else {
-                                    if (r.second == SIZE_MAX) {
-                                        // captured variable is `var` declared variable
-                                        c->markHeapAllocatedEnvironmentFromHere(LEXICAL_BLOCK_INDEX_MAX, c);
-                                    } else {
-                                        // captured variable is `let` declared variable
-                                        c->markHeapAllocatedEnvironmentFromHere(r.second, c);
-                                    }
+                                    // captured variable is `let` declared variable
+                                    c->markHeapAllocatedEnvironmentFromHere(r.second, c);
                                 }
-                                break;
                             }
-                            parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
-                            c = c->parent();
+                            break;
                         }
+                        parentBlockIndex = c->lexicalBlockIndexFunctionLocatedIn();
+                        c = c->parent();
                     }
                 }
             }

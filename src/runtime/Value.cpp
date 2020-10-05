@@ -39,24 +39,6 @@
 
 namespace Escargot {
 
-bool Value::isIterable() const
-{
-    if (isString())
-        return true;
-
-    if (!isObject())
-        return false;
-
-    Object* object = asObject();
-
-    if (object->isArrayObject())
-        return true;
-    if (object->isTypedArrayObject())
-        return true;
-
-    return false;
-}
-
 bool Value::isConstructor() const
 {
     if (!isObject() || !asObject()->isConstructor()) {

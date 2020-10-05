@@ -113,7 +113,6 @@ void RopeString::flattenRopeStringWorker()
     queue.push_back(left());
     queue.push_back(right());
     size_t pos = m_bufferData.length;
-    size_t k = 0;
     while (!queue.empty()) {
         String* cur = queue.back();
         queue.pop_back();

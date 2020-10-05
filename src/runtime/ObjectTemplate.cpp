@@ -244,7 +244,6 @@ private:
 
 Object* ObjectTemplate::instantiate(Context* ctx)
 {
-    size_t propertyCount = m_properties.size();
     if (!m_cachedObjectStructure) {
         m_cachedObjectStructure = constructObjectStructure(ctx, nullptr, 0);
     }

@@ -1559,7 +1559,6 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     // Let start be min(max(pos, 0), len).
     double start = std::min(std::max(pos, 0.0), len);
     // Let searchLen be the number of elements in searchStr.
-    size_t searchLen = searchStr->length();
     // If there exists any integer k not smaller than start such that k + searchLen is not greater than len, and for all nonnegative integers j less than searchLen, the code unit at index k+j of S is the same as the code unit at index j of searchStr, return true; but if there is no such integer k, return false.
     auto ret = S->find(searchStr, start);
     if (ret == SIZE_MAX) {

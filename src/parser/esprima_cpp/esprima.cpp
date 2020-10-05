@@ -461,7 +461,6 @@ public:
         }
 
         InterpretedCodeBlock* currentTarget = this->codeBlock;
-        size_t orgIndex = this->lookahead.start;
         this->expect(LeftParenthesis);
 
         InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
@@ -1842,7 +1841,6 @@ public:
 
         ALLOC_TOKEN(token);
         this->nextToken(token);
-        MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
         tm->valueRaw = token->valueTemplate->valueRaw;
@@ -1864,7 +1862,6 @@ public:
 
         ALLOC_TOKEN(token);
         this->nextToken(token);
-        MetaNode node = this->createNode();
         TemplateElement* tm = new TemplateElement();
         tm->value = token->valueTemplate->valueCooked;
         tm->valueRaw = token->valueTemplate->valueRaw;
@@ -6191,11 +6188,6 @@ public:
                 bool previousStrict = this->context->strict;
                 bool previousAllowYield = this->context->allowYield;
                 this->context->allowYield = true;
-
-#ifdef ESCARGOT_DEBUGGER
-                size_t loc_index = this->lookahead.start;
-                size_t line = this->lookahead.lineNumber;
-#endif /* ESCARGOT_DEBUGGER */
 
                 Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
 

@@ -500,7 +500,6 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     }
 
     String* str = argv[0].toString(state);
-    Value arg[1] = { str };
     ASSERT(str != nullptr);
 
     //21.2.5.6.8

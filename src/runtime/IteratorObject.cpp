@@ -184,11 +184,4 @@ Object* IteratorObject::createIterResultObject(ExecutionState& state, const Valu
 
     return obj;
 }
-
-// https://www.ecma-international.org/ecma-262/10.0/#sec-createlistiteratorRecord
-Value IteratorObject::createListIteratorRecord(ExecutionState& state, const Value& list)
-{
-    // createListIteratorRecord is not yet supported
-    RELEASE_ASSERT_NOT_REACHED();
-}
 }

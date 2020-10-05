@@ -579,7 +579,6 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     }
 
     // 21. Repeat, for each key that is an element of targetNonconfigurableKeys,
-    size_t removedUncheckedResultKeys = 0;
     for (size_t i = 0; i < targetNonconfigurableKeys.size(); ++i) {
         auto& key = targetNonconfigurableKeys[i];
         // a. If key is not an element of uncheckedResultKeys, throw a TypeError exception.

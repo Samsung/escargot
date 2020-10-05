@@ -608,7 +608,6 @@ public:
     void pushBack(const T& val, size_t newSize)
     {
         if (m_capacity <= (newSize)) {
-            size_t oldc = m_capacity;
             ComputeReservedCapacityFunction f;
             m_capacity = f(newSize);
             m_buffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * m_capacity);

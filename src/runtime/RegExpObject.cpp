@@ -332,7 +332,6 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isGlobal = option() & RegExpObject::Option::Global;
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
-    bool reachToEnd = false;
     unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int, state);
     outputBuf[1] = start;
     do {
@@ -414,9 +413,6 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 }
             }
         } else {
-            if (start) {
-                reachToEnd = true;
-            }
             break;
         }
     } while (result != JSC::Yarr::offsetNoMatch);
@@ -459,18 +455,6 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
         temp.m_matchResults.clear();
         testResult = matchNonGlobally(state, str, temp, false, end);
     } while (testResult);
-}
-
-ArrayObject* RegExpObject::createMatchedArray(ExecutionState& state, String* str, RegexMatchResult& result)
-{
-    ArrayObject* ret = new ArrayObject(state);
-    createRegexMatchResult(state, str, result);
-    size_t len = result.m_matchResults.size();
-    ret->setThrowsException(state, state.context()->staticStrings().length, Value(len), ret);
-    for (size_t idx = 0; idx < len; idx++) {
-        ret->defineOwnProperty(state, ObjectPropertyName(state, Value(idx)), ObjectPropertyDescriptor(Value(new StringView(str, result.m_matchResults[idx][0].m_start, result.m_matchResults[idx][0].m_end)), ObjectPropertyDescriptor::AllPresent));
-    }
-    return ret;
 }
 
 ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)

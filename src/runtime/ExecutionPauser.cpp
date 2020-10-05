@@ -237,7 +237,6 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     self->m_resumeStateIndex = dstStateRegisterIndex;
 
     bool isGenerator = pauser->isGeneratorObject();
-    bool isAsync = pauser->isScriptAsyncFunctionObject();
     bool isAsyncGenerator = pauser->isAsyncGeneratorObject();
 
     if (reason == PauseReason::Yield) {

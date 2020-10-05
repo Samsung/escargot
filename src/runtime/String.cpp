@@ -954,7 +954,6 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
     size_t tailPos = position + matchLenght;
     size_t m = captures.size();
     StringBuilder builder;
-    size_t n = 0;
     bool twodigit = false;
 
     // dollar replace
@@ -1015,7 +1014,6 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                         builder.appendString(capture.toString(state));
                     }
                     i = namedCaptureEnd - 1;
-                    bool ValidNamedCapturedGroup = false;
                 } else {
                     builder.appendChar('$');
                     builder.appendChar(temp);

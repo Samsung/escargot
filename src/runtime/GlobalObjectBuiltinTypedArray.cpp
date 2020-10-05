@@ -1611,13 +1611,13 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     taConstructor->setFunctionPrototype(state, taPrototype);
 
     // 22.2.5.1 /TypedArray/.BYTES_PER_ELEMENT
-    taConstructor->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().BYTES_PER_ELEMENT), ObjectPropertyDescriptor(Value(elementSize), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
+    taConstructor->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->BYTES_PER_ELEMENT), ObjectPropertyDescriptor(Value(elementSize), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
 
     // 22.2.6.1 /TypedArray/.prototype.BYTES_PER_ELEMENT
-    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().BYTES_PER_ELEMENT), ObjectPropertyDescriptor(Value(elementSize), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
+    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->BYTES_PER_ELEMENT), ObjectPropertyDescriptor(Value(elementSize), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
 
     // 22.2.6.2 /TypedArray/.prototype.constructor
-    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(taName),
                       ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

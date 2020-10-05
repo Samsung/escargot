@@ -321,7 +321,6 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        std::string s = numberingSystem.asString()->toNonGCUTF8StringData();
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(numberingSystem.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
         }

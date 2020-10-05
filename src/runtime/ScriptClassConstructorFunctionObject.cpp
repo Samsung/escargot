@@ -97,9 +97,6 @@ public:
 Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
 {
     // Assert: Type(newTarget) is Object.
-    CodeBlock* cb = codeBlock();
-    FunctionObject* constructor = this;
-
     Object* thisArgument = nullptr;
     // Let kind be F’s [[ConstructorKind]] internal slot.
     ConstructorKind kind = constructorKind();
