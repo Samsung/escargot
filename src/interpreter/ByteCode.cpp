@@ -246,8 +246,6 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
 ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside)
 {
     ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
-    InterpretedCodeBlock* codeBlock = context->m_codeBlock;
-
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 
     if (bi->m_shouldAllocateEnvironment) {

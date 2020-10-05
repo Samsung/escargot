@@ -366,6 +366,12 @@ typedef int32_t UChar32;
 #define UNUSED_PARAMETER(variable) (void)variable
 #endif
 
+/* UNUSED_VARIABLE */
+
+#if !defined(UNUSED_VARIABLE)
+#define UNUSED_VARIABLE(variable) UNUSED_PARAMETER(variable)
+#endif
+
 #if !defined(FALLTHROUGH) && defined(COMPILER_GCC)
 #if __GNUC__ >= 7
 #define FALLTHROUGH __attribute__((fallthrough))

@@ -61,14 +61,13 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, S
     String* errorMessage;
     String* replacer = replacerBuilder.finalize();
 
-    size_t len1 = strlen(templateString);
-    size_t len2 = replacer->length();
+    size_t len = strlen(templateString);
     std::basic_string<char16_t> buf;
-    buf.resize(len1);
-    for (size_t i = 0; i < len1; i++) {
+    buf.resize(len);
+    for (size_t i = 0; i < len; i++) {
         buf[i] = templateString[i];
     }
-    UTF16StringDataNonGCStd str(buf.data(), len1);
+    UTF16StringDataNonGCStd str(buf.data(), len);
     size_t idx;
     if ((idx = str.find(u"%s")) != SIZE_MAX) {
         str.replace(str.begin() + idx, str.begin() + idx + 2, replacer->toUTF16StringData().data());

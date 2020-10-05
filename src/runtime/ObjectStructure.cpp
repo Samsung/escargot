@@ -256,7 +256,6 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
                 m_transitionTableVectorBufferSize = 0;
             } else {
                 if (m_transitionTableVectorBufferCapacity <= (size_t)(m_transitionTableVectorBufferSize + 1)) {
-                    size_t oldc = m_transitionTableVectorBufferCapacity;
                     m_transitionTableVectorBufferCapacity = std::min(computeVectorAllocateSize(m_transitionTableVectorBufferSize + 1), (size_t)std::numeric_limits<uint8_t>::max());
                     m_transitionTableVectorBuffer = (ObjectStructureTransitionVectorItem*)GC_REALLOC(m_transitionTableVectorBuffer, sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity);
                 }

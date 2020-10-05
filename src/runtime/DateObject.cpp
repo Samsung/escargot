@@ -586,7 +586,8 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
             skipSpacesAndComments(dateString);
         }
 
-        parseLong(dateString, &newPosStr, 10, &hour);
+        bool temp = parseLong(dateString, &newPosStr, 10, &hour);
+        UNUSED_VARIABLE(temp);
         // Do not check for errno here since we want to continue
         // even if errno was set becasue we are still looking
         // for the timezone!

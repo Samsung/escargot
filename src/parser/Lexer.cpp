@@ -586,7 +586,6 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
     size_t lineStartBackup = scannerInstance->lineStart;
 
     scannerInstance->index = this->start;
-    const size_t start = this->start;
     char16_t quote = scannerInstance->peekChar();
     ASSERT((quote == '\'' || quote == '"'));
     // 'String literal must starts with a quote');

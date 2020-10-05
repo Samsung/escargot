@@ -130,7 +130,6 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     }
 
     const size_t functionDefaultPropertyCount = m_isConstructor ? ctx->defaultStructureForFunctionObject()->propertyCount() : ctx->defaultStructureForNotConstructorFunctionObject()->propertyCount();
-    size_t propertyCount = m_properties.size() + functionDefaultPropertyCount;
     if (!m_cachedObjectStructure) {
         if (m_isConstructor) {
             // [prototype, name, length]

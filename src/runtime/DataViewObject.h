@@ -72,6 +72,8 @@ public:
         }
 
         double numberValue = val.toNumber(state);
+        UNUSED_VARIABLE(numberValue);
+
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
         ArrayBufferObject* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);

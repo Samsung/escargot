@@ -349,7 +349,6 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                                    &indexes);
             std::sort(indexes.begin(), indexes.end(), std::less<Value::ValueIndex>());
             for (uint32_t i = 0; i < indexes.size(); ++i) {
-                String* item = nullptr;
                 Value property = arrObject->get(state, ObjectPropertyName(state, Value(indexes[i]))).value(state, arrObject);
                 builtinJSONArrayReplacerHelper(state, propertyList, property);
             }

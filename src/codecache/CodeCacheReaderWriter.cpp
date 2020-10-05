@@ -884,7 +884,6 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
     // relocate ByteCodeStream
     {
         char* code = byteCodeStream.data();
-        size_t codeBase = (size_t)code;
         char* end = code + byteCodeStream.size();
 
         InterpretedCodeBlock* codeBlock = block->codeBlock();
