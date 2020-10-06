@@ -93,13 +93,13 @@ struct ByteCodeGenerateContext {
         , m_complexJumpLabeledBreakIgnoreCount(0)
         , m_complexJumpLabeledContinueIgnoreCount(0)
         , m_lexicalBlockIndex(0)
+        , m_classInfo()
         , m_maxPauseStatementExtraDataLength(0)
         , m_numeralLiteralData(numeralLiteralData)
 #ifdef ESCARGOT_DEBUGGER
         , m_breakpointContext(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
     {
-        m_classInfo = ClassContextInformation();
     }
 
     ByteCodeGenerateContext(const ByteCodeGenerateContext& contextBefore)
@@ -265,7 +265,7 @@ struct ByteCodeGenerateContext {
     void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
     void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos, size_t outerLimitCount = SIZE_MAX);
 
-    bool shouldCareScriptExecutionResult()
+    bool shouldCareScriptExecutionResult() const
     {
         return (m_isGlobalScope | m_isEvalCode) && m_baseRegisterCount == 0;
     }
@@ -307,7 +307,7 @@ struct ByteCodeGenerateContext {
         return m_recursiveStatementStack.size();
     }
 
-    bool inTryStatement()
+    bool inTryStatement() const
     {
         for (size_t i = 0; i < m_recursiveStatementStack.size(); i++) {
             if (m_recursiveStatementStack[i].first == Try) {

@@ -804,8 +804,8 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
     size_t maxLength = m_buffer.get<size_t>();
     size_t tableSize = m_buffer.get<size_t>();
 
-    size_t length;
     if (LIKELY(!has16BitString)) {
+        size_t length;
         LChar* buffer = new LChar[maxLength + 1];
         for (size_t i = 0; i < tableSize; i++) {
             length = m_buffer.get<size_t>();
@@ -822,13 +822,11 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
         delete[] buffer;
 
     } else {
-        bool is8Bit;
-        size_t length;
         LChar* lBuffer = new LChar[maxLength + 1];
         UChar* uBuffer = new UChar[maxLength + 1];
         for (size_t i = 0; i < tableSize; i++) {
-            is8Bit = m_buffer.get<bool>();
-            length = m_buffer.get<size_t>();
+            bool is8Bit = m_buffer.get<bool>();
+            size_t length = m_buffer.get<size_t>();
 
             if (is8Bit) {
                 m_buffer.getData(lBuffer, length);

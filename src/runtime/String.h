@@ -96,9 +96,9 @@ struct StringBufferAccessData {
     };
     void* extraData;
 
-    StringBufferAccessData(bool has8BitContent, size_t length, void* buffer, void* extraDataKeepInStack = nullptr)
-        : has8BitContent(has8BitContent)
-        , length(length)
+    StringBufferAccessData(bool has8Bit, size_t len, void* buffer, void* extraDataKeepInStack = nullptr)
+        : has8BitContent(has8Bit)
+        , length(len)
         , buffer(buffer)
         , extraData(extraDataKeepInStack)
     {

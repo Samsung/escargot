@@ -491,7 +491,6 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUnitDisplay()), unitDisplay.asString(), numberFormat->internalSlot());
     }
 
-    size_t cDigits = 2;
     double mnfdDefault = 0;
     double mxfdDefault = 0;
 
@@ -500,7 +499,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string())) {
         // Let currency be numberFormat.[[Currency]].
         // Let cDigits be CurrencyDigits(currency).
-        cDigits = currencyDigits(currency.asString());
+        size_t cDigits = currencyDigits(currency.asString());
         // Let mnfdDefault be cDigits.
         mnfdDefault = cDigits;
         // Let mxfdDefault be cDigits.

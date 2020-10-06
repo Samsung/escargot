@@ -41,7 +41,7 @@ public:
     }
 
 private:
-    inline size_t astPoolSize()
+    inline size_t astPoolSize() const
     {
         const size_t astPoolSizeMap[] = {
             1024 * 4,

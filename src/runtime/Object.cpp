@@ -1161,7 +1161,7 @@ bool Object::hasInstance(ExecutionState& state, Value O)
     return false;
 }
 
-bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult current)
+bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult& current)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-iscompatiblepropertydescriptor
     // https://www.ecma-international.org/ecma-262/6.0/#sec-validateandapplypropertydescriptor

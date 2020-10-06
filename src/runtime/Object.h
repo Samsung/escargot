@@ -529,7 +529,7 @@ private:
     };
 
 protected:
-    void checkProperty()
+    void checkProperty() const
     {
         if ((m_property & WritablePresent) && (m_property & NonWritablePresent)) {
             ASSERT_NOT_REACHED();
@@ -1025,7 +1025,7 @@ public:
 
     bool hasInstance(ExecutionState& state, const Value O);
 
-    static bool isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult current);
+    static bool isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult& current);
 
     static void throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P);
     static void throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P);
