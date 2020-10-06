@@ -992,13 +992,13 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
 time64_t DateObject::parseStringToDate(ExecutionState& state, String* istr)
 {
     bool haveTZ;
-    int offset;
     time64_t primitiveValue = parseStringToDate_2(state, istr, haveTZ);
     if (IS_VALID_TIME(primitiveValue)) {
         if (!haveTZ) { // add local timezone offset
             primitiveValue = applyLocalTimezoneOffset(state, primitiveValue);
         }
     } else {
+        int offset;
         primitiveValue = parseStringToDate_1(state, istr, haveTZ, offset);
         if (IS_VALID_TIME(primitiveValue)) {
             if (!haveTZ) {
@@ -1168,8 +1168,8 @@ time64_t DateObject::daysToMs(int year, int month, int date)
 String* DateObject::toDateString(ExecutionState& state)
 {
     RESOLVECACHE(state);
-    char buffer[32];
     if (IS_VALID_TIME(m_primitiveValue)) {
+        char buffer[32];
         int year = getFullYear(state);
         if (year < 0) {
             snprintf(buffer, sizeof(buffer), "%s %s %02d %05d", days[getDay(state)], months[getMonth(state)], getDate(state), year);
@@ -1185,8 +1185,8 @@ String* DateObject::toDateString(ExecutionState& state)
 String* DateObject::toTimeString(ExecutionState& state)
 {
     RESOLVECACHE(state);
-    char buffer[32];
     if (IS_VALID_TIME(m_primitiveValue)) {
+        char buffer[32];
         int tzOffsetAsMin = -getTimezoneOffset(state); // 540
         int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
         int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
@@ -1225,8 +1225,8 @@ String* DateObject::toFullString(ExecutionState& state)
 
 String* DateObject::toISOString(ExecutionState& state)
 {
-    char buffer[64];
     if (IS_VALID_TIME(m_primitiveValue)) {
+        char buffer[64];
         if (getUTCFullYear(state) >= 0 && getUTCFullYear(state) <= 9999) {
             snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         } else {
@@ -1242,8 +1242,8 @@ String* DateObject::toISOString(ExecutionState& state)
 
 String* DateObject::toUTCString(ExecutionState& state, String* functionName)
 {
-    char buffer[64];
     if (IS_VALID_TIME(m_primitiveValue)) {
+        char buffer[64];
         int year = getUTCFullYear(state);
         if (year < 0) {
             snprintf(buffer, sizeof(buffer), "%s, %02d %s %05d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),

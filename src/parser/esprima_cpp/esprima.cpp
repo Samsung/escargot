@@ -761,14 +761,14 @@ public:
 
     // Return true if the next token matches the specified punctuator.
 
-    bool match(PunctuatorKind value)
+    bool match(PunctuatorKind value) const
     {
         return this->lookahead.type == Token::PunctuatorToken && this->lookahead.valuePunctuatorKind == value;
     }
 
     // Return true if the next token matches the specified keyword
 
-    bool matchKeyword(KeywordKind keyword)
+    bool matchKeyword(KeywordKind keyword) const
     {
         return this->lookahead.type == Token::KeywordToken && this->lookahead.valueKeywordKind == keyword;
     }
@@ -5221,7 +5221,7 @@ public:
 
     // ECMA-262 14.4 Generator Function Definitions
 
-    bool isStartOfExpression()
+    bool isStartOfExpression() const
     {
         bool start = true;
 

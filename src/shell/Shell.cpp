@@ -683,9 +683,8 @@ int main(int argc, char* argv[])
                 }
                 if (strcmp(argv[i], "--debugger-wait-source") == 0) {
                     StringRef* sourceName;
-                    StringRef* clientSourceRef;
                     while (true) {
-                        clientSourceRef = context->getClientSource(&sourceName);
+                        StringRef* clientSourceRef = context->getClientSource(&sourceName);
                         if (!clientSourceRef) {
                             break;
                         }

@@ -66,7 +66,7 @@ public:
         m_piecesInlineStorageUsage = 0;
     }
 
-    size_t contentLength() { return m_contentLength; }
+    size_t contentLength() const { return m_contentLength; }
     void appendString(const char* str)
     {
         appendPiece(str);

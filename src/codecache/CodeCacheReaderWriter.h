@@ -78,8 +78,8 @@ public:
         return m_table;
     }
 
-    bool has16BitString() { return m_has16BitString; }
-    size_t maxLength() { return m_maxLength; }
+    bool has16BitString() const { return m_has16BitString; }
+    size_t maxLength() const { return m_maxLength; }
     size_t add(const AtomicString& string);
     void initAdd(const AtomicString& string);
     AtomicString& get(size_t index);
@@ -108,7 +108,7 @@ public:
 
         char* data() const { return m_buffer; }
         size_t size() const { return m_index; }
-        inline bool isAvailable(size_t size)
+        inline bool isAvailable(size_t size) const
         {
             return m_index + size <= m_capacity;
         }
@@ -176,7 +176,7 @@ public:
     }
 
     char* bufferData() { return m_buffer.data(); }
-    size_t bufferSize() { return m_buffer.size(); }
+    size_t bufferSize() const { return m_buffer.size(); }
     void clearBuffer() { m_buffer.reset(); }
     void storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock);
     void storeByteCodeBlock(ByteCodeBlock* block);
@@ -286,7 +286,7 @@ public:
     }
 
     char* bufferData() { return m_buffer.data(); }
-    size_t bufferIndex() { return m_buffer.index(); }
+    size_t bufferIndex() const { return m_buffer.index(); }
     void clearBuffer() { m_buffer.reset(); }
     bool loadData(FILE*, size_t);
 
