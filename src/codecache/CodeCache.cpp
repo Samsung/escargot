@@ -246,6 +246,8 @@ void CodeCache::clear()
 
     delete m_cacheWriter;
     delete m_cacheReader;
+    m_cacheWriter = nullptr;
+    m_cacheReader = nullptr;
 
     // disable code cache
     m_enabled = false;
@@ -727,15 +729,18 @@ bool CodeCache::readCacheData(CodeCacheMetaInfo& metaInfo)
     FILE* dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "rb");
 
     if (UNLIKELY(!dataFile)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
         return false;
     }
 
     if (UNLIKELY(fseek(dataFile, dataOffset, SEEK_SET) != 0)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't seek the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
         fclose(dataFile);
         return false;
     }
 
     if (UNLIKELY(!m_cacheReader->loadData(dataFile, metaInfo.dataSize))) {
+        ESCARGOT_LOG_ERROR("[CodeCache] load cache data of %s failed\n", m_currentContext.m_cacheFilePath.data());
         fclose(dataFile);
         return false;
     }
