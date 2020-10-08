@@ -43,8 +43,10 @@ void CodeCache::CodeCacheContext::reset()
     m_cacheFilePath.clear();
     m_cacheEntry.reset();
 
-    delete m_cacheStringTable;
-    m_cacheStringTable = nullptr;
+    if (m_cacheStringTable) {
+        delete m_cacheStringTable;
+        m_cacheStringTable = nullptr;
+    }
     m_cacheDataOffset = 0;
 }
 
@@ -121,7 +123,7 @@ bool CodeCache::tryInitCacheDir()
     // lock cache directory
     ASSERT(m_cacheDirFD != -1);
     if (flock(m_cacheDirFD, LOCK_EX | LOCK_NB) == -1) {
-        ESCARGOT_LOG_INFO("[CodeCache] cache directory (%s) lock failed\n", m_cacheDirPath.data());
+        ESCARGOT_LOG_ERROR("[CodeCache] cache directory (%s) lock failed\n", m_cacheDirPath.data());
         close(m_cacheDirFD);
         m_cacheDirFD = -1;
         return false;
@@ -244,10 +246,14 @@ void CodeCache::clear()
     m_cacheDirPath.clear();
     m_cacheList.clear();
 
-    delete m_cacheWriter;
-    delete m_cacheReader;
-    m_cacheWriter = nullptr;
-    m_cacheReader = nullptr;
+    if (m_cacheWriter) {
+        delete m_cacheWriter;
+        m_cacheWriter = nullptr;
+    }
+    if (m_cacheReader) {
+        delete m_cacheReader;
+        m_cacheReader = nullptr;
+    }
 
     // disable code cache
     m_enabled = false;

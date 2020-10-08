@@ -485,6 +485,11 @@ void VMInstance::clearCachesRelatedWithContext()
     m_regexpCache->clear();
     m_cachedUTC = nullptr;
     globalSymbolRegistry().clear();
+#if defined(ENABLE_CODE_CACHE)
+    // CodeCache should be cleared here because CodeCache holds a lock of cache directory
+    // this lock should be released immediately (destructor may be called later)
+    m_codeCache->clear();
+#endif
 }
 
 void VMInstance::enterIdleMode()
