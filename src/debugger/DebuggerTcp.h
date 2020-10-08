@@ -36,6 +36,10 @@ typedef int EscargotSocket;
 class DebuggerTcp : public Debugger {
 public:
     DebuggerTcp()
+        : m_socket(0)
+        , m_receiveBuffer{}
+        , m_receiveBufferFill(0)
+        , m_messageLength(0)
     {
     }
 

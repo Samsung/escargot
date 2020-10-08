@@ -323,6 +323,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
+#ifndef NDEBUG
+    , m_scopeContext(nullptr)
+#endif
 {
 }
 

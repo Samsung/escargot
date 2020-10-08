@@ -851,7 +851,7 @@ protected:
     InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     // init function CodeBlock
     InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
-    // empty CodeBlock
+    // empty CodeBlock (for CodeCache loading)
     InterpretedCodeBlock(Context* ctx, Script* script);
 
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);

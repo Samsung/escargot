@@ -106,41 +106,40 @@ template <typename T, typename Allocator, typename ComputeReservedCapacityFuncti
 class Vector : public gc {
 public:
     Vector()
+        : m_buffer(nullptr)
+        , m_size(0)
+        , m_capacity(0)
     {
-        m_buffer = nullptr;
-        m_size = 0;
-        m_capacity = 0;
     }
 
     explicit Vector(size_t siz)
+        : m_buffer(nullptr)
+        , m_size(0)
+        , m_capacity(0)
     {
-        m_buffer = nullptr;
-        m_size = 0;
-        m_capacity = 0;
         resize(siz);
     }
 
     Vector(Vector<T, Allocator, ComputeReservedCapacityFunction>&& other)
+        : m_buffer(other.m_buffer)
+        , m_size(other.m_size)
+        , m_capacity(other.m_capacity)
     {
-        m_size = other.size();
-        m_buffer = other.m_buffer;
-        m_capacity = other.m_capacity;
         other.m_buffer = nullptr;
         other.m_size = 0;
         other.m_capacity = 0;
     }
 
     Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other)
+        : m_buffer(nullptr)
+        , m_size(0)
+        , m_capacity(0)
     {
         if (other.size()) {
-            m_size = other.size();
+            m_size = other.m_size;
             m_capacity = other.m_capacity;
             m_buffer = Allocator().allocate(m_capacity);
             VectorCopier<T>::copy(m_buffer, other.data(), m_size);
-        } else {
-            m_buffer = nullptr;
-            m_size = 0;
-            m_capacity = 0;
         }
     }
 
@@ -470,17 +469,17 @@ public:
 
 protected:
     T* m_buffer;
-    size_t m_capacity;
     size_t m_size;
+    size_t m_capacity;
 };
 
 template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
 class VectorWithNoSize : public gc {
 public:
     VectorWithNoSize()
+        : m_buffer(nullptr)
+        , m_capacity(0)
     {
-        m_buffer = nullptr;
-        m_capacity = 0;
     }
 
     const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& operator=(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& other) = delete;
@@ -591,9 +590,9 @@ template <typename T, typename ComputeReservedCapacityFunction = VectorDefaultCo
 class VectorWithNoSizeUseGCRealloc : public gc {
 public:
     VectorWithNoSizeUseGCRealloc()
+        : m_buffer(nullptr)
+        , m_capacity(0)
     {
-        m_buffer = nullptr;
-        m_capacity = 0;
     }
 
     const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& operator=(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& other) = delete;
@@ -708,9 +707,10 @@ template <unsigned int InlineStorageSize, typename T,
 class VectorWithInlineStorage : public gc {
 public:
     VectorWithInlineStorage()
+        : m_useExternalStorage(false)
+        , m_size(0)
+        , m_inlineStorage{}
     {
-        m_size = 0;
-        m_useExternalStorage = false;
     }
 
     VectorWithInlineStorage(const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& src)
