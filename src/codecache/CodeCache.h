@@ -151,6 +151,8 @@ public:
     InterpretedCodeBlock* loadCodeBlockTree(Context* context, Script* script);
     ByteCodeBlock* loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock);
 
+    void clear();
+
 private:
     std::string m_cacheDirPath;
 
@@ -173,7 +175,6 @@ private:
     void unLockAndCloseCacheDir();
     void clearCacheDir();
 
-    void clear();
     void clearAll();
     void reset();
     void setCacheEntry(const CodeCacheEntryChunk& entryChunk);
