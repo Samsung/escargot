@@ -214,6 +214,7 @@ public:
 protected:
     Debugger()
         : m_enabled(false)
+        , m_debuggerEnabled(nullptr)
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_pendingWait(false)
         , m_waitForResume(false)
@@ -228,8 +229,8 @@ protected:
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
     virtual void close(void) = 0;
 
-    bool* m_debuggerEnabled;
     bool m_enabled;
+    bool* m_debuggerEnabled;
 
 private:
     // Packed structure definitions to reduce network traffic

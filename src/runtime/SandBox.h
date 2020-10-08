@@ -50,6 +50,9 @@ public:
             , sourceCode(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
             , functionName(String::emptyString)
+#ifdef ESCARGOT_DEBUGGER
+            , executionStateDepth(0)
+#endif /* ESCARGOT_DEBUGGER */
             , isFunction(false)
             , isConstructor(false)
             , isAssociatedWithJavaScriptCode(false)
