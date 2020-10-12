@@ -452,7 +452,6 @@ typedef uint16_t LexicalBlockIndex;
 #include "CheckedArithmetic.h"
 #include "runtime/String.h"
 #include "util/Util.h"
-#include "util/SmartPtr.h"
 #include "util/Optional.h"
 
 #endif
