@@ -90,28 +90,12 @@ public:
         } else {
             // ObjectAssignmentPattern without AssignmentPropertyList requires object-coercible
             // check if srcRegister is undefined or null
-            size_t cmpIndex = context->getRegister();
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, srcRegister), context, this);
+            size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
-            LiteralNode* undefinedNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value());
-            size_t undefinedIndex = undefinedNode->getRegister(codeBlock, context);
-            undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this);
-            codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
-            context->giveUpRegister(); // for drop undefinedIndex
-
-            LiteralNode* nullNode = new (alloca(sizeof(LiteralNode))) LiteralNode(Value(Value::Null));
-            size_t nullIndex = nullNode->getRegister(codeBlock, context);
-            nullNode->generateExpressionByteCode(codeBlock, context, nullIndex);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), srcRegister, nullIndex, cmpIndex), context, this);
-            codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
-            size_t pos2 = codeBlock->lastCodePosition<JumpIfFalse>();
-            context->giveUpRegister(); // for drop nullIndex
-            context->giveUpRegister(); // for drop cmpIndex
-
-            codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, ErrorObject::Messages::Can_Not_Be_Destructed), context, this);
-            codeBlock->peekCode<JumpIfTrue>(pos2)->m_jumpPosition = codeBlock->currentCodeSize();
+
+            codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
         }
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
