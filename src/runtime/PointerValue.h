@@ -25,6 +25,7 @@ namespace Escargot {
 class Value;
 class String;
 class Symbol;
+class BigInt;
 class Object;
 class FunctionObject;
 class NativeFunctionObject;
@@ -38,6 +39,7 @@ class ScriptClassConstructorFunctionObject;
 class ArrayObject;
 class StringObject;
 class SymbolObject;
+class BigIntObject;
 class NumberObject;
 class BooleanObject;
 class RegExpObject;
@@ -68,15 +70,19 @@ class IntlPluralRulesObject;
 class IntlRelativeTimeFormatObject;
 #endif
 
-#define POINTER_VALUE_STRING_TAG_IN_DATA 0x1
-#define POINTER_VALUE_SYMBOL_TAG_IN_DATA 0x2
+#define POINTER_VALUE_STRING_TAG_IN_DATA 1
+#define POINTER_VALUE_SYMBOL_TAG_IN_DATA 1 << 1
+#define POINTER_VALUE_BIGINT_TAG_IN_DATA 1 << 2
+
+#define POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA | POINTER_VALUE_BIGINT_TAG_IN_DATA)
 // Finding the type of PointerValue operation is widely used during the runtime
 // Only Object, String and Symbol are seen in regular runtime-code
 // We can figure out fastly what the type of PointerValue by tag value
 //   - Every data area of Object starts with [<vtable>, m_structure...]
 //   - Every data area of String starts with [<vtable>, m_tag ...]
 //   - Every data area of Symbol starts with [<vtable>, m_tag ...]
-// Finding what is the type of PointerValue(Object, String, Symbol) without accessing vtable gives better performance
+//   - Every data area of BigInt starts with [<vtable>, m_tag ...]
+// Finding what is the type of PointerValue(Object, String, Symbol, BigInt) without accessing vtable gives better performance
 // but, it uses more memory for String, Symbol type
 // POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
 // so, we can remove each m_tag value in very small device future
@@ -99,7 +105,7 @@ public:
     // fast type check with tag comparison
     inline bool isObject() const
     {
-        return !(getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA));
+        return !(getTagInFirstDataArea() & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA);
     }
 
     inline bool isString() const
@@ -110,6 +116,11 @@ public:
     inline bool isSymbol() const
     {
         return getTagInFirstDataArea() & POINTER_VALUE_SYMBOL_TAG_IN_DATA;
+    }
+
+    inline bool isBigInt() const
+    {
+        return getTagInFirstDataArea() & POINTER_VALUE_BIGINT_TAG_IN_DATA;
     }
 
     inline bool isArrayObject() const
@@ -189,6 +200,11 @@ public:
     }
 
     virtual bool isSymbolObject() const
+    {
+        return false;
+    }
+
+    virtual bool isBigIntObject() const
     {
         return false;
     }
@@ -397,6 +413,12 @@ public:
         return (Symbol*)this;
     }
 
+    BigInt* asBigInt()
+    {
+        ASSERT(isBigInt());
+        return (BigInt*)this;
+    }
+
     Object* asObject()
     {
         ASSERT(isObject());
@@ -480,6 +502,12 @@ public:
     {
         ASSERT(isSymbolObject());
         return (SymbolObject*)this;
+    }
+
+    BigIntObject* asBigIntObject()
+    {
+        ASSERT(isBigIntObject());
+        return (BigIntObject*)this;
     }
 
     NumberObject* asNumberObject()

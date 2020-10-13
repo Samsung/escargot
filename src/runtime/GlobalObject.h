@@ -138,7 +138,8 @@ class FunctionObject;
     F(stringProxyObject, StringObject, NAME)   \
     F(numberProxyObject, NumberObject, NAME)   \
     F(booleanProxyObject, BooleanObject, NAME) \
-    F(symbolProxyObject, SymbolObject, NAME)
+    F(symbolProxyObject, SymbolObject, NAME)   \
+    F(bigIntProxyObject, BigIntObject, NAME)
 #define GLOBALOBJECT_BUILTIN_PROMISE(F, NAME) \
     F(promise, FunctionObject, NAME)          \
     F(promisePrototype, Object, NAME)
@@ -164,6 +165,9 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_SYMBOL(F, NAME) \
     F(symbol, FunctionObject, NAME)          \
     F(symbolPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_BIGINT(F, NAME) \
+    F(bigInt, FunctionObject, NAME)          \
+    F(bigIntPrototype, Object, NAME)
 #define GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, NAME) \
     F(typedArray, FunctionObject, NAME)          \
     F(typedArrayPrototype, Object, NAME)         \
@@ -222,6 +226,7 @@ class FunctionObject;
     GLOBALOBJECT_BUILTIN_SET(F, Set)                                     \
     GLOBALOBJECT_BUILTIN_STRING(F, String)                               \
     GLOBALOBJECT_BUILTIN_SYMBOL(F, Symbol)                               \
+    GLOBALOBJECT_BUILTIN_BIGINT(F, BigInt)                               \
     GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, TypedArray)                       \
     GLOBALOBJECT_BUILTIN_WEAKMAP(F, WeakMap)                             \
     GLOBALOBJECT_BUILTIN_WEAKSET(F, WeakSet)
@@ -284,6 +289,7 @@ private:
     void installObject(ExecutionState& state);
     void installError(ExecutionState& state);
     void installSymbol(ExecutionState& state);
+    void installBigInt(ExecutionState& state);
     void installString(ExecutionState& state);
     void installNumber(ExecutionState& state);
     void installBoolean(ExecutionState& state);

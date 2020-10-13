@@ -3372,6 +3372,8 @@ NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryT
             val = state.context()->staticStrings().function.string();
         } else if (p->isSymbol()) {
             val = state.context()->staticStrings().symbol.string();
+        } else if (p->isBigInt()) {
+            val = state.context()->staticStrings().bigint.string();
         } else {
             val = state.context()->staticStrings().object.string();
         }

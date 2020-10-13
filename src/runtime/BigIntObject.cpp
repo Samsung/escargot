@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2020-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -18,31 +18,31 @@
  */
 
 #include "Escargot.h"
-#include "SymbolObject.h"
+#include "BigIntObject.h"
 #include "Context.h"
 
 namespace Escargot {
 
-SymbolObject::SymbolObject(ExecutionState& state, Symbol* value)
-    : SymbolObject(state, state.context()->globalObject()->symbolPrototype(), value)
+BigIntObject::BigIntObject(ExecutionState& state, BigInt* value)
+    : BigIntObject(state, state.context()->globalObject()->bigIntPrototype(), value)
 {
 }
 
-SymbolObject::SymbolObject(ExecutionState& state, Object* proto, Symbol* value)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+BigIntObject::BigIntObject(ExecutionState& state, Object* proto, BigInt* value)
+    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
     , m_primitiveValue(value)
 {
 }
 
-void* SymbolObject::operator new(size_t size)
+void* BigIntObject::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(SymbolObject)] = { 0 };
+        GC_word obj_bitmap[GC_BITMAP_SIZE(BigIntObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SymbolObject, m_primitiveValue));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SymbolObject));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(BigIntObject, m_primitiveValue));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(BigIntObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);

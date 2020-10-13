@@ -219,7 +219,6 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForBoundFunctionObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForClassConstructorFunctionObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForStringObject));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForSymbolObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForRegExpObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
@@ -282,6 +281,8 @@ VMInstance::~VMInstance()
 #if defined(ENABLE_CODE_CACHE)
     delete m_codeCache;
 #endif
+
+    bf_context_end(&m_bfContext);
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
@@ -363,6 +364,11 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     }
 #endif
 
+    bf_context_init(&m_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
+        return realloc(ptr, size);
+    },
+                    nullptr);
+
     GC_add_event_callback(gcEventCallback, this);
 
     // initialize tag values
@@ -421,8 +427,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
 
     m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&stringLengthGetterSetterData));
-
-    m_defaultStructureForSymbolObject = m_defaultStructureForObject;
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(m_staticStrings.lastIndex,
                                                                                  ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
@@ -490,6 +494,7 @@ void VMInstance::clearCachesRelatedWithContext()
     // this lock should be released immediately (destructor may be called later)
     m_codeCache->clear();
 #endif
+    bf_clear_cache(&m_bfContext);
 }
 
 void VMInstance::enterIdleMode()

@@ -222,6 +222,10 @@
 #include <vector>
 #include <random>
 
+extern "C" {
+#include <libbf.h>
+}
+
 #ifdef ENABLE_ICU
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
 typedef unsigned char LChar;
