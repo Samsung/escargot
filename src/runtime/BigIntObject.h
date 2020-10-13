@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2020-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,30 +17,30 @@
  *  USA
  */
 
-#ifndef __EscargotSymbolObject__
-#define __EscargotSymbolObject__
+#ifndef __EscargotBigIntObject__
+#define __EscargotBigIntObject__
 
 #include "runtime/Object.h"
-#include "runtime/Symbol.h"
+#include "runtime/BigInt.h"
 
 namespace Escargot {
 
-class SymbolObject : public Object {
+class BigIntObject : public Object {
 public:
-    explicit SymbolObject(ExecutionState& state, Symbol* s);
-    explicit SymbolObject(ExecutionState& state, Object* proto, Symbol* s);
+    explicit BigIntObject(ExecutionState& state, BigInt* b);
+    explicit BigIntObject(ExecutionState& state, Object* proto, BigInt* b);
 
-    Symbol* primitiveValue()
+    BigInt* primitiveValue()
     {
         return m_primitiveValue;
     }
 
-    virtual bool isSymbolObject() const override
+    virtual bool isBigIntObject() const override
     {
         return true;
     }
 
-    void setPrimitiveValue(ExecutionState& state, Symbol* data)
+    void setBigIntValue(ExecutionState& state, BigInt* data)
     {
         m_primitiveValue = data;
     }
@@ -49,7 +49,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    Symbol* m_primitiveValue;
+    BigInt* m_primitiveValue;
 };
 }
 

@@ -259,6 +259,11 @@ public:
     }
 #endif
 
+    bf_context_t* bfContext()
+    {
+        return &m_bfContext;
+    }
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -284,7 +289,6 @@ private:
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForStringObject;
-    ObjectStructure* m_defaultStructureForSymbolObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
@@ -342,6 +346,8 @@ private:
 #if defined(ENABLE_CODE_CACHE)
     CodeCache* m_codeCache;
 #endif
+
+    bf_context_t m_bfContext;
 };
 } // namespace Escargot
 

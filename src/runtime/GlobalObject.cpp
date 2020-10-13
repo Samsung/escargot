@@ -68,6 +68,7 @@ void GlobalObject::installBuiltins(ExecutionState& state)
     installIterator(state);
     installError(state);
     installSymbol(state);
+    installBigInt(state);
     installString(state);
     installNumber(state);
     installBoolean(state);

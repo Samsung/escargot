@@ -440,7 +440,9 @@ namespace Escargot {
     F(formatToParts)              \
     F(RelativeTimeFormat)         \
     F(globalThis)                 \
-    F(allSettled)
+    F(allSettled)                 \
+    F(BigInt)                     \
+    F(bigint)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \

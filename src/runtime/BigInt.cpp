@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2020-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -18,33 +18,39 @@
  */
 
 #include "Escargot.h"
-#include "SymbolObject.h"
-#include "Context.h"
+#include "BigInt.h"
+#include "VMInstance.h"
 
 namespace Escargot {
 
-SymbolObject::SymbolObject(ExecutionState& state, Symbol* value)
-    : SymbolObject(state, state.context()->globalObject()->symbolPrototype(), value)
-{
-}
-
-SymbolObject::SymbolObject(ExecutionState& state, Object* proto, Symbol* value)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_primitiveValue(value)
-{
-}
-
-void* SymbolObject::operator new(size_t size)
+void* BigInt::operator new(size_t size)
 {
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(SymbolObject)] = { 0 };
-        Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SymbolObject, m_primitiveValue));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SymbolObject));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(BigInt)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(BigInt, m_vmInstance));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(BigInt));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+BigInt::BigInt(VMInstance* vmInstance)
+    : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
+    , m_vmInstance(vmInstance)
+{
+    bf_init(m_vmInstance->bfContext(), &m_bf);
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        BigInt* self = (BigInt*)obj;
+        bf_delete(&self->m_bf);
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+BigInt::BigInt(VMInstance* vmInstance, int64_t num)
+    : BigInt(vmInstance)
+{
+    bf_set_si(&m_bf, num);
 }
 }
