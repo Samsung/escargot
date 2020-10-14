@@ -495,7 +495,7 @@ ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInst
     return ParserStringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
 }
 
-double Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
+std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
 {
     if (this->hasNonComputedNumberLiteral) {
         const auto& bd = scannerInstance->source.bufferAccessData();
@@ -512,6 +512,11 @@ double Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
             }
         }
 
+        // bigint case
+        if (UNLIKELY(buffer[length - 1] == 'n')) {
+            return std::make_pair(Value(BigInt::parseString(scannerInstance->escargotContext->vmInstance(), buffer, length - 1).value()), true);
+        }
+
         int lengthDummy;
         double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_HEX
                                                                  | double_conversion::StringToDoubleConverter::ALLOW_LEADING_SPACES
@@ -523,7 +528,7 @@ double Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
         this->valueNumber = ll;
         this->hasNonComputedNumberLiteral = false;
     }
-    return this->valueNumber;
+    return std::make_pair(Value(this->valueNumber), false);
 }
 
 void Scanner::ScannerResult::constructStringLiteralHelperAppendUTF16(Scanner* scannerInstance, char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1)
@@ -1311,7 +1316,17 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
         }
     }
 
-    if (!this->eof() && isIdentifierStart(this->peekChar())) {
+    bool isEof = this->eof();
+    bool isBigInt = !isEof && this->peekChar() == 'n';
+
+    if (isBigInt) {
+        if (seenDotOrE || (startChar == '0' && (this->index - start) > 1)) {
+            this->throwUnexpectedToken();
+        }
+        ++this->index;
+    }
+
+    if (UNLIKELY(!isEof && isIdentifierStart(this->peekChar()))) {
         this->throwUnexpectedToken();
     }
 

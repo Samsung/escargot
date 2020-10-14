@@ -1032,11 +1032,13 @@ public:
                 // raw = this->getTokenRaw(token);
                 if (builder.willGenerateByteCode()) {
                     if (token->type == Token::NumericLiteralToken) {
-                        double d = token->valueNumberLiteral(this->scanner);
-                        if (this->context->inLoop || d == 0) {
-                            this->insertNumeralLiteral(Value(d));
+                        auto d = token->valueNumberLiteral(this->scanner);
+                        if (LIKELY(!d.second)) {
+                            if (this->context->inLoop || d.first.asNumber() == 0) {
+                                this->insertNumeralLiteral(d.first);
+                            }
                         }
-                        return this->finalize(node, builder.createLiteralNode(Value(d)));
+                        return this->finalize(node, builder.createLiteralNode(d.first));
                     } else {
                         return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralToValue(this->scanner)));
                     }
@@ -1597,11 +1599,13 @@ public:
                 if (builder.isNodeGenerator()) {
                     if (builder.willGenerateByteCode()) {
                         if (token->type == Token::NumericLiteralToken) {
-                            double d = token->valueNumberLiteral(this->scanner);
-                            if (this->context->inLoop || d == 0) {
-                                this->insertNumeralLiteral(Value(d));
+                            auto d = token->valueNumberLiteral(this->scanner);
+                            if (LIKELY(!d.second)) {
+                                if (this->context->inLoop || d.first.asNumber() == 0) {
+                                    this->insertNumeralLiteral(d.first);
+                                }
                             }
-                            v = Value(d);
+                            v = d.first;
                         } else {
                             v = token->valueStringLiteralToValue(this->scanner);
                         }

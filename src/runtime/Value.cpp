@@ -30,6 +30,7 @@
 #include "NumberObject.h"
 #include "StringObject.h"
 #include "SymbolObject.h"
+#include "BigIntObject.h"
 #include "BooleanObject.h"
 #include "ErrorObject.h"
 
@@ -112,6 +113,8 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
     } else if (isSymbol()) {
         ErrorObject::throwBuiltinError(ec, ErrorObject::TypeError, "Cannot convert a Symbol value to a string");
         ASSERT_NOT_REACHED();
+    } else if (isBigInt()) {
+        return asBigInt()->toString(ec);
     } else {
         return toPrimitive(ec, PreferString).toString(ec);
     }
@@ -129,6 +132,8 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
         object = new StringObject(state, toString(state));
     } else if (isSymbol()) {
         object = new SymbolObject(state, asSymbol());
+    } else if (isBigInt()) {
+        object = new BigIntObject(state, asBigInt());
     } else if (isNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::NullToObject);
     } else {
@@ -136,6 +141,38 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::UndefinedToObject);
     }
     return object;
+}
+
+// https://www.ecma-international.org/ecma-262/#sec-tobigint
+BigInt* Value::toBigInt(ExecutionState& state) const
+{
+    // Let prim be ? ToPrimitive(argument, hint Number).
+    Value prim = toPrimitive(state, Value::PreferNumber);
+    if (isBigInt()) {
+        return asBigInt();
+    } else if (isBoolean()) {
+        return new BigInt(state.context()->vmInstance(), asBoolean() ? 1 : 0);
+    } else if (isString()) {
+        // Let n be ! StringToBigInt(prim).
+        // If n is NaN, throw a SyntaxError exception.
+        // Return n.
+        auto b = BigInt::parseString(state.context()->vmInstance(), asString());
+        if (!b) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot parse String as BigInt");
+        }
+        return b.value();
+    } else if (isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert undefined to BigInt");
+    } else if (isNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert null to BigInt");
+    } else if (isNumber()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert number to BigInt");
+    } else {
+        ASSERT(isSymbol());
+        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert Symbol to BigInt");
+    }
+    ASSERT_NOT_REACHED();
+    return nullptr;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-toprimitive
@@ -465,6 +502,11 @@ double Value::toNumberSlowCase(ExecutionState& state) const
 {
     ASSERT(isPointerValue());
     PointerValue* o = asPointerValue();
+
+    if (UNLIKELY(o->isBigInt())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Could not convert BigInt to number");
+    }
+
     bool isString = o->isString();
     if (isString || o->isStringObject()) {
         double val;

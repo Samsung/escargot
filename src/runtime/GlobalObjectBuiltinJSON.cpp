@@ -25,6 +25,7 @@
 #include "ArrayObject.h"
 #include "TypedArrayObject.h"
 #include "BooleanObject.h"
+#include "BigIntObject.h"
 #include "NativeFunctionObject.h"
 
 #define RAPIDJSON_PARSE_DEFAULT_FLAGS kParseFullPrecisionFlag
@@ -403,9 +404,8 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonproperty
     Str = [&](ObjectPropertyName key, Object* holder) -> Value {
         Value value = holder->get(state, key).value(state, holder);
-        if (value.isObject()) {
-            Object* valObj = value.asPointerValue()->asObject();
-            Value toJson = valObj->get(state, ObjectPropertyName(state, strings->toJSON)).value(state, valObj);
+        if (value.isObject() || value.isBigInt()) {
+            Value toJson = Object::getV(state, value, ObjectPropertyName(state, strings->toJSON));
             if (toJson.isCallable()) {
                 Value arguments[] = { key.toPlainValue(state) };
                 value = Object::call(state, toJson, value, 1, arguments);
@@ -424,6 +424,8 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                 value = Value(value.toString(state));
             } else if (value.asObject()->isBooleanObject()) {
                 value = Value(value.asObject()->asBooleanObject()->primitiveValue());
+            } else if (value.asObject()->isBigIntObject()) {
+                value = Value(value.asObject()->asBigIntObject()->primitiveValue());
             }
         }
         if (value.isNull()) {
@@ -441,6 +443,9 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
                 return value.toString(state);
             }
             return strings->null.string();
+        }
+        if (value.isBigInt()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Could not serialize a BigInt");
         }
         if (value.isObject() && !value.isCallable()) {
             if (value.asObject()->isArray(state)) {

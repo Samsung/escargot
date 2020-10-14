@@ -1021,6 +1021,9 @@ public:
     static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
     Optional<Object*> getMethod(ExecutionState& state, const ObjectPropertyName& propertyName); // returns nullptr or callable
 
+    // https://www.ecma-international.org/ecma-262/#sec-getv
+    static Value getV(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
+
     static Object* getPrototypeFromConstructor(ExecutionState& state, Object* constructor, Object* (*intrinsicDefaultProtoGetter)(ExecutionState& state, Context* constructorRealm));
 
     bool hasInstance(ExecutionState& state, const Value O);

@@ -32,6 +32,7 @@
 #include "NumberObject.h"
 #include "BooleanObject.h"
 #include "SymbolObject.h"
+#include "BigIntObject.h"
 #include "DateObject.h"
 #include "NativeFunctionObject.h"
 #include "parser/Lexer.h"
@@ -1158,6 +1159,7 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_numberProxyObject = new NumberObject(state);
     m_booleanProxyObject = new BooleanObject(state);
     m_symbolProxyObject = new SymbolObject(state, state.context()->vmInstance()->globalSymbols().iterator);
+    m_bigIntProxyObject = new BigIntObject(state, new BigInt(state.context()->vmInstance(), 0));
 
     // 8.2.2 - 12
     // AddRestrictedFunctionProperties(funcProto, realmRec).
