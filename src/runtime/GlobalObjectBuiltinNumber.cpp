@@ -78,7 +78,11 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, si
 {
     double num = 0;
     if (argc > 0) {
-        num = argv[0].toNumber(state);
+        if (UNLIKELY(argv[0].isBigInt())) {
+            num = argv[0].asBigInt()->toNumber();
+        } else {
+            num = argv[0].toNumber(state);
+        }
     }
 
     if (!newTarget.hasValue()) {

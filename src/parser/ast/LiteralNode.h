@@ -33,7 +33,7 @@ public:
         , m_value(value)
     {
         // LiteralNode is allowed to have non-pointer value or string value only
-        ASSERT(!value.isPointerValue() || value.asPointerValue()->isString());
+        ASSERT(!value.isPointerValue() || value.asPointerValue()->isString() || value.asPointerValue()->isBigInt());
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::Literal; }
@@ -41,8 +41,12 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_value.isPointerValue()) {
-            ASSERT(m_value.asPointerValue()->isString());
-            codeBlock->m_stringLiteralData.pushBack(m_value.asPointerValue()->asString());
+            if (LIKELY(m_value.asPointerValue()->isString())) {
+                codeBlock->m_stringLiteralData.pushBack(m_value.asPointerValue()->asString());
+            } else {
+                ASSERT(m_value.asPointerValue()->isBigInt());
+                codeBlock->m_otherLiteralData.pushBack(m_value.asPointerValue()->asBigInt());
+            }
         }
         if (dstRegister < REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this);

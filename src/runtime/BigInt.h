@@ -27,12 +27,21 @@ namespace Escargot {
 class BigInt : public PointerValue {
 public:
     BigInt(VMInstance* vmInstance, int64_t num);
+    static Optional<BigInt*> parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
+    static Optional<BigInt*> parseString(VMInstance* vmInstance, String* str, int radix = 10);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    String* toString(ExecutionState& state, int radix = 10);
+    bool hasNonZeroValue() const;
+    double toNumber() const;
+
 private:
+    BigInt(VMInstance* vmInstance, bf_t bf);
     BigInt(VMInstance* vmInstance);
+
+    void initFinalizer();
 
     size_t m_tag;
     VMInstance* m_vmInstance;

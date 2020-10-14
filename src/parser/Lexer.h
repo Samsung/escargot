@@ -294,7 +294,8 @@ public:
         StringView relatedSource(const StringView& source);
         ParserStringView valueStringLiteral(Scanner* scannerInstance);
         Value valueStringLiteralToValue(Scanner* scannerInstance);
-        double valueNumberLiteral(Scanner* scannerInstance);
+        // returns <Value, isBigInt>
+        std::pair<Value, bool> valueNumberLiteral(Scanner* scannerInstance);
 
         inline operator bool() const
         {

@@ -172,6 +172,7 @@ public:
     inline ExtendedNativeFunctionObject* asExtendedNativeFunctionObject() const;
     inline String* asString() const;
     inline Symbol* asSymbol() const;
+    inline BigInt* asBigInt() const;
 
     // Querying the type.
     inline bool isEmpty() const;
@@ -187,6 +188,7 @@ public:
     bool isNumber() const;
     bool isString() const;
     bool isSymbol() const;
+    bool isBigInt() const;
     inline bool isPrimitive() const;
     bool isGetterSetter() const;
     bool isCustomGetterSetter() const;
@@ -216,6 +218,7 @@ public:
     }
     String* toStringWithoutException(ExecutionState& ec) const;
     Object* toObject(ExecutionState& ec) const; // $7.1.13 ToObject
+    BigInt* toBigInt(ExecutionState& ec) const;
     Value toPropertyKey(ExecutionState& state) const;
 
     enum : uint64_t { InvalidIndexValue = std::numeric_limits<uint64_t>::max() };
@@ -286,6 +289,7 @@ struct is_fundamental<Escargot::Value> : public true_type {
 #include "runtime/Object.h"
 #include "runtime/PointerValue.h"
 #include "runtime/String.h"
+#include "runtime/BigInt.h"
 #include "runtime/ValueInlines.h"
 
 #endif

@@ -112,7 +112,7 @@ inline Value::Value(FromPayloadTag, intptr_t ptr)
 inline Value::Value(PointerValue* ptr)
 {
     // other type of PointerValue(Object) has pointer in first data area
-    if (ptr->getTagInFirstDataArea() & (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA)) {
+    if (ptr->getTagInFirstDataArea() & (POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
         u.asBits.tag = OtherPointerTag;
     } else {
         u.asBits.tag = ObjectPointerTag;
@@ -284,6 +284,11 @@ inline bool Value::isSymbol() const
     return tag() == OtherPointerTag && asPointerValue()->isSymbol();
 }
 
+inline bool Value::isBigInt() const
+{
+    return tag() == OtherPointerTag && asPointerValue()->isBigInt();
+}
+
 inline String* Value::asString() const
 {
     ASSERT(isString());
@@ -294,6 +299,12 @@ inline Symbol* Value::asSymbol() const
 {
     ASSERT(isSymbol());
     return asPointerValue()->asSymbol();
+}
+
+inline BigInt* Value::asBigInt() const
+{
+    ASSERT(isBigInt());
+    return asPointerValue()->asBigInt();
 }
 
 inline bool Value::isObject() const
@@ -471,6 +482,11 @@ inline bool Value::isSymbol() const
     return isPointerValue() && asPointerValue()->isSymbol();
 }
 
+inline bool Value::isBigInt() const
+{
+    return isPointerValue() && asPointerValue()->isBigInt();
+}
+
 inline String* Value::asString() const
 {
     ASSERT(isString());
@@ -481,6 +497,12 @@ inline Symbol* Value::asSymbol() const
 {
     ASSERT(isSymbol());
     return asPointerValue()->asSymbol();
+}
+
+inline BigInt* Value::asBigInt() const
+{
+    ASSERT(isBigInt());
+    return asPointerValue()->asBigInt();
 }
 
 inline bool Value::isPointerValue() const
@@ -659,7 +681,7 @@ inline bool Value::isPrimitive() const
 #ifdef ESCARGOT_32
     return tag() != ObjectPointerTag;
 #else
-    return isUndefined() || isNull() || isNumber() || isString() || isBoolean() || isSymbol();
+    return isUndefined() || isNull() || isNumber() || isString() || isBoolean() || isSymbol() || isBigInt();
 #endif
 }
 
@@ -770,8 +792,12 @@ inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
 
     ASSERT(isPointerValue());
 
-    if (asPointerValue()->isString())
+    if (UNLIKELY(asPointerValue()->isString()))
         return asString()->length();
+
+    if (UNLIKELY(isBigInt())) {
+        return asBigInt()->hasNonZeroValue();
+    }
 
     // Symbol, Objects..
     return true;

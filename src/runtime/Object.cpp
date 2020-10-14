@@ -30,6 +30,7 @@
 #include "NumberObject.h"
 #include "BooleanObject.h"
 #include "SymbolObject.h"
+#include "BigIntObject.h"
 #include "ProxyObject.h"
 #include "util/Util.h"
 #include "interpreter/ByteCodeInterpreter.h"
@@ -1032,8 +1033,7 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     return true;
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
-Value Object::getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName)
+static Object* internalFastToObjectForGetMethodGetV(ExecutionState& state, const Value& O)
 {
     // below method use fake object instead of Value::toObject when O is isPrimitive.
     // we can use proxy object instead of Value::toObject because converted object only used on getting method
@@ -1049,10 +1049,19 @@ Value Object::getMethod(ExecutionState& state, const Value& O, const ObjectPrope
         obj = state.context()->globalObject()->booleanProxyObject();
     } else if (O.isSymbol()) {
         obj = state.context()->globalObject()->symbolProxyObject();
+    } else if (O.isBigInt()) {
+        obj = state.context()->globalObject()->bigIntProxyObject();
     } else {
         obj = O.toObject(state); // this always cause type error
     }
 
+    return obj;
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
+Value Object::getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName)
+{
+    Object* obj = internalFastToObjectForGetMethodGetV(state, O);
     auto r = obj->getMethod(state, propertyName);
     if (r) {
         return Value(r.value());
@@ -1074,6 +1083,12 @@ Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyN
     }
     // 6. Return func.
     return Optional<Object*>(func.asObject());
+}
+
+Value Object::getV(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName)
+{
+    Object* obj = internalFastToObjectForGetMethodGetV(state, O);
+    return obj->get(state, propertyName).value(state, obj);
 }
 
 Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* constructor, Object* (*intrinsicDefaultProtoGetter)(ExecutionState& state, Context* context))
