@@ -152,13 +152,30 @@ bool CodeCache::tryInitCacheList()
         return false;
     }
 
-    // load list entries from file
+    // open list file
     FILE* listFile = fopen(listFilePath.data(), "rb");
     if (!listFile) {
         ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache list file %s\n", listFilePath.data());
         return false;
     }
 
+    // check Escargot version
+    size_t cacheVerHash;
+    if (UNLIKELY(fread(&cacheVerHash, sizeof(size_t), 1, listFile) != 1)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] fread of %s failed\n", listFilePath.data());
+        fclose(listFile);
+        return false;
+    }
+    std::string currentVer = ESCARGOT_VERSION;
+    ASSERT(currentVer.length() > 0);
+    size_t currentVerHash = std::hash<std::string>{}(currentVer);
+    if (UNLIKELY(currentVerHash != cacheVerHash)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] Different Escargot version (current: %zu / cache: %zu), clear cache\n", currentVerHash, cacheVerHash);
+        fclose(listFile);
+        return false;
+    }
+
+    // load list entries from file
     size_t listSize;
     if (UNLIKELY(fread(&listSize, sizeof(size_t), 1, listFile) != 1)) {
         ESCARGOT_LOG_ERROR("[CodeCache] fread of %s failed\n", listFilePath.data());
@@ -646,8 +663,18 @@ bool CodeCache::writeCacheList()
         return false;
     }
 
+    // first write Escargot version
+    std::string version = ESCARGOT_VERSION;
+    ASSERT(version.length() > 0);
+    size_t versionHash = std::hash<std::string>{}(version);
+    if (UNLIKELY(fwrite(&versionHash, sizeof(size_t), 1, listFile) != 1)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
+        fclose(listFile);
+        return false;
+    }
+
     size_t listSize = m_cacheList.size();
-    // first write the number of cache entries
+    // write the number of cache entries
     if (UNLIKELY(fwrite(&listSize, sizeof(size_t), 1, listFile) != 1)) {
         ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
         fclose(listFile);
