@@ -24,22 +24,53 @@
 
 namespace Escargot {
 
+class BigIntData {
+    friend class BigInt;
+
+public:
+    BigIntData(VMInstance* vmInstance, String* src);
+    BigIntData(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
+    BigIntData(BigIntData&& src);
+    BigIntData(const BigIntData& src) = delete;
+    BigIntData operator=(const BigIntData& src) = delete;
+    ~BigIntData();
+
+    bool isNaN();
+    bool isInfinity();
+
+private:
+    void init(VMInstance* vmInstance, const char* buf, size_t length, int radix);
+    bf_t m_data;
+};
+
 class BigInt : public PointerValue {
 public:
     BigInt(VMInstance* vmInstance, int64_t num);
+    BigInt(VMInstance* vmInstance, BigIntData&& n);
+
     static Optional<BigInt*> parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
     static Optional<BigInt*> parseString(VMInstance* vmInstance, String* str, int radix = 10);
+
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
     String* toString(ExecutionState& state, int radix = 10);
-    bool hasNonZeroValue() const;
     double toNumber() const;
+    bool equals(BigInt* b);
+    bool equals(const BigIntData& b);
+    bool equals(String* s);
+    bool equals(double b);
+
+    bool isZero();
+    bool isNaN();
+    bool isInfinity();
+
+    BigInt* negativeValue();
 
 private:
-    BigInt(VMInstance* vmInstance, bf_t bf);
     BigInt(VMInstance* vmInstance);
+    BigInt(VMInstance* vmInstance, bf_t num);
 
     void initFinalizer();
 

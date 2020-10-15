@@ -24,6 +24,67 @@
 
 namespace Escargot {
 
+BigIntData::~BigIntData()
+{
+    bf_delete(&m_data);
+}
+
+BigIntData::BigIntData(BigIntData&& src)
+{
+    bf_move(&m_data, &src.m_data);
+}
+
+BigIntData::BigIntData(VMInstance* vmInstance, String* src)
+{
+    const auto& bd = src->bufferAccessData();
+    char* buffer;
+
+    if (bd.has8BitContent) {
+        buffer = (char*)bd.bufferAs8Bit;
+    } else {
+        if (!isAllASCII(bd.bufferAs16Bit, bd.length)) {
+            bf_set_nan(&m_data);
+            return;
+        }
+        buffer = ALLOCA(bd.length, char, vmInstance);
+
+        for (size_t i = 0; i < bd.length; i++) {
+            buffer[i] = bd.uncheckedCharAtFor16Bit(i);
+        }
+    }
+
+    init(vmInstance, buffer, bd.length, 10);
+}
+
+BigIntData::BigIntData(VMInstance* vmInstance, const char* buf, size_t length, int radix)
+{
+    init(vmInstance, buf, length, radix);
+}
+
+void BigIntData::init(VMInstance* vmInstance, const char* buf, size_t length, int radix)
+{
+    // bf_atof needs zero-terminated string
+    char* newBuf = ALLOCA(length + 1, char, vmInstance);
+    memcpy(newBuf, buf, length);
+    newBuf[length] = 0;
+    bf_t a;
+    bf_init(vmInstance->bfContext(), &m_data);
+    int ret = bf_atof(&m_data, newBuf, NULL, radix, BF_PREC_INF, BF_RNDZ);
+    if (ret) {
+        bf_set_nan(&m_data);
+    }
+}
+
+bool BigIntData::isNaN()
+{
+    return bf_is_nan(&m_data);
+}
+
+bool BigIntData::isInfinity()
+{
+    return !bf_is_finite(&m_data);
+}
+
 void* BigInt::operator new(size_t size)
 {
     static bool typeInited = false;
@@ -60,6 +121,12 @@ BigInt::BigInt(VMInstance* vmInstance, int64_t num)
     bf_set_si(&m_bf, num);
 }
 
+BigInt::BigInt(VMInstance* vmInstance, BigIntData&& n)
+    : BigInt(vmInstance)
+{
+    bf_move(&m_bf, &n.m_data);
+}
+
 BigInt::BigInt(VMInstance* vmInstance, bf_t bf)
     : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
     , m_vmInstance(vmInstance)
@@ -80,7 +147,7 @@ Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, const char* buf, s
     if (ret & BF_ST_MEM_ERROR) {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    if (!ret) {
+    if (ret) {
         bf_delete(&a);
         return nullptr;
     }
@@ -127,15 +194,59 @@ String* BigInt::toString(ExecutionState& state, int radix)
     return ret;
 }
 
-bool BigInt::hasNonZeroValue() const
-{
-    return bf_is_zero(&m_bf);
-}
-
 double BigInt::toNumber() const
 {
     double d;
     bf_get_float64(&m_bf, &d, BF_RNDN);
     return d;
+}
+
+bool BigInt::equals(BigInt* b)
+{
+    return bf_cmp_eq(&m_bf, &b->m_bf);
+}
+
+bool BigInt::equals(const BigIntData& b)
+{
+    return bf_cmp_eq(&m_bf, &b.m_data);
+}
+
+bool BigInt::equals(String* s)
+{
+    BigIntData bd(m_vmInstance, s);
+    return equals(bd);
+}
+
+bool BigInt::equals(double b)
+{
+    return toNumber() == b;
+}
+
+bool BigInt::isNaN()
+{
+    return bf_is_nan(&m_bf);
+}
+
+bool BigInt::isInfinity()
+{
+    return !bf_is_finite(&m_bf);
+}
+
+bool BigInt::isZero()
+{
+    return bf_is_zero(&m_bf);
+}
+
+BigInt* BigInt::negativeValue()
+{
+    if (isNaN() || isZero()) {
+        return this;
+    }
+
+    bf_t bf;
+    bf_init(m_vmInstance->bfContext(), &bf);
+    bf_set(&bf, &m_bf);
+    bf_neg(&bf);
+    return new BigInt(m_vmInstance, bf);
 }
 }

@@ -204,6 +204,7 @@ public:
     Value ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint preferredType) const;
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
+    Value toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     bool isInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     uint64_t toLength(ExecutionState& ec) const;

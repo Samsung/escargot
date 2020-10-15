@@ -371,22 +371,17 @@
     <test id="built-ins/BigInt/asUintN/length"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/asUintN/name"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/asUintN/order-of-steps"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/call-value-of-when-to-string-present"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-empty-string"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-from-binary-string"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-from-decimal-string"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-from-hex-string"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-from-octal-string"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-from-string-syntax-errors"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-integer"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-trailing-leading-spaces"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/prototype/constructor"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/toString/a-z"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/toString/default-radix"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/toString/radix-2-to-36"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/toString/radix-err"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/toString/string-is-code-units-of-decimal-digits-only"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/prototype/toString/thisbigintvalue-not-valid-throws"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/valueOf/cross-realm"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/valueOf/return"><reason>TODO</reason></test>
     <test id="built-ins/DataView/buffer-does-not-have-arraybuffer-data-throws-sab"><reason>TODO</reason></test>
@@ -460,7 +455,6 @@
     <test id="built-ins/DataView/prototype/setBigInt64/range-check-after-value-conversion"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigInt64/return-abrupt-from-tobigint-value"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigInt64/return-abrupt-from-tonumber-byteoffset"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/prototype/setBigInt64/return-abrupt-from-tonumber-byteoffset-symbol"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigInt64/set-values-little-endian-order"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigInt64/set-values-return-undefined"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigInt64/to-boolean-littleendian"><reason>TODO</reason></test>
@@ -580,7 +574,6 @@
     <test id="built-ins/Object/freeze/throws-when-false"><reason>TODO</reason></test>
     <test id="built-ins/Object/isFrozen/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="built-ins/Object/isSealed/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
-    <test id="built-ins/Object/prototype/toString/Object.prototype.toString.call-bigint"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/proxy-revoked-during-get-call"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/throws-when-false"><reason>TODO</reason></test>
@@ -1734,7 +1727,6 @@
     <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-throws"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/undefined-tobigint"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/bigint-tonumber"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/of/BigInt/argument-is-symbol-throws"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/of/BigInt/argument-number-value-throws"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/of/BigInt/custom-ctor"><reason>TODO</reason></test>
@@ -1803,7 +1795,6 @@
     <test id="built-ins/WeakRef/returns-new-object-from-constructor"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/target-not-object-throws"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/undefined-newtarget-throws"><reason>TODO</reason></test>
-    <test id="harness/deepEqual-primitives-bigint"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/de-DE"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/default-options-object-prototype"><reason>TODO</reason></test>
     <test id="intl402/BigInt/prototype/toLocaleString/en-US"><reason>TODO</reason></test>
@@ -2249,7 +2240,6 @@
     <test id="language/computed-property-names/class/static/method-number"><reason>TODO</reason></test>
     <test id="language/computed-property-names/class/static/method-string"><reason>TODO</reason></test>
     <test id="language/computed-property-names/class/static/method-symbol"><reason>TODO</reason></test>
-    <test id="language/expressions/addition/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/addition/bigint-arithmetic"><reason>TODO</reason></test>
     <test id="language/expressions/addition/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/addition/bigint-toprimitive"><reason>TODO</reason></test>
@@ -2297,7 +2287,6 @@
     <test id="language/expressions/async-generator/named-eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/await/early-errors-await-not-simple-assignment-target"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/bitwise-and/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-and/bigint-toprimitive"><reason>TODO</reason></test>
@@ -2305,13 +2294,11 @@
     <test id="language/expressions/bitwise-not/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-not/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-or/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/bitwise-or/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-or/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-or/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-or/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-or/bigint-wrapped-values"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-xor/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/bitwise-xor/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-xor/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-xor/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/bitwise-xor/bigint-toprimitive"><reason>TODO</reason></test>
@@ -4126,7 +4113,6 @@
     <test id="language/expressions/compound-assignment/u-right-shift-non-simple"><reason>TODO</reason></test>
     <test id="language/expressions/conditional/tco-cond"><reason>TODO</reason></test>
     <test id="language/expressions/conditional/tco-pos"><reason>TODO</reason></test>
-    <test id="language/expressions/division/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/division/bigint-arithmetic"><reason>TODO</reason></test>
     <test id="language/expressions/division/bigint-complex-infinity"><reason>TODO</reason></test>
     <test id="language/expressions/division/bigint-errors"><reason>TODO</reason></test>
@@ -4148,7 +4134,6 @@
     <test id="language/expressions/equals/bigint-and-number-extremes"><reason>TODO</reason></test>
     <test id="language/expressions/equals/bigint-and-object"><reason>TODO</reason></test>
     <test id="language/expressions/equals/bigint-and-string"><reason>TODO</reason></test>
-    <test id="language/expressions/exponentiation/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/exponentiation/bigint-arithmetic"><reason>TODO</reason></test>
     <test id="language/expressions/exponentiation/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/exponentiation/bigint-negative-exponent-throws"><reason>TODO</reason></test>
@@ -4172,9 +4157,7 @@
     <test id="language/expressions/greater-than/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/greater-than/bigint-and-number-extremes"><reason>TODO</reason></test>
     <test id="language/expressions/greater-than/bigint-and-string"><reason>TODO</reason></test>
-    <test id="language/expressions/greater-than/bigint-and-symbol"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/left-shift/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/left-shift/bigint-toprimitive"><reason>TODO</reason></test>
@@ -4192,7 +4175,6 @@
     <test id="language/expressions/less-than/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/less-than/bigint-and-number-extremes"><reason>TODO</reason></test>
     <test id="language/expressions/less-than/bigint-and-string"><reason>TODO</reason></test>
-    <test id="language/expressions/less-than/bigint-and-symbol"><reason>TODO</reason></test>
     <test id="language/expressions/logical-and/tco-right"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-bigint"><reason>TODO</reason></test>
@@ -4232,19 +4214,16 @@
     <test id="language/expressions/logical-assignment/lgcl-or-whitespace"><reason>TODO</reason></test>
     <test id="language/expressions/logical-not/bigint"><reason>TODO</reason></test>
     <test id="language/expressions/logical-or/tco-right"><reason>TODO</reason></test>
-    <test id="language/expressions/modulus/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/modulus/bigint-arithmetic"><reason>TODO</reason></test>
     <test id="language/expressions/modulus/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/modulus/bigint-modulo-zero"><reason>TODO</reason></test>
     <test id="language/expressions/modulus/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/modulus/bigint-wrapped-values"><reason>TODO</reason></test>
-    <test id="language/expressions/multiplication/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/multiplication/bigint-arithmetic"><reason>TODO</reason></test>
     <test id="language/expressions/multiplication/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/multiplication/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/expressions/multiplication/bigint-wrapped-values"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/object-rest-proxy-ownkeys-returned-keys-order"><reason>TODO</reason></test>
-    <test id="language/expressions/object/literal-property-name-bigint"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default"><reason>TODO</reason></test>
@@ -4286,7 +4265,6 @@
     <test id="language/expressions/prefix-increment/target-cover-yieldexpr"><reason>TODO</reason></test>
     <test id="language/expressions/prefix-increment/target-newtarget"><reason>TODO</reason></test>
     <test id="language/expressions/right-shift/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/right-shift/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/right-shift/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/right-shift/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/right-shift/bigint-toprimitive"><reason>TODO</reason></test>
@@ -4307,7 +4285,6 @@
     <test id="language/expressions/strict-equals/bigint-and-number-extremes"><reason>TODO</reason></test>
     <test id="language/expressions/strict-equals/bigint-and-object"><reason>TODO</reason></test>
     <test id="language/expressions/strict-equals/bigint-and-string"><reason>TODO</reason></test>
-    <test id="language/expressions/subtraction/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-arithmetic"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/subtraction/bigint-toprimitive"><reason>TODO</reason></test>
@@ -4321,7 +4298,6 @@
     <test id="language/expressions/unary-minus/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/unary-plus/bigint-throws"><reason>TODO</reason></test>
     <test id="language/expressions/unsigned-right-shift/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/unsigned-right-shift/bigint-and-number"><reason>TODO</reason></test>
     <test id="language/expressions/unsigned-right-shift/bigint-errors"><reason>TODO</reason></test>
     <test id="language/expressions/unsigned-right-shift/bigint-non-primitive"><reason>TODO</reason></test>
     <test id="language/expressions/unsigned-right-shift/bigint-toprimitive"><reason>TODO</reason></test>

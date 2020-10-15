@@ -97,6 +97,8 @@ void GlobalObject::installBigInt(ExecutionState& state)
     m_bigIntPrototype = new Object(state);
     m_bigIntPrototype->setGlobalIntrinsicObject(state, true);
 
+    m_bigIntPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_bigIntPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                         ObjectPropertyDescriptor(state.context()->staticStrings().BigInt.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
