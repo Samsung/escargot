@@ -997,6 +997,41 @@ public:
         return ret;
     }
 
+    template <class ASTBuilder>
+    ASTNode parseNumericLiteralNode(ASTBuilder& builder, bool minus = false)
+    {
+        if (this->context->strict && this->lookahead.octal) {
+            this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
+        }
+        if (this->context->strict && this->lookahead.startWithZero) {
+            this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
+        }
+        this->context->isAssignmentTarget = false;
+        this->context->isBindingElement = false;
+        MetaNode node = this->createNode();
+        ALLOC_TOKEN(token);
+        this->nextToken(token);
+        // raw = this->getTokenRaw(token);
+        if (builder.isNodeGenerator()) {
+            auto d = token->valueNumberLiteral(this->scanner);
+            if (LIKELY(!d.second)) {
+                if (minus) {
+                    d.first = Value(-d.first.asNumber());
+                }
+                if (this->context->inLoop || d.first.asNumber() == 0) {
+                    this->insertNumeralLiteral(d.first);
+                }
+            } else {
+                if (minus) {
+                    d.first = Value(d.first.asBigInt()->negativeValue());
+                }
+            }
+            return this->finalize(node, builder.createLiteralNode(d.first));
+        } else {
+            return this->finalize(node, builder.createLiteralNode(Value()));
+        }
+    }
+
     // ECMA-262 12.2 Primary Expressions
 
     template <class ASTBuilder>
@@ -1017,6 +1052,7 @@ public:
             return this->finalize(node, finishIdentifier(builder, token));
         }
         case Token::NumericLiteralToken:
+            return parseNumericLiteralNode(builder);
         case Token::StringLiteralToken:
             if (this->context->strict && this->lookahead.octal) {
                 this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
@@ -1024,24 +1060,14 @@ public:
             if (this->context->strict && this->lookahead.startWithZero) {
                 this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
+
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;
             {
                 ALLOC_TOKEN(token);
                 this->nextToken(token);
-                // raw = this->getTokenRaw(token);
                 if (builder.willGenerateByteCode()) {
-                    if (token->type == Token::NumericLiteralToken) {
-                        auto d = token->valueNumberLiteral(this->scanner);
-                        if (LIKELY(!d.second)) {
-                            if (this->context->inLoop || d.first.asNumber() == 0) {
-                                this->insertNumeralLiteral(d.first);
-                            }
-                        }
-                        return this->finalize(node, builder.createLiteralNode(d.first));
-                    } else {
-                        return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralToValue(this->scanner)));
-                    }
+                    return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralToValue(this->scanner)));
                 } else {
                     return this->finalize(node, builder.createLiteralNode(Value()));
                 }
@@ -2512,12 +2538,16 @@ public:
                 return exprNode;
             } else if (punctuatorsKind == Minus) {
                 this->nextToken();
-                MetaNode node = this->startNode(&this->lookahead);
-                ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionMinusNode(subExpr));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return exprNode;
+                if (this->lookahead.type == Token::NumericLiteralToken) {
+                    return parseNumericLiteralNode(builder, true);
+                } else {
+                    MetaNode node = this->startNode(&this->lookahead);
+                    ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
+                    exprNode = this->finalize(node, builder.createUnaryExpressionMinusNode(subExpr));
+                    this->context->isAssignmentTarget = false;
+                    this->context->isBindingElement = false;
+                    return exprNode;
+                }
             } else if (punctuatorsKind == Wave) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
@@ -2585,9 +2615,13 @@ public:
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
+        bool seenMinus = this->match(Minus);
         ASTNode expr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
 
         if (!expr->isUnaryOperation() && this->match(Exponentiation)) {
+            if (UNLIKELY(seenMinus)) {
+                this->throwError("Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence");
+            }
             this->nextToken();
             this->context->isAssignmentTarget = false;
             this->context->isBindingElement = false;

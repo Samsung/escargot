@@ -438,20 +438,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(UnaryMinus)
-            :
-        {
-            UnaryMinus* code = (UnaryMinus*)programCounter;
-            const Value& val = registerFile[code->m_srcIndex];
-            if (UNLIKELY(val.isBigInt())) {
-                registerFile[code->m_dstIndex] = Value(val.asBigInt()->negativeValue());
-            } else {
-                registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
-            }
-            ADD_PROGRAM_COUNTER(UnaryMinus);
-            NEXT_INSTRUCTION();
-        }
-
         DEFINE_OPCODE(UnaryNot)
             :
         {
@@ -698,6 +684,20 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             }
             upperEnv->record()->setMutableBindingByIndex(*state, code->m_index, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreByHeapIndex);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(UnaryMinus)
+            :
+        {
+            UnaryMinus* code = (UnaryMinus*)programCounter;
+            const Value& val = registerFile[code->m_srcIndex];
+            if (UNLIKELY(val.isBigInt())) {
+                registerFile[code->m_dstIndex] = Value(val.asBigInt()->negativeValue());
+            } else {
+                registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
+            }
+            ADD_PROGRAM_COUNTER(UnaryMinus);
             NEXT_INSTRUCTION();
         }
 
