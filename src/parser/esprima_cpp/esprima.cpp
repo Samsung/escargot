@@ -1000,10 +1000,10 @@ public:
     template <class ASTBuilder>
     ASTNode parseNumericLiteralNode(ASTBuilder& builder, bool minus = false)
     {
-        if (this->context->strict && this->lookahead.octal) {
+        if (UNLIKELY(this->context->strict && this->lookahead.octal)) {
             this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
         }
-        if (this->context->strict && this->lookahead.startWithZero) {
+        if (UNLIKELY(this->context->strict && this->lookahead.startWithZero)) {
             this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
         }
         this->context->isAssignmentTarget = false;
@@ -1054,11 +1054,8 @@ public:
         case Token::NumericLiteralToken:
             return parseNumericLiteralNode(builder);
         case Token::StringLiteralToken:
-            if (this->context->strict && this->lookahead.octal) {
+            if (UNLIKELY(this->context->strict && this->lookahead.octal)) {
                 this->throwUnexpectedToken(this->lookahead, Messages::StrictOctalLiteral);
-            }
-            if (this->context->strict && this->lookahead.startWithZero) {
-                this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
 
             this->context->isAssignmentTarget = false;
@@ -1613,10 +1610,10 @@ public:
         switch (token->type) {
         case Token::NumericLiteralToken:
         case Token::StringLiteralToken:
-            if (this->context->strict && token->octal) {
+            if (UNLIKELY(this->context->strict && token->octal)) {
                 this->throwUnexpectedToken(*token, Messages::StrictOctalLiteral);
             }
-            if (this->context->strict && this->lookahead.startWithZero) {
+            if (UNLIKELY(this->context->strict && this->lookahead.startWithZero)) {
                 this->throwUnexpectedToken(this->lookahead, Messages::StrictLeadingZeroLiteral);
             }
             // const raw = this->getTokenRaw(token);

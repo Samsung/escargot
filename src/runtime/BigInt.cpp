@@ -31,6 +31,7 @@ BigIntData::~BigIntData()
 
 BigIntData::BigIntData(BigIntData&& src)
 {
+    bf_init(src.m_data.ctx, &m_data);
     bf_move(&m_data, &src.m_data);
 }
 
@@ -43,6 +44,7 @@ BigIntData::BigIntData(VMInstance* vmInstance, String* src)
         buffer = (char*)bd.bufferAs8Bit;
     } else {
         if (!isAllASCII(bd.bufferAs16Bit, bd.length)) {
+            bf_init(vmInstance->bfContext(), &m_data);
             bf_set_nan(&m_data);
             return;
         }
@@ -63,12 +65,16 @@ BigIntData::BigIntData(VMInstance* vmInstance, const char* buf, size_t length, i
 
 void BigIntData::init(VMInstance* vmInstance, const char* buf, size_t length, int radix)
 {
+    bf_init(vmInstance->bfContext(), &m_data);
+    if (!length) {
+        bf_set_zero(&m_data, 0);
+        return;
+    }
     // bf_atof needs zero-terminated string
     char* newBuf = ALLOCA(length + 1, char, vmInstance);
     memcpy(newBuf, buf, length);
     newBuf[length] = 0;
     bf_t a;
-    bf_init(vmInstance->bfContext(), &m_data);
     int ret = bf_atof(&m_data, newBuf, NULL, radix, BF_PREC_INF, BF_RNDZ);
     if (ret) {
         bf_set_nan(&m_data);
@@ -137,12 +143,16 @@ BigInt::BigInt(VMInstance* vmInstance, bf_t bf)
 
 Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix)
 {
+    bf_t a;
+    bf_init(vmInstance->bfContext(), &a);
+    if (!length) {
+        bf_set_zero(&a, 0);
+        return new BigInt(vmInstance, a);
+    }
     // bf_atof needs zero-terminated string
     char* newBuf = ALLOCA(length + 1, char, vmInstance);
     memcpy(newBuf, buf, length);
     newBuf[length] = 0;
-    bf_t a;
-    bf_init(vmInstance->bfContext(), &a);
     int ret = bf_atof(&a, newBuf, NULL, radix, BF_PREC_INF, BF_RNDZ);
     if (ret & BF_ST_MEM_ERROR) {
         RELEASE_ASSERT_NOT_REACHED();

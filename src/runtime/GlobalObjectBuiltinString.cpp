@@ -26,7 +26,6 @@
 #include "RegExpObject.h"
 #include "ArrayObject.h"
 #include "NativeFunctionObject.h"
-#include "parser/Lexer.h"
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 #include "Intl.h"
 #include "IntlCollator.h"
@@ -1067,61 +1066,28 @@ static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisVal
 #endif
 }
 
-enum StringTrimWhere : unsigned {
-    START,
-    END,
-    STARTEND
-};
-
-static Value builtinStringTrimString(ExecutionState& state, Value thisValue, StringTrimWhere where)
-{
-    // Let str be ? RequireObjectCoercible(string).
-    // Let S be ? ToString(str).
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
-
-    int64_t stringLength = str->length();
-    int64_t s = 0;
-    int64_t e = stringLength - 1;
-
-    // If where is "start", let T be the String value that is a copy of S with leading white space removed.
-    // Trim beginning if start, or start+end
-    if (where == START || where == STARTEND) {
-        for (s = 0; s < stringLength; s++) {
-            if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[s]))
-                break;
-        }
-    }
-    // Else if where is "end", let T be the String value that is a copy of S with trailing white space removed.
-    // Trim ending if end or start+end
-    if (where == END || where == STARTEND) {
-        for (e = stringLength - 1; e >= s; e--) {
-            if (!EscargotLexer::isWhiteSpaceOrLineTerminator((*str)[e]))
-                break;
-        }
-    }
-    // Return T.
-    return new StringView(str, s, e + 1);
-}
-
 static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be this value.
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
     // Return ? TrimString(S, "start+end").
-    return builtinStringTrimString(state, thisValue, STARTEND);
+    return str->trim(String::TrimBoth);
 }
 
 static Value builtinStringTrimStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be this value.
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, trimStart);
     // Return ? TrimString(S, "start").
-    return builtinStringTrimString(state, thisValue, START);
+    return str->trim(String::TrimStart);
 }
 
 static Value builtinStringTrimEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be this value.
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, trimEnd);
     // Return ? TrimString(S, "end").
-    return builtinStringTrimString(state, thisValue, END);
+    return str->trim(String::TrimEnd);
 }
 
 static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

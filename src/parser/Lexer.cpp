@@ -1319,7 +1319,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     bool isEof = this->eof();
     bool isBigInt = !isEof && this->peekChar() == 'n';
 
-    if (isBigInt) {
+    if (UNLIKELY(isBigInt)) {
         if (seenDotOrE || (startChar == '0' && (this->index - start) > 1)) {
             this->throwUnexpectedToken();
         }
@@ -1331,7 +1331,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     }
 
     token->setNumericLiteralResult(0, this->lineNumber, this->lineStart, start, this->index, true);
-    if (startChar == '0' && !seenDotOrE && (this->index - start) > 1) {
+    if (UNLIKELY(startChar == '0' && !seenDotOrE && (this->index - start) > (isBigInt ? 2 : 1))) {
         token->startWithZero = true;
     }
 }

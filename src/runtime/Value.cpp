@@ -156,7 +156,7 @@ BigInt* Value::toBigInt(ExecutionState& state) const
         // Let n be ! StringToBigInt(prim).
         // If n is NaN, throw a SyntaxError exception.
         // Return n.
-        auto b = BigInt::parseString(state.context()->vmInstance(), asString());
+        auto b = BigInt::parseString(state.context()->vmInstance(), asString()->trim());
         if (!b) {
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot parse String as BigInt");
         }
@@ -471,6 +471,12 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
                 return false;
             }
         }
+        if (UNLIKELY(o->isBigInt())) {
+            if (!o2->isBigInt()) {
+                return false;
+            }
+            return o->asBigInt()->equals(o2->asBigInt());
+        }
         return o == o2;
     }
     return false;
@@ -521,6 +527,12 @@ bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value&
             if (!o2->isSymbol()) {
                 return false;
             }
+        }
+        if (UNLIKELY(o->isBigInt())) {
+            if (!o2->isBigInt()) {
+                return false;
+            }
+            return o->asBigInt()->equals(o2->asBigInt());
         }
         return o == o2;
     }

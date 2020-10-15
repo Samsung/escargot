@@ -499,6 +499,13 @@ public:
 
     bool isAllSpecialCharacters(bool (*fn)(char));
 
+    enum StringTrimWhere : unsigned {
+        TrimStart,
+        TrimEnd,
+        TrimBoth
+    };
+    String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth);
+
 private:
     size_t m_tag;
 
