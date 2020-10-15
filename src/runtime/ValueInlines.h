@@ -722,6 +722,18 @@ inline double Value::toNumber(ExecutionState& state) const
     }
 }
 
+inline Value Value::toNumeric(ExecutionState& state) const
+{
+    // Let primValue be ? ToPrimitive(value, hint Number).
+    auto primValue = toPrimitive(state);
+    // If Type(primValue) is BigInt, return primValue.
+    if (UNLIKELY(primValue.isBigInt())) {
+        return primValue;
+    }
+    // Return ? ToNumber(primValue).
+    return Value(primValue.toNumber(state));
+}
+
 ALWAYS_INLINE Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
 {
     if (LIKELY(isObject())) {
@@ -796,7 +808,7 @@ inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
         return asString()->length();
 
     if (UNLIKELY(isBigInt())) {
-        return asBigInt()->hasNonZeroValue();
+        return !asBigInt()->isZero();
     }
 
     // Symbol, Objects..

@@ -443,7 +443,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             UnaryMinus* code = (UnaryMinus*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
+            if (UNLIKELY(val.isBigInt())) {
+                registerFile[code->m_dstIndex] = Value(val.asBigInt()->negativeValue());
+            } else {
+                registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
+            }
             ADD_PROGRAM_COUNTER(UnaryMinus);
             NEXT_INSTRUCTION();
         }

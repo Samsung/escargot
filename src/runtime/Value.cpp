@@ -286,6 +286,8 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
 
         bool valIsString = valIsPointerValue ? val.asPointerValue()->isString() : false;
         bool selfIsString = selfIsPointerValue ? asPointerValue()->isString() : false;
+        bool valIsBigInt = valIsPointerValue ? val.asPointerValue()->isBigInt() : false;
+        bool selfIsBigInt = selfIsPointerValue ? asPointerValue()->isBigInt() : false;
 
         if (selfIsNumber && valIsString) {
             // If Type(x) is Number and Type(y) is String,
@@ -295,6 +297,19 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             // If Type(x) is String and Type(y) is Number,
             // return the result of the comparison ToNumber(x) == y.
             return val.asNumber() == toNumber(state);
+        } else if (UNLIKELY(selfIsBigInt && valIsString)) {
+            // If Type(x) is BigInt and Type(y) is String, then
+            // Let n be StringToBigInt(y).
+            BigIntData a(state.context()->vmInstance(), val.asString());
+            // If n is NaN, return false.
+            if (a.isNaN()) {
+                return false;
+            }
+            // Return the result of the comparison x == n.
+            return asBigInt()->equals(a);
+        } else if (selfIsString && valIsBigInt) {
+            // If Type(x) is String and Type(y) is BigInt, return the result of the comparison y == x.
+            return val.asBigInt()->equals(asString());
         } else if (isBoolean()) {
             // If Type(x) is Boolean, return the result of the comparison ToNumber(x) == y.
             // return the result of the comparison ToNumber(x) == y.
@@ -304,12 +319,46 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             // If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
             // return the result of the comparison ToNumber(x) == y.
             return abstractEqualsTo(state, Value(val.toNumber(state)));
-        } else if ((selfIsString || selfIsNumber || isSymbol()) && (valIsPointerValue && val.asPointerValue()->isObject())) {
-            // If Type(x) is either String, Number, or Symbol and Type(y) is Object, then
+        } else if ((selfIsString || selfIsNumber || isSymbol() || selfIsBigInt) && (valIsPointerValue && val.asPointerValue()->isObject())) {
+            // If Type(x) is either String, Number, BigInt, or Symbol and Type(y) is Object, return the result of the comparison x == ? ToPrimitive(y).
             return abstractEqualsTo(state, val.toPrimitive(state));
-        } else if ((selfIsPointerValue && asPointerValue()->isObject() && !selfIsString) && (valIsString || valIsNumber || val.isSymbol())) {
+        } else if ((selfIsPointerValue && asPointerValue()->isObject() && !selfIsString) && (valIsString || valIsNumber || val.isSymbol() || valIsBigInt)) {
             // If Type(x) is Object and Type(y) is either String, Number, or Symbol, then
             return toPrimitive(state).abstractEqualsTo(state, val);
+        } else if (UNLIKELY((selfIsBigInt && valIsNumber) || (selfIsNumber && valIsBigInt))) {
+            // If Type(x) is BigInt and Type(y) is Number, or if Type(x) is Number and Type(y) is BigInt, then
+            // If x or y are any of NaN, +∞, or -∞, return false.
+            if (selfIsNumber) {
+                double a = asNumber();
+                if (std::isnan(a) || std::isinf(a)) {
+                    return false;
+                }
+            } else {
+                ASSERT(selfIsBigInt);
+                auto b = asBigInt();
+                if (b->isNaN() || b->isInfinity()) {
+                    return false;
+                }
+            }
+            if (valIsNumber) {
+                double a = val.asNumber();
+                if (std::isnan(a) || std::isinf(a)) {
+                    return false;
+                }
+            } else {
+                ASSERT(valIsBigInt);
+                auto b = val.asBigInt();
+                if (b->isNaN() || b->isInfinity()) {
+                    return false;
+                }
+            }
+
+            // If the mathematical value of x is equal to the mathematical value of y, return true, otherwise return false.
+            if (valIsBigInt) {
+                return val.asBigInt()->equals(asNumber());
+            } else {
+                return asBigInt()->equals(val.asNumber());
+            }
         }
 
         if (selfIsPointerValue && valIsPointerValue) {
@@ -359,6 +408,12 @@ bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
             if (!o2->isString())
                 return false;
             return o->asString()->equals(o2->asString());
+        }
+        if (UNLIKELY(o->isBigInt())) {
+            if (!o2->isBigInt()) {
+                return false;
+            }
+            return o->asBigInt()->equals(o2->asBigInt());
         }
         return o == o2;
     }
