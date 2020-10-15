@@ -452,6 +452,7 @@ typedef uint16_t LexicalBlockIndex;
 #define ROPE_STRING_MIN_LENGTH 24
 #endif
 
+#include "EscargotInfo.h"
 #include "heap/Heap.h"
 #include "CheckedArithmetic.h"
 #include "runtime/String.h"

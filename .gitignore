@@ -37,3 +37,4 @@ CMakeFiles
 cmake_install.cmake
 #etc
 .vscode
+EscargotInfo.h
