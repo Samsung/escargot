@@ -36,6 +36,12 @@ BigIntData::BigIntData(BigIntData&& src)
     bf_init(m_data.ctx, &src.m_data);
 }
 
+BigIntData::BigIntData(VMInstance* vmInstance, const double& d)
+{
+    bf_init(vmInstance->bfContext(), &m_data);
+    bf_set_float64(&m_data, d);
+}
+
 BigIntData::BigIntData(VMInstance* vmInstance, String* src)
 {
     const auto& bd = src->bufferAccessData();
@@ -94,6 +100,26 @@ void BigIntData::init(VMInstance* vmInstance, const char* buf, size_t length, in
     if (testEnd != &newBuf[length]) {
         bf_set_nan(&m_data);
     }
+}
+
+bool BigIntData::lessThan(BigInt* b) const
+{
+    return bf_cmp_lt(&m_data, &b->m_bf);
+}
+
+bool BigIntData::lessThanEqual(BigInt* b) const
+{
+    return bf_cmp_le(&m_data, &b->m_bf);
+}
+
+bool BigIntData::greaterThan(BigInt* b) const
+{
+    return bf_cmp(&m_data, &b->m_bf) > 0;
+}
+
+bool BigIntData::greaterThanEqual(BigInt* b) const
+{
+    return bf_cmp(&m_data, &b->m_bf) > 0;
 }
 
 bool BigIntData::isNaN()
@@ -232,6 +258,54 @@ bool BigInt::equals(String* s)
 bool BigInt::equals(double b)
 {
     return toNumber() == b;
+}
+
+bool BigInt::lessThan(const BigIntData& b)
+{
+    return bf_cmp_lt(&m_bf, &b.m_data);
+}
+
+bool BigInt::lessThanEqual(const BigIntData& b)
+{
+    return bf_cmp_le(&m_bf, &b.m_data);
+}
+
+bool BigInt::greaterThan(const BigIntData& b)
+{
+    return bf_cmp(&m_bf, &b.m_data) > 0;
+}
+
+bool BigInt::greaterThanEqual(const BigIntData& b)
+{
+    return bf_cmp(&m_bf, &b.m_data) >= 0;
+}
+
+bool BigInt::lessThan(BigInt* b)
+{
+    return bf_cmp_lt(&m_bf, &b->m_bf);
+}
+
+bool BigInt::lessThanEqual(BigInt* b)
+{
+    return bf_cmp_le(&m_bf, &b->m_bf);
+}
+
+bool BigInt::greaterThan(BigInt* b)
+{
+    return bf_cmp(&m_bf, &b->m_bf) > 0;
+}
+
+bool BigInt::greaterThanEqual(BigInt* b)
+{
+    return bf_cmp(&m_bf, &b->m_bf) >= 0;
+}
+
+BigInt* BigInt::addition(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_add(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
 }
 
 bool BigInt::isNaN()

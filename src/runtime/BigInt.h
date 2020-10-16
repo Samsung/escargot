@@ -24,16 +24,24 @@
 
 namespace Escargot {
 
+class BigInt;
+
 class BigIntData {
     friend class BigInt;
 
 public:
+    BigIntData(VMInstance* vmInstance, const double& d);
     BigIntData(VMInstance* vmInstance, String* src);
     BigIntData(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
     BigIntData(BigIntData&& src);
     BigIntData(const BigIntData& src) = delete;
     BigIntData operator=(const BigIntData& src) = delete;
     ~BigIntData();
+
+    bool lessThan(BigInt* b) const;
+    bool lessThanEqual(BigInt* b) const;
+    bool greaterThan(BigInt* b) const;
+    bool greaterThanEqual(BigInt* b) const;
 
     bool isNaN();
     bool isInfinity();
@@ -44,6 +52,8 @@ private:
 };
 
 class BigInt : public PointerValue {
+    friend class BigIntData;
+
 public:
     BigInt(VMInstance* vmInstance, int64_t num);
     BigInt(VMInstance* vmInstance, BigIntData&& n);
@@ -61,6 +71,18 @@ public:
     bool equals(const BigIntData& b);
     bool equals(String* s);
     bool equals(double b);
+
+    bool lessThan(const BigIntData& b);
+    bool lessThanEqual(const BigIntData& b);
+    bool greaterThan(const BigIntData& b);
+    bool greaterThanEqual(const BigIntData& b);
+
+    bool lessThan(BigInt* b);
+    bool lessThanEqual(BigInt* b);
+    bool greaterThan(BigInt* b);
+    bool greaterThanEqual(BigInt* b);
+
+    BigInt* addition(BigInt* b);
 
     bool isZero();
     bool isNaN();
