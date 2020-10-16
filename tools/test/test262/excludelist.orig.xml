@@ -375,11 +375,6 @@
     <test id="built-ins/BigInt/asUintN/length"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/asUintN/name"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/asUintN/order-of-steps"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-from-binary-string"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-from-hex-string"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-from-octal-string"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-from-string-syntax-errors"><reason>TODO</reason></test>
-    <test id="built-ins/BigInt/constructor-trailing-leading-spaces"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/prototype/toString/a-z"><reason>TODO</reason></test>
     <test id="built-ins/DataView/buffer-does-not-have-arraybuffer-data-throws-sab"><reason>TODO</reason></test>
     <test id="built-ins/DataView/buffer-reference-sab"><reason>TODO</reason></test>
