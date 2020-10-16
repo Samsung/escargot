@@ -33,6 +33,7 @@ BigIntData::BigIntData(BigIntData&& src)
 {
     bf_init(src.m_data.ctx, &m_data);
     bf_move(&m_data, &src.m_data);
+    bf_init(m_data.ctx, &src.m_data);
 }
 
 BigIntData::BigIntData(VMInstance* vmInstance, String* src)
@@ -72,11 +73,25 @@ void BigIntData::init(VMInstance* vmInstance, const char* buf, size_t length, in
     }
     // bf_atof needs zero-terminated string
     char* newBuf = ALLOCA(length + 1, char, vmInstance);
+    for (size_t i = 0; i < length; i++) {
+        if (UNLIKELY(buf[i] == 'e' || buf[i] == 'E' || buf[i] == '.')) {
+            bf_set_nan(&m_data);
+            return;
+        }
+        if (UNLIKELY((buf[i] == 'x' || buf[i] == 'X') && buf[0] == '-')) {
+            bf_set_nan(&m_data);
+            return;
+        }
+    }
     memcpy(newBuf, buf, length);
     newBuf[length] = 0;
     bf_t a;
-    int ret = bf_atof(&m_data, newBuf, NULL, radix, BF_PREC_INF, BF_RNDZ);
+    const char* testEnd = nullptr;
+    int ret = bf_atof(&m_data, newBuf, &testEnd, radix == 10 ? 0 : radix, BF_PREC_INF, BF_RNDZ | BF_ATOF_BIN_OCT);
     if (ret) {
+        bf_set_nan(&m_data);
+    }
+    if (testEnd != &newBuf[length]) {
         bf_set_nan(&m_data);
     }
 }
@@ -131,6 +146,7 @@ BigInt::BigInt(VMInstance* vmInstance, BigIntData&& n)
     : BigInt(vmInstance)
 {
     bf_move(&m_bf, &n.m_data);
+    bf_init(m_bf.ctx, &n.m_data);
 }
 
 BigInt::BigInt(VMInstance* vmInstance, bf_t bf)
@@ -143,25 +159,11 @@ BigInt::BigInt(VMInstance* vmInstance, bf_t bf)
 
 Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix)
 {
-    bf_t a;
-    bf_init(vmInstance->bfContext(), &a);
-    if (!length) {
-        bf_set_zero(&a, 0);
-        return new BigInt(vmInstance, a);
-    }
-    // bf_atof needs zero-terminated string
-    char* newBuf = ALLOCA(length + 1, char, vmInstance);
-    memcpy(newBuf, buf, length);
-    newBuf[length] = 0;
-    int ret = bf_atof(&a, newBuf, NULL, radix, BF_PREC_INF, BF_RNDZ);
-    if (ret & BF_ST_MEM_ERROR) {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    if (ret) {
-        bf_delete(&a);
+    BigIntData dat(vmInstance, buf, length, radix);
+    if (dat.isNaN()) {
         return nullptr;
     }
-    return new BigInt(vmInstance, a);
+    return new BigInt(vmInstance, std::move(dat));
 }
 
 Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, String* str, int radix)

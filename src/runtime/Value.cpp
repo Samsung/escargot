@@ -158,7 +158,7 @@ BigInt* Value::toBigInt(ExecutionState& state) const
         // Return n.
         auto b = BigInt::parseString(state.context()->vmInstance(), asString()->trim());
         if (!b) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot parse String as BigInt");
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Cannot parse String as BigInt");
         }
         return b.value();
     } else if (isUndefined()) {
