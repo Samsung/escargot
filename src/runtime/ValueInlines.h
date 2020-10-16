@@ -734,6 +734,18 @@ inline Value Value::toNumeric(ExecutionState& state) const
     return Value(primValue.toNumber(state));
 }
 
+inline std::pair<Value, bool> Value::toNumericWithTypeInformation(ExecutionState& state) const // <Value, isBigInt>
+{
+    // Let primValue be ? ToPrimitive(value, hint Number).
+    auto primValue = toPrimitive(state);
+    // If Type(primValue) is BigInt, return primValue.
+    if (UNLIKELY(primValue.isBigInt())) {
+        return std::make_pair(primValue, true);
+    }
+    // Return ? ToNumber(primValue).
+    return std::make_pair(Value(primValue.toNumber(state)), false);
+}
+
 ALWAYS_INLINE Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject
 {
     if (LIKELY(isObject())) {

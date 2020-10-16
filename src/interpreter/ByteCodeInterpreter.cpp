@@ -1523,17 +1523,38 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
     Value lval(Value::ForceUninitialized);
     Value rval(Value::ForceUninitialized);
 
-    // http://www.ecma-international.org/ecma-262/5.1/#sec-8.12.8
-    // No hint is provided in the calls to ToPrimitive in steps 5 and 6.
-    // All native ECMAScript objects except Date objects handle the absence of a hint as if the hint Number were given;
-    // Date objects handle the absence of a hint as if the hint String were given.
-    // Host objects may handle the absence of a hint in some other manner.
+    // https://www.ecma-international.org/ecma-262/#sec-addition-operator-plus
+    // Let lref be the result of evaluating AdditiveExpression.
+    // Let lval be ? GetValue(lref).
+    // Let rref be the result of evaluating MultiplicativeExpression.
+    // Let rval be ? GetValue(rref).
+    // Let lprim be ? ToPrimitive(lval).
+    // Let rprim be ? ToPrimitive(rval).
     lval = left.toPrimitive(state);
     rval = right.toPrimitive(state);
+
+    // If Type(lprim) is String or Type(rprim) is String, then
     if (lval.isString() || rval.isString()) {
+        // Let lstr be ? ToString(lprim).
+        // Let rstr be ? ToString(rprim).
+        // Return the string-concatenation of lstr and rstr.
         ret = RopeString::createRopeString(lval.toString(state), rval.toString(state), &state);
     } else {
-        ret = Value(lval.toNumber(state) + rval.toNumber(state));
+        // Let lnum be ? ToNumeric(lprim).
+        auto lnum = lval.toNumericWithTypeInformation(state);
+        // Let rnum be ? ToNumeric(rprim).
+        auto rnum = rval.toNumericWithTypeInformation(state);
+        // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
+        if (lnum.second != rnum.second) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot mix Number and BigInt in Addition Operator (+)");
+        }
+        // Let T be Type(lnum).
+        // Return T::add(lnum, rnum).
+        if (lnum.second) {
+            ret = Value(lnum.first.asBigInt()->addition(rnum.first.asBigInt()));
+        } else {
+            ret = Value(lnum.first.asNumber() + rnum.first.asNumber());
+        }
     }
 
     return ret;
@@ -1677,6 +1698,67 @@ ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqual(Exec
     return abstractRelationalComparisonOrEqualSlowCase(state, left, right, leftFirst);
 }
 
+template <typename CompBigIntBigInt, typename CompBigIntBigIntData, typename CompBigIntDataBigInt, typename CompDoubleDouble>
+ALWAYS_INLINE bool abstractRelationalComparisonNumeric(ExecutionState& state, const Value& lval, const Value& rval,
+                                                       CompBigIntBigInt compBigIntBigInt, CompBigIntBigIntData compBigIntBigIntData,
+                                                       CompBigIntDataBigInt compBigIntDataBigInt, CompDoubleDouble compDoubleDouble)
+{
+    bool lvalIsBigInt = lval.isBigInt();
+    bool rvalIsBigInt = rval.isBigInt();
+    bool lvalIsString = lval.isString();
+    bool rvalIsString = rval.isString();
+
+    // If Type(px) is BigInt and Type(py) is String, then
+    if (UNLIKELY(lvalIsBigInt && rvalIsString)) {
+        // Let ny be StringToBigInt(py).
+        BigIntData ny(state.context()->vmInstance(), rval.asString());
+        // If ny is NaN, return undefined.
+        if (ny.isNaN()) {
+            return false;
+        }
+        // Return BigInt::...(px, ny).
+        return compBigIntBigIntData(lval.asBigInt(), ny);
+    }
+
+    // If Type(px) is String and Type(py) is BigInt, then
+    if (UNLIKELY(lvalIsString && rvalIsBigInt)) {
+        // Let nx be StringToBigInt(px).
+        BigIntData nx(state.context()->vmInstance(), lval.asString());
+        // If nx is NaN, return undefined.
+        if (nx.isNaN()) {
+            return false;
+        }
+        // Return BigInt::...(nx, py).
+        return compBigIntDataBigInt(nx, rval.asBigInt());
+    }
+
+    // Let nx be ? ToNumeric(px). NOTE: Because px and py are primitive values evaluation order is not important.
+    auto nx = lval.toNumericWithTypeInformation(state);
+    // Let ny be ? ToNumeric(py).
+    auto ny = rval.toNumericWithTypeInformation(state);
+
+    // If Type(nx) is the same as Type(ny), return Type(nx)::lessThan(nx, ny).
+    // Assert: Type(nx) is BigInt and Type(ny) is Number, or Type(nx) is Number and Type(ny) is BigInt.
+    // If nx or ny is NaN, return undefined.
+    // If nx is -∞ or ny is +∞, return true.
+    // If nx is +∞ or ny is -∞, return false.
+    // If the mathematical value of nx is ... than the mathematical value of ny, return true, otherwise return false.
+
+    if (UNLIKELY(nx.second)) {
+        if (UNLIKELY(ny.second)) {
+            return compBigIntBigInt(nx.first.asBigInt(), ny.first.asBigInt());
+        } else {
+            return compBigIntBigIntData(nx.first.asBigInt(), BigIntData(state.context()->vmInstance(), ny.first.asNumber()));
+        }
+    } else {
+        if (UNLIKELY(ny.second)) {
+            return compBigIntDataBigInt(BigIntData(state.context()->vmInstance(), nx.first.asNumber()), ny.first.asBigInt());
+        } else {
+            return compDoubleDouble(nx.first.asNumber(), ny.first.asNumber());
+        }
+    }
+}
+
 NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
 {
     Value lval(Value::ForceUninitialized);
@@ -1694,9 +1776,19 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonSlowCase(Exec
     } else if (lval.isString() && rval.isString()) {
         return *lval.asString() < *rval.asString();
     } else {
-        double n1 = lval.toNumber(state);
-        double n2 = rval.toNumber(state);
-        return n1 < n2;
+        return abstractRelationalComparisonNumeric(state, lval, rval,
+                                                   [](BigInt* a, BigInt* b) -> bool {
+                                                       return a->lessThan(b);
+                                                   },
+                                                   [](BigInt* a, const BigIntData& b) -> bool {
+                                                       return a->lessThan(b);
+                                                   },
+                                                   [](const BigIntData& a, BigInt* b) -> bool {
+                                                       return a.lessThan(b);
+                                                   },
+                                                   [](const double& a, const double& b) -> bool {
+                                                       return a < b;
+                                                   });
     }
 }
 
@@ -1717,9 +1809,19 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     } else if (lval.isString() && rval.isString()) {
         return *lval.asString() <= *rval.asString();
     } else {
-        double n1 = lval.toNumber(state);
-        double n2 = rval.toNumber(state);
-        return n1 <= n2;
+        return abstractRelationalComparisonNumeric(state, lval, rval,
+                                                   [](BigInt* a, BigInt* b) -> bool {
+                                                       return a->lessThanEqual(b);
+                                                   },
+                                                   [](BigInt* a, const BigIntData& b) -> bool {
+                                                       return a->lessThanEqual(b);
+                                                   },
+                                                   [](const BigIntData& a, BigInt* b) -> bool {
+                                                       return a.lessThanEqual(b);
+                                                   },
+                                                   [](const double& a, const double& b) -> bool {
+                                                       return a <= b;
+                                                   });
     }
 }
 
