@@ -138,7 +138,9 @@ private:
     static void createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile);
     static void defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, Value* registerFile);
     static Value incrementOperation(ExecutionState& state, const Value& value);
+    static Value incrementOperationSlowCase(ExecutionState& state, const Value& value);
     static Value decrementOperation(ExecutionState& state, const Value& value);
+    static Value decrementOperationSlowCase(ExecutionState& state, const Value& value);
 
     static void getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile);
     static void setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile);

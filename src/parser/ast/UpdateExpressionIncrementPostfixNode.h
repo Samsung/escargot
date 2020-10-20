@@ -39,7 +39,7 @@ public:
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t srcIndex = context->getLastRegisterIndex();
         size_t storeIndex = m_argument->getRegister(codeBlock, context);
-        codeBlock->pushCode(ToNumberIncrement(ByteCodeLOC(m_loc.index), srcIndex, storeIndex, dstRegister), context, this);
+        codeBlock->pushCode(ToNumericIncrement(ByteCodeLOC(m_loc.index), srcIndex, storeIndex, dstRegister), context, this);
         context->giveUpRegister();
         context->giveUpRegister();
         m_argument->generateStoreByteCode(codeBlock, context, storeIndex, false);

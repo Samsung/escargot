@@ -66,6 +66,8 @@ public:
         static constexpr const char* InstanceOf_InvalidPrototypeProperty = "instanceof called on an object with an invalid prototype property";
         static constexpr const char* ArgumentsOrCaller_InStrictMode = "'caller' and 'arguments' are restricted function properties and cannot be accessed in this context.";
         static constexpr const char* FailedToLoadModule = "Failed to load module %s";
+        static constexpr const char* CanNotMixBigIntWithOtherTypes = "Cannot mix BigInt and other types, use explicit conversions";
+        static constexpr const char* CanNotConvertValueToIndex = "Cannot convert value to index";
         static constexpr const char* GlobalObject_ThisUndefinedOrNull = "%s: this value is undefined or null";
         static constexpr const char* GlobalObject_ThisNotObject = "%s: this value is not an object";
         static constexpr const char* GlobalObject_ThisNotRegExpObject = "%s: this value is not a RegExp object";

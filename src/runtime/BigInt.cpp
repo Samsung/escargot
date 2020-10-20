@@ -79,12 +79,19 @@ void BigIntData::init(VMInstance* vmInstance, const char* buf, size_t length, in
     }
     // bf_atof needs zero-terminated string
     char* newBuf = ALLOCA(length + 1, char, vmInstance);
+    bool seenE = false;
     for (size_t i = 0; i < length; i++) {
-        if (UNLIKELY(buf[i] == 'e' || buf[i] == 'E' || buf[i] == '.')) {
+        if (UNLIKELY(buf[i] == '.')) {
             bf_set_nan(&m_data);
             return;
         }
-        if (UNLIKELY((buf[i] == 'x' || buf[i] == 'X') && buf[0] == '-')) {
+        if (UNLIKELY(buf[i] == 'e' || buf[i] == 'E')) {
+            if (length < 3 || buf[0] != '0' || buf[1] != 'x') {
+                bf_set_nan(&m_data);
+                return;
+            }
+        }
+        if (UNLIKELY((buf[i] == 'B' || buf[i] == 'b' || buf[i] == 'O' || buf[i] == 'o' || buf[i] == 'x' || buf[i] == 'X') && buf[0] == '-')) {
             bf_set_nan(&m_data);
             return;
         }
@@ -119,7 +126,7 @@ bool BigIntData::greaterThan(BigInt* b) const
 
 bool BigIntData::greaterThanEqual(BigInt* b) const
 {
-    return bf_cmp(&m_data, &b->m_bf) > 0;
+    return bf_cmp(&m_data, &b->m_bf) >= 0;
 }
 
 bool BigIntData::isNaN()
@@ -305,6 +312,30 @@ BigInt* BigInt::addition(BigInt* b)
     bf_t r;
     bf_init(m_vmInstance->bfContext(), &r);
     bf_add(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::subtraction(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_sub(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::increment()
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::decrement()
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_add_si(&r, &m_bf, -1, BF_PREC_INF, BF_RNDZ);
     return new BigInt(m_vmInstance, r);
 }
 

@@ -148,27 +148,28 @@ BigInt* Value::toBigInt(ExecutionState& state) const
 {
     // Let prim be ? ToPrimitive(argument, hint Number).
     Value prim = toPrimitive(state, Value::PreferNumber);
-    if (isBigInt()) {
-        return asBigInt();
-    } else if (isBoolean()) {
-        return new BigInt(state.context()->vmInstance(), asBoolean() ? 1 : 0);
-    } else if (isString()) {
+    if (prim.isBigInt()) {
+        return prim.asBigInt();
+    } else if (prim.isBoolean()) {
+        return new BigInt(state.context()->vmInstance(), prim.asBoolean() ? 1 : 0);
+    } else if (prim.isString()) {
         // Let n be ! StringToBigInt(prim).
         // If n is NaN, throw a SyntaxError exception.
         // Return n.
-        auto b = BigInt::parseString(state.context()->vmInstance(), asString()->trim());
+        auto b = BigInt::parseString(state.context()->vmInstance(), prim.asString()->trim());
         if (!b) {
+            b = BigInt::parseString(state.context()->vmInstance(), prim.asString()->trim());
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Cannot parse String as BigInt");
         }
         return b.value();
-    } else if (isUndefined()) {
+    } else if (prim.isUndefined()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert undefined to BigInt");
-    } else if (isNull()) {
+    } else if (prim.isNull()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert null to BigInt");
-    } else if (isNumber()) {
+    } else if (prim.isNumber()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert number to BigInt");
     } else {
-        ASSERT(isSymbol());
+        ASSERT(prim.isSymbol());
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "Cannot convert Symbol to BigInt");
     }
     ASSERT_NOT_REACHED();
@@ -755,6 +756,18 @@ double Value::toNumberSlowCase(ExecutionState& state) const
         return toPrimitive(state, PreferNumber).toNumber(state);
     }
     return 0;
+}
+
+std::pair<Value, bool> Value::toNumericSlowCase(ExecutionState& state) const
+{
+    // Let primValue be ? ToPrimitive(value, hint Number).
+    auto primValue = toPrimitive(state, PrimitiveTypeHint::PreferNumber);
+    // If Type(primValue) is BigInt, return primValue.
+    if (UNLIKELY(primValue.isBigInt())) {
+        return std::make_pair(primValue, true);
+    }
+    // Return ? ToNumber(primValue).
+    return std::make_pair(Value(primValue.toNumber(state)), false);
 }
 
 int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32

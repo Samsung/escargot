@@ -204,8 +204,8 @@ public:
     Value ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint preferredType) const;
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
-    Value toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
-    std::pair<Value, bool> toNumericWithTypeInformation(ExecutionState& ec) const; // <Value, isBigInt>
+    std::pair<Value, bool> /* <Value, isBigInt> */
+        toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     bool isInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     uint64_t toLength(ExecutionState& ec) const;
@@ -226,6 +226,7 @@ public:
     enum : uint64_t { InvalidIndexValue = std::numeric_limits<uint64_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
+
     inline ValueIndex tryToUseAsIndex(ExecutionState& ec) const;
     enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     inline uint64_t toArrayIndex(ExecutionState& ec) const;
@@ -266,6 +267,7 @@ public:
 private:
     ValueDescriptor u;
     double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
+    std::pair<Value, bool> toNumericSlowCase(ExecutionState& ec) const;
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
     Object* toObjectSlowCase(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
