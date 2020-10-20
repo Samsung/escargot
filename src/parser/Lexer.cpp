@@ -1150,16 +1150,23 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
         this->throwUnexpectedToken();
     }
 
-    if (isIdentifierStart(this->peekChar())) {
+    bool isEof = this->eof();
+    bool isBigInt = !isEof && this->peekChar() == 'n';
+
+    if (UNLIKELY(isBigInt)) {
+        ++this->index;
+    }
+
+    if (UNLIKELY(!isEof && isIdentifierStart(this->peekChar()))) {
         this->throwUnexpectedToken();
     }
 
     if (shouldUseDouble) {
         ASSERT(number == 0);
-        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, false);
+        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, isBigInt);
     } else {
         ASSERT(numberDouble == 0.0);
-        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false);
+        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt);
     }
 }
 
@@ -1184,15 +1191,18 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
         this->throwUnexpectedToken();
     }
 
-    if (!this->eof()) {
-        char16_t ch = this->peekCharWithoutEOF();
-        /* istanbul ignore else */
-        if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
-            this->throwUnexpectedToken();
-        }
+    bool isEof = this->eof();
+    bool isBigInt = !isEof && this->peekChar() == 'n';
+
+    if (UNLIKELY(isBigInt)) {
+        ++this->index;
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false);
+    if (UNLIKELY(!isEof && (isIdentifierStart(this->peekChar()) || isDecimalDigit(this->peekChar())))) {
+        this->throwUnexpectedToken();
+    }
+
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt);
 }
 
 void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start)

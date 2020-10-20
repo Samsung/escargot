@@ -510,9 +510,9 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case ToNumberIncrementOpcode:
-        case ToNumberDecrementOpcode: {
-            ToNumberIncrement* cd = (ToNumberIncrement*)currentCode;
+        case ToNumericIncrementOpcode:
+        case ToNumericDecrementOpcode: {
+            ToNumericIncrement* cd = (ToNumericIncrement*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeIndex, stackBase, stackBaseWillBe, stackVariableSize);

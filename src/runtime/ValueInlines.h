@@ -722,28 +722,30 @@ inline double Value::toNumber(ExecutionState& state) const
     }
 }
 
-inline Value Value::toNumeric(ExecutionState& state) const
+inline std::pair<Value, bool> Value::toNumeric(ExecutionState& state) const // <Value, isBigInt>
 {
-    // Let primValue be ? ToPrimitive(value, hint Number).
-    auto primValue = toPrimitive(state);
-    // If Type(primValue) is BigInt, return primValue.
-    if (UNLIKELY(primValue.isBigInt())) {
-        return primValue;
+// fast path
+#ifdef ESCARGOT_64
+    auto n = u.asInt64 & TagTypeNumber;
+    if (LIKELY(n)) {
+        return std::make_pair(*this, false);
     }
-    // Return ? ToNumber(primValue).
-    return Value(primValue.toNumber(state));
-}
-
-inline std::pair<Value, bool> Value::toNumericWithTypeInformation(ExecutionState& state) const // <Value, isBigInt>
-{
-    // Let primValue be ? ToPrimitive(value, hint Number).
-    auto primValue = toPrimitive(state);
-    // If Type(primValue) is BigInt, return primValue.
-    if (UNLIKELY(primValue.isBigInt())) {
-        return std::make_pair(primValue, true);
+#else
+    if (LIKELY(isInt32())) {
+        return std::make_pair(*this, false);
+    } else if (isDouble()) {
+        return std::make_pair(*this, false);
     }
-    // Return ? ToNumber(primValue).
-    return std::make_pair(Value(primValue.toNumber(state)), false);
+#endif
+    else if (isUndefined()) {
+        return std::make_pair(Value(std::numeric_limits<double>::quiet_NaN()), false);
+    } else if (isNull()) {
+        return std::make_pair(Value(0), false);
+    } else if (isBoolean()) {
+        return std::make_pair(Value(asBoolean() ? 1 : 0), false);
+    } else {
+        return toNumericSlowCase(state);
+    }
 }
 
 ALWAYS_INLINE Object* Value::toObject(ExecutionState& ec) const // $7.1.13 ToObject

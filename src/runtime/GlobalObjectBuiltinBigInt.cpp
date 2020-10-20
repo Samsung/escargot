@@ -49,6 +49,59 @@ Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, size_t ar
     }
 }
 
+Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let bits be ? ToIndex(bits).
+    auto bits = argv[0].toIndex(state);
+    if (bits == Value::InvalidIndexValue) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::CanNotConvertValueToIndex);
+    }
+    // Let bigint be ? ToBigInt(bigint).
+    BigInt* bigint = argv[1].toBigInt(state);
+    // Return a BigInt representing bigint modulo 2bits.
+    bf_t mask, r;
+    bf_init(state.context()->vmInstance()->bfContext(), &mask);
+    bf_init(state.context()->vmInstance()->bfContext(), &r);
+    bf_set_ui(&mask, 1);
+    bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
+    bf_add_si(&mask, &mask, -1, BF_PREC_INF, BF_RNDZ);
+    bf_logic_and(&r, bigint->bf(), &mask);
+    bf_delete(&mask);
+
+    return new BigInt(state.context()->vmInstance(), r);
+}
+
+Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let bits be ? ToIndex(bits).
+    auto bits = argv[0].toIndex(state);
+    if (bits == Value::InvalidIndexValue) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::CanNotConvertValueToIndex);
+    }
+    // Let bigint be ? ToBigInt(bigint).
+    BigInt* bigint = argv[1].toBigInt(state);
+    // Return a BigInt representing bigint modulo 2bits.
+    bf_t mask, r;
+    bf_init(state.context()->vmInstance()->bfContext(), &mask);
+    bf_init(state.context()->vmInstance()->bfContext(), &r);
+    bf_set_ui(&mask, 1);
+    bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
+    bf_add_si(&mask, &mask, -1, BF_PREC_INF, BF_RNDZ);
+    bf_logic_and(&r, bigint->bf(), &mask);
+    if (bits != 0) {
+        bf_set_ui(&mask, 1);
+        bf_mul_2exp(&mask, bits - 1, BF_PREC_INF, BF_RNDZ);
+        if (bf_cmpu(&r, &mask) >= 0) {
+            bf_set_ui(&mask, 1);
+            bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
+            bf_sub(&r, &r, &mask, BF_PREC_INF, BF_RNDZ);
+        }
+    }
+    bf_delete(&mask);
+
+    return new BigInt(state.context()->vmInstance(), r);
+}
+
 // The abstract operation thisBigIntValue(value) performs the following steps:
 // If Type(value) is BigInt, return value.
 // If Type(value) is Object and value has a [[BigIntData]] internal slot, then
@@ -93,6 +146,14 @@ void GlobalObject::installBigInt(ExecutionState& state)
 {
     m_bigInt = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().BigInt, builtinBigIntConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_bigInt->setGlobalIntrinsicObject(state);
+
+    m_bigInt->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().asUintN),
+                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asUintN, builtinBigIntAsUintN, 2, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_bigInt->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().asIntN),
+                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asIntN, builtinBigIntAsIntN, 2, NativeFunctionInfo::Strict)),
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_bigIntPrototype = new Object(state);
     m_bigIntPrototype->setGlobalIntrinsicObject(state, true);

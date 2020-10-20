@@ -57,10 +57,10 @@ class BigInt : public PointerValue {
 public:
     BigInt(VMInstance* vmInstance, int64_t num);
     BigInt(VMInstance* vmInstance, BigIntData&& n);
+    BigInt(VMInstance* vmInstance, bf_t num);
 
     static Optional<BigInt*> parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
     static Optional<BigInt*> parseString(VMInstance* vmInstance, String* str, int radix = 10);
-
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -83,6 +83,10 @@ public:
     bool greaterThanEqual(BigInt* b);
 
     BigInt* addition(BigInt* b);
+    BigInt* subtraction(BigInt* b);
+
+    BigInt* increment();
+    BigInt* decrement();
 
     bool isZero();
     bool isNaN();
@@ -90,9 +94,13 @@ public:
 
     BigInt* negativeValue();
 
+    bf_t* bf()
+    {
+        return &m_bf;
+    }
+
 private:
     BigInt(VMInstance* vmInstance);
-    BigInt(VMInstance* vmInstance, bf_t num);
 
     void initFinalizer();
 

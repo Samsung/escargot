@@ -261,7 +261,26 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     ret = Value(Value::EncodeAsDouble, (double)a - (double)b);
                 }
             } else {
-                ret = Value(left.toNumber(*state) - right.toNumber(*state));
+                // https://www.ecma-international.org/ecma-262/#sec-subtraction-operator-minus
+                // Let lref be the result of evaluating AdditiveExpression.
+                // Let lval be ? GetValue(lref).
+                // Let rref be the result of evaluating MultiplicativeExpression.
+                // Let rval be ? GetValue(rref).
+                // Let lnum be ? ToNumeric(lval).
+                // Let rnum be ? ToNumeric(rval).
+                auto lnum = left.toNumeric(*state);
+                auto rnum = right.toNumeric(*state);
+                // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
+                if (UNLIKELY(lnum.second != rnum.second)) {
+                    ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+                }
+                // Let T be Type(lnum).
+                // Return T::subtract(lnum, rnum).
+                if (UNLIKELY(lnum.second)) {
+                    ret = Value(lnum.first.asBigInt()->subtraction(rnum.first.asBigInt()));
+                } else {
+                    ret = Value(lnum.first.asNumber() - rnum.first.asNumber());
+                }
             }
             registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMinus);
@@ -398,14 +417,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(ToNumberIncrement)
+        DEFINE_OPCODE(ToNumericIncrement)
             :
         {
-            ToNumberIncrement* code = (ToNumberIncrement*)programCounter;
-            Value toNumberValue = Value(registerFile[code->m_srcIndex].toNumber(*state));
-            registerFile[code->m_dstIndex] = toNumberValue;
-            registerFile[code->m_storeIndex] = incrementOperation(*state, toNumberValue);
-            ADD_PROGRAM_COUNTER(ToNumberIncrement);
+            ToNumericIncrement* code = (ToNumericIncrement*)programCounter;
+            registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
+            registerFile[code->m_storeIndex] = incrementOperation(*state, registerFile[code->m_dstIndex]);
+            ADD_PROGRAM_COUNTER(ToNumericIncrement);
             NEXT_INSTRUCTION();
         }
 
@@ -418,14 +436,13 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(ToNumberDecrement)
+        DEFINE_OPCODE(ToNumericDecrement)
             :
         {
-            ToNumberDecrement* code = (ToNumberDecrement*)programCounter;
-            Value toNumberValue = Value(registerFile[code->m_srcIndex].toNumber(*state));
-            registerFile[code->m_dstIndex] = toNumberValue;
-            registerFile[code->m_storeIndex] = decrementOperation(*state, toNumberValue);
-            ADD_PROGRAM_COUNTER(ToNumberDecrement);
+            ToNumericDecrement* code = (ToNumericDecrement*)programCounter;
+            registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
+            registerFile[code->m_storeIndex] = decrementOperation(*state, registerFile[code->m_dstIndex]);
+            ADD_PROGRAM_COUNTER(ToNumericDecrement);
             NEXT_INSTRUCTION();
         }
 
@@ -1541,16 +1558,16 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
         ret = RopeString::createRopeString(lval.toString(state), rval.toString(state), &state);
     } else {
         // Let lnum be ? ToNumeric(lprim).
-        auto lnum = lval.toNumericWithTypeInformation(state);
+        auto lnum = lval.toNumeric(state);
         // Let rnum be ? ToNumeric(rprim).
-        auto rnum = rval.toNumericWithTypeInformation(state);
+        auto rnum = rval.toNumeric(state);
         // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
-        if (lnum.second != rnum.second) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot mix Number and BigInt in Addition Operator (+)");
+        if (UNLIKELY(lnum.second != rnum.second)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
         }
         // Let T be Type(lnum).
         // Return T::add(lnum, rnum).
-        if (lnum.second) {
+        if (UNLIKELY(lnum.second)) {
             ret = Value(lnum.first.asBigInt()->addition(rnum.first.asBigInt()));
         } else {
             ret = Value(lnum.first.asNumber() + rnum.first.asNumber());
@@ -1733,9 +1750,9 @@ ALWAYS_INLINE bool abstractRelationalComparisonNumeric(ExecutionState& state, co
     }
 
     // Let nx be ? ToNumeric(px). NOTE: Because px and py are primitive values evaluation order is not important.
-    auto nx = lval.toNumericWithTypeInformation(state);
+    auto nx = lval.toNumeric(state);
     // Let ny be ? ToNumeric(py).
-    auto ny = rval.toNumericWithTypeInformation(state);
+    auto ny = rval.toNumeric(state);
 
     // If Type(nx) is the same as Type(ny), return Type(nx)::lessThan(nx, ny).
     // Assert: Type(nx) is BigInt and Type(ny) is Number, or Type(nx) is Number and Type(ny) is BigInt.
@@ -3432,7 +3449,19 @@ ALWAYS_INLINE Value ByteCodeInterpreter::incrementOperation(ExecutionState& stat
             return Value(Value::EncodeAsDouble, (double)a + (double)b);
         }
     } else {
-        return plusSlowCase(state, Value(value.toNumber(state)), Value(1));
+        return incrementOperationSlowCase(state, value);
+    }
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::incrementOperationSlowCase(ExecutionState& state, const Value& value)
+{
+    // https://www.ecma-international.org/ecma-262/#sec-postfix-increment-operator
+    // https://www.ecma-international.org/ecma-262/#sec-prefix-increment-operator
+    auto newVal = value.toNumeric(state);
+    if (UNLIKELY(newVal.second)) {
+        return Value(newVal.first.asBigInt()->increment());
+    } else {
+        return Value(newVal.first.asNumber() + 1);
     }
 }
 
@@ -3440,14 +3469,26 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
 {
     if (LIKELY(value.isInt32())) {
         int32_t a = value.asInt32();
-        int32_t b = -1;
+        int32_t b = 1;
         int32_t c;
-        bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::add(a, b, c);
+        bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::sub(a, b, c);
         if (LIKELY(result)) {
             return Value(c);
         } else {
-            return Value(Value::EncodeAsDouble, (double)a + (double)b);
+            return Value(Value::EncodeAsDouble, (double)a - (double)b);
         }
+    } else {
+        return decrementOperationSlowCase(state, value);
+    }
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::decrementOperationSlowCase(ExecutionState& state, const Value& value)
+{
+    // https://www.ecma-international.org/ecma-262/#sec-postfix-decrement-operator
+    // https://www.ecma-international.org/ecma-262/#sec-prefix-decrement-operator
+    auto newVal = value.toNumeric(state);
+    if (UNLIKELY(newVal.second)) {
+        return Value(newVal.first.asBigInt()->decrement());
     } else {
         return Value(value.toNumber(state) - 1);
     }

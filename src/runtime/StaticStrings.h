@@ -442,7 +442,9 @@ namespace Escargot {
     F(globalThis)                 \
     F(allSettled)                 \
     F(BigInt)                     \
-    F(bigint)
+    F(bigint)                     \
+    F(asUintN)                    \
+    F(asIntN)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \
