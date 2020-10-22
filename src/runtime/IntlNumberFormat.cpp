@@ -97,8 +97,6 @@ static size_t currencyDigits(String* currency)
         return 0;
     } else if (currency->equals("TND")) {
         return 3;
-    } else if (currency->equals("TND")) {
-        return 3;
     } else if (currency->equals("UGX")) {
         return 0;
     } else if (currency->equals("UYI")) {

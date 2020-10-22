@@ -56,6 +56,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         auto u8Lang = language.asString()->toNonGCUTF8StringData();
         UErrorCode status = U_ZERO_ERROR;
         int32_t len = uloc_forLanguageTag(u8Lang.data(), nullptr, 0, nullptr, &status);
+        UNUSED_VARIABLE(len);
         if (status != U_BUFFER_OVERFLOW_ERROR || u8Lang.length() != 2 || !isAllSpecialCharacters(u8Lang, isASCIIAlpha)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "lanuage tag you give into Intl.Locale is invalid");
         }

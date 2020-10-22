@@ -191,6 +191,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
     // Let Collator be the standard built-in object that is the initial value of Intl.Collator.
     FunctionObject* Collator = realm->globalObject()->intlCollator();
+    UNUSED_VARIABLE(Collator);
 
     // If u is "sort", then let localeData be the value of the [[sortLocaleData]] internal property of Collator;
     Intl::LocaleDataImplFunction localeData;

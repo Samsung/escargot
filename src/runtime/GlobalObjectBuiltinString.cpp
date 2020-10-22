@@ -1036,8 +1036,8 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
 
 static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleLowerCase);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleLowerCase);
     Value locales = argc > 0 ? argv[0] : Value();
     String* locale = Intl::getLocaleForStringLocaleConvertCase(state, locales);
     if (str->has8BitContent() && locale->length() == 0) {
@@ -1052,8 +1052,8 @@ static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisVal
 
 static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleUpperCase);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleUpperCase);
     Value locales = argc > 0 ? argv[0] : Value();
     String* locale = Intl::getLocaleForStringLocaleConvertCase(state, locales);
     if (str->has8BitContent() && locale->length() == 0) {

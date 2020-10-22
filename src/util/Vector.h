@@ -279,7 +279,6 @@ public:
     void erase(size_t start, size_t end)
     {
         ASSERT(start < end);
-        ASSERT(start >= 0);
         ASSERT(end <= m_size);
 
         size_t c = end - start;
@@ -719,21 +718,22 @@ public:
     }
 
     VectorWithInlineStorage(size_t s)
+        : m_useExternalStorage(false)
+        , m_size(s)
+        , m_inlineStorage{}
     {
-        m_size = s;
-        if (LIKELY(m_size < InlineStorageSize)) {
-            m_useExternalStorage = false;
-        } else {
+        if (UNLIKELY(m_size >= InlineStorageSize)) {
             m_externalStorage.resize(s);
             m_useExternalStorage = true;
         }
     }
 
     VectorWithInlineStorage(const T* data, size_t s)
+        : m_useExternalStorage(false)
+        , m_size(s)
+        , m_inlineStorage{}
     {
-        m_size = s;
         if (LIKELY(m_size < InlineStorageSize)) {
-            m_useExternalStorage = false;
             for (size_t i = 0; i < s; i++) {
                 new (inlineAt(i)) T(data[i]);
             }
@@ -741,6 +741,15 @@ public:
             m_useExternalStorage = true;
             m_externalStorage.assign(&data[0], &data[s]);
         }
+    }
+
+    VectorWithInlineStorage(VectorWithInlineStorage<InlineStorageSize, T,
+                                                    ExternalStorageAllocator>&& src)
+        : m_useExternalStorage(false)
+        , m_size(0)
+        , m_inlineStorage{}
+    {
+        move(std::move(src));
     }
 
     void clear()
@@ -759,12 +768,6 @@ public:
     ~VectorWithInlineStorage()
     {
         clear();
-    }
-
-    VectorWithInlineStorage(VectorWithInlineStorage<InlineStorageSize, T,
-                                                    ExternalStorageAllocator>&& src)
-    {
-        move(std::move(src));
     }
 
     const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& operator=(VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>&& src)

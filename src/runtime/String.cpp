@@ -976,7 +976,6 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
     ASSERT(str != nullptr);
     ASSERT(replacement != nullptr);
     ASSERT(matched->isString() == true);
-    ASSERT(position >= 0);
     size_t matchLenght = matched->length();
     size_t stringLength = str->length();
     ASSERT(position <= stringLength);
