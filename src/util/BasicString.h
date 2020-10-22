@@ -136,7 +136,6 @@ public:
     void erase(size_t start, size_t end)
     {
         ASSERT(start < end);
-        ASSERT(start >= 0);
         ASSERT(end <= m_size);
 
         size_t c = end - start;

@@ -43,7 +43,6 @@
 #include "runtime/ScriptAsyncGeneratorFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "util/Util.h"
-#include "../third_party/checked_arithmetic/CheckedArithmetic.h"
 
 namespace Escargot {
 

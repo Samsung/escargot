@@ -60,7 +60,7 @@ jobs:
       run: |
         cmake -H. -Bout/cctest $BUILD_OPTIONS
         ninja -Cout/cctest
-    - name: Debugger Test
+    - name: Run Test
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/cctest/cctest" cctest
 
   codecache_test:

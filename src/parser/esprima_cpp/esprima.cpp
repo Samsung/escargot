@@ -4544,10 +4544,10 @@ public:
 
         this->expect(LeftParenthesis);
         ParseFormalParametersResult options;
-        size_t paramIndex = 0;
         MetaNode node = this->createNode();
 
         if (!this->match(RightParenthesis)) {
+            size_t paramIndex = 0;
             while (this->startMarker.index < this->scanner->length) {
                 Node* param = this->parseFormalParameter(builder, options);
 
@@ -6119,9 +6119,8 @@ public:
         ASSERT(this->isParsingSingleFunction);
 
         size_t squareBraketCount = 0;
-        bool isPunctuator;
         while (true) {
-            isPunctuator = this->lookahead.type == Token::PunctuatorToken;
+            bool isPunctuator = this->lookahead.type == Token::PunctuatorToken;
             if (isPunctuator) {
                 if (this->lookahead.valuePunctuatorKind == PunctuatorKind::LeftParenthesis && squareBraketCount == 0) {
                     break;

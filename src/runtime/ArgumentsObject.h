@@ -72,6 +72,7 @@ private:
 
         ModifiedArguments(size_t s)
             : m_argc(s)
+            , m_modified(nullptr)
         {
             m_modified = new (PointerFreeGC) bool[s];
             memset(m_modified, 0, s * sizeof(bool));

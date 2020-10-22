@@ -476,6 +476,9 @@ public:
     static std::string absolutePath(const std::string& src)
     {
         auto absPath = realpath(src.data(), nullptr);
+        if (!absPath) {
+            return std::string();
+        }
         std::string utf8AbsolutePath = absPath;
         free(absPath);
 
