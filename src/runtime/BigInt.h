@@ -84,13 +84,17 @@ public:
 
     BigInt* addition(BigInt* b);
     BigInt* subtraction(BigInt* b);
-
+    BigInt* multiply(BigInt* b);
+    BigInt* division(BigInt* b);
+    BigInt* remainder(BigInt* b);
+    BigInt* pow(BigInt* b);
     BigInt* increment();
     BigInt* decrement();
 
     bool isZero();
     bool isNaN();
     bool isInfinity();
+    bool isNegative();
 
     BigInt* negativeValue();
 

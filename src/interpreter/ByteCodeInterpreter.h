@@ -81,6 +81,9 @@ private:
     static void storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile);
 
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right);
     static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);

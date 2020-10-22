@@ -264,7 +264,8 @@ bool BigInt::equals(String* s)
 
 bool BigInt::equals(double b)
 {
-    return toNumber() == b;
+    BigIntData bd(m_vmInstance, b);
+    return equals(bd);
 }
 
 bool BigInt::lessThan(const BigIntData& b)
@@ -323,6 +324,44 @@ BigInt* BigInt::subtraction(BigInt* b)
     return new BigInt(m_vmInstance, r);
 }
 
+BigInt* BigInt::multiply(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_mul(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::division(BigInt* b)
+{
+    bf_t r, rem;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(m_vmInstance->bfContext(), &rem);
+    bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
+              BF_RNDZ);
+    bf_delete(&rem);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::remainder(BigInt* b)
+{
+    bf_t r, rem;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(m_vmInstance->bfContext(), &rem);
+    bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
+              BF_RNDZ);
+    bf_delete(&r);
+    return new BigInt(m_vmInstance, rem);
+}
+
+BigInt* BigInt::pow(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_pow(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
+}
+
 BigInt* BigInt::increment()
 {
     bf_t r;
@@ -352,6 +391,11 @@ bool BigInt::isInfinity()
 bool BigInt::isZero()
 {
     return bf_is_zero(&m_bf);
+}
+
+bool BigInt::isNegative()
+{
+    return m_bf.sign;
 }
 
 BigInt* BigInt::negativeValue()
