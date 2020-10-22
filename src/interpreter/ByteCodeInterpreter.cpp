@@ -259,27 +259,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 } else {
                     ret = Value(Value::EncodeAsDouble, (double)a - (double)b);
                 }
+            } else if (LIKELY(left.isNumber() && right.isNumber())) {
+                ret = Value(left.asNumber() - right.asNumber());
             } else {
-                // https://www.ecma-international.org/ecma-262/#sec-subtraction-operator-minus
-                // Let lref be the result of evaluating AdditiveExpression.
-                // Let lval be ? GetValue(lref).
-                // Let rref be the result of evaluating MultiplicativeExpression.
-                // Let rval be ? GetValue(rref).
-                // Let lnum be ? ToNumeric(lval).
-                // Let rnum be ? ToNumeric(rval).
-                auto lnum = left.toNumeric(*state);
-                auto rnum = right.toNumeric(*state);
-                // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
-                if (UNLIKELY(lnum.second != rnum.second)) {
-                    ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
-                }
-                // Let T be Type(lnum).
-                // Return T::subtract(lnum, rnum).
-                if (UNLIKELY(lnum.second)) {
-                    ret = Value(lnum.first.asBigInt()->subtraction(rnum.first.asBigInt()));
-                } else {
-                    ret = Value(lnum.first.asNumber() - rnum.first.asNumber());
-                }
+                ret = minusSlowCase(*state, left, right);
             }
             registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMinus);
@@ -299,7 +282,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 if (UNLIKELY((!a || !b) && (a >> 31 || b >> 31))) { // -1 * 0 should be treated as -0, not +0
                     ret = Value(left.asNumber() * right.asNumber());
                 } else {
-                    int32_t c = right.asInt32();
+                    int32_t c;
                     bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::multiply(a, b, c);
                     if (LIKELY(result)) {
                         ret = Value(c);
@@ -307,10 +290,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                         ret = Value(Value::EncodeAsDouble, a * (double)b);
                     }
                 }
+            } else if (LIKELY(left.isNumber() && right.isNumber())) {
+                ret = Value(Value::EncodeAsDouble, left.asNumber() * right.asNumber());
             } else {
-                auto first = left.toNumber(*state);
-                auto second = right.toNumber(*state);
-                ret = Value(Value::EncodeAsDouble, first * second);
+                ret = multiplySlowCase(*state, left, right);
             }
             registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMultiply);
@@ -323,7 +306,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryDivision* code = (BinaryDivision*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toNumber(*state) / right.toNumber(*state));
+            if (LIKELY(left.isNumber() && right.isNumber())) {
+                registerFile[code->m_dstIndex] = Value(left.asNumber() / right.asNumber());
+            } else {
+                registerFile[code->m_dstIndex] = divisionSlowCase(*state, left, right);
+            }
             ADD_PROGRAM_COUNTER(BinaryDivision);
             NEXT_INSTRUCTION();
         }
@@ -1576,6 +1563,61 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
     return ret;
 }
 
+NEVER_INLINE Value ByteCodeInterpreter::minusSlowCase(ExecutionState& state, const Value& left, const Value& right)
+{
+    // https://www.ecma-international.org/ecma-262/#sec-subtraction-operator-minus
+    // Let lref be the result of evaluating AdditiveExpression.
+    // Let lval be ? GetValue(lref).
+    // Let rref be the result of evaluating MultiplicativeExpression.
+    // Let rval be ? GetValue(rref).
+    // Let lnum be ? ToNumeric(lval).
+    // Let rnum be ? ToNumeric(rval).
+    auto lnum = left.toNumeric(state);
+    auto rnum = right.toNumeric(state);
+    // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
+    if (UNLIKELY(lnum.second != rnum.second)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+    }
+    // Let T be Type(lnum).
+    // Return T::subtract(lnum, rnum).
+    if (UNLIKELY(lnum.second)) {
+        return Value(lnum.first.asBigInt()->subtraction(rnum.first.asBigInt()));
+    } else {
+        return Value(lnum.first.asNumber() - rnum.first.asNumber());
+    }
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::multiplySlowCase(ExecutionState& state, const Value& left, const Value& right)
+{
+    auto lnum = left.toNumeric(state);
+    auto rnum = right.toNumeric(state);
+    if (UNLIKELY(lnum.second != rnum.second)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+    }
+    if (UNLIKELY(lnum.second)) {
+        return Value(lnum.first.asBigInt()->multiply(rnum.first.asBigInt()));
+    } else {
+        return Value(Value::EncodeAsDouble, lnum.first.asNumber() * rnum.first.asNumber());
+    }
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, const Value& left, const Value& right)
+{
+    auto lnum = left.toNumeric(state);
+    auto rnum = right.toNumeric(state);
+    if (UNLIKELY(lnum.second != rnum.second)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+    }
+    if (UNLIKELY(lnum.second)) {
+        if (UNLIKELY(rnum.first.asBigInt()->isZero())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::DivisionByZero);
+        }
+        return Value(lnum.first.asBigInt()->division(rnum.first.asBigInt()));
+    } else {
+        return Value(Value::EncodeAsDouble, lnum.first.asNumber() / rnum.first.asNumber());
+    }
+}
+
 NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, const Value& left, const Value& right)
 {
     Value ret(Value::ForceUninitialized);
@@ -1585,8 +1627,20 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
     if (left.isInt32() && ((intLeft = left.asInt32()) > 0) && right.isInt32() && (intRight = right.asInt32())) {
         ret = Value(intLeft % intRight);
     } else {
-        double lvalue = left.toNumber(state);
-        double rvalue = right.toNumber(state);
+        auto lnum = left.toNumeric(state);
+        auto rnum = right.toNumeric(state);
+        if (UNLIKELY(lnum.second != rnum.second)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        }
+        if (UNLIKELY(lnum.second)) {
+            if (UNLIKELY(rnum.first.asBigInt()->isZero())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::DivisionByZero);
+            }
+            return Value(lnum.first.asBigInt()->remainder(rnum.first.asBigInt()));
+        }
+
+        double lvalue = lnum.first.asNumber();
+        double rvalue = rnum.first.asNumber();
         // http://www.ecma-international.org/ecma-262/5.1/#sec-11.5.3
         if (std::isnan(lvalue) || std::isnan(rvalue)) {
             ret = Value(std::numeric_limits<double>::quiet_NaN());
@@ -1617,8 +1671,20 @@ NEVER_INLINE Value ByteCodeInterpreter::exponentialOperation(ExecutionState& sta
 {
     Value ret(Value::ForceUninitialized);
 
-    double base = left.toNumber(state);
-    double exp = right.toNumber(state);
+    auto lnum = left.toNumeric(state);
+    auto rnum = right.toNumeric(state);
+    if (UNLIKELY(lnum.second != rnum.second)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+    }
+    if (UNLIKELY(lnum.second)) {
+        if (UNLIKELY(rnum.first.asBigInt()->isNegative())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::ExponentByNegative);
+        }
+        return Value(lnum.first.asBigInt()->pow(rnum.first.asBigInt()));
+    }
+
+    double base = lnum.first.asNumber();
+    double exp = rnum.first.asNumber();
 
     // The result of base ** exponent when base is 1 or -1 and exponent is +Infinity or -Infinity differs from IEEE 754-2008. The first edition of ECMAScript specified a result of NaN for this operation, whereas later versions of IEEE 754-2008 specified 1. The historical ECMAScript behaviour is preserved for compatibility reasons.
     if ((base == -1 || base == 1) && (exp == std::numeric_limits<double>::infinity() || exp == -std::numeric_limits<double>::infinity())) {
