@@ -3101,6 +3101,10 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
     // update program counter
     programCounter = data->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
 
+    if (data->m_registerFile == nullptr) { // released generator. return now.
+        return Value();
+    }
+
     if (state->executionPauser()->m_resumeStateIndex == REGISTER_LIMIT) {
         if (needsReturn) {
             if (state->rareData() && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size()) {

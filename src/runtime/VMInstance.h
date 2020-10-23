@@ -122,11 +122,7 @@ public:
 
     void ensureTimezone();
 #endif
-    DateObject* cachedUTC() const
-    {
-        return m_cachedUTC;
-    }
-
+    DateObject* cachedUTC(ExecutionState& state) const;
     void setCachedUTC(DateObject* d)
     {
         m_cachedUTC = d;
