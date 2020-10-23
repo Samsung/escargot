@@ -156,7 +156,9 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
             auto& v = self->compiledByteCodeBlocks();
             for (size_t i = 0; i < v.size(); i++) {
                 auto cb = v[i]->m_codeBlock;
-                v[i]->m_codeBlock->m_byteCodeBlock = nullptr;
+                if (LIKELY(!cb->isAsync() && !cb->isGenerator())) {
+                    v[i]->m_codeBlock->m_byteCodeBlock = nullptr;
+                }
             }
         }
     } else if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
