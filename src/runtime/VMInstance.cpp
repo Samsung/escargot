@@ -23,6 +23,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/StringObject.h"
+#include "runtime/DateObject.h"
 #include "runtime/JobQueue.h"
 #include "runtime/CompressibleString.h"
 #include "runtime/ReloadableString.h"
@@ -483,6 +484,14 @@ void VMInstance::ensureTimezone()
     m_timezone = vzone_openID(u16.data(), u16.size());
 }
 #endif
+
+DateObject* VMInstance::cachedUTC(ExecutionState& state) const
+{
+    if (m_cachedUTC == nullptr) {
+        DateObject::initCachedUTC(state, new DateObject(state));
+    }
+    return m_cachedUTC;
+}
 
 void VMInstance::clearCachesRelatedWithContext()
 {
