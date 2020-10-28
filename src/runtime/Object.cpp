@@ -83,21 +83,21 @@ ObjectStructurePropertyName ObjectPropertyName::toObjectStructurePropertyNameUin
 }
 
 ObjectRareData::ObjectRareData(Object* obj)
+    : m_isExtensible(true)
+    , m_isEverSetAsPrototypeObject(false)
+    , m_isFastModeArrayObject(true)
+    , m_isArrayObjectLengthWritable(true)
+    , m_isSpreadArrayObject(false)
+    , m_shouldUpdateEnumerateObject(false)
+    , m_hasNonWritableLastIndexRegExpObject(false)
+#if defined(ESCARGOT_ENABLE_TEST)
+    , m_isHTMLDDA(false)
+#endif
+    , m_arrayObjectFastModeBufferExpandCount(0)
+    , m_extraData(nullptr)
+    , m_prototype(obj ? obj->m_prototype : nullptr)
+    , m_internalSlot(nullptr)
 {
-    if (obj)
-        m_prototype = obj->m_prototype;
-    else
-        m_prototype = nullptr;
-    m_isExtensible = true;
-    m_isEverSetAsPrototypeObject = false;
-    m_isFastModeArrayObject = true;
-    m_isArrayObjectLengthWritable = true;
-    m_isSpreadArrayObject = false;
-    m_shouldUpdateEnumerateObject = false;
-    m_hasNonWritableLastIndexRegExpObject = false;
-    m_arrayObjectFastModeBufferExpandCount = 0;
-    m_extraData = nullptr;
-    m_internalSlot = nullptr;
 }
 
 void* ObjectRareData::operator new(size_t size)

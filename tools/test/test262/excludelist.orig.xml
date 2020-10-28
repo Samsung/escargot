@@ -35,17 +35,10 @@
     <test id="annexB/built-ins/RegExp/match-indices/indices-groups-object"><reason>TODO</reason></test>
     <test id="annexB/built-ins/RegExp/named-groups/non-unicode-malformed"><reason>TODO</reason></test>
     <test id="annexB/built-ins/RegExp/named-groups/non-unicode-malformed-lookbehind"><reason>TODO</reason></test>
-    <test id="annexB/built-ins/String/prototype/match/custom-matcher-emulates-undefined"><reason>TODO</reason></test>
-    <test id="annexB/built-ins/String/prototype/matchAll/custom-matcher-emulates-undefined"><reason>TODO</reason></test>
-    <test id="annexB/built-ins/String/prototype/replace/custom-replacer-emulates-undefined"><reason>TODO</reason></test>
     <test id="annexB/built-ins/String/prototype/replaceAll/custom-replacer-emulates-undefined"><reason>TODO</reason></test>
-    <test id="annexB/built-ins/String/prototype/search/custom-searcher-emulates-undefined"><reason>TODO</reason></test>
-    <test id="annexB/built-ins/String/prototype/split/custom-splitter-emulates-undefined"><reason>TODO</reason></test>
     <test id="annexB/language/comments/multi-line-html-close"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
     <test id="annexB/language/literals/regexp/legacy-octal-escape"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit"><reason>TODO</reason></test>
-    <test id="built-ins/Array/prototype/splice/length-exceeding-integer-limit-shrink-array"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed"><reason>TODO</reason></test>

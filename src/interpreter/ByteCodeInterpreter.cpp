@@ -3584,14 +3584,21 @@ NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryT
     } else {
         ASSERT(val.isPointerValue());
         PointerValue* p = val.asPointerValue();
-        if (p->isCallable()) {
-            val = state.context()->staticStrings().function.string();
-        } else if (p->isSymbol()) {
+        if (p->isSymbol()) {
             val = state.context()->staticStrings().symbol.string();
         } else if (p->isBigInt()) {
             val = state.context()->staticStrings().bigint.string();
         } else {
-            val = state.context()->staticStrings().object.string();
+            ASSERT(p->isObject());
+            if (!p->isCallable()) {
+                val = state.context()->staticStrings().object.string();
+#if defined(ESCARGOT_ENABLE_TEST)
+            } else if (UNLIKELY(p->asObject()->isHTMLDDA())) {
+                val = state.context()->staticStrings().undefined.string();
+#endif
+            } else {
+                val = state.context()->staticStrings().function.string();
+            }
         }
     }
 

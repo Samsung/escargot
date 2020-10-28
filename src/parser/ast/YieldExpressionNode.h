@@ -145,7 +145,7 @@ public:
             size_t throwUndefinedTestRegister = context->getRegister();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, Value()), context, this);
             size_t throwUndefinedCompareJump = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, throwRegister, true, false), context, this);
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, throwRegister, true, true), context, this);
             context->giveUpRegister(); // for drop throwUndefinedTestRegister
             // Let innerResult be ? Call(throw, iterator, « received.[[Value]] »).
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, throwRegister, valueIdx, valueIdx, 1), context, this);
@@ -181,7 +181,7 @@ public:
                 size_t returnUndefinedTestRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, Value()), context, this);
                 size_t returnUndefinedCompareJump = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, false, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, false, true), context, this);
                 context->giveUpRegister(); // drop returnUndefinedTestRegister
 
                 // Let innerResult be Call(return, iterator, « »).
@@ -284,16 +284,20 @@ public:
             size_t returnRegister = context->getRegister();
             codeBlock->pushCode(GetMethod(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, codeBlock->m_codeBlock->context()->staticStrings().stringReturn), context, this);
 
-            // If return is undefined, then (undefined is false)
-            size_t returnUndefinedCheckJump = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), returnRegister), context, this);
+            // If return is undefined, then
+            size_t returnUndefinedTestRegister = context->getRegister();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, Value()), context, this);
+            size_t returnUndefinedCompareJump = codeBlock->currentCodeSize();
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnRegister, false, true), context, this);
+            context->giveUpRegister(); // drop returnUndefinedTestRegister
+
             // If generatorKind is async, then set received.[[Value]] to ? Await(received.[[Value]]).
             if (isAsyncGenerator) {
                 pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
             }
             // Return Completion(received).
             ReturnStatementNode::generateReturnCode(codeBlock, context, this, ByteCodeLOC(m_loc.index), valueIdx);
-            codeBlock->peekCode<JumpIfTrue>(returnUndefinedCheckJump)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfTrue>(returnUndefinedCompareJump)->m_jumpPosition = codeBlock->currentCodeSize();
 
             // Let innerReturnResult be ? Call(return, iterator, « received.[[Value]] »).
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, valueIdx, valueIdx, 1), context, this);

@@ -825,6 +825,11 @@ inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
         return !asBigInt()->isZero();
     }
 
+#if defined(ESCARGOT_ENABLE_TEST)
+    if (UNLIKELY(checkIfObjectWithIsHTMLDDA())) {
+        return false;
+    }
+#endif
     // Symbol, Objects..
     return true;
 }

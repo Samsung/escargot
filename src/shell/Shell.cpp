@@ -322,6 +322,11 @@ static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisVa
     auto script = state->context()->scriptParser()->initializeScript(src, StringRef::createFromASCII("$262.evalScript input"), false).fetchScriptThrowsExceptionIfParseError(state);
     return script->execute(state);
 }
+
+static ValueRef* builtin262IsHTMLDDA(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    return ValueRef::createNull();
+}
 #endif
 
 
@@ -430,7 +435,10 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
             }
 
             {
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("IsHTMLDDA"), ValueRef::create(false), true, true, true);
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "IsHTMLDDA"), builtin262IsHTMLDDA, 0, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                buildFunctionObjectRef->setIsHTMLDDA();
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("IsHTMLDDA"), buildFunctionObjectRef, true, true, true);
             }
 
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("$262"), dollor262Object, true, false, true);

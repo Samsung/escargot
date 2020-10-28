@@ -50,6 +50,9 @@ struct ObjectRareData : public PointerValue {
     bool m_isSpreadArrayObject : 1;
     bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
     bool m_hasNonWritableLastIndexRegExpObject : 1;
+#if defined(ESCARGOT_ENABLE_TEST)
+    bool m_isHTMLDDA : 1;
+#endif
     uint8_t m_arrayObjectFastModeBufferExpandCount : 8;
     void* m_extraData;
     Object* m_prototype;
@@ -976,6 +979,18 @@ public:
     {
         ensureRareData()->m_extraData = e;
     }
+
+#if defined(ESCARGOT_ENABLE_TEST)
+    bool isHTMLDDA()
+    {
+        return hasRareData() ? rareData()->m_isHTMLDDA : false;
+    }
+
+    void setIsHTMLDDA()
+    {
+        ensureRareData()->m_isHTMLDDA = true;
+    }
+#endif
 
     Object* ensureInternalSlot(ExecutionState& state)
     {
