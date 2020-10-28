@@ -1355,6 +1355,13 @@ void ObjectRef::setExtraData(void* e)
     toImpl(this)->setExtraData(e);
 }
 
+#if defined(ESCARGOT_ENABLE_TEST)
+void ObjectRef::setIsHTMLDDA()
+{
+    toImpl(this)->setIsHTMLDDA();
+}
+#endif
+
 void ObjectRef::removeFromHiddenClassChain()
 {
     toImpl(this)->markThisObjectDontNeedStructureTransitionTable();

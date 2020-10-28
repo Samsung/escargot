@@ -1099,6 +1099,9 @@ public:
 
     void* extraData();
     void setExtraData(void* e);
+#if defined(ESCARGOT_ENABLE_TEST)
+    void setIsHTMLDDA();
+#endif
 
     void removeFromHiddenClassChain();
 

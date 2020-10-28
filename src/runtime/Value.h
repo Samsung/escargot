@@ -274,6 +274,9 @@ private:
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
     ValueIndex tryToUseAsIndexSlowCase(ExecutionState& ec) const;
     uint32_t tryToUseAsArrayIndexSlowCase(ExecutionState& ec) const;
+#if defined(ESCARGOT_ENABLE_TEST)
+    bool checkIfObjectWithIsHTMLDDA() const;
+#endif
 };
 
 typedef Vector<Value, CustomAllocator<Value>> ValueVector;

@@ -370,6 +370,15 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
                 return o->asString()->equals(comp->asString());
             return equalsTo(state, val);
         }
+
+#if defined(ESCARGOT_ENABLE_TEST)
+        if (UNLIKELY(selfIsUndefinedOrNull && valIsPointerValue && val.asPointerValue()->isObject() && val.asObject()->isHTMLDDA())) {
+            return true;
+        }
+        if (UNLIKELY(valIsUndefinedOrNull && selfIsPointerValue && asPointerValue()->isObject() && asObject()->isHTMLDDA())) {
+            return true;
+        }
+#endif
     }
     return false;
 }
@@ -824,4 +833,11 @@ uint32_t Value::tryToUseAsArrayIndexSlowCase(ExecutionState& ec) const
     }
     return toString(ec)->tryToUseAsArrayIndex();
 }
+
+#if defined(ESCARGOT_ENABLE_TEST)
+bool Value::checkIfObjectWithIsHTMLDDA() const
+{
+    return isObject() && asObject()->isHTMLDDA();
+}
+#endif
 }
