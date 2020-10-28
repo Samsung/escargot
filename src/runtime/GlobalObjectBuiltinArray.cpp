@@ -594,14 +594,9 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
             ObjectPropertyName from(state, Value(actualStart + k));
             A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, k),
                                                 ObjectPropertyDescriptor(fromValue.value(state, from, O), ObjectPropertyDescriptor::AllPresent));
-            // Increment k by 1.
-            k++;
-        } else {
-            int64_t result;
-            Object::nextIndexForward(state, O, actualStart + k, len, result);
-            k = result - actualStart;
-            A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(k), A);
         }
+        // Increment k by 1.
+        k++;
     }
     // Let setStatus be Set(A, "length", actualDeleteCount, true).
     A->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(actualDeleteCount), A);
@@ -622,9 +617,9 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         // move [actualStart + deleteCnt, len) to [actualStart + insertCnt, len - deleteCnt + insertCnt)
         while (k < len - actualDeleteCount) {
             // Let from be ToString(k+actualDeleteCount).
-            uint32_t from = k + actualDeleteCount;
+            int64_t from = k + actualDeleteCount;
             // Let to be ToString(k+itemCount).
-            uint32_t to = k + itemCount;
+            int64_t to = k + itemCount;
             // Let fromPresent be the result of calling the [[HasProperty]] internal method of O with argument from.
             ObjectHasPropertyResult fromValue = O->hasIndexedProperty(state, Value(from));
             // If fromPresent is true, then
