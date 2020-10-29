@@ -128,7 +128,7 @@ public:
             }
             if (m_test->isRelationOperation()) {
                 m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
-                testPos = codeBlock->lastCodePosition<JumpIfRelation>();
+                testPos = codeBlock->lastCodePosition<JumpIfNotFulfilled>();
             } else if (m_test->isEqualityOperation()) {
                 m_test->generateExpressionByteCode(codeBlock, &newContext, REGISTER_LIMIT);
                 testPos = codeBlock->lastCodePosition<JumpIfEqual>();

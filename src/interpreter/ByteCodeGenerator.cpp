@@ -593,11 +593,11 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case JumpIfRelationOpcode: {
-            JumpIfRelation* cd = (JumpIfRelation*)currentCode;
+        case JumpIfNotFulfilledOpcode: {
+            JumpIfNotFulfilled* cd = (JumpIfNotFulfilled*)currentCode;
             cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex0, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex1, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_leftIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_rightIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         case JumpIfEqualOpcode: {

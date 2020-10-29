@@ -20,7 +20,6 @@
 #ifndef ASTContext_h
 #define ASTContext_h
 
-#include "util/Util.h"
 
 namespace Escargot {
 

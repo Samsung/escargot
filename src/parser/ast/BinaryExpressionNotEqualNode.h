@@ -50,7 +50,7 @@ public:
         context->giveUpRegister();
 
         if (dstRegister == REGISTER_LIMIT) {
-            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), src0, src1, true, false), context, this);
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), src0, src1, false, false), context, this);
         } else {
             codeBlock->pushCode(BinaryNotEqual(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
         }

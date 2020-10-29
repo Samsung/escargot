@@ -403,7 +403,7 @@ public:
                 size_t returnUndefinedTestRegister = newContext.getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, Value()), &newContext, this);
                 size_t returnUndefinedCompareJump = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, false, false), &newContext, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, false, true), &newContext, this);
                 newContext.giveUpRegister(); // drop returnUndefinedTestRegister
 
                 // Let innerResult be Call(return, iterator, « »).
@@ -480,7 +480,7 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(ExecutionPauser::ResumeState::Throw)), &newContext, this);
 
                 size_t awaitNotReturnsThrowPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwTestRegister, awaitStateRegister, false, false), &newContext, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwTestRegister, awaitStateRegister, false, true), &newContext, this);
 
                 // throw innerResult;
                 codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), returnOrInnerResultRegister), &newContext, this);
