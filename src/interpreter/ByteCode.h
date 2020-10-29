@@ -102,7 +102,7 @@ struct GlobalVariableAccessCacheItem;
     F(JumpIfTrue, 0, 0)                                     \
     F(JumpIfUndefinedOrNull, 0, 0)                          \
     F(JumpIfFalse, 0, 0)                                    \
-    F(JumpIfRelation, 0, 0)                                 \
+    F(JumpIfNotFulfilled, 0, 0)                             \
     F(JumpIfEqual, 0, 0)                                    \
     F(CallFunction, -1, 0)                                  \
     F(CallFunctionWithReceiver, -1, 0)                      \
@@ -1452,7 +1452,7 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("jump if true r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is true -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
     }
 #endif
 };
@@ -1473,16 +1473,16 @@ public:
     {
     }
 
-    bool m_shouldNegate;
+    bool m_shouldNegate; // condition should meet NOT undefined NOR null
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         if (m_shouldNegate) {
-            printf("jump if not undefined nor null r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+            printf("jump if r%d is not undefined nor null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
         } else {
-            printf("jump if undefined or null r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+            printf("jump if r%d is undefined or null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
         }
     }
 #endif
@@ -1501,64 +1501,65 @@ public:
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("jump if false r%d -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is false -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
     }
 #endif
 };
 
-class JumpIfRelation : public JumpByteCode {
+class JumpIfNotFulfilled : public JumpByteCode {
 public:
-    JumpIfRelation(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, bool isEqual, bool isLeftFirst)
-        : JumpByteCode(Opcode::JumpIfRelationOpcode, loc, SIZE_MAX)
-        , m_registerIndex0(registerIndex0)
-        , m_registerIndex1(registerIndex1)
-        , m_isEqual(isEqual)
-        , m_isLeftFirst(isLeftFirst)
+    // compare if left value is less than (or equal) right value
+    JumpIfNotFulfilled(const ByteCodeLOC& loc, const size_t leftIndex, const size_t rightIndex, bool containEqual, bool switched)
+        : JumpByteCode(Opcode::JumpIfNotFulfilledOpcode, loc, SIZE_MAX)
+        , m_leftIndex(leftIndex)
+        , m_rightIndex(rightIndex)
+        , m_containEqual(containEqual)
+        , m_switched(switched)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex0;
-    ByteCodeRegisterIndex m_registerIndex1;
-    bool m_isEqual;
-    bool m_isLeftFirst;
+    ByteCodeRegisterIndex m_leftIndex;
+    ByteCodeRegisterIndex m_rightIndex;
+    bool m_containEqual; // include equal condition
+    bool m_switched; // left and right operands are switched
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         char* op;
-        if (m_isEqual) {
-            if (m_isLeftFirst) {
-                op = (char*)"less than or equal";
-            } else {
+        if (m_switched) {
+            if (m_containEqual) {
                 op = (char*)"greater than or equal";
-            }
-        } else {
-            if (m_isLeftFirst) {
-                op = (char*)"less than";
             } else {
                 op = (char*)"greater than";
             }
+        } else {
+            if (m_containEqual) {
+                op = (char*)"less than or equal";
+            } else {
+                op = (char*)"less than";
+            }
         }
-        printf("jump if not %s (r%d, r%d) -> %d", op, (int)m_registerIndex0, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is not %s r%d -> %d", (int)m_leftIndex, op, (int)m_rightIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
     }
 #endif
 };
 
 class JumpIfEqual : public JumpByteCode {
 public:
-    JumpIfEqual(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, bool shouldNegate, bool isStrict)
+    JumpIfEqual(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, bool isStrict, bool shouldNegate)
         : JumpByteCode(Opcode::JumpIfEqualOpcode, loc, SIZE_MAX)
         , m_registerIndex0(registerIndex0)
         , m_registerIndex1(registerIndex1)
-        , m_shouldNegate(shouldNegate)
         , m_isStrict(isStrict)
+        , m_shouldNegate(shouldNegate)
     {
     }
 
     ByteCodeRegisterIndex m_registerIndex0;
     ByteCodeRegisterIndex m_registerIndex1;
-    bool m_shouldNegate;
     bool m_isStrict;
+    bool m_shouldNegate; // condition should meet NOT EQUAL
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -1577,7 +1578,7 @@ public:
                 op = (char*)"equal";
             }
         }
-        printf("jump if %s (r%d, r%d) -> %d", op, (int)m_registerIndex0, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is %s to r%d -> %d", (int)m_registerIndex0, op, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition, byteCodeStart));
     }
 #endif
 };

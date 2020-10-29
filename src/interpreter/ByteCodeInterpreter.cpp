@@ -365,7 +365,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryLessThan* code = (BinaryLessThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(*state, left, right, true));
+            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanRight(*state, left, right, false));
             ADD_PROGRAM_COUNTER(BinaryLessThan);
             NEXT_INSTRUCTION();
         }
@@ -376,7 +376,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryLessThanOrEqual* code = (BinaryLessThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(*state, left, right, true));
+            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanEqualRight(*state, left, right, false));
             ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -387,7 +387,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryGreaterThan* code = (BinaryGreaterThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparison(*state, right, left, false));
+            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanRight(*state, right, left, true));
             ADD_PROGRAM_COUNTER(BinaryGreaterThan);
             NEXT_INSTRUCTION();
         }
@@ -398,7 +398,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryGreaterThanOrEqual* code = (BinaryGreaterThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractRelationalComparisonOrEqual(*state, right, left, false));
+            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanEqualRight(*state, right, left, true));
             ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -538,22 +538,18 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(JumpIfRelation)
+        DEFINE_OPCODE(JumpIfNotFulfilled)
             :
         {
-            JumpIfRelation* code = (JumpIfRelation*)programCounter;
+            JumpIfNotFulfilled* code = (JumpIfNotFulfilled*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            const Value& left = registerFile[code->m_registerIndex0];
-            const Value& right = registerFile[code->m_registerIndex1];
-            bool relation;
-            if (code->m_isEqual) {
-                relation = abstractRelationalComparisonOrEqual(*state, left, right, code->m_isLeftFirst);
-            } else {
-                relation = abstractRelationalComparison(*state, left, right, code->m_isLeftFirst);
-            }
+            const Value& left = registerFile[code->m_leftIndex];
+            const Value& right = registerFile[code->m_rightIndex];
+            bool result = code->m_containEqual ? abstractLeftIsLessThanEqualRight(*state, left, right, code->m_switched) : abstractLeftIsLessThanRight(*state, left, right, code->m_switched);
 
-            if (relation) {
-                ADD_PROGRAM_COUNTER(JumpIfRelation);
+            // Jump if the condition is NOT fulfilled
+            if (result) {
+                ADD_PROGRAM_COUNTER(JumpIfNotFulfilled);
             } else {
                 programCounter = code->m_jumpPosition;
             }
@@ -567,17 +563,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             const Value& left = registerFile[code->m_registerIndex0];
             const Value& right = registerFile[code->m_registerIndex1];
-            bool equality;
-            if (code->m_isStrict) {
-                equality = left.equalsTo(*state, right);
-            } else {
-                equality = left.abstractEqualsTo(*state, right);
-            }
+            bool result = code->m_isStrict ? left.equalsTo(*state, right) : left.abstractEqualsTo(*state, right);
 
-            if (equality ^ code->m_shouldNegate) {
-                ADD_PROGRAM_COUNTER(JumpIfEqual);
-            } else {
+            if (result ^ code->m_shouldNegate) {
                 programCounter = code->m_jumpPosition;
+            } else {
+                ADD_PROGRAM_COUNTER(JumpIfEqual);
             }
             NEXT_INSTRUCTION();
         }
@@ -600,11 +591,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             JumpIfUndefinedOrNull* code = (JumpIfUndefinedOrNull*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            bool cond = registerFile[code->m_registerIndex].isUndefinedOrNull();
-            if (code->m_shouldNegate) {
-                cond = !cond;
-            }
-            if (cond) {
+            bool result = registerFile[code->m_registerIndex].isUndefinedOrNull();
+
+            if (result ^ code->m_shouldNegate) {
                 programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfUndefinedOrNull);
@@ -1752,7 +1741,7 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
     }
 }
 
-ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+ALWAYS_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -1763,10 +1752,10 @@ ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparison(ExecutionSt
         return left.asNumber() < right.asNumber();
     }
 
-    return abstractRelationalComparisonSlowCase(state, left, right, leftFirst);
+    return abstractLeftIsLessThanRightSlowCase(state, left, right, switched);
 }
 
-ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqual(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+ALWAYS_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -1777,13 +1766,13 @@ ALWAYS_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqual(Exec
         return left.asNumber() <= right.asNumber();
     }
 
-    return abstractRelationalComparisonOrEqualSlowCase(state, left, right, leftFirst);
+    return abstractLeftIsLessThanEqualRightSlowCase(state, left, right, switched);
 }
 
 template <typename CompBigIntBigInt, typename CompBigIntBigIntData, typename CompBigIntDataBigInt, typename CompDoubleDouble>
-ALWAYS_INLINE bool abstractRelationalComparisonNumeric(ExecutionState& state, const Value& lval, const Value& rval,
-                                                       CompBigIntBigInt compBigIntBigInt, CompBigIntBigIntData compBigIntBigIntData,
-                                                       CompBigIntDataBigInt compBigIntDataBigInt, CompDoubleDouble compDoubleDouble)
+ALWAYS_INLINE bool abstractLeftIsLessThanRightNumeric(ExecutionState& state, const Value& lval, const Value& rval,
+                                                      CompBigIntBigInt compBigIntBigInt, CompBigIntBigIntData compBigIntBigIntData,
+                                                      CompBigIntDataBigInt compBigIntDataBigInt, CompDoubleDouble compDoubleDouble)
 {
     bool lvalIsBigInt = lval.isBigInt();
     bool rvalIsBigInt = rval.isBigInt();
@@ -1841,16 +1830,15 @@ ALWAYS_INLINE bool abstractRelationalComparisonNumeric(ExecutionState& state, co
     }
 }
 
-NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+NEVER_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
-    Value lval(Value::ForceUninitialized);
-    Value rval(Value::ForceUninitialized);
-    if (leftFirst) {
-        lval = left.toPrimitive(state, Value::PreferNumber);
+    Value lval, rval;
+    if (switched) {
         rval = right.toPrimitive(state, Value::PreferNumber);
+        lval = left.toPrimitive(state, Value::PreferNumber);
     } else {
-        rval = right.toPrimitive(state, Value::PreferNumber);
         lval = left.toPrimitive(state, Value::PreferNumber);
+        rval = right.toPrimitive(state, Value::PreferNumber);
     }
 
     if (lval.isInt32() && rval.isInt32()) {
@@ -1858,32 +1846,31 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonSlowCase(Exec
     } else if (lval.isString() && rval.isString()) {
         return *lval.asString() < *rval.asString();
     } else {
-        return abstractRelationalComparisonNumeric(state, lval, rval,
-                                                   [](BigInt* a, BigInt* b) -> bool {
-                                                       return a->lessThan(b);
-                                                   },
-                                                   [](BigInt* a, const BigIntData& b) -> bool {
-                                                       return a->lessThan(b);
-                                                   },
-                                                   [](const BigIntData& a, BigInt* b) -> bool {
-                                                       return a.lessThan(b);
-                                                   },
-                                                   [](const double& a, const double& b) -> bool {
-                                                       return a < b;
-                                                   });
+        return abstractLeftIsLessThanRightNumeric(state, lval, rval,
+                                                  [](BigInt* a, BigInt* b) -> bool {
+                                                      return a->lessThan(b);
+                                                  },
+                                                  [](BigInt* a, const BigIntData& b) -> bool {
+                                                      return a->lessThan(b);
+                                                  },
+                                                  [](const BigIntData& a, BigInt* b) -> bool {
+                                                      return a.lessThan(b);
+                                                  },
+                                                  [](const double& a, const double& b) -> bool {
+                                                      return a < b;
+                                                  });
     }
 }
 
-NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCase(ExecutionState& state, const Value& left, const Value& right, bool leftFirst)
+NEVER_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
-    Value lval(Value::ForceUninitialized);
-    Value rval(Value::ForceUninitialized);
-    if (leftFirst) {
-        lval = left.toPrimitive(state, Value::PreferNumber);
+    Value lval, rval;
+    if (switched) {
         rval = right.toPrimitive(state, Value::PreferNumber);
+        lval = left.toPrimitive(state, Value::PreferNumber);
     } else {
-        rval = right.toPrimitive(state, Value::PreferNumber);
         lval = left.toPrimitive(state, Value::PreferNumber);
+        rval = right.toPrimitive(state, Value::PreferNumber);
     }
 
     if (lval.isInt32() && rval.isInt32()) {
@@ -1891,19 +1878,19 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractRelationalComparisonOrEqualSlowCa
     } else if (lval.isString() && rval.isString()) {
         return *lval.asString() <= *rval.asString();
     } else {
-        return abstractRelationalComparisonNumeric(state, lval, rval,
-                                                   [](BigInt* a, BigInt* b) -> bool {
-                                                       return a->lessThanEqual(b);
-                                                   },
-                                                   [](BigInt* a, const BigIntData& b) -> bool {
-                                                       return a->lessThanEqual(b);
-                                                   },
-                                                   [](const BigIntData& a, BigInt* b) -> bool {
-                                                       return a.lessThanEqual(b);
-                                                   },
-                                                   [](const double& a, const double& b) -> bool {
-                                                       return a <= b;
-                                                   });
+        return abstractLeftIsLessThanRightNumeric(state, lval, rval,
+                                                  [](BigInt* a, BigInt* b) -> bool {
+                                                      return a->lessThanEqual(b);
+                                                  },
+                                                  [](BigInt* a, const BigIntData& b) -> bool {
+                                                      return a->lessThanEqual(b);
+                                                  },
+                                                  [](const BigIntData& a, BigInt* b) -> bool {
+                                                      return a.lessThanEqual(b);
+                                                  },
+                                                  [](const double& a, const double& b) -> bool {
+                                                      return a <= b;
+                                                  });
     }
 }
 

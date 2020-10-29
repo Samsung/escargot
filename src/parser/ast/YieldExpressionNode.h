@@ -77,7 +77,7 @@ public:
             size_t stateCompareRegister = context->getRegister();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCompareRegister, Value(ExecutionPauser::ResumeState::Normal)), context, this);
             size_t normalStateCompareJump = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCompareRegister, stateIdx, false, false), context, this);
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCompareRegister, stateIdx, false, true), context, this);
 
             // Let innerResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « received.[[Value]] »).
             IteratorOperation::IteratorNextData iteratorNextData;
@@ -137,7 +137,7 @@ public:
             codeBlock->peekCode<JumpIfEqual>(normalStateCompareJump)->m_jumpPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCompareRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
             size_t throwStateCompareJump = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCompareRegister, stateIdx, false, false), context, this);
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCompareRegister, stateIdx, false, true), context, this);
             // Let throw be ? GetMethod(iterator, "throw").
             size_t throwRegister = context->getRegister();
             codeBlock->pushCode(GetMethod(ByteCodeLOC(m_loc.index), iteratorObjectIdx, throwRegister, codeBlock->m_codeBlock->context()->staticStrings().stringThrow), context, this);
@@ -145,7 +145,7 @@ public:
             size_t throwUndefinedTestRegister = context->getRegister();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, Value()), context, this);
             size_t throwUndefinedCompareJump = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, throwRegister, true, true), context, this);
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, throwRegister, true, false), context, this);
             context->giveUpRegister(); // for drop throwUndefinedTestRegister
             // Let innerResult be ? Call(throw, iterator, « received.[[Value]] »).
             codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, throwRegister, valueIdx, valueIdx, 1), context, this);
@@ -181,7 +181,7 @@ public:
                 size_t returnUndefinedTestRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, Value()), context, this);
                 size_t returnUndefinedCompareJump = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, false, true), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnOrInnerResultRegister, true, true), context, this);
                 context->giveUpRegister(); // drop returnUndefinedTestRegister
 
                 // Let innerResult be Call(return, iterator, « »).
@@ -288,7 +288,7 @@ public:
             size_t returnUndefinedTestRegister = context->getRegister();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, Value()), context, this);
             size_t returnUndefinedCompareJump = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnRegister, false, true), context, this);
+            codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), returnUndefinedTestRegister, returnRegister, true, true), context, this);
             context->giveUpRegister(); // drop returnUndefinedTestRegister
 
             // If generatorKind is async, then set received.[[Value]] to ? Await(received.[[Value]]).
@@ -398,10 +398,10 @@ public:
                 ByteCodeRegisterIndex stateCheckRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Normal)), context, this);
                 size_t stateIsNormalJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, true, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, false), context, this);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
                 size_t stateIsNotThrowJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, true), context, this);
                 codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), dstRegister), context, this);
                 codeBlock->peekCode<JumpIfEqual>(stateIsNotThrowJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
@@ -416,7 +416,7 @@ public:
                 // If awaited.[[Type]] is throw, return Completion(awaited).
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
                 stateIsNotThrowJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, true), context, this);
                 codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), dstRegister), context, this);
                 codeBlock->peekCode<JumpIfEqual>(stateIsNotThrowJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
                 // Assert: awaited.[[Type]] is normal.
@@ -432,7 +432,7 @@ public:
                 ByteCodeRegisterIndex stateCheckRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Return)), context, this);
                 size_t stateIsNotReturnJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, true), context, this);
 
                 // Let awaited be Await(resumptionValue.[[Value]]).
                 ExecutionPause::ExecutionPauseAwaitData data;
@@ -445,7 +445,7 @@ public:
                 // If awaited.[[Type]] is throw, return Completion(awaited).
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stateCheckRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this);
                 size_t stateIsNotThrowJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, false), context, this);
+                codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), stateCheckRegister, dstStateRegister, false, true), context, this);
                 size_t jumpToEndNotThrow = codeBlock->currentCodeSize();
                 codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
 
