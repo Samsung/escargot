@@ -4783,7 +4783,7 @@ public:
         this->expect(LeftParenthesis);
 
         // https://www.ecma-international.org/ecma-262/10.0/#sec-web-compat-functiondeclarationinstantiation
-        bool isTopScope = (!this->lexicalBlockIndex || this->currentScopeContext->m_functionBodyBlockIndex == this->lexicalBlockIndex);
+        bool isTopScope = this->currentScopeContext->m_functionBodyBlockIndex == this->lexicalBlockIndex;
         if (this->context->strict) {
             if (isTopScope && UNLIKELY(this->sourceType != SourceType::Module)) {
                 addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
@@ -4792,6 +4792,10 @@ public:
             }
         } else {
             // appendixB B.3.3.1~B.3.3.3
+            if (!isTopScope) {
+                this->currentScopeContext->insertFuncDeclNameAtBlock(fnName, this->lexicalBlockIndex);
+            }
+
             if (UNLIKELY(this->currentScopeContext->hasNameAtBlock(fnName, this->lexicalBlockIndex))) {
                 bool isCatchClauseVariableName = false;
 
@@ -4816,45 +4820,28 @@ public:
                     }
                 }
 
-                if (!isCatchClauseVariableName && !this->currentScopeContext->blockHasName(fnName, this->lexicalBlockIndex)) {
-                    addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword, false);
+                if (!isCatchClauseVariableName) {
+                    addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword);
                 }
             } else {
                 if (isTopScope) {
-                    addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
+                    addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
                 } else {
-                    size_t r = this->currentScopeContext->findVarName(fnName);
-                    if (r == SIZE_MAX) {
-                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword, false);
-                    } else if (this->currentScopeContext->m_varNames[r].isParameterName()) {
-                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword, false);
+                    if (UNLIKELY(isAsync || isGenerator)) {
+                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     } else {
-                        KeywordKind kk = KeywordKind::VarKeyword;
-                        auto c = this->currentScopeContext->m_firstChild;
-                        while (c) {
-                            if (c->m_functionName == fnName && c->m_nodeType == FunctionDeclaration
-                                && c->m_lexicalBlockIndexFunctionLocatedIn > this->currentScopeContext->m_functionBodyBlockIndex
-                                && c->m_lexicalBlockIndexFunctionLocatedIn != this->lexicalBlockIndex) {
-                                auto declaredBlockIndex = c->m_lexicalBlockIndexFunctionLocatedIn;
-                                auto blockIndex = this->lexicalBlockIndex;
-                                while (true) {
-                                    if (blockIndex == LEXICAL_BLOCK_INDEX_MAX) {
-                                        break;
-                                    }
-                                    if (blockIndex == declaredBlockIndex) {
-                                        kk = KeywordKind::LetKeyword;
-                                        break;
-                                    }
-                                    blockIndex = this->currentScopeContext->findBlock(blockIndex)->m_parentBlockIndex;
-                                }
-                                if (kk == KeywordKind::LetKeyword) {
-                                    break;
-                                }
+                        size_t r = this->currentScopeContext->findVarName(fnName);
+                        if (r == SIZE_MAX) {
+                            addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
+                        } else if (this->currentScopeContext->m_varNames[r].isParameterName()) {
+                            addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::LetKeyword);
+                        } else {
+                            KeywordKind kind = KeywordKind::VarKeyword;
+                            if (this->currentScopeContext->hasFuncDeclNameAtBlock(fnName, this->currentBlockContext->m_parentBlockIndex)) {
+                                kind = KeywordKind::LetKeyword;
                             }
-                            c = c->m_nextSibling;
+                            addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, kind, false);
                         }
-
-                        addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, kk, false);
                     }
                 }
             }

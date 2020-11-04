@@ -143,6 +143,7 @@ struct ASTBlockContext {
     LexicalBlockIndex m_parentBlockIndex;
     ASTBlockContextNameInfoVector m_names;
     AtomicStringVector m_usingNames;
+    AtomicStringVector m_funcDeclNames;
 #ifndef NDEBUG
     ExtendedNodeLOC m_loc;
 #endif
@@ -336,13 +337,14 @@ struct ASTScopeContext {
 
     ASTBlockContext *findBlockFromBackward(LexicalBlockIndex blockIndex)
     {
-        int32_t b = (int32_t)m_childBlockScopes.size() - 1;
-        return m_childBlockScopes[findBlockFromBackward(blockIndex, b)];
+        uint16_t b = (uint16_t)m_childBlockScopes.size() - 1;
+        return m_childBlockScopes[findBlockIndexFromBackward(blockIndex, b)];
     }
 
-    LexicalBlockIndex findBlockFromBackward(LexicalBlockIndex blockIndex, int32_t fromIndex)
+    uint16_t findBlockIndexFromBackward(LexicalBlockIndex blockIndex, uint16_t fromIndex)
     {
-        for (int32_t i = fromIndex; i >= 0; i--) {
+        ASSERT(fromIndex < (uint16_t)m_childBlockScopes.size());
+        for (uint16_t i = fromIndex; i >= 0; i--) {
             if (m_childBlockScopes[(size_t)i]->m_blockIndex == blockIndex) {
                 return i;
             }
@@ -444,6 +446,19 @@ struct ASTScopeContext {
         return true;
     }
 
+    bool insertFuncDeclNameAtBlock(AtomicString name, LexicalBlockIndex blockIndex)
+    {
+        ASTBlockContext *blockContext = findBlockFromBackward(blockIndex);
+        for (size_t i = 0; i < blockContext->m_funcDeclNames.size(); i++) {
+            if (blockContext->m_funcDeclNames[i] == name) {
+                return false;
+            }
+        }
+
+        blockContext->m_funcDeclNames.push_back(name);
+        return true;
+    }
+
     bool blockHasName(AtomicString name, size_t blockIndex)
     {
         ASTBlockContext *blockContext = findBlockFromBackward(blockIndex);
@@ -471,8 +486,8 @@ struct ASTScopeContext {
     bool canDeclareName(AtomicString name, LexicalBlockIndex blockIndex, bool isVarName, bool isExplicitVariableDeclaration)
     {
         if (isVarName) {
-            int32_t findBlockIndex = m_childBlockScopes.size() - 1;
-            findBlockIndex = findBlockFromBackward(blockIndex, findBlockIndex);
+            uint16_t findBlockIndex = m_childBlockScopes.size() - 1;
+            findBlockIndex = findBlockIndexFromBackward(blockIndex, findBlockIndex);
             ASTBlockContext *cb = m_childBlockScopes[findBlockIndex];
             while (true) {
                 size_t siz = cb->m_names.size();
@@ -489,8 +504,13 @@ struct ASTScopeContext {
                 if (cb->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
                     break;
                 }
-                findBlockIndex = findBlockFromBackward(cb->m_parentBlockIndex, findBlockIndex - 1);
+                findBlockIndex = findBlockIndexFromBackward(cb->m_parentBlockIndex, findBlockIndex - 1);
                 cb = m_childBlockScopes[findBlockIndex];
+            }
+            if (isExplicitVariableDeclaration && blockIndex != m_functionBodyBlockIndex) {
+                if (UNLIKELY(hasFuncDeclNameAtBlock(name, blockIndex))) {
+                    return false;
+                }
             }
         } else {
             if (blockHasName(name, blockIndex)) {
@@ -506,6 +526,32 @@ struct ASTScopeContext {
         }
 
         return true;
+    }
+
+    bool hasFuncDeclNameAtBlock(AtomicString fnName, LexicalBlockIndex blockIndex)
+    {
+        if (blockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+            return false;
+        }
+
+        uint16_t findBlockIndex = m_childBlockScopes.size() - 1;
+        findBlockIndex = findBlockIndexFromBackward(blockIndex, findBlockIndex);
+        ASTBlockContext *bc = m_childBlockScopes[findBlockIndex];
+        while (true) {
+            for (size_t i = 0; i < bc->m_funcDeclNames.size(); i++) {
+                if (bc->m_funcDeclNames[i] == fnName) {
+                    return true;
+                }
+            }
+            if (bc->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+                break;
+                ;
+            }
+            findBlockIndex = findBlockIndexFromBackward(bc->m_parentBlockIndex, findBlockIndex - 1);
+            bc = m_childBlockScopes[findBlockIndex];
+        }
+
+        return false;
     }
 
     explicit ASTScopeContext(ASTAllocator &allocator, bool isStrict = false)
