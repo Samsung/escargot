@@ -344,7 +344,7 @@ struct ASTScopeContext {
     uint16_t findBlockIndexFromBackward(LexicalBlockIndex blockIndex, uint16_t fromIndex)
     {
         ASSERT(fromIndex < (uint16_t)m_childBlockScopes.size());
-        for (uint16_t i = fromIndex; i >= 0; i--) {
+        for (int32_t i = fromIndex; i >= 0; i--) {
             if (m_childBlockScopes[(size_t)i]->m_blockIndex == blockIndex) {
                 return i;
             }

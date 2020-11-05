@@ -3295,25 +3295,14 @@ public:
                 const auto currentBlockIndex = this->lexicalBlockIndex;
                 LexicalBlockIndex parentBlockIndex = blockContext->m_parentBlockIndex;
 
-                bool isThereFunctionExists = false;
-
-                ASTScopeContext* child = currentFunctionScope->m_firstChild;
-                while (child) {
-                    if (child->m_nodeType == ASTNodeType::FunctionDeclaration
-                        && child->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
-                        isThereFunctionExists = true;
-                    }
-                    child = child->nextSibling();
-                }
-
-                if (!isThereFunctionExists) { // block collapse start
+                if (!blockContext->m_funcDeclNames.size()) { // if there is no function declaration, block collapse can start
                     for (size_t i = 0; i < currentFunctionScope->m_childBlockScopes.size(); i++) {
                         if (currentFunctionScope->m_childBlockScopes[i]->m_parentBlockIndex == currentBlockIndex) {
                             currentFunctionScope->m_childBlockScopes[i]->m_parentBlockIndex = parentBlockIndex;
                         }
                     }
 
-                    child = currentFunctionScope->m_firstChild;
+                    ASTScopeContext* child = currentFunctionScope->m_firstChild;
                     while (child) {
                         if (child->m_lexicalBlockIndexFunctionLocatedIn == currentBlockIndex) {
                             child->m_lexicalBlockIndexFunctionLocatedIn = parentBlockIndex;
@@ -4784,6 +4773,10 @@ public:
 
         // https://www.ecma-international.org/ecma-262/10.0/#sec-web-compat-functiondeclarationinstantiation
         bool isTopScope = this->currentScopeContext->m_functionBodyBlockIndex == this->lexicalBlockIndex;
+        if (!isTopScope) {
+            this->currentScopeContext->insertFuncDeclNameAtBlock(fnName, this->lexicalBlockIndex);
+        }
+
         if (this->context->strict) {
             if (isTopScope && UNLIKELY(this->sourceType != SourceType::Module)) {
                 addDeclaredNameIntoContext(fnName, this->lexicalBlockIndex, KeywordKind::VarKeyword);
@@ -4792,10 +4785,6 @@ public:
             }
         } else {
             // appendixB B.3.3.1~B.3.3.3
-            if (!isTopScope) {
-                this->currentScopeContext->insertFuncDeclNameAtBlock(fnName, this->lexicalBlockIndex);
-            }
-
             if (UNLIKELY(this->currentScopeContext->hasNameAtBlock(fnName, this->lexicalBlockIndex))) {
                 bool isCatchClauseVariableName = false;
 
