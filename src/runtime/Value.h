@@ -24,14 +24,18 @@
 #ifndef __EscargotValue__
 #define __EscargotValue__
 
-#include "runtime/ExecutionState.h"
+#include "util/Vector.h"
 
 namespace Escargot {
 
 class PointerValue;
-class String;
+class ExecutionState;
 class Object;
+class Symbol;
+class String;
+class BigInt;
 class FunctionObject;
+class ExtendedNativeFunctionObject;
 
 union ValueDescriptor {
     int64_t asInt64;
@@ -292,11 +296,6 @@ struct is_fundamental<Escargot::Value> : public true_type {
 };
 }
 
-
-#include "runtime/Object.h"
-#include "runtime/PointerValue.h"
-#include "runtime/String.h"
-#include "runtime/BigInt.h"
 #include "runtime/ValueInlines.h"
 
 #endif

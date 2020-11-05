@@ -22,6 +22,8 @@
 
 #if defined(ENABLE_CODE_CACHE)
 
+#include "util/Vector.h"
+
 namespace Escargot {
 
 class Script;

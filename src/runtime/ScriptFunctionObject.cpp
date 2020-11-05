@@ -32,7 +32,6 @@
 #include "runtime/VMInstance.h"
 #include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
-#include "util/Util.h"
 
 #include "FunctionObjectInlines.h"
 

@@ -22,7 +22,6 @@
 
 #include "runtime/Value.h"
 #include "runtime/Symbol.h"
-#include "runtime/Object.h"
 
 namespace Escargot {
 

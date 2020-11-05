@@ -20,6 +20,9 @@
 #ifndef __EscargotValueInlines__
 #define __EscargotValueInlines__
 
+#include "runtime/Object.h"
+#include "runtime/String.h"
+#include "runtime/BigInt.h"
 
 namespace Escargot {
 

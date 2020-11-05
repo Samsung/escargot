@@ -22,8 +22,8 @@
 
 #include "runtime/PointerValue.h"
 #include "util/BasicString.h"
-#include <string>
 #include "util/Vector.h"
+#include <string>
 
 namespace Escargot {
 

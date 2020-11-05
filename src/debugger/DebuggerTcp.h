@@ -20,7 +20,6 @@
 #ifndef __DebuggerTcp__
 #define __DebuggerTcp__
 
-#include "util/Util.h"
 #include "Debugger.h"
 
 #ifdef ESCARGOT_DEBUGGER

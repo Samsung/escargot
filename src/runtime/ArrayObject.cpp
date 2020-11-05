@@ -23,7 +23,6 @@
 #include "ErrorObject.h"
 #include "Context.h"
 #include "VMInstance.h"
-#include "util/Util.h"
 
 namespace Escargot {
 

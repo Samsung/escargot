@@ -21,6 +21,7 @@
 #if defined(ENABLE_CODE_CACHE)
 
 #include "Escargot.h"
+#include "runtime/String.h"
 #include "codecache/CodeCache.h"
 #include "codecache/CodeCacheReaderWriter.h"
 #include "parser/Script.h"

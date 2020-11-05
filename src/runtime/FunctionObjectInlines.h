@@ -32,7 +32,6 @@
 #include "runtime/AsyncGeneratorObject.h"
 #include "runtime/ExecutionPauser.h"
 #include "runtime/NativeFunctionObject.h"
-#include "util/Util.h"
 
 namespace Escargot {
 

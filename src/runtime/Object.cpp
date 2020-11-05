@@ -19,7 +19,6 @@
 
 #include "Escargot.h"
 #include "Object.h"
-#include "ObjectStructure.h"
 #include "Context.h"
 #include "VMInstance.h"
 #include "ErrorObject.h"
@@ -32,8 +31,6 @@
 #include "SymbolObject.h"
 #include "BigIntObject.h"
 #include "ProxyObject.h"
-#include "util/Util.h"
-#include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
 
