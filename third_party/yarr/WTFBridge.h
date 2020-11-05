@@ -41,6 +41,7 @@
 #define yarr_wtfbridge_h
 
 #include "Escargot.h"
+#include "runtime/String.h"
 #include <stdio.h>
 #include <stdarg.h>
 

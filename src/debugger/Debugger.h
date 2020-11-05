@@ -20,7 +20,6 @@
 #ifndef __Debugger__
 #define __Debugger__
 
-#include "util/Util.h"
 #include "util/Vector.h"
 
 #ifdef ESCARGOT_DEBUGGER
@@ -35,6 +34,8 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_ALWAYS_STOP ((ExecutionState*)0x2)
 #define ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH 128
 
+class Object;
+class String;
 class ExecutionState;
 class ByteCodeBlock;
 class InterpretedCodeBlock;

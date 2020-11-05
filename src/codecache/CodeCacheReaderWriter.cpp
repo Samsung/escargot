@@ -20,12 +20,12 @@
 #if defined(ENABLE_CODE_CACHE)
 
 #include "Escargot.h"
+#include "runtime/AtomicString.h"
 #include "CodeCacheReaderWriter.h"
 #include "parser/Script.h"
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
-#include "runtime/AtomicString.h"
 #include "runtime/ObjectStructurePropertyName.h"
 
 namespace Escargot {

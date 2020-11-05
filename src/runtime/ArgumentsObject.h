@@ -22,7 +22,6 @@
 
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
-#include "util/Util.h"
 
 namespace Escargot {
 

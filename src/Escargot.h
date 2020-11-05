@@ -454,8 +454,6 @@ typedef uint16_t LexicalBlockIndex;
 
 #include "EscargotInfo.h"
 #include "heap/Heap.h"
-#include "CheckedArithmetic.h"
-#include "runtime/String.h"
 #include "util/Util.h"
 #include "util/Optional.h"
 

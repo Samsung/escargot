@@ -26,7 +26,6 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "StaticStrings.h"
-#include "Symbol.h"
 #include "NumberObject.h"
 #include "StringObject.h"
 #include "SymbolObject.h"

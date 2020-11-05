@@ -25,6 +25,7 @@
 namespace Escargot {
 
 class BigInt;
+class VMInstance;
 
 class BigIntData {
     friend class BigInt;

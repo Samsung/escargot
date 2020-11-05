@@ -20,9 +20,8 @@
 #ifndef __EscargotObject__
 #define __EscargotObject__
 
-#include "runtime/EncodedValue.h"
-#include "runtime/ObjectStructure.h"
 #include "runtime/PointerValue.h"
+#include "runtime/ObjectStructure.h"
 #include "util/Vector.h"
 #include "util/TightVector.h"
 

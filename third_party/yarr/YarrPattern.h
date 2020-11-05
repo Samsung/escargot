@@ -28,6 +28,7 @@
 
 #include "YarrErrorCode.h"
 #include "YarrUnicodeProperties.h"
+#include "CheckedArithmetic.h"
 
 #include <stddef.h>
 

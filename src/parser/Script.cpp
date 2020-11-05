@@ -30,7 +30,6 @@
 #include "runtime/SandBox.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ModuleNamespaceObject.h"
-#include "util/Util.h"
 #include "parser/ast/AST.h"
 
 namespace Escargot {

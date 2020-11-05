@@ -20,6 +20,8 @@
 #ifndef __EscargotExecutionState__
 #define __EscargotExecutionState__
 
+#include "util/Vector.h"
+
 namespace Escargot {
 
 class Context;
@@ -28,9 +30,11 @@ class LexicalEnvironment;
 class EnvironmentRecord;
 class Value;
 class CodeBlock;
-class NativeFunctionObject;
-class GeneratorObject;
 class ExecutionPauser;
+class Object;
+class GeneratorObject;
+class FunctionObject;
+class NativeFunctionObject;
 
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 

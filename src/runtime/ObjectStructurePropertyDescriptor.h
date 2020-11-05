@@ -20,8 +20,6 @@
 #ifndef __EscargotObjectStructurePropertyDescriptor__
 #define __EscargotObjectStructurePropertyDescriptor__
 
-#include "runtime/ExecutionState.h"
-#include "runtime/Value.h"
 #include "runtime/EncodedValue.h"
 
 namespace Escargot {
