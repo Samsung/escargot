@@ -84,11 +84,19 @@ private:
     static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value unaryMinusSlowCase(ExecutionState& state, const Value& a);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right);
     static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
+    enum BitwiseOperationKind {
+        And,
+        Or,
+        Xor,
+    };
+    static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, BitwiseOperationKind kind);
+    static Value bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
     static bool abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);

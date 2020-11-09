@@ -28,6 +28,7 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/NumberObject.h"
+#include "runtime/BigIntObject.h"
 #include "runtime/EnumerateObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
@@ -684,8 +685,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             UnaryMinus* code = (UnaryMinus*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
-            if (UNLIKELY(val.isBigInt())) {
-                registerFile[code->m_dstIndex] = Value(val.asBigInt()->negativeValue());
+            if (UNLIKELY(val.isPointerValue())) {
+                registerFile[code->m_dstIndex] = unaryMinusSlowCase(*state, val);
             } else {
                 registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
             }
@@ -710,7 +711,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryBitwiseAnd* code = (BinaryBitwiseAnd*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toInt32(*state) & right.toInt32(*state));
+            if (left.isInt32() && right.isInt32()) {
+                registerFile[code->m_dstIndex] = Value(left.asInt32() & right.asInt32());
+            } else {
+                registerFile[code->m_dstIndex] = bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::And);
+            }
             ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
             NEXT_INSTRUCTION();
         }
@@ -721,7 +726,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryBitwiseOr* code = (BinaryBitwiseOr*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toInt32(*state) | right.toInt32(*state));
+            if (left.isInt32() && right.isInt32()) {
+                registerFile[code->m_dstIndex] = Value(left.asInt32() | right.asInt32());
+            } else {
+                registerFile[code->m_dstIndex] = bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Or);
+            }
             ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
             NEXT_INSTRUCTION();
         }
@@ -732,7 +741,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryBitwiseXor* code = (BinaryBitwiseXor*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.toInt32(*state) ^ right.toInt32(*state));
+            if (left.isInt32() && right.isInt32()) {
+                registerFile[code->m_dstIndex] = Value(left.asInt32() ^ right.asInt32());
+            } else {
+                registerFile[code->m_dstIndex] = bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Xor);
+            }
             ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
             NEXT_INSTRUCTION();
         }
@@ -795,7 +808,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             UnaryBitwiseNot* code = (UnaryBitwiseNot*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(~val.toInt32(*state));
+            if (val.isInt32()) {
+                registerFile[code->m_dstIndex] = Value(~val.asInt32());
+            } else {
+                registerFile[code->m_dstIndex] = bitwiseNotOperationSlowCase(*state, val);
+            }
             ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
             NEXT_INSTRUCTION();
         }
@@ -1607,6 +1624,16 @@ NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, 
     }
 }
 
+NEVER_INLINE Value ByteCodeInterpreter::unaryMinusSlowCase(ExecutionState& state, const Value& src)
+{
+    auto r = src.toNumeric(state);
+    if (r.second) {
+        return r.first.asBigInt()->negativeValue();
+    } else {
+        return Value(-r.first.asNumber());
+    }
+}
+
 NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, const Value& left, const Value& right)
 {
     Value ret(Value::ForceUninitialized);
@@ -1697,6 +1724,51 @@ NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, 
     builder.appendString(s1.toString(state));
     builder.appendString(s2.toString(state));
     registerFile[code->m_dstIndex] = Value(builder.finalize(&state));
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::bitwiseOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, ByteCodeInterpreter::BitwiseOperationKind kind)
+{
+    auto lnum = left.toNumeric(state);
+    auto rnum = right.toNumeric(state);
+    if (UNLIKELY(lnum.second != rnum.second)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+    }
+    if (UNLIKELY(lnum.second)) {
+        switch (kind) {
+        case BitwiseOperationKind::And:
+            return lnum.first.asBigInt()->bitwiseAnd(rnum.first.asBigInt());
+        case BitwiseOperationKind::Or:
+            return lnum.first.asBigInt()->bitwiseOr(rnum.first.asBigInt());
+        case BitwiseOperationKind::Xor:
+            return lnum.first.asBigInt()->bitwiseXor(rnum.first.asBigInt());
+        default:
+            ASSERT_NOT_REACHED();
+        }
+    } else {
+        switch (kind) {
+        case BitwiseOperationKind::And:
+            return Value(lnum.first.toInt32(state) & rnum.first.toInt32(state));
+        case BitwiseOperationKind::Or:
+            return Value(lnum.first.toInt32(state) | rnum.first.toInt32(state));
+        case BitwiseOperationKind::Xor:
+            return Value(lnum.first.toInt32(state) ^ rnum.first.toInt32(state));
+        default:
+            ASSERT_NOT_REACHED();
+        }
+    }
+
+    ASSERT_NOT_REACHED();
+    return Value();
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a)
+{
+    auto r = a.toNumeric(state);
+    if (r.second) {
+        return r.first.asBigInt()->bitwiseNot();
+    } else {
+        return Value(~r.first.toInt32(state));
+    }
 }
 
 NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
