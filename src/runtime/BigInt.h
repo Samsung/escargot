@@ -89,8 +89,12 @@ public:
     BigInt* division(BigInt* b);
     BigInt* remainder(BigInt* b);
     BigInt* pow(BigInt* b);
+    BigInt* bitwiseAnd(BigInt* b);
+    BigInt* bitwiseOr(BigInt* b);
+    BigInt* bitwiseXor(BigInt* b);
     BigInt* increment();
     BigInt* decrement();
+    BigInt* bitwiseNot();
 
     bool isZero();
     bool isNaN();

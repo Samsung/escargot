@@ -362,6 +362,30 @@ BigInt* BigInt::pow(BigInt* b)
     return new BigInt(m_vmInstance, r);
 }
 
+BigInt* BigInt::bitwiseAnd(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_logic_and(&r, &m_bf, &b->m_bf);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::bitwiseOr(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_logic_or(&r, &m_bf, &b->m_bf);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::bitwiseXor(BigInt* b)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_logic_xor(&r, &m_bf, &b->m_bf);
+    return new BigInt(m_vmInstance, r);
+}
+
 BigInt* BigInt::increment()
 {
     bf_t r;
@@ -375,6 +399,17 @@ BigInt* BigInt::decrement()
     bf_t r;
     bf_init(m_vmInstance->bfContext(), &r);
     bf_add_si(&r, &m_bf, -1, BF_PREC_INF, BF_RNDZ);
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::bitwiseNot()
+{
+    // The abstract operation BigInt::bitwiseNOT with an argument x of BigInt type returns the one's complement of x; that is, -x - 1.
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+    bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
+    bf_neg(&r);
+
     return new BigInt(m_vmInstance, r);
 }
 
