@@ -97,6 +97,12 @@ private:
     };
     static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, BitwiseOperationKind kind);
     static Value bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a);
+    enum ShiftOperationKind {
+        Left,
+        SignedRight,
+        UnsignedRight,
+    };
+    static Value shiftOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, ShiftOperationKind kind);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
     static bool abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);

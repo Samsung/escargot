@@ -756,10 +756,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryLeftShift* code = (BinaryLeftShift*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            int32_t lnum = left.toInt32(*state);
-            int32_t rnum = right.toInt32(*state);
-            lnum <<= ((unsigned int)rnum) & 0x1F;
-            registerFile[code->m_dstIndex] = Value(lnum);
+            if (left.isInt32() && right.isInt32()) {
+                int32_t lnum = left.asInt32();
+                int32_t rnum = right.asInt32();
+                lnum <<= ((unsigned int)rnum) & 0x1F;
+                registerFile[code->m_dstIndex] = Value(lnum);
+            } else {
+                registerFile[code->m_dstIndex] = shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left);
+            }
             ADD_PROGRAM_COUNTER(BinaryLeftShift);
             NEXT_INSTRUCTION();
         }
@@ -770,10 +774,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinarySignedRightShift* code = (BinarySignedRightShift*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            int32_t lnum = left.toInt32(*state);
-            int32_t rnum = right.toInt32(*state);
-            lnum >>= ((unsigned int)rnum) & 0x1F;
-            registerFile[code->m_dstIndex] = Value(lnum);
+            if (left.isInt32() && right.isInt32()) {
+                int32_t lnum = left.asInt32();
+                int32_t rnum = right.asInt32();
+                lnum >>= ((unsigned int)rnum) & 0x1F;
+                registerFile[code->m_dstIndex] = Value(lnum);
+            } else {
+                registerFile[code->m_dstIndex] = shiftOperationSlowCase(*state, left, right, ShiftOperationKind::SignedRight);
+            }
             ADD_PROGRAM_COUNTER(BinarySignedRightShift);
             NEXT_INSTRUCTION();
         }
@@ -784,10 +792,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryUnsignedRightShift* code = (BinaryUnsignedRightShift*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            uint32_t lnum = left.toUint32(*state);
-            uint32_t rnum = right.toUint32(*state);
-            lnum = (lnum) >> ((rnum)&0x1F);
-            registerFile[code->m_dstIndex] = Value(lnum);
+            if (left.isUInt32() && right.isUInt32()) {
+                uint32_t lnum = left.asUInt32();
+                uint32_t rnum = right.asUInt32();
+                lnum = (lnum) >> ((rnum)&0x1F);
+                registerFile[code->m_dstIndex] = Value(lnum);
+            } else {
+                registerFile[code->m_dstIndex] = shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight);
+            }
             ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
             NEXT_INSTRUCTION();
         }
@@ -1769,6 +1781,54 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseNotOperationSlowCase(ExecutionSta
     } else {
         return Value(~r.first.toInt32(state));
     }
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, ByteCodeInterpreter::ShiftOperationKind kind)
+{
+    auto lnum = left.toNumeric(state);
+    auto rnum = right.toNumeric(state);
+    if (UNLIKELY(lnum.second != rnum.second)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+    }
+    if (UNLIKELY(lnum.second)) {
+        switch (kind) {
+        case ShiftOperationKind::Left:
+            return lnum.first.asBigInt()->leftShift(rnum.first.asBigInt());
+        case ShiftOperationKind::SignedRight:
+            return lnum.first.asBigInt()->rightShift(rnum.first.asBigInt());
+        case ShiftOperationKind::UnsignedRight:
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "BigInts have no unsigned right shift, use >> instead");
+            break;
+        default:
+            ASSERT_NOT_REACHED();
+        }
+    } else {
+        switch (kind) {
+        case ShiftOperationKind::Left: {
+            int32_t lnum32 = lnum.first.toInt32(state);
+            int32_t rnum32 = rnum.first.toInt32(state);
+            lnum32 <<= ((unsigned int)rnum32) & 0x1F;
+            return Value(lnum32);
+        }
+        case ShiftOperationKind::SignedRight: {
+            int32_t lnum32 = lnum.first.toInt32(state);
+            int32_t rnum32 = rnum.first.toInt32(state);
+            lnum32 >>= ((unsigned int)rnum32) & 0x1F;
+            return Value(lnum32);
+        }
+        case ShiftOperationKind::UnsignedRight: {
+            uint32_t lnum32 = lnum.first.toUint32(state);
+            uint32_t rnum32 = rnum.first.toUint32(state);
+            lnum32 = (lnum32) >> ((rnum32)&0x1F);
+            return Value(lnum32);
+        }
+        default:
+            ASSERT_NOT_REACHED();
+        }
+    }
+
+    ASSERT_NOT_REACHED();
+    return Value();
 }
 
 NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
