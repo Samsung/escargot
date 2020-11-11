@@ -413,6 +413,59 @@ BigInt* BigInt::bitwiseNot()
     return new BigInt(m_vmInstance, r);
 }
 
+BigInt* BigInt::leftShift(BigInt* src)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+
+    slimb_t v2;
+#if defined(ESCARGOT_32)
+    bf_get_int32(&v2, src->bf(), 0);
+    if (v2 == std::numeric_limits<int32_t>::min()) {
+        v2 = std::numeric_limits<int32_t>::min() + 1;
+    }
+#else
+    bf_get_int64(&v2, src->bf(), 0);
+    if (v2 == std::numeric_limits<int64_t>::min())
+        v2 = std::numeric_limits<int64_t>::min() + 1;
+#endif
+    // if (op == OP_sar)
+    //     v2 = -v2;
+    bf_set(&r, &m_bf);
+    bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
+    if (v2 < 0) {
+        bf_rint(&r, BF_RNDD);
+    }
+    return new BigInt(m_vmInstance, r);
+}
+
+BigInt* BigInt::rightShift(BigInt* src)
+{
+    bf_t r;
+    bf_init(m_vmInstance->bfContext(), &r);
+
+    slimb_t v2;
+#if defined(ESCARGOT_32)
+    bf_get_int32(&v2, src->bf(), 0);
+    if (v2 == std::numeric_limits<int32_t>::min()) {
+        v2 = std::numeric_limits<int32_t>::min() + 1;
+    }
+#else
+    bf_get_int64(&v2, src->bf(), 0);
+    if (v2 == std::numeric_limits<int64_t>::min())
+        v2 = std::numeric_limits<int64_t>::min() + 1;
+#endif
+    v2 = -v2;
+    bf_set(&r, &m_bf);
+    bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
+    if (v2 < 0) {
+        bf_rint(&r, BF_RNDD);
+    }
+    return new BigInt(m_vmInstance, r);
+
+    return new BigInt(m_vmInstance, r);
+}
+
 bool BigInt::isNaN()
 {
     return bf_is_nan(&m_bf);

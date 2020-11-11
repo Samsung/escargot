@@ -96,6 +96,9 @@ public:
     BigInt* decrement();
     BigInt* bitwiseNot();
 
+    BigInt* leftShift(BigInt* c);
+    BigInt* rightShift(BigInt* c);
+
     bool isZero();
     bool isNaN();
     bool isInfinity();

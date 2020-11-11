@@ -3991,10 +3991,6 @@
     <test id="language/expressions/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/generators/yield-as-generator-expression-binding-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/left-shift/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/left-shift/bigint-non-primitive"><reason>TODO</reason></test>
-    <test id="language/expressions/left-shift/bigint-toprimitive"><reason>TODO</reason></test>
-    <test id="language/expressions/left-shift/bigint-wrapped-values"><reason>TODO</reason></test>
     <test id="language/expressions/logical-and/tco-right"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-bigint"><reason>TODO</reason></test>
@@ -4070,15 +4066,10 @@
     <test id="language/expressions/prefix-increment/target-cover-newtarget"><reason>TODO</reason></test>
     <test id="language/expressions/prefix-increment/target-cover-yieldexpr"><reason>TODO</reason></test>
     <test id="language/expressions/prefix-increment/target-newtarget"><reason>TODO</reason></test>
-    <test id="language/expressions/right-shift/bigint"><reason>TODO</reason></test>
-    <test id="language/expressions/right-shift/bigint-non-primitive"><reason>TODO</reason></test>
-    <test id="language/expressions/right-shift/bigint-toprimitive"><reason>TODO</reason></test>
-    <test id="language/expressions/right-shift/bigint-wrapped-values"><reason>TODO</reason></test>
     <test id="language/expressions/super/call-proto-not-ctor"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/tco-call"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/tco-member"><reason>TODO</reason></test>
     <test id="language/expressions/tco-pos"><reason>TODO</reason></test>
-    <test id="language/expressions/unsigned-right-shift/bigint-toprimitive"><reason>TODO</reason></test>
     <test id="language/future-reserved-words/implements-strict-escaped"><reason>TODO</reason></test>
     <test id="language/future-reserved-words/interface-strict-escaped"><reason>TODO</reason></test>
     <test id="language/future-reserved-words/package-strict-escaped"><reason>TODO</reason></test>
