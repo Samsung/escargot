@@ -1,0 +1,179 @@
+PROJECT(WASM)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0.0)
+
+if (NOT "${CMAKE_PROJECT_VERSION}")
+  set(CMAKE_PROJECT_VERSION "1.0.19")
+endif ()
+
+if (MSVC)
+  set(COMPILER_IS_CLANG 0)
+  set(COMPILER_IS_GNU 0)
+  set(COMPILER_IS_MSVC 1)
+elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
+  set(COMPILER_IS_CLANG 1)
+  set(COMPILER_IS_GNU 0)
+  set(COMPILER_IS_MSVC 0)
+elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  set(COMPILER_IS_CLANG 0)
+  set(COMPILER_IS_GNU 1)
+  set(COMPILER_IS_MSVC 0)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set(COMPILER_IS_CLANG 1)
+  set(COMPILER_IS_GNU 0)
+  set(COMPILER_IS_MSVC 0)
+else ()
+  set(COMPILER_IS_CLANG 0)
+  set(COMPILER_IS_GNU 0)
+  set(COMPILER_IS_MSVC 0)
+endif ()
+
+include(CheckIncludeFile)
+include(CheckSymbolExists)
+check_include_file("alloca.h" HAVE_ALLOCA_H)
+check_include_file("unistd.h" HAVE_UNISTD_H)
+check_symbol_exists(snprintf "stdio.h" HAVE_SNPRINTF)
+check_symbol_exists(strcasecmp "strings.h" HAVE_STRCASECMP)
+
+include(CheckTypeSize)
+check_type_size(ssize_t SSIZE_T)
+check_type_size(size_t SIZEOF_SIZE_T)
+
+set(WABT_ROOT ${PROJECT_SOURCE_DIR}/wabt)
+configure_file(${WABT_ROOT}/src/config.h.in ${PROJECT_SOURCE_DIR}/config.h)
+
+include_directories(${WABT_ROOT} ${PROJECT_SOURCE_DIR})
+
+set(WASM_SRC
+    wabt/src/apply-names.h
+    wabt/src/apply-names.cc
+    wabt/src/binary.h
+    wabt/src/binary.cc
+    wabt/src/binary-reader.h
+    wabt/src/binary-reader.cc
+    wabt/src/binary-reader-ir.h
+    wabt/src/binary-reader-ir.cc
+    wabt/src/binary-reader-logging.h
+    wabt/src/binary-reader-logging.cc
+    wabt/src/binary-writer.h
+    wabt/src/binary-writer.cc
+    wabt/src/binary-writer-spec.h
+    wabt/src/binary-writer-spec.cc
+    wabt/src/binding-hash.h
+    wabt/src/binding-hash.cc
+    wabt/src/color.h
+    wabt/src/color.cc
+    wabt/src/common.h
+    wabt/src/common.cc
+    wabt/src/config.h
+    wabt/src/config.cc
+    wabt/src/decompiler.h
+    wabt/src/decompiler-ast.h
+    wabt/src/decompiler-ls.h
+    wabt/src/decompiler-naming.h
+    wabt/src/decompiler.cc
+    wabt/src/error-formatter.h
+    wabt/src/error-formatter.cc
+    wabt/src/expr-visitor.h
+    wabt/src/expr-visitor.cc
+    wabt/src/feature.h
+    wabt/src/feature.cc
+    wabt/src/filenames.h
+    wabt/src/filenames.cc
+    wabt/src/generate-names.h
+    wabt/src/generate-names.cc
+    wabt/src/hash-util.h
+    wabt/src/hash-util.cc
+    wabt/src/ir.h
+    wabt/src/ir.cc
+    wabt/src/ir-util.h
+    wabt/src/ir-util.cc
+    wabt/src/leb128.h
+    wabt/src/leb128.cc
+    wabt/src/lexer-source.h
+    wabt/src/lexer-source.cc
+    wabt/src/lexer-source-line-finder.h
+    wabt/src/lexer-source-line-finder.cc
+    wabt/src/literal.h
+    wabt/src/literal.cc
+    wabt/src/opcode.h
+    wabt/src/opcode.cc
+    wabt/src/opcode-code-table.h
+    wabt/src/opcode-code-table.c
+    wabt/src/option-parser.h
+    wabt/src/option-parser.cc
+    wabt/src/resolve-names.h
+    wabt/src/resolve-names.cc
+    wabt/src/shared-validator.h
+    wabt/src/shared-validator.cc
+    wabt/src/stream.h
+    wabt/src/stream.cc
+    wabt/src/string-view.h
+    wabt/src/string-view.cc
+    wabt/src/token.h
+    wabt/src/token.cc
+    wabt/src/tracing.h
+    wabt/src/tracing.cc
+    wabt/src/type.h
+    wabt/src/type-checker.h
+    wabt/src/type-checker.cc
+    wabt/src/utf8.h
+    wabt/src/utf8.cc
+    wabt/src/validator.h
+    wabt/src/validator.cc
+    wabt/src/wast-lexer.h
+    wabt/src/wast-lexer.cc
+    wabt/src/wast-parser.h
+    wabt/src/wast-parser.cc
+    wabt/src/wat-writer.h
+    wabt/src/wat-writer.cc
+
+    wabt/src/interp/binary-reader-interp.h
+    wabt/src/interp/binary-reader-interp.cc
+    wabt/src/interp/interp.h
+    wabt/src/interp/interp.cc
+    wabt/src/interp/interp-inl.h
+    wabt/src/interp/interp-math.h
+    wabt/src/interp/interp-util.h
+    wabt/src/interp/interp-util.cc
+    wabt/src/interp/istream.h
+    wabt/src/interp/istream.cc
+)
+
+# disable -Wpointer-arith: this is a GCC extension, and doesn't work in MSVC.
+set(WASM_CXX_FLAGS_INTERNAL
+    -Wall -Wextra -Wno-unused-parameter -Wpointer-arith
+    -g -Wuninitialized -std=c++11 -Wold-style-cast -fno-exceptions
+)
+
+# Need to define __STDC_*_MACROS because C99 specifies that C++ shouldn't
+# define format (e.g. PRIu64) or limit (e.g. UINT32_MAX) macros without the
+# definition, and some libcs (e.g. glibc2.17 and earlier) follow that.
+set(WASM_CXX_FLAGS_INTERNAL ${WASM_CXX_FLAGS_INTERNAL} -D__STDC_LIMIT_MACROS=1 -D__STDC_FORMAT_MACROS=1)
+
+if (COMPILER_IS_GNU)
+# disable -Wclobbered: it seems to be guessing incorrectly about a local
+# variable being clobbered by longjmp.
+    set(WASM_CXX_FLAGS_INTERNAL ${WASM_CXX_FLAGS_INTERNAL} -Wno-clobbered)
+endif ()
+
+if (WASM_ARCH STREQUAL "x86")
+# wasm doesn't allow for x87 floating point math
+    set(WASM_CXX_FLAGS_INTERNAL ${WASM_CXX_FLAGS_INTERNAL} -msse2 -mfpmath=sse)
+endif ()
+
+
+add_compile_options(${WASM_CXX_FLAGS_INTERNAL})
+add_compile_options(${WASM_CXX_FLAGS})
+set(WASM_CFLAGS_FROM_ENV $ENV{CFLAGS})
+separate_arguments(WASM_CFLAGS_FROM_ENV)
+add_compile_options(${WASM_CFLAGS_FROM_ENV})
+
+add_library(wasm STATIC ${WASM_SRC})
+
+if (WASM_SPEC_TEST)
+    set(WASM_EXE_TARGET spectest-interp)
+    add_executable(${WASM_EXE_TARGET} wabt/src/tools/spectest-interp.cc)
+    target_link_libraries(${WASM_EXE_TARGET} wasm)
+    set_property(TARGET ${WASM_EXE_TARGET} PROPERTY CXX_STANDARD 11)
+    set_property(TARGET ${WASM_EXE_TARGET} PROPERTY CXX_STANDARD_REQUIRED ON)
+endif ()
