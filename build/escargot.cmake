@@ -131,7 +131,9 @@ SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} runtime-icu-binder-static)
 
 # WASM (wabt)
 IF (ENABLE_WASM)
-    SET (WASM_CXX_FLAGS ${ESCARGOT_GCUTIL_CFLAGS}) # we can share arch flags with gcutil
+    SET (WASM_CXX_FLAGS
+        ${ESCARGOT_GCUTIL_CFLAGS} # we can share arch flags with gcutil
+        -g3)
     SET (WASM_ARCH ${ESCARGOT_ARCH})
 
     ADD_SUBDIRECTORY (third_party/wasm)

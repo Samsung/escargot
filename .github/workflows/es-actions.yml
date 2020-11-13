@@ -140,6 +140,27 @@ jobs:
         cmake -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64
 
+  wasm_spec_test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./third_party/wasm/wabt
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Prepare Build
+      run: |
+        git fetch -t
+        mkdir build
+    - name: Build WABT
+      working-directory: ./third_party/wasm/wabt/build
+      run: |
+        cmake ..
+        cmake --build .
+    - name: Run Spec Test
+      run: sudo ./test/run-tests.py --bindir=./build test/spec/
+
   coverity_scan:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
