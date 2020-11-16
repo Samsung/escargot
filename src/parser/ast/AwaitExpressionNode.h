@@ -37,7 +37,6 @@ public:
     {
         m_argument->generateExpressionByteCode(codeBlock, context, dstRegister);
 
-        codeBlock->updateMaxPauseStatementExtraDataLength(context);
         size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
 
         ExecutionPause::ExecutionPauseAwaitData data;

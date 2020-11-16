@@ -46,6 +46,7 @@ void* ExecutionPauser::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_sourceObject));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_registerFile));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_byteCodeBlock));
+        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_pausedCode));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_resumeValue));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_promise));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_resolveFunction));
@@ -62,7 +63,6 @@ ExecutionPauser::ExecutionPauser(ExecutionState& state, Object* sourceObject, Ex
     , m_registerFile(registerFile)
     , m_byteCodeBlock(blk)
     , m_byteCodePosition(SIZE_MAX)
-    , m_extraDataByteCodePosition(0)
     , m_resumeByteCodePosition(SIZE_MAX)
     , m_resumeValueIndex(REGISTER_LIMIT)
     , m_resumeStateIndex(REGISTER_LIMIT)
@@ -123,7 +123,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 
     self->m_resumeValue = resumeValue;
     if (self->m_resumeByteCodePosition != SIZE_MAX) {
-        ExecutionResume* gr = (ExecutionResume*)(self->m_byteCodeBlock->m_code.data() + self->m_resumeByteCodePosition);
+        ExecutionResume* gr = (ExecutionResume*)(self->m_pausedCode.data() + self->m_resumeByteCodePosition);
         gr->m_needsReturn = isAbruptReturn;
         gr->m_needsThrow = isAbruptThrow;
     }
@@ -148,7 +148,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             }
         } else {
             // resume
-            startPos = self->m_extraDataByteCodePosition;
+            startPos = (size_t)self->m_pausedCode.data() - (size_t)self->m_byteCodeBlock->m_code.data();
             ASSERT(originalState->resolveCallee()->isScriptFunctionObject());
             LexicalEnvironment* env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(originalState->resolveCallee()->asScriptFunctionObject()), nullptr
 #ifndef NDEBUG
@@ -253,14 +253,15 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     // we need to reset parent here beacuse asyncGeneratorResolve access parent
     originalState->rareData()->m_parent = nullptr;
 
+    self->m_pausedCode.clear();
+
     // some case(async generator), the function execution ended before pause
     if (self->m_byteCodeBlock) {
         // read & fill recursive statement self
         char* start = (char*)(tailDataPosition);
         char* end = (char*)(start + tailDataLength);
 
-        size_t startupDataPosition = self->m_byteCodeBlock->m_code.size();
-        self->m_extraDataByteCodePosition = startupDataPosition;
+        size_t startupDataPosition = self->m_pausedCode.size();
         std::vector<size_t> codeStartPositions;
         size_t codePos = startupDataPosition;
         while (start != end) {
@@ -269,35 +270,35 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
             size_t startPos = *((size_t*)start);
             codeStartPositions.push_back(startPos);
             if (e == ByteCodeGenerateContext::Block) {
-                self->m_byteCodeBlock->m_code.resize(self->m_byteCodeBlock->m_code.size() + sizeof(BlockOperation));
-                BlockOperation* code = new (self->m_byteCodeBlock->m_code.data() + codePos) BlockOperation(ByteCodeLOC(SIZE_MAX), nullptr);
+                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(BlockOperation));
+                BlockOperation* code = new (self->m_pausedCode.data() + codePos) BlockOperation(ByteCodeLOC(SIZE_MAX), nullptr);
                 code->assignOpcodeInAddress();
 
                 codePos += sizeof(BlockOperation);
             } else if (e == ByteCodeGenerateContext::With) {
-                self->m_byteCodeBlock->m_code.resize(self->m_byteCodeBlock->m_code.size() + sizeof(WithOperation));
-                WithOperation* code = new (self->m_byteCodeBlock->m_code.data() + codePos) WithOperation(ByteCodeLOC(SIZE_MAX), REGISTER_LIMIT);
+                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(WithOperation));
+                WithOperation* code = new (self->m_pausedCode.data() + codePos) WithOperation(ByteCodeLOC(SIZE_MAX), REGISTER_LIMIT);
                 code->assignOpcodeInAddress();
 
                 codePos += sizeof(WithOperation);
             } else if (e == ByteCodeGenerateContext::Try) {
-                self->m_byteCodeBlock->m_code.resize(self->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
-                TryOperation* code = new (self->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
+                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(TryOperation));
+                TryOperation* code = new (self->m_pausedCode.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
                 code->assignOpcodeInAddress();
                 code->m_isTryResumeProcess = true;
 
                 codePos += sizeof(TryOperation);
             } else if (e == ByteCodeGenerateContext::Catch) {
-                self->m_byteCodeBlock->m_code.resize(self->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
-                TryOperation* code = new (self->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
+                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(TryOperation));
+                TryOperation* code = new (self->m_pausedCode.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
                 code->assignOpcodeInAddress();
                 code->m_isCatchResumeProcess = true;
 
                 codePos += sizeof(TryOperation);
             } else {
                 ASSERT(e == ByteCodeGenerateContext::Finally);
-                self->m_byteCodeBlock->m_code.resize(self->m_byteCodeBlock->m_code.size() + sizeof(TryOperation));
-                TryOperation* code = new (self->m_byteCodeBlock->m_code.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
+                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(TryOperation));
+                TryOperation* code = new (self->m_pausedCode.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));
                 code->assignOpcodeInAddress();
                 code->m_isFinallyResumeProcess = true;
 
@@ -306,21 +307,21 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
             start += sizeof(size_t); // start pos
         }
 
-        size_t resumeCodePos = self->m_byteCodeBlock->m_code.size();
+        size_t resumeCodePos = self->m_pausedCode.size();
         self->m_resumeByteCodePosition = resumeCodePos;
-        self->m_byteCodeBlock->m_code.resizeWithUninitializedValues(resumeCodePos + sizeof(ExecutionResume));
-        auto resumeCode = new (self->m_byteCodeBlock->m_code.data() + resumeCodePos) ExecutionResume(ByteCodeLOC(SIZE_MAX), self);
+        self->m_pausedCode.resizeWithUninitializedValues(resumeCodePos + sizeof(ExecutionResume));
+        auto resumeCode = new (self->m_pausedCode.data() + resumeCodePos) ExecutionResume(ByteCodeLOC(SIZE_MAX), self);
         resumeCode->assignOpcodeInAddress();
 
-        size_t stackSizePos = self->m_byteCodeBlock->m_code.size();
-        self->m_byteCodeBlock->m_code.resizeWithUninitializedValues(stackSizePos + sizeof(size_t));
-        new (self->m_byteCodeBlock->m_code.data() + stackSizePos) size_t(codeStartPositions.size());
+        size_t stackSizePos = self->m_pausedCode.size();
+        self->m_pausedCode.resizeWithUninitializedValues(stackSizePos + sizeof(size_t));
+        new (self->m_pausedCode.data() + stackSizePos) size_t(codeStartPositions.size());
 
         // add ByteCodePositions
         for (size_t i = 0; i < codeStartPositions.size(); i++) {
-            size_t pos = self->m_byteCodeBlock->m_code.size();
-            self->m_byteCodeBlock->m_code.resizeWithUninitializedValues(pos + sizeof(size_t));
-            new (self->m_byteCodeBlock->m_code.data() + pos) size_t(codeStartPositions[i]);
+            size_t pos = self->m_pausedCode.size();
+            self->m_pausedCode.resizeWithUninitializedValues(pos + sizeof(size_t));
+            new (self->m_pausedCode.data() + pos) size_t(codeStartPositions[i]);
         }
     }
 

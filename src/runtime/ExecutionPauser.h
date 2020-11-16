@@ -65,6 +65,7 @@ public:
         m_executionState = nullptr;
         m_registerFile = nullptr;
         m_byteCodeBlock = nullptr;
+        m_pausedCode.clear();
         m_resumeValue = EncodedValue();
         m_promiseCapability.m_promise = nullptr;
         m_promiseCapability.m_resolveFunction = nullptr;
@@ -93,6 +94,7 @@ private:
     Object* m_sourceObject;
     Value* m_registerFile;
     ByteCodeBlock* m_byteCodeBlock;
+    Vector<char, GCUtil::gc_malloc_atomic_allocator<char>> m_pausedCode;
     size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
     size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
