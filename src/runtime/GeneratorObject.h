@@ -78,6 +78,7 @@ private:
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_sourceObject));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_registerFile));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_byteCodeBlock));
+        GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_pausedCode));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_resumeValue));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_promiseCapability.m_promise));
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_promiseCapability.m_resolveFunction));

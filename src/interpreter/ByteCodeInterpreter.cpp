@@ -3398,9 +3398,6 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
 
     state = data->m_executionState;
 
-    // remove extra code
-    byteCodeBlock->m_code.resize(data->m_extraDataByteCodePosition);
-
     // update program counter
     programCounter = data->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
 

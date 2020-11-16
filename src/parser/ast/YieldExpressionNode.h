@@ -41,7 +41,6 @@ public:
     {
         // https://www.ecma-international.org/ecma-262/10.0/#sec-generator-function-definitions-runtime-semantics-evaluation
 
-        codeBlock->updateMaxPauseStatementExtraDataLength(context);
         size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
         bool isAsyncGenerator = codeBlock->m_codeBlock->isAsync() && codeBlock->m_codeBlock->isGenerator();
 

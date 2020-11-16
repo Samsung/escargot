@@ -302,7 +302,6 @@ public:
 
             // If iteratorKind is async, then set nextResult to ? Await(nextResult).
             if (m_isForAwaitOf) {
-                codeBlock->updateMaxPauseStatementExtraDataLength(&newContext);
                 size_t tailDataLength = newContext.m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
                 ExecutionPause::ExecutionPauseAwaitData data;
                 data.m_awaitIndex = iteratorNextData.m_returnRegisterIndex;

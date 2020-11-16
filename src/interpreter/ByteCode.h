@@ -2559,7 +2559,6 @@ public:
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
     void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
 
-    void updateMaxPauseStatementExtraDataLength(ByteCodeGenerateContext* context);
     void pushPauseStatementExtraData(ByteCodeGenerateContext* context);
 
     InterpretedCodeBlock* codeBlock() { return m_codeBlock; }

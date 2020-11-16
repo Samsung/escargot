@@ -221,13 +221,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
 
-    if (ctx.m_maxPauseStatementExtraDataLength) {
-        // yield delegate + .next call can use yield * 2 at once
-        block->m_code.reserve(block->m_code.size() + ctx.m_maxPauseStatementExtraDataLength * 2);
-    } else {
-        if (block->m_code.capacity() - block->m_code.size() > 1024 * 4) {
-            block->m_code.shrinkToFit();
-        }
+    if (block->m_code.capacity() - block->m_code.size() > 1024 * 4) {
+        block->m_code.shrinkToFit();
     }
 
 #if defined(ENABLE_CODE_CACHE)

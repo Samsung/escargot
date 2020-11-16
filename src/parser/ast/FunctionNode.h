@@ -87,7 +87,6 @@ public:
     void addExecutionPauseIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (codeBlock->m_codeBlock->isGenerator()) {
-            codeBlock->updateMaxPauseStatementExtraDataLength(context);
             size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
 
             ExecutionPause::ExecutionPauseGeneratorsInitializeData data;
