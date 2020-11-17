@@ -487,10 +487,12 @@ void VMInstance::ensureTimezone()
 }
 #endif
 
-DateObject* VMInstance::cachedUTC(ExecutionState& state) const
+DateObject* VMInstance::cachedUTC(ExecutionState& state)
 {
     if (m_cachedUTC == nullptr) {
-        DateObject::initCachedUTC(state, new DateObject(state));
+        DateObject* obj = new DateObject(state);
+        obj->setPrototype(state, Value(Value::Null));
+        m_cachedUTC = obj;
     }
     return m_cachedUTC;
 }
@@ -498,7 +500,6 @@ DateObject* VMInstance::cachedUTC(ExecutionState& state) const
 void VMInstance::clearCachesRelatedWithContext()
 {
     m_regexpCache->clear();
-    m_cachedUTC = nullptr;
     globalSymbolRegistry().clear();
 #if defined(ENABLE_CODE_CACHE)
     // CodeCache should be cleared here because CodeCache holds a lock of cache directory
