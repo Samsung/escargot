@@ -52,8 +52,6 @@ public:
     explicit DateObject(ExecutionState& state);
     explicit DateObject(ExecutionState& state, Object* proto);
 
-    static void initCachedUTC(ExecutionState& state, DateObject* d);
-
     static time64_t currentTime();
 
     double primitiveValue()

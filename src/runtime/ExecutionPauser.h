@@ -96,7 +96,6 @@ private:
     ByteCodeBlock* m_byteCodeBlock;
     Vector<char, GCUtil::gc_malloc_atomic_allocator<char>> m_pausedCode;
     size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
-    size_t m_extraDataByteCodePosition; // this indicates where we can gather information about running state(recursive statement)
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
     EncodedValue m_resumeValue;
     ByteCodeRegisterIndex m_resumeValueIndex;

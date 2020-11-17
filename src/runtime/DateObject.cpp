@@ -166,11 +166,6 @@ DateObject::DateObject(ExecutionState& state, Object* proto)
 {
 }
 
-void DateObject::initCachedUTC(ExecutionState& state, DateObject* d)
-{
-    state.context()->vmInstance()->setCachedUTC(d);
-}
-
 #if defined(OS_WINDOWS)
 #define CLOCK_REALTIME 0
 #include <windows.h>
