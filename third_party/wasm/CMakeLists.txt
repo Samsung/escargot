@@ -43,7 +43,7 @@ configure_file(${WABT_ROOT}/src/config.h.in ${PROJECT_SOURCE_DIR}/config.h)
 
 include_directories(${WABT_ROOT} ${PROJECT_SOURCE_DIR})
 
-set(WASM_SRC
+set(WABT_SRC
     wabt/src/apply-names.h
     wabt/src/apply-names.cc
     wabt/src/binary.h
@@ -161,19 +161,20 @@ if (WASM_ARCH STREQUAL "x86")
     set(WASM_CXX_FLAGS_INTERNAL ${WASM_CXX_FLAGS_INTERNAL} -msse2 -mfpmath=sse)
 endif ()
 
-
 add_compile_options(${WASM_CXX_FLAGS_INTERNAL})
 add_compile_options(${WASM_CXX_FLAGS})
+
 set(WASM_CFLAGS_FROM_ENV $ENV{CFLAGS})
 separate_arguments(WASM_CFLAGS_FROM_ENV)
-add_compile_options(${WASM_CFLAGS_FROM_ENV})
+add_compile_options(${WASM_CXX_FLAGS_FROM_ENV})
 
-add_library(wasm STATIC ${WASM_SRC})
+# build wabt lib
+add_library(wabt STATIC ${WABT_SRC})
 
-if (WASM_SPEC_TEST)
-    set(WASM_EXE_TARGET spectest-interp)
-    add_executable(${WASM_EXE_TARGET} wabt/src/tools/spectest-interp.cc)
-    target_link_libraries(${WASM_EXE_TARGET} wasm)
-    set_property(TARGET ${WASM_EXE_TARGET} PROPERTY CXX_STANDARD 11)
-    set_property(TARGET ${WASM_EXE_TARGET} PROPERTY CXX_STANDARD_REQUIRED ON)
-endif ()
+# build wasm lib
+add_library(wasm SHARED ${WABT_SRC} wabt/src/interp/interp-wasm-c-api.cc)
+target_link_libraries(wasm wabt ${WASM_CXX_FLAGS})
+target_include_directories(wasm PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_compile_options(wasm PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-old-style-cast>)
+target_compile_definitions(wasm PRIVATE "WASM_API_EXTERN=__attribute__((visibility(\"default\")))")
+set_target_properties(wasm PROPERTIES CXX_VISIBILITY_PRESET hidden)
