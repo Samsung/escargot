@@ -1159,7 +1159,7 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_numberProxyObject = new NumberObject(state);
     m_booleanProxyObject = new BooleanObject(state);
     m_symbolProxyObject = new SymbolObject(state, state.context()->vmInstance()->globalSymbols().iterator);
-    m_bigIntProxyObject = new BigIntObject(state, new BigInt(state.context()->vmInstance(), 0));
+    m_bigIntProxyObject = new BigIntObject(state, new BigInt(state.context()->vmInstance(), UINT64_C(0)));
 
     // 8.2.2 - 12
     // AddRestrictedFunctionProperties(funcProto, realmRec).

@@ -86,6 +86,21 @@ struct FloatTypedArrayAdaptor {
     }
 };
 
+template <typename TypeArg>
+struct BigIntegralArrayAdaptor {
+    typedef TypeArg Type;
+
+    static Type toNative(ExecutionState& state, const Value& val)
+    {
+        auto n = val.toBigInt(state);
+        if (std::is_same<Type, uint64_t>::value) {
+            return n->toUint64();
+        } else {
+            return n->toInt64();
+        }
+    }
+};
+
 struct Uint8ClampedAdaptor {
     typedef uint8_t Type;
 
@@ -141,9 +156,13 @@ struct Float32Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<float>> {
 };
 struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
 };
+struct BigInt64Adaptor : TypedArrayAdaptor<BigIntegralArrayAdaptor<int64_t>> {
+};
+struct BigUint64Adaptor : TypedArrayAdaptor<BigIntegralArrayAdaptor<uint64_t>> {
+};
 
 struct TypedArrayHelper {
-    static unsigned elementSizeTable[9];
+    static unsigned elementSizeTable[11];
 
     inline static size_t elementSize(TypedArrayType type)
     {
@@ -171,6 +190,10 @@ struct TypedArrayHelper {
             return Value(*reinterpret_cast<Float32Adaptor::Type*>(rawBytes));
         case TypedArrayType::Float64:
             return Value(*reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
+        case TypedArrayType::BigInt64:
+            return Value(new BigInt(state.context()->vmInstance(), *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes)));
+        case TypedArrayType::BigUint64:
+            return Value(new BigInt(state.context()->vmInstance(), *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes)));
         default:
             RELEASE_ASSERT_NOT_REACHED();
             return Value();
@@ -206,6 +229,12 @@ struct TypedArrayHelper {
             break;
         case TypedArrayType::Float64:
             *reinterpret_cast<Float64Adaptor::Type*>(rawBytes) = Float64Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::BigInt64:
+            *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes) = BigInt64Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::BigUint64:
+            *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes) = BigUint64Adaptor::toNative(state, val);
             break;
         default:
             RELEASE_ASSERT_NOT_REACHED();

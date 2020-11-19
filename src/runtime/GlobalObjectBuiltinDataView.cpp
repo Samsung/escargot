@@ -34,7 +34,9 @@ namespace Escargot {
     F(Int32)                       \
     F(Uint8)                       \
     F(Uint16)                      \
-    F(Uint32)
+    F(Uint32)                      \
+    F(BigInt64)                    \
+    F(BigUint64)
 
 Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {

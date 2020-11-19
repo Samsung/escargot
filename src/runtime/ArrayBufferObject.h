@@ -33,7 +33,9 @@ enum class TypedArrayType : unsigned {
     Uint32,
     Uint8Clamped,
     Float32,
-    Float64
+    Float64,
+    BigInt64,
+    BigUint64
 };
 
 class ArrayBufferObject : public Object {

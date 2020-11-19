@@ -57,6 +57,7 @@ class BigInt : public PointerValue {
 
 public:
     BigInt(VMInstance* vmInstance, int64_t num);
+    BigInt(VMInstance* vmInstance, uint64_t num);
     BigInt(VMInstance* vmInstance, BigIntData&& n);
     BigInt(VMInstance* vmInstance, bf_t num);
 
@@ -68,6 +69,9 @@ public:
 
     String* toString(ExecutionState& state, int radix = 10);
     double toNumber() const;
+    int64_t toInt64() const;
+    uint64_t toUint64() const;
+
     bool equals(BigInt* b);
     bool equals(const BigIntData& b);
     bool equals(String* s);

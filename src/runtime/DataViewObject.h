@@ -71,8 +71,8 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
 
-        double numberValue = val.toNumber(state);
-        UNUSED_VARIABLE(numberValue);
+        auto numericValue = val.toNumeric(state);
+        UNUSED_VARIABLE(numericValue);
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
         ArrayBufferObject* buffer = this->buffer();
