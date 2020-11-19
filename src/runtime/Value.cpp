@@ -150,7 +150,7 @@ BigInt* Value::toBigInt(ExecutionState& state) const
     if (prim.isBigInt()) {
         return prim.asBigInt();
     } else if (prim.isBoolean()) {
-        return new BigInt(state.context()->vmInstance(), prim.asBoolean() ? 1 : 0);
+        return new BigInt(state.context()->vmInstance(), prim.asBoolean() ? (uint64_t)1 : (uint64_t)0);
     } else if (prim.isString()) {
         // Let n be ! StringToBigInt(prim).
         // If n is NaN, throw a SyntaxError exception.

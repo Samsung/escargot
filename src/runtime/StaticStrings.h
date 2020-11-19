@@ -327,6 +327,8 @@ namespace Escargot {
     F(getUint8)                   \
     F(getUint16)                  \
     F(getUint32)                  \
+    F(getBigInt64)                \
+    F(getBigUint64)               \
     F(setFloat32)                 \
     F(setFloat64)                 \
     F(setInt8)                    \
@@ -335,6 +337,8 @@ namespace Escargot {
     F(setUint8)                   \
     F(setUint16)                  \
     F(setUint32)                  \
+    F(setBigInt64)                \
+    F(setBigUint64)               \
     F(Promise)                    \
     F(Proxy)                      \
     F(proxy)                      \

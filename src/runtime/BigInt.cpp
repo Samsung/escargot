@@ -169,10 +169,36 @@ BigInt::BigInt(VMInstance* vmInstance)
     initFinalizer();
 }
 
+static void setBigInt(bf_t* bf, uint64_t num)
+{
+    // FIXME (there is bug in bf_set_ui)
+    if (UNLIKELY(num > std::numeric_limits<uint32_t>::max())) {
+        uint32_t sub = num >> 32;
+        bf_set_ui(bf, sub);
+        bf_mul_2exp(bf, 32, BF_PREC_INF, BF_RNDZ);
+        bf_add_si(bf, bf, num & 0xffffffff, BF_PREC_INF, BF_RNDZ);
+    } else {
+        bf_set_ui(bf, num);
+    }
+}
+
 BigInt::BigInt(VMInstance* vmInstance, int64_t num)
     : BigInt(vmInstance)
 {
-    bf_set_si(&m_bf, num);
+    int sign = num < 0;
+    if (sign) {
+        num = -num;
+    }
+    setBigInt(&m_bf, num);
+    if (sign) {
+        m_bf.sign = 1;
+    }
+}
+
+BigInt::BigInt(VMInstance* vmInstance, uint64_t num)
+    : BigInt(vmInstance)
+{
+    setBigInt(&m_bf, num);
 }
 
 BigInt::BigInt(VMInstance* vmInstance, BigIntData&& n)
@@ -245,6 +271,21 @@ double BigInt::toNumber() const
     bf_get_float64(&m_bf, &d, BF_RNDN);
     return d;
 }
+
+int64_t BigInt::toInt64() const
+{
+    int64_t d;
+    bf_get_int64(&d, &m_bf, 0);
+    return d;
+}
+
+uint64_t BigInt::toUint64() const
+{
+    uint64_t d;
+    bf_get_uint64(&d, &m_bf);
+    return d;
+}
+
 
 bool BigInt::equals(BigInt* b)
 {

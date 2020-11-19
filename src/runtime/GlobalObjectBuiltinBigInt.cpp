@@ -42,7 +42,7 @@ Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, size_t ar
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The value you input to BigInt constructor is not integer");
         }
         // Return the BigInt value that represents the mathematical value of number.
-        return new BigInt(state.context()->vmInstance(), prim.asNumber());
+        return new BigInt(state.context()->vmInstance(), (int64_t)prim.asNumber());
     } else {
         // Otherwise, return ? ToBigInt(value).
         return argv[0].toBigInt(state);

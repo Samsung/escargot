@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-unsigned TypedArrayHelper::elementSizeTable[9] = { 1, 2, 4, 1, 2, 4, 1, 4, 8 };
+unsigned TypedArrayHelper::elementSizeTable[11] = { 1, 2, 4, 1, 2, 4, 1, 4, 8, 8, 8 };
 
 ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)
 {
