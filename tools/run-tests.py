@@ -20,6 +20,7 @@ import os
 import traceback
 import sys
 import time
+import re, fnmatch
 
 from argparse import ArgumentParser
 from difflib import unified_diff
@@ -516,6 +517,65 @@ def run_intl(engine, arch):
 
     if fails > 0:
         raise Exception('Intl tests failed')
+
+@runner('wasm-js', default=False)
+def run_wasm_js(engine, arch):
+    WASM_TEST_ROOT = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'wasm-js')
+    WASM_TEST_DIR = join(WASM_TEST_ROOT, 'tests')
+    WASM_TEST_MJS = join(WASM_TEST_ROOT, 'mjsunit.js')
+    WASM_TEST_HARNESS = join(WASM_TEST_ROOT, 'testharness.js')
+
+    EXCLUDE_LIST_FILE = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'wasm-js', 'exclude_list.txt')
+    exclude_list = []
+    with open(EXCLUDE_LIST_FILE) as f:
+        exclude_list = f.read().replace('\n', ' ').split()
+
+    files = []
+    for root, dirnames, filenames in os.walk(join(WASM_TEST_DIR)):
+        if "proposals" in root:
+            # skip proposals test
+            continue
+        for filename in fnmatch.filter(filenames, '*.any.js'):
+            full_path = join(root, filename)
+            rel_path = full_path[len(WASM_TEST_DIR)+1:]
+            if rel_path in exclude_list:
+                continue
+            files.append(join(root, filename))
+    files = sorted(files)
+
+    WPT_ROOT = "/wasm/jsapi/"
+    META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
+    fail_total = 0
+    for file in files:
+        source = ""
+        with open(file) as f:
+            source = f.read()
+
+        script_files = []
+        for script in META_SCRIPT_REGEXP.findall(source):
+            if (script.startswith(WPT_ROOT)):
+                script = join(WASM_TEST_DIR, script[len(WPT_ROOT):])
+            else:
+                script = join(WASM_TEST_DIR, script)
+            script_files.append(script)
+
+        proc = Popen([engine, WASM_TEST_MJS, WASM_TEST_HARNESS, ''.join(script_files), file], stdout=PIPE)
+        out, _ = proc.communicate()
+        
+        if not proc.returncode:
+            print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
+        else:
+            print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
+            print(out)
+            fail_total += 1
+
+    tests_total = len(files)
+    print('TOTAL: %d' % (tests_total))
+    print('%sPASS : %d%s' % (COLOR_GREEN, tests_total - fail_total, COLOR_RESET))
+    print('%sFAIL : %d%s' % (COLOR_RED, fail_total, COLOR_RESET))
+
+    if fail_total > 0:
+        raise Exception('new-es tests failed')
 
 @runner('cctest', default=False)
 def run_cctest(engine, arch):

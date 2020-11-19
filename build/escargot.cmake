@@ -130,7 +130,7 @@ ADD_SUBDIRECTORY (third_party/runtime_icu_binder)
 SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} runtime-icu-binder-static)
 
 # WebAssembly (wabt)
-IF (ENABLE_WASM)
+IF (ESCARGOT_WASM)
     SET (WASM_CXX_FLAGS
         ${ESCARGOT_GCUTIL_CFLAGS} # we can share arch flags with gcutil
         -g3)

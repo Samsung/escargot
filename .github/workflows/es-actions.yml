@@ -115,7 +115,7 @@ jobs:
         rm $HOME/Escargot-cache/cache_list
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
 
-  wasm_test:
+  wasm_js_test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -129,16 +129,20 @@ jobs:
         dpkg -X libicu-dev_66.1-2ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
     - name: Build x86
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DENABLE_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
         CXXFLAGS=" -I$GITHUB_WORKSPACE/icu32/usr/include" LDFLAGS=" -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu" cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
         ninja -Cout/wasm/x86
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DENABLE_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
         cmake -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64
+    - name: Run x86 test
+      run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
+    - name: Run x64 test
+      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
 
   wasm_spec_test:
     runs-on: ubuntu-latest

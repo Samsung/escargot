@@ -170,6 +170,10 @@ IF (ESCARGOT_CODE_CACHE)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_CODE_CACHE)
 ENDIF()
 
+IF (ESCARGOT_WASM)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_WASM)
+ENDIF()
+
 #######################################################
 # flags for $(MODE) : debug/release
 #######################################################
