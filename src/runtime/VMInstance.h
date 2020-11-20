@@ -30,6 +30,15 @@
 #include "runtime/Symbol.h"
 #include "runtime/ToStringRecursionPreventer.h"
 
+#if defined(ENABLE_WASM)
+struct wasm_engine_t;
+struct wasm_store_t;
+struct GlobalWASMData {
+    wasm_engine_t* m_engine;
+    wasm_store_t* m_store;
+};
+#endif
+
 namespace Escargot {
 
 class SandBox;
@@ -254,6 +263,13 @@ public:
         return m_codeCache;
     }
 #endif
+#if defined(ENABLE_WASM)
+    struct wasm_store_t* wasmStore() const
+    {
+        ASSERT(!!m_wasmData.m_store);
+        return m_wasmData.m_store;
+    }
+#endif
 
     bf_context_t* bfContext()
     {
@@ -341,6 +357,9 @@ private:
 
 #if defined(ENABLE_CODE_CACHE)
     CodeCache* m_codeCache;
+#endif
+#if defined(ENABLE_WASM)
+    GlobalWASMData m_wasmData;
 #endif
 
     bf_context_t m_bfContext;

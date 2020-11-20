@@ -444,7 +444,14 @@ namespace Escargot {
     F(BigInt)                     \
     F(bigint)                     \
     F(asUintN)                    \
-    F(asIntN)
+    F(asIntN)                     \
+    F(WebAssembly)                \
+    F(Global)                     \
+    F(Instance)                   \
+    F(Memory)                     \
+    F(Table)                      \
+    F(validate)                   \
+    F(instantiate)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \

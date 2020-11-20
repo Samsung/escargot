@@ -33,6 +33,9 @@
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"
 #endif
+#if defined(ENABLE_WASM)
+#include "wasm.h"
+#endif
 
 #include <pthread.h>
 
@@ -284,6 +287,10 @@ VMInstance::~VMInstance()
 #if defined(ENABLE_CODE_CACHE)
     delete m_codeCache;
 #endif
+#if defined(ENABLE_WASM)
+    wasm_store_delete(m_wasmData.m_store);
+    wasm_engine_delete(m_wasmData.m_engine);
+#endif
 
     bf_context_end(&m_bfContext);
 }
@@ -450,6 +457,10 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
         baseCacheDir = "/tmp";
     }
     m_codeCache = new CodeCache(baseCacheDir);
+#endif
+#if defined(ENABLE_WASM)
+    m_wasmData.m_engine = wasm_engine_new();
+    m_wasmData.m_store = wasm_store_new(m_wasmData.m_engine);
 #endif
 }
 

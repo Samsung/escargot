@@ -96,6 +96,9 @@ void GlobalObject::installBuiltins(ExecutionState& state)
     installAsyncIterator(state);
     installAsyncFromSyncIterator(state);
     installAsyncGeneratorFunction(state);
+#if defined(ENABLE_WASM)
+    installWASM(state);
+#endif
     installOthers(state);
 }
 
