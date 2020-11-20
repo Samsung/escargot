@@ -21,6 +21,7 @@
 #include "EnumerateObject.h"
 #include "runtime/EncodedValue.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/TypedArrayObject.h"
 
 namespace Escargot {
 
@@ -181,8 +182,10 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
     ASSERT(!!m_object);
     m_hiddenClassChain.clear();
 
-    if (m_object->isArrayObject()) {
+    if (UNLIKELY(m_object->isArrayObject())) {
         m_arrayLength = m_object->asArrayObject()->arrayLength(state);
+    } else if (UNLIKELY(m_object->isTypedArrayObject())) {
+        m_object->asTypedArrayObject()->buffer()->throwTypeErrorIfDetached(state);
     }
 
     bool shouldSearchProto = false;
