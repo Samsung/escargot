@@ -246,7 +246,7 @@ Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, String* str, int r
     return parseString(vmInstance, buffer, bd.length, radix);
 }
 
-String* BigInt::toString(ExecutionState& state, int radix)
+String* BigInt::toString(int radix)
 {
     int savedSign = m_bf.sign;
     if (m_bf.expn == BF_EXP_ZERO) {
@@ -256,13 +256,14 @@ String* BigInt::toString(ExecutionState& state, int radix)
     auto str = bf_ftoa(&resultLen, &m_bf, radix, 0, BF_RNDZ | BF_FTOA_FORMAT_FRAC | BF_FTOA_JS_QUIRKS);
     m_bf.sign = savedSign;
 
+    ASSERT(str);
     if (UNLIKELY(!str)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to convert BigInt to string");
+        return String::emptyString;
+    } else {
+        String* ret = String::fromASCII(str, resultLen);
+        bf_free(m_vmInstance->bfContext(), str);
+        return ret;
     }
-    String* ret = String::fromASCII(str, resultLen);
-    bf_free(m_vmInstance->bfContext(), str);
-
-    return ret;
 }
 
 double BigInt::toNumber() const
@@ -502,8 +503,6 @@ BigInt* BigInt::rightShift(BigInt* src)
     if (v2 < 0) {
         bf_rint(&r, BF_RNDD);
     }
-    return new BigInt(m_vmInstance, r);
-
     return new BigInt(m_vmInstance, r);
 }
 

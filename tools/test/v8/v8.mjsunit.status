@@ -911,6 +911,7 @@
 
   # 32bit addressing on 64bit causes memory allocation failure
   'es6/unicode-regexp-unanchored-advance': [SKIP],
+  'regress/regress-latin-1': [SKIP],
 
 }],  # 'escargot == True'
 

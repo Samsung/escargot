@@ -58,12 +58,14 @@ DEFINE_CAST(ExecutionState);
 DEFINE_CAST(String);
 DEFINE_CAST(RopeString);
 DEFINE_CAST(Symbol);
+DEFINE_CAST(BigInt);
 DEFINE_CAST(PointerValue);
 DEFINE_CAST(Object)
 DEFINE_CAST(IteratorObject);
 DEFINE_CAST(ArrayObject)
 DEFINE_CAST(StringObject)
 DEFINE_CAST(SymbolObject)
+DEFINE_CAST(BigIntObject)
 DEFINE_CAST(NumberObject)
 DEFINE_CAST(BooleanObject)
 DEFINE_CAST(RegExpObject)
@@ -94,6 +96,8 @@ DEFINE_CAST(Uint32ArrayObject);
 DEFINE_CAST(Uint8ClampedArrayObject);
 DEFINE_CAST(Float32ArrayObject);
 DEFINE_CAST(Float64ArrayObject);
+DEFINE_CAST(BigInt64ArrayObject);
+DEFINE_CAST(BigUint64ArrayObject);
 DEFINE_CAST(SetObject);
 DEFINE_CAST(WeakSetObject);
 DEFINE_CAST(MapObject);

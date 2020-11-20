@@ -56,6 +56,8 @@
 #include "runtime/ObjectTemplate.h"
 #include "runtime/FunctionTemplate.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
+#include "runtime/BigInt.h"
+#include "runtime/BigIntObject.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
 
@@ -506,6 +508,166 @@ StringRef* SymbolRef::symbolDescriptiveString()
     return toRef(toImpl(this)->symbolDescriptiveString());
 }
 
+BigIntRef* BigIntRef::create(VMInstanceRef* vmInstance, StringRef* desc)
+{
+    return toRef(new BigInt(toImpl(vmInstance), BigIntData(toImpl(vmInstance), toImpl(desc))));
+}
+
+BigIntRef* BigIntRef::create(VMInstanceRef* vmInstance, int64_t num)
+{
+    return toRef(new BigInt(toImpl(vmInstance), num));
+}
+
+BigIntRef* BigIntRef::create(VMInstanceRef* vmInstance, uint64_t num)
+{
+    return toRef(new BigInt(toImpl(vmInstance), num));
+}
+
+StringRef* BigIntRef::toString(int radix)
+{
+    return toRef(toImpl(this)->toString(10));
+}
+
+double BigIntRef::toNumber()
+{
+    return toImpl(this)->toNumber();
+}
+
+int64_t BigIntRef::toInt64()
+{
+    return toImpl(this)->toInt64();
+}
+
+uint64_t BigIntRef::toUint64()
+{
+    return toImpl(this)->toUint64();
+}
+
+bool BigIntRef::equals(BigIntRef* b)
+{
+    return toImpl(this)->equals(toImpl(b));
+}
+
+bool BigIntRef::equals(StringRef* s)
+{
+    return toImpl(this)->equals(toImpl(s));
+}
+
+bool BigIntRef::equals(double b)
+{
+    return toImpl(this)->equals(b);
+}
+
+bool BigIntRef::lessThan(BigIntRef* b)
+{
+    return toImpl(this)->lessThan(toImpl(b));
+}
+
+bool BigIntRef::lessThanEqual(BigIntRef* b)
+{
+    return toImpl(this)->lessThanEqual(toImpl(b));
+}
+
+bool BigIntRef::greaterThan(BigIntRef* b)
+{
+    return toImpl(this)->greaterThan(toImpl(b));
+}
+
+bool BigIntRef::greaterThanEqual(BigIntRef* b)
+{
+    return toImpl(this)->greaterThanEqual(toImpl(b));
+}
+
+BigIntRef* BigIntRef::addition(BigIntRef* b)
+{
+    return toRef(toImpl(this)->addition(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::subtraction(BigIntRef* b)
+{
+    return toRef(toImpl(this)->subtraction(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::multiply(BigIntRef* b)
+{
+    return toRef(toImpl(this)->multiply(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::division(BigIntRef* b)
+{
+    return toRef(toImpl(this)->division(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::remainder(BigIntRef* b)
+{
+    return toRef(toImpl(this)->remainder(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::pow(BigIntRef* b)
+{
+    return toRef(toImpl(this)->pow(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::bitwiseAnd(BigIntRef* b)
+{
+    return toRef(toImpl(this)->bitwiseAnd(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::bitwiseOr(BigIntRef* b)
+{
+    return toRef(toImpl(this)->bitwiseOr(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::bitwiseXor(BigIntRef* b)
+{
+    return toRef(toImpl(this)->bitwiseXor(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::increment()
+{
+    return toRef(toImpl(this)->increment());
+}
+
+BigIntRef* BigIntRef::decrement()
+{
+    return toRef(toImpl(this)->decrement());
+}
+
+BigIntRef* BigIntRef::bitwiseNot()
+{
+    return toRef(toImpl(this)->bitwiseNot());
+}
+
+BigIntRef* BigIntRef::leftShift(BigIntRef* b)
+{
+    return toRef(toImpl(this)->leftShift(toImpl(b)));
+}
+
+BigIntRef* BigIntRef::rightShift(BigIntRef* b)
+{
+    return toRef(toImpl(this)->rightShift(toImpl(b)));
+}
+
+bool BigIntRef::isZero()
+{
+    return toImpl(this)->isZero();
+}
+
+bool BigIntRef::isNaN()
+{
+    return toImpl(this)->isNaN();
+}
+
+bool BigIntRef::isInfinity()
+{
+    return toImpl(this)->isInfinity();
+}
+
+BigIntRef* BigIntRef::negativeValue()
+{
+    return toRef(toImpl(this)->negativeValue());
+}
+
 #define DEFINE_IS_POINTERVALUE_XXX(XXX) \
     bool ValueRef::is##XXX() { return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->is##XXX(); }
 #define DEFINE_AS_POINTERVALUE_XXX(XXX) \
@@ -516,11 +678,13 @@ StringRef* SymbolRef::symbolDescriptiveString()
 
 DEFINE_IS_AS_POINTERVALUE_XXX(String)
 DEFINE_IS_AS_POINTERVALUE_XXX(Symbol)
+DEFINE_IS_AS_POINTERVALUE_XXX(BigInt)
 DEFINE_IS_AS_POINTERVALUE_XXX(Object)
 DEFINE_IS_AS_POINTERVALUE_XXX(FunctionObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(ArrayObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(StringObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(SymbolObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(BigIntObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(NumberObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(BooleanObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(RegExpObject)
@@ -570,6 +734,8 @@ DEFINE_TYPEDARRAY_IMPL(Uint32);
 DEFINE_TYPEDARRAY_IMPL(Uint8Clamped);
 DEFINE_TYPEDARRAY_IMPL(Float32);
 DEFINE_TYPEDARRAY_IMPL(Float64);
+DEFINE_TYPEDARRAY_IMPL(BigInt64);
+DEFINE_TYPEDARRAY_IMPL(BigUint64);
 
 
 DEFINE_IS_AS_POINTERVALUE_XXX(PromiseObject)
@@ -1677,6 +1843,26 @@ ObjectRef* GlobalObjectRef::float64ArrayPrototype()
     return toRef(toImpl(this)->float64ArrayPrototype());
 }
 
+ObjectRef* GlobalObjectRef::bigInt64Array()
+{
+    return toRef(toImpl(this)->bigInt64Array());
+}
+
+ObjectRef* GlobalObjectRef::bigInt64ArrayPrototype()
+{
+    return toRef(toImpl(this)->bigInt64ArrayPrototype());
+}
+
+ObjectRef* GlobalObjectRef::bigUint64Array()
+{
+    return toRef(toImpl(this)->bigUint64Array());
+}
+
+ObjectRef* GlobalObjectRef::bigUint64ArrayPrototype()
+{
+    return toRef(toImpl(this)->bigUint64ArrayPrototype());
+}
+
 class CallPublicFunctionData : public gc {
 public:
     CallPublicFunctionData(FunctionObjectRef::NativeFunctionPointer publicFn)
@@ -2372,6 +2558,16 @@ SymbolRef* SymbolObjectRef::primitiveValue()
     return toRef(toImpl(this)->primitiveValue());
 }
 
+void BigIntObjectRef::setPrimitiveValue(ExecutionStateRef* state, BigIntRef* value)
+{
+    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(value));
+}
+
+BigIntRef* BigIntObjectRef::primitiveValue()
+{
+    return toRef(toImpl(this)->primitiveValue());
+}
+
 NumberObjectRef* NumberObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new NumberObject(*toImpl(state)));
@@ -2533,6 +2729,18 @@ Float64ArrayObjectRef* Float64ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
     return toRef(new Float64ArrayObject(*toImpl(state)));
+}
+
+BigInt64ArrayObjectRef* BigInt64ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new BigInt64ArrayObject(*toImpl(state)));
+}
+
+BigUint64ArrayObjectRef* BigUint64ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new BigUint64ArrayObject(*toImpl(state)));
 }
 
 Uint8ClampedArrayObjectRef* Uint8ClampedArrayObjectRef::create(ExecutionStateRef* state)
