@@ -2,7 +2,6 @@ constructor/compile.any.js
 constructor/instantiate-bad-imports.any.js
 constructor/instantiate.any.js
 constructor/multi-value.any.js
-constructor/validate.any.js
 global/constructor.any.js
 global/toString.any.js
 global/value-get-set.any.js

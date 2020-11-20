@@ -199,6 +199,13 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_WEAKSET(F, NAME) \
     F(weakSet, FunctionObject, NAME)          \
     F(weakSetPrototype, Object, NAME)
+//WebAssembly
+#if defined(ENABLE_WASM)
+#define GLOBALOBJECT_BUILTIN_WASM(F, NAME) \
+    F(wasm, Object, Name)
+#else
+#define GLOBALOBJECT_BUILTIN_WASM(F, NAME)
+#endif
 
 
 #define GLOBALOBJECT_BUILTIN_LIST(F)                                     \
@@ -233,7 +240,8 @@ class FunctionObject;
     GLOBALOBJECT_BUILTIN_BIGINT(F, BigInt)                               \
     GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, TypedArray)                       \
     GLOBALOBJECT_BUILTIN_WEAKMAP(F, WeakMap)                             \
-    GLOBALOBJECT_BUILTIN_WEAKSET(F, WeakSet)
+    GLOBALOBJECT_BUILTIN_WEAKSET(F, WeakSet)                             \
+    GLOBALOBJECT_BUILTIN_WASM(F, WebAssembly)
 
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
@@ -323,6 +331,9 @@ private:
     void installAsyncIterator(ExecutionState& state);
     void installAsyncFromSyncIterator(ExecutionState& state);
     void installAsyncGeneratorFunction(ExecutionState& state);
+#if defined(ENABLE_WASM)
+    void installWASM(ExecutionState& state);
+#endif
     void installOthers(ExecutionState& state);
 };
 }
