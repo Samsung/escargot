@@ -313,6 +313,8 @@ namespace Escargot {
     F(Uint8ClampedArray)          \
     F(Float32Array)               \
     F(Float64Array)               \
+    F(BigInt64Array)              \
+    F(BigUint64Array)             \
     F(ArrayBuffer)                \
     F(isView)                     \
     F(DataView)                   \
