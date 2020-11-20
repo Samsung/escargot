@@ -133,7 +133,7 @@ Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_t argc,
         }
     }
 
-    return S->toString(state, radix);
+    return S->toString(radix);
 }
 
 Value builtinBigIntValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

@@ -42,7 +42,7 @@ public:
         return true;
     }
 
-    void setBigIntValue(ExecutionState& state, BigInt* data)
+    void setPrimitiveValue(ExecutionState& state, BigInt* data)
     {
         m_primitiveValue = data;
     }

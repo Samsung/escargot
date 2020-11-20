@@ -113,7 +113,7 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
         ErrorObject::throwBuiltinError(ec, ErrorObject::TypeError, "Cannot convert a Symbol value to a string");
         ASSERT_NOT_REACHED();
     } else if (isBigInt()) {
-        return asBigInt()->toString(ec);
+        return asBigInt()->toString();
     } else {
         return toPrimitive(ec, PreferString).toString(ec);
     }

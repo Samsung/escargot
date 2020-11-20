@@ -67,7 +67,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    String* toString(ExecutionState& state, int radix = 10);
+    String* toString(int radix = 10);
     double toNumber() const;
     int64_t toInt64() const;
     uint64_t toUint64() const;

@@ -48,6 +48,7 @@ class ContextRef;
 class StringRef;
 class RopeStringRef;
 class SymbolRef;
+class BigIntRef;
 class ValueRef;
 class PointerValueRef;
 class ObjectRef;
@@ -65,6 +66,8 @@ class Uint32ArrayObjectRef;
 class Uint8ClampedArrayObjectRef;
 class Float32ArrayObjectRef;
 class Float64ArrayObjectRef;
+class BigInt64ArrayObjectRef;
+class BigUint64ArrayObjectRef;
 class PromiseObjectRef;
 class SetObjectRef;
 class WeakSetObjectRef;
@@ -74,6 +77,7 @@ class ErrorObjectRef;
 class DateObjectRef;
 class StringObjectRef;
 class SymbolObjectRef;
+class BigIntObjectRef;
 class NumberObjectRef;
 class BooleanObjectRef;
 class RegExpObjectRef;
@@ -663,6 +667,7 @@ public:
     bool isFalse();
     bool isString();
     bool isSymbol();
+    bool isBigInt();
     bool isPointerValue();
     bool isCallable(); // can ValueRef::call
     bool isConstructible(); // can ValueRef::construct
@@ -676,6 +681,7 @@ public:
     bool isArrayPrototypeObject();
     bool isStringObject();
     bool isSymbolObject();
+    bool isBigIntObject();
     bool isNumberObject();
     bool isBooleanObject();
     bool isRegExpObject();
@@ -693,6 +699,8 @@ public:
     bool isUint8ClampedArrayObject();
     bool isFloat32ArrayObject();
     bool isFloat64ArrayObject();
+    bool isBigInt64ArrayObject();
+    bool isBigUint64ArrayObject();
     bool isTypedArrayObject();
     bool isTypedArrayPrototypeObject();
     bool isDataViewObject();
@@ -734,11 +742,13 @@ public:
     PointerValueRef* asPointerValue();
     StringRef* asString();
     SymbolRef* asSymbol();
+    BigIntRef* asBigInt();
     ObjectRef* asObject();
     FunctionObjectRef* asFunctionObject();
     ArrayObjectRef* asArrayObject();
     StringObjectRef* asStringObject();
     SymbolObjectRef* asSymbolObject();
+    BigIntObjectRef* asBigIntObject();
     NumberObjectRef* asNumberObject();
     BooleanObjectRef* asBooleanObject();
     RegExpObjectRef* asRegExpObject();
@@ -756,6 +766,8 @@ public:
     Uint8ClampedArrayObjectRef* asUint8ClampedArrayObject();
     Float32ArrayObjectRef* asFloat32ArrayObject();
     Float64ArrayObjectRef* asFloat64ArrayObject();
+    BigInt64ArrayObjectRef* asBigInt64ArrayObject();
+    BigUint64ArrayObjectRef* asBigUint64ArrayObject();
     PromiseObjectRef* asPromiseObject();
     ProxyObjectRef* asProxyObject();
     SetObjectRef* asSetObject();
@@ -901,6 +913,50 @@ public:
     static SymbolRef* fromGlobalSymbolRegistry(VMInstanceRef* context, StringRef* desc); // this is same with Symbol.for
     StringRef* description();
     StringRef* symbolDescriptiveString();
+};
+
+class ESCARGOT_EXPORT BigIntRef : public PointerValueRef {
+public:
+    static BigIntRef* create(VMInstanceRef* context, StringRef* desc);
+    static BigIntRef* create(VMInstanceRef* vmInstance, int64_t num);
+    static BigIntRef* create(VMInstanceRef* vmInstance, uint64_t num);
+
+    StringRef* toString(int radix = 10);
+    double toNumber();
+    int64_t toInt64();
+    uint64_t toUint64();
+
+    bool equals(BigIntRef* b);
+    bool equals(StringRef* s);
+    bool equals(double b);
+
+    bool lessThan(BigIntRef* b);
+    bool lessThanEqual(BigIntRef* b);
+    bool greaterThan(BigIntRef* b);
+    bool greaterThanEqual(BigIntRef* b);
+
+    BigIntRef* addition(BigIntRef* b);
+    BigIntRef* subtraction(BigIntRef* b);
+    BigIntRef* multiply(BigIntRef* b);
+    BigIntRef* division(BigIntRef* b);
+    BigIntRef* remainder(BigIntRef* b);
+    BigIntRef* pow(BigIntRef* b);
+    BigIntRef* bitwiseAnd(BigIntRef* b);
+    BigIntRef* bitwiseOr(BigIntRef* b);
+    BigIntRef* bitwiseXor(BigIntRef* b);
+    BigIntRef* increment();
+    BigIntRef* decrement();
+    BigIntRef* bitwiseNot();
+
+    BigIntRef* leftShift(BigIntRef* c);
+    BigIntRef* rightShift(BigIntRef* c);
+
+    bool isZero();
+    bool isNaN();
+    bool isInfinity();
+    bool isNegative();
+
+    BigIntRef* negativeValue();
 };
 
 class ObjectPropertyDescriptorRef {
@@ -1172,6 +1228,10 @@ public:
     ObjectRef* float32ArrayPrototype();
     ObjectRef* float64Array();
     ObjectRef* float64ArrayPrototype();
+    ObjectRef* bigInt64Array();
+    ObjectRef* bigInt64ArrayPrototype();
+    ObjectRef* bigUint64Array();
+    ObjectRef* bigUint64ArrayPrototype();
 };
 
 class ESCARGOT_EXPORT GlobalObjectProxyObjectRef : public ObjectRef {
@@ -1316,6 +1376,14 @@ public:
     SymbolRef* primitiveValue();
 };
 
+class ESCARGOT_EXPORT BigIntObjectRef : public ObjectRef {
+public:
+    static BigIntObjectRef* create(ExecutionStateRef* state);
+
+    void setPrimitiveValue(ExecutionStateRef* state, BigIntRef* value);
+    BigIntRef* primitiveValue();
+};
+
 class ESCARGOT_EXPORT NumberObjectRef : public ObjectRef {
 public:
     static NumberObjectRef* create(ExecutionStateRef* state);
@@ -1414,6 +1482,16 @@ public:
 class ESCARGOT_EXPORT Float64ArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Float64ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT BigInt64ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static BigInt64ArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT BigUint64ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static BigUint64ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT PromiseObjectRef : public ObjectRef {
