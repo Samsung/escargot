@@ -1747,7 +1747,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     m_typedArray = typedArrayFunction;
     m_typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
-#define INSTALL_TYPEDARRAY(TYPE, type, siz)                                                                                                  \
+#define INSTALL_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                      \
     m_##type##Array = installTypedArray<TYPE##ArrayObject, siz>(state, strings->TYPE##Array, &m_##type##ArrayPrototype, typedArrayFunction); \
     m_##type##ArrayPrototype = m_##type##Array->getFunctionPrototype(state).asObject();
 

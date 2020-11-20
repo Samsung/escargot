@@ -24,16 +24,18 @@
 
 namespace Escargot {
 
-#define FOR_EACH_TYPEDARRAY_TYPES(F)  \
-    F(Int8, int8, 1);                 \
-    F(Int16, int16, 2);               \
-    F(Int32, int32, 4);               \
-    F(Uint8, uint8, 1);               \
-    F(Uint8Clamped, uint8Clamped, 1); \
-    F(Uint16, uint16, 2);             \
-    F(Uint32, uint32, 4);             \
-    F(Float32, float32, 4);           \
-    F(Float64, float64, 8);
+#define FOR_EACH_TYPEDARRAY_TYPES(F)          \
+    F(Int8, int8, 1, double);                 \
+    F(Int16, int16, 2, double);               \
+    F(Int32, int32, 4, double);               \
+    F(Uint8, uint8, 1, double);               \
+    F(Uint8Clamped, uint8Clamped, 1, double); \
+    F(Uint16, uint16, 2, double);             \
+    F(Uint32, uint32, 4, double);             \
+    F(Float32, float32, 4, double);           \
+    F(Float64, float64, 8, double);           \
+    F(BigInt64, bigInt64, 8, int64_t);        \
+    F(BigUint64, bigUint64, 8, uint64_t);
 
 class TypedArrayPrototypeObject : public Object {
 public:
@@ -90,7 +92,7 @@ protected:
     inline bool integerIndexedElementSet(ExecutionState& state, double index, const Value& value);
 };
 
-#define DECLARE_TYPEDARRAY(TYPE, type, siz)                                                                                                        \
+#define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                            \
     class TYPE##ArrayObject : public TypedArrayObject {                                                                                            \
     public:                                                                                                                                        \
         explicit TYPE##ArrayObject(ExecutionState& state)                                                                                          \
@@ -119,7 +121,7 @@ protected:
                                                                                                                                                    \
     private:                                                                                                                                       \
         inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex, bool isLittleEndian = true);                                \
-        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, double val, bool isLittleEndian = true);                       \
+        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val, bool isLittleEndian = true);                 \
     };
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)

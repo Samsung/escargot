@@ -188,7 +188,11 @@ class FunctionObject;
     F(float32Array, FunctionObject, NAME)        \
     F(float32ArrayPrototype, Object, NAME)       \
     F(float64Array, FunctionObject, NAME)        \
-    F(float64ArrayPrototype, Object, NAME)
+    F(float64ArrayPrototype, Object, NAME)       \
+    F(bigInt64Array, FunctionObject, NAME)       \
+    F(bigInt64ArrayPrototype, Object, NAME)      \
+    F(bigUint64Array, FunctionObject, NAME)      \
+    F(bigUint64ArrayPrototype, Object, NAME)
 #define GLOBALOBJECT_BUILTIN_WEAKMAP(F, NAME) \
     F(weakMap, FunctionObject, NAME)          \
     F(weakMapPrototype, Object, NAME)
