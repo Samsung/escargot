@@ -275,14 +275,14 @@ double BigInt::toNumber() const
 int64_t BigInt::toInt64() const
 {
     int64_t d;
-    bf_get_int64(&d, &m_bf, 0);
+    bf_get_int64(&d, &m_bf, BF_GET_INT_MOD);
     return d;
 }
 
 uint64_t BigInt::toUint64() const
 {
     uint64_t d;
-    bf_get_uint64(&d, &m_bf);
+    bf_get_uint64(&d, &m_bf, BF_GET_INT_MOD);
     return d;
 }
 

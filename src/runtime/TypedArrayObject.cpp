@@ -103,7 +103,7 @@ void TypedArrayObject::enumeration(ExecutionState& state, bool (*callback)(Execu
             return;
         }
     }
-    Object::enumeration(state, callback, data);
+    Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
 void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
@@ -148,7 +148,17 @@ ObjectGetResult TypedArrayObject::integerIndexedElementGet(ExecutionState& state
 // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementset
 bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double index, const Value& value)
 {
-    double numValue = value.toNumber(state);
+    Value numValue(Value::ForceUninitialized);
+    // If arrayTypeName is "BigUint64Array" or "BigInt64Array", let numValue be ? ToBigInt(value).
+    auto type = typedArrayType();
+    bool isBigIntArray = type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64;
+    if (UNLIKELY(isBigIntArray)) {
+        numValue = value.toBigInt(state);
+    } else {
+        // Otherwise, let numValue be ? ToNumber(value).
+        numValue = Value(value.toNumber(state));
+    }
+
     buffer()->throwTypeErrorIfDetached(state);
 
     if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
@@ -157,7 +167,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
 
     size_t indexedPosition = (index * elementSize()) + byteOffset();
     // Perform SetValueInBuffer(buffer, indexedPosition, elementType, numValue, true, "Unordered").
-    buffer()->setValueInBuffer(state, indexedPosition, typedArrayType(), Value(numValue));
+    buffer()->setValueInBuffer(state, indexedPosition, typedArrayType(), numValue);
     return true;
 }
 
@@ -232,10 +242,9 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
     bool TYPE##ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)                                \
     {                                                                                                                                           \
         if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
-            Value numValue = value.toNumeric(state).first;                                                                                      \
             buffer()->throwTypeErrorIfDetached(state);                                                                                          \
             size_t indexedPosition = property.asUInt32() * elementSize();                                                                       \
-            setDirectValueInBuffer(state, indexedPosition, numValue);                                                                           \
+            setDirectValueInBuffer(state, indexedPosition, value);                                                                              \
             return true;                                                                                                                        \
         }                                                                                                                                       \
         return set(state, ObjectPropertyName(state, property), value, this);                                                                    \

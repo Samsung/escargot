@@ -89,6 +89,10 @@ static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedA
         return glob->float32Array();
     case TypedArrayType::Float64:
         return glob->float64Array();
+    case TypedArrayType::BigInt64:
+        return glob->bigInt64Array();
+    case TypedArrayType::BigUint64:
+        return glob->bigUint64Array();
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -742,6 +746,9 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
     }
 
+    auto typedArrayType = target->typedArrayType();
+    bool isBigIntArray = typedArrayType == TypedArrayType::BigInt64 || typedArrayType == TypedArrayType::BigUint64;
+
     ArrayBufferObject* targetBuffer = target->buffer();
     targetBuffer->throwTypeErrorIfDetached(state);
     size_t targetLength = target->arrayLength();
@@ -760,11 +767,16 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         size_t k = 0;
         size_t limit = targetByteIndex + targetElementSize * srcLength;
         while (targetByteIndex < limit) {
-            double kNumber = src->get(state, ObjectPropertyName(state, Value(k))).value(state, src).toNumber(state);
+            Value value = src->get(state, ObjectPropertyName(state, Value(k))).value(state, src);
+            if (UNLIKELY(isBigIntArray)) {
+                value = value.toBigInt(state);
+            } else {
+                value = Value(value.toNumber(state));
+            }
             targetBuffer->throwTypeErrorIfDetached(state);
 
-            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, kNumber, true, "Unordered").
-            targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), Value(kNumber));
+            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, value, true, "Unordered").
+            targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), value);
 
             k++;
             targetByteIndex += targetElementSize;
@@ -785,6 +797,13 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
 
     if (srcLength + targetOffset > targetLength) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+    }
+
+    // If one of srcType and targetType contains the substring "Big" and the other does not, throw a TypeError exception.
+    auto srcTypedArrayType = srcTypedArray->typedArrayType();
+    bool isSrcBigIntArray = srcTypedArrayType == TypedArrayType::BigInt64 || srcTypedArrayType == TypedArrayType::BigUint64;
+    if (isBigIntArray != isSrcBigIntArray) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Cannot mix BigIntArray with other Array");
     }
 
     size_t srcByteIndex = srcByteOffset;
@@ -888,7 +907,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
 
     // [defaultSort, &cmpfn, &state, &buffer]
     O->sort(state, len, [&](const Value& x, const Value& y) -> bool {
-        ASSERT(x.isNumber() && y.isNumber());
+        ASSERT((x.isNumber() || x.isBigInt()) && (y.isNumber() || y.isBigInt()));
         if (!defaultSort) {
             Value args[] = { x, y };
             double v = Object::call(state, cmpfn, Value(), 2, args).toNumber(state);
@@ -898,23 +917,27 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
             }
             return (v < 0);
         } else {
-            double xNum = x.asNumber();
-            double yNum = y.asNumber();
+            if (LIKELY(x.isNumber())) {
+                double xNum = x.asNumber();
+                double yNum = y.asNumber();
 
-            // 22.2.3.25.3-10
-            if (std::isnan(xNum)) {
-                return false;
+                // 22.2.3.25.3-10
+                if (std::isnan(xNum)) {
+                    return false;
+                }
+
+                if (std::isnan(yNum)) {
+                    return true;
+                }
+
+                if (xNum == 0.0 && xNum == yNum) {
+                    return std::signbit(xNum);
+                }
+
+                return xNum <= yNum;
+            } else {
+                return x.asBigInt()->lessThanEqual(y.asBigInt());
             }
-
-            if (std::isnan(yNum)) {
-                return true;
-            }
-
-            if (xNum == 0.0 && xNum == yNum) {
-                return std::signbit(xNum);
-            }
-
-            return xNum <= yNum;
         } });
     return O;
 }
@@ -1013,8 +1036,17 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 
     // Let len be O.[[ArrayLength]].
     size_t len = O->arrayLength();
-    // Set value to ? ToNumber(value).
-    double value = argv[0].toNumber(state);
+
+    Value value(Value::ForceUninitialized);
+    // If O.[[TypedArrayName]] is "BigUint64Array" or "BigInt64Array", let value be ? ToBigInt(value).
+    auto typedArrayType = O->asTypedArrayObject()->typedArrayType();
+    if (UNLIKELY(typedArrayType == TypedArrayType::BigInt64 || typedArrayType == TypedArrayType::BigUint64)) {
+        value = argv[0].toBigInt(state);
+    } else {
+        // Otherwise, let value be ? ToNumber(value).
+        // Set value to ? ToNumber(value).
+        value = Value(argv[0].toNumber(state));
+    }
     // Let relativeStart be ? ToInteger(start).
     double relativeStart = 0;
     if (argc > 1) {
@@ -1035,7 +1067,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 
     // Repeat, while k < final
     while (k < fin) {
-        O->setIndexedPropertyThrowsException(state, Value(k), Value(value));
+        O->setIndexedPropertyThrowsException(state, Value(k), value);
         k++;
     }
     // return O.
