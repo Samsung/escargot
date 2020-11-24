@@ -813,6 +813,38 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
     return resultString;
 }
 
+UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, String* str)
+{
+    UNumberFormatter* formatter = (UNumberFormatter*)numberFormat->internalSlot()->extraData();
+
+    UErrorCode status = U_ZERO_ERROR;
+    UTF16StringDataNonGCStd resultString;
+
+    LocalResourcePointer<UFormattedNumber> uresult(unumf_openResult(&status), [](UFormattedNumber* f) { unumf_closeResult(f); });
+
+    auto s = str->toNonGCUTF8StringData();
+
+    unumf_formatDecimal(formatter, s.data(), s.length(), uresult.get(), &status);
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+    }
+
+    resultString.resize(32);
+    auto length = unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
+    resultString.resize(length);
+
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        status = U_ZERO_ERROR;
+        unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
+    }
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+    }
+
+    return resultString;
+}
+
 ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numberFormat, double x)
 {
     UNumberFormatter* formatter = (UNumberFormatter*)numberFormat->internalSlot()->extraData();

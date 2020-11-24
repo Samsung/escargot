@@ -24,9 +24,13 @@
 #include "BigIntObject.h"
 #include "NativeFunctionObject.h"
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#include "IntlNumberFormat.h"
+#endif
+
 namespace Escargot {
 
-Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is not undefined, throw a TypeError exception.
     if (newTarget.hasValue()) {
@@ -49,7 +53,7 @@ Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, size_t ar
     }
 }
 
-Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let bits be ? ToIndex(bits).
     auto bits = argv[0].toIndex(state);
@@ -71,7 +75,7 @@ Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t argc, 
     return new BigInt(state.context()->vmInstance(), r);
 }
 
-Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let bits be ? ToIndex(bits).
     auto bits = argv[0].toIndex(state);
@@ -121,7 +125,7 @@ Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t argc, V
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);     \
     }
 
-Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_BIGINT(S, BigInt, toString);
 
@@ -136,10 +140,37 @@ Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_t argc,
     return S->toString(radix);
 }
 
-Value builtinBigIntValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinBigIntValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_BIGINT(S, BigInt, valueOf);
     return Value(S);
+}
+
+static Value builtinBigIntToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_BIGINT(thisObject, BigInt, toLocaleString);
+
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+    Object* numberFormat = IntlNumberFormat::create(state, state.context(), locales, options);
+    auto result = IntlNumberFormat::format(state, numberFormat, thisObject->toString());
+
+    return new UTF16String(result.data(), result.length());
+#else
+
+    ObjectGetResult toStrFuncGetResult = state.context()->globalObject()->bigIntProxyObject()->get(state, ObjectPropertyName(state.context()->staticStrings().toString));
+    if (toStrFuncGetResult.hasValue()) {
+        Value toStrFunc = toStrFuncGetResult.value(state, thisObject);
+        if (toStrFunc.isCallable()) {
+            // toLocaleString() ignores the first argument, unlike toString()
+            return Object::call(state, toStrFunc, thisObject, 0, argv);
+        }
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().BigInt.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
+    RELEASE_ASSERT_NOT_REACHED();
+    return Value();
+#endif
 }
 
 void GlobalObject::installBigInt(ExecutionState& state)
@@ -170,6 +201,11 @@ void GlobalObject::installBigInt(ExecutionState& state)
     m_bigIntPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().valueOf),
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().valueOf, builtinBigIntValueOf, 0, NativeFunctionInfo::Strict)),
                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_bigIntPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinBigIntToLocaleString, 0, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     m_bigInt->setFunctionPrototype(state, m_bigIntPrototype);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().BigInt),

@@ -31,6 +31,7 @@ public:
     static Object* create(ExecutionState& state, Context* realm, Value locales, Value options);
     static void initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options);
     static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, double x);
+    static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, String* str);
     static ArrayObject* formatToParts(ExecutionState& state, Object* numberFormat, double x);
 };
 
