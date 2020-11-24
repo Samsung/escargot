@@ -51,6 +51,7 @@
 #include "VMInstance.h"
 #include "NativeFunctionObject.h"
 #include "DateObject.h"
+#include "BigInt.h"
 #include "Intl.h"
 #include "IntlCollator.h"
 #include "IntlNumberFormat.h"
@@ -312,8 +313,13 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
 
     Object* numberFormat = callee->asObject();
 
-    double number = argv[0].toNumber(state);
-    auto result = IntlNumberFormat::format(state, numberFormat, number);
+    UTF16StringDataNonGCStd result;
+    auto numeric = argv[0].toNumeric(state);
+    if (numeric.second) {
+        result = IntlNumberFormat::format(state, numberFormat, numeric.first.asBigInt()->toString());
+    } else {
+        result = IntlNumberFormat::format(state, numberFormat, numeric.first.asNumber());
+    }
 
     return new UTF16String(result.data(), result.length());
 }

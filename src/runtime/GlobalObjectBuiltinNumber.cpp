@@ -299,6 +299,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
     RELEASE_ASSERT_NOT_REACHED();
+    return Value();
 #endif
 }
 
@@ -311,6 +312,7 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     RELEASE_ASSERT_NOT_REACHED();
+    return Value();
 }
 
 static Value builtinNumberIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
