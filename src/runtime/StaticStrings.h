@@ -457,7 +457,10 @@ namespace Escargot {
     F(Memory)                     \
     F(Table)                      \
     F(validate)                   \
-    F(instantiate)
+    F(instantiate)                \
+    F(CompileError)               \
+    F(LinkError)                  \
+    F(RuntimeError)
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \

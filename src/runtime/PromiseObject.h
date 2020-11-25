@@ -31,7 +31,7 @@ public:
     struct Capability {
     public:
         Capability()
-            : m_promise()
+            : m_promise(nullptr)
             , m_resolveFunction(nullptr)
             , m_rejectFunction(nullptr)
         {

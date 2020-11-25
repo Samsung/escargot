@@ -59,8 +59,33 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
     return Value(result);
 }
 
+#define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                              \
+    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                                  \
+    {                                                                                                                                                                                                                                                                 \
+        if (!newTarget.hasValue()) {                                                                                                                                                                                                                                  \
+            newTarget = state.resolveCallee();                                                                                                                                                                                                                        \
+        }                                                                                                                                                                                                                                                             \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                               \
+            return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                                            \
+        });                                                                                                                                                                                                                                                           \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                                             \
+        Value message = argv[0];                                                                                                                                                                                                                                      \
+        if (!message.isUndefined()) {                                                                                                                                                                                                                                 \
+            obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,                                                                                                                                                      \
+                                                                ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
+        }                                                                                                                                                                                                                                                             \
+        return obj;                                                                                                                                                                                                                                                   \
+    }
+
+DEFINE_ERROR_CTOR(WASMCompile, wasmCompile)
+DEFINE_ERROR_CTOR(WASMLink, wasmLink)
+DEFINE_ERROR_CTOR(WASMRuntime, wasmRuntime)
+
 void GlobalObject::installWASM(ExecutionState& state)
 {
+    // builtin Error should be installed ahead
+    ASSERT(!!this->error());
+
     m_wasm = new Object(state);
     m_wasm->setGlobalIntrinsicObject(state);
 
@@ -72,6 +97,23 @@ void GlobalObject::installWASM(ExecutionState& state)
     // WebAssembly.validate(bufferSource)
     m_wasm->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->validate),
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->validate, builtinWASMValidate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+// WebAssembly Error Objects
+#define DEFINE_ERROR(errorname, errorName, bname)                                                                                                                                                                                                                                                                                       \
+    m_##errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##errorName##ErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                                \
+    m_##errorname##Error->setPrototype(state, m_error);                                                                                                                                                                                                                                                                                 \
+    m_##errorname##ErrorPrototype = new Object(state, m_errorPrototype);                                                                                                                                                                                                                                                                \
+    m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state, true);                                                                                                                                                                                                                                                               \
+    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                            \
+    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                 \
+    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().bname##Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
+    m_##errorname##Error->setFunctionPrototype(state, m_##errorname##ErrorPrototype);                                                                                                                                                                                                                                                   \
+    m_wasm->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error),                                                                                                                                                                                                                                 \
+                              ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+
+    DEFINE_ERROR(wasmCompile, WASMCompile, Compile);
+    DEFINE_ERROR(wasmLink, WASMLink, Link);
+    DEFINE_ERROR(wasmRuntime, WASMRuntime, Runtime)
 
     defineOwnProperty(state, ObjectPropertyName(strings->WebAssembly),
                       ObjectPropertyDescriptor(m_wasm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
