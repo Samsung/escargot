@@ -113,7 +113,12 @@ public:
         static constexpr const char* GlobalObject_CalledOnIncompatibleReceiver = "%s: called on incompatible receiver";
         static constexpr const char* GlobalObject_IllegalFirstArgument = "%s: illegal first argument";
         static constexpr const char* String_InvalidStringLength = "Invalid string length";
+#if defined(ENABLE_CODE_CACHE)
         static constexpr const char* CodeCache_Loaded_StaticError = "[CodeCache] Default Error Message of ThrowStaticError: %s";
+#endif
+#if defined(ENABLE_WASM)
+        static constexpr const char* WASM_CompileError = "[WASM] Module compile error";
+#endif
     };
 
     enum Code {
@@ -123,7 +128,12 @@ public:
         SyntaxError,
         RangeError,
         URIError,
-        EvalError
+        EvalError,
+#if defined(ENABLE_WASM)
+        WASMCompileError,
+        WASMLinkError,
+        WASMRuntimeError,
+#endif
     };
     static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString)
     {
@@ -216,6 +226,23 @@ class EvalErrorObject : public ErrorObject {
 public:
     EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
+
+#if defined(ENABLE_WASM)
+class WASMCompileErrorObject : public ErrorObject {
+public:
+    WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+};
+
+class WASMLinkErrorObject : public ErrorObject {
+public:
+    WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+};
+
+class WASMRuntimeErrorObject : public ErrorObject {
+public:
+    WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+};
+#endif
 }
 
 #endif

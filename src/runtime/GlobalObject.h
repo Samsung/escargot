@@ -201,8 +201,14 @@ class FunctionObject;
     F(weakSetPrototype, Object, NAME)
 //WebAssembly
 #if defined(ENABLE_WASM)
-#define GLOBALOBJECT_BUILTIN_WASM(F, NAME) \
-    F(wasm, Object, Name)
+#define GLOBALOBJECT_BUILTIN_WASM(F, NAME)     \
+    F(wasm, Object, Name)                      \
+    F(wasmCompileError, FunctionObject, NAME)  \
+    F(wasmCompileErrorPrototype, Object, NAME) \
+    F(wasmLinkError, FunctionObject, NAME)     \
+    F(wasmLinkErrorPrototype, Object, NAME)    \
+    F(wasmRuntimeError, FunctionObject, NAME)  \
+    F(wasmRuntimeErrorPrototype, Object, NAME)
 #else
 #define GLOBALOBJECT_BUILTIN_WASM(F, NAME)
 #endif

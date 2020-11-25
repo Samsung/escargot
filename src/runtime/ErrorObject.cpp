@@ -38,6 +38,14 @@ ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code c
         return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
     case EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
+#if defined(ENABLE_WASM)
+    case WASMCompileError:
+        return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
+    case WASMLinkError:
+        return new WASMLinkErrorObject(state, state.context()->globalObject()->wasmLinkErrorPrototype(), errorMessage);
+    case WASMRuntimeError:
+        return new WASMRuntimeErrorObject(state, state.context()->globalObject()->wasmRuntimeErrorPrototype(), errorMessage);
+#endif
     default:
         return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
     }
@@ -142,4 +150,21 @@ EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* e
     : ErrorObject(state, proto, errorMessage)
 {
 }
+
+#if defined(ENABLE_WASM)
+WASMCompileErrorObject::WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+
+WASMLinkErrorObject::WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+
+WASMRuntimeErrorObject::WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+#endif
 } // namespace Escargot
