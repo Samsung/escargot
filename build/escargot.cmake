@@ -132,7 +132,7 @@ SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} runtime-icu-binder-static)
 # WebAssembly (wabt)
 IF (ESCARGOT_WASM)
     SET (WASM_CXX_FLAGS
-        ${ESCARGOT_GCUTIL_CFLAGS} # we can share arch flags with gcutil
+	    ${ESCARGOT_GCUTIL_CFLAGS} # we can share arch flags with gcutil
         -g3)
     SET (WASM_ARCH ${ESCARGOT_ARCH})
 
