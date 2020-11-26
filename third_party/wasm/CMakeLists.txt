@@ -142,7 +142,7 @@ set(WABT_SRC
 # disable -Wpointer-arith: this is a GCC extension, and doesn't work in MSVC.
 set(WASM_CXX_FLAGS_INTERNAL
     -Wall -Wextra -Wno-unused-parameter -Wpointer-arith
-    -g -Wuninitialized -std=c++11 -Wold-style-cast -fno-exceptions
+    -g -Wuninitialized -std=c++11 -Wold-style-cast -fno-exceptions -fPIC -fdata-sections -ffunction-sections
 )
 
 # Need to define __STDC_*_MACROS because C99 specifies that C++ shouldn't
@@ -172,8 +172,8 @@ add_compile_options(${WASM_CXX_FLAGS_FROM_ENV})
 add_library(wabt STATIC ${WABT_SRC})
 
 # build wasm lib
-add_library(wasm SHARED ${WABT_SRC} wabt/src/interp/interp-wasm-c-api.cc)
-target_link_libraries(wasm wabt ${WASM_CXX_FLAGS})
+add_library(wasm SHARED wabt/src/interp/interp-wasm-c-api.cc)
+target_link_libraries(wasm wabt -Wl,--gc-sections ${WASM_CXX_FLAGS})
 target_include_directories(wasm PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_compile_options(wasm PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-old-style-cast>)
 target_compile_definitions(wasm PRIVATE "WASM_API_EXTERN=__attribute__((visibility(\"default\")))")
