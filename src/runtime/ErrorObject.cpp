@@ -38,14 +38,6 @@ ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code c
         return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
     case EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
-#if defined(ENABLE_WASM)
-    case WASMCompileError:
-        return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
-    case WASMLinkError:
-        return new WASMLinkErrorObject(state, state.context()->globalObject()->wasmLinkErrorPrototype(), errorMessage);
-    case WASMRuntimeError:
-        return new WASMRuntimeErrorObject(state, state.context()->globalObject()->wasmRuntimeErrorPrototype(), errorMessage);
-#endif
     default:
         return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
     }
@@ -100,6 +92,14 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, S
     case EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
         break;
+#if defined(ENABLE_WASM)
+    case WASMCompileError:
+        return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
+    case WASMLinkError:
+        return new WASMLinkErrorObject(state, state.context()->globalObject()->wasmLinkErrorPrototype(), errorMessage);
+    case WASMRuntimeError:
+        return new WASMRuntimeErrorObject(state, state.context()->globalObject()->wasmRuntimeErrorPrototype(), errorMessage);
+#endif
     default:
         return new ErrorObject(state, state.context()->globalObject()->errorPrototype(), errorMessage);
         break;

@@ -48,6 +48,7 @@ public:
         static constexpr const char* NOT_Callable = "Callee is not a function object";
         static constexpr const char* Not_Constructor = "Callee is not a constructor";
         static constexpr const char* Not_Constructor_Function = "%s is not a constructor";
+        static constexpr const char* Not_Invoked_With_New = "must be invoked with \'new\'";
         static constexpr const char* Can_Not_Be_Destructed = "Right side of assignment cannot be destructured";
         static constexpr const char* Constructor_Return_Undefined = "constructor returns undefined";
         static constexpr const char* Get_FromUndefined = "Cannot get property '%s' of undefined";

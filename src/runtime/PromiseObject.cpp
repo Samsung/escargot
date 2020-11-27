@@ -22,7 +22,6 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/JobQueue.h"
-#include "runtime/NativeFunctionObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/JobQueue.h"
 #include "runtime/SandBox.h"
