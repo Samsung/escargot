@@ -1,4 +1,3 @@
-constructor/compile.any.js
 constructor/instantiate-bad-imports.any.js
 constructor/instantiate.any.js
 constructor/multi-value.any.js

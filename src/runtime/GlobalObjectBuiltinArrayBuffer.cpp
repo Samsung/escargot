@@ -116,7 +116,7 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isView, builtinArrayBufferIsView, 1, NativeFunctionInfo::Strict)),
                                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_arrayBufferPrototype = new ArrayBufferObject(state, m_objectPrototype);
+    m_arrayBufferPrototype = new Object(state, m_objectPrototype);
     m_arrayBufferPrototype->setGlobalIntrinsicObject(state, true);
 
     m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
