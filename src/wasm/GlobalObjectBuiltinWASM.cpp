@@ -26,9 +26,49 @@
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
+#include "runtime/PromiseObject.h"
+#include "runtime/Job.h"
+#include "wasm/WASMModuleObject.h"
 #include "wasm.h"
 
 namespace Escargot {
+
+static Value compileWASMModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ASSERT(argc > 0);
+    Value source = argv[0];
+    if (!source.isPointerValue() || (!source.asPointerValue()->isTypedArrayObject() && !source.asPointerValue()->isArrayBufferObject())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
+    }
+
+    ArrayBufferObject* srcBuffer = nullptr;
+    size_t byteLength = 0;
+    if (source.asPointerValue()->isArrayBufferObject()) {
+        srcBuffer = source.asPointerValue()->asArrayBufferObject();
+        byteLength = srcBuffer->byteLength();
+    } else {
+        TypedArrayObject* srcObject = source.asPointerValue()->asTypedArrayObject();
+        srcBuffer = srcObject->buffer();
+        byteLength = srcObject->byteLength();
+    }
+    srcBuffer->throwTypeErrorIfDetached(state);
+
+    wasm_byte_vec_t binary;
+    wasm_byte_vec_new_uninitialized(&binary, byteLength);
+    memcpy(binary.data, srcBuffer->data(), byteLength);
+
+    wasm_module_t* module = wasm_module_new(state.context()->vmInstance()->wasmStore(), &binary);
+    wasm_byte_vec_delete(&binary);
+
+    if (!module) {
+        // throw WebAssembly.CompileError
+        ErrorObject::throwBuiltinError(state, ErrorObject::WASMCompileError, ErrorObject::Messages::WASM_CompileError);
+        return Value();
+    }
+
+    // Construct a WebAssembly module object
+    return new WASMModuleObject(state, module);
+}
 
 // WebAssembly
 static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -58,6 +98,29 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
     wasm_byte_vec_delete(&binary);
 
     return Value(result);
+}
+
+static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+
+    NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), compileWASMModule, 1, NativeFunctionInfo::Strict));
+    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), argv[0]);
+    state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
+
+    return capability.m_promise;
+}
+
+// WebAssembly.Module
+static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // if NewTarget is undefined, throw a TypeError
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), true, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
+    }
+
+    Value arg[] = { argv[0] };
+    return compileWASMModule(state, thisValue, 1, arg, newTarget);
 }
 
 // WebAssemblly.Error
@@ -99,6 +162,23 @@ void GlobalObject::installWASM(ExecutionState& state)
     // WebAssembly.validate(bufferSource)
     wasm->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->validate),
                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->validate, builtinWASMValidate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // WebAssembly.compile(bufferSource)
+    wasm->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->compile),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compile, builtinWASMCompile, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // WebAssembly.Module
+    FunctionObject* wasmModule = new NativeFunctionObject(state, NativeFunctionInfo(strings->Module, builtinWASMModuleConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    wasmModule->setGlobalIntrinsicObject(state);
+
+    m_wasmModulePrototype = new Object(state);
+    m_wasmModulePrototype->setGlobalIntrinsicObject(state, true);
+
+    wasmModule->setFunctionPrototype(state, m_wasmModulePrototype);
+
+    wasm->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->Module),
+                                           ObjectPropertyDescriptor(wasmModule, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
 // WebAssembly.Error
 #define DEFINE_ERROR(errorname, errorName, bname)                                                                                                                                                                                                                                                                                       \
