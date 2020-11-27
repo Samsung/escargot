@@ -33,6 +33,25 @@
 
 namespace Escargot {
 
+static Value copyStableBufferBytes(ExecutionState& state, Value source)
+{
+    Value copyBuffer = source;
+    if (LIKELY(source.isObject())) {
+        // copy only ArrayBuffer or TypedArray
+        Object* srcObject = source.asObject();
+        if (srcObject->isArrayBufferObject()) {
+            ArrayBufferObject* srcBuffer = srcObject->asArrayBufferObject();
+            copyBuffer = ArrayBufferObject::cloneArrayBuffer(state, srcBuffer, 0, srcBuffer->byteLength(), state.context()->globalObject()->arrayBuffer());
+        } else if (srcObject->isTypedArrayObject()) {
+            TypedArrayObject* srcArray = srcObject->asTypedArrayObject();
+            ArrayBufferObject* srcBuffer = srcArray->buffer();
+            copyBuffer = ArrayBufferObject::cloneArrayBuffer(state, srcBuffer, srcArray->byteOffset(), srcArray->arrayLength() * srcArray->elementSize(), state.context()->globalObject()->arrayBuffer());
+        }
+    }
+
+    return copyBuffer;
+}
+
 static Value compileWASMModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ASSERT(argc > 0);
@@ -104,8 +123,10 @@ static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t a
 {
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
 
+    Value source = copyStableBufferBytes(state, argv[0]);
+
     NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), compileWASMModule, 1, NativeFunctionInfo::Strict));
-    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), argv[0]);
+    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), source);
     state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
 
     return capability.m_promise;
@@ -119,7 +140,8 @@ static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), true, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
-    Value arg[] = { argv[0] };
+    Value source = copyStableBufferBytes(state, argv[0]);
+    Value arg[] = { source };
     return compileWASMModule(state, thisValue, 1, arg, newTarget);
 }
 
