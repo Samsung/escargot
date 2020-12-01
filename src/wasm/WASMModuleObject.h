@@ -37,12 +37,16 @@ public:
 
     explicit WASMModuleObject(ExecutionState& state, wasm_module_t* module);
 
+    virtual bool isWASMModuleObject() const
+    {
+        return true;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
     wasm_module_t* module() const { return m_module; }
     ImportExportKind kind() const { return m_kind; }
-
 private:
     wasm_module_t* m_module;
     ImportExportKind m_kind;

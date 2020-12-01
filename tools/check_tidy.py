@@ -35,7 +35,7 @@ TERM_EMPTY = '\033[0m'
 
 
 clang_format_exts = ['.cpp', '.h']
-skip_dirs = ['build', 'CMakeFiles', 'docs', 'out', 'test', 'tools', 'double_conversion', 'GCutil', 'lz4', 'rapidjson', 'windows', '.git', 'libbf', 'wasm']
+skip_dirs = ['build', 'CMakeFiles', 'docs', 'out', 'test', 'tools', 'third_party', '.git']
 skip_files = []
 
 

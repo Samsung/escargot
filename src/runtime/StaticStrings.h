@@ -450,17 +450,23 @@ namespace Escargot {
     F(BigInt)                     \
     F(bigint)                     \
     F(asUintN)                    \
-    F(asIntN)                     \
-    F(WebAssembly)                \
-    F(Global)                     \
-    F(Instance)                   \
-    F(Memory)                     \
-    F(Table)                      \
-    F(validate)                   \
-    F(instantiate)                \
-    F(CompileError)               \
-    F(LinkError)                  \
+    F(asIntN)
+
+#if defined(ENABLE_WASM)
+#define FOR_EACH_STATIC_WASM_STRING(F) \
+    F(WebAssembly)                     \
+    F(Global)                          \
+    F(Instance)                        \
+    F(Memory)                          \
+    F(Table)                           \
+    F(validate)                        \
+    F(instantiate)                     \
+    F(CompileError)                    \
+    F(LinkError)                       \
     F(RuntimeError)
+#else
+#define FOR_EACH_STATIC_WASM_STRING(F)
+#endif
 
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \
@@ -820,6 +826,7 @@ public:
 
 #define DECLARE_STATIC_STRING(name) AtomicString name;
     FOR_EACH_STATIC_STRING(DECLARE_STATIC_STRING);
+    FOR_EACH_STATIC_WASM_STRING(DECLARE_STATIC_STRING);
 #undef DECLARE_STATIC_STRING
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();

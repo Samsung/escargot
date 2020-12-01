@@ -36,7 +36,7 @@ WASMModuleObject::WASMModuleObject(ExecutionState& state, wasm_module_t* module)
         WASMModuleObject* self = (WASMModuleObject*)obj;
         wasm_module_delete(self->module());
     },
-                                    nullptr, nullptr, nullptr);
+                                   nullptr, nullptr, nullptr);
 }
 
 void* WASMModuleObject::operator new(size_t size)

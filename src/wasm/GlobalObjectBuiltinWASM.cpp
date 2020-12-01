@@ -24,6 +24,7 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
 #include "runtime/PromiseObject.h"
@@ -56,21 +57,14 @@ static Value compileWASMModule(ExecutionState& state, Value thisValue, size_t ar
 {
     ASSERT(argc > 0);
     Value source = argv[0];
-    if (!source.isPointerValue() || (!source.asPointerValue()->isTypedArrayObject() && !source.asPointerValue()->isArrayBufferObject())) {
+    // source should be ArrayBufferObject
+    if (!source.isPointerValue() || !source.asPointerValue()->isArrayBufferObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
 
-    ArrayBufferObject* srcBuffer = nullptr;
-    size_t byteLength = 0;
-    if (source.asPointerValue()->isArrayBufferObject()) {
-        srcBuffer = source.asPointerValue()->asArrayBufferObject();
-        byteLength = srcBuffer->byteLength();
-    } else {
-        TypedArrayObject* srcObject = source.asPointerValue()->asTypedArrayObject();
-        srcBuffer = srcObject->buffer();
-        byteLength = srcObject->byteLength();
-    }
-    srcBuffer->throwTypeErrorIfDetached(state);
+    ArrayBufferObject* srcBuffer = source.asPointerValue()->asArrayBufferObject();
+    ASSERT(!srcBuffer->isDetachedBuffer());
+    size_t byteLength = srcBuffer->byteLength();
 
     wasm_byte_vec_t binary;
     wasm_byte_vec_new_uninitialized(&binary, byteLength);
@@ -89,6 +83,22 @@ static Value compileWASMModule(ExecutionState& state, Value thisValue, size_t ar
     return new WASMModuleObject(state, module);
 }
 
+static Value instantiateWASMModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ASSERT(argc > 0);
+    ASSERT(argv[0].isObject() && argv[0].asObject()->isWASMModuleObject());
+    WASMModuleObject* moduleObj = argv[0].asPointerValue()->asWASMModuleObject();
+    wasm_module_t* module = moduleObj->module();
+
+    // TODO
+    wasm_importtype_vec_t import_types;
+    wasm_module_imports(module, &import_types);
+
+    wasm_importtype_vec_delete(&import_types);
+
+    return Value();
+}
+
 // WebAssembly
 static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -97,17 +107,9 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
 
-    ArrayBufferObject* srcBuffer = nullptr;
-    size_t byteLength = 0;
-    if (source.asPointerValue()->isArrayBufferObject()) {
-        srcBuffer = source.asPointerValue()->asArrayBufferObject();
-        byteLength = srcBuffer->byteLength();
-    } else {
-        TypedArrayObject* srcObject = source.asPointerValue()->asTypedArrayObject();
-        srcBuffer = srcObject->buffer();
-        byteLength = srcObject->byteLength();
-    }
-    srcBuffer->throwTypeErrorIfDetached(state);
+    ArrayBufferObject* srcBuffer = copyStableBufferBytes(state, source).asPointerValue()->asArrayBufferObject();
+    ASSERT(!srcBuffer->isDetachedBuffer());
+    size_t byteLength = srcBuffer->byteLength();
 
     wasm_byte_vec_t binary;
     wasm_byte_vec_new_uninitialized(&binary, byteLength);
@@ -121,15 +123,32 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
-
     Value source = copyStableBufferBytes(state, argv[0]);
 
+    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
     NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), compileWASMModule, 1, NativeFunctionInfo::Strict));
     Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), source);
     state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
 
     return capability.m_promise;
+}
+
+static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value source = copyStableBufferBytes(state, argv[0]);
+
+    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    PromiseObject* promiseOfModule = capability.m_promise->asPromiseObject();
+
+    NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), compileWASMModule, 1, NativeFunctionInfo::Strict));
+    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), source);
+    state.context()->vmInstance()->enqueuePromiseJob(promiseOfModule, job);
+
+    Object* importObj = argv[1].isObject() ? argv[1].asObject() : nullptr;
+    auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), instantiateWASMModule, 1, NativeFunctionInfo::Strict));
+    moduleInstantiator->setInternalSlot(0, importObj);
+
+    return promiseOfModule->then(state, moduleInstantiator);
 }
 
 // WebAssembly.Module
@@ -188,6 +207,10 @@ void GlobalObject::installWASM(ExecutionState& state)
     // WebAssembly.compile(bufferSource)
     wasm->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->compile),
                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compile, builtinWASMCompile, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // WebAssembly.instantiate()
+    wasm->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->instantiate),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // WebAssembly.Module
     FunctionObject* wasmModule = new NativeFunctionObject(state, NativeFunctionInfo(strings->Module, builtinWASMModuleConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
