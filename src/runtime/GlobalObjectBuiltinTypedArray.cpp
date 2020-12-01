@@ -274,7 +274,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_NotExistNewInTypedArrayConstructor);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     if (argc == 0) {

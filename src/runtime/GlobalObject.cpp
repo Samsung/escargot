@@ -191,8 +191,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
             Value checkMSG = state.context()->securityPolicyCheckCallback()(state, true);
             if (!checkMSG.isEmpty()) {
                 ASSERT(checkMSG.isString());
-                ErrorObject* err = ErrorObject::createError(state, ErrorObject::Code::EvalError, checkMSG.asString());
-                state.throwException(err);
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::EvalError, checkMSG.asString());
                 return Value();
             }
         }
@@ -222,8 +221,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             Value checkMSG = state.context()->securityPolicyCheckCallback()(state, true);
             if (!checkMSG.isEmpty()) {
                 ASSERT(checkMSG.isString());
-                ErrorObject* err = ErrorObject::createError(state, ErrorObject::Code::EvalError, checkMSG.asString());
-                state.throwException(err);
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::EvalError, checkMSG.asString());
                 return Value();
             }
         }
