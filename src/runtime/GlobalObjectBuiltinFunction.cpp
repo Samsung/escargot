@@ -40,8 +40,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         Value checkMSG = state.context()->securityPolicyCheckCallback()(state, false);
         if (!checkMSG.isEmpty()) {
             ASSERT(checkMSG.isString());
-            ErrorObject* err = ErrorObject::createError(state, ErrorObject::Code::EvalError, checkMSG.asString());
-            state.throwException(err);
+            ErrorObject::throwBuiltinError(state, ErrorObject::Code::EvalError, checkMSG.asString());
             return Value();
         }
     }

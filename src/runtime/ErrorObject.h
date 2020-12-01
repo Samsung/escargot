@@ -105,9 +105,6 @@ public:
         static constexpr const char* GlobalObject_FirstArgumentInvalidLength = "%s: first arugment is an invalid length value";
         static constexpr const char* GlobalObject_InvalidArrayBufferOffset = "%s: ArrayBuffer length minus the byteOffset is not a multiple of the element size";
         static constexpr const char* GlobalObject_InvalidArrayBufferSize = "%s: ArrayBuffer buffer allocation failed";
-        static constexpr const char* GlobalObject_NotExistNewInArrayBufferConstructor = "%s: Constructor ArrayBuffer requires \'new\'";
-        static constexpr const char* GlobalObject_NotExistNewInTypedArrayConstructor = "%s: Constructor TypedArray requires \'new\'";
-        static constexpr const char* GlobalObject_NotExistNewInDataViewConstructor = "%s: Constructor DataView requires \'new\'";
         static constexpr const char* GlobalObject_InvalidArrayLength = "Invalid array length";
         static constexpr const char* GlobalObject_DetachedBuffer = "%s: Detached buffer cannot be used here";
         static constexpr const char* GlobalObject_ConstructorRequiresNew = "Constructor requires 'new'";
@@ -155,6 +152,7 @@ public:
     static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
     static ErrorObject* createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
     static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, Code code, String* errorMessage);
 
     ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 
