@@ -30,6 +30,7 @@ void StaticStrings::initStaticStrings()
 
 #define INIT_STATIC_STRING(name) name.initStaticString(atomicStringMap, new ASCIIStringFromExternalMemory(#name, sizeof(#name) - 1));
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
+    FOR_EACH_STATIC_WASM_STRING(INIT_STATIC_STRING)
 #undef INIT_STATIC_STRING
 
 #define INIT_STATIC_STRING(atomicString, name) atomicString.initStaticString(atomicStringMap, new ASCIIStringFromExternalMemory(name, sizeof(name) - 1))

@@ -69,6 +69,9 @@ class IntlLocaleObject;
 class IntlPluralRulesObject;
 class IntlRelativeTimeFormatObject;
 #endif
+#if defined(ENABLE_WASM)
+class WASMModuleObject;
+#endif
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 1 << 1
@@ -391,6 +394,13 @@ public:
     }
 #endif
 
+#if defined(ENABLE_WASM)
+    virtual bool isWASMModuleObject() const
+    {
+        return false;
+    }
+#endif
+
     virtual bool isCallable() const
     {
         return false;
@@ -665,6 +675,14 @@ public:
     {
         ASSERT(isIntlRelativeTimeFormatObject());
         return (IntlRelativeTimeFormatObject*)this;
+    }
+#endif
+
+#if defined(ENABLE_WASM)
+    WASMModuleObject* asWASMModuleObject()
+    {
+        ASSERT(isWASMModuleObject());
+        return (WASMModuleObject*)this;
     }
 #endif
 
