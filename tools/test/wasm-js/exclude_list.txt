@@ -16,11 +16,9 @@ memory/buffer.any.js
 memory/constructor.any.js
 memory/grow.any.js
 memory/toString.any.js
-module/constructor.any.js
 module/customSections.any.js
 module/exports.any.js
 module/imports.any.js
-module/toString.any.js
 prototypes.any.js
 table/constructor.any.js
 table/get-set.any.js
