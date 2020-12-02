@@ -218,6 +218,8 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     m_wasmModulePrototype = new Object(state);
     m_wasmModulePrototype->setGlobalIntrinsicObject(state, true);
+    m_wasmModulePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                             ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotModule.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     wasmModule->setFunctionPrototype(state, m_wasmModulePrototype);
 

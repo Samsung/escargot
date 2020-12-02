@@ -559,7 +559,8 @@ def run_wasm_js(engine, arch):
                 script = join(WASM_TEST_DIR, script)
             script_files.append(script)
 
-        proc = Popen([engine, WASM_TEST_MJS, WASM_TEST_HARNESS, ''.join(script_files), file], stdout=PIPE)
+        script_files.append(file)
+        proc = Popen([engine, WASM_TEST_MJS, WASM_TEST_HARNESS] + script_files, stdout=PIPE)
         out, _ = proc.communicate()
         
         if not proc.returncode:

@@ -455,10 +455,10 @@ namespace Escargot {
 #if defined(ENABLE_WASM)
 #define FOR_EACH_STATIC_WASM_STRING(F) \
     F(WebAssembly)                     \
-    F(Global)                          \
     F(Instance)                        \
     F(Memory)                          \
     F(Table)                           \
+    F(Global)                          \
     F(validate)                        \
     F(instantiate)                     \
     F(CompileError)                    \
@@ -817,6 +817,14 @@ public:
     AtomicString $PlusSign;
     AtomicString $GraveAccent;
     AtomicString $Apostrophe;
+
+#if defined(ENABLE_WASM)
+    AtomicString WebAssemblyDotModule;
+    AtomicString WebAssemblyDotInstance;
+    AtomicString WebAssemblyDotMemory;
+    AtomicString WebAssemblyDotTable;
+    AtomicString WebAssemblyDotGlobal;
+#endif
 
 #define ESCARGOT_ASCII_TABLE_MAX 256
     AtomicString asciiTable[ESCARGOT_ASCII_TABLE_MAX];

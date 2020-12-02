@@ -122,6 +122,14 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING($PlusSign, "$+");
     INIT_STATIC_STRING($GraveAccent, "$`");
     INIT_STATIC_STRING($Apostrophe, "$'");
+
+#if defined(ENABLE_WASM)
+    INIT_STATIC_STRING(WebAssemblyDotModule, "WebAssembly.Module");
+    INIT_STATIC_STRING(WebAssemblyDotInstance, "WebAssembly.Instance");
+    INIT_STATIC_STRING(WebAssemblyDotMemory, "WebAssembly.Memory");
+    INIT_STATIC_STRING(WebAssemblyDotTable, "WebAssembly.Table");
+    INIT_STATIC_STRING(WebAssemblyDotGlobal, "WebAssembly.Global");
+#endif
 #undef INIT_STATIC_STRING
 
 #define INIT_STATIC_NUMBER(num) numbers[num].initStaticString(atomicStringMap, new ASCIIString(#num, sizeof(#num) - 1));
