@@ -44,8 +44,15 @@ class ArrayBufferObject : public Object {
     friend void careArrayBufferObjectsOnGCEvent(GC_EventType evtType);
 
 public:
+    enum FromExternalMemoryTag {
+        // denote that buffer memory is allocated on external memory area
+        // we do not need to malloc/free the buffer memory
+        FromExternalMemory
+    };
+
     explicit ArrayBufferObject(ExecutionState& state);
     explicit ArrayBufferObject(ExecutionState& state, Object* proto);
+    explicit ArrayBufferObject(ExecutionState& state, FromExternalMemoryTag);
 
     static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
     static ArrayBufferObject* cloneArrayBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor);
@@ -55,6 +62,7 @@ public:
     void allocateBuffer(ExecutionState& state, size_t bytelength);
     void attachBuffer(ExecutionState& state, void* buffer, size_t bytelength);
     void detachArrayBuffer(ExecutionState& state);
+    void detachArrayBufferWithoutFree();
 
     virtual bool isArrayBufferObject() const
     {
@@ -70,10 +78,7 @@ public:
 
     ALWAYS_INLINE bool isDetachedBuffer()
     {
-        if (data() == nullptr) {
-            return true;
-        }
-        return false;
+        return (data() == nullptr);
     }
 
     ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
@@ -96,6 +101,9 @@ private:
     Context* m_context;
     uint8_t* m_data;
     size_t m_bytelength;
+#ifndef NDEBUG
+    bool m_fromExternalMemory;
+#endif
 };
 
 class ArrayBufferView : public Object {
