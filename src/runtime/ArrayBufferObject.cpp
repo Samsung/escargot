@@ -66,6 +66,9 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     , m_context(state.context())
     , m_data(nullptr)
     , m_bytelength(0)
+#ifndef NDEBUG
+    , m_fromExternalMemory(false)
+#endif
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
                                             void*) {
@@ -77,10 +80,22 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
                                    nullptr, nullptr, nullptr);
 }
 
+ArrayBufferObject::ArrayBufferObject(ExecutionState& state, ArrayBufferObject::FromExternalMemoryTag)
+    : Object(state, state.context()->globalObject()->arrayBufferPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+    , m_context(state.context())
+    , m_data(nullptr)
+    , m_bytelength(0)
+#ifndef NDEBUG
+    , m_fromExternalMemory(true)
+#endif
+{
+}
+
 void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
 {
     ASSERT(isDetachedBuffer());
     ASSERT(bytelength < (size_t)ArrayBufferObject::maxArrayBufferSize);
+    ASSERT(!m_fromExternalMemory);
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
     if (bytelength > (GC_get_heap_size() / ratio)) {
@@ -104,6 +119,7 @@ void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t
     // if buffer is null, the ArrayBuffer object still seems deatched
     if (buffer == nullptr) {
         ASSERT(bytelength == 0);
+        ASSERT(!m_fromExternalMemory);
         buffer = m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, 0);
     }
 
@@ -113,10 +129,20 @@ void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t
 
 void ArrayBufferObject::detachArrayBuffer(ExecutionState& state)
 {
+    ASSERT(!m_fromExternalMemory);
     if (m_data) {
         m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
     }
-    m_data = NULL;
+    m_data = nullptr;
+    m_bytelength = 0;
+}
+
+void ArrayBufferObject::detachArrayBufferWithoutFree()
+{
+    // these function is used only for FromExternalMemory case
+    // just detach the buffer without any free operation
+    ASSERT(m_fromExternalMemory);
+    m_data = nullptr;
     m_bytelength = 0;
 }
 
