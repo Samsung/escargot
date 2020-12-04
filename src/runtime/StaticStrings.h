@@ -463,7 +463,10 @@ namespace Escargot {
     F(instantiate)                     \
     F(CompileError)                    \
     F(LinkError)                       \
-    F(RuntimeError)
+    F(RuntimeError)                    \
+    F(initial)                         \
+    F(maximum)                         \
+    F(grow)
 #else
 #define FOR_EACH_STATIC_WASM_STRING(F)
 #endif

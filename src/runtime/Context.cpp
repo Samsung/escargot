@@ -58,6 +58,9 @@ Context::Context(VMInstance* instance)
     , m_loadedModules(new LoadedModuleVector())
     , m_bumpPointerAllocator(instance->m_bumpPointerAllocator)
     , m_regexpCache(instance->m_regexpCache)
+#if defined(ENABLE_WASM)
+    , m_wasmCache(new WASMCacheMap())
+#endif
 
     , m_defaultStructureForObject(instance->m_defaultStructureForObject)
     , m_defaultStructureForFunctionObject(instance->m_defaultStructureForFunctionObject)

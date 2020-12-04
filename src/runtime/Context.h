@@ -25,6 +25,9 @@
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/String.h"
+#if defined(ENABLE_WASM)
+#include "wasm/WASMObject.h"
+#endif
 
 namespace WTF {
 class BumpPointerAllocator;
@@ -138,6 +141,13 @@ public:
     {
         return m_regexpCache;
     }
+
+#if defined(ENABLE_WASM)
+    WASMCacheMap* wasmCache()
+    {
+        return m_wasmCache;
+    }
+#endif
 
     WTF::BumpPointerAllocator* bumpPointerAllocator()
     {
@@ -303,6 +313,9 @@ private:
     LoadedModuleVector* m_loadedModules;
     WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
+#if defined(ENABLE_WASM)
+    WASMCacheMap* m_wasmCache;
+#endif
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;

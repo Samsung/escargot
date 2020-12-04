@@ -19,10 +19,11 @@
 
 #if defined(ENABLE_WASM)
 
-#ifndef __EscargotWASMModuleObject__
-#define __EscargotWASMModuleObject__
+#ifndef __EscargotWASMObject__
+#define __EscargotWASMObject__
 
 struct wasm_module_t;
+struct wasm_memory_t;
 
 namespace Escargot {
 
@@ -51,7 +52,32 @@ private:
     wasm_module_t* m_module;
     ImportExportKind m_kind;
 };
-}
-#endif // __EscargotWASMModuleObject__
 
+class WASMMemoryObject : public Object {
+public:
+    explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer);
+
+    virtual bool isWASMMemoryObject() const
+    {
+        return true;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    wasm_memory_t* memory() const { return m_memory; }
+    ArrayBufferObject* buffer() const { return m_buffer; }
+    void setBuffer(ArrayBufferObject* buffer) { m_buffer = buffer; }
+private:
+    wasm_memory_t* m_memory;
+    ArrayBufferObject* m_buffer;
+};
+
+typedef std::unordered_map<void*, WASMMemoryObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMMemoryObject*>>> WASMMemoryMap;
+
+struct WASMCacheMap : public gc {
+    WASMMemoryMap memoryMap;
+};
+}
+#endif // __EscargotWASMObject__
 #endif // ENABLE_WASM
