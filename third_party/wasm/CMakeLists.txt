@@ -142,13 +142,13 @@ set(WABT_SRC
 # disable -Wpointer-arith: this is a GCC extension, and doesn't work in MSVC.
 set(WASM_CXX_FLAGS_INTERNAL
     -Wall -Wextra -Wno-unused-parameter -Wpointer-arith
-    -g -Wuninitialized -std=c++11 -Wold-style-cast -fno-exceptions -fPIC -fdata-sections -ffunction-sections
+    -Wuninitialized -std=c++11 -Wold-style-cast -fno-exceptions -fPIC -fdata-sections -ffunction-sections
 )
 
 # Need to define __STDC_*_MACROS because C99 specifies that C++ shouldn't
 # define format (e.g. PRIu64) or limit (e.g. UINT32_MAX) macros without the
 # definition, and some libcs (e.g. glibc2.17 and earlier) follow that.
-set(WASM_CXX_FLAGS_INTERNAL ${WASM_CXX_FLAGS_INTERNAL} -D__STDC_LIMIT_MACROS=1 -D__STDC_FORMAT_MACROS=1)
+set(WASM_CXX_FLAGS_INTERNAL ${WASM_CXX_FLAGS_INTERNAL} -D__STDC_LIMIT_MACROS=1 -D__STDC_FORMAT_MACROS=1 -DNDEBUG)
 
 if (COMPILER_IS_GNU)
 # disable -Wclobbered: it seems to be guessing incorrectly about a local

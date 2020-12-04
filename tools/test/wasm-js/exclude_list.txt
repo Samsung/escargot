@@ -12,10 +12,8 @@ instance/exports.any.js
 instance/toString.any.js
 interface.any.js
 limits.any.js
-memory/buffer.any.js
 memory/constructor.any.js
 memory/grow.any.js
-memory/toString.any.js
 module/customSections.any.js
 module/exports.any.js
 module/imports.any.js

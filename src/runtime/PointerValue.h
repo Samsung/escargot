@@ -71,6 +71,7 @@ class IntlRelativeTimeFormatObject;
 #endif
 #if defined(ENABLE_WASM)
 class WASMModuleObject;
+class WASMMemoryObject;
 #endif
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 1
@@ -399,6 +400,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isWASMMemoryObject() const
+    {
+        return false;
+    }
 #endif
 
     virtual bool isCallable() const
@@ -683,6 +689,12 @@ public:
     {
         ASSERT(isWASMModuleObject());
         return (WASMModuleObject*)this;
+    }
+
+    WASMMemoryObject* asWASMMemoryObject()
+    {
+        ASSERT(isWASMMemoryObject());
+        return (WASMMemoryObject*)this;
     }
 #endif
 

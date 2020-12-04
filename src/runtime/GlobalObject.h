@@ -203,6 +203,7 @@ class FunctionObject;
 #if defined(ENABLE_WASM)
 #define GLOBALOBJECT_BUILTIN_WASM(F, NAME)     \
     F(wasmModulePrototype, Object, Name)       \
+    F(wasmMemoryPrototype, Object, Name)       \
     F(wasmCompileErrorPrototype, Object, NAME) \
     F(wasmLinkErrorPrototype, Object, NAME)    \
     F(wasmRuntimeErrorPrototype, Object, NAME)

@@ -22,7 +22,8 @@
 #include "Escargot.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
-#include "wasm/WASMModuleObject.h"
+#include "runtime/ArrayBufferObject.h"
+#include "wasm/WASMObject.h"
 #include "wasm.h"
 
 namespace Escargot {
@@ -32,6 +33,8 @@ WASMModuleObject::WASMModuleObject(ExecutionState& state, wasm_module_t* module)
     , m_module(module)
     , m_kind(ImportExportKind::Function)
 {
+    ASSERT(!!m_module);
+
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         WASMModuleObject* self = (WASMModuleObject*)obj;
         wasm_module_delete(self->module());
@@ -47,6 +50,35 @@ void* WASMModuleObject::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMModuleObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMModuleObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer)
+    : Object(state, state.context()->globalObject()->wasmMemoryPrototype())
+    , m_memory(memory)
+    , m_buffer(buffer)
+{
+    ASSERT(!!m_memory && !!m_buffer);
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        WASMMemoryObject* self = (WASMMemoryObject*)obj;
+        wasm_memory_delete(self->memory());
+        self->buffer()->detachArrayBufferWithoutFree();
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* WASMMemoryObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(WASMMemoryObject)] = { 0 };
+        Object::fillGCDescriptor(obj_bitmap);
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMMemoryObject, m_buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMMemoryObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
