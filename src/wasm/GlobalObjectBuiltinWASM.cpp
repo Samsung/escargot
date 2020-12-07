@@ -172,28 +172,57 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Memory.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
+    // check and get 'initial' property from the first argument
+    Value initValue;
     Value desc = argv[0];
-    if (!desc.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    if (LIKELY(desc.isObject())) {
+        Object* descObj = desc.asObject();
+        auto initDesc = descObj->get(state, state.context()->staticStrings().initial);
+        if (initDesc.hasValue()) {
+            initValue = initDesc.value(state, descObj);
+
+            // handle valueOf property
+            if (initValue.isObject()) {
+                initDesc = initValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+                if (initDesc.hasValue()) {
+                    Value valueOf = initDesc.value(state, initValue);
+                    if (valueOf.isCallable()) {
+                        initValue = Object::call(state, valueOf, initValue, 0, nullptr);
+                    }
+                }
+            }
+        }
     }
 
-    Object* descObj = desc.asObject();
-    auto initDesc = descObj->getOwnProperty(state, state.context()->staticStrings().initial);
-    if (!initDesc.hasValue() || !initDesc.value(state, descObj).isUInt32()) {
+    if (UNLIKELY(!initValue.isUInt32())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
-    uint32_t initial = initDesc.value(state, descObj).asUInt32();
+    uint32_t initial = initValue.asUInt32();
 
     // If descriptor["maximum"] is present, let maximum be descriptor["maximum"]; otherwise, let maximum be empty.
     // but we set "wasm_limits_max_default"(max value of uint32_t) as its default value
     uint32_t maximum = wasm_limits_max_default;
-    auto maxDesc = descObj->getOwnProperty(state, state.context()->staticStrings().maximum);
-    if (maxDesc.hasValue()) {
-        Value maxValue = maxDesc.value(state, descObj);
-        if (!maxValue.isUInt32()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    {
+        auto maxDesc = desc.asObject()->get(state, state.context()->staticStrings().maximum);
+        if (maxDesc.hasValue()) {
+            Value maxValue = maxDesc.value(state, desc);
+
+            // handle valueOf property
+            if (maxValue.isObject()) {
+                maxDesc = maxValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+                if (maxDesc.hasValue()) {
+                    Value valueOf = maxDesc.value(state, maxValue);
+                    if (valueOf.isCallable()) {
+                        maxValue = Object::call(state, valueOf, maxValue, 0, nullptr);
+                    }
+                }
+            }
+
+            if (!maxValue.isUInt32()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            }
+            maximum = maxValue.asUInt32();
         }
-        maximum = maxValue.asUInt32();
     }
 
     if (maximum < initial) {
@@ -216,6 +245,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     // Create a memory buffer from memaddr
     ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
     // FIXME wasm_memory_data with zero size returns null pointer
+    // temporal address is allocated by calloc for this case
     void* dataBlock = initial == 0 ? calloc(0, 0) : wasm_memory_data(memaddr);
     buffer->attachBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
 
@@ -235,10 +265,22 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
-    if (!argv[0].isUInt32()) {
+    Value deltaValue = argv[0];
+    // handle valueOf property
+    if (UNLIKELY(deltaValue.isObject())) {
+        auto deltaDesc = deltaValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+        if (deltaDesc.hasValue()) {
+            Value valueOf = deltaDesc.value(state, deltaValue);
+            if (valueOf.isCallable()) {
+                deltaValue = Object::call(state, valueOf, deltaValue, 0, nullptr);
+            }
+        }
+    }
+    if (UNLIKELY(!deltaValue.isUInt32())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
-    wasm_memory_pages_t delta = argv[0].asUInt32();
+
+    wasm_memory_pages_t delta = deltaValue.asUInt32();
 
     // Let memaddr be this.[[Memory]].
     WASMMemoryObject* memoryObj = thisValue.asObject()->asWASMMemoryObject();
@@ -266,6 +308,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     // Let buffer be a the result of creating a memory buffer from memaddr.
     ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
     // FIXME wasm_memory_data with zero size returns null pointer
+    // temporal address is allocated by calloc for this case
     size_t dataSize = wasm_memory_data_size(memaddr);
     void* dataBlock = dataSize == 0 ? calloc(0, 0) : wasm_memory_data(memaddr);
     buffer->attachBuffer(state, dataBlock, dataSize);
