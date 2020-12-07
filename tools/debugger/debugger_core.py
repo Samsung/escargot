@@ -116,9 +116,10 @@ ESCARGOT_VARIABLE_FALSE = 5
 ESCARGOT_VARIABLE_NUMBER = 6
 ESCARGOT_VARIABLE_STRING = 7
 ESCARGOT_VARIABLE_SYMBOL = 8
-ESCARGOT_VARIABLE_OBJECT = 9
-ESCARGOT_VARIABLE_ARRAY = 10
-ESCARGOT_VARIABLE_FUNCTION = 11
+ESCARGOT_VARIABLE_BIGINT = 9
+ESCARGOT_VARIABLE_OBJECT = 10
+ESCARGOT_VARIABLE_ARRAY = 11
+ESCARGOT_VARIABLE_FUNCTION = 12
 ESCARGOT_VARIABLE_LONG_NAME = 0x40
 ESCARGOT_VARIABLE_LONG_VALUE = 0x80
 
@@ -514,6 +515,9 @@ class Debugger(object):
                     variable_has_value = True
                 elif variable_type == ESCARGOT_VARIABLE_SYMBOL:
                     value_str = "symbol: "
+                    variable_has_value = True
+                elif variable_type == ESCARGOT_VARIABLE_BIGINT:
+                    value_str = "bigint: "
                     variable_has_value = True
                 elif variable_type == ESCARGOT_VARIABLE_OBJECT:
                     value_str = "object"
