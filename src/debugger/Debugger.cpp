@@ -406,11 +406,14 @@ static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString
 
         String* valueString = value.toString(*state);
         valueView = new StringView(valueString);
-    } else if (value.isString() || value.isSymbol()) {
+    } else if (value.isString() || value.isSymbol() || value.isBigInt()) {
         String* valueString;
         if (value.isString()) {
             type = Debugger::ESCARGOT_VARIABLE_STRING;
             valueString = value.asString();
+        } else if (value.isBigInt()) {
+            type = Debugger::ESCARGOT_VARIABLE_BIGINT;
+            valueString = value.asBigInt()->toString();
         } else {
             type = Debugger::ESCARGOT_VARIABLE_SYMBOL;
             Symbol* symbol = value.asSymbol();

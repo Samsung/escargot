@@ -28,6 +28,7 @@
   let h = {};
   let i = [];
   let j = function() {};
+  let l = 900719925474099123n; // Number.MAX_SAFE_INTEGER x 100 + 23
 
   j();
 
