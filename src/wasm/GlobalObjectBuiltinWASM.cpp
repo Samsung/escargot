@@ -329,6 +329,268 @@ static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValu
     return thisValue.asObject()->asWASMMemoryObject()->buffer();
 }
 
+// WebAssembly.Table
+static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // if NewTarget is undefined, throw a TypeError
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Table.string(), ErrorObject::Messages::Not_Invoked_With_New);
+    }
+
+    Value desc = argv[0];
+    // check 'element' property from the first argument
+    {
+        Value elemValue;
+        if (LIKELY(desc.isObject())) {
+            Object* descObj = desc.asObject();
+            auto elemDesc = descObj->get(state, state.context()->staticStrings().element);
+            if (elemDesc.hasValue()) {
+                elemValue = elemDesc.value(state, descObj);
+
+                // handle toString property
+                if (UNLIKELY(elemValue.isObject())) {
+                    elemDesc = elemValue.asObject()->get(state, state.context()->staticStrings().toString);
+                    if (elemDesc.hasValue()) {
+                        Value toString = elemDesc.value(state, elemValue);
+                        if (toString.isCallable()) {
+                            elemValue = Object::call(state, toString, elemValue, 0, nullptr);
+                        }
+                    }
+                }
+            }
+        }
+        // element property should be 'anyfunc'
+        if (UNLIKELY(!elemValue.isString() || !elemValue.asString()->equals(state.context()->staticStrings().anyfunc.string()))) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        }
+    }
+
+    // check and get 'initial' property from the first argument
+    ASSERT(desc.isObject());
+    Value initValue;
+    {
+        auto initDesc = desc.asObject()->get(state, state.context()->staticStrings().initial);
+        if (initDesc.hasValue()) {
+            initValue = initDesc.value(state, desc);
+
+            // handle valueOf property
+            if (UNLIKELY(initValue.isObject())) {
+                initDesc = initValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+                if (initDesc.hasValue()) {
+                    Value valueOf = initDesc.value(state, initValue);
+                    if (valueOf.isCallable()) {
+                        initValue = Object::call(state, valueOf, initValue, 0, nullptr);
+                    }
+                }
+            }
+        }
+    }
+    if (UNLIKELY(!initValue.isUInt32())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+    uint32_t initial = initValue.asUInt32();
+
+    // If descriptor["maximum"] is present, let maximum be descriptor["maximum"]; otherwise, let maximum be empty.
+    // but we set "wasm_limits_max_default"(max value of uint32_t) as its default value
+    uint32_t maximum = wasm_limits_max_default;
+    {
+        auto maxDesc = desc.asObject()->get(state, state.context()->staticStrings().maximum);
+        if (maxDesc.hasValue()) {
+            Value maxValue = maxDesc.value(state, desc);
+
+            // handle valueOf property
+            if (UNLIKELY(maxValue.isObject())) {
+                maxDesc = maxValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+                if (maxDesc.hasValue()) {
+                    Value valueOf = maxDesc.value(state, maxValue);
+                    if (valueOf.isCallable()) {
+                        maxValue = Object::call(state, valueOf, maxValue, 0, nullptr);
+                    }
+                }
+            }
+
+            if (!maxValue.isUInt32()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            }
+            maximum = maxValue.asUInt32();
+        }
+    }
+
+    if (maximum < initial) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Table.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
+
+    // Let type be the table type {min n, max maximum} anyfunc.
+    wasm_limits_t limits = { initial, maximum };
+    // wasm_valtype_t is deleted inside wasm_tabletype_t constructor
+    wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
+
+    // Let (store, tableaddr) be table_alloc(store, type).
+    wasm_table_t* tableaddr = wasm_table_new(state.context()->vmInstance()->wasmStore(), tabletype, nullptr);
+    wasm_tabletype_delete(tabletype);
+
+    // Let map be the surrounding agent's associated Table object cache.
+    // Assert: map[tableaddr] doesn’t exist.
+    WASMTableMap& map = state.context()->wasmCache()->tableMap;
+    ASSERT(map.find(tableaddr) == map.end());
+
+    // FIXME Let values be a list whose length is table_size(store, tableaddr) where each element is null.
+    ValueVector* values = new ValueVector();
+    values->resize(wasm_table_size(tableaddr), Value(Value::Null));
+
+    // Set table.[[Table]] to tableaddr.
+    // Set table.[[Values]] to values.
+    WASMTableObject* tableObj = new WASMTableObject(state, tableaddr, values);
+
+    // Set map[tableaddr] to table.
+    map.insert(std::make_pair(tableaddr, tableObj));
+
+    return tableObj;
+}
+
+static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    Value deltaValue = argv[0];
+    // handle valueOf property
+    if (UNLIKELY(deltaValue.isObject())) {
+        auto deltaDesc = deltaValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+        if (deltaDesc.hasValue()) {
+            Value valueOf = deltaDesc.value(state, deltaValue);
+            if (valueOf.isCallable()) {
+                deltaValue = Object::call(state, valueOf, deltaValue, 0, nullptr);
+            }
+        }
+    }
+    if (UNLIKELY(!deltaValue.isUInt32())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    wasm_table_size_t delta = deltaValue.asUInt32();
+
+    // Let tableaddr be this.[[Table]].
+    // Let initialSize be the length of this.[[Values]].
+    WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
+    wasm_table_t* tableaddr = tableObj->table();
+    ValueVector* values = tableObj->values();
+    size_t initialSize = tableObj->length();
+
+    // Let result be table_grow(store, tableaddr, delta).
+    bool result = wasm_table_grow(tableaddr, delta, nullptr);
+    // If result is error, throw a RangeError exception.
+    if (!result) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
+
+    // Append null to this.[[Values]] delta times.
+    for (uint32_t i = 0; i < delta; i++) {
+        values->push_back(Value(Value::Null));
+    }
+    ASSERT((size_t)wasm_table_size(tableaddr) == values->size());
+
+    // Return initialSize,
+    return Value(initialSize);
+}
+
+static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
+
+    Value indexValue = argv[0];
+    // handle valueOf property
+    if (UNLIKELY(indexValue.isObject())) {
+        auto deltaDesc = indexValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+        if (deltaDesc.hasValue()) {
+            Value valueOf = deltaDesc.value(state, indexValue);
+            if (valueOf.isCallable()) {
+                indexValue = Object::call(state, valueOf, indexValue, 0, nullptr);
+            }
+        }
+    }
+    if (UNLIKELY(!indexValue.isUInt32())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // If index ≥ size, throw a RangeError exception.
+    uint32_t index = indexValue.asUInt32();
+    if ((size_t)index >= tableObj->length()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
+
+    // Return values[index].
+    return tableObj->getElement(index);
+}
+
+static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
+
+    Value indexValue = argv[0];
+    // handle valueOf property
+    if (UNLIKELY(indexValue.isObject())) {
+        auto deltaDesc = indexValue.asObject()->get(state, state.context()->staticStrings().valueOf);
+        if (deltaDesc.hasValue()) {
+            Value valueOf = deltaDesc.value(state, indexValue);
+            if (valueOf.isCallable()) {
+                indexValue = Object::call(state, valueOf, indexValue, 0, nullptr);
+            }
+        }
+    }
+    if (UNLIKELY(!indexValue.isUInt32())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    uint32_t index = indexValue.asUInt32();
+    Value value = argv[1];
+
+    // Let tableaddr be this.[[Table]].
+    // Let values be this.[[Values]].
+    wasm_table_t* tableaddr = tableObj->table();
+    ValueVector* values = tableObj->values();
+
+    // If value is null, let funcaddr be an empty function element.
+    wasm_ref_t* funcaddr = nullptr;
+    if (!value.isNull()) {
+        // TODO
+        RELEASE_ASSERT_NOT_REACHED();
+        // If value does not have a [[FunctionAddress]] internal slot, throw a TypeError exception.
+        // Let funcaddr be value.[[FunctionAddress]].
+    }
+
+    // Let store be table_write(store, tableaddr, index, funcaddr).
+    bool result = wasm_table_set(tableaddr, index, funcaddr);
+    // If store is error, throw a RangeError exception.
+    if (!result) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().set.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
+
+    // Set values[index] to value.
+    tableObj->setElement(index, value);
+
+    // Return undefined.
+    return Value();
+}
+
+static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    return Value(thisValue.asObject()->asWASMTableObject()->length());
+}
+
 // WebAssemblly.Error
 #define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                              \
     static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                                  \
@@ -417,6 +679,37 @@ void GlobalObject::installWASM(ExecutionState& state)
     wasmMemory->setFunctionPrototype(state, m_wasmMemoryPrototype);
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->Memory),
                             ObjectPropertyDescriptor(wasmMemory, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
+    // WebAssembly.Table
+    FunctionObject* wasmTable = new NativeFunctionObject(state, NativeFunctionInfo(strings->Table, builtinWASMTableConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    wasmTable->setGlobalIntrinsicObject(state);
+
+    m_wasmTablePrototype = new Object(state);
+    m_wasmTablePrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                            ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotTable.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->grow),
+                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinWASMTableGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->get),
+                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinWASMTableGet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->set),
+                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->set, builtinWASMTableSet, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    {
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->length, builtinWASMTableLengthGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor lengthDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+        m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->length), lengthDesc);
+    }
+
+    wasmTable->setFunctionPrototype(state, m_wasmTablePrototype);
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Table),
+                            ObjectPropertyDescriptor(wasmTable, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
 // WebAssembly.Error

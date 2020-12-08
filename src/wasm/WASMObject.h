@@ -24,6 +24,8 @@
 
 struct wasm_module_t;
 struct wasm_memory_t;
+struct wasm_table_t;
+struct wasm_ref_t;
 
 namespace Escargot {
 
@@ -73,10 +75,45 @@ private:
     ArrayBufferObject* m_buffer;
 };
 
+class WASMTableObject : public Object {
+public:
+    explicit WASMTableObject(ExecutionState& state, wasm_table_t* table, ValueVector* values);
+
+    virtual bool isWASMTableObject() const
+    {
+        return true;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    wasm_table_t* table() const
+    {
+        ASSERT(!!m_table);
+        return m_table;
+    }
+
+    ValueVector* values() const
+    {
+        ASSERT(!!m_values);
+        return m_values;
+    }
+
+    Value getElement(size_t index) const;
+    void setElement(size_t index, const Value& value);
+    size_t length() const;
+
+private:
+    wasm_table_t* m_table;
+    ValueVector* m_values;
+};
+
 typedef std::unordered_map<void*, WASMMemoryObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMMemoryObject*>>> WASMMemoryMap;
+typedef std::unordered_map<void*, WASMTableObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMTableObject*>>> WASMTableMap;
 
 struct WASMCacheMap : public gc {
     WASMMemoryMap memoryMap;
+    WASMTableMap tableMap;
 };
 }
 #endif // __EscargotWASMObject__
