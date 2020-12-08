@@ -17,8 +17,4 @@ module/customSections.any.js
 module/exports.any.js
 module/imports.any.js
 prototypes.any.js
-table/constructor.any.js
 table/get-set.any.js
-table/grow.any.js
-table/length.any.js
-table/toString.any.js
