@@ -58,7 +58,7 @@ static std::pair<bool, Value> getValueFromObjectProperty(ExecutionState& state, 
             Value result = desc.value(state, obj);
 
             // handle inner property
-            if (result.isObject()) {
+            if (result.isObject() && innerProperty.string()->length()) {
                 desc = result.asObject()->get(state, innerProperty);
                 if (desc.hasValue()) {
                     Value method = desc.value(state, result);
@@ -73,6 +73,94 @@ static std::pair<bool, Value> getValueFromObjectProperty(ExecutionState& state, 
     }
 
     return std::make_pair(false, Value());
+}
+
+#define WASM_I32_VAL(i)                     \
+    {                                       \
+        .kind = WASM_I32, .of = {.i32 = i } \
+    }
+#define WASM_I64_VAL(i)                     \
+    {                                       \
+        .kind = WASM_I64, .of = {.i64 = i } \
+    }
+#define WASM_F32_VAL(z)                     \
+    {                                       \
+        .kind = WASM_F32, .of = {.f32 = z } \
+    }
+#define WASM_F64_VAL(z)                     \
+    {                                       \
+        .kind = WASM_F64, .of = {.f64 = z } \
+    }
+#define WASM_REF_VAL(r)                        \
+    {                                          \
+        .kind = WASM_ANYREF, .of = {.ref = r } \
+    }
+#define WASM_INIT_VAL                             \
+    {                                             \
+        .kind = WASM_ANYREF, .of = {.ref = NULL } \
+    }
+
+static wasm_val_t defaultValue(wasm_valkind_t type)
+{
+    wasm_val_t result;
+    switch (type) {
+    case WASM_I32: {
+        result = WASM_I32_VAL(0);
+        break;
+    }
+    case WASM_I64: {
+        result = WASM_I64_VAL(0);
+        break;
+    }
+    case WASM_F32: {
+        result = WASM_F32_VAL(0);
+        break;
+    }
+    case WASM_F64: {
+        result = WASM_F64_VAL(0);
+        break;
+    }
+    default: {
+        ASSERT_NOT_REACHED();
+        break;
+    }
+    }
+
+    return result;
+}
+
+static wasm_val_t toWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
+{
+    wasm_val_t result;
+    switch (type) {
+    case WASM_I32: {
+        int32_t val = value.toInt32(state);
+        result = WASM_I32_VAL(val);
+        break;
+    }
+    case WASM_F32: {
+        // FIXME Let f32 be ? ToNumber(v) rounded to the nearest representable value using IEEE 754-2019 round to nearest, ties to even mode.
+        float32_t val = value.toNumber(state);
+        result = WASM_F32_VAL(val);
+        break;
+    }
+    case WASM_F64: {
+        float64_t val = value.toNumber(state);
+        result = WASM_F64_VAL(val);
+        break;
+    }
+    case WASM_I64: {
+        int64_t val = value.toBigInt(state)->toInt64();
+        result = WASM_I64_VAL(val);
+        break;
+    }
+    default: {
+        ASSERT_NOT_REACHED();
+        break;
+    }
+    }
+
+    return result;
 }
 
 static Value copyStableBufferBytes(ExecutionState& state, Value source)
@@ -530,6 +618,133 @@ static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue
     return Value(thisValue.asObject()->asWASMTableObject()->length());
 }
 
+// WebAssembly.Global
+static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    // if NewTarget is undefined, throw a TypeError
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::Not_Invoked_With_New);
+    }
+
+    Value desc = argv[0];
+
+    // check and get 'mutable' property from the first argument
+    // set default value as const
+    wasm_mutability_t mut = WASM_CONST;
+    {
+        auto mutValue = getValueFromObjectProperty(state, desc, strings->stringMutable, AtomicString()).second;
+        mut = mutValue.toBoolean(state) ? WASM_VAR : WASM_CONST;
+    }
+
+    // check and get 'value' property from the first argument
+    wasm_valkind_t valuetype;
+    {
+        // Let valuetype be ToValueType(descriptor["value"]).
+        Value valTypeValue = getValueFromObjectProperty(state, desc, strings->value, strings->toString).second;
+        if (!valTypeValue.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        }
+        if (valTypeValue.asString()->equals(strings->i32.string())) {
+            valuetype = WASM_I32;
+        } else if (valTypeValue.asString()->equals(strings->i64.string())) {
+            valuetype = WASM_I64;
+        } else if (valTypeValue.asString()->equals(strings->f32.string())) {
+            valuetype = WASM_F32;
+        } else if (valTypeValue.asString()->equals(strings->f64.string())) {
+            valuetype = WASM_F64;
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        }
+    }
+
+    Value valueArg = argc > 1 ? argv[1] : Value();
+    wasm_val_t value;
+    if (valueArg.isUndefined()) {
+        // let value be DefaultValue(valuetype).
+        value = defaultValue(valuetype);
+    } else {
+        // Let value be ToWebAssemblyValue(v, valuetype).
+        value = toWebAssemblyValue(state, valueArg, valuetype);
+    }
+
+    // If mutable is true, let globaltype be var valuetype; otherwise, let globaltype be const valuetype.
+    wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(valuetype), mut);
+
+    // Let (store, globaladdr) be global_alloc(store, globaltype, value).
+    wasm_global_t* globaladdr = wasm_global_new(state.context()->vmInstance()->wasmStore(), globaltype, &value);
+    wasm_globaltype_delete(globaltype);
+
+    // Let map be the surrounding agent's associated Global object cache.
+    // Assert: map[globaladdr] doesn't exist.
+    WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
+    ASSERT(map.find(globaladdr) == map.end());
+
+    // Set global.[[Global]] to globaladdr.
+    WASMGlobalObject* globalObj = new WASMGlobalObject(state, globaladdr);
+
+    // Set map[globaladdr] to global.
+    map.insert(std::make_pair(globaladdr, globalObj));
+
+    return globalObj;
+}
+
+static Value builtinWASMGlobalValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().valueOf.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    Value value = thisValue.asObject()->asWASMGlobalObject()->getGlobalValue(state);
+    return value;
+}
+
+static Value builtinWASMGlobalValueGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    Value value = thisValue.asObject()->asWASMGlobalObject()->getGlobalValue(state);
+    return value;
+}
+
+static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    if (argc == 0) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // Let globaladdr be this.[[Global]].
+    wasm_global_t* globaladdr = thisValue.asObject()->asWASMGlobalObject()->global();
+
+    // Let mut valuetype be global_type(store, globaladdr).
+    wasm_globaltype_t* globaltype = wasm_global_type(globaladdr);
+    wasm_mutability_t mut = wasm_globaltype_mutability(globaltype);
+    wasm_valkind_t valuetype = wasm_valtype_kind(wasm_globaltype_content(globaltype));
+
+    // If mut is const, throw a TypeError.
+    if (mut == WASM_CONST) {
+        wasm_globaltype_delete(globaltype);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::WASM_SetToGlobalConstValue);
+    }
+    wasm_globaltype_delete(globaltype);
+
+    // Let value be ToWebAssemblyValue(the given value, valuetype).
+    wasm_val_t value = toWebAssemblyValue(state, argv[0], valuetype);
+
+    // Let store be global_write(store, globaladdr, value).
+    // TODO If store is error, throw a RangeError exception.
+    wasm_global_set(globaladdr, &value);
+
+    return Value();
+}
+
 // WebAssemblly.Error
 #define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                              \
     static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                                  \
@@ -649,6 +864,32 @@ void GlobalObject::installWASM(ExecutionState& state)
     wasmTable->setFunctionPrototype(state, m_wasmTablePrototype);
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->Table),
                             ObjectPropertyDescriptor(wasmTable, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
+    // WebAssembly.Global
+    FunctionObject* wasmGlobal = new NativeFunctionObject(state, NativeFunctionInfo(strings->Global, builtinWASMGlobalConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    wasmGlobal->setGlobalIntrinsicObject(state);
+
+    m_wasmGlobalPrototype = new Object(state);
+    m_wasmGlobalPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                             ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotGlobal.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->valueOf),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinWASMGlobalValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    {
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->value, builtinWASMGlobalValueGetter, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->value, builtinWASMGlobalValueSetter, 1, NativeFunctionInfo::Strict)));
+        ObjectPropertyDescriptor valueDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+        m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->value), valueDesc);
+    }
+
+    wasmGlobal->setFunctionPrototype(state, m_wasmGlobalPrototype);
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Global),
+                            ObjectPropertyDescriptor(wasmGlobal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
 // WebAssembly.Error

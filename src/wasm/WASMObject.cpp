@@ -22,6 +22,7 @@
 #include "Escargot.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
+#include "runtime/BigInt.h"
 #include "runtime/ArrayBufferObject.h"
 #include "wasm/WASMObject.h"
 #include "wasm.h"
@@ -133,6 +134,69 @@ size_t WASMTableObject::length() const
 {
     ASSERT(!!m_table && !!m_values);
     return m_values->size();
+}
+
+WASMGlobalObject::WASMGlobalObject(ExecutionState& state, wasm_global_t* global)
+    : Object(state, state.context()->globalObject()->wasmGlobalPrototype())
+    , m_global(global)
+{
+    ASSERT(!!m_global);
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        WASMGlobalObject* self = (WASMGlobalObject*)obj;
+        wasm_global_delete(self->global());
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* WASMGlobalObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(WASMGlobalObject)] = { 0 };
+        Object::fillGCDescriptor(obj_bitmap);
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMGlobalObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
+{
+    // Let globaladdr be global.[[Global]].
+    wasm_global_t* globaladdr = global();
+
+    // Let value be global_read(store, globaladdr).
+    wasm_val_t value;
+    wasm_global_get(globaladdr, &value);
+
+    // Return ToJSValue(value).
+    Value result;
+    switch (value.kind) {
+    case WASM_I32: {
+        result = Value(value.of.i32);
+        break;
+    }
+    case WASM_F32: {
+        result = Value((double)value.of.f32);
+        break;
+    }
+    case WASM_F64: {
+        result = Value(value.of.f64);
+        break;
+    }
+    case WASM_I64: {
+        result = new BigInt(state.context()->vmInstance(), value.of.i64);
+        break;
+    }
+    default: {
+        ASSERT_NOT_REACHED();
+        break;
+    }
+    }
+
+    return result;
 }
 }
 

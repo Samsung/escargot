@@ -205,6 +205,7 @@ class FunctionObject;
     F(wasmModulePrototype, Object, Name)       \
     F(wasmMemoryPrototype, Object, Name)       \
     F(wasmTablePrototype, Object, Name)        \
+    F(wasmGlobalPrototype, Object, Name)       \
     F(wasmCompileErrorPrototype, Object, NAME) \
     F(wasmLinkErrorPrototype, Object, NAME)    \
     F(wasmRuntimeErrorPrototype, Object, NAME)

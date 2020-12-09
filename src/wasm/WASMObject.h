@@ -25,6 +25,7 @@
 struct wasm_module_t;
 struct wasm_memory_t;
 struct wasm_table_t;
+struct wasm_global_t;
 struct wasm_ref_t;
 
 namespace Escargot {
@@ -108,12 +109,38 @@ private:
     ValueVector* m_values;
 };
 
+class WASMGlobalObject : public Object {
+public:
+    explicit WASMGlobalObject(ExecutionState& state, wasm_global_t* global);
+
+    virtual bool isWASMGlobalObject() const
+    {
+        return true;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    wasm_global_t* global() const
+    {
+        ASSERT(!!m_global);
+        return m_global;
+    }
+
+    Value getGlobalValue(ExecutionState& state) const;
+
+private:
+    wasm_global_t* m_global;
+};
+
 typedef std::unordered_map<void*, WASMMemoryObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMMemoryObject*>>> WASMMemoryMap;
 typedef std::unordered_map<void*, WASMTableObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMTableObject*>>> WASMTableMap;
+typedef std::unordered_map<void*, WASMGlobalObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMGlobalObject*>>> WASMGlobalMap;
 
 struct WASMCacheMap : public gc {
     WASMMemoryMap memoryMap;
     WASMTableMap tableMap;
+    WASMGlobalMap globalMap;
 };
 }
 #endif // __EscargotWASMObject__

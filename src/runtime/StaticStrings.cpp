@@ -47,6 +47,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(stringDefault, "default");
     INIT_STATIC_STRING(stringStarDefaultStar, "*default*");
     INIT_STATIC_STRING(stringStarNamespaceStar, "*namespace*");
+    INIT_STATIC_STRING(stringMutable, "mutable");
     INIT_STATIC_STRING(stringThis, "this");
 
     INIT_STATIC_STRING(stringIf, "if");
