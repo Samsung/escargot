@@ -468,7 +468,11 @@ namespace Escargot {
     F(maximum)                         \
     F(element)                         \
     F(grow)                            \
-    F(anyfunc)
+    F(anyfunc)                         \
+    F(i32)                             \
+    F(i64)                             \
+    F(f32)                             \
+    F(f64)
 #else
 #define FOR_EACH_STATIC_WASM_STRING(F)
 #endif
@@ -746,6 +750,7 @@ public:
     AtomicString stringDefault;
     AtomicString stringStarDefaultStar;
     AtomicString stringStarNamespaceStar;
+    AtomicString stringMutable;
     AtomicString stringThis;
 
     // this js keywords are used in esprima

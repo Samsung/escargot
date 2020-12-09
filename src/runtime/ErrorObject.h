@@ -116,6 +116,7 @@ public:
 #endif
 #if defined(ENABLE_WASM)
         static constexpr const char* WASM_CompileError = "[WASM] Module compile error";
+        static constexpr const char* WASM_SetToGlobalConstValue = "%s: [WASM] Set to Global const value";
 #endif
     };
 
