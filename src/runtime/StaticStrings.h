@@ -469,6 +469,13 @@ namespace Escargot {
     F(element)                         \
     F(grow)                            \
     F(anyfunc)                         \
+    F(exports)                         \
+    F(imports)                         \
+    F(kind)                            \
+    F(module)                          \
+    F(table)                           \
+    F(memory)                          \
+    F(customSections)                  \
     F(i32)                             \
     F(i64)                             \
     F(f32)                             \

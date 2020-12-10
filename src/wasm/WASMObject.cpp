@@ -85,6 +85,18 @@ void* WASMMemoryObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+ArrayBufferObject* WASMMemoryObject::buffer() const
+{
+    ASSERT(!!m_buffer && !m_buffer->isDetachedBuffer());
+    return m_buffer;
+}
+
+void WASMMemoryObject::setBuffer(ArrayBufferObject* buffer)
+{
+    ASSERT(!!buffer && !buffer->isDetachedBuffer());
+    m_buffer = buffer;
+}
+
 WASMTableObject::WASMTableObject(ExecutionState& state, wasm_table_t* table, ValueVector* values)
     : Object(state, state.context()->globalObject()->wasmTablePrototype())
     , m_table(table)

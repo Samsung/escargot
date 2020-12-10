@@ -24,6 +24,10 @@
 
 #include "wasm.h"
 
+// represent ownership of each object
+// object marked with 'own' should be deleted in the current context
+#define own
+
 namespace Escargot {
 
 static Value wasmGetValueFromMaybeObject(ExecutionState& state, const Value& obj, const AtomicString& property)
@@ -152,6 +156,31 @@ static wasm_val_t wasmToWebAssemblyValue(ExecutionState& state, const Value& val
     }
     }
 
+    return result;
+}
+
+static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkind_t kind)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    String* result = nullptr;
+    switch (kind) {
+    case WASM_EXTERN_FUNC:
+        result = strings->function.string();
+        break;
+    case WASM_EXTERN_TABLE:
+        result = strings->table.string();
+        break;
+    case WASM_EXTERN_MEMORY:
+        result = strings->memory.string();
+        break;
+    case WASM_EXTERN_GLOBAL:
+        result = strings->global.string();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
     return result;
 }
 

@@ -49,8 +49,17 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    wasm_module_t* module() const { return m_module; }
-    ImportExportKind kind() const { return m_kind; }
+    wasm_module_t* module() const
+    {
+        ASSERT(!!m_module);
+        return m_module;
+    }
+
+    ImportExportKind kind() const
+    {
+        return m_kind;
+    }
+
 private:
     wasm_module_t* m_module;
     ImportExportKind m_kind;
@@ -68,9 +77,15 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    wasm_memory_t* memory() const { return m_memory; }
-    ArrayBufferObject* buffer() const { return m_buffer; }
-    void setBuffer(ArrayBufferObject* buffer) { m_buffer = buffer; }
+    wasm_memory_t* memory() const
+    {
+        ASSERT(!!m_memory);
+        return m_memory;
+    }
+
+    ArrayBufferObject* buffer() const;
+    void setBuffer(ArrayBufferObject* buffer);
+
 private:
     wasm_memory_t* m_memory;
     ArrayBufferObject* m_buffer;

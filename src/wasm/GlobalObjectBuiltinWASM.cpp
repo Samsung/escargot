@@ -25,6 +25,7 @@
 #include "runtime/VMInstance.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
+#include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
 #include "runtime/PromiseObject.h"
@@ -97,6 +98,125 @@ static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue
     Value source = wasmCopyStableBufferBytes(state, argv[0]);
     Value arg[] = { source };
     return wasmCompileModule(state, thisValue, 1, arg, newTarget);
+}
+
+static Value builtinWASMModuleCustomSections(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    if (argc < 2) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    Value moduleValue = argv[0];
+    if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // Let module be moduleObject.[[Module]].
+    wasm_module_t* module = moduleValue.asObject()->asWASMModuleObject()->module();
+
+    // TODO wasm-c-api do not support custom sections
+    // Let bytes be moduleObject.[[Bytes]].
+    // Let customSections be << >>
+    // For each custom section customSection of bytes, interpreted according to the module grammar,
+    // Let name be the name of customSection, decoded as UTF-8.
+    // Assert: name is not failure (moduleObject.[[Module]] is valid).
+    // If name equals sectionName as string values,
+    // Append a new ArrayBuffer containing a copy of the bytes in bytes for the range matched by this customsec production to customSections.
+    // Return customSections.
+
+    return Value();
+}
+
+static Value builtinWASMModuleExports(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    Value moduleValue = argv[0];
+    if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->exports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // Let module be moduleObject.[[Module]].
+    wasm_module_t* module = moduleValue.asObject()->asWASMModuleObject()->module();
+
+    own wasm_exporttype_vec_t export_types;
+    wasm_module_exports(module, &export_types);
+
+    // Let exports be << >>.
+    // set default array length as export_types.size
+    ArrayObject* exports = new ArrayObject(state, (uint64_t)export_types.size);
+
+    for (size_t i = 0; i < export_types.size; i++) {
+        // For each (name, type) of module_exports(module),
+        const wasm_name_t* name = wasm_exporttype_name(export_types.data[i]);
+        wasm_externkind_t type = wasm_externtype_kind(wasm_exporttype_type(export_types.data[i]));
+
+        String* nameValue = String::fromASCII(name->data, name->size);
+        // Let kind be the string value of the extern type type.
+        String* kindValue = wasmStringValueOfExternType(state, type);
+
+        // Let obj be ?[ "name" ? name, "kind" ? kind ]?.
+        Object* obj = new Object(state);
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->name), ObjectPropertyDescriptor(nameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->kind), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+        // Append obj to exports.
+        exports->setIndexedProperty(state, Value(i), Value(obj));
+    }
+
+    wasm_exporttype_vec_delete(&export_types);
+    // Return exports.
+    return exports;
+}
+
+static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    Value moduleValue = argv[0];
+    if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->imports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // Let module be moduleObject.[[Module]].
+    wasm_module_t* module = moduleValue.asObject()->asWASMModuleObject()->module();
+
+    /* TODO wabt should be updated
+    own wasm_importtype_vec_t import_types;
+    wasm_module_imports(module, &import_types);
+
+    // Let imports be << >>
+    // set default array length as import_types.size
+    ArrayObject* imports = new ArrayObject(state, (uint64_t)import_types.size);
+
+    for (size_t i = 0; i < import_types.size; i++) {
+        // For each (moduleName, name, type) of module_imports(module),
+        const wasm_name_t* moduleName = wasm_importtype_module(import_types.data[i]);
+        const wasm_name_t* name = wasm_importtype_name(import_types.data[i]);
+        wasm_externkind_t type = wasm_externtype_kind(wasm_importtype_type(import_types.data[i]));
+
+        String* moduleNameValue = String::fromASCII(moduleName->data, moduleName->size);
+        String* nameValue = String::fromASCII(name->data, name->size);
+        // Let kind be the string value of the extern type type.
+        String* kindValue = wasmStringValueOfExternType(state, type);
+
+        // Let obj be ?[ "module" ? moduleName, "name" ? name, "kind" ? kind ]?.
+        Object* obj = new Object(state);
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->module), ObjectPropertyDescriptor(moduleNameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->name), ObjectPropertyDescriptor(nameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->kind), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+        // Append obj to imports.
+        imports->setIndexedProperty(state, Value(i), Value(obj));
+    }
+
+    wasm_importtype_vec_delete(&import_types);
+    //Return imports.
+    return imports;
+    */
+    return Value();
 }
 
 // WebAssembly.Memory
@@ -600,6 +720,15 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     m_wasmModulePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                              ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotModule.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+
+    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->customSections),
+                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->customSections, builtinWASMModuleCustomSections, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->exports),
+                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->exports, builtinWASMModuleExports, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->imports),
+                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->imports, builtinWASMModuleImports, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     wasmModule->setFunctionPrototype(state, m_wasmModulePrototype);
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->Module),
