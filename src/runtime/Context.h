@@ -25,9 +25,6 @@
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/String.h"
-#if defined(ENABLE_WASM)
-#include "wasm/WASMObject.h"
-#endif
 
 namespace WTF {
 class BumpPointerAllocator;
@@ -44,6 +41,10 @@ class ByteCodeBlock;
 class ToStringRecursionPreventer;
 class FunctionTemplate;
 class Debugger;
+
+#if defined(ENABLE_WASM)
+struct WASMCacheMap;
+#endif
 
 struct IdentifierRecord {
     AtomicString m_name;

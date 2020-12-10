@@ -31,6 +31,9 @@
 #include "SandBox.h"
 #include "ArrayObject.h"
 #include "debugger/Debugger.h"
+#if defined(ENABLE_WASM)
+#include "wasm/WASMObject.h"
+#endif
 
 namespace Escargot {
 
