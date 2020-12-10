@@ -255,6 +255,7 @@ public:
             , octal(false)
             , hasAllocatedString(false)
             , hasNonComputedNumberLiteral(false)
+            , hasNumberSeparatorOnNumberLiteral(false)
             , prec(0)
             , lineNumber(0)
             , lineStart(0)
@@ -272,6 +273,7 @@ public:
         bool octal : 1;
         bool hasAllocatedString : 1;
         bool hasNonComputedNumberLiteral : 1;
+        bool hasNumberSeparatorOnNumberLiteral : 1;
         unsigned char prec : 8; // max prec is 11
         // we don't needs init prec.
         // prec is initialized by another function before use
@@ -381,13 +383,14 @@ public:
             ASSERT(this->valueStringLiteralData.m_start <= this->valueStringLiteralData.m_end);
         }
 
-        void setNumericLiteralResult(double value, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasNonComputedNumberLiteral)
+        void setNumericLiteralResult(double value, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasNonComputedNumberLiteral, bool hasNumberSeparatorOnNumberLiteral)
         {
             this->type = Token::NumericLiteralToken;
             this->startWithZero = false;
             this->octal = false;
             this->hasAllocatedString = false;
             this->hasNonComputedNumberLiteral = hasNonComputedNumberLiteral;
+            this->hasNumberSeparatorOnNumberLiteral = hasNumberSeparatorOnNumberLiteral;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;

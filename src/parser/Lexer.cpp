@@ -265,6 +265,15 @@ static ALWAYS_INLINE bool isDecimalDigit(char16_t ch)
     return (ch >= '0' && ch <= '9');
 }
 
+static ALWAYS_INLINE bool isDecimalDigitOrUnderscore(char16_t ch, bool& seenUnderScore)
+{
+    if (UNLIKELY(ch == '_')) {
+        seenUnderScore = true;
+        return true;
+    }
+    return (ch >= '0' && ch <= '9');
+}
+
 static ALWAYS_INLINE bool isHexDigit(char16_t ch)
 {
     return isDecimalDigit(ch) || ((ch | 0x20) >= 'a' && (ch | 0x20) <= 'f');
@@ -502,13 +511,28 @@ std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scann
         char* buffer;
         int length = this->end - this->start;
 
-        if (bd.has8BitContent) {
-            buffer = ((char*)bd.buffer) + this->start;
-        } else {
+        if (UNLIKELY(this->hasNumberSeparatorOnNumberLiteral)) {
             buffer = ALLOCA(this->end - this->start, char, ec);
-
+            int underScoreCount = 0;
             for (int i = 0; i < length; i++) {
-                buffer[i] = bd.uncheckedCharAtFor16Bit(i + this->start);
+                auto c = bd.charAt(i + this->start);
+                if (c == '_') {
+                    underScoreCount++;
+                } else {
+                    buffer[i - underScoreCount] = c;
+                }
+            }
+            length -= underScoreCount;
+            ASSERT(underScoreCount != 0);
+        } else {
+            if (bd.has8BitContent) {
+                buffer = ((char*)bd.buffer) + this->start;
+            } else {
+                buffer = ALLOCA(this->end - this->start, char, ec);
+
+                for (int i = 0; i < length; i++) {
+                    buffer[i] = bd.uncheckedCharAtFor16Bit(i + this->start);
+                }
             }
         }
 
@@ -1163,10 +1187,10 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
 
     if (shouldUseDouble) {
         ASSERT(number == 0);
-        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, isBigInt);
+        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, isBigInt, false);
     } else {
         ASSERT(numberDouble == 0.0);
-        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt);
+        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, false);
     }
 }
 
@@ -1202,7 +1226,7 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
         this->throwUnexpectedToken();
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt);
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, false);
 }
 
 void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start)
@@ -1232,7 +1256,7 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
         throwUnexpectedToken();
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false);
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false, false);
     token->octal = octal;
 }
 
@@ -1262,6 +1286,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     // 'Numeric literal must start with a decimal digit or a decimal point');
 
     bool seenDotOrE = false;
+    bool seenUnderscore = false;
 
     if (ch != '.') {
         auto number = this->peekChar();
@@ -1291,7 +1316,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
             }
         }
 
-        while (isDecimalDigit(this->peekChar())) {
+        while (isDecimalDigitOrUnderscore(this->peekChar(), seenUnderscore)) {
             ++this->index;
         }
         ch = this->peekChar();
@@ -1300,7 +1325,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
     if (ch == '.') {
         seenDotOrE = true;
         ++this->index;
-        while (isDecimalDigit(this->peekChar())) {
+        while (isDecimalDigitOrUnderscore(this->peekChar(), seenUnderscore)) {
             ++this->index;
         }
         ch = this->peekChar();
@@ -1320,7 +1345,7 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
             do {
                 ++this->index;
                 ch = this->peekChar();
-            } while (isDecimalDigit(ch));
+            } while (isDecimalDigitOrUnderscore(ch, seenUnderscore));
         } else {
             this->throwUnexpectedToken();
         }
@@ -1340,7 +1365,29 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
         this->throwUnexpectedToken();
     }
 
-    token->setNumericLiteralResult(0, this->lineNumber, this->lineStart, start, this->index, true);
+    if (UNLIKELY(seenUnderscore)) {
+        if (this->sourceCharAt(start) == '0') {
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separator can not be used after leading 0"), ErrorObject::SyntaxError);
+        }
+
+        for (size_t i = start; i < this->index - 1; i++) {
+            char16_t ch = this->sourceCharAt(i);
+            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+            }
+            if (UNLIKELY(ch == '_' && (this->sourceCharAt(i + 1) == 'e' || this->sourceCharAt(i + 1) == 'E'))) {
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separator may not appear adjacent to ExponentPart"), ErrorObject::SyntaxError);
+            }
+            if (UNLIKELY(ch == '.' && this->sourceCharAt(i + 1) == '_')) {
+                this->throwUnexpectedToken();
+            }
+        }
+        if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+        }
+    }
+
+    token->setNumericLiteralResult(0, this->lineNumber, this->lineStart, start, this->index, true, seenUnderscore);
     if (UNLIKELY(startChar == '0' && !seenDotOrE && (this->index - start) > (isBigInt ? 2 : 1))) {
         token->startWithZero = true;
     }
