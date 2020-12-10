@@ -10,7 +10,6 @@ interface.any.js
 limits.any.js
 memory/grow.any.js
 module/customSections.any.js
-module/exports.any.js
 module/imports.any.js
 prototypes.any.js
 table/get-set.any.js
