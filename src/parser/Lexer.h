@@ -684,6 +684,7 @@ private:
     void scanPunctuator(Scanner::ScannerResult* token, char16_t ch0);
 
     // ECMA-262 11.8.3 Numeric Literals
+    void testNumericSeparator(size_t start, bool isBigInt, bool isHex, bool isBinary, bool isOctal);
     void scanHexLiteral(Scanner::ScannerResult* token, size_t start);
     void scanBinaryLiteral(Scanner::ScannerResult* token, size_t start);
     void scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start, bool allowUnderscore);

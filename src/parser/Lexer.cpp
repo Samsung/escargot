@@ -289,15 +289,6 @@ static ALWAYS_INLINE bool isOctalDigit(char16_t ch)
     return (ch >= '0' && ch <= '7');
 }
 
-static ALWAYS_INLINE bool isOctalDigitOrUnderscore(char16_t ch, bool& seenUnderScore)
-{
-    if (UNLIKELY(ch == '_')) {
-        seenUnderScore = true;
-        return true;
-    }
-    return (ch >= '0' && ch <= '7');
-}
-
 static ALWAYS_INLINE char16_t octalValue(char16_t ch)
 {
     ASSERT(isOctalDigit(ch));
@@ -1156,6 +1147,28 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
     token->setPunctuatorResult(this->lineNumber, this->lineStart, start, this->index, kind);
 }
 
+void Scanner::testNumericSeparator(size_t start, bool isBigInt, bool isHex, bool isBinary, bool isOctal)
+{
+    for (size_t i = start; i < this->index - 1; i++) {
+        char16_t ch = this->sourceCharAt(i);
+        if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+        }
+        if (UNLIKELY(isHex && (ch == 'x' || ch == 'X') && this->sourceCharAt(i + 1) == '_')) {
+            this->throwUnexpectedToken();
+        }
+        if (UNLIKELY(isBinary && (ch == 'b' || ch == 'B') && this->sourceCharAt(i + 1) == '_')) {
+            this->throwUnexpectedToken();
+        }
+        if (UNLIKELY(isOctal && (ch == 'o' || ch == 'O') && this->sourceCharAt(i + 1) == '_')) {
+            this->throwUnexpectedToken();
+        }
+    }
+    if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
+        ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+    }
+}
+
 void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
 {
     ASSERT(token != nullptr);
@@ -1205,18 +1218,7 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
     }
 
     if (UNLIKELY(seenUnderscore)) {
-        for (size_t i = start; i < this->index - 1; i++) {
-            char16_t ch = this->sourceCharAt(i);
-            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
-                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
-            }
-            if (UNLIKELY((ch == 'x' || ch == 'X') && this->sourceCharAt(i + 1) == '_')) {
-                this->throwUnexpectedToken();
-            }
-        }
-        if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
-            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
-        }
+        testNumericSeparator(start, isBigInt, true, false, false);
     }
 
     if (shouldUseDouble) {
@@ -1266,18 +1268,7 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
     }
 
     if (UNLIKELY(seenUnderscore)) {
-        for (size_t i = start; i < this->index - 1; i++) {
-            char16_t ch = this->sourceCharAt(i);
-            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
-                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
-            }
-            if (UNLIKELY((ch == 'b' || ch == 'B') && this->sourceCharAt(i + 1) == '_')) {
-                this->throwUnexpectedToken();
-            }
-        }
-        if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
-            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
-        }
+        testNumericSeparator(start, isBigInt, false, true, false);
     }
 
     token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
@@ -1328,19 +1319,7 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
     }
 
     if (UNLIKELY(seenUnderscore)) {
-        for (size_t i = start; i < this->index - 1; i++) {
-            char16_t ch = this->sourceCharAt(i);
-            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
-                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
-            }
-            if (UNLIKELY((ch == 'o' || ch == 'O') && this->sourceCharAt(i + 1) == '_')) {
-                this->throwUnexpectedToken();
-            }
-        }
-        size_t end = isBigInt ? this->index - 2 : this->index - 1;
-        if (this->sourceCharAt(end) == '_') {
-            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
-        }
+        testNumericSeparator(start, isBigInt, false, false, true);
     }
 
     token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
