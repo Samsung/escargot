@@ -279,8 +279,22 @@ static ALWAYS_INLINE bool isHexDigit(char16_t ch)
     return isDecimalDigit(ch) || ((ch | 0x20) >= 'a' && (ch | 0x20) <= 'f');
 }
 
+static ALWAYS_INLINE bool isHexDigitOrUnderscore(char16_t ch, bool& seenUnderScore)
+{
+    return isDecimalDigitOrUnderscore(ch, seenUnderScore) || ((ch | 0x20) >= 'a' && (ch | 0x20) <= 'f');
+}
+
 static ALWAYS_INLINE bool isOctalDigit(char16_t ch)
 {
+    return (ch >= '0' && ch <= '7');
+}
+
+static ALWAYS_INLINE bool isOctalDigitOrUnderscore(char16_t ch, bool& seenUnderScore)
+{
+    if (UNLIKELY(ch == '_')) {
+        seenUnderScore = true;
+        return true;
+    }
     return (ch >= '0' && ch <= '7');
 }
 
@@ -1149,12 +1163,17 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
     double numberDouble = 0.0;
     bool shouldUseDouble = false;
     bool scanned = false;
+    bool seenUnderscore = false;
 
     size_t shiftCount = 0;
     while (!this->eof()) {
         char16_t ch = this->peekCharWithoutEOF();
-        if (!isHexDigit(ch)) {
+        if (!isHexDigitOrUnderscore(ch, seenUnderscore)) {
             break;
+        }
+        if (UNLIKELY(ch == '_')) {
+            this->index++;
+            continue;
         }
         if (shouldUseDouble) {
             numberDouble = numberDouble * 16 + toHexNumericValue(ch);
@@ -1185,12 +1204,27 @@ void Scanner::scanHexLiteral(Scanner::ScannerResult* token, size_t start)
         this->throwUnexpectedToken();
     }
 
+    if (UNLIKELY(seenUnderscore)) {
+        for (size_t i = start; i < this->index - 1; i++) {
+            char16_t ch = this->sourceCharAt(i);
+            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+            }
+            if (UNLIKELY((ch == 'x' || ch == 'X') && this->sourceCharAt(i + 1) == '_')) {
+                this->throwUnexpectedToken();
+            }
+        }
+        if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+        }
+    }
+
     if (shouldUseDouble) {
         ASSERT(number == 0);
-        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, isBigInt, false);
+        token->setNumericLiteralResult(numberDouble, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
     } else {
         ASSERT(numberDouble == 0.0);
-        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, false);
+        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
     }
 }
 
@@ -1199,15 +1233,20 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
     ASSERT(token != nullptr);
     uint64_t number = 0;
     bool scanned = false;
+    bool seenUnderscore = false;
 
     while (!this->eof()) {
         char16_t ch = this->peekCharWithoutEOF();
-        if (ch != '0' && ch != '1') {
+        if (ch == '0' || ch == '1') {
+            number = (number << 1) + ch - '0';
+            this->index++;
+            scanned = true;
+        } else if (ch == '_') {
+            this->index++;
+            seenUnderscore = true;
+        } else {
             break;
         }
-        number = (number << 1) + ch - '0';
-        this->index++;
-        scanned = true;
     }
 
     if (!scanned) {
@@ -1226,21 +1265,46 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
         this->throwUnexpectedToken();
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, false);
+    if (UNLIKELY(seenUnderscore)) {
+        for (size_t i = start; i < this->index - 1; i++) {
+            char16_t ch = this->sourceCharAt(i);
+            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+            }
+            if (UNLIKELY((ch == 'b' || ch == 'B') && this->sourceCharAt(i + 1) == '_')) {
+                this->throwUnexpectedToken();
+            }
+        }
+        if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+        }
+    }
+
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
 }
 
-void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start)
+void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start, bool isLegacyOctal)
 {
     ASSERT(token != nullptr);
     uint64_t number = 0;
     bool scanned = false;
     bool octal = isOctalDigit(prefix);
+    bool seenUnderscore = false;
 
     while (!this->eof()) {
         char16_t ch = this->peekCharWithoutEOF();
+        if (!isLegacyOctal) {
+            if (UNLIKELY(ch == '_')) {
+                this->index++;
+                seenUnderscore = true;
+                continue;
+            }
+        }
+
         if (!isOctalDigit(ch)) {
             break;
         }
+
         number = (number << 3) + ch - '0';
         this->index++;
         scanned = true;
@@ -1251,12 +1315,35 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
         throwUnexpectedToken();
     }
 
+    bool isEof = this->eof();
+    bool isBigInt = !isEof && !isLegacyOctal && this->peekChar() == 'n';
+
+    if (UNLIKELY(isBigInt)) {
+        ++this->index;
+    }
+
     char16_t ch = this->peekChar();
     if (isIdentifierStart(ch) || isDecimalDigit(ch)) {
         throwUnexpectedToken();
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, false, false);
+    if (UNLIKELY(seenUnderscore)) {
+        for (size_t i = start; i < this->index - 1; i++) {
+            char16_t ch = this->sourceCharAt(i);
+            if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+            }
+            if (UNLIKELY((ch == 'o' || ch == 'O') && this->sourceCharAt(i + 1) == '_')) {
+                this->throwUnexpectedToken();
+            }
+        }
+        size_t end = isBigInt ? this->index - 2 : this->index - 1;
+        if (this->sourceCharAt(end) == '_') {
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+        }
+    }
+
+    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
     token->octal = octal;
 }
 
@@ -1308,11 +1395,11 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
             }
             if (ch == 'o' || ch == 'O') {
                 ++this->index;
-                return this->scanOctalLiteral(token, ch, start);
+                return this->scanOctalLiteral(token, ch, start, false);
             }
 
             if (ch && isOctalDigit(ch) && this->isImplicitOctalLiteral()) {
-                return this->scanOctalLiteral(token, ch, start);
+                return this->scanOctalLiteral(token, ch, start, true);
             }
         }
 
