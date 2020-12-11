@@ -686,7 +686,7 @@ private:
     // ECMA-262 11.8.3 Numeric Literals
     void scanHexLiteral(Scanner::ScannerResult* token, size_t start);
     void scanBinaryLiteral(Scanner::ScannerResult* token, size_t start);
-    void scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start);
+    void scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start, bool allowUnderscore);
 
     bool isImplicitOctalLiteral();
     void scanNumericLiteral(Scanner::ScannerResult* token);
