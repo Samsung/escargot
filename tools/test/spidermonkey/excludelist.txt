@@ -474,6 +474,7 @@ non262/Proxy/proxy-for-in.js
 non262/Proxy/regress-bug1062349.js
 non262/Proxy/report-writable-as-non-writable.js
 non262/Proxy/revoke-no-name.js
+non262/Proxy/proxy-with-revoked-arguments.js
 non262/Reflect/argumentsList.js
 non262/Reflect/construct.js
 non262/Reflect/defineProperty.js
