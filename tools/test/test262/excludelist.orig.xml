@@ -466,7 +466,6 @@
     <test id="built-ins/Object/seal/throws-when-false"><reason>TODO</reason></test>
     <test id="built-ins/Promise/any/invoke-resolve-get-error-close"><reason>TODO</reason></test>
     <test id="built-ins/Promise/any/resolve-not-callable-close"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/prototype/finally/resolved-observable-then-calls-argument"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/create-handler-is-revoked-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/create-target-is-revoked-function-proxy"><reason>TODO</reason></test>
     <test id="built-ins/Proxy/create-target-is-revoked-proxy"><reason>TODO</reason></test>
