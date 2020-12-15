@@ -184,4 +184,28 @@ Object* IteratorObject::createIterResultObject(ExecutionState& state, const Valu
 
     return obj;
 }
+
+ValueVectorWithInlineStorage IteratorObject::iterableToList(ExecutionState& state, const Value& items, Optional<Value> method)
+{
+    IteratorRecord* iteratorRecord;
+    if (method.hasValue()) {
+        iteratorRecord = IteratorObject::getIterator(state, items, true, method.value());
+    } else {
+        iteratorRecord = IteratorObject::getIterator(state, items, true);
+    }
+    ValueVectorWithInlineStorage values;
+    Optional<Object*> next;
+
+    while (true) {
+        next = IteratorObject::iteratorStep(state, iteratorRecord);
+        if (next.hasValue()) {
+            Value nextValue = IteratorObject::iteratorValue(state, next.value());
+            values.pushBack(nextValue);
+        } else {
+            break;
+        }
+    }
+
+    return values;
+}
 }

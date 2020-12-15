@@ -38,6 +38,8 @@ ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code c
         return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
     case EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
+    case AggregateError:
+        return new AggregateErrorObject(state, state.context()->globalObject()->aggregateErrorPrototype(), errorMessage);
 #if defined(ENABLE_WASM)
     case WASMCompileError:
         return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
@@ -100,6 +102,9 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, S
     case EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
         break;
+    case AggregateError:
+        return new AggregateErrorObject(state, state.context()->globalObject()->aggregateErrorPrototype(), errorMessage);
+        break;
 #if defined(ENABLE_WASM)
     case WASMCompileError:
         return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
@@ -160,6 +165,11 @@ URIErrorObject::URIErrorObject(ExecutionState& state, Object* proto, String* err
 }
 
 EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
+    : ErrorObject(state, proto, errorMessage)
+{
+}
+
+AggregateErrorObject::AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
     : ErrorObject(state, proto, errorMessage)
 {
 }

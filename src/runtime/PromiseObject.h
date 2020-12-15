@@ -91,6 +91,7 @@ public:
         AlreadyCalled = 0,
         Index = 1,
         Values = 2,
+        Errors = 2,
         Resolve = 3, // TODO merge to Capability
         Reject = 4, // TODO merge to Capability
         RemainingElements = 5,
@@ -147,6 +148,8 @@ public:
     static Value promiseAllSettledResolveElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     // https://tc39.es/ecma262/#sec-promise.allsettled-resolve-element-functions
     static Value promiseAllSettledRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+    // https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
+    static Value promiseAnyRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
 private:
     PromiseState m_state;

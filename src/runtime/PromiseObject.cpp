@@ -538,4 +538,45 @@ Value PromiseObject::promiseAllSettledRejectElementFunction(ExecutionState& stat
     // Return undefined.
     return Value();
 }
+
+// https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
+Value PromiseObject::promiseAnyRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let F be the active function object.
+    ExtendedNativeFunctionObject* F = state.resolveCallee()->asExtendedNativeFunctionObject();
+    // If F.[[AlreadyCalled]] is true, return undefined.
+    bool* alreadyCalled = F->internalSlotAsPointer<bool>(BuiltinFunctionSlot::AlreadyCalled);
+    // If alreadyCalled.[[Value]] is true, return undefined.
+    if (*alreadyCalled) {
+        return Value();
+    }
+    // Set F.[[AlreadyCalled]] to true.
+    *alreadyCalled = true;
+    // Let index be F.[[Index]].
+    uint32_t index = Value(F->internalSlot(BuiltinFunctionSlot::Index)).asUInt32();
+    // Let errors be F.[[Errors]].
+    ValueVector* errors = F->internalSlotAsPointer<ValueVector>(BuiltinFunctionSlot::Values);
+    // Let promiseCapability be F.[[Capability]].
+    // Let remainingElementsCount be F.[[RemainingElements]].
+    size_t* remainingElementsCount = F->internalSlotAsPointer<size_t>(BuiltinFunctionSlot::RemainingElements);
+    // Set errors[index] to x.
+    errors->at(index) = argv[0];
+    // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+    *remainingElementsCount = *remainingElementsCount - 1;
+
+    // If remainingElementsCount.[[Value]] is 0, then
+    if (*remainingElementsCount == 0) {
+        // Let error be a newly created AggregateError object.
+        ErrorObject* error = ErrorObject::createBuiltinError(state, ErrorObject::AggregateError, "Got AggregateError on processing Promise.any");
+        // Perform ! DefinePropertyOrThrow(error, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errors) }).
+        error->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
+                                                ObjectPropertyDescriptor(Object::createArrayFromList(state, *errors),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+        // Return ? Call(promiseCapability.[[Reject]], undefined, « error »).
+        Value argv = error;
+        return Object::call(state, F->internalSlot(BuiltinFunctionSlot::Reject), Value(), 1, &argv);
+    }
+    // Return undefined.
+    return Value();
+}
 }

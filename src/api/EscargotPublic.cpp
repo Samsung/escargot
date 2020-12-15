@@ -1642,6 +1642,16 @@ ObjectRef* GlobalObjectRef::evalErrorPrototype()
     return toRef(toImpl(this)->evalErrorPrototype());
 }
 
+FunctionObjectRef* GlobalObjectRef::aggregateError()
+{
+    return toRef(toImpl(this)->aggregateError());
+}
+
+ObjectRef* GlobalObjectRef::aggregateErrorPrototype()
+{
+    return toRef(toImpl(this)->aggregateErrorPrototype());
+}
+
 FunctionObjectRef* GlobalObjectRef::string()
 {
     return toRef(toImpl(this)->string());
@@ -2496,6 +2506,11 @@ URIErrorObjectRef* URIErrorObjectRef::create(ExecutionStateRef* state, StringRef
 EvalErrorObjectRef* EvalErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
     return toRef((EvalErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::EvalError, toImpl(errorMessage)));
+}
+
+AggregateErrorObjectRef* AggregateErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
+{
+    return toRef((AggregateErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::AggregateError, toImpl(errorMessage)));
 }
 
 DateObjectRef* DateObjectRef::create(ExecutionStateRef* state)

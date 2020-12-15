@@ -128,6 +128,7 @@ public:
         RangeError,
         URIError,
         EvalError,
+        AggregateError,
 #if defined(ENABLE_WASM)
         WASMCompileError,
         WASMLinkError,
@@ -225,6 +226,11 @@ public:
 class EvalErrorObject : public ErrorObject {
 public:
     EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+};
+
+class AggregateErrorObject : public ErrorObject {
+public:
+    AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 
 #if defined(ENABLE_WASM)
