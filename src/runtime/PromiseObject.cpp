@@ -412,7 +412,7 @@ Value PromiseObject::promiseThenFinally(ExecutionState& state, Value thisValue, 
     Value promise = PromiseObject::promiseResolve(state, C.asObject(), result);
 
     // Let valueThunk be equivalent to a function that returns value.
-    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), ValueThunkHelper, 1, NativeFunctionInfo::Strict));
+    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), ValueThunkHelper, 0, NativeFunctionInfo::Strict));
     valueThunk->setInternalSlot(BuiltinFunctionSlot::ValueOrReason, argv[0]);
 
     // Return ? Invoke(promise, "then", « valueThunk »).
@@ -446,7 +446,7 @@ Value PromiseObject::promiseCatchFinally(ExecutionState& state, Value thisValue,
     Value promise = PromiseObject::promiseResolve(state, C.asObject(), result);
 
     // Let thrower be equivalent to a function that throws reason.
-    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), ValueThunkThrower, 1, NativeFunctionInfo::Strict));
+    ExtendedNativeFunctionObject* valueThunk = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), ValueThunkThrower, 0, NativeFunctionInfo::Strict));
     valueThunk->setInternalSlot(BuiltinFunctionSlot::ValueOrReason, argv[0]);
 
     // Return ? Invoke(promise, "then", « thrower »).
