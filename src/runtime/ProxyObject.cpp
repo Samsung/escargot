@@ -62,61 +62,44 @@ Context* ProxyObject::getFunctionRealm(ExecutionState& state)
 }
 
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-proxycreate
+// https://tc39.es/ecma262/#sec-proxycreate
 ProxyObject* ProxyObject::createProxy(ExecutionState& state, const Value& target, const Value& handler)
 {
     auto strings = &state.context()->staticStrings();
 
-    // 1. If Type(target) is not Object, throw a TypeError exception.
+    // If Type(target) is not Object, throw a TypeError exception.
     if (!target.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy must be an object");
     }
 
-    // 2. If target is a Proxy exotic object and target.[[ProxyHandler]] is null, throw a TypeError exception.
-    if (target.asObject()->isProxyObject()) {
-        ProxyObject* exotic = target.asObject()->asProxyObject();
-        if (!exotic->handler()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' Type Error");
-        }
-    }
-
-    // 3. If Type(handler) is not Object, throw a TypeError exception.
+    // If Type(handler) is not Object, throw a TypeError exception.
     if (!handler.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' argument of Proxy must be an object");
     }
 
-    // 4. If handler is a Proxy exotic object and handler.[[ProxyHandler]] is null, throw a TypeError exception.
-    if (handler.asObject()->isProxyObject()) {
-        ProxyObject* exotic = handler.asObject()->asProxyObject();
-        if (!exotic->handler()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' Type Error");
+    // Let P be ! MakeBasicObject(« [[ProxyHandler]], [[ProxyTarget]] »).
+    // Set P's essential internal methods, except for [[Call]] and [[Construct]], to the definitions specified in 9.5.
+    ProxyObject* P = new ProxyObject(state);
+
+    // If IsCallable(target) is true, then
+    if (target.isCallable()) {
+        // Set P.[[Call]] as specified in 9.5.12.
+        P->m_isCallable = true;
+        // If IsConstructor(target) is true, then
+        if (target.isConstructor()) {
+            // Set P.[[Construct]] as specified in 9.5.13.
+            P->m_isConstructible = true;
         }
     }
 
-    // 5. Let P be a newly created object.
-    ProxyObject* proxy = new ProxyObject(state);
+    // Set P.[[ProxyTarget]] to target.
+    P->setTarget(target.asObject());
 
-    // TODO
-    // 6. Set P's essential internal methods (except for [[Call]] and [[Construct]])
+    // Set P.[[ProxyHandler]] to handler.
+    P->setHandler(handler.asObject());
 
-    // 7. If IsCallable(target) is true, then
-    // 7.a Set the [[Call]] internal method of P as specified in 9.5.13.
-    if (target.isCallable()) {
-        proxy->m_isCallable = true;
-    }
-    // 7.b If target has a [[Construct]] internal method, then Set the [[Construct]] internal method of P as specified in 9.5.14.
-    if (target.isConstructor()) {
-        proxy->m_isConstructible = true;
-    }
-
-    // 8. Set the [[ProxyTarget]] internal slot of P to target.
-    proxy->setTarget(target.asObject());
-
-    // 9. Set the [[ProxyHandler]] internal slot of P to handler.
-    proxy->setHandler(handler.asObject());
-
-    // 10. Return P.
-    return proxy;
+    // Return P.
+    return P;
 }
 
 bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
