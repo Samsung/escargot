@@ -70,6 +70,36 @@ DEFINE_ERROR_CTOR(Range, range);
 DEFINE_ERROR_CTOR(URI, uri);
 DEFINE_ERROR_CTOR(Eval, eval);
 
+static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, let newTarget be the active function object; else let newTarget be NewTarget.
+    if (!newTarget.hasValue()) {
+        newTarget = state.resolveCallee();
+    }
+    // Let O be ? OrdinaryCreateFromConstructor(newTarget, "%AggregateError.prototype%", « [[ErrorData]] »).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->aggregateErrorPrototype();
+    });
+    ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString);
+    Value message = argv[1];
+    // If message is not undefined, then
+    if (!message.isUndefined()) {
+        // Let msg be ? ToString(message).
+        // Let msgDesc be the PropertyDescriptor { [[Value]]: msg, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
+        // Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
+        O->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
+                                                          ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    }
+
+    // Let errorsList be ? IterableToList(errors).
+    auto errorsList = IteratorObject::iterableToList(state, argv[0]);
+    // Perform ! DefinePropertyOrThrow(O, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errorsList) }).
+    O->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, String::fromASCII("errors")),
+                                                      ObjectPropertyDescriptor(Value(Object::createArrayFromList(state, errorsList.size(), errorsList.data())), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    // Return O.
+    return O;
+}
+
 static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "");
@@ -149,8 +179,8 @@ void GlobalObject::installError(ExecutionState& state)
 
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
 
-#define DEFINE_ERROR(errorname, bname)                                                                                                                                                                                                                                                                                                  \
-    m_##errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                                    \
+#define DEFINE_ERROR(errorname, bname, length)                                                                                                                                                                                                                                                                                          \
+    m_##errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##bname##ErrorConstructor, length), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                               \
     m_##errorname##Error->setPrototype(state, m_error);                                                                                                                                                                                                                                                                                 \
     m_##errorname##ErrorPrototype = new Object(state, m_errorPrototype);                                                                                                                                                                                                                                                                \
     m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state, true);                                                                                                                                                                                                                                                               \
@@ -161,12 +191,13 @@ void GlobalObject::installError(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error),                                                                                                                                                                                                                                         \
                       ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
 
-    DEFINE_ERROR(reference, Reference);
-    DEFINE_ERROR(type, Type);
-    DEFINE_ERROR(syntax, Syntax);
-    DEFINE_ERROR(range, Range);
-    DEFINE_ERROR(uri, URI);
-    DEFINE_ERROR(eval, Eval);
+    DEFINE_ERROR(reference, Reference, 1);
+    DEFINE_ERROR(type, Type, 1);
+    DEFINE_ERROR(syntax, Syntax, 1);
+    DEFINE_ERROR(range, Range, 1);
+    DEFINE_ERROR(uri, URI, 1);
+    DEFINE_ERROR(eval, Eval, 1);
+    DEFINE_ERROR(aggregate, Aggregate, 2);
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Error),
                       ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

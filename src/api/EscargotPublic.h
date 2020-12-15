@@ -1186,6 +1186,8 @@ public:
     ObjectRef* uriErrorPrototype();
     FunctionObjectRef* evalError();
     ObjectRef* evalErrorPrototype();
+    FunctionObjectRef* aggregateError();
+    ObjectRef* aggregateErrorPrototype();
     FunctionObjectRef* string();
     ObjectRef* stringPrototype();
     FunctionObjectRef* number();
@@ -1348,6 +1350,11 @@ public:
 class ESCARGOT_EXPORT EvalErrorObjectRef : public ErrorObjectRef {
 public:
     static EvalErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class ESCARGOT_EXPORT AggregateErrorObjectRef : public ErrorObjectRef {
+public:
+    static AggregateErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
 };
 
 class ESCARGOT_EXPORT DateObjectRef : public ObjectRef {

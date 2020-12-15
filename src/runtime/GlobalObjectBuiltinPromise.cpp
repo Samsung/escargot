@@ -548,6 +548,175 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
     return result;
 }
 
+// https://tc39.es/ecma262/#sec-getpromiseresolve
+static Value getPromiseResolve(ExecutionState& state, Object* promiseConstructor)
+{
+    // Assert: IsConstructor(promiseConstructor) is true.
+    // Let promiseResolve be ? Get(promiseConstructor, "resolve").
+    auto promiseResolve = promiseConstructor->get(state, state.context()->staticStrings().resolve).value(state, promiseConstructor);
+    // If IsCallable(promiseResolve) is false, throw a TypeError exception.
+    if (!promiseResolve.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
+    }
+    // Return promiseResolve.
+    return promiseResolve;
+}
+
+// https://tc39.es/ecma262/#sec-performpromiseany
+static Value performPromiseAny(ExecutionState& state, IteratorRecord* iteratorRecord, Object* constructor, const PromiseReaction::Capability& resultCapability, const Value& promiseResolve)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+    // Assert: ! IsConstructor(constructor) is true.
+    // Assert: ! IsCallable(promiseResolve) is true.
+    // Let errors be a new empty List.
+    ValueVector* errors = new ValueVector();
+    // Let remainingElementsCount be the Record { [[Value]]: 1 }.
+    size_t* remainingElementsCount = new (PointerFreeGC) size_t(1);
+    // Let index be 0.
+    int64_t index = 0;
+    // Repeat,
+    while (true) {
+        // Let next be IteratorStep(iteratorRecord).
+        // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        // ReturnIfAbrupt(next).
+        Optional<Object*> next;
+        try {
+            next = IteratorObject::iteratorStep(state, iteratorRecord);
+        } catch (const Value& v) {
+            iteratorRecord->m_done = true;
+            throw v;
+        }
+
+        // If next is false, then
+        if (!next.hasValue()) {
+            // Set iteratorRecord.[[Done]] to true.
+            iteratorRecord->m_done = true;
+            // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+            *remainingElementsCount = *remainingElementsCount - 1;
+            // If remainingElementsCount.[[Value]] is 0, then
+            if (*remainingElementsCount == 0) {
+                // Let error be a newly created AggregateError object.
+                ErrorObject* error = ErrorObject::createBuiltinError(state, ErrorObject::AggregateError, "Got AggregateError on processing Promise.any");
+                // Perform ! DefinePropertyOrThrow(error, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errors) }).
+                error->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
+                                                        ObjectPropertyDescriptor(Object::createArrayFromList(state, *errors),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+                // Return ThrowCompletion(error).
+                throw Value(error);
+            }
+            // Return resultCapability.[[Promise]].
+            return resultCapability.m_promise;
+        }
+
+        // Let nextValue be IteratorValue(next).
+        Value nextValue;
+        try {
+            nextValue = IteratorObject::iteratorValue(state, next.value());
+        } catch (const Value& v) {
+            // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+            iteratorRecord->m_done = true;
+            // ReturnIfAbrupt(nextValue).
+            throw v;
+        }
+        // Append undefined to errors.
+        errors->pushBack(Value());
+        // Let nextPromise be ? Call(promiseResolve, constructor, « nextValue »).
+        Value argv = nextValue;
+        Value nextPromise = Object::call(state, promiseResolve, constructor, 1, &argv);
+        // Let steps be the algorithm steps defined in Promise.any Reject Element Functions.
+        // Let rejectElement be ! CreateBuiltinFunction(steps, « [[AlreadyCalled]], [[Index]], [[Errors]], [[Capability]], [[RemainingElements]] »).
+        ExtendedNativeFunctionObject* rejectElement = new ExtendedNativeFunctionObjectImpl<6>(state, NativeFunctionInfo(AtomicString(), PromiseObject::promiseAnyRejectElementFunction, 1, NativeFunctionInfo::Strict));
+        // Set rejectElement.[[AlreadyCalled]] to false.
+        // Set rejectElement.[[Index]] to index.
+        // Set rejectElement.[[Errors]] to errors.
+        // Set rejectElement.[[Capability]] to resultCapability.
+        // Set rejectElement.[[RemainingElements]] to remainingElementsCount.
+        bool* alreadyCalled = new (PointerFreeGC) bool(false);
+        rejectElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::AlreadyCalled, alreadyCalled);
+        rejectElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Index, Value(index));
+        rejectElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::Errors, errors);
+        rejectElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Resolve, resultCapability.m_resolveFunction);
+        rejectElement->setInternalSlot(PromiseObject::BuiltinFunctionSlot::Reject, resultCapability.m_rejectFunction);
+        rejectElement->setInternalSlotAsPointer(PromiseObject::BuiltinFunctionSlot::RemainingElements, remainingElementsCount);
+        // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] + 1.
+        *remainingElementsCount = *remainingElementsCount + 1;
+
+        // Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], rejectElement »).
+        Object* nextPromiseObject = nextPromise.toObject(state);
+        Value argv2[] = { Value(resultCapability.m_resolveFunction), Value(rejectElement) };
+        Object::call(state, nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject), nextPromiseObject, 2, argv2);
+        // Set index to index + 1.
+        index++;
+    }
+    ASSERT_NOT_REACHED();
+}
+
+// https://tc39.es/ecma262/#sec-promise.any
+static Value builtinPromiseAny(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    // Let C be the this value.
+    // If Type(C) is not Object, throw a TypeError exception.
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+    }
+    Object* C = thisValue.asObject();
+
+    // Let promiseCapability be NewPromiseCapability(C).
+    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
+    // Let promiseResolve be GetPromiseResolve(C).
+    // IfAbruptRejectPromise(promiseResolve, promiseCapability).
+    Value promiseResolve;
+    try {
+        promiseResolve = getPromiseResolve(state, C);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
+    // Let iteratorRecord be GetIterator(iterable).
+    // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
+    const Value& iterable = argv[0];
+    IteratorRecord* iteratorRecord = nullptr;
+    try {
+        iteratorRecord = IteratorObject::getIterator(state, iterable);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
+    // Let result be PerformPromiseAny(iteratorRecord, C, promiseCapability, promiseResolve).
+    Value result;
+    try {
+        result = performPromiseAny(state, iteratorRecord, C, promiseCapability, promiseResolve);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If result is an abrupt completion, then
+        // If iteratorRecord.[[Done]] is false, set result to IteratorClose(iteratorRecord, result).
+        try {
+            if (!iteratorRecord->m_done) {
+                IteratorObject::iteratorClose(state, iteratorRecord, thrownValue, true);
+            }
+        } catch (const Value& v) {
+            thrownValue = v;
+        }
+        // IfAbruptRejectPromise(result, promiseCapability).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        return promiseCapability.m_promise;
+    }
+    // Return Completion(result).
+    return result;
+}
+
 void GlobalObject::installPromise(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -606,6 +775,12 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->allSettled),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->allSettled, builtinPromiseAllSettled, 1, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // Promise.any ( iterable )
+    m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->any),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->any, builtinPromiseAny, 1, NativeFunctionInfo::Strict)),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
     defineOwnProperty(state, ObjectPropertyName(strings->Promise),
                       ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }

@@ -105,6 +105,8 @@ public:
     static Optional<Object*> iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord);
     static Value iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
     static Object* createIterResultObject(ExecutionState& state, const Value& value, bool done);
+    // https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
+    static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, Optional<Value> method = Optional<Value>());
 };
 }
 

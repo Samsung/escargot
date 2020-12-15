@@ -66,6 +66,7 @@ namespace Escargot {
     F(SyntaxError)                \
     F(URIError)                   \
     F(EvalError)                  \
+    F(AggregateError)             \
     F(message)                    \
     F(stack)                      \
     F(valueOf)                    \
@@ -447,6 +448,7 @@ namespace Escargot {
     F(RelativeTimeFormat)         \
     F(globalThis)                 \
     F(allSettled)                 \
+    F(any)                        \
     F(BigInt)                     \
     F(bigint)                     \
     F(asUintN)                    \

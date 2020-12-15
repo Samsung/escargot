@@ -76,6 +76,7 @@ DEFINE_CAST(SyntaxErrorObject);
 DEFINE_CAST(RangeErrorObject);
 DEFINE_CAST(URIErrorObject);
 DEFINE_CAST(EvalErrorObject);
+DEFINE_CAST(AggregateErrorObject);
 DEFINE_CAST(GlobalObject);
 DEFINE_CAST(GlobalObjectProxyObject);
 DEFINE_CAST(FunctionObject);

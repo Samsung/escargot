@@ -83,6 +83,8 @@ class FunctionObject;
     F(uriErrorPrototype, Object, NAME)       \
     F(evalError, FunctionObject, NAME)       \
     F(evalErrorPrototype, Object, NAME)      \
+    F(aggregateError, FunctionObject, NAME)  \
+    F(aggregateErrorPrototype, Object, NAME) \
     F(throwTypeError, FunctionObject, NAME)  \
     F(throwerGetterSetterData, JSGetterSetter, NAME)
 #define GLOBALOBJECT_BUILTIN_EVAL(F, NAME) \

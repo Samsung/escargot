@@ -120,26 +120,6 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 
-// https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
-static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, const Value& method)
-{
-    auto iteratorRecord = IteratorObject::getIterator(state, items, true, method);
-    ValueVectorWithInlineStorage values;
-    Optional<Object*> next;
-
-    while (true) {
-        next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (next.hasValue()) {
-            Value nextValue = IteratorObject::iteratorValue(state, next.value());
-            values.pushBack(nextValue);
-        } else {
-            break;
-        }
-    }
-
-    return values;
-}
-
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.from
 static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -169,7 +149,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
 
     Value usingIterator = Object::getMethod(state, source, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
     if (!usingIterator.isUndefined()) {
-        ValueVectorWithInlineStorage values = iterableToList(state, source, usingIterator);
+        ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, source, usingIterator);
         size_t len = values.size();
         Value arg[1] = { Value(len) };
         Object* targetObj = createTypedArray(state, C, 1, arg);
@@ -414,7 +394,7 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         // If usingIterator is not undefined, then
         if (!usingIterator.isUndefined()) {
             // Let values be ? IterableToList(object, usingIterator).
-            ValueVectorWithInlineStorage values = iterableToList(state, inputObj, usingIterator);
+            ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, inputObj, usingIterator);
             // Let len be the number of elements in values.
             size_t len = values.size();
             // Perform ? AllocateTypedArrayBuffer(O, len).
