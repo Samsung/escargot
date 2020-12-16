@@ -19,14 +19,8 @@
 
 #if defined(ENABLE_WASM)
 
-#ifndef __EscargotWASMOperations__
-#define __EscargotWASMOperations__
-
-#include "wasm.h"
-
-// represent ownership of each object
-// object marked with 'own' should be deleted in the current context
-#define own
+#ifndef __EscargotWASMBuiltinOperations__
+#define __EscargotWASMBuiltinOperations__
 
 namespace Escargot {
 
@@ -69,94 +63,6 @@ static std::pair<bool, Value> wasmGetValueFromObjectProperty(ExecutionState& sta
     }
 
     return std::make_pair(false, Value());
-}
-
-#define WASM_I32_VAL(i)                     \
-    {                                       \
-        .kind = WASM_I32, .of = {.i32 = i } \
-    }
-#define WASM_I64_VAL(i)                     \
-    {                                       \
-        .kind = WASM_I64, .of = {.i64 = i } \
-    }
-#define WASM_F32_VAL(z)                     \
-    {                                       \
-        .kind = WASM_F32, .of = {.f32 = z } \
-    }
-#define WASM_F64_VAL(z)                     \
-    {                                       \
-        .kind = WASM_F64, .of = {.f64 = z } \
-    }
-#define WASM_REF_VAL(r)                        \
-    {                                          \
-        .kind = WASM_ANYREF, .of = {.ref = r } \
-    }
-#define WASM_INIT_VAL                             \
-    {                                             \
-        .kind = WASM_ANYREF, .of = {.ref = NULL } \
-    }
-
-static wasm_val_t wasmDefaultValue(wasm_valkind_t type)
-{
-    wasm_val_t result;
-    switch (type) {
-    case WASM_I32: {
-        result = WASM_I32_VAL(0);
-        break;
-    }
-    case WASM_I64: {
-        result = WASM_I64_VAL(0);
-        break;
-    }
-    case WASM_F32: {
-        result = WASM_F32_VAL(0);
-        break;
-    }
-    case WASM_F64: {
-        result = WASM_F64_VAL(0);
-        break;
-    }
-    default: {
-        ASSERT_NOT_REACHED();
-        break;
-    }
-    }
-
-    return result;
-}
-
-static wasm_val_t wasmToWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
-{
-    wasm_val_t result;
-    switch (type) {
-    case WASM_I32: {
-        int32_t val = value.toInt32(state);
-        result = WASM_I32_VAL(val);
-        break;
-    }
-    case WASM_F32: {
-        // FIXME Let f32 be ? ToNumber(v) rounded to the nearest representable value using IEEE 754-2019 round to nearest, ties to even mode.
-        float32_t val = value.toNumber(state);
-        result = WASM_F32_VAL(val);
-        break;
-    }
-    case WASM_F64: {
-        float64_t val = value.toNumber(state);
-        result = WASM_F64_VAL(val);
-        break;
-    }
-    case WASM_I64: {
-        int64_t val = value.toBigInt(state)->toInt64();
-        result = WASM_I64_VAL(val);
-        break;
-    }
-    default: {
-        ASSERT_NOT_REACHED();
-        break;
-    }
-    }
-
-    return result;
 }
 
 static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkind_t kind)
@@ -249,6 +155,5 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
     return Value();
 }
 }
-
-#endif // __EscargotWASMOperations__
+#endif // __EscargotWASMBuiltinOperations__
 #endif // ENABLE_WASM

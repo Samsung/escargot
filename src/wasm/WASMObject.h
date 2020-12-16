@@ -26,22 +26,26 @@ struct wasm_module_t;
 struct wasm_memory_t;
 struct wasm_table_t;
 struct wasm_global_t;
+struct wasm_functype_t;
 struct wasm_ref_t;
 
 namespace Escargot {
 
+struct WASMHostFunctionEnvironment : public gc {
+    WASMHostFunctionEnvironment(Object* f, wasm_functype_t* ft);
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    Object* func;
+    wasm_functype_t* functype;
+};
+
 class WASMModuleObject : public Object {
 public:
-    enum ImportExportKind {
-        Function,
-        Table,
-        Memory,
-        Global
-    };
-
     explicit WASMModuleObject(ExecutionState& state, wasm_module_t* module);
 
-    virtual bool isWASMModuleObject() const
+    virtual bool isWASMModuleObject() const override
     {
         return true;
     }
@@ -55,21 +59,15 @@ public:
         return m_module;
     }
 
-    ImportExportKind kind() const
-    {
-        return m_kind;
-    }
-
 private:
     wasm_module_t* m_module;
-    ImportExportKind m_kind;
 };
 
 class WASMMemoryObject : public Object {
 public:
     explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer);
 
-    virtual bool isWASMMemoryObject() const
+    virtual bool isWASMMemoryObject() const override
     {
         return true;
     }
@@ -95,7 +93,7 @@ class WASMTableObject : public Object {
 public:
     explicit WASMTableObject(ExecutionState& state, wasm_table_t* table, ValueVector* values);
 
-    virtual bool isWASMTableObject() const
+    virtual bool isWASMTableObject() const override
     {
         return true;
     }
@@ -128,7 +126,7 @@ class WASMGlobalObject : public Object {
 public:
     explicit WASMGlobalObject(ExecutionState& state, wasm_global_t* global);
 
-    virtual bool isWASMGlobalObject() const
+    virtual bool isWASMGlobalObject() const override
     {
         return true;
     }
@@ -152,10 +150,14 @@ typedef std::unordered_map<void*, WASMMemoryObject*, std::hash<void*>, std::equa
 typedef std::unordered_map<void*, WASMTableObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMTableObject*>>> WASMTableMap;
 typedef std::unordered_map<void*, WASMGlobalObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMGlobalObject*>>> WASMGlobalMap;
 
+class ExportedFunctionObject;
+typedef std::unordered_map<void*, ExportedFunctionObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, ExportedFunctionObject*>>> WASMFunctionMap;
+
 struct WASMCacheMap : public gc {
     WASMMemoryMap memoryMap;
     WASMTableMap tableMap;
     WASMGlobalMap globalMap;
+    WASMFunctionMap functionMap;
 };
 }
 #endif // __EscargotWASMObject__
