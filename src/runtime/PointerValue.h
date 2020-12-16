@@ -74,6 +74,7 @@ class WASMModuleObject;
 class WASMMemoryObject;
 class WASMTableObject;
 class WASMGlobalObject;
+class ExportedFunctionObject;
 #endif
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 1
@@ -417,6 +418,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isExportedFunctionObject() const
+    {
+        return false;
+    }
 #endif
 
     virtual bool isCallable() const
@@ -719,6 +725,12 @@ public:
     {
         ASSERT(isWASMGlobalObject());
         return (WASMGlobalObject*)this;
+    }
+
+    ExportedFunctionObject* asExportedFunctionObject()
+    {
+        ASSERT(isExportedFunctionObject());
+        return (ExportedFunctionObject*)this;
     }
 #endif
 

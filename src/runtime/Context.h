@@ -44,6 +44,8 @@ class Debugger;
 
 #if defined(ENABLE_WASM)
 struct WASMCacheMap;
+struct WASMHostFunctionEnvironment;
+typedef Vector<WASMHostFunctionEnvironment*, GCUtil::gc_malloc_allocator<WASMHostFunctionEnvironment*>> WASMHostFunctionEnvironmentVector;
 #endif
 
 struct IdentifierRecord {
@@ -147,6 +149,11 @@ public:
     WASMCacheMap* wasmCache()
     {
         return m_wasmCache;
+    }
+
+    WASMHostFunctionEnvironmentVector* wasmEnvCache()
+    {
+        return m_wasmEnvCache;
     }
 #endif
 
@@ -316,6 +323,7 @@ private:
     RegExpCacheMap* m_regexpCache;
 #if defined(ENABLE_WASM)
     WASMCacheMap* m_wasmCache;
+    WASMHostFunctionEnvironmentVector* m_wasmEnvCache;
 #endif
 
     ObjectStructure* m_defaultStructureForObject;

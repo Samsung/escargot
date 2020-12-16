@@ -20,19 +20,47 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
+#include "wasm.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
-#include "runtime/BigInt.h"
 #include "runtime/ArrayBufferObject.h"
 #include "wasm/WASMObject.h"
-#include "wasm.h"
+#include "wasm/WASMValueConverter.h"
 
 namespace Escargot {
+
+WASMHostFunctionEnvironment::WASMHostFunctionEnvironment(Object* f, wasm_functype_t* ft)
+    : func(f)
+    , functype(ft)
+{
+    ASSERT(!!ft && !!f);
+    ASSERT(f->isCallable());
+
+    // FIXME current wasm_func_new_with_env does not support env-finalizer,
+    // so WASMHostFunctionEnvironment needs to be deallocated manually.
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        WASMHostFunctionEnvironment* self = (WASMHostFunctionEnvironment*)obj;
+        wasm_functype_delete(self->functype);
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* WASMHostFunctionEnvironment::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(WASMHostFunctionEnvironment)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMHostFunctionEnvironment, func));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMHostFunctionEnvironment));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
 
 WASMModuleObject::WASMModuleObject(ExecutionState& state, wasm_module_t* module)
     : Object(state, state.context()->globalObject()->wasmModulePrototype())
     , m_module(module)
-    , m_kind(ImportExportKind::Function)
 {
     ASSERT(!!m_module);
 
@@ -184,31 +212,7 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     wasm_global_get(globaladdr, &value);
 
     // Return ToJSValue(value).
-    Value result;
-    switch (value.kind) {
-    case WASM_I32: {
-        result = Value(value.of.i32);
-        break;
-    }
-    case WASM_F32: {
-        result = Value((double)value.of.f32);
-        break;
-    }
-    case WASM_F64: {
-        result = Value(value.of.f64);
-        break;
-    }
-    case WASM_I64: {
-        result = new BigInt(state.context()->vmInstance(), value.of.i64);
-        break;
-    }
-    default: {
-        ASSERT_NOT_REACHED();
-        break;
-    }
-    }
-
-    return result;
+    return WASMValueConverter::wasmToJSValue(state, value);
 }
 }
 

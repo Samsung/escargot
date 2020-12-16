@@ -63,6 +63,7 @@ Context::Context(VMInstance* instance)
     , m_regexpCache(instance->m_regexpCache)
 #if defined(ENABLE_WASM)
     , m_wasmCache(new WASMCacheMap())
+    , m_wasmEnvCache(new WASMHostFunctionEnvironmentVector())
 #endif
 
     , m_defaultStructureForObject(instance->m_defaultStructureForObject)

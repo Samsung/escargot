@@ -20,6 +20,7 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
+#include "wasm.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
@@ -31,9 +32,103 @@
 #include "runtime/PromiseObject.h"
 #include "runtime/Job.h"
 #include "wasm/WASMObject.h"
-#include "wasm/WASMOperations.h"
+#include "wasm/WASMValueConverter.h"
+#include "wasm/WASMBuiltinOperations.h"
+#include "wasm/ExportedFunctionObject.h"
+
+// represent ownership of each object
+// object marked with 'own' should be deleted in the current context
+#define own
 
 namespace Escargot {
+
+static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[], wasm_val_t results[])
+{
+    WASMHostFunctionEnvironment* funcEnv = (WASMHostFunctionEnvironment*)env;
+
+    Object* func = funcEnv->func;
+    ASSERT(func->isCallable());
+
+    // Let realm be func's associated Realm.
+    // Let relevant settings be realm?s settings object.
+    ExecutionState temp(nullptr);
+    ExecutionState state(func->getFunctionRealm(temp));
+
+    // Let [parameters] ? [results] be functype.
+    wasm_functype_t* functype = funcEnv->functype;
+    const wasm_valtype_vec_t* params = wasm_functype_params(functype);
+    const wasm_valtype_vec_t* res = wasm_functype_results(functype);
+    size_t argSize = params->size;
+
+    // Let jsArguments be << >>
+    Value* jsArguments = ALLOCA(sizeof(Value) * argSize, Value, state);
+
+    // For each arg of arguments,
+    for (size_t i = 0; i < argSize; i++) {
+        // Append ! ToJSValue(arg) to jsArguments.
+        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args[i]);
+    }
+
+    // Let ret be ? Call(func, undefined, jsArguments).
+    Value ret = Object::call(state, func, Value(), argSize, jsArguments);
+
+    // Let resultsSize be results?s size.
+    size_t resultsSize = res->size;
+    if (resultsSize == 0) {
+        // If resultsSize is 0, return << >>
+        return nullptr;
+    }
+
+    if (resultsSize == 1) {
+        // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
+        results[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
+    } else {
+        // Otherwise,
+        // Let method be ? GetMethod(ret, @@iterator).
+        Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+        // If method is undefined, throw a TypeError.
+        if (method.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+        }
+
+        // Let values be ? IterableToList(ret, method).
+        ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, ret, method);
+        // If values's size is not resultsSize, throw a TypeError exception.
+        if (values.size() != resultsSize) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+        }
+
+        // For each value and resultType in values and results, paired linearly,
+        // Append ToWebAssemblyValue(value, resultType) to wasmValues.
+        for (size_t i = 0; i < resultsSize; i++) {
+            results[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
+        }
+    }
+
+    // TODO
+    // Assert: result.[[Type]] is throw or normal.
+    // If result.[[Type]] is throw, then trigger a WebAssembly trap, and propagate result.[[Value]] to the enclosing JavaScript.
+    // Otherwise, return result.[[Value]].
+
+    return nullptr;
+}
+
+// TODO fix to static function
+wasm_func_t* createHostFunction(ExecutionState& state, Object* func, wasm_functype_t* functype)
+{
+    // Assert: IsCallable(func).
+    ASSERT(func->isCallable());
+
+    // Let store be the surrounding agent's associated store.
+    // Let (store, funcaddr) be func_alloc(store, functype, hostfunc).
+    WASMHostFunctionEnvironment* env = new WASMHostFunctionEnvironment(func, functype);
+    wasm_func_t* funcaddr = wasm_func_new_with_env(state.context()->vmInstance()->wasmStore(), functype, callbackHostFunction, env, nullptr);
+
+    state.context()->wasmEnvCache()->push_back(env);
+
+    // Return funcaddr.
+    return funcaddr;
+}
 
 // WebAssembly
 static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -71,20 +166,32 @@ static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value source = wasmCopyStableBufferBytes(state, argv[0]);
+    if (!argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().instantiate.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
 
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
-    PromiseObject* promiseOfModule = capability.m_promise->asPromiseObject();
+    Object* firstArg = argv[0].asObject();
 
-    NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), wasmCompileModule, 1, NativeFunctionInfo::Strict));
-    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), source);
-    state.context()->vmInstance()->enqueuePromiseJob(promiseOfModule, job);
+    if (firstArg->isArrayBufferObject() || firstArg->isTypedArrayObject()) {
+        // Let stableBytes be a copy of the bytes held by the buffer bytes.
+        Value stableBytes = wasmCopyStableBufferBytes(state, firstArg);
 
-    Object* importObj = argv[1].isObject() ? argv[1].asObject() : nullptr;
-    auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateModule, 1, NativeFunctionInfo::Strict));
-    moduleInstantiator->setInternalSlot(0, importObj);
+        // Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
+        PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+        PromiseObject* promiseOfModule = capability.m_promise->asPromiseObject();
 
-    return promiseOfModule->then(state, moduleInstantiator);
+        NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), wasmCompileModule, 1, NativeFunctionInfo::Strict));
+        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), stableBytes);
+        state.context()->vmInstance()->enqueuePromiseJob(promiseOfModule, job);
+
+        Value importObj = argc > 1 ? argv[1] : Value();
+        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateModule, 1, NativeFunctionInfo::Strict));
+        moduleInstantiator->setInternalSlot(0, importObj);
+
+        return promiseOfModule->then(state, moduleInstantiator);
+    }
+
+    return Value();
 }
 
 // WebAssembly.Module
@@ -476,13 +583,13 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
 
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // If index ≥ size, throw a RangeError exception.
     uint32_t index = indexValue.asUInt32();
     if ((size_t)index >= tableObj->length()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->length.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Return values[index].
@@ -494,14 +601,14 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
 
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     uint32_t index = indexValue.asUInt32();
@@ -515,10 +622,12 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     // If value is null, let funcaddr be an empty function element.
     wasm_ref_t* funcaddr = nullptr;
     if (!value.isNull()) {
-        // TODO
-        RELEASE_ASSERT_NOT_REACHED();
         // If value does not have a [[FunctionAddress]] internal slot, throw a TypeError exception.
+        if (!value.isObject() || !value.asObject()->isExportedFunctionObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        }
         // Let funcaddr be value.[[FunctionAddress]].
+        funcaddr = wasm_func_as_ref(value.asObject()->asExportedFunctionObject()->function());
     }
 
     // Let store be table_write(store, tableaddr, index, funcaddr).
@@ -589,10 +698,10 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     wasm_val_t value;
     if (valueArg.isUndefined()) {
         // let value be DefaultValue(valuetype).
-        value = wasmDefaultValue(valuetype);
+        value = WASMValueConverter::wasmDefaultValue(valuetype);
     } else {
         // Let value be ToWebAssemblyValue(v, valuetype).
-        value = wasmToWebAssemblyValue(state, valueArg, valuetype);
+        value = WASMValueConverter::wasmToWebAssemblyValue(state, valueArg, valuetype);
     }
 
     // If mutable is true, let globaltype be var valuetype; otherwise, let globaltype be const valuetype.
@@ -652,7 +761,7 @@ static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue
     wasm_globaltype_delete(globaltype);
 
     // Let value be ToWebAssemblyValue(the given value, valuetype).
-    wasm_val_t value = wasmToWebAssemblyValue(state, argv[0], valuetype);
+    wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, argv[0], valuetype);
 
     // Let store be global_write(store, globaladdr, value).
     // TODO If store is error, throw a RangeError exception.
