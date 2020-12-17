@@ -3059,7 +3059,8 @@ public:
                     }
                 }
                 if (this->matchAssign()) {
-                    if (!this->context->isAssignmentTarget) {
+                    const bool isLeftAssignmentTarget = this->context->isAssignmentTarget;
+                    if (!isLeftAssignmentTarget) {
                         if (type == ArrayExpression || type == ObjectExpression) {
                             this->throwError(Messages::InvalidLHSInAssignment);
                         }
@@ -3151,6 +3152,12 @@ public:
                         break;
                     case ExponentiationEqual:
                         exprResult = builder.createAssignmentExpressionExponentiationNode(exprNode, rightNode);
+                        break;
+                    case LogicalNullishEqual:
+                        if (!isLeftAssignmentTarget) {
+                            this->throwError(Messages::InvalidLHSInAssignment);
+                        }
+                        exprResult = builder.createAssignmentExpressionLogicalNullishNode(exprNode, rightNode);
                         break;
                     default:
                         RELEASE_ASSERT_NOT_REACHED();

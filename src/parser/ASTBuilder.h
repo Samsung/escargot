@@ -42,6 +42,7 @@ namespace Escargot {
     F(AssignmentExpressionSignedRightShift)   \
     F(AssignmentExpressionSimple)             \
     F(AssignmentExpressionUnsignedRightShift) \
+    F(AssignmentExpressionLogicalNullish)     \
     F(AwaitExpression)                        \
     F(BinaryExpressionBitwiseAnd)             \
     F(BinaryExpressionBitwiseOr)              \

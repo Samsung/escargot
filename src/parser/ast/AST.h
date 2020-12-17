@@ -36,6 +36,7 @@
 #include "AssignmentExpressionSignedRightShiftNode.h"
 #include "AssignmentExpressionSimpleNode.h"
 #include "AssignmentExpressionUnsignedRightShiftNode.h"
+#include "AssignmentExpressionLogicalNullishNode.h"
 #include "AwaitExpressionNode.h"
 #include "BinaryExpressionBitwiseAndNode.h"
 #include "BinaryExpressionBitwiseOrNode.h"
