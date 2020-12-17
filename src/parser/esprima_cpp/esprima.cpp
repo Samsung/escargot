@@ -3153,6 +3153,12 @@ public:
                     case ExponentiationEqual:
                         exprResult = builder.createAssignmentExpressionExponentiationNode(exprNode, rightNode);
                         break;
+                    case LogicalAndEqual:
+                        if (!isLeftAssignmentTarget) {
+                            this->throwError(Messages::InvalidLHSInAssignment);
+                        }
+                        exprResult = builder.createAssignmentExpressionLogicalAndNode(exprNode, rightNode);
+                        break;
                     case LogicalNullishEqual:
                         if (!isLeftAssignmentTarget) {
                             this->throwError(Messages::InvalidLHSInAssignment);
