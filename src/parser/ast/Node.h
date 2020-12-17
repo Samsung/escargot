@@ -51,6 +51,7 @@ enum ASTNodeType : uint16_t {
     AssignmentExpressionPlus,
     AssignmentExpressionSignedRightShift,
     AssignmentExpressionUnsignedRightShift,
+    AssignmentExpressionLogicalNullish,
     AssignmentExpressionSimple,
     /* End */
     /* Note: These 8 types must be in this order */
@@ -186,8 +187,9 @@ COMPILE_ASSERT(((int)AssignmentExpressionMod + 1) == (int)AssignmentExpressionMu
 COMPILE_ASSERT(((int)AssignmentExpressionMultiply + 1) == (int)AssignmentExpressionPlus, "");
 COMPILE_ASSERT(((int)AssignmentExpressionPlus + 1) == (int)AssignmentExpressionSignedRightShift, "");
 COMPILE_ASSERT(((int)AssignmentExpressionSignedRightShift + 1) == (int)AssignmentExpressionUnsignedRightShift, "");
-COMPILE_ASSERT(((int)AssignmentExpressionUnsignedRightShift + 1) == (int)AssignmentExpressionSimple, "");
-COMPILE_ASSERT(((int)AssignmentExpressionSimple - (int)AssignmentExpression) == 13, "");
+COMPILE_ASSERT(((int)AssignmentExpressionUnsignedRightShift + 1) == (int)AssignmentExpressionLogicalNullish, "");
+COMPILE_ASSERT(((int)AssignmentExpressionLogicalNullish + 1) == (int)AssignmentExpressionSimple, "");
+COMPILE_ASSERT(((int)AssignmentExpressionSimple - (int)AssignmentExpression) == 14, "");
 
 COMPILE_ASSERT(((int)BinaryExpressionEqual + 1) == (int)BinaryExpressionNotEqual, "");
 COMPILE_ASSERT(((int)BinaryExpressionNotEqual + 1) == (int)BinaryExpressionStrictEqual, "");

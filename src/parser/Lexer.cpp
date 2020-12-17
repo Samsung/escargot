@@ -956,6 +956,10 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         if (ch == '?') {
             ++this->index;
             kind = NullishCoalescing;
+            if (this->peekChar() == '=') {
+                kind = LogicalNullishEqual;
+                ++this->index;
+            }
         } else if (ch == '.') {
             ++this->index;
             kind = GuessDot;
