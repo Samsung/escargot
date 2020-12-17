@@ -125,18 +125,15 @@ void WASMMemoryObject::setBuffer(ArrayBufferObject* buffer)
     m_buffer = buffer;
 }
 
-WASMTableObject::WASMTableObject(ExecutionState& state, wasm_table_t* table, ValueVector* values)
+WASMTableObject::WASMTableObject(ExecutionState& state, wasm_table_t* table)
     : Object(state, state.context()->globalObject()->wasmTablePrototype())
     , m_table(table)
-    , m_values(values)
 {
-    ASSERT(!!m_table && !!m_values);
-    ASSERT((size_t)wasm_table_size(table) == values->size());
+    ASSERT(!!m_table);
 
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         WASMTableObject* self = (WASMTableObject*)obj;
         wasm_table_delete(self->table());
-        self->values()->clear();
     },
                                    nullptr, nullptr, nullptr);
 }
@@ -148,32 +145,10 @@ void* WASMTableObject::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMTableObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMTableObject, m_values));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMTableObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-Value WASMTableObject::getElement(size_t index) const
-{
-    ASSERT(!!m_table && !!m_values);
-    ASSERT(index < length());
-
-    return m_values->at(index);
-}
-
-void WASMTableObject::setElement(size_t index, const Value& value)
-{
-    ASSERT(!!m_table && !!m_values);
-    ASSERT(index < length());
-    m_values->at(index) = value;
-}
-
-size_t WASMTableObject::length() const
-{
-    ASSERT(!!m_table && !!m_values);
-    return m_values->size();
 }
 
 WASMGlobalObject::WASMGlobalObject(ExecutionState& state, wasm_global_t* global)
