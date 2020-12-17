@@ -91,7 +91,7 @@ private:
 
 class WASMTableObject : public Object {
 public:
-    explicit WASMTableObject(ExecutionState& state, wasm_table_t* table, ValueVector* values);
+    explicit WASMTableObject(ExecutionState& state, wasm_table_t* table);
 
     virtual bool isWASMTableObject() const override
     {
@@ -107,19 +107,8 @@ public:
         return m_table;
     }
 
-    ValueVector* values() const
-    {
-        ASSERT(!!m_values);
-        return m_values;
-    }
-
-    Value getElement(size_t index) const;
-    void setElement(size_t index, const Value& value);
-    size_t length() const;
-
 private:
     wasm_table_t* m_table;
-    ValueVector* m_values;
 };
 
 class WASMGlobalObject : public Object {

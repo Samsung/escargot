@@ -507,7 +507,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     // Let type be the table type {min n, max maximum} anyfunc.
     wasm_limits_t limits = { initial, maximum };
     // wasm_valtype_t is deleted inside wasm_tabletype_t constructor
-    wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
+    own wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
 
     // Let (store, tableaddr) be table_alloc(store, type).
     wasm_table_t* tableaddr = wasm_table_new(state.context()->vmInstance()->wasmStore(), tabletype, nullptr);
@@ -518,13 +518,8 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     WASMTableMap& map = state.context()->wasmCache()->tableMap;
     ASSERT(map.find(tableaddr) == map.end());
 
-    // FIXME Let values be a list whose length is table_size(store, tableaddr) where each element is null.
-    ValueVector* values = new ValueVector();
-    values->resize(wasm_table_size(tableaddr), Value(Value::Null));
-
     // Set table.[[Table]] to tableaddr.
-    // Set table.[[Values]] to values.
-    WASMTableObject* tableObj = new WASMTableObject(state, tableaddr, values);
+    WASMTableObject* tableObj = new WASMTableObject(state, tableaddr);
 
     // Set map[tableaddr] to table.
     map.insert(std::make_pair(tableaddr, tableObj));
@@ -548,11 +543,9 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     wasm_table_size_t delta = deltaValue.asUInt32();
 
     // Let tableaddr be this.[[Table]].
-    // Let initialSize be the length of this.[[Values]].
-    WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
-    wasm_table_t* tableaddr = tableObj->table();
-    ValueVector* values = tableObj->values();
-    size_t initialSize = tableObj->length();
+    // Let initialSize be table_size(store, tableaddr).
+    wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
+    wasm_table_size_t initialSize = wasm_table_size(tableaddr);
 
     // Let result be table_grow(store, tableaddr, delta).
     bool result = wasm_table_grow(tableaddr, delta, nullptr);
@@ -560,12 +553,6 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     if (!result) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
-
-    // Append null to this.[[Values]] delta times.
-    for (uint32_t i = 0; i < delta; i++) {
-        values->push_back(Value(Value::Null));
-    }
-    ASSERT((size_t)wasm_table_size(tableaddr) == values->size());
 
     // Return initialSize,
     return Value(initialSize);
@@ -579,21 +566,34 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
-    WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
-
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
+    wasm_table_size_t index = indexValue.asUInt32();
 
-    // If index ≥ size, throw a RangeError exception.
-    uint32_t index = indexValue.asUInt32();
-    if ((size_t)index >= tableObj->length()) {
+    // Let tableaddr be this.[[Table]].
+    wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
+
+    // Let result be table_read(store, tableaddr, index).
+    wasm_ref_t* result = wasm_table_get(tableaddr, index);
+
+    // If result is error, throw a RangeError exception.
+    // FIXME check the error by comparing the size
+    if (index >= wasm_table_size(tableaddr)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
-    // Return values[index].
-    return tableObj->getElement(index);
+    // FIXME for the case of empty function (nullptr)
+    if (!result) {
+        return Value(Value::Null);
+    }
+
+    // Let function be the result of creating a new Exported Function from result.
+    ExportedFunctionObject* function = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(result));
+
+    // Return function.
+    return function;
 }
 
 static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -604,22 +604,18 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
-    WASMTableObject* tableObj = thisValue.asObject()->asWASMTableObject();
-
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    uint32_t index = indexValue.asUInt32();
+    wasm_table_size_t index = indexValue.asUInt32();
     Value value = argv[1];
 
     // Let tableaddr be this.[[Table]].
-    // Let values be this.[[Values]].
-    wasm_table_t* tableaddr = tableObj->table();
-    ValueVector* values = tableObj->values();
+    wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
 
-    // If value is null, let funcaddr be an empty function element.
+    // FIXME If value is null, let funcaddr be an empty function element.
     wasm_ref_t* funcaddr = nullptr;
     if (!value.isNull()) {
         // If value does not have a [[FunctionAddress]] internal slot, throw a TypeError exception.
@@ -637,9 +633,6 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
-    // Set values[index] to value.
-    tableObj->setElement(index, value);
-
     // Return undefined.
     return Value();
 }
@@ -650,7 +643,11 @@ static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
-    return Value(thisValue.asObject()->asWASMTableObject()->length());
+    // Let tableaddr be this.[[Table]].
+    wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
+
+    // Return table_size(store, tableaddr).
+    return Value(wasm_table_size(tableaddr));
 }
 
 // WebAssembly.Global
