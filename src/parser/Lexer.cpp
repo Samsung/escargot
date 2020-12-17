@@ -1053,6 +1053,11 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         if (ch == '&') {
             kind = LogicalAnd;
             ++this->index;
+
+            if (this->peekChar() == '=') {
+                ++this->index;
+                kind = LogicalAndEqual;
+            }
         } else if (ch == '=') {
             kind = BitwiseAndEqual;
             ++this->index;
