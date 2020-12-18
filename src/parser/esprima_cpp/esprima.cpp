@@ -3153,27 +3153,29 @@ public:
                     case ExponentiationEqual:
                         exprResult = builder.createAssignmentExpressionExponentiationNode(exprNode, rightNode);
                         break;
+
+#define CHECK_LOGICAL_ASSIGNMENT()                          \
+    if (!isLeftAssignmentTarget) {                          \
+        this->throwError(Messages::InvalidLHSInAssignment); \
+    }
+
                     case LogicalAndEqual:
-                        if (!isLeftAssignmentTarget) {
-                            this->throwError(Messages::InvalidLHSInAssignment);
-                        }
+                        CHECK_LOGICAL_ASSIGNMENT()
                         exprResult = builder.createAssignmentExpressionLogicalAndNode(exprNode, rightNode);
                         break;
                     case LogicalOrEqual:
-                        if (!isLeftAssignmentTarget) {
-                            this->throwError(Messages::InvalidLHSInAssignment);
-                        }
+                        CHECK_LOGICAL_ASSIGNMENT()
                         exprResult = builder.createAssignmentExpressionLogicalOrNode(exprNode, rightNode);
                         break;
                     case LogicalNullishEqual:
-                        if (!isLeftAssignmentTarget) {
-                            this->throwError(Messages::InvalidLHSInAssignment);
-                        }
+                        CHECK_LOGICAL_ASSIGNMENT()
                         exprResult = builder.createAssignmentExpressionLogicalNullishNode(exprNode, rightNode);
                         break;
                     default:
                         RELEASE_ASSERT_NOT_REACHED();
                     }
+
+#undef CHECK_LOGICAL_ASSIGNMENT
 
                     exprNode = this->finalize(this->startNode(startToken), exprResult);
                     this->context->firstCoverInitializedNameError.reset();
