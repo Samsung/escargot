@@ -826,6 +826,7 @@ public:
     AtomicString getRegion;
     AtomicString getFormat;
     AtomicString intlDotLocale;
+    AtomicString intlDotCollator;
     AtomicString intlDotRelativeTimeFormat;
     AtomicString symbolSplit;
     AtomicString symbolReplace;

@@ -63,6 +63,7 @@ non262/TypedArray/sort-negative-nan.js
 
 # This is wrong
 non262/Intl/PluralRules/call.js
+non262/Intl/Collator/toStringTag.js
 
 # TODO
 non262/Array/unscopables.js
