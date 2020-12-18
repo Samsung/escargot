@@ -103,6 +103,7 @@ enum PunctuatorKind : uint8_t {
     RightInequalityEqual,
     ExponentiationEqual,
     LogicalAndEqual,
+    LogicalOrEqual,
     LogicalNullishEqual,
     SubstitutionEnd,
 
