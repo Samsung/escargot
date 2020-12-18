@@ -200,4 +200,4 @@ bool ExecutionState::inPauserScope()
 
     return false;
 }
-}
+} // namespace Escargot

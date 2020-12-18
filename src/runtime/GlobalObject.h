@@ -344,6 +344,6 @@ private:
 #endif
     void installOthers(ExecutionState& state);
 };
-}
+} // namespace Escargot
 
 #endif

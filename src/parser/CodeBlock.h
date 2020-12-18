@@ -962,6 +962,6 @@ private:
 
     InterpretedCodeBlockRareData* m_rareData;
 };
-}
+} // namespace Escargot
 
 #endif

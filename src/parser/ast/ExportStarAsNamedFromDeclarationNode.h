@@ -51,6 +51,6 @@ private:
     Node* m_name;
     Node* m_source;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -88,6 +88,6 @@ private:
     size_t m_iteratorIndex;
     Type m_type;
 };
-}
+} // namespace Escargot
 
 #endif

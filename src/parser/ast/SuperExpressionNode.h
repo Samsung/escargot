@@ -46,6 +46,6 @@ public:
 private:
     bool m_isCall;
 };
-}
+} // namespace Escargot
 
 #endif

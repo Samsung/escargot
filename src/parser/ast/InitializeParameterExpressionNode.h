@@ -72,6 +72,6 @@ private:
     Node* m_left;
     size_t m_paramIndex; // parameter index
 };
-}
+} // namespace Escargot
 
 #endif

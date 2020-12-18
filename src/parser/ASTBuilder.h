@@ -436,6 +436,7 @@ public:
     }
 
     ALWAYS_INLINE SyntaxNode* operator->() { return this; }
+
 private:
     ASTNodeType m_nodeType : 16;
     bool m_flag : 1;
@@ -894,6 +895,6 @@ private:
 #endif
 };
 
-} // Escargot
+} // namespace Escargot
 
 #endif

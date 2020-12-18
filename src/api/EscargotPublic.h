@@ -454,7 +454,7 @@ inline auto applyTupleIntoArgumentsOfVariadicTemplateFunction(F&& f, T&& t)
     return ApplyTupleIntoArgumentsOfVariadicTemplateFunction< ::std::tuple_size<
         typename ::std::decay<T>::type>::value>::apply(::std::forward<F>(f), ::std::forward<T>(t));
 }
-}
+} // namespace EvaluatorUtil
 
 class ESCARGOT_EXPORT Evaluator {
 public:

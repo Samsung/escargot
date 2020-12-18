@@ -48,6 +48,6 @@ private:
     String* m_body;
     String* m_flag;
 };
-}
+} // namespace Escargot
 
 #endif

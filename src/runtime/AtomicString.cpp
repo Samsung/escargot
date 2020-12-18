@@ -331,4 +331,4 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
         name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
 }
-}
+} // namespace Escargot

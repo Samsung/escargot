@@ -1739,4 +1739,4 @@ void GlobalObject::installString(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->String),
                       ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

@@ -158,4 +158,4 @@ PromiseObject* ScriptAsyncFunctionObject::awaitOperationBeforePause(ExecutionSta
 
     return promise;
 }
-}
+} // namespace Escargot

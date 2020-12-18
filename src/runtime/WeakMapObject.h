@@ -55,6 +55,6 @@ public:
 private:
     WeakMapObjectData m_storage;
 };
-}
+} // namespace Escargot
 
 #endif

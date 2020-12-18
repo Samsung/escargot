@@ -128,6 +128,6 @@ private:
     Node* m_key; // key: Literal | Identifier;
     Node* m_value; // value: Expression;
 };
-}
+} // namespace Escargot
 
 #endif

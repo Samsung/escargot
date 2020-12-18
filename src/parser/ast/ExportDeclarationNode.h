@@ -33,6 +33,6 @@ public:
 
     virtual ASTNodeType type() override { return ASTNodeType::ExportDeclaration; }
 };
-}
+} // namespace Escargot
 
 #endif

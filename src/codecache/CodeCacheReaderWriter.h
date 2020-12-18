@@ -303,7 +303,7 @@ private:
     void loadByteCodeStream(Context* context, ByteCodeBlock* block);
     void loadGlobalVariableAccessCache(Context* context);
 };
-}
+} // namespace Escargot
 
 #endif // ENABLE_CODE_CACHE
 

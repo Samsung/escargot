@@ -189,6 +189,6 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     // Return ToJSValue(value).
     return WASMValueConverter::wasmToJSValue(state, value);
 }
-}
+} // namespace Escargot
 
 #endif // ENABLE_WASM

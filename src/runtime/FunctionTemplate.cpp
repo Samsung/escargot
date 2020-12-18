@@ -213,4 +213,4 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     postProcessing(result);
     return result;
 }
-}
+} // namespace Escargot

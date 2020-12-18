@@ -44,6 +44,6 @@ public:
     }
 #endif /* ESCARGOT_DEBUGGER */
 };
-}
+} // namespace Escargot
 
 #endif

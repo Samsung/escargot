@@ -39,6 +39,6 @@ public:
 private:
     AtomicString m_functionName;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -89,6 +89,6 @@ protected:
     ObjectTemplate* m_instanceTemplate;
     Optional<FunctionTemplate*> m_parent;
 };
-}
+} // namespace Escargot
 
 #endif

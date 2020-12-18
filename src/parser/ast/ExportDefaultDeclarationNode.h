@@ -63,6 +63,6 @@ private:
     AtomicString m_exportName;
     AtomicString m_localName;
 };
-}
+} // namespace Escargot
 
 #endif

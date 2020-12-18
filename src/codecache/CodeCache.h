@@ -190,7 +190,7 @@ private:
     bool writeCacheData(CodeCacheType type, size_t extraCount = 0);
     bool readCacheData(CodeCacheMetaInfo& metaInfo);
 };
-}
+} // namespace Escargot
 
 #endif // ENABLE_CODE_CACHE
 

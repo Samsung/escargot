@@ -194,5 +194,5 @@ void DebuggerTcp::computeSha1(const uint8_t* source1, size_t source1Length,
     sha1Update(&sha1Context, source2, source2Length);
     sha1Finish(&sha1Context, destination, source1Length + source2Length);
 }
-}
+} // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

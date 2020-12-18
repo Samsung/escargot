@@ -73,6 +73,6 @@ private:
     Node* m_left;
     Node* m_right;
 };
-}
+} // namespace Escargot
 
 #endif

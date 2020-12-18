@@ -73,6 +73,6 @@ private:
     Node* m_quasi;
     Node* m_convertedExpression;
 };
-}
+} // namespace Escargot
 
 #endif

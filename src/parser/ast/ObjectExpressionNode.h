@@ -152,6 +152,6 @@ public:
 private:
     NodeList m_properties;
 };
-}
+} // namespace Escargot
 
 #endif

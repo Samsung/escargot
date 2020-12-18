@@ -172,4 +172,4 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
     return fs;
 }
-}
+} // namespace Escargot

@@ -86,6 +86,6 @@ private:
     bool m_isComputed : 1;
     bool m_isStatic : 1;
 };
-}
+} // namespace Escargot
 
 #endif

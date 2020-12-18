@@ -596,4 +596,4 @@ void GlobalObject::installDate(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Date),
                       ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

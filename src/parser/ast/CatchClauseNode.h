@@ -57,12 +57,13 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::CatchClause; }
+
 private:
     Node* m_param;
     Node* m_guard;
     Node* m_body;
     LexicalBlockIndex m_paramLexicalBlockIndex;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -134,8 +134,7 @@ void Memory::gcFree(void* ptr)
 void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback)
 {
     if (callback) {
-        GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj,
-                                               void* data) {
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj, void* data) {
             ((GCAllocatedMemoryFinalizer)data)(obj);
         },
                                        (void*)callback, nullptr, nullptr);
@@ -919,7 +918,7 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         DataSender* sender = (DataSender*)data;
-        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData))sender->fn;
+        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData)) sender->fn;
         return toImpl(runner(toRef(&state), sender->data));
     },
                          &sender);
@@ -942,7 +941,7 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         DataSender* sender = (DataSender*)data;
-        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2))sender->fn;
+        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2)) sender->fn;
         return toImpl(runner(toRef(&state), sender->data, sender->data2));
     },
                          &sender);
@@ -3225,4 +3224,4 @@ PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, 
     , errorCode(errorCode)
 {
 }
-}
+} // namespace Escargot

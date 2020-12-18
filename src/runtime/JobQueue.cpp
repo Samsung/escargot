@@ -42,4 +42,4 @@ void JobQueue::clearJobRelatedWithSpecificContext(Context* context)
         }
     }
 }
-}
+} // namespace Escargot

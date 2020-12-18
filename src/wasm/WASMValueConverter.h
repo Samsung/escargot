@@ -30,6 +30,6 @@ public:
     static wasm_val_t wasmToWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type);
     static wasm_val_t wasmDefaultValue(wasm_valkind_t type);
 };
-}
+} // namespace Escargot
 #endif // __EscargotWASMValueConverter__
 #endif // ENABLE_WASM

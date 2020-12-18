@@ -105,4 +105,4 @@ Value GeneratorObject::generatorResumeAbrupt(ExecutionState& state, const Value&
     gen->m_generatorState = GeneratorObject::GeneratorState::Executing;
     return ExecutionPauser::start(state, gen->executionPauser(), gen, value, type == GeneratorObject::GeneratorAbruptType::Return, type == GeneratorObject::GeneratorAbruptType::Throw, ExecutionPauser::Generator);
 }
-}
+} // namespace Escargot

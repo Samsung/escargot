@@ -141,6 +141,6 @@ protected:
 
     CodeBlock* m_codeBlock;
 };
-}
+} // namespace Escargot
 
 #endif

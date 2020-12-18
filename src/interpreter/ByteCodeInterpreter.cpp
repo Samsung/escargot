@@ -3941,4 +3941,4 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
     bool isMapped = functionObject->interpretedCodeBlock()->shouldHaveMappedArguments();
     functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
 }
-}
+} // namespace Escargot

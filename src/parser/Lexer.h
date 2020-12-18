@@ -701,7 +701,7 @@ private:
     String* scanRegExpBody();
     String* scanRegExpFlags();
 };
-}
-}
+} // namespace EscargotLexer
+} // namespace Escargot
 
 #endif

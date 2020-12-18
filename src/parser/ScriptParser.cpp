@@ -226,7 +226,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
         err->lineNumber = cb->m_functionStart.line;
         err->column = cb->m_functionStart.column;
         err->index = cb->m_functionStart.index;
-        throw * err;
+        throw *err;
     }
 }
 
@@ -553,7 +553,6 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         printf("  ");                    \
     }                                    \
     printf(" ");
-
         PRINT_TAB()
         printf("CodeBlock %p %s %s%s%s(%d:%d -> %d:%d, block %d, body %d)(%s, %s) (E:%d, W:%d, A:%d)\n", cb, cb->m_functionName.string()->toUTF8StringData().data(),
                cb->m_isStrict ? "Strict " : "",
@@ -615,9 +614,8 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
                 fn(child, depth + 1);
             }
         }
-
     };
     fn(topCodeBlock, 0);
 }
 #endif
-}
+} // namespace Escargot

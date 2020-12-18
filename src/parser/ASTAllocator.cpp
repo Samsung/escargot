@@ -83,4 +83,4 @@ void ASTAllocator::allocatePool()
     m_astPoolMemory = pool;
     m_astPoolEnd = pool + astPoolSize();
 }
-}
+} // namespace Escargot

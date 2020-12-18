@@ -143,4 +143,4 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->ArrayBuffer),
                       ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

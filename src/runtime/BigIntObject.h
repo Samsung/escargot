@@ -53,6 +53,6 @@ public:
 private:
     BigInt* m_primitiveValue;
 };
-}
+} // namespace Escargot
 
 #endif

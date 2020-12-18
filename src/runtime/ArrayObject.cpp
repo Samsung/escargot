@@ -700,4 +700,4 @@ ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)
     : ArrayObject(state, state.context()->globalObject()->objectPrototype())
 {
 }
-}
+} // namespace Escargot

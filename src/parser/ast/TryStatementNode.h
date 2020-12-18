@@ -193,6 +193,6 @@ private:
     CatchClauseNode *m_handler;
     BlockStatementNode *m_finalizer;
 };
-}
+} // namespace Escargot
 
 #endif

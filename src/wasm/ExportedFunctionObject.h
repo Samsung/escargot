@@ -51,6 +51,6 @@ public:
 private:
     wasm_func_t* m_function;
 };
-}
+} // namespace Escargot
 #endif // __EscargotExportedFunctionObject__
 #endif // ENABLE_WASM

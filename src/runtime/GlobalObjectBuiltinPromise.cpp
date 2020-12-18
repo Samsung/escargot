@@ -784,4 +784,4 @@ void GlobalObject::installPromise(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->Promise),
                       ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

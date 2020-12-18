@@ -53,6 +53,6 @@ private:
     // defaults: [ Expression ];
     // rest: Identifier | null;
 };
-}
+} // namespace Escargot
 
 #endif

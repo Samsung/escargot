@@ -199,4 +199,4 @@ std::pair<Value, bool> StringIteratorObject::advance(ExecutionState& state)
     // Return CreateIterResultObject(resultString, false).
     return std::make_pair(Value(resultString), false);
 }
-}
+} // namespace Escargot

@@ -71,6 +71,6 @@ public:
 private:
     Value m_value;
 };
-}
+} // namespace Escargot
 
 #endif

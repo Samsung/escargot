@@ -55,6 +55,6 @@ private:
     Node* m_statementNode;
     String* m_label;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -292,6 +292,6 @@ public:
         return isOptionalValue;
     }
 };
-}
+} // namespace Escargot
 
 #endif

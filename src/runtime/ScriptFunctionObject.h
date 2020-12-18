@@ -107,6 +107,6 @@ protected:
 
     LexicalEnvironment* m_outerEnvironment;
 };
-}
+} // namespace Escargot
 
 #endif

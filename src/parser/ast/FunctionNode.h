@@ -107,6 +107,6 @@ private:
     BlockStatementNode* m_body;
     NumeralLiteralVector m_numeralLiteralVector;
 };
-}
+} // namespace Escargot
 
 #endif

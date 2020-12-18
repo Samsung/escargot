@@ -104,5 +104,5 @@ private:
 
 class ScriptJob : public Job {
 };
-}
+} // namespace Escargot
 #endif // __EscargotJob__

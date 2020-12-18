@@ -1088,4 +1088,4 @@ bool isdigit(char32_t ch)
 {
     return (ch >= '0' && ch <= '9');
 }
-}
+} // namespace Escargot

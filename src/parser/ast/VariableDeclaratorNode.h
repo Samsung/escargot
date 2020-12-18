@@ -79,6 +79,6 @@ private:
     Node* m_id; // id: Pattern;
     Node* m_init; // init: Expression | null;
 };
-}
+} // namespace Escargot
 
 #endif

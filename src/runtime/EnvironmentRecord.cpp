@@ -551,4 +551,4 @@ void ModuleEnvironmentRecord::createImportBinding(ExecutionState& state, AtomicS
     }
     ASSERT_NOT_REACHED();
 }
-}
+} // namespace Escargot

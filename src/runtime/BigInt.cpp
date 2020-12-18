@@ -538,4 +538,4 @@ BigInt* BigInt::negativeValue()
     bf_neg(&bf);
     return new BigInt(m_vmInstance, bf);
 }
-}
+} // namespace Escargot

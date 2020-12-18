@@ -47,6 +47,6 @@ private:
     size_t m_tag;
     Optional<String*> m_description;
 };
-}
+} // namespace Escargot
 
 #endif

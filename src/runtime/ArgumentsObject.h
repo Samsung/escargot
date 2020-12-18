@@ -105,6 +105,6 @@ private:
     void setModifiedArgument(uint64_t index);
     bool isMatchedArgument(uint64_t index);
 };
-}
+} // namespace Escargot
 
 #endif

@@ -944,6 +944,6 @@ public:
         return invalidIndex;
     }
 };
-}
+} // namespace Escargot
 
 #endif

@@ -208,4 +208,4 @@ ValueVectorWithInlineStorage IteratorObject::iterableToList(ExecutionState& stat
 
     return values;
 }
-}
+} // namespace Escargot

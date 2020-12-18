@@ -109,6 +109,6 @@ private:
     TemplateElementVector* m_quasis;
     NodeList m_expressions;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -185,4 +185,4 @@ FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 
     return s;
 }
-}
+} // namespace Escargot

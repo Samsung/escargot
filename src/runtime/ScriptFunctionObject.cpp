@@ -167,4 +167,4 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
         }
     }
 }
-}
+} // namespace Escargot

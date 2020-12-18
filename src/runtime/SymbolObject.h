@@ -51,6 +51,6 @@ public:
 private:
     Symbol* m_primitiveValue;
 };
-}
+} // namespace Escargot
 
 #endif

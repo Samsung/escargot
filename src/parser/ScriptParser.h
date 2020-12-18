@@ -81,6 +81,6 @@ private:
 
     Context* m_context;
 };
-}
+} // namespace Escargot
 
 #endif

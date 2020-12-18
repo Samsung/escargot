@@ -69,6 +69,6 @@ protected:
     Object* m_object;
 #endif
 };
-}
+} // namespace Escargot
 
 #endif

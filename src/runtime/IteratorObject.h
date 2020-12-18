@@ -108,6 +108,6 @@ public:
     // https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
     static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, Optional<Value> method = Optional<Value>());
 };
-}
+} // namespace Escargot
 
 #endif

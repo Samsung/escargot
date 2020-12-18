@@ -1766,4 +1766,4 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)
 #undef INSTALL_TYPEDARRAY
 }
-}
+} // namespace Escargot

@@ -252,4 +252,4 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)
 #undef DECLARE_TYPEDARRAY
-}
+} // namespace Escargot

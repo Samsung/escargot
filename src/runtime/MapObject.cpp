@@ -226,4 +226,4 @@ std::pair<Value, bool> MapIteratorObject::advance(ExecutionState& state)
     // Return CreateIterResultObject(undefined, true).
     return std::make_pair(Value(), true);
 }
-}
+} // namespace Escargot

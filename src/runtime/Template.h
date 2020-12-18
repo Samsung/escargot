@@ -315,6 +315,6 @@ protected:
     void* m_instanceExtraData;
     ObjectStructure* m_cachedObjectStructure;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -794,6 +794,7 @@ public:
     OwnPtr& operator=(OwnPtr<U>&&);
 
     void swap(OwnPtr& o) { std::swap(m_ptr, o.m_ptr); }
+
 private:
     explicit OwnPtr(PtrType ptr)
         : m_ptr(ptr)
@@ -1031,6 +1032,7 @@ public:
     void swap(RefPtr&);
 
     static T* hashTableDeletedValue() { return reinterpret_cast<T*>(-1); }
+
 private:
     T* m_ptr;
 };

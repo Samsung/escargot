@@ -848,4 +848,4 @@ void ByteCodeGenerator::printByteCode(Context* context, ByteCodeBlock* block)
     }
 }
 #endif
-}
+} // namespace Escargot

@@ -115,4 +115,4 @@ void WeakMapObject::set(ExecutionState& state, Object* key, const Value& value)
     GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(newData->key), newData->key);
     m_storage.pushBack(newData);
 }
-}
+} // namespace Escargot

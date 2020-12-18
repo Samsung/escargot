@@ -79,4 +79,4 @@ Value ScriptGeneratorFunctionObject::construct(ExecutionState& state, const size
     ASSERT_NOT_REACHED();
     return Value();
 }
-}
+} // namespace Escargot

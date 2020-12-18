@@ -53,5 +53,5 @@ const uint16_t identRangeLengthSupplementaryPlane[341] = {
 };
 const uint16_t basic_plane_length = sizeof(identRangeStart);
 const uint16_t supplementary_plane_length = sizeof(identRangeStartSupplementaryPlane);
-}
-}
+} // namespace EscargotLexer
+} // namespace Escargot

@@ -70,8 +70,7 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     , m_fromExternalMemory(false)
 #endif
 {
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj,
-                                            void*) {
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         ArrayBufferObject* self = (ArrayBufferObject*)obj;
         if (self->m_data) {
             self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
@@ -188,4 +187,4 @@ void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex
         }
     }
 }
-}
+} // namespace Escargot

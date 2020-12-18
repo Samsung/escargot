@@ -211,4 +211,4 @@ void GlobalObject::installBigInt(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().BigInt),
                       ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

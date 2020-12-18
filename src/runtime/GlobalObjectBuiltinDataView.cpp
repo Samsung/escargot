@@ -208,4 +208,4 @@ void GlobalObject::installDataView(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().DataView),
                       ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

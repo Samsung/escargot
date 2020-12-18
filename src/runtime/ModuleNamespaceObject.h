@@ -108,6 +108,6 @@ private:
     Script* m_script;
     AtomicStringVector m_exports;
 };
-}
+} // namespace Escargot
 
 #endif

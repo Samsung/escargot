@@ -835,7 +835,7 @@ inline String* String::fromCharCode(char32_t code)
         return new UTF16String(buf, 2);
     }
 }
-}
+} // namespace Escargot
 
 namespace std {
 template <>
@@ -853,7 +853,7 @@ struct equal_to<Escargot::String*> {
         return a->equals(b);
     }
 };
-}
+} // namespace std
 
 #include "runtime/RopeString.h"
 #include "runtime/StringBuilder.h"
@@ -875,6 +875,6 @@ public:
     void* operator new(size_t size) = delete;
     void* operator new[](size_t size) = delete;
 };
-}
+} // namespace Escargot
 
 #endif

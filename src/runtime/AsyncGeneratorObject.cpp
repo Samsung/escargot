@@ -247,4 +247,4 @@ Value AsyncGeneratorObject::asyncGeneratorReject(ExecutionState& state, AsyncGen
     // Return undefined.
     return Value();
 }
-}
+} // namespace Escargot

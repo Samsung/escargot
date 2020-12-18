@@ -101,6 +101,6 @@ private:
     String* m_left;
     // String* m_right; // Right String is stored in m_bufferAccessData.buffer if string is not flattened
 };
-}
+} // namespace Escargot
 
 #endif

@@ -385,6 +385,6 @@ public:
     static void printByteCode(Context* context, ByteCodeBlock* block);
 #endif
 };
-}
+} // namespace Escargot
 
 #endif

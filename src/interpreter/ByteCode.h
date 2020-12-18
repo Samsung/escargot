@@ -1051,9 +1051,9 @@ public:
 class Move : public ByteCode {
 public:
     Move(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1) // 1 <= 0
-        : ByteCode(Opcode::MoveOpcode, loc),
-          m_registerIndex0(registerIndex0),
-          m_registerIndex1(registerIndex1)
+        : ByteCode(Opcode::MoveOpcode, loc)
+        , m_registerIndex0(registerIndex0)
+        , m_registerIndex1(registerIndex1)
     {
     }
 

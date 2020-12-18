@@ -155,7 +155,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
                                                              ,
                                                              true
 #endif
-                                                             );
+            );
             es = new ExecutionState(&state, env, false);
         }
         result = ByteCodeInterpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
@@ -331,4 +331,4 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
 
     throw exitValue;
 }
-}
+} // namespace Escargot

@@ -87,4 +87,4 @@ Value NativeFunctionObject::construct(ExecutionState& state, const size_t argc, 
 
     return processNativeFunctionCall<true>(state, Value(), argc, argv, newTarget);
 }
-}
+} // namespace Escargot

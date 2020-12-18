@@ -183,4 +183,4 @@ UTF16StringData RopeString::toUTF16StringData() const
         return UTF16StringData(data.bufferAs16Bit, data.length);
     }
 }
-}
+} // namespace Escargot

@@ -43,4 +43,4 @@ Value ScriptArrowFunctionObject::construct(ExecutionState& state, const size_t a
     ASSERT_NOT_REACHED();
     return Value();
 }
-}
+} // namespace Escargot

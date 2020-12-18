@@ -308,6 +308,6 @@ private:
 #endif
     Value* m_argv;
 };
-}
+} // namespace Escargot
 
 #endif

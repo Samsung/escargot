@@ -686,4 +686,4 @@ void GlobalObject::installJSON(ExecutionState& state)
                               ObjectPropertyDescriptor(m_jsonStringify,
                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

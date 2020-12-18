@@ -142,6 +142,6 @@ private:
     ClassNode m_class;
     AtomicString m_implicitName;
 };
-}
+} // namespace Escargot
 
 #endif

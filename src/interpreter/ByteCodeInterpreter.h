@@ -172,6 +172,6 @@ private:
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 };
-}
+} // namespace Escargot
 
 #endif

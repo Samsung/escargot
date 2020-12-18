@@ -152,4 +152,4 @@ void GlobalObject::installWeakSet(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakSet),
                       ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

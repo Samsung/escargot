@@ -2120,4 +2120,4 @@ ScanID:
     this->scanIdentifier(token, cp);
     return;
 }
-}
+} // namespace Escargot

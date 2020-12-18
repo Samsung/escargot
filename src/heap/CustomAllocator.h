@@ -150,6 +150,6 @@ inline bool operator!=(const CustomAllocator<GC_T1>&, const CustomAllocator<GC_T
 {
     return false;
 }
-}
+} // namespace Escargot
 
 #endif

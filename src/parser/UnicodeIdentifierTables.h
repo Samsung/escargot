@@ -36,6 +36,6 @@ extern const uint32_t identRangeStartSupplementaryPlane[];
 extern const uint16_t identRangeLengthSupplementaryPlane[];
 extern const uint16_t basic_plane_length;
 extern const uint16_t supplementary_plane_length;
-}
-}
+} // namespace EscargotLexer
+} // namespace Escargot
 #endif

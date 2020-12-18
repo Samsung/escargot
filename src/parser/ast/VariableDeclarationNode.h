@@ -78,6 +78,6 @@ private:
     NodeList m_declarations; // declarations: [ VariableDeclarator ];
     EscargotLexer::KeywordKind m_kind;
 };
-}
+} // namespace Escargot
 
 #endif

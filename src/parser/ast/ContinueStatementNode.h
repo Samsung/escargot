@@ -42,6 +42,6 @@ public:
         context->pushContinuePositions(codeBlock->lastCodePosition<Jump>());
     }
 };
-}
+} // namespace Escargot
 
 #endif

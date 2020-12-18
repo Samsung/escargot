@@ -79,6 +79,6 @@ private:
     String* m_string;
     size_t m_iteratorNextIndex;
 };
-}
+} // namespace Escargot
 
 #endif

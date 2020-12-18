@@ -548,6 +548,6 @@ private:
     LexicalBlockIndex m_headRightLexicalBlockIndex;
     LexicalBlockIndex m_iterationLexicalBlockIndex;
 };
-}
+} // namespace Escargot
 
 #endif

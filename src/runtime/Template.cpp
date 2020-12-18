@@ -152,4 +152,4 @@ void Template::postProcessing(Object* instantiatedObject)
         instantiatedObject->setExtraData(m_instanceExtraData);
     }
 }
-}
+} // namespace Escargot

@@ -250,6 +250,6 @@ public:
     WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 };
 #endif
-}
+} // namespace Escargot
 
 #endif

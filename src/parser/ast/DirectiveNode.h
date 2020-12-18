@@ -50,6 +50,6 @@ public:
 private:
     Node* m_expr;
 };
-}
+} // namespace Escargot
 
 #endif

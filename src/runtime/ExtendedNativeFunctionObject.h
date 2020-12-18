@@ -142,6 +142,6 @@ protected:
 #endif
     InternalSlotData m_values[slotNumber];
 };
-}
+} // namespace Escargot
 
 #endif

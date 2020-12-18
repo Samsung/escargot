@@ -316,7 +316,7 @@ private:
     ObjectStructureItemVector* m_properties;
     PropertyNameMap* m_propertyNameMap;
 };
-}
+} // namespace Escargot
 
 namespace std {
 
@@ -343,5 +343,5 @@ struct equal_to<Escargot::ObjectStructureTransitionMapItem> {
         return a.m_descriptor == b.m_descriptor && a.m_propertyName == b.m_propertyName;
     }
 };
-}
+} // namespace std
 #endif

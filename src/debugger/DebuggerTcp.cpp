@@ -492,5 +492,5 @@ void DebuggerTcp::close(void)
         *m_debuggerEnabled = false;
     }
 }
-}
+} // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

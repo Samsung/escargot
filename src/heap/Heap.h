@@ -29,7 +29,7 @@ public:
     static void finalize();
     static void printGCHeapUsage();
 };
-}
+} // namespace Escargot
 
 #include "CustomAllocator.h"
 
