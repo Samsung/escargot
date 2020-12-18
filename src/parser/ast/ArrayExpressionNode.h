@@ -154,6 +154,6 @@ private:
     bool m_hasSpreadElement;
     bool m_isTaggedTemplateExpression;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -111,7 +111,7 @@ private:
     typedef std::vector<std::vector<char>> CompressedDataVector;
     CompressedDataVector m_compressedData;
 };
-}
+} // namespace Escargot
 
 #endif // ENABLE_COMPRESSIBLE_STRING
 

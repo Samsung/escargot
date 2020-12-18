@@ -46,6 +46,6 @@ public:
 private:
     String* m_label;
 };
-}
+} // namespace Escargot
 
 #endif

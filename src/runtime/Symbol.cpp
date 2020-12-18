@@ -56,4 +56,4 @@ String* Symbol::symbolDescriptiveString() const
     sb.appendString(")");
     return sb.finalize();
 }
-}
+} // namespace Escargot

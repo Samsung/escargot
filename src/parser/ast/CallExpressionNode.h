@@ -333,6 +333,6 @@ public:
         return isSubSequenceOfOptionalExpressionValue;
     }
 };
-}
+} // namespace Escargot
 
 #endif

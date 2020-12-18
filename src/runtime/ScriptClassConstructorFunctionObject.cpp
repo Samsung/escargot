@@ -127,4 +127,4 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
                                                            ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget)
         .asObject();
 }
-}
+} // namespace Escargot

@@ -141,6 +141,6 @@ void ReloadableString::load()
         RELEASE_ASSERT_NOT_REACHED();
     }
 }
-}
+} // namespace Escargot
 
 #endif // ENABLE_RELOADABLE_STRING

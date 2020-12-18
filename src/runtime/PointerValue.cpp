@@ -51,4 +51,4 @@ Value PointerValue::construct(ExecutionState& state, const size_t argc, NULLABLE
     // never get here. but I add return statement for removing compile warning
     return Value();
 }
-}
+} // namespace Escargot

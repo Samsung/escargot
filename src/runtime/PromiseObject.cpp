@@ -579,4 +579,4 @@ Value PromiseObject::promiseAnyRejectElementFunction(ExecutionState& state, Valu
     // Return undefined.
     return Value();
 }
-}
+} // namespace Escargot

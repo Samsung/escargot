@@ -80,6 +80,6 @@ private:
     Node* m_consequente;
     Node* m_alternate;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -259,6 +259,6 @@ inline ObjectPropertyNativeGetterSetterData::ObjectPropertyNativeGetterSetterDat
 }
 
 COMPILE_ASSERT(sizeof(ObjectStructurePropertyDescriptor) <= sizeof(size_t), "");
-}
+} // namespace Escargot
 
 #endif

@@ -661,6 +661,6 @@ private:
 
 // we can use atomic allocator here because there is no pointer value on Vector
 typedef VectorWithInlineStorage<KEEP_NUMERAL_LITERDATA_IN_REGISTERFILE_LIMIT, Value, GCUtil::gc_malloc_atomic_allocator<Value>> NumeralLiteralVector;
-}
+} // namespace Escargot
 
 #endif

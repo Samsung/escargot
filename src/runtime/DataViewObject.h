@@ -91,6 +91,6 @@ public:
         return Value();
     }
 };
-}
+} // namespace Escargot
 
 #endif

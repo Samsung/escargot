@@ -141,6 +141,6 @@ public:
 private:
     ClassNode m_class;
 };
-}
+} // namespace Escargot
 
 #endif

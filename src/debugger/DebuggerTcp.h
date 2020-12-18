@@ -60,7 +60,7 @@ private:
     uint8_t m_receiveBufferFill;
     uint8_t m_messageLength;
 };
-}
+} // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */
 
 #endif

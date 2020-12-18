@@ -48,6 +48,6 @@ public:
 private:
     Node* m_src;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -30,4 +30,4 @@ AsyncFromSyncIteratorObject::AsyncFromSyncIteratorObject(ExecutionState& state, 
     , m_syncIteratorRecord(syncIteratorRecord)
 {
 }
-}
+} // namespace Escargot

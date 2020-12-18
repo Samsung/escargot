@@ -42,4 +42,4 @@ void GlobalObject::installIterator(ExecutionState& state)
                                                           ObjectPropertyDescriptor(fn,
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

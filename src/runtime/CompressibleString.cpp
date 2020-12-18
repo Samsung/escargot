@@ -275,6 +275,6 @@ void CompressibleString::decompressWorker()
 
     m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
 }
-}
+} // namespace Escargot
 
 #endif // ENABLE_COMPRESSIBLE_STRING

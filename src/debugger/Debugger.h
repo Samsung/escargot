@@ -288,7 +288,7 @@ private:
 };
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled);
-}
+} // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */
 
 #endif

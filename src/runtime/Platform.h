@@ -49,6 +49,6 @@ public:
     virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) = 0;
     virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) = 0;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -279,4 +279,4 @@ void ObjectTemplate::removeNamedPropertyHandler()
 {
     m_namedPropertyHandler = nullptr;
 }
-}
+} // namespace Escargot

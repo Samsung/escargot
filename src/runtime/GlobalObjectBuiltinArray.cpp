@@ -1976,4 +1976,4 @@ void GlobalObject::installArray(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Array),
                       ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

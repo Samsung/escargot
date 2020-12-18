@@ -88,5 +88,5 @@ private:
     bool m_isAllocatedOnHeap;
 #endif
 };
-}
+} // namespace Escargot
 #endif

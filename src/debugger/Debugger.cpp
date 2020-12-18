@@ -874,5 +874,5 @@ String* Debugger::getClientSource(String** sourceName)
     m_clientSourceData = nullptr;
     return sourceData;
 }
-}
+} // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

@@ -88,6 +88,6 @@ private:
     GeneratorState m_generatorState;
     ExecutionPauser m_executionPauser;
 };
-}
+} // namespace Escargot
 
 #endif

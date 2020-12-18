@@ -205,6 +205,6 @@ private:
     Node* m_left; // left: Pattern;
     Node* m_right; // right: Expression;
 };
-}
+} // namespace Escargot
 
 #endif

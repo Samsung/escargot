@@ -53,4 +53,4 @@ void Node::generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, By
     codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, "Invalid assignment left-hand side"), context, this);
     return;
 }
-}
+} // namespace Escargot

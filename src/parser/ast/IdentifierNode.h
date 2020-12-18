@@ -333,6 +333,6 @@ public:
 private:
     AtomicString m_name;
 };
-}
+} // namespace Escargot
 
 #endif

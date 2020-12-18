@@ -139,7 +139,7 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 #define HAS_SMI_TAG(value) \
     ((reinterpret_cast<intptr_t>(value) & ::Escargot::EncodedValueImpl::kSmiTagMask) == ::Escargot::EncodedValueImpl::kSmiTag)
 #endif
-}
+} // namespace EncodedValueImpl
 
 
 // EncodedValue turns int, double values into pointer or odd value
@@ -506,7 +506,7 @@ typedef Vector<EncodedValueVectorElement, GCUtil::gc_malloc_allocator<EncodedVal
 typedef TightVector<EncodedValueVectorElement, GCUtil::gc_malloc_allocator<EncodedValueVectorElement>> EncodedValueTightVector;
 typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPropertyValueVector;
 #endif
-}
+} // namespace Escargot
 
 namespace std {
 
@@ -519,7 +519,7 @@ template <>
 struct is_fundamental<Escargot::EncodedSmallValue> : public true_type {
 };
 #endif
-}
+} // namespace std
 
 #include "runtime/EncodedSmallValueVectors.h"
 

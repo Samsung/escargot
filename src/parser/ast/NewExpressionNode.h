@@ -136,6 +136,6 @@ private:
     NodeList m_arguments;
     bool m_hasSpreadElement;
 };
-}
+} // namespace Escargot
 
 #endif

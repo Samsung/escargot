@@ -148,6 +148,6 @@ struct WASMCacheMap : public gc {
     WASMGlobalMap globalMap;
     WASMFunctionMap functionMap;
 };
-}
+} // namespace Escargot
 #endif // __EscargotWASMObject__
 #endif // ENABLE_WASM

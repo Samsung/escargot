@@ -90,6 +90,6 @@ private:
     Node* m_object;
     Node* m_body; // body: [ Statement ];
 };
-}
+} // namespace Escargot
 
 #endif

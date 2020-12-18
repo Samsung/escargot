@@ -60,6 +60,6 @@ private:
     // [[SyncIteratorRecord]]
     IteratorRecord* m_syncIteratorRecord;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -76,6 +76,6 @@ public:
 private:
     Node* m_argument;
 };
-}
+} // namespace Escargot
 
 #endif

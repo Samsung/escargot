@@ -124,6 +124,6 @@ private:
     // [[AsyncGeneratorQueue]]
     Vector<AsyncGeneratorQueueData, GCUtil::gc_malloc_allocator<AsyncGeneratorQueueData>> m_asyncGeneratorQueue;
 };
-}
+} // namespace Escargot
 
 #endif

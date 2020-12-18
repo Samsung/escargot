@@ -171,4 +171,4 @@ GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(Atom
 
     return iter->second;
 }
-}
+} // namespace Escargot

@@ -850,4 +850,4 @@ void GlobalObject::installObject(ExecutionState& state)
 
     m_objectPrototypeToString = new NativeFunctionObject(state, NativeFunctionInfo(strings.toString, builtinObjectToString, 0, NativeFunctionInfo::Strict));
 }
-}
+} // namespace Escargot

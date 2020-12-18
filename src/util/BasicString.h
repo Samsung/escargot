@@ -262,6 +262,6 @@ private:
     T* m_buffer;
     size_t m_size;
 };
-}
+} // namespace Escargot
 
 #endif

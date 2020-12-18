@@ -91,6 +91,6 @@ private:
     StatementContainer* m_container;
     LexicalBlockIndex m_lexicalBlockIndex;
 };
-}
+} // namespace Escargot
 
 #endif

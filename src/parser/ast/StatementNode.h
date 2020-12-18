@@ -162,6 +162,6 @@ public:
 private:
     StatementNode* m_firstChild;
 };
-}
+} // namespace Escargot
 
 #endif

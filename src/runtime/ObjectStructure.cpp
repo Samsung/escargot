@@ -391,4 +391,4 @@ ObjectStructure* ObjectStructureWithMap::convertToNonTransitionStructure()
 {
     return this;
 }
-}
+} // namespace Escargot

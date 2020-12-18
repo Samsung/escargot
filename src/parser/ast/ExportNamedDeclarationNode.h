@@ -66,6 +66,6 @@ private:
     NodeList m_specifiers;
     Node* m_source;
 };
-}
+} // namespace Escargot
 
 #endif

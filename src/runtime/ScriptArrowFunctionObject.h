@@ -54,6 +54,6 @@ public:
 private:
     EncodedValue m_thisValue;
 };
-}
+} // namespace Escargot
 
 #endif

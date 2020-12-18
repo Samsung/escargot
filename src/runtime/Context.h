@@ -374,6 +374,6 @@ public:
     VirtualIdentifierCallback m_fn;
     Context* m_context;
 };
-}
+} // namespace Escargot
 
 #endif

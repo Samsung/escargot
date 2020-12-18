@@ -77,6 +77,6 @@ private:
     Script::ModuleData* m_moduleData;
     NumeralLiteralVector m_numeralLiteralVector;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -242,5 +242,5 @@ struct TypedArrayHelper {
         }
     }
 };
-}
+} // namespace Escargot
 #endif

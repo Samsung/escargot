@@ -75,6 +75,6 @@ private:
     // We needs to store class source code for toString(). because class constructor stores its source code
     String* m_classSourceCode;
 };
-}
+} // namespace Escargot
 
 #endif

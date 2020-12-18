@@ -687,7 +687,7 @@ public:
 protected:
     T* m_buffer;
 };
-}
+} // namespace Escargot
 
 #endif
 

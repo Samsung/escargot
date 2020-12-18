@@ -65,6 +65,6 @@ private:
     EncodedValue m_thisValue;
     Object* m_homeObject;
 };
-}
+} // namespace Escargot
 
 #endif

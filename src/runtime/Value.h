@@ -209,7 +209,7 @@ public:
     inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
     std::pair<Value, bool> /* <Value, isBigInt> */
-        toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
+    toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     bool isInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     uint64_t toLength(ExecutionState& ec) const;
@@ -287,14 +287,14 @@ typedef Vector<Value, CustomAllocator<Value>> ValueVector;
 typedef VectorWithInlineStorage<32, Value, CustomAllocator<Value>> ValueVectorWithInlineStorage;
 typedef VectorWithInlineStorage<32, Value, CustomAllocator<Value>> ValueVectorWithInlineStorage32;
 typedef VectorWithInlineStorage<64, Value, CustomAllocator<Value>> ValueVectorWithInlineStorage64;
-}
+} // namespace Escargot
 
 namespace std {
 
 template <>
 struct is_fundamental<Escargot::Value> : public true_type {
 };
-}
+} // namespace std
 
 #include "runtime/ValueInlines.h"
 

@@ -155,6 +155,6 @@ private:
     Node* m_default;
     StatementContainer* m_casesB;
 };
-}
+} // namespace Escargot
 
 #endif

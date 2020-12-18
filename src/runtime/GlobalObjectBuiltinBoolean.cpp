@@ -85,4 +85,4 @@ void GlobalObject::installBoolean(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->Boolean),
                       ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

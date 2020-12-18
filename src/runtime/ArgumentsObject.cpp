@@ -377,4 +377,4 @@ bool ArgumentsObject::isMatchedArgument(uint64_t index)
     }
     return false;
 }
-}
+} // namespace Escargot

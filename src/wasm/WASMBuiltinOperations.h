@@ -154,6 +154,6 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     return Value();
 }
-}
+} // namespace Escargot
 #endif // __EscargotWASMBuiltinOperations__
 #endif // ENABLE_WASM

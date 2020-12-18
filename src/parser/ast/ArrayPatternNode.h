@@ -136,6 +136,6 @@ public:
 private:
     NodeList m_elements;
 };
-}
+} // namespace Escargot
 
 #endif

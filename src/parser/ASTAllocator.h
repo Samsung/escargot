@@ -72,5 +72,5 @@ private:
 
     std::vector<void*> m_astPools;
 };
-}
+} // namespace Escargot
 #endif

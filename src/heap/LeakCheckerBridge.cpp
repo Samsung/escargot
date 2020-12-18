@@ -60,6 +60,6 @@ Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc,
     GCUtil::GCLeakChecker::setGCPhaseName(argv[0].toString(state)->toUTF8StringData().data());
     return Value();
 }
-}
+} // namespace Escargot
 
 #endif // PROFILE_BDWGC

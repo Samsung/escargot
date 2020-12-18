@@ -1207,5 +1207,5 @@ protected:
     ModuleBindingRecordVector m_moduleBindings;
     Script* m_script;
 };
-}
+} // namespace Escargot
 #endif

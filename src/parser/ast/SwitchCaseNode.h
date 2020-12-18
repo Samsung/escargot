@@ -65,6 +65,6 @@ private:
     Node* m_test;
     StatementContainer* m_consequent;
 };
-}
+} // namespace Escargot
 
 #endif

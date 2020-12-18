@@ -661,7 +661,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
 #ifndef NDEBUG
             ExtendedNodeLOC(0, 0, 0)
 #endif
-                );
+        );
 
         info->m_canAllocateEnvironmentOnStack = m_buffer.get<bool>();
         info->m_shouldAllocateEnvironment = m_buffer.get<bool>();
@@ -1069,6 +1069,6 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
         }
     }
 }
-}
+} // namespace Escargot
 
 #endif // ENABLE_CODE_CACHE

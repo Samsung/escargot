@@ -447,4 +447,4 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
         obj->defineOwnProperty(state, ObjectPropertyName(m_context->staticStrings().stack), desc);
     }
 }
-}
+} // namespace Escargot

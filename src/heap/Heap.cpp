@@ -60,4 +60,4 @@ void Heap::printGCHeapUsage()
     ESCARGOT_LOG_INFO("Compile Escargot with ESCARGOT_MEM_STATS option.\n");
 #endif
 }
-}
+} // namespace Escargot

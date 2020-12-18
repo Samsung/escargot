@@ -50,6 +50,6 @@ public:
 private:
     bool m_primitiveValue : 1;
 };
-}
+} // namespace Escargot
 
 #endif

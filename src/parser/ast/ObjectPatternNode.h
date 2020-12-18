@@ -130,6 +130,6 @@ private:
     NodeList m_properties;
     bool m_hasRestElement : 1;
 };
-}
+} // namespace Escargot
 
 #endif

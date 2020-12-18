@@ -48,6 +48,6 @@ protected:
     Optional<FunctionTemplate*> m_constructor;
     ObjectTemplateNamedPropertyHandlerData* m_namedPropertyHandler;
 };
-}
+} // namespace Escargot
 
 #endif

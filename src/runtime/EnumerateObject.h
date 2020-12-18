@@ -101,6 +101,6 @@ protected:
 
     Vector<ObjectStructure*, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_hiddenClassChain;
 };
-}
+} // namespace Escargot
 
 #endif

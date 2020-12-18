@@ -1730,4 +1730,4 @@ bool Object::isRegExp(ExecutionState& state)
     }
     return isRegExpObject();
 }
-}
+} // namespace Escargot

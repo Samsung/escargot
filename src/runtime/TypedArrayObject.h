@@ -126,6 +126,6 @@ protected:
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)
 #undef DECLARE_TYPEDARRAY
-}
+} // namespace Escargot
 
 #endif

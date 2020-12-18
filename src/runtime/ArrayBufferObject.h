@@ -167,6 +167,6 @@ private:
     size_t m_byteOffset;
     size_t m_arrayLength;
 };
-}
+} // namespace Escargot
 
 #endif

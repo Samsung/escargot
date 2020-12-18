@@ -30,7 +30,7 @@ class ExecutionState;
 Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 Value builtinDumpBackTrace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 Value builtinSetGCPhaseName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
-}
+} // namespace Escargot
 
 #endif // PROFILE_BDWGC
 

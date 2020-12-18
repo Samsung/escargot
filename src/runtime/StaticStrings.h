@@ -876,6 +876,6 @@ protected:
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 };
-}
+} // namespace Escargot
 
 #endif

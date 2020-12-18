@@ -241,6 +241,6 @@ private:
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
 };
-}
+} // namespace Escargot
 
 #endif

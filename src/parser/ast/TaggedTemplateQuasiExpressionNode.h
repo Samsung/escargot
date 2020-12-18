@@ -72,6 +72,6 @@ private:
     Node* m_generatorNode;
     size_t m_cacheIndex;
 };
-}
+} // namespace Escargot
 
 #endif

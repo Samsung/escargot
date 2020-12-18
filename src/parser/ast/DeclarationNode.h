@@ -34,7 +34,7 @@ public:
 
 protected:
 };
-}
+} // namespace Escargot
 
 
 #endif

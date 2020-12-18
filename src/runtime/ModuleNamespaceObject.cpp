@@ -267,4 +267,4 @@ Object::OwnPropertyKeyVector ModuleNamespaceObject::ownPropertyKeys(ExecutionSta
     // Return exports.
     return exports;
 }
-}
+} // namespace Escargot

@@ -61,6 +61,6 @@ private:
     Node* m_local;
     Node* m_exported;
 };
-}
+} // namespace Escargot
 
 #endif

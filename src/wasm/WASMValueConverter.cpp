@@ -144,5 +144,5 @@ wasm_val_t WASMValueConverter::wasmDefaultValue(wasm_valkind_t type)
 
     return result;
 }
-}
+} // namespace Escargot
 #endif // ENABLE_WASM

@@ -91,6 +91,6 @@ protected:
         }
     }
 };
-}
+} // namespace Escargot
 
 #endif

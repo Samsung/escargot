@@ -57,6 +57,7 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ArrowParameterPlaceHolder; }
+
 private:
     NodeList m_params;
     bool m_async;
@@ -84,6 +85,6 @@ private:
     // defaults: [ Expression ];
     // rest: Identifier | null;
 };
-}
+} // namespace Escargot
 
 #endif

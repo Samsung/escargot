@@ -914,4 +914,4 @@ void GlobalObject::installRegExp(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->RegExp),
                       ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

@@ -1003,4 +1003,4 @@ Object* Script::importMetaProperty(ExecutionState& state)
         return moduleData()->m_importMeta.value();
     }
 }
-}
+} // namespace Escargot

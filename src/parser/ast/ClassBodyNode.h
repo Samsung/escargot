@@ -140,6 +140,6 @@ private:
     NodeList m_elementList;
     Node* m_constructor;
 };
-}
+} // namespace Escargot
 
 #endif

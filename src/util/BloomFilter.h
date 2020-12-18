@@ -66,6 +66,6 @@ private:
 
     std::bitset<tableSizeInBit> m_table;
 };
-}
+} // namespace Escargot
 
 #endif

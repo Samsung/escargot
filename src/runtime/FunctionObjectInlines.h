@@ -130,7 +130,7 @@ public:
                                                                                              ,
                                                                                  false
 #endif
-                                                                                 );
+            );
         } else {
             if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
                 record = new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
@@ -316,6 +316,6 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 #endif /* ESCARGOT_DEBUGGER */
     return result;
 }
-}
+} // namespace Escargot
 
 #endif

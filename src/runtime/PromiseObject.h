@@ -157,5 +157,5 @@ private:
     Reactions m_fulfillReactions;
     Reactions m_rejectReactions;
 };
-}
+} // namespace Escargot
 #endif // __EscargotPromiseObject__

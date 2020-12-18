@@ -50,6 +50,7 @@ public:
     inline ClassBodyNode* classBody() const { return (ClassBodyNode*)m_classBody; }
     inline LexicalBlockIndex classBodyLexicalBlockIndex() const { return m_classBodyLexicalBlockIndex; }
     inline const StringView& classSrc() const { return m_classSrc; }
+
 private:
     LexicalBlockIndex m_classBodyLexicalBlockIndex;
     Node* m_id; // Id
@@ -57,6 +58,6 @@ private:
     Node* m_classBody;
     StringView m_classSrc;
 };
-}
+} // namespace Escargot
 
 #endif

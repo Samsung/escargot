@@ -100,6 +100,6 @@ private:
     StackTraceDataVector m_stackTraceData;
     Value m_exception; // To avoid accidential GC of exception value
 };
-}
+} // namespace Escargot
 
 #endif

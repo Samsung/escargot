@@ -592,13 +592,13 @@ struct ASTScopeContext {
     {
     }
 };
-}
+} // namespace Escargot
 
 namespace std {
 
 template <>
 struct is_fundamental<Escargot::ASTScopeContextNameInfo> : public true_type {
 };
-}
+} // namespace std
 
 #endif

@@ -111,7 +111,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
 #ifndef NDEBUG
             blockScopes[i]->m_loc
 #endif
-            );
+        );
 
         // if block comes from switch statement, we should allocate variables on heap.
         // because our we can track only heap variables are initialized by user
@@ -892,4 +892,4 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
 
     return info;
 }
-}
+} // namespace Escargot

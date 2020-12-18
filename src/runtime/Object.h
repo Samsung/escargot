@@ -1185,6 +1185,6 @@ protected:
 
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 };
-}
+} // namespace Escargot
 
 #endif

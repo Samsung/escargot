@@ -40,4 +40,4 @@ ToStringRecursionPreventerItemAutoHolder::~ToStringRecursionPreventerItemAutoHol
     ASSERT(m_preventer->pop() == m_object);
 #endif
 }
-}
+} // namespace Escargot

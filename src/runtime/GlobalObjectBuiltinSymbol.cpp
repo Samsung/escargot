@@ -163,13 +163,12 @@ void GlobalObject::installSymbol(ExecutionState& state)
     }
 
 
-#define DECLARE_GLOBAL_SYMBOLS(name)                                                                                                                                                   \
-    m_symbol->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name), ObjectPropertyDescriptor(Value(state.context()->vmInstance()->globalSymbols().name), \
-                                                                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+#define DECLARE_GLOBAL_SYMBOLS(name) \
+    m_symbol->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name), ObjectPropertyDescriptor(Value(state.context()->vmInstance()->globalSymbols().name), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 
     m_symbol->setFunctionPrototype(state, m_symbolPrototype);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Symbol),
                       ObjectPropertyDescriptor(m_symbol, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

@@ -782,5 +782,5 @@ bool CodeCache::readCacheData(CodeCacheMetaInfo& metaInfo)
     fclose(dataFile);
     return true;
 }
-}
+} // namespace Escargot
 #endif // ENABLE_CODE_CACHE

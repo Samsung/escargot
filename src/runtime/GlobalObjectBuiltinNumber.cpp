@@ -452,4 +452,4 @@ void GlobalObject::installNumber(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Number),
                       ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

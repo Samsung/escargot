@@ -63,7 +63,7 @@ struct Error : public gc {
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside);
 FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
-}
-}
+} // namespace esprima
+} // namespace Escargot
 
 #endif

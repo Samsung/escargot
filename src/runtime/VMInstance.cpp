@@ -723,4 +723,4 @@ const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& VMInstance::intlPlu
     return m_intlPluralRulesAvailableLocales;
 }
 #endif
-}
+} // namespace Escargot

@@ -944,6 +944,6 @@ void GlobalObject::installWASM(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->WebAssembly),
                       ObjectPropertyDescriptor(wasm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot
 
 #endif

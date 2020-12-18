@@ -67,6 +67,6 @@ public:
 private:
     NodeList m_expressions; // expression: Expression;
 };
-}
+} // namespace Escargot
 
 #endif

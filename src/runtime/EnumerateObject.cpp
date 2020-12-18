@@ -313,4 +313,4 @@ bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
 
     return false;
 }
-}
+} // namespace Escargot

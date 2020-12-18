@@ -102,6 +102,6 @@ private:
     ByteCodeRegisterIndex m_resumeStateIndex;
     PromiseReaction::Capability m_promiseCapability; // async function needs this
 };
-}
+} // namespace Escargot
 
 #endif

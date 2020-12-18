@@ -59,6 +59,6 @@ protected:
     template <bool isConstruct, bool shouldReturnsObjectOnConstructCall = true>
     ALWAYS_INLINE Value processNativeFunctionCall(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv, Optional<Object*> newTarget);
 };
-}
+} // namespace Escargot
 
 #endif

@@ -90,4 +90,4 @@ Value BoundFunctionObject::construct(ExecutionState& state, const size_t calledA
     // Return Construct(target, args, newTarget).
     return Object::construct(state, m_boundTargetFunction, mergedArgc, mergedArgv, newTarget).toObject(state);
 }
-}
+} // namespace Escargot

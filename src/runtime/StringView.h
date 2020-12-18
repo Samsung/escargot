@@ -168,6 +168,6 @@ protected:
 private:
     size_t m_start;
 };
-}
+} // namespace Escargot
 
 #endif

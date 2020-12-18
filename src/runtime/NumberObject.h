@@ -66,6 +66,6 @@ public:
 private:
     double m_primitiveValue;
 };
-}
+} // namespace Escargot
 
 #endif

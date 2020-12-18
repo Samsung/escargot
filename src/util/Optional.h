@@ -212,6 +212,6 @@ inline bool operator!=(const T*& a, const Optional<T*>& b)
 {
     return b != a;
 }
-}
+} // namespace Escargot
 
 #endif

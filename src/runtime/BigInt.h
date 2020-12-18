@@ -124,6 +124,6 @@ private:
     VMInstance* m_vmInstance;
     bf_t m_bf;
 };
-}
+} // namespace Escargot
 
 #endif

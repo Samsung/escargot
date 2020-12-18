@@ -1027,4 +1027,4 @@ Value ProxyObject::construct(ExecutionState& state, const size_t argc, NULLABLE 
     // 12. Return newObj.
     return newObj;
 }
-}
+} // namespace Escargot

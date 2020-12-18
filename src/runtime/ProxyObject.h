@@ -126,6 +126,6 @@ private:
     Object* m_target;
     Object* m_handler;
 };
-}
+} // namespace Escargot
 
 #endif // __EscargotProxyObject__

@@ -163,6 +163,6 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
     // Return function.
     return function;
 }
-}
+} // namespace Escargot
 
 #endif // ENABLE_WASM

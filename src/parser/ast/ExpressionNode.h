@@ -87,6 +87,6 @@ public:
         return true;
     }
 };
-}
+} // namespace Escargot
 
 #endif

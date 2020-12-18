@@ -166,4 +166,4 @@ void GlobalObject::installWeakMap(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakMap),
                       ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

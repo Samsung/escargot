@@ -54,7 +54,7 @@ struct ParserContext {
     std::vector<std::pair<AtomicString, LexicalBlockIndex>> catchClauseSimplyDeclaredVariableNames;
     std::vector<std::pair<AtomicString, bool>> labelSet; // <LabelString, continue accepted>
 };
-}
-}
+} // namespace esprima
+} // namespace Escargot
 
 #endif

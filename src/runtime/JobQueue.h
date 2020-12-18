@@ -47,5 +47,5 @@ public:
 private:
     std::list<Job*, gc_allocator<Job*>> m_jobs;
 };
-}
+} // namespace Escargot
 #endif // __EscargotJobQueue__

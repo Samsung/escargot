@@ -839,4 +839,4 @@ bool Value::checkIfObjectWithIsHTMLDDA() const
     return isObject() && asObject()->isHTMLDDA();
 }
 #endif
-}
+} // namespace Escargot

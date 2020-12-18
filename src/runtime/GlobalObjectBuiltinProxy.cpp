@@ -116,4 +116,4 @@ void GlobalObject::installProxy(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->Proxy),
                       ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

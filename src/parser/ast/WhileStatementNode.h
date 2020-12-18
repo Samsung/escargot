@@ -101,6 +101,6 @@ private:
     Node* m_test;
     Node* m_body;
 };
-}
+} // namespace Escargot
 
 #endif

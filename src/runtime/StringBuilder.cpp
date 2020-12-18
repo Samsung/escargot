@@ -240,4 +240,4 @@ String* StringBuilder::finalize(ExecutionState* state)
         return new UTF16String(std::move(ret));
     }
 }
-}
+} // namespace Escargot

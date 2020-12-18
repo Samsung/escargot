@@ -93,4 +93,4 @@ bool WeakSetObject::has(ExecutionState& state, Object* key)
     }
     return false;
 }
-}
+} // namespace Escargot

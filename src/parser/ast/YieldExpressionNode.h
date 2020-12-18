@@ -489,6 +489,6 @@ private:
     Node* m_argument;
     bool m_isDelegate : 1;
 };
-}
+} // namespace Escargot
 
 #endif

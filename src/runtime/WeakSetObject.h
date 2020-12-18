@@ -55,5 +55,5 @@ public:
 private:
     WeakSetObjectData m_storage;
 };
-}
+} // namespace Escargot
 #endif

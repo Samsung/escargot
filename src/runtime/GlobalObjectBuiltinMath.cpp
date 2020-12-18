@@ -548,4 +548,4 @@ void GlobalObject::installMath(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
                       ObjectPropertyDescriptor(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-}
+} // namespace Escargot

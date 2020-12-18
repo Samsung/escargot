@@ -200,7 +200,7 @@ public:
 protected:
     AtomicString m_value;
 };
-}
+} // namespace Escargot
 
 namespace std {
 
@@ -223,6 +223,6 @@ struct equal_to<Escargot::AtomicString> {
         return a == b;
     }
 };
-}
+} // namespace std
 
 #endif

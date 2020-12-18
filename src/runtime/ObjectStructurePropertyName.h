@@ -237,7 +237,7 @@ ALWAYS_INLINE bool operator!=(const ObjectStructurePropertyName& a, const Atomic
 }
 
 typedef std::unordered_map<ObjectStructurePropertyName, size_t, std::hash<ObjectStructurePropertyName>, std::equal_to<ObjectStructurePropertyName>, GCUtil::gc_malloc_allocator<std::pair<const ObjectStructurePropertyName, size_t>>> PropertyNameMap;
-}
+} // namespace Escargot
 
 namespace std {
 template <>
@@ -255,6 +255,6 @@ struct equal_to<Escargot::ObjectStructurePropertyName> {
         return a == b;
     }
 };
-}
+} // namespace std
 
 #endif

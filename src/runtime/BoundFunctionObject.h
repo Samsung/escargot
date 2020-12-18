@@ -61,6 +61,6 @@ private:
     EncodedValue m_boundThis;
     EncodedValueVector m_boundArguments;
 };
-}
+} // namespace Escargot
 
 #endif

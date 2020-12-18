@@ -119,6 +119,6 @@ private:
     StringBuilderPiece m_piecesInlineStorage[STRING_BUILDER_INLINE_STORAGE_MAX];
     Vector<StringBuilderPiece, GCUtil::gc_malloc_allocator<StringBuilderPiece>> m_pieces;
 };
-}
+} // namespace Escargot
 
 #endif

@@ -49,7 +49,7 @@ union EncodedSmallValueData {
     }
 };
 #endif
-}
+} // namespace Escargot
 
 
 #endif

@@ -93,7 +93,7 @@ private:
     void* (*m_stringLoadCallback)(void* callbackData);
     void (*m_stringUnloadCallback)(void* memoryPtr, void* callbackData);
 };
-}
+} // namespace Escargot
 
 #endif // ENABLE_RELOADABLE_STRING
 

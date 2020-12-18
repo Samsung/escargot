@@ -51,6 +51,6 @@ public:
 private:
     Type m_type;
 };
-}
+} // namespace Escargot
 
 #endif

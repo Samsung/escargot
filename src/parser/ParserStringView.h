@@ -163,6 +163,6 @@ protected:
 private:
 };
 
-} // Escargot
+} // namespace Escargot
 
 #endif

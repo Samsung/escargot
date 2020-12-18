@@ -52,6 +52,6 @@ public:
         }
     }
 };
-}
+} // namespace Escargot
 
 #endif
