@@ -1070,6 +1070,11 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         if (ch == '|') {
             kind = LogicalOr;
             ++this->index;
+
+            if (this->peekChar() == '=') {
+                ++this->index;
+                kind = LogicalOrEqual;
+            }
         } else if (ch == '=') {
             kind = BitwiseOrEqual;
             ++this->index;

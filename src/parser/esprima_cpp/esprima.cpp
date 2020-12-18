@@ -3159,6 +3159,12 @@ public:
                         }
                         exprResult = builder.createAssignmentExpressionLogicalAndNode(exprNode, rightNode);
                         break;
+                    case LogicalOrEqual:
+                        if (!isLeftAssignmentTarget) {
+                            this->throwError(Messages::InvalidLHSInAssignment);
+                        }
+                        exprResult = builder.createAssignmentExpressionLogicalOrNode(exprNode, rightNode);
+                        break;
                     case LogicalNullishEqual:
                         if (!isLeftAssignmentTarget) {
                             this->throwError(Messages::InvalidLHSInAssignment);

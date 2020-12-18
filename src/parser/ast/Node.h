@@ -52,6 +52,7 @@ enum ASTNodeType : uint16_t {
     AssignmentExpressionSignedRightShift,
     AssignmentExpressionUnsignedRightShift,
     AssignmentExpressionLogicalAnd,
+    AssignmentExpressionLogicalOr,
     AssignmentExpressionLogicalNullish,
     AssignmentExpressionSimple,
     /* End */
@@ -189,9 +190,10 @@ COMPILE_ASSERT(((int)AssignmentExpressionMultiply + 1) == (int)AssignmentExpress
 COMPILE_ASSERT(((int)AssignmentExpressionPlus + 1) == (int)AssignmentExpressionSignedRightShift, "");
 COMPILE_ASSERT(((int)AssignmentExpressionSignedRightShift + 1) == (int)AssignmentExpressionUnsignedRightShift, "");
 COMPILE_ASSERT(((int)AssignmentExpressionUnsignedRightShift + 1) == (int)AssignmentExpressionLogicalAnd, "");
-COMPILE_ASSERT(((int)AssignmentExpressionLogicalAnd + 1) == (int)AssignmentExpressionLogicalNullish, "");
+COMPILE_ASSERT(((int)AssignmentExpressionLogicalAnd + 1) == (int)AssignmentExpressionLogicalOr, "");
+COMPILE_ASSERT(((int)AssignmentExpressionLogicalOr + 1) == (int)AssignmentExpressionLogicalNullish, "");
 COMPILE_ASSERT(((int)AssignmentExpressionLogicalNullish + 1) == (int)AssignmentExpressionSimple, "");
-COMPILE_ASSERT(((int)AssignmentExpressionSimple - (int)AssignmentExpression) == 15, "");
+COMPILE_ASSERT(((int)AssignmentExpressionSimple - (int)AssignmentExpression) == 16, "");
 
 COMPILE_ASSERT(((int)BinaryExpressionEqual + 1) == (int)BinaryExpressionNotEqual, "");
 COMPILE_ASSERT(((int)BinaryExpressionNotEqual + 1) == (int)BinaryExpressionStrictEqual, "");
