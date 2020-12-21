@@ -1030,6 +1030,7 @@ public:
 
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
     static Value construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
+    static bool setIntegrityLevel(ExecutionState& state, Object* O, bool isSealed);
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
     static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);

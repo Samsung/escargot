@@ -327,48 +327,18 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
 static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject()) {
-        // If Type(O) is not Object, return O. (ES6)
+        // If Type(O) is not Object, return O.
         return argv[0];
     }
 
     Object* O = argv[0].asObject();
 
-    // For each named own property name P of O,
-    ObjectStructurePropertyVector descriptors;
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        auto descriptors = (ObjectStructurePropertyVector*)data;
-        descriptors->push_back(std::make_pair(P, desc));
-        return true;
-    },
-                   &descriptors, false);
-    for (const auto& it : descriptors) {
-        const ObjectPropertyName& P = it.first;
-        const ObjectStructurePropertyDescriptor& desc = it.second;
-
-        // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
-        Object* newDesc = nullptr;
-
-        // If IsDataDescriptor(desc) is true, then
-        // If desc.[[Writable]] is true, set desc.[[Writable]] to false.
-        if (desc.isDataProperty() && desc.isWritable()) {
-            newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
-            newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().writable), Value(false), newDesc);
-        }
-        // If desc.[[Configurable]] is true, set desc.[[Configurable]] to false.
-        if (desc.isConfigurable()) {
-            if (!newDesc) {
-                newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
-            }
-            newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().configurable), Value(false), newDesc);
-        }
-        // Call the [[DefineOwnProperty]] internal method of O with P, desc, and true as arguments.
-        if (newDesc) {
-            O->defineOwnProperty(state, P, ObjectPropertyDescriptor(state, newDesc));
-        }
+    // Let status be ? SetIntegrityLevel(O, frozen).
+    // If status is false, throw a TypeError exception.
+    if (!Object::setIntegrityLevel(state, O, false)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().freeze.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    // Set the [[Extensible]] internal property of O to false.
-    O->preventExtensions(state);
     // Return O.
     return O;
 }
@@ -578,30 +548,12 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     }
     Object* O = argv[0].asObject();
 
-    // For each named own property name P of O,
-    ObjectStructurePropertyVector descriptors;
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        auto descriptors = (ObjectStructurePropertyVector*)data;
-        descriptors->push_back(std::make_pair(P, desc));
-        return true;
-    },
-                   &descriptors, false);
-    for (const auto& it : descriptors) {
-        const ObjectPropertyName& P = it.first;
-        const ObjectStructurePropertyDescriptor& desc = it.second;
-
-        // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
-        // If desc.[[Configurable]] is true, set desc.[[Configurable]] to false.
-        // Call the [[DefineOwnProperty]] internal method of O with P, desc, and true as arguments.
-        if (desc.isConfigurable()) {
-            Object* newDesc = O->getOwnProperty(state, P).toPropertyDescriptor(state, O).asObject();
-            newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().configurable), Value(false), newDesc);
-            O->defineOwnProperty(state, P, ObjectPropertyDescriptor(state, newDesc));
-        }
+    // Let status be ? SetIntegrityLevel(O, sealed).
+    // If status is false, throw a TypeError exception.
+    if (!Object::setIntegrityLevel(state, O, true)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    // Set the [[Extensible]] internal property of O to false.
-    O->preventExtensions(state);
     // Return O.
     return O;
 }
