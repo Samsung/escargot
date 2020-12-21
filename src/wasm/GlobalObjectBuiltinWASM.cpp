@@ -290,7 +290,6 @@ static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, si
     // Let module be moduleObject.[[Module]].
     wasm_module_t* module = moduleValue.asObject()->asWASMModuleObject()->module();
 
-    /* TODO wabt should be updated
     own wasm_importtype_vec_t import_types;
     wasm_module_imports(module, &import_types);
 
@@ -322,8 +321,6 @@ static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, si
     wasm_importtype_vec_delete(&import_types);
     //Return imports.
     return imports;
-    */
-    return Value();
 }
 
 // WebAssembly.Memory

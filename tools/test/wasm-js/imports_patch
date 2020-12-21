@@ -1,0 +1,64 @@
+diff --git src/interp/interp-wasm-c-api.cc src/interp/interp-wasm-c-api.cc
+index e55b80c5..d1e6874a 100644
+--- src/interp/interp-wasm-c-api.cc
++++ src/interp/interp-wasm-c-api.cc
+@@ -194,7 +194,30 @@ std::unique_ptr<wasm_externtype_t> wasm_externtype_t::New(
+ }
+ 
+ struct wasm_importtype_t {
+-  ImportType I;
++    wasm_importtype_t(ImportType it)
++        : I(it),
++        extern_{wasm_externtype_t::New(it.type->Clone())},
++        module{I.module.size(), const_cast<wasm_byte_t*>(I.module.data())},
++        name{I.name.size(), const_cast<wasm_byte_t*>(I.name.data())} {}
++
++    wasm_importtype_t(const wasm_importtype_t& other)
++        : wasm_importtype_t(other.I) {}
++
++    wasm_importtype_t& operator=(const wasm_importtype_t& other) {
++        wasm_importtype_t copy(other);
++        std::swap(I, copy.I);
++        std::swap(extern_, copy.extern_);
++        std::swap(module, copy.module);
++        std::swap(name, copy.name);
++        return *this;
++    }
++
++    ImportType I;
++
++    // Stored here because API requires returning pointers.
++    std::unique_ptr<wasm_externtype_t> extern_;
++    wasm_name_t module;
++    wasm_name_t name;
+ };
+ 
+ struct wasm_exporttype_t {
+@@ -662,6 +685,27 @@ own wasm_module_t* wasm_module_deserialize(wasm_store_t* store,
+   return wasm_module_new(store, bytes);
+ }
+ 
++// wasm_importtype
++
++own wasm_importtype_t* wasm_importtype_new(own wasm_name_t* module,
++        own wasm_name_t* name,
++        own wasm_externtype_t* type) {
++    return new wasm_importtype_t{
++        ImportType{ToString(module), ToString(name), type->I->Clone()}};
++}
++
++const wasm_name_t* wasm_importtype_module(const wasm_importtype_t* im) {
++    return &im->module;
++}
++
++const wasm_name_t* wasm_importtype_name(const wasm_importtype_t* im) {
++    return &im->name;
++}
++
++const wasm_externtype_t* wasm_importtype_type(const wasm_importtype_t* im) {
++    return im->extern_.get();
++}
++
+ // wasm_exporttype
+ 
+ own wasm_exporttype_t* wasm_exporttype_new(own wasm_name_t* name,
