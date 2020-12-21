@@ -17,7 +17,9 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt-get update
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -70,7 +72,9 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt-get update
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
@@ -122,11 +126,18 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt-get update
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
         dpkg -X libicu-dev_66.1-2ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
+    - name: Patch WABT
+      working-directory: ./third_party/wasm/wabt
+      run: |
+        cp ../../../tools/test/wasm-js/imports_patch .
+        patch -p0 < imports_patch
     - name: Build x86
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
