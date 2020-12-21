@@ -1133,6 +1133,60 @@ Value Object::construct(ExecutionState& state, const Value& constructor, const s
     return constructor.asPointerValue()->construct(state, argc, argv, newTarget);
 }
 
+// https://www.ecma-international.org/ecma-262/#sec-setintegritylevel
+bool Object::setIntegrityLevel(ExecutionState& state, Object* O, bool isSealed)
+{
+    // Let status be ? O.[[PreventExtensions]]().
+    bool status = O->preventExtensions(state);
+    // If status is false, return false.
+    if (!status) {
+        return false;
+    }
+
+    // Let keys be ? O.[[OwnPropertyKeys]]().
+    Object::OwnPropertyKeyVector keys = O->ownPropertyKeys(state);
+
+    // If level is sealed, then
+    if (isSealed) {
+        // For each element k of keys, do
+        for (size_t i = 0; i < keys.size(); i++) {
+            ObjectGetResult currentDesc = O->getOwnProperty(state, ObjectPropertyName(state, keys[i]));
+            if (currentDesc.isConfigurable()) {
+                // Perform ? DefinePropertyOrThrow(O, k, PropertyDescriptor { [[Configurable]]: false }).
+                Object* newDesc = currentDesc.toPropertyDescriptor(state, O).asObject();
+                newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().configurable), Value(false), newDesc);
+                O->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, keys[i]), ObjectPropertyDescriptor(state, newDesc));
+            }
+        }
+    } else {
+        // level is frozen
+        // For each element k of keys, do
+        for (size_t i = 0; i < keys.size(); i++) {
+            // Let currentDesc be ? O.[[GetOwnProperty]](k).
+            ObjectGetResult currentDesc = O->getOwnProperty(state, ObjectPropertyName(state, keys[i]));
+            // If currentDesc is not undefined, then
+            if (currentDesc.hasValue()) {
+                if (currentDesc.isConfigurable() || (currentDesc.isDataProperty() && currentDesc.isWritable())) {
+                    Object* newDesc = currentDesc.toPropertyDescriptor(state, O).asObject();
+                    if (currentDesc.isConfigurable()) {
+                        // Let desc be the PropertyDescriptor { [[Configurable]]: false }.
+                        newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().configurable), Value(false), newDesc);
+                    }
+                    if (currentDesc.isDataProperty() && currentDesc.isWritable()) {
+                        // Let desc be the PropertyDescriptor { [[Configurable]]: false, [[Writable]]: false }.
+                        newDesc->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().writable), Value(false), newDesc);
+                    }
+
+                    // Perform ? DefinePropertyOrThrow(O, k, desc).
+                    O->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, keys[i]), ObjectPropertyDescriptor(state, newDesc));
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
 bool Object::hasInstance(ExecutionState& state, Value O)
 {
