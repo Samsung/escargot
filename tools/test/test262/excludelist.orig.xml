@@ -457,8 +457,6 @@
     <test id="built-ins/NativeErrors/AggregateError/prototype/errors/this-has-no-typedarrayname-internal"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/AggregateError/prototype/errors/this-is-not-object"><reason>TODO</reason></test>
     <test id="built-ins/Object/defineProperties/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
-    <test id="built-ins/Object/isFrozen/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
-    <test id="built-ins/Object/isSealed/proxy-no-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/proxy-revoked-during-get-call"><reason>TODO</reason></test>
     <test id="built-ins/Promise/any/invoke-resolve-get-error-close"><reason>TODO</reason></test>
     <test id="built-ins/Promise/any/resolve-not-callable-close"><reason>TODO</reason></test>

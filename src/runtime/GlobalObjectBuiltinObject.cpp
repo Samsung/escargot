@@ -486,28 +486,9 @@ static Value builtinObjectIsFrozen(ExecutionState& state, Value thisValue, size_
     if (!argv[0].isObject()) {
         return Value(Value::True);
     }
-    Object* O = argv[0].asObject();
 
-    bool hasNonFrozenProperty = false;
-    // For each named own property name P of O,
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        if ((desc.isDataProperty() && desc.isWritable()) || desc.isConfigurable()) {
-            bool* hasNonFrozenProperty = (bool*)data;
-            *hasNonFrozenProperty = true;
-            return false;
-        }
-        return true;
-    },
-                   &hasNonFrozenProperty, false);
-    if (hasNonFrozenProperty)
-        return Value(false);
-
-    // If the [[Extensible]] internal property of O is false, then return true.
-    if (!O->isExtensible(state))
-        return Value(true);
-
-    // Otherwise, return false.
-    return Value(false);
+    bool result = Object::testIntegrityLevel(state, argv[0].asObject(), false);
+    return Value(result);
 }
 
 static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -515,30 +496,9 @@ static Value builtinObjectIsSealed(ExecutionState& state, Value thisValue, size_
     if (!argv[0].isObject()) {
         return Value(Value::True);
     }
-    Object* O = argv[0].asObject();
 
-    bool hasNonSealedProperty = false;
-    // For each named own property name P of O,
-    O->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with P.
-        // If desc.[[Configurable]] is true, then return false.
-        if (desc.isConfigurable()) {
-            bool* hasNonSealedProperty = (bool*)data;
-            *hasNonSealedProperty = true;
-            return false;
-        }
-        return true;
-    },
-                   &hasNonSealedProperty, false);
-    if (hasNonSealedProperty)
-        return Value(false);
-
-    // If the [[Extensible]] internal property of O is false, then return true.
-    if (!O->isExtensible(state))
-        return Value(true);
-
-    // Otherwise, return false.
-    return Value(false);
+    bool result = Object::testIntegrityLevel(state, argv[0].asObject(), true);
+    return Value(result);
 }
 
 static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
