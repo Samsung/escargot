@@ -27,7 +27,6 @@
 
 namespace Escargot {
 
-typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> ObjectPropertyVector;
 typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectStructurePropertyDescriptor>>> ObjectStructurePropertyVector;
 
 static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -161,26 +160,48 @@ static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue,
 static Value objectDefineProperties(ExecutionState& state, Value object, Value properties)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    if (!object.isObject())
+
+    if (!object.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Object.string(), false, strings->defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
-    Object* props = properties.toObject(state);
-    ObjectPropertyVector descriptors;
-    props->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        auto propDesc = self->getOwnProperty(state, name);
-        auto descriptors = (ObjectPropertyVector*)data;
-        if (propDesc.hasValue() && desc.isEnumerable()) {
-            Value propVal = propDesc.value(state, self);
-            if (!propVal.isObject())
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_DescriptorNotObject);
-            descriptors->push_back(std::make_pair(name, ObjectPropertyDescriptor(state, propVal.toObject(state))));
-        }
-        return true;
-    },
-                       &descriptors, false);
-    for (auto it : descriptors) {
-        object.asObject()->defineOwnPropertyThrowsException(state, it.first, it.second);
     }
-    return object;
+
+    Object* O = object.asObject();
+    // Let props be ? ToObject(Properties).
+    Object* props = properties.toObject(state);
+
+    // Let keys be ? props.[[OwnPropertyKeys]]().
+    Object::OwnPropertyKeyVector keys = props->ownPropertyKeys(state);
+    // Let descriptors be a new empty List.
+    VectorWithInlineStorage<32, std::pair<ObjectPropertyName, ObjectPropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<ObjectPropertyName, ObjectPropertyDescriptor>>> descriptors;
+
+    for (size_t i = 0; i < keys.size(); i++) {
+        // Let propDesc be ? props.[[GetOwnProperty]](nextKey).
+        ObjectPropertyName nextKey(state, keys[i]);
+        ObjectGetResult propDesc = props->getOwnProperty(state, nextKey);
+        // If propDesc is not undefined and propDesc.[[Enumerable]] is true, then
+        if (propDesc.hasValue() && propDesc.isEnumerable()) {
+            // Let descObj be ? Get(props, nextKey).
+            Value descVal = propDesc.value(state, props);
+            if (!descVal.isObject()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_DescriptorNotObject);
+            }
+
+            // Let desc be ? ToPropertyDescriptor(descObj).
+            ObjectPropertyDescriptor desc(state, descVal.asObject());
+            // Append the pair (a two element List) consisting of nextKey and desc to the end of descriptors.
+            descriptors.push_back(std::make_pair(nextKey, desc));
+        }
+    }
+
+    // For each pair from descriptors in list order, do
+    for (auto it : descriptors) {
+        // Let P be the first element of pair.
+        // Let desc be the second element of pair.
+        // Perform ? DefinePropertyOrThrow(O, P, desc).
+        O->defineOwnPropertyThrowsException(state, it.first, it.second);
+    }
+
+    return O;
 }
 
 static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
