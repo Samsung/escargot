@@ -1187,6 +1187,40 @@ bool Object::setIntegrityLevel(ExecutionState& state, Object* O, bool isSealed)
     return true;
 }
 
+// https://www.ecma-international.org/ecma-262/#sec-testintegritylevel
+bool Object::testIntegrityLevel(ExecutionState& state, Object* O, bool isSealed)
+{
+    // Let extensible be ? IsExtensible(O).
+    // If extensible is true, return false.
+    if (O->isExtensible(state)) {
+        return false;
+    }
+
+    // Let keys be ? O.[[OwnPropertyKeys]]().
+    Object::OwnPropertyKeyVector keys = O->ownPropertyKeys(state);
+
+    // For each element k of keys, do
+    for (size_t i = 0; i < keys.size(); i++) {
+        // Let currentDesc be ? O.[[GetOwnProperty]](k).
+        ObjectGetResult currentDesc = O->getOwnProperty(state, ObjectPropertyName(state, keys[i]));
+        // If currentDesc is not undefined, then
+        if (currentDesc.hasValue()) {
+            // If currentDesc.[[Configurable]] is true, return false.
+            if (currentDesc.isConfigurable()) {
+                return false;
+            }
+
+            // If level is frozen and IsDataDescriptor(currentDesc) is true, then
+            // If currentDesc.[[Writable]] is true, return false.
+            if (!isSealed && currentDesc.isDataProperty() && currentDesc.isWritable()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinaryhasinstance
 bool Object::hasInstance(ExecutionState& state, Value O)
 {
