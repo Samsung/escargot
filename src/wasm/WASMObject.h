@@ -23,6 +23,7 @@
 #define __EscargotWASMObject__
 
 struct wasm_module_t;
+struct wasm_instance_t;
 struct wasm_memory_t;
 struct wasm_table_t;
 struct wasm_global_t;
@@ -63,6 +64,35 @@ private:
     wasm_module_t* m_module;
 };
 
+class WASMInstanceObject : public Object {
+public:
+    explicit WASMInstanceObject(ExecutionState& state, wasm_instance_t* instance, Object* exports);
+
+    virtual bool isWASMInstanceObject() const override
+    {
+        return true;
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    wasm_instance_t* instance() const
+    {
+        ASSERT(!!m_instance);
+        return m_instance;
+    }
+
+    Object* exports() const
+    {
+        ASSERT(!!m_exports);
+        return m_exports;
+    }
+
+private:
+    wasm_instance_t* m_instance;
+    Object* m_exports;
+};
+
 class WASMMemoryObject : public Object {
 public:
     explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer);
@@ -74,6 +104,8 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    static WASMMemoryObject* createMemoryObject(ExecutionState& state, wasm_memory_t* memory);
 
     wasm_memory_t* memory() const
     {
