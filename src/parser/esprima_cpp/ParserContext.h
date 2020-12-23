@@ -36,6 +36,7 @@ struct ParserContext {
     bool allowSuperProperty : 1;
     bool allowNewTarget : 1;
     bool allowStrictDirective : 1;
+    bool allowArguments : 1;
     bool await : 1;
     bool isAssignmentTarget : 1;
     bool isBindingElement : 1;

@@ -105,6 +105,12 @@ public:
                 } else {
                     codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent), true), context, this);
                 }
+            } else if (p->kind() == ClassElementNode::Kind::StaticField) {
+                if (hasKeyName) {
+                    codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), destIndex, p->key()->asIdentifier()->name(), valueIndex, ObjectPropertyDescriptor::AllPresent), context, this);
+                } else {
+                    codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, false), context, this);
+                }
             } else if (p->kind() == ClassElementNode::Kind::Get) {
                 codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), true), context, this);
             } else {

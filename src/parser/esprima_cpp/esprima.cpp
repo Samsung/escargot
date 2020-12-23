@@ -222,6 +222,7 @@ public:
         this->context->allowSuperProperty = false;
         this->context->allowNewTarget = false;
         this->context->allowStrictDirective = true;
+        this->context->allowArguments = true;
         this->context->await = false;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
@@ -345,6 +346,10 @@ public:
             return;
         }
         this->lastUsingName = name;
+
+        if (UNLIKELY(name == this->stringArguments && !this->context->allowArguments)) {
+            this->throwError("arguments is not valid in here");
+        }
 
         bool contains = false;
         auto& v = this->currentBlockContext->m_usingNames;
@@ -1542,6 +1547,25 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode parsePropertyInitializer(ASTBuilder& builder)
+    {
+        ASSERT(this->match(Substitution));
+
+        this->nextToken();
+
+        const bool previousAllowArguments = this->context->allowArguments;
+        this->context->allowArguments = false;
+
+        MetaNode node = this->createNode();
+        ASTNode expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+        this->consumeSemicolon();
+
+        this->context->allowArguments = previousAllowArguments;
+
+        return expr;
+    }
+
+    template <class ASTBuilder>
     ASTNode parsePropertyMethodFunction(ASTBuilder& builder, bool allowSuperCall, bool isGenerator, bool isAsyncFunction, const MetaNode& functionStart)
     {
         MetaNode node = this->createNode();
@@ -1551,6 +1575,7 @@ public:
         }
 
         const bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowArguments = this->context->allowArguments;
         const bool previousAllowSuperCall = this->context->allowSuperCall;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowYield = this->context->allowYield;
@@ -1558,6 +1583,7 @@ public:
         const bool previousInArrowFunction = this->context->inArrowFunction;
 
         this->context->allowNewTarget = true;
+        this->context->allowArguments = true;
         this->context->allowSuperProperty = true;
         this->context->allowYield = false;
         this->context->inArrowFunction = false;
@@ -1589,6 +1615,7 @@ public:
         this->parsePropertyMethod(newBuilder, params);
 
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowArguments = previousAllowArguments;
         this->context->allowSuperCall = previousAllowSuperCall;
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->allowYield = previousAllowYield;
@@ -4875,9 +4902,11 @@ public:
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
         bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowArguments = this->context->allowArguments;
 
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
+        this->context->allowArguments = true;
         this->context->allowYield = false;
 
         ParseFormalParametersResult formalParameters;
@@ -4909,6 +4938,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowArguments = previousAllowArguments;
         this->context->allowStrictDirective = previousAllowStrictDirective;
 
         END_FUNCTION_SCANNING();
@@ -4940,9 +4970,11 @@ public:
         bool previousAllowYield = this->context->allowYield;
         bool previousInArrowFunction = this->context->inArrowFunction;
         bool previousAllowNewTarget = this->context->allowNewTarget;
+        bool previousAllowArguments = this->context->allowArguments;
 
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
+        this->context->allowArguments = true;
 
         if (!this->match(LeftParenthesis)) {
             ALLOC_TOKEN(token);
@@ -4984,6 +5016,7 @@ public:
             this->context->allowYield = previousAllowYield;
             this->context->inArrowFunction = previousInArrowFunction;
             this->context->allowNewTarget = previousAllowNewTarget;
+            this->context->allowArguments = previousAllowArguments;
             return this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName));
         }
 
@@ -5032,6 +5065,7 @@ public:
         this->context->allowYield = previousAllowYield;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowArguments = previousAllowArguments;
         this->context->allowStrictDirective = previousAllowStrictDirective;
 
         END_FUNCTION_SCANNING();
@@ -5122,11 +5156,13 @@ public:
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowArguments = this->context->allowArguments;
 
         this->context->allowYield = false;
         this->context->inArrowFunction = false;
         this->context->allowSuperProperty = true;
         this->context->allowNewTarget = true;
+        this->context->allowArguments = true;
 
         this->expect(LeftParenthesis);
         this->expect(RightParenthesis);
@@ -5148,6 +5184,7 @@ public:
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowArguments = previousAllowArguments;
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -5168,11 +5205,13 @@ public:
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowArguments = this->context->allowArguments;
 
         this->context->allowYield = false;
         this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
+        this->context->allowArguments = true;
 
         this->expect(LeftParenthesis);
 
@@ -5199,6 +5238,7 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowArguments = previousAllowArguments;
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -5217,10 +5257,12 @@ public:
         const bool previousInArrowFunction = this->context->inArrowFunction;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
         const bool previousAllowNewTarget = this->context->allowNewTarget;
+        const bool previousAllowArguments = this->context->allowArguments;
 
         this->context->allowSuperProperty = true;
         this->context->inArrowFunction = false;
         this->context->allowNewTarget = true;
+        this->context->allowArguments = true;
 
         this->expect(LeftParenthesis);
 
@@ -5246,6 +5288,7 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
         this->context->inArrowFunction = previousInArrowFunction;
         this->context->allowNewTarget = previousAllowNewTarget;
+        this->context->allowArguments = previousAllowArguments;
 
         END_FUNCTION_SCANNING();
         return this->finalize(node, builder.createFunctionExpressionNode(this->subCodeBlockIndex, AtomicString()));
@@ -5406,15 +5449,42 @@ public:
             isGenerator = true;
         }
 
-        if (kind == ClassElementNode::Kind::None && keyNode && this->match(LeftParenthesis)) {
-            kind = ClassElementNode::Kind::Method;
-            bool allowSuperCall = false;
-            if (hasSuperClass) {
-                if (keyNode && builder.isPropertyKey(keyNode, "constructor")) {
-                    allowSuperCall = true;
+        if (kind == ClassElementNode::Kind::None && keyNode) {
+            if (this->match(LeftParenthesis)) {
+                kind = ClassElementNode::Kind::Method;
+                bool allowSuperCall = false;
+                if (hasSuperClass) {
+                    if (keyNode && builder.isPropertyKey(keyNode, "constructor")) {
+                        allowSuperCall = true;
+                    }
+                }
+                value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
+            } else if (this->match(Substitution)) {
+                kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
+                value = this->parsePropertyInitializer(builder);
+            } else if (this->match(SemiColon)) {
+                auto metaNode = this->createNode();
+                this->nextToken();
+
+                kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
+                value = this->finalize(metaNode, builder.createLiteralNode(Value()));
+            } else {
+                if (this->hasLineTerminator) {
+                    kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
+                    value = this->finalize(this->createNode(), builder.createLiteralNode(Value()));
                 }
             }
-            value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
+        }
+
+        if (kind == ClassElementNode::Kind::StaticField) {
+            if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
+                this->throwError(Messages::InvalidClassFieldName);
+            }
+        }
+
+        // TODO
+        if (kind == ClassElementNode::Kind::Field) {
+            this->throwUnexpectedToken(this->lookahead);
         }
 
         if (kind == ClassElementNode::Kind::None) {
@@ -5451,10 +5521,12 @@ public:
         }
 
         if (!this->isParsingSingleFunction) {
-            if (isStatic) {
-                this->lastPoppedScopeContext->m_isClassStaticMethod = true;
-            } else {
-                this->lastPoppedScopeContext->m_isClassMethod = true;
+            if (kind != ClassElementNode::Kind::Field && kind != ClassElementNode::Kind::StaticField) {
+                if (isStatic) {
+                    this->lastPoppedScopeContext->m_isClassStaticMethod = true;
+                } else {
+                    this->lastPoppedScopeContext->m_isClassMethod = true;
+                }
             }
         }
 
