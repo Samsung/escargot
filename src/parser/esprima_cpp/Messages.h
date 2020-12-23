@@ -57,6 +57,7 @@ public:
     static constexpr const char* InvalidLHSInAssignment = "Invalid left-hand side in assignment";
     static constexpr const char* InvalidLHSInForIn = "Invalid left-hand side in for-in";
     static constexpr const char* InvalidLHSInForLoop = "Invalid left-hand side in for-loop";
+    static constexpr const char* InvalidClassFieldName = "Invalid class field name";
     static constexpr const char* MultipleDefaultsInSwitch = "More than one default clause in switch statement";
     static constexpr const char* NoCatchOrFinally = "Missing catch or finally after try";
     static constexpr const char* UnknownLabel = "Undefined label \'%s\'";

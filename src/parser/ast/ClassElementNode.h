@@ -32,6 +32,8 @@ public:
         Get,
         Set,
         Method,
+        Field,
+        StaticField,
     };
 
 
