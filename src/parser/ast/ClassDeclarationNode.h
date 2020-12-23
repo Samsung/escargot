@@ -34,6 +34,7 @@ public:
         // id can be nullptr
         , m_class(id, superClass, classBody->asClassBody(), classBodyLexicalBlockIndex, classSrc)
     {
+        ASSERT(id);
     }
 
     const ClassNode& classNode()
@@ -54,7 +55,7 @@ public:
         context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = hasSuper ? context->getRegister() : SIZE_MAX;
 
-        context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : AtomicString();
+        context->m_classInfo.m_name = classIdent->asIdentifier()->name();
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
 
@@ -95,7 +96,6 @@ public:
         }
 
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
-            ASSERT(classIdent);
             // Initialize class name
             context->m_isLexicallyDeclaredBindingInitialization = true;
             classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);
@@ -104,7 +104,6 @@ public:
             codeBlock->finalizeLexicalBlock(context, blockContext);
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         }
-        ASSERT(classIdent);
 
         context->m_isLexicallyDeclaredBindingInitialization = true;
         classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);
@@ -125,9 +124,7 @@ public:
     {
         fn(this);
 
-        if (m_class.id()) {
-            m_class.id()->iterateChildren(fn);
-        }
+        m_class.id()->iterateChildren(fn);
 
         if (m_class.superClass()) {
             m_class.superClass()->iterateChildren(fn);
