@@ -71,6 +71,7 @@ class IntlRelativeTimeFormatObject;
 #endif
 #if defined(ENABLE_WASM)
 class WASMModuleObject;
+class WASMInstanceObject;
 class WASMMemoryObject;
 class WASMTableObject;
 class WASMGlobalObject;
@@ -404,6 +405,11 @@ public:
         return false;
     }
 
+    virtual bool isWASMInstanceObject() const
+    {
+        return false;
+    }
+
     virtual bool isWASMMemoryObject() const
     {
         return false;
@@ -707,6 +713,12 @@ public:
     {
         ASSERT(isWASMModuleObject());
         return (WASMModuleObject*)this;
+    }
+
+    WASMInstanceObject* asWASMInstanceObject()
+    {
+        ASSERT(isWASMInstanceObject());
+        return (WASMInstanceObject*)this;
     }
 
     WASMMemoryObject* asWASMMemoryObject()

@@ -84,6 +84,34 @@ void* WASMModuleObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+WASMInstanceObject::WASMInstanceObject(ExecutionState& state, wasm_instance_t* instance, Object* exports)
+    : Object(state, state.context()->globalObject()->wasmInstancePrototype())
+    , m_instance(instance)
+    , m_exports(exports)
+{
+    ASSERT(!!m_instance && !!m_exports);
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        WASMInstanceObject* self = (WASMInstanceObject*)obj;
+        wasm_instance_delete(self->instance());
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* WASMInstanceObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(WASMInstanceObject)] = { 0 };
+        Object::fillGCDescriptor(obj_bitmap);
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMInstanceObject, m_exports));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMInstanceObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer)
     : Object(state, state.context()->globalObject()->wasmMemoryPrototype())
     , m_memory(memory)
@@ -111,6 +139,37 @@ void* WASMMemoryObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wasm_memory_t* memory)
+{
+    ASSERT(!!memory);
+
+    // Let map be the surrounding agent's associated Memory object cache.
+    WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
+    auto mapIter = map.find(memory);
+    if (mapIter != map.end()) {
+        return mapIter->second;
+    }
+
+    // Let memory be a new Memory.
+    // Initialize memory from memory.
+    ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
+
+    // FIXME wasm_memory_data with zero size returns null pointer
+    // temporal address is allocated by calloc for this case
+    void* dataBlock = wasm_memory_size(memory) == 0 ? calloc(0, 0) : wasm_memory_data(memory);
+    buffer->attachBuffer(state, dataBlock, wasm_memory_data_size(memory));
+
+    // Set memory.[[Memory]] to memory.
+    // Set memory.[[BufferObject]] to buffer.
+    WASMMemoryObject* memoryObj = new WASMMemoryObject(state, memory, buffer);
+
+    // Set map[memory] to memory.
+    map.insert(std::make_pair(memory, memoryObj));
+
+    //  Return memory.
+    return memoryObj;
 }
 
 ArrayBufferObject* WASMMemoryObject::buffer() const
