@@ -205,6 +205,7 @@ class FunctionObject;
 #if defined(ENABLE_WASM)
 #define GLOBALOBJECT_BUILTIN_WASM(F, NAME)     \
     F(wasmModulePrototype, Object, Name)       \
+    F(wasmInstancePrototype, Object, Name)     \
     F(wasmMemoryPrototype, Object, Name)       \
     F(wasmTablePrototype, Object, Name)        \
     F(wasmGlobalPrototype, Object, Name)       \

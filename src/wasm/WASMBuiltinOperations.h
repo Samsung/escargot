@@ -22,6 +22,10 @@
 #ifndef __EscargotWASMBuiltinOperations__
 #define __EscargotWASMBuiltinOperations__
 
+// represent ownership of each object
+// object marked with 'own' should be deleted in the current context
+#define own
+
 namespace Escargot {
 
 static Value wasmGetValueFromMaybeObject(ExecutionState& state, const Value& obj, const AtomicString& property)
@@ -139,21 +143,386 @@ static Value wasmCompileModule(ExecutionState& state, Value thisValue, size_t ar
     return new WASMModuleObject(state, module);
 }
 
+static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[], wasm_val_t results[])
+{
+    WASMHostFunctionEnvironment* funcEnv = (WASMHostFunctionEnvironment*)env;
+
+    Object* func = funcEnv->func;
+    ASSERT(func->isCallable());
+
+    // Let realm be func's associated Realm.
+    // Let relevant settings be realm?s settings object.
+    ExecutionState temp(nullptr);
+    ExecutionState state(func->getFunctionRealm(temp));
+
+    // Let [parameters] ? [results] be functype.
+    wasm_functype_t* functype = funcEnv->functype;
+    const wasm_valtype_vec_t* params = wasm_functype_params(functype);
+    const wasm_valtype_vec_t* res = wasm_functype_results(functype);
+    size_t argSize = params->size;
+
+    // Let jsArguments be << >>
+    Value* jsArguments = ALLOCA(sizeof(Value) * argSize, Value, state);
+
+    // For each arg of arguments,
+    for (size_t i = 0; i < argSize; i++) {
+        // Append ! ToJSValue(arg) to jsArguments.
+        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args[i]);
+    }
+
+    // Let ret be ? Call(func, undefined, jsArguments).
+    Value ret = Object::call(state, func, Value(), argSize, jsArguments);
+
+    // Let resultsSize be results?s size.
+    size_t resultsSize = res->size;
+    if (resultsSize == 0) {
+        // If resultsSize is 0, return << >>
+        return nullptr;
+    }
+
+    if (resultsSize == 1) {
+        // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
+        results[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
+    } else {
+        // Otherwise,
+        // Let method be ? GetMethod(ret, @@iterator).
+        Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+        // If method is undefined, throw a TypeError.
+        if (method.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+        }
+
+        // Let values be ? IterableToList(ret, method).
+        ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, ret, method);
+        // If values's size is not resultsSize, throw a TypeError exception.
+        if (values.size() != resultsSize) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+        }
+
+        // For each value and resultType in values and results, paired linearly,
+        // Append ToWebAssemblyValue(value, resultType) to wasmValues.
+        for (size_t i = 0; i < resultsSize; i++) {
+            results[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
+        }
+    }
+
+    // TODO
+    // Assert: result.[[Type]] is throw or normal.
+    // If result.[[Type]] is throw, then trigger a WebAssembly trap, and propagate result.[[Value]] to the enclosing JavaScript.
+    // Otherwise, return result.[[Value]].
+
+    return nullptr;
+}
+
+static wasm_func_t* wasmCreateHostFunction(ExecutionState& state, Object* func, wasm_functype_t* functype)
+{
+    // Assert: IsCallable(func).
+    ASSERT(func->isCallable());
+
+    // Let store be the surrounding agent's associated store.
+    // Let (store, funcaddr) be func_alloc(store, functype, hostfunc).
+    // NOTE we should clone functype here because functype needs to be maintained for host function call later.
+    own wasm_functype_t* functypeCopy = wasm_functype_copy(functype);
+
+    WASMHostFunctionEnvironment* env = new WASMHostFunctionEnvironment(func, functypeCopy);
+    wasm_func_t* funcaddr = wasm_func_new_with_env(state.context()->vmInstance()->wasmStore(), functypeCopy, callbackHostFunction, env, nullptr);
+
+    state.context()->wasmEnvCache()->push_back(env);
+
+    // Return funcaddr.
+    return funcaddr;
+}
+
+static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module, const Value& importObj, own wasm_extern_vec_t* imports)
+{
+    own wasm_importtype_vec_t import_types;
+    wasm_module_imports(module, &import_types);
+
+    // If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
+    if (import_types.size > 0 && importObj.isUndefined()) {
+        wasm_importtype_vec_delete(&import_types);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+    }
+
+    if (!importObj.isObject()) {
+        wasm_importtype_vec_delete(&import_types);
+        return;
+    }
+    Object* importObject = importObj.asObject();
+
+    // Let imports be << >>
+    wasm_extern_vec_new_uninitialized(imports, import_types.size);
+
+    // For each (moduleName, componentName, externtype) of module_imports(module),
+    for (size_t i = 0; i < import_types.size; i++) {
+        const wasm_name_t* moduleName = wasm_importtype_module(import_types.data[i]);
+        const wasm_name_t* compName = wasm_importtype_name(import_types.data[i]);
+        wasm_externtype_t* externtype = const_cast<wasm_externtype_t*>(wasm_importtype_type(import_types.data[i]));
+
+        String* moduleNameValue = String::fromASCII(moduleName->data, moduleName->size);
+        String* compNameValue = String::fromASCII(compName->data, compName->size);
+
+        // Let o be ? Get(importObject, moduleName).
+        Value o = importObject->get(state, ObjectPropertyName(state, moduleNameValue)).value(state, importObject);
+        // If Type(o) is not Object, throw a TypeError exception.
+        if (!o.isObject()) {
+            wasm_importtype_vec_delete(&import_types);
+            wasm_extern_vec_delete(imports);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+        }
+
+        // Let v be ? Get(o, componentName).
+        Value v = o.asObject()->get(state, ObjectPropertyName(state, compNameValue)).value(state, o);
+
+        size_t externFuncCount = 0;
+        switch (wasm_externtype_kind(externtype)) {
+        case WASM_EXTERN_FUNC: {
+            // If externtype is of the form func functype,
+            if (!v.isCallable()) {
+                // If IsCallable(v) is false, throw a LinkError exception.
+                wasm_importtype_vec_delete(&import_types);
+                wasm_extern_vec_delete(imports);
+                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            }
+
+            wasm_func_t* funcaddr = nullptr;
+            if (v.asObject()->isExportedFunctionObject()) {
+                // If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
+                // Let funcaddr be the value of v?s [[FunctionAddress]] internal slot.
+                funcaddr = v.asObject()->asExportedFunctionObject()->function();
+            } else {
+                // Create a host function from v and functype, and let funcaddr be the result.
+                funcaddr = wasmCreateHostFunction(state, v.asObject(), wasm_externtype_as_functype(externtype));
+
+                // TODO Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
+                externFuncCount++;
+            }
+
+            // Let externfunc be the external value func funcaddr.
+            // Append externfunc to imports.
+            imports->data[i] = wasm_func_as_extern(funcaddr);
+            break;
+        }
+        case WASM_EXTERN_GLOBAL: {
+            // If externtype is of the form global mut valtype,
+            const wasm_valtype_t* valtype = wasm_globaltype_content(wasm_externtype_as_globaltype(externtype));
+
+            wasm_global_t* globaladdr = nullptr;
+            // If Type(v) is Number or BigInt,
+            if (v.isNumber() || v.isBigInt()) {
+                // If valtype is i64 and Type(v) is Number,
+                if ((wasm_valtype_kind(valtype) == WASM_I64) && v.isNumber()) {
+                    // Throw a LinkError exception.
+                    wasm_importtype_vec_delete(&import_types);
+                    wasm_extern_vec_delete(imports);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+                }
+
+                // If valtype is not i64 and Type(v) is BigInt,
+                if ((wasm_valtype_kind(valtype) != WASM_I64) && v.isBigInt()) {
+                    // Throw a LinkError exception.
+                    wasm_importtype_vec_delete(&import_types);
+                    wasm_extern_vec_delete(imports);
+                    ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+                }
+
+                // Let value be ToWebAssemblyValue(v, valtype).
+                wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, v, wasm_valtype_kind(valtype));
+
+                // Let (store, globaladdr) be global_alloc(store, const valtype, value).
+                // FIXME globaltype
+                own wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(wasm_valtype_kind(valtype)), WASM_CONST);
+                globaladdr = wasm_global_new(state.context()->vmInstance()->wasmStore(), globaltype, &value);
+                wasm_globaltype_delete(globaltype);
+
+            } else if (v.asObject()->isWASMGlobalObject()) {
+                // Otherwise, if v implements Global,
+                // Let globaladdr be v.[[Global]].
+                globaladdr = v.asObject()->asWASMGlobalObject()->global();
+            } else {
+                // Throw a LinkError exception.
+                wasm_importtype_vec_delete(&import_types);
+                wasm_extern_vec_delete(imports);
+                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            }
+
+            // Let externglobal be global globaladdr.
+            // Append externglobal to imports.
+            imports->data[i] = wasm_global_as_extern(globaladdr);
+            break;
+        }
+        case WASM_EXTERN_MEMORY: {
+            // If externtype is of the form mem memtype,
+            wasm_memorytype_t* memtype = wasm_externtype_as_memorytype(externtype);
+
+            // If v does not implement Memory, throw a LinkError exception.
+            if (!v.asObject()->isWASMMemoryObject()) {
+                wasm_importtype_vec_delete(&import_types);
+                wasm_extern_vec_delete(imports);
+                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            }
+
+            // Let externmem be the external value mem v.[[Memory]].
+            // Append externmem to imports.
+            wasm_memory_t* externmem = v.asObject()->asWASMMemoryObject()->memory();
+            imports->data[i] = wasm_memory_as_extern(externmem);
+            break;
+        }
+        case WASM_EXTERN_TABLE: {
+            // If externtype is of the form table tabletype,
+            wasm_tabletype_t* tabletype = wasm_externtype_as_tabletype(externtype);
+
+            // If v does not implement Table, throw a LinkError exception.
+            if (!v.asObject()->isWASMTableObject()) {
+                wasm_importtype_vec_delete(&import_types);
+                wasm_extern_vec_delete(imports);
+                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            }
+
+            // Let tableaddr be v.[[Table]].
+            // Let externtable be the external value table tableaddr.
+            // Append externtable to imports.
+            wasm_table_t* tableaddr = v.asObject()->asWASMTableObject()->table();
+            imports->data[i] = wasm_table_as_extern(tableaddr);
+            break;
+        }
+        default: {
+            ASSERT_NOT_REACHED();
+            break;
+        }
+        }
+    }
+
+    wasm_importtype_vec_delete(&import_types);
+}
+
+static Object* wasmCreateExportsObject(ExecutionState& state, wasm_module_t* module, wasm_instance_t* instance)
+{
+    // Let exportsObject be ! ObjectCreate(null).
+    Object* exportsObject = new Object(state, Object::PrototypeIsNull);
+
+    own wasm_exporttype_vec_t export_types;
+    wasm_module_exports(module, &export_types);
+
+    own wasm_extern_vec_t exports;
+    wasm_instance_exports(instance, &exports);
+    ASSERT(export_types.size == exports.size);
+
+    for (size_t i = 0; i < export_types.size; i++) {
+        // For each (name, externtype) of module_exports(module),
+        const wasm_name_t* name = wasm_exporttype_name(export_types.data[i]);
+        String* nameValue = String::fromASCII(name->data, name->size);
+        wasm_externkind_t externtype = wasm_externtype_kind(wasm_exporttype_type(export_types.data[i]));
+
+        // FIXME Let externval be instance_export(instance, name).
+        wasm_extern_t* externval = exports.data[i];
+        ASSERT(externtype == wasm_extern_kind(externval));
+
+        Value value;
+        switch (externtype) {
+        case WASM_EXTERN_FUNC: {
+            // If externtype is of the form func functype,
+            // Let func funcaddr be externval.
+            wasm_func_t* funcaddr = wasm_extern_as_func(externval);
+
+            // Let func be the result of creating a new Exported Function from funcaddr.
+            // Let value be func.
+            ExportedFunctionObject* func = ExportedFunctionObject::createExportedFunction(state, funcaddr);
+            value = Value(func);
+            break;
+        }
+        case WASM_EXTERN_GLOBAL: {
+            // If externtype is of the form global mut globaltype,
+            // Let global globaladdr be externval.
+            wasm_global_t* globaladdr = wasm_extern_as_global(externval);
+
+            // Let global be a new Global object created from globaladdr.
+            // Let value be global.
+            WASMGlobalObject* global = WASMGlobalObject::createGlobalObject(state, globaladdr);
+            value = Value(global);
+            break;
+        }
+        case WASM_EXTERN_MEMORY: {
+            // If externtype is of the form mem memtype,
+            // Let mem memaddr be externval.
+            wasm_memory_t* memaddr = wasm_extern_as_memory(externval);
+
+            // Let memory be a new Memory object created from memaddr.
+            // Let value be memory.
+            WASMMemoryObject* memory = WASMMemoryObject::createMemoryObject(state, memaddr);
+            value = Value(memory);
+            break;
+        }
+        case WASM_EXTERN_TABLE: {
+            // If externtype is of the form table tabletype,
+            // Let table tableaddr be externval.
+            wasm_table_t* tableaddr = wasm_extern_as_table(externval);
+
+            // Let table be a new Table object created from tableaddr.
+            // Let value be table.
+            WASMTableObject* table = WASMTableObject::createTableObject(state, tableaddr);
+            value = Value(table);
+            break;
+        }
+        default: {
+            ASSERT_NOT_REACHED();
+            break;
+        }
+        }
+
+        // Let status be ! CreateDataProperty(exportsObject, name, value).
+        exportsObject->defineOwnProperty(state, ObjectPropertyName(state, nameValue), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+    }
+    // Perform ! SetIntegrityLevel(exportsObject, "frozen").
+    Object::setIntegrityLevel(state, exportsObject, false);
+
+    // Return exportsObject.
+    return exportsObject;
+}
+
 static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ASSERT(argc > 0);
     ASSERT(argv[0].isObject() && argv[0].asObject()->isWASMModuleObject());
+
+    // Let module be moduleObject.[[Module]].
     WASMModuleObject* moduleObj = argv[0].asPointerValue()->asWASMModuleObject();
     wasm_module_t* module = moduleObj->module();
 
-    // TODO
-    wasm_importtype_vec_t import_types;
-    wasm_module_imports(module, &import_types);
+    // Read the imports of module with imports importObject, and let imports be the result.
+    Value importObject = state.resolveCallee()->asExtendedNativeFunctionObject()->internalSlot(0);
+    own wasm_extern_vec_t imports;
+    wasm_extern_vec_new_empty(&imports);
+    wasmReadImportsOfModule(state, module, importObject, &imports);
 
-    wasm_importtype_vec_delete(&import_types);
+    // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
+    own wasm_trap_t* trap = nullptr;
+    own wasm_instance_t* instance = wasm_instance_new(state.context()->vmInstance()->wasmStore(), module, imports.data, &trap);
 
-    return Value();
+    // FIXME should not call destructor of each element in imports
+    // wasm_extern_vec_delete(&imports);
+    delete[] imports.data;
+    imports.size = 0;
+
+    // TODO error exception
+    if (!instance) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().instantiate.string(), "");
+    }
+
+    // Initialize instanceObject from module and instance.
+    // Create an exports object from module and instance and let exportsObject be the result.
+    Object* exportsObject = wasmCreateExportsObject(state, module, instance);
+
+    // Let instanceObject be a new Instance.
+    // Set instanceObject.[[Instance]] to instance.
+    // Set instanceObject.[[Exports]] to exportsObject.
+    WASMInstanceObject* instanceObject = new WASMInstanceObject(state, instance, exportsObject);
+
+    // Return instanceObject.
+    return instanceObject;
 }
+
 } // namespace Escargot
+
 #endif // __EscargotWASMBuiltinOperations__
 #endif // ENABLE_WASM

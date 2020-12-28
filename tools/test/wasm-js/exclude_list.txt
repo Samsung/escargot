@@ -4,8 +4,6 @@ constructor/multi-value.any.js
 instance/constructor-bad-imports.any.js
 instance/constructor-caching.any.js
 instance/constructor.any.js
-instance/exports.any.js
-instance/toString.any.js
 interface.any.js
 limits.any.js
 memory/grow.any.js

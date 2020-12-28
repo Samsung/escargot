@@ -133,6 +133,8 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    static WASMTableObject* createTableObject(ExecutionState& state, wasm_table_t* tableaddr);
+
     wasm_table_t* table() const
     {
         ASSERT(!!m_table);
@@ -154,6 +156,8 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    static WASMGlobalObject* createGlobalObject(ExecutionState& state, wasm_global_t* globaladdr);
 
     wasm_global_t* global() const
     {
