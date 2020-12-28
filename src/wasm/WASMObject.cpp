@@ -210,6 +210,30 @@ void* WASMTableObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_table_t* tableaddr)
+{
+    ASSERT(!!tableaddr);
+
+    // Let map be the surrounding agent's associated Table object cache.
+    // If map[tableaddr] exists,
+    WASMTableMap& map = state.context()->wasmCache()->tableMap;
+    auto mapIter = map.find(tableaddr);
+    if (mapIter != map.end()) {
+        // Return map[tableaddr].
+        return mapIter->second;
+    }
+
+    // Let table be a new Table.
+    WASMTableObject* table = new WASMTableObject(state, tableaddr);
+
+    // Initialize table from tableaddr.
+    // Set map[tableaddr] to table.
+    map.insert(std::make_pair(tableaddr, table));
+
+    // Return table.
+    return table;
+}
+
 WASMGlobalObject::WASMGlobalObject(ExecutionState& state, wasm_global_t* global)
     : Object(state, state.context()->globalObject()->wasmGlobalPrototype())
     , m_global(global)
@@ -234,6 +258,30 @@ void* WASMGlobalObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+WASMGlobalObject* WASMGlobalObject::createGlobalObject(ExecutionState& state, wasm_global_t* globaladdr)
+{
+    ASSERT(!!globaladdr);
+
+    // Let map be the current agent's associated Global object cache.
+    // If map[globaladdr] exists,
+    WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
+    auto mapIter = map.find(globaladdr);
+    if (mapIter != map.end()) {
+        // Return map[globaladdr].
+        return mapIter->second;
+    }
+
+    // Let global be a new Global.
+    WASMGlobalObject* global = new WASMGlobalObject(state, globaladdr);
+
+    // Initialize global from globaladdr.
+    // Set map[globaladdr] to global.
+    map.insert(std::make_pair(globaladdr, global));
+
+    // Return global.
+    return global;
 }
 
 Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const

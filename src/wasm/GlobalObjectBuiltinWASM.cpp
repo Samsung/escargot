@@ -32,103 +32,11 @@
 #include "runtime/PromiseObject.h"
 #include "runtime/Job.h"
 #include "wasm/WASMObject.h"
+#include "wasm/ExportedFunctionObject.h"
 #include "wasm/WASMValueConverter.h"
 #include "wasm/WASMBuiltinOperations.h"
-#include "wasm/ExportedFunctionObject.h"
-
-// represent ownership of each object
-// object marked with 'own' should be deleted in the current context
-#define own
 
 namespace Escargot {
-
-static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[], wasm_val_t results[])
-{
-    WASMHostFunctionEnvironment* funcEnv = (WASMHostFunctionEnvironment*)env;
-
-    Object* func = funcEnv->func;
-    ASSERT(func->isCallable());
-
-    // Let realm be func's associated Realm.
-    // Let relevant settings be realm?s settings object.
-    ExecutionState temp(nullptr);
-    ExecutionState state(func->getFunctionRealm(temp));
-
-    // Let [parameters] ? [results] be functype.
-    wasm_functype_t* functype = funcEnv->functype;
-    const wasm_valtype_vec_t* params = wasm_functype_params(functype);
-    const wasm_valtype_vec_t* res = wasm_functype_results(functype);
-    size_t argSize = params->size;
-
-    // Let jsArguments be << >>
-    Value* jsArguments = ALLOCA(sizeof(Value) * argSize, Value, state);
-
-    // For each arg of arguments,
-    for (size_t i = 0; i < argSize; i++) {
-        // Append ! ToJSValue(arg) to jsArguments.
-        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args[i]);
-    }
-
-    // Let ret be ? Call(func, undefined, jsArguments).
-    Value ret = Object::call(state, func, Value(), argSize, jsArguments);
-
-    // Let resultsSize be results?s size.
-    size_t resultsSize = res->size;
-    if (resultsSize == 0) {
-        // If resultsSize is 0, return << >>
-        return nullptr;
-    }
-
-    if (resultsSize == 1) {
-        // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
-        results[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
-    } else {
-        // Otherwise,
-        // Let method be ? GetMethod(ret, @@iterator).
-        Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
-        // If method is undefined, throw a TypeError.
-        if (method.isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
-        }
-
-        // Let values be ? IterableToList(ret, method).
-        ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, ret, method);
-        // If values's size is not resultsSize, throw a TypeError exception.
-        if (values.size() != resultsSize) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
-        }
-
-        // For each value and resultType in values and results, paired linearly,
-        // Append ToWebAssemblyValue(value, resultType) to wasmValues.
-        for (size_t i = 0; i < resultsSize; i++) {
-            results[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
-        }
-    }
-
-    // TODO
-    // Assert: result.[[Type]] is throw or normal.
-    // If result.[[Type]] is throw, then trigger a WebAssembly trap, and propagate result.[[Value]] to the enclosing JavaScript.
-    // Otherwise, return result.[[Value]].
-
-    return nullptr;
-}
-
-// TODO fix to static function
-wasm_func_t* createHostFunction(ExecutionState& state, Object* func, wasm_functype_t* functype)
-{
-    // Assert: IsCallable(func).
-    ASSERT(func->isCallable());
-
-    // Let store be the surrounding agent's associated store.
-    // Let (store, funcaddr) be func_alloc(store, functype, hostfunc).
-    WASMHostFunctionEnvironment* env = new WASMHostFunctionEnvironment(func, functype);
-    wasm_func_t* funcaddr = wasm_func_new_with_env(state.context()->vmInstance()->wasmStore(), functype, callbackHostFunction, env, nullptr);
-
-    state.context()->wasmEnvCache()->push_back(env);
-
-    // Return funcaddr.
-    return funcaddr;
-}
 
 // WebAssembly
 static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -321,6 +229,63 @@ static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, si
     wasm_importtype_vec_delete(&import_types);
     //Return imports.
     return imports;
+}
+
+// WebAssembly.Instance
+static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // if NewTarget is undefined, throw a TypeError
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Instance.string(), ErrorObject::Messages::Not_Invoked_With_New);
+    }
+
+    if (!argv[0].isObject() || !argv[0].asObject()->isWASMModuleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // Let module be module.[[Module]].
+    wasm_module_t* module = argv[0].asObject()->asWASMModuleObject()->module();
+
+    // Read the imports of module with imports importObject, and let imports be the result.
+    Value importObject = argc > 1 ? argv[1] : Value();
+    own wasm_extern_vec_t imports;
+    wasm_extern_vec_new_empty(&imports);
+    wasmReadImportsOfModule(state, module, importObject, &imports);
+
+    // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
+    own wasm_trap_t* trap = nullptr;
+    own wasm_instance_t* instance = wasm_instance_new(state.context()->vmInstance()->wasmStore(), module, imports.data, &trap);
+
+    // FIXME should not call destructor of each element in imports
+    // wasm_extern_vec_delete(&imports);
+    delete[] imports.data;
+    imports.size = 0;
+
+    // TODO error exception
+    if (!instance) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().instantiate.string(), "");
+    }
+
+    // Initialize this from module and instance.
+    // Create an exports object from module and instance and let exportsObject be the result.
+    Object* exportsObject = wasmCreateExportsObject(state, module, instance);
+
+    // Let instanceObject be a new Instance.
+    // Set instanceObject.[[Instance]] to instance.
+    // Set instanceObject.[[Exports]] to exportsObject.
+    WASMInstanceObject* instanceObject = new WASMInstanceObject(state, instance, exportsObject);
+
+    // Return instanceObject.
+    return instanceObject;
+}
+
+static Value builtinWASMInstanceExportsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isWASMInstanceObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotInstance.string(), false, state.context()->staticStrings().exports.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    return thisValue.asObject()->asWASMInstanceObject()->exports();
 }
 
 // WebAssembly.Memory
@@ -836,6 +801,28 @@ void GlobalObject::installWASM(ExecutionState& state)
     wasmModule->setFunctionPrototype(state, m_wasmModulePrototype);
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->Module),
                             ObjectPropertyDescriptor(wasmModule, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
+    // WebAssembly.Instance
+    FunctionObject* wasmInstance = new NativeFunctionObject(state, NativeFunctionInfo(strings->Instance, builtinWASMInstanceConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    wasmInstance->setGlobalIntrinsicObject(state);
+
+    m_wasmInstancePrototype = new Object(state);
+    m_wasmInstancePrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                               ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotInstance.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+
+    {
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->exports, builtinWASMInstanceExportsGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+        ObjectPropertyDescriptor exportsDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+        m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(strings->exports), exportsDesc);
+    }
+
+    wasmInstance->setFunctionPrototype(state, m_wasmInstancePrototype);
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Instance),
+                            ObjectPropertyDescriptor(wasmInstance, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // WebAssembly.Memory
