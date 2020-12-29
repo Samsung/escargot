@@ -270,10 +270,15 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
     // Create an exports object from module and instance and let exportsObject be the result.
     Object* exportsObject = wasmCreateExportsObject(state, module, instance);
 
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyInstancePrototype%").
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->wasmInstancePrototype();
+    });
+
     // Let instanceObject be a new Instance.
     // Set instanceObject.[[Instance]] to instance.
     // Set instanceObject.[[Exports]] to exportsObject.
-    WASMInstanceObject* instanceObject = new WASMInstanceObject(state, instance, exportsObject);
+    WASMInstanceObject* instanceObject = new WASMInstanceObject(state, proto, instance, exportsObject);
 
     // Return instanceObject.
     return instanceObject;
@@ -346,9 +351,14 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     void* dataBlock = initial == 0 ? calloc(0, 0) : wasm_memory_data(memaddr);
     buffer->attachBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
 
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyMemoryPrototype%").
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->wasmMemoryPrototype();
+    });
+
     // Set memory.[[Memory]] to memaddr.
     // Set memory.[[BufferObject]] to buffer.
-    WASMMemoryObject* memoryObj = new WASMMemoryObject(state, memaddr, buffer);
+    WASMMemoryObject* memoryObj = new WASMMemoryObject(state, proto, memaddr, buffer);
 
     // Set map[memaddr] to memory.
     map.insert(std::make_pair(memaddr, memoryObj));
@@ -480,8 +490,13 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     WASMTableMap& map = state.context()->wasmCache()->tableMap;
     ASSERT(map.find(tableaddr) == map.end());
 
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyTablePrototype%").
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->wasmTablePrototype();
+    });
+
     // Set table.[[Table]] to tableaddr.
-    WASMTableObject* tableObj = new WASMTableObject(state, tableaddr);
+    WASMTableObject* tableObj = new WASMTableObject(state, proto, tableaddr);
 
     // Set map[tableaddr] to table.
     map.insert(std::make_pair(tableaddr, tableObj));
@@ -675,8 +690,13 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
     ASSERT(map.find(globaladdr) == map.end());
 
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyGlobalPrototype%").
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->wasmGlobalPrototype();
+    });
+
     // Set global.[[Global]] to globaladdr.
-    WASMGlobalObject* globalObj = new WASMGlobalObject(state, globaladdr);
+    WASMGlobalObject* globalObj = new WASMGlobalObject(state, proto, globaladdr);
 
     // Set map[globaladdr] to global.
     map.insert(std::make_pair(globaladdr, globalObj));

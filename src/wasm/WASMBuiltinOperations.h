@@ -139,8 +139,16 @@ static Value wasmCompileModule(ExecutionState& state, Value thisValue, size_t ar
         return Value();
     }
 
+    // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyModulePrototype%").
+    if (!newTarget.hasValue()) {
+        newTarget = state.resolveCallee();
+    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->wasmModulePrototype();
+    });
+
     // Construct a WebAssembly module object
-    return new WASMModuleObject(state, module);
+    return new WASMModuleObject(state, proto, module);
 }
 
 static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[], wasm_val_t results[])
@@ -529,6 +537,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
     // Create an exports object from module and instance and let exportsObject be the result.
     Object* exportsObject = wasmCreateExportsObject(state, module, instance);
 
+    // FIXME consider getting proto by GetPrototypeFromConstructor
     // Let instanceObject be a new Instance.
     // Set instanceObject.[[Instance]] to instance.
     // Set instanceObject.[[Exports]] to exportsObject.
