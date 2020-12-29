@@ -380,6 +380,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case CreateFunctionOpcode: {
             CreateFunction* cd = (CreateFunction*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_homeObjectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         case CreateRestElementOpcode: {

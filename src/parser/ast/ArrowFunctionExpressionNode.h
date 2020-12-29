@@ -77,7 +77,7 @@ public:
         if (blk->usesArgumentsObject() && !codeBlock->m_codeBlock->isArrowFunctionExpression()) {
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
         }
-        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, SIZE_MAX, blk), context, this);
+        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_thisExpressionIndex, blk), context, this);
     }
 
 private:
