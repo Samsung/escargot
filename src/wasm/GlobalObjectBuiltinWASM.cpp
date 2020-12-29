@@ -776,7 +776,7 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     // WebAssembly.instantiate()
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->instantiate),
-                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 
     // WebAssembly.Module
@@ -785,6 +785,8 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     m_wasmModulePrototype = new Object(state);
     m_wasmModulePrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmModulePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmModule, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmModulePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                              ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotModule.string(), ObjectPropertyDescriptor::ConfigurablePresent));
@@ -810,6 +812,8 @@ void GlobalObject::installWASM(ExecutionState& state)
     m_wasmInstancePrototype = new Object(state);
     m_wasmInstancePrototype->setGlobalIntrinsicObject(state, true);
 
+    m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmInstance, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotInstance.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
@@ -831,6 +835,8 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     m_wasmMemoryPrototype = new Object(state);
     m_wasmMemoryPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmMemoryPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmMemory, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmMemoryPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                              ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotMemory.string(), ObjectPropertyDescriptor::ConfigurablePresent));
@@ -856,6 +862,8 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     m_wasmTablePrototype = new Object(state);
     m_wasmTablePrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmTable, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                             ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotTable.string(), ObjectPropertyDescriptor::ConfigurablePresent));
@@ -887,6 +895,8 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     m_wasmGlobalPrototype = new Object(state);
     m_wasmGlobalPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmGlobal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                              ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotGlobal.string(), ObjectPropertyDescriptor::ConfigurablePresent));
