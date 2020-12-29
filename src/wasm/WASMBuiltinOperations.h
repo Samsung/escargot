@@ -235,19 +235,26 @@ static wasm_func_t* wasmCreateHostFunction(ExecutionState& state, Object* func, 
 
 static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module, const Value& importObj, own wasm_extern_vec_t* imports)
 {
+    // If importObject is not undefined and not Object, throw a TypeError exception.
+    if (!importObj.isUndefined() && !importObj.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
+    }
+
     own wasm_importtype_vec_t import_types;
     wasm_module_imports(module, &import_types);
 
-    // If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
-    if (import_types.size > 0 && importObj.isUndefined()) {
+    // If module.imports is not empty, and importObject is not Object, throw a TypeError exception.
+    if (import_types.size > 0 && !importObj.isObject()) {
         wasm_importtype_vec_delete(&import_types);
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
     }
 
     if (!importObj.isObject()) {
         wasm_importtype_vec_delete(&import_types);
         return;
     }
+
+    ASSERT(importObj.isObject());
     Object* importObject = importObj.asObject();
 
     // Let imports be << >>
@@ -267,22 +274,26 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
         // If Type(o) is not Object, throw a TypeError exception.
         if (!o.isObject()) {
             wasm_importtype_vec_delete(&import_types);
-            wasm_extern_vec_delete(imports);
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            // FIXME should not call destructor of each element in imports
+            // wasm_extern_vec_delete(&imports);
+            delete[] imports->data;
+            imports->size = 0;
+
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
         }
 
         // Let v be ? Get(o, componentName).
         Value v = o.asObject()->get(state, ObjectPropertyName(state, compNameValue)).value(state, o);
 
+        bool throwLinkError = false;
         size_t externFuncCount = 0;
         switch (wasm_externtype_kind(externtype)) {
         case WASM_EXTERN_FUNC: {
             // If externtype is of the form func functype,
             if (!v.isCallable()) {
                 // If IsCallable(v) is false, throw a LinkError exception.
-                wasm_importtype_vec_delete(&import_types);
-                wasm_extern_vec_delete(imports);
-                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+                throwLinkError = true;
+                break;
             }
 
             wasm_func_t* funcaddr = nullptr;
@@ -313,17 +324,15 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
                 // If valtype is i64 and Type(v) is Number,
                 if ((wasm_valtype_kind(valtype) == WASM_I64) && v.isNumber()) {
                     // Throw a LinkError exception.
-                    wasm_importtype_vec_delete(&import_types);
-                    wasm_extern_vec_delete(imports);
-                    ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+                    throwLinkError = true;
+                    break;
                 }
 
                 // If valtype is not i64 and Type(v) is BigInt,
                 if ((wasm_valtype_kind(valtype) != WASM_I64) && v.isBigInt()) {
                     // Throw a LinkError exception.
-                    wasm_importtype_vec_delete(&import_types);
-                    wasm_extern_vec_delete(imports);
-                    ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+                    throwLinkError = true;
+                    break;
                 }
 
                 // Let value be ToWebAssemblyValue(v, valtype).
@@ -335,15 +344,14 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
                 globaladdr = wasm_global_new(state.context()->vmInstance()->wasmStore(), globaltype, &value);
                 wasm_globaltype_delete(globaltype);
 
-            } else if (v.asObject()->isWASMGlobalObject()) {
+            } else if (v.isObject() && v.asObject()->isWASMGlobalObject()) {
                 // Otherwise, if v implements Global,
                 // Let globaladdr be v.[[Global]].
                 globaladdr = v.asObject()->asWASMGlobalObject()->global();
             } else {
                 // Throw a LinkError exception.
-                wasm_importtype_vec_delete(&import_types);
-                wasm_extern_vec_delete(imports);
-                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+                throwLinkError = true;
+                break;
             }
 
             // Let externglobal be global globaladdr.
@@ -356,10 +364,9 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
             wasm_memorytype_t* memtype = wasm_externtype_as_memorytype(externtype);
 
             // If v does not implement Memory, throw a LinkError exception.
-            if (!v.asObject()->isWASMMemoryObject()) {
-                wasm_importtype_vec_delete(&import_types);
-                wasm_extern_vec_delete(imports);
-                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            if (!v.isObject() || !v.asObject()->isWASMMemoryObject()) {
+                throwLinkError = true;
+                break;
             }
 
             // Let externmem be the external value mem v.[[Memory]].
@@ -373,10 +380,9 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
             wasm_tabletype_t* tabletype = wasm_externtype_as_tabletype(externtype);
 
             // If v does not implement Table, throw a LinkError exception.
-            if (!v.asObject()->isWASMTableObject()) {
-                wasm_importtype_vec_delete(&import_types);
-                wasm_extern_vec_delete(imports);
-                ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::WASM_ReadImportsError);
+            if (!v.isObject() || !v.asObject()->isWASMTableObject()) {
+                throwLinkError = true;
+                break;
             }
 
             // Let tableaddr be v.[[Table]].
@@ -390,6 +396,16 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
             ASSERT_NOT_REACHED();
             break;
         }
+        }
+
+        if (UNLIKELY(throwLinkError)) {
+            wasm_importtype_vec_delete(&import_types);
+            // FIXME should not call destructor of each element in imports
+            // wasm_extern_vec_delete(&imports);
+            delete[] imports->data;
+            imports->size = 0;
+
+            ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_ReadImportsError);
         }
     }
 
