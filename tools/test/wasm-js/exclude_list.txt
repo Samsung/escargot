@@ -1,7 +1,6 @@
 constructor/instantiate-bad-imports.any.js
 constructor/instantiate.any.js
 constructor/multi-value.any.js
-instance/constructor-bad-imports.any.js
 instance/constructor-caching.any.js
 instance/constructor.any.js
 interface.any.js
