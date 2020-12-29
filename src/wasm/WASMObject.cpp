@@ -58,8 +58,8 @@ void* WASMHostFunctionEnvironment::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-WASMModuleObject::WASMModuleObject(ExecutionState& state, wasm_module_t* module)
-    : Object(state, state.context()->globalObject()->wasmModulePrototype())
+WASMModuleObject::WASMModuleObject(ExecutionState& state, Object* proto, wasm_module_t* module)
+    : Object(state, proto)
     , m_module(module)
 {
     ASSERT(!!m_module);
@@ -85,7 +85,12 @@ void* WASMModuleObject::operator new(size_t size)
 }
 
 WASMInstanceObject::WASMInstanceObject(ExecutionState& state, wasm_instance_t* instance, Object* exports)
-    : Object(state, state.context()->globalObject()->wasmInstancePrototype())
+    : WASMInstanceObject(state, state.context()->globalObject()->wasmInstancePrototype(), instance, exports)
+{
+}
+
+WASMInstanceObject::WASMInstanceObject(ExecutionState& state, Object* proto, wasm_instance_t* instance, Object* exports)
+    : Object(state, proto)
     , m_instance(instance)
     , m_exports(exports)
 {
@@ -113,7 +118,12 @@ void* WASMInstanceObject::operator new(size_t size)
 }
 
 WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer)
-    : Object(state, state.context()->globalObject()->wasmMemoryPrototype())
+    : WASMMemoryObject(state, state.context()->globalObject()->wasmMemoryPrototype(), memory, buffer)
+{
+}
+
+WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBufferObject* buffer)
+    : Object(state, proto)
     , m_memory(memory)
     , m_buffer(buffer)
 {
@@ -185,7 +195,12 @@ void WASMMemoryObject::setBuffer(ArrayBufferObject* buffer)
 }
 
 WASMTableObject::WASMTableObject(ExecutionState& state, wasm_table_t* table)
-    : Object(state, state.context()->globalObject()->wasmTablePrototype())
+    : WASMTableObject(state, state.context()->globalObject()->wasmTablePrototype(), table)
+{
+}
+
+WASMTableObject::WASMTableObject(ExecutionState& state, Object* proto, wasm_table_t* table)
+    : Object(state, proto)
     , m_table(table)
 {
     ASSERT(!!m_table);
@@ -235,7 +250,12 @@ WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_
 }
 
 WASMGlobalObject::WASMGlobalObject(ExecutionState& state, wasm_global_t* global)
-    : Object(state, state.context()->globalObject()->wasmGlobalPrototype())
+    : WASMGlobalObject(state, state.context()->globalObject()->wasmGlobalPrototype(), global)
+{
+}
+
+WASMGlobalObject::WASMGlobalObject(ExecutionState& state, Object* proto, wasm_global_t* global)
+    : Object(state, proto)
     , m_global(global)
 {
     ASSERT(!!m_global);

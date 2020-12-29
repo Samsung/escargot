@@ -6,5 +6,4 @@ instance/constructor.any.js
 limits.any.js
 memory/grow.any.js
 module/customSections.any.js
-prototypes.any.js
 table/get-set.any.js

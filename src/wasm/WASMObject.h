@@ -44,7 +44,7 @@ struct WASMHostFunctionEnvironment : public gc {
 
 class WASMModuleObject : public Object {
 public:
-    explicit WASMModuleObject(ExecutionState& state, wasm_module_t* module);
+    explicit WASMModuleObject(ExecutionState& state, Object* proto, wasm_module_t* module);
 
     virtual bool isWASMModuleObject() const override
     {
@@ -67,6 +67,7 @@ private:
 class WASMInstanceObject : public Object {
 public:
     explicit WASMInstanceObject(ExecutionState& state, wasm_instance_t* instance, Object* exports);
+    explicit WASMInstanceObject(ExecutionState& state, Object* proto, wasm_instance_t* instance, Object* exports);
 
     virtual bool isWASMInstanceObject() const override
     {
@@ -96,6 +97,7 @@ private:
 class WASMMemoryObject : public Object {
 public:
     explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer);
+    explicit WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBufferObject* buffer);
 
     virtual bool isWASMMemoryObject() const override
     {
@@ -124,6 +126,7 @@ private:
 class WASMTableObject : public Object {
 public:
     explicit WASMTableObject(ExecutionState& state, wasm_table_t* table);
+    explicit WASMTableObject(ExecutionState& state, Object* proto, wasm_table_t* table);
 
     virtual bool isWASMTableObject() const override
     {
@@ -148,6 +151,7 @@ private:
 class WASMGlobalObject : public Object {
 public:
     explicit WASMGlobalObject(ExecutionState& state, wasm_global_t* global);
+    explicit WASMGlobalObject(ExecutionState& state, Object* proto, wasm_global_t* global);
 
     virtual bool isWASMGlobalObject() const override
     {
