@@ -96,8 +96,17 @@ public:
                 context->giveUpRegister();
             }
 
+            size_t oldThisIndex = context->m_classInfo.m_thisExpressionIndex;
+            if (p->kind() == ClassElementNode::Kind::StaticField) {
+                context->m_classInfo.m_thisExpressionIndex = context->m_classInfo.m_constructorIndex;
+            }
+
             size_t valueIndex = p->value()->getRegister(codeBlock, context);
             p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
+
+            if (p->kind() == ClassElementNode::Kind::StaticField) {
+                context->m_classInfo.m_thisExpressionIndex = oldThisIndex;
+            }
 
             if (p->kind() == ClassElementNode::Kind::Method) {
                 if (hasKeyName) {
