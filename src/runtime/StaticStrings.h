@@ -837,11 +837,14 @@ public:
     AtomicString symbolSplit;
 
 #if defined(ENABLE_WASM)
-    AtomicString WebAssemblyDotModule;
+    AtomicString getExports;
+    AtomicString getValue;
+    AtomicString setValue;
+    AtomicString WebAssemblyDotGlobal;
     AtomicString WebAssemblyDotInstance;
     AtomicString WebAssemblyDotMemory;
+    AtomicString WebAssemblyDotModule;
     AtomicString WebAssemblyDotTable;
-    AtomicString WebAssemblyDotGlobal;
 #endif
 
 #define ESCARGOT_ASCII_TABLE_MAX 256

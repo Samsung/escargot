@@ -815,7 +815,7 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     {
         JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->exports, builtinWASMInstanceExportsGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getExports, builtinWASMInstanceExportsGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor exportsDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
         m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(strings->exports), exportsDesc);
     }
@@ -871,7 +871,7 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     {
         JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->length, builtinWASMTableLengthGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getLength, builtinWASMTableLengthGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor lengthDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
         m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->length), lengthDesc);
     }
@@ -896,8 +896,8 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     {
         JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->value, builtinWASMGlobalValueGetter, 0, NativeFunctionInfo::Strict)),
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->value, builtinWASMGlobalValueSetter, 1, NativeFunctionInfo::Strict)));
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getValue, builtinWASMGlobalValueGetter, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->setValue, builtinWASMGlobalValueSetter, 1, NativeFunctionInfo::Strict)));
         ObjectPropertyDescriptor valueDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
         m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->value), valueDesc);
     }

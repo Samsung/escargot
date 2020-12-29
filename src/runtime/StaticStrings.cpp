@@ -116,11 +116,14 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
 
 #if defined(ENABLE_WASM)
-    INIT_STATIC_STRING(WebAssemblyDotModule, "WebAssembly.Module");
+    INIT_STATIC_STRING(getExports, "get exports");
+    INIT_STATIC_STRING(getValue, "get value");
+    INIT_STATIC_STRING(setValue, "set value");
+    INIT_STATIC_STRING(WebAssemblyDotGlobal, "WebAssembly.Global");
     INIT_STATIC_STRING(WebAssemblyDotInstance, "WebAssembly.Instance");
     INIT_STATIC_STRING(WebAssemblyDotMemory, "WebAssembly.Memory");
+    INIT_STATIC_STRING(WebAssemblyDotModule, "WebAssembly.Module");
     INIT_STATIC_STRING(WebAssemblyDotTable, "WebAssembly.Table");
-    INIT_STATIC_STRING(WebAssemblyDotGlobal, "WebAssembly.Global");
 #endif
 #undef INIT_STATIC_STRING
 
