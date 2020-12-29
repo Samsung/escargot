@@ -25,78 +25,223 @@
 namespace Escargot {
 
 #define FOR_EACH_STATIC_STRING(F) \
-    F(null)                       \
-    F(undefined)                  \
-    F(prototype)                  \
-    F(construct)                  \
-    F(constructor)                \
-    F(name)                       \
-    F(arguments)                  \
-    F(caller)                     \
-    F(callee)                     \
-    F(length)                     \
-    F(__proto__)                  \
+    F($1)                         \
+    F($2)                         \
+    F($3)                         \
+    F($4)                         \
+    F($5)                         \
+    F($6)                         \
+    F($7)                         \
+    F($8)                         \
+    F($9)                         \
+    F($_)                         \
+    F(AggregateError)             \
+    F(Array)                      \
+    F(ArrayBuffer)                \
+    F(ArrayIterator)              \
+    F(AsyncFunction)              \
+    F(AsyncGenerator)             \
+    F(AsyncGeneratorFunction)     \
+    F(BYTES_PER_ELEMENT)          \
+    F(BigInt)                     \
+    F(BigInt64Array)              \
+    F(BigUint64Array)             \
+    F(Boolean)                    \
+    F(Collator)                   \
+    F(DataView)                   \
+    F(Date)                       \
+    F(DateTimeFormat)             \
+    F(E)                          \
+    F(EPSILON)                    \
+    F(Empty)                      \
+    F(Error)                      \
+    F(EvalError)                  \
+    F(Float32Array)               \
+    F(Float64Array)               \
+    F(Function)                   \
+    F(Generator)                  \
+    F(GeneratorFunction)          \
+    F(GlobalObject)               \
+    F(Infinity)                   \
+    F(Int16Array)                 \
+    F(Int32Array)                 \
+    F(Int8Array)                  \
+    F(Intl)                       \
+    F(JSON)                       \
+    F(LN10)                       \
+    F(LN2)                        \
+    F(LOG10E)                     \
+    F(LOG2E)                      \
+    F(Locale)                     \
+    F(MAX_SAFE_INTEGER)           \
+    F(MAX_VALUE)                  \
+    F(MIN_SAFE_INTEGER)           \
+    F(MIN_VALUE)                  \
+    F(Map)                        \
+    F(MapIterator)                \
+    F(Math)                       \
+    F(Module)                     \
+    F(NEGATIVE_INFINITY)          \
+    F(NaN)                        \
+    F(Number)                     \
+    F(NumberFormat)               \
+    F(Object)                     \
+    F(PI)                         \
+    F(POSITIVE_INFINITY)          \
+    F(PluralRules)                \
+    F(Promise)                    \
+    F(Proxy)                      \
+    F(RangeError)                 \
+    F(ReferenceError)             \
+    F(Reflect)                    \
+    F(RegExp)                     \
+    F(RegExpStringIterator)       \
+    F(RelativeTimeFormat)         \
+    F(SQRT1_2)                    \
+    F(SQRT2)                      \
+    F(Set)                        \
+    F(SetIterator)                \
+    F(String)                     \
+    F(StringIterator)             \
+    F(Symbol)                     \
+    F(SyntaxError)                \
+    F(TypeError)                  \
+    F(TypedArray)                 \
+    F(URIError)                   \
+    F(UTC)                        \
+    F(Uint16Array)                \
+    F(Uint32Array)                \
+    F(Uint8Array)                 \
+    F(Uint8ClampedArray)          \
+    F(WeakMap)                    \
+    F(WeakSet)                    \
     F(__defineGetter__)           \
     F(__defineSetter__)           \
     F(__lookupGetter__)           \
     F(__lookupSetter__)           \
-    F(value)                      \
-    F(writable)                   \
-    F(enumerable)                 \
-    F(configurable)               \
-    F(get)                        \
-    F(set)                        \
-    F(String)                     \
-    F(Number)                     \
-    F(NaN)                        \
-    F(Infinity)                   \
-    F(EPSILON)                    \
-    F(NEGATIVE_INFINITY)          \
-    F(POSITIVE_INFINITY)          \
-    F(MAX_VALUE)                  \
-    F(MIN_VALUE)                  \
-    F(eval)                       \
-    F(Object)                     \
-    F(GlobalObject)               \
-    F(Boolean)                    \
-    F(Error)                      \
-    F(ReferenceError)             \
-    F(TypeError)                  \
-    F(RangeError)                 \
-    F(SyntaxError)                \
-    F(URIError)                   \
-    F(EvalError)                  \
-    F(AggregateError)             \
-    F(message)                    \
-    F(stack)                      \
-    F(valueOf)                    \
-    F(Array)                      \
-    F(isArray)                    \
-    F(of)                         \
-    F(from)                       \
+    F(__proto__)                  \
+    F(abs)                        \
+    F(acos)                       \
+    F(acosh)                      \
+    F(add)                        \
+    F(all)                        \
+    F(allSettled)                 \
+    F(alreadyCalled)              \
+    F(alreadyResolved)            \
+    F(anchor)                     \
+    F(anonymous)                  \
+    F(any)                        \
+    F(append)                     \
+    F(apply)                      \
+    F(arguments)                  \
+    F(asIntN)                     \
+    F(asUintN)                    \
+    F(asin)                       \
+    F(asinh)                      \
+    F(assign)                     \
+    F(asyncIterator)              \
+    F(atan)                       \
+    F(atan2)                      \
+    F(atanh)                      \
+    F(baseName)                   \
+    F(big)                        \
+    F(bigint)                     \
+    F(bind)                       \
+    F(blink)                      \
+    F(bold)                       \
+    F(boolean)                    \
+    F(buffer)                     \
+    F(byteLength)                 \
+    F(byteOffset)                 \
+    F(calendar)                   \
+    F(call)                       \
+    F(callee)                     \
+    F(caller)                     \
+    F(caseFirst)                  \
+    F(cbrt)                       \
+    F(ceil)                       \
+    F(charAt)                     \
+    F(charCodeAt)                 \
+    F(clear)                      \
+    F(clz32)                      \
+    F(codePointAt)                \
+    F(collation)                  \
+    F(compare)                    \
+    F(compile)                    \
     F(concat)                     \
+    F(configurable)               \
+    F(construct)                  \
+    F(constructor)                \
+    F(copyWithin)                 \
+    F(cos)                        \
+    F(cosh)                       \
+    F(create)                     \
+    F(debugger)                   \
+    F(decodeURI)                  \
+    F(decodeURIComponent)         \
+    F(defineProperties)           \
+    F(defineProperty)             \
+    F(deleteProperty)             \
+    F(description)                \
+    F(done)                       \
+    F(dotAll)                     \
+    F(encodeURI)                  \
+    F(encodeURIComponent)         \
+    F(endsWith)                   \
+    F(entries)                    \
+    F(enumerable)                 \
+    F(error)                      \
+    F(escape)                     \
+    F(eval)                       \
+    F(every)                      \
+    F(exec)                       \
+    F(exp)                        \
+    F(extends)                    \
+    F(expm1)                      \
+    F(fill)                       \
+    F(filter)                     \
+    F(finally)                    \
+    F(find)                       \
+    F(findIndex)                  \
+    F(fixed)                      \
+    F(flags)                      \
     F(flat)                       \
     F(flatMap)                    \
+    F(floor)                      \
+    F(fontcolor)                  \
+    F(fontsize)                   \
     F(forEach)                    \
-    F(indexOf)                    \
-    F(lastIndexOf)                \
-    F(join)                       \
-    F(push)                       \
-    F(pop)                        \
-    F(slice)                      \
-    F(splice)                     \
-    F(shift)                      \
-    F(sort)                       \
-    F(Function)                   \
-    F(Empty)                      \
-    F(Date)                       \
+    F(format)                     \
+    F(formatToParts)              \
+    F(freeze)                     \
+    F(from)                       \
+    F(fromCharCode)               \
+    F(fromCodePoint)              \
+    F(fromEntries)                \
+    F(fround)                     \
+    F(function)                   \
+    F(gc)                         \
+    F(get)                        \
+    F(getBigInt64)                \
+    F(getBigUint64)               \
+    F(getCanonicalLocales)        \
     F(getDate)                    \
     F(getDay)                     \
+    F(getFloat32)                 \
+    F(getFloat64)                 \
     F(getFullYear)                \
     F(getHours)                   \
+    F(getInt16)                   \
+    F(getInt32)                   \
+    F(getInt8)                    \
     F(getMilliseconds)            \
     F(getMinutes)                 \
     F(getMonth)                   \
+    F(getOwnPropertyDescriptor)   \
+    F(getOwnPropertyDescriptors)  \
+    F(getOwnPropertyNames)        \
+    F(getOwnPropertySymbols)      \
+    F(getPrototypeOf)             \
     F(getSeconds)                 \
     F(getTime)                    \
     F(getTimezoneOffset)          \
@@ -108,12 +253,132 @@ namespace Escargot {
     F(getUTCMinutes)              \
     F(getUTCMonth)                \
     F(getUTCSeconds)              \
+    F(getUint16)                  \
+    F(getUint32)                  \
+    F(getUint8)                   \
+    F(getYear)                    \
+    F(global)                     \
+    F(globalThis)                 \
+    F(groups)                     \
+    F(has)                        \
+    F(hasInstance)                \
+    F(hasOwnProperty)             \
+    F(hourCycle)                  \
+    F(hypot)                      \
+    F(ignoreCase)                 \
+    F(implements)                 \
+    F(imul)                       \
+    F(includes)                   \
+    F(index)                      \
+    F(indexOf)                    \
+    F(input)                      \
+    F(instanceof)                 \
+    F(interface)                  \
+    F(is)                         \
+    F(isArray)                    \
+    F(isConcatSpreadable)         \
+    F(isExtensible)               \
+    F(isFinite)                   \
+    F(isFrozen)                   \
+    F(isInteger)                  \
+    F(isNaN)                      \
+    F(isPrototypeOf)              \
+    F(isSafeInteger)              \
+    F(isSealed)                   \
+    F(isView)                     \
+    F(italics)                    \
+    F(iterator)                   \
+    F(join)                       \
+    F(keyFor)                     \
+    F(keys)                       \
+    F(language)                   \
+    F(lastIndex)                  \
+    F(lastIndexOf)                \
+    F(lastMatch)                  \
+    F(lastParen)                  \
+    F(leftContext)                \
+    F(length)                     \
+    F(let)                        \
+    F(link)                       \
+    F(load)                       \
+    F(localeCompare)              \
+    F(log)                        \
+    F(log10)                      \
+    F(log1p)                      \
+    F(log2)                       \
+    F(map)                        \
+    F(match)                      \
+    F(matchAll)                   \
+    F(max)                        \
+    F(maximize)                   \
+    F(message)                    \
+    F(min)                        \
+    F(minimize)                   \
+    F(multiline)                  \
+    F(name)                       \
+    F(next)                       \
+    F(nextMethod)                 \
+    F(normalize)                  \
+    F(now)                        \
+    F(null)                       \
+    F(number)                     \
+    F(numberingSystem)            \
+    F(numeric)                    \
+    F(object)                     \
+    F(of)                         \
+    F(ownKeys)                    \
+    F(package)                    \
+    F(padEnd)                     \
+    F(padStart)                   \
+    F(parse)                      \
+    F(parseFloat)                 \
+    F(parseInt)                   \
+    F(pop)                        \
+    F(pow)                        \
+    F(preventExtensions)          \
+    F(print)                      \
+    F(propertyIsEnumerable)       \
+    F(prototype)                  \
+    F(proxy)                      \
+    F(push)                       \
+    F(race)                       \
+    F(random)                     \
+    F(raw)                        \
+    F(read)                       \
+    F(reduce)                     \
+    F(reduceRight)                \
+    F(region)                     \
+    F(reject)                     \
+    F(remainingElements)          \
+    F(repeat)                     \
+    F(replace)                    \
+    F(resolve)                    \
+    F(resolvedOptions)            \
+    F(reverse)                    \
+    F(revocable)                  \
+    F(revoke)                     \
+    F(rightContext)               \
+    F(round)                      \
+    F(run)                        \
+    F(script)                     \
+    F(seal)                       \
+    F(search)                     \
+    F(select)                     \
+    F(set)                        \
+    F(setBigInt64)                \
+    F(setBigUint64)               \
     F(setDate)                    \
+    F(setFloat32)                 \
+    F(setFloat64)                 \
     F(setFullYear)                \
     F(setHours)                   \
+    F(setInt16)                   \
+    F(setInt32)                   \
+    F(setInt8)                    \
     F(setMilliseconds)            \
     F(setMinutes)                 \
     F(setMonth)                   \
+    F(setPrototypeOf)             \
     F(setSeconds)                 \
     F(setTime)                    \
     F(setUTCDate)                 \
@@ -123,365 +388,109 @@ namespace Escargot {
     F(setUTCMinutes)              \
     F(setUTCMonth)                \
     F(setUTCSeconds)              \
-    F(toDateString)               \
-    F(toISOString)                \
-    F(toLocaleDateString)         \
-    F(toLocaleTimeString)         \
-    F(toTimeString)               \
-    F(toUTCString)                \
-    F(getYear)                    \
+    F(setUint16)                  \
+    F(setUint32)                  \
+    F(setUint8)                   \
     F(setYear)                    \
-    F(toGMTString)                \
-    F(Math)                       \
-    F(PI)                         \
-    F(E)                          \
-    F(abs)                        \
-    F(cos)                        \
-    F(ceil)                       \
-    F(max)                        \
-    F(min)                        \
-    F(floor)                      \
-    F(fround)                     \
-    F(hypot)                      \
-    F(pow)                        \
-    F(random)                     \
-    F(round)                      \
+    F(shift)                      \
     F(sign)                       \
     F(sin)                        \
     F(sinh)                       \
-    F(sqrt)                       \
-    F(tan)                        \
-    F(tanh)                       \
-    F(trunc)                      \
-    F(log)                        \
-    F(log1p)                      \
-    F(log10)                      \
-    F(log2)                       \
-    F(toString)                   \
-    F(toLocaleString)             \
-    F(boolean)                    \
-    F(number)                     \
-    F(toFixed)                    \
-    F(toPrecision)                \
-    F(string)                     \
-    F(object)                     \
-    F(function)                   \
-    F(flags)                      \
-    F(RegExp)                     \
-    F(source)                     \
-    F(lastIndex)                  \
-    F(test)                       \
-    F(exec)                       \
-    F(input)                      \
-    F(index)                      \
-    F(compile)                    \
-    F(byteLength)                 \
-    F(subarray)                   \
-    F(buffer)                     \
-    F(JSON)                       \
-    F(parse)                      \
-    F(stringify)                  \
-    F(toJSON)                     \
-    F(Intl)                       \
-    F(Collator)                   \
-    F(DateTimeFormat)             \
-    F(format)                     \
-    F(NumberFormat)               \
-    F(supportedLocalesOf)         \
-    F(resolvedOptions)            \
-    F(getPrototypeOf)             \
-    F(setPrototypeOf)             \
-    F(isPrototypeOf)              \
-    F(propertyIsEnumerable)       \
-    F(ignoreCase)                 \
-    F(global)                     \
-    F(groups)                     \
-    F(dotAll)                     \
-    F(multiline)                  \
-    F(sticky)                     \
-    F(unicode)                    \
-    F(description)                \
-    F(implements)                 \
-    F(interface)                  \
-    F(package)                    \
-    F(yield)                      \
-    F(let)                        \
-    F(LN10)                       \
-    F(LN2)                        \
-    F(LOG10E)                     \
-    F(LOG2E)                      \
-    F(MAX_SAFE_INTEGER)           \
-    F(MIN_SAFE_INTEGER)           \
-    F(SQRT1_2)                    \
-    F(SQRT2)                      \
-    F(UTC)                        \
-    F(acos)                       \
-    F(acosh)                      \
-    F(anonymous)                  \
-    F(apply)                      \
-    F(asin)                       \
-    F(asinh)                      \
-    F(atan)                       \
-    F(atan2)                      \
-    F(atanh)                      \
-    F(bind)                       \
-    F(call)                       \
-    F(cbrt)                       \
-    F(charAt)                     \
-    F(charCodeAt)                 \
-    F(clz32)                      \
-    F(cosh)                       \
-    F(codePointAt)                \
-    F(create)                     \
-    F(decodeURI)                  \
-    F(decodeURIComponent)         \
-    F(defineProperties)           \
-    F(defineProperty)             \
-    F(encodeURI)                  \
-    F(encodeURIComponent)         \
-    F(escape)                     \
-    F(every)                      \
-    F(exp)                        \
-    F(expm1)                      \
-    F(fill)                       \
-    F(filter)                     \
-    F(find)                       \
-    F(findIndex)                  \
-    F(freeze)                     \
-    F(fromEntries)                \
-    F(fromCharCode)               \
-    F(fromCodePoint)              \
-    F(getOwnPropertyDescriptor)   \
-    F(getOwnPropertyDescriptors)  \
-    F(getOwnPropertyNames)        \
-    F(getOwnPropertySymbols)      \
-    F(hasOwnProperty)             \
-    F(deleteProperty)             \
-    F(imul)                       \
-    F(isExtensible)               \
-    F(isFinite)                   \
-    F(isFrozen)                   \
-    F(isNaN)                      \
-    F(isInteger)                  \
-    F(isSafeInteger)              \
-    F(isSealed)                   \
-    F(keys)                       \
-    F(localeCompare)              \
-    F(compare)                    \
-    F(map)                        \
-    F(match)                      \
-    F(matchAll)                   \
-    F(now)                        \
-    F(normalize)                  \
-    F(parseFloat)                 \
-    F(parseInt)                   \
-    F(preventExtensions)          \
-    F(print)                      \
-    F(read)                       \
-    F(append)                     \
-    F(reduce)                     \
-    F(reduceRight)                \
-    F(repeat)                     \
-    F(replace)                    \
-    F(reverse)                    \
-    F(revocable)                  \
-    F(revoke)                     \
-    F(run)                        \
-    F(seal)                       \
-    F(search)                     \
+    F(size)                       \
+    F(slice)                      \
+    F(small)                      \
     F(some)                       \
+    F(sort)                       \
+    F(source)                     \
+    F(species)                    \
+    F(splice)                     \
     F(split)                      \
+    F(sqrt)                       \
+    F(stack)                      \
     F(startsWith)                 \
-    F(endsWith)                   \
-    F(includes)                   \
+    F(sticky)                     \
+    F(strike)                     \
+    F(string)                     \
+    F(stringify)                  \
+    F(sub)                        \
+    F(subarray)                   \
     F(substr)                     \
     F(substring)                  \
+    F(sup)                        \
+    F(super)                      \
+    F(supportedLocalesOf)         \
+    F(symbol)                     \
+    F(tan)                        \
+    F(tanh)                       \
+    F(test)                       \
+    F(then)                       \
+    F(toDateString)               \
     F(toExponential)              \
+    F(toFixed)                    \
+    F(toGMTString)                \
+    F(toISOString)                \
+    F(toJSON)                     \
+    F(toLocaleDateString)         \
     F(toLocaleLowerCase)          \
+    F(toLocaleString)             \
+    F(toLocaleTimeString)         \
     F(toLocaleUpperCase)          \
     F(toLowerCase)                \
+    F(toPrecision)                \
+    F(toPrimitive)                \
+    F(toString)                   \
+    F(toStringTag)                \
+    F(toTimeString)               \
+    F(toUTCString)                \
     F(toUpperCase)                \
     F(trim)                       \
-    F(unescape)                   \
-    F(unshift)                    \
-    F(TypedArray)                 \
-    F(Int8Array)                  \
-    F(Int16Array)                 \
-    F(Int32Array)                 \
-    F(Uint8Array)                 \
-    F(Uint16Array)                \
-    F(Uint32Array)                \
-    F(Uint8ClampedArray)          \
-    F(Float32Array)               \
-    F(Float64Array)               \
-    F(BigInt64Array)              \
-    F(BigUint64Array)             \
-    F(ArrayBuffer)                \
-    F(isView)                     \
-    F(DataView)                   \
-    F(BYTES_PER_ELEMENT)          \
-    F(copyWithin)                 \
-    F(byteOffset)                 \
-    F(getFloat32)                 \
-    F(getFloat64)                 \
-    F(getInt8)                    \
-    F(getInt16)                   \
-    F(getInt32)                   \
-    F(getUint8)                   \
-    F(getUint16)                  \
-    F(getUint32)                  \
-    F(getBigInt64)                \
-    F(getBigUint64)               \
-    F(setFloat32)                 \
-    F(setFloat64)                 \
-    F(setInt8)                    \
-    F(setInt16)                   \
-    F(setInt32)                   \
-    F(setUint8)                   \
-    F(setUint16)                  \
-    F(setUint32)                  \
-    F(setBigInt64)                \
-    F(setBigUint64)               \
-    F(Promise)                    \
-    F(Proxy)                      \
-    F(proxy)                      \
-    F(alreadyResolved)            \
-    F(alreadyCalled)              \
-    F(values)                     \
-    F(Reflect)                    \
-    F(ownKeys)                    \
-    F(remainingElements)          \
-    F(all)                        \
-    F(race)                       \
-    F(reject)                     \
-    F(resolve)                    \
-    F(then)                       \
-    F(gc)                         \
-    F($_)                         \
-    F(lastMatch)                  \
-    F(lastParen)                  \
-    F(leftContext)                \
-    F(rightContext)               \
-    F($1)                         \
-    F($2)                         \
-    F($3)                         \
-    F($4)                         \
-    F($5)                         \
-    F($6)                         \
-    F($7)                         \
-    F($8)                         \
-    F($9)                         \
-    F(assign)                     \
-    F(is)                         \
-    F(Map)                        \
-    F(clear)                      \
-    F(has)                        \
-    F(done)                       \
-    F(next)                       \
-    F(nextMethod)                 \
-    F(MapIterator)                \
-    F(ArrayIterator)              \
-    F(StringIterator)             \
-    F(RegExpStringIterator)       \
-    F(SetIterator)                \
-    F(entries)                    \
-    F(size)                       \
-    F(add)                        \
-    F(Set)                        \
-    F(WeakMap)                    \
-    F(WeakSet)                    \
-    F(Generator)                  \
-    F(GeneratorFunction)          \
-    F(AsyncFunction)              \
-    F(Symbol)                     \
-    F(symbol)                     \
-    F(hasInstance)                \
-    F(isConcatSpreadable)         \
-    F(iterator)                   \
-    F(species)                    \
-    F(toPrimitive)                \
-    F(toStringTag)                \
-    F(unscopables)                \
-    F(keyFor)                     \
-    F(raw)                        \
-    F(load)                       \
-    F(getCanonicalLocales)        \
-    F(Module)                     \
-    F(anchor)                     \
-    F(big)                        \
-    F(blink)                      \
-    F(bold)                       \
-    F(fixed)                      \
-    F(fontcolor)                  \
-    F(fontsize)                   \
-    F(italics)                    \
-    F(link)                       \
-    F(small)                      \
-    F(strike)                     \
-    F(sub)                        \
-    F(sup)                        \
-    F(padStart)                   \
-    F(padEnd)                     \
-    F(trimStart)                  \
     F(trimEnd)                    \
-    F(trimRight)                  \
     F(trimLeft)                   \
-    F(asyncIterator)              \
-    F(AsyncGenerator)             \
-    F(AsyncGeneratorFunction)     \
-    F(Locale)                     \
-    F(baseName)                   \
-    F(calendar)                   \
-    F(caseFirst)                  \
-    F(collation)                  \
-    F(hourCycle)                  \
-    F(numeric)                    \
-    F(numberingSystem)            \
-    F(language)                   \
-    F(script)                     \
-    F(region)                     \
-    F(maximize)                   \
-    F(minimize)                   \
-    F(PluralRules)                \
-    F(select)                     \
-    F(formatToParts)              \
-    F(RelativeTimeFormat)         \
-    F(globalThis)                 \
-    F(allSettled)                 \
-    F(any)                        \
-    F(BigInt)                     \
-    F(bigint)                     \
-    F(asUintN)                    \
-    F(asIntN)
+    F(trimRight)                  \
+    F(trimStart)                  \
+    F(trunc)                      \
+    F(typeof)                     \
+    F(undefined)                  \
+    F(unescape)                   \
+    F(unicode)                    \
+    F(unscopables)                \
+    F(unshift)                    \
+    F(value)                      \
+    F(valueOf)                    \
+    F(values)                     \
+    F(var)                        \
+    F(with)                       \
+    F(writable)                   \
+    F(yield)
 
 #if defined(ENABLE_WASM)
 #define FOR_EACH_STATIC_WASM_STRING(F) \
-    F(WebAssembly)                     \
-    F(Instance)                        \
-    F(Memory)                          \
-    F(Table)                           \
-    F(Global)                          \
-    F(validate)                        \
-    F(instantiate)                     \
     F(CompileError)                    \
+    F(Global)                          \
+    F(Instance)                        \
     F(LinkError)                       \
+    F(Memory)                          \
     F(RuntimeError)                    \
-    F(initial)                         \
-    F(maximum)                         \
-    F(element)                         \
-    F(grow)                            \
+    F(Table)                           \
+    F(WebAssembly)                     \
     F(anyfunc)                         \
-    F(exports)                         \
-    F(imports)                         \
-    F(kind)                            \
-    F(module)                          \
-    F(table)                           \
-    F(memory)                          \
     F(customSections)                  \
+    F(element)                         \
+    F(exports)                         \
+    F(f32)                             \
+    F(f64)                             \
+    F(grow)                            \
     F(i32)                             \
     F(i64)                             \
-    F(f32)                             \
-    F(f64)
+    F(imports)                         \
+    F(initial)                         \
+    F(instantiate)                     \
+    F(kind)                            \
+    F(maximum)                         \
+    F(memory)                          \
+    F(module)                          \
+    F(table)                           \
+    F(validate)
 #else
 #define FOR_EACH_STATIC_WASM_STRING(F)
 #endif
@@ -618,122 +627,122 @@ namespace Escargot {
 
 // name on code, string
 #define FOR_EACH_LAZY_STATIC_STRING(F)               \
-    F(EvalInput, "eval input")                       \
-    F(FunctionInput, "function input")               \
-    F(ObjectNullToString, "[object Null]")           \
-    F(ObjectUndefinedToString, "[object Undefined]") \
-    F(ObjectObjectToString, "[object Object]")       \
-    F(ObjectArrayToString, "[object Array]")         \
-    F(ObjectStringToString, "[object String]")       \
-    F(ObjectArgumentsToString, "[object Arguments]") \
-    F(ObjectFunctionToString, "[object Function]")   \
-    F(ObjectErrorToString, "[object Error]")         \
-    F(ObjectBooleanToString, "[object Boolean]")     \
-    F(ObjectNumberToString, "[object Number]")       \
-    F(ObjectDateToString, "[object Date]")           \
-    F(ObjectRegExpToString, "[object RegExp]")       \
     F(DotDotDotArgs, "...args")                      \
-    F(SuperDotDotDotArgs, "super(...args)")          \
-    F(Status, "status")                              \
+    F(EvalInput, "eval input")                       \
     F(Fulfilled, "fulfilled")                        \
+    F(FunctionInput, "function input")               \
+    F(ObjectArgumentsToString, "[object Arguments]") \
+    F(ObjectArrayToString, "[object Array]")         \
+    F(ObjectBooleanToString, "[object Boolean]")     \
+    F(ObjectDateToString, "[object Date]")           \
+    F(ObjectErrorToString, "[object Error]")         \
+    F(ObjectFunctionToString, "[object Function]")   \
+    F(ObjectNullToString, "[object Null]")           \
+    F(ObjectNumberToString, "[object Number]")       \
+    F(ObjectObjectToString, "[object Object]")       \
+    F(ObjectRegExpToString, "[object RegExp]")       \
+    F(ObjectStringToString, "[object String]")       \
+    F(ObjectUndefinedToString, "[object Undefined]") \
     F(Reason, "reason")                              \
     F(Rejected, "rejected")                          \
+    F(Status, "status")                              \
+    F(SuperDotDotDotArgs, "super(...args)")          \
     F(URL, "url")
 
 #if defined(ENABLE_INTL)
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)                   \
-    F(Lookup, "lookup")                                       \
-    F(DashU, "-u")                                            \
-    F(LocaleMatcher, "localeMatcher")                         \
+    F(Accent, "accent")                                       \
+    F(Accounting, "accounting")                               \
+    F(Always, "always")                                       \
+    F(Any, "any")                                             \
+    F(Auto, "auto")                                           \
+    F(Base, "base")                                           \
+    F(Basic, "basic")                                         \
     F(BestFit, "best fit")                                    \
-    F(Literal, "literal")                                     \
-    F(SmallLetterNaN, "nan")                                  \
-    F(SmallLetterInfinity, "infinity")                        \
-    F(Integer, "integer")                                     \
-    F(Group, "group")                                         \
-    F(Decimal, "decimal")                                     \
-    F(Fraction, "fraction")                                   \
-    F(PlusSign, "plusSign")                                   \
-    F(MinusSign, "minusSign")                                 \
-    F(PercentSign, "percentSign")                             \
-    F(Currency, "currency")                                   \
-    F(ExponentSeparator, "exponentSeparator")                 \
-    F(ExponentMinusSign, "exponentMinusSign")                 \
-    F(ExponentInteger, "exponentInteger")                     \
-    F(Unit, "unit")                                           \
+    F(Cardinal, "cardinal")                                   \
+    F(Case, "case")                                           \
+    F(Code, "code")                                           \
     F(Compact, "compact")                                     \
+    F(CompactDisplay, "compactDisplay")                       \
+    F(CompareFunction, "compareFunction")                     \
+    F(Currency, "currency")                                   \
+    F(CurrencyDisplay, "currencyDisplay")                     \
+    F(CurrencySign, "currencySign")                           \
+    F(DashU, "-u")                                            \
+    F(DataLocale, "dataLocale")                               \
+    F(Date, "date")                                           \
+    F(Day, "day")                                             \
+    F(DayPeriod, "dayPeriod")                                 \
+    F(Decimal, "decimal")                                     \
+    F(Engineering, "engineering")                             \
+    F(Era, "era")                                             \
+    F(ExceptZero, "exceptZero")                               \
+    F(ExponentInteger, "exponentInteger")                     \
+    F(ExponentMinusSign, "exponentMinusSign")                 \
+    F(ExponentSeparator, "exponentSeparator")                 \
+    F(FormatMatcher, "formatMatcher")                         \
+    F(Fraction, "fraction")                                   \
+    F(Group, "group")                                         \
     F(H11, "h11")                                             \
     F(H12, "h12")                                             \
     F(H23, "h23")                                             \
     F(H24, "h24")                                             \
-    F(Upper, "upper")                                         \
-    F(Lower, "lower")                                         \
-    F(Cardinal, "cardinal")                                   \
-    F(Ordinal, "ordinal")                                     \
-    F(MinimumIntegerDigits, "minimumIntegerDigits")           \
-    F(MinimumFractionDigits, "minimumFractionDigits")         \
-    F(MaximumFractionDigits, "maximumFractionDigits")         \
-    F(MinimumSignificantDigits, "minimumSignificantDigits")   \
-    F(MaximumSignificantDigits, "maximumSignificantDigits")   \
-    F(Type, "type")                                           \
-    F(Long, "long")                                           \
-    F(Short, "short")                                         \
-    F(Narrow, "narrow")                                       \
-    F(Style, "style")                                         \
-    F(Always, "always")                                       \
-    F(Auto, "auto")                                           \
-    F(InitializedIntlObject, "initializedIntlObject")         \
+    F(Hour, "hour")                                           \
+    F(Hour12, "hour12")                                       \
+    F(IgnorePunctuation, "ignorePunctuation")                 \
     F(InitializedCollator, "initializedCollator")             \
     F(InitializedDateTimeFormat, "initializedDateTimeFormat") \
+    F(InitializedIntlObject, "initializedIntlObject")         \
     F(InitializedNumberFormat, "initializedNumberFormat")     \
-    F(CompareFunction, "compareFunction")                     \
-    F(SmallLetterLocale, "locale")                            \
-    F(Usage, "usage")                                         \
-    F(Sensitivity, "sensitivity")                             \
-    F(IgnorePunctuation, "ignorePunctuation")                 \
-    F(Any, "any")                                             \
-    F(Date, "date")                                           \
-    F(Time, "time")                                           \
-    F(Second, "second")                                       \
+    F(Integer, "integer")                                     \
+    F(Kf, "kf")                                               \
+    F(Kn, "kn")                                               \
+    F(Literal, "literal")                                     \
+    F(LocaleMatcher, "localeMatcher")                         \
+    F(Long, "long")                                           \
+    F(Lookup, "lookup")                                       \
+    F(Lower, "lower")                                         \
+    F(MaximumFractionDigits, "maximumFractionDigits")         \
+    F(MaximumSignificantDigits, "maximumSignificantDigits")   \
+    F(MinimumFractionDigits, "minimumFractionDigits")         \
+    F(MinimumIntegerDigits, "minimumIntegerDigits")           \
+    F(MinimumSignificantDigits, "minimumSignificantDigits")   \
+    F(MinusSign, "minusSign")                                 \
     F(Minute, "minute")                                       \
-    F(Hour, "hour")                                           \
-    F(Day, "day")                                             \
-    F(Week, "week")                                           \
-    F(Weekday, "weekday")                                     \
     F(Month, "month")                                         \
+    F(Narrow, "narrow")                                       \
+    F(NarrowSymbol, "narrowSymbol")                           \
+    F(Never, "never")                                         \
+    F(Notation, "notation")                                   \
+    F(Ordinal, "ordinal")                                     \
+    F(Percent, "percent")                                     \
+    F(PercentSign, "percentSign")                             \
+    F(PlusSign, "plusSign")                                   \
     F(Quarter, "quarter")                                     \
-    F(Year, "year")                                           \
-    F(Era, "era")                                             \
-    F(DayPeriod, "dayPeriod")                                 \
-    F(Hour12, "hour12")                                       \
+    F(Scientific, "scientific")                               \
+    F(Second, "second")                                       \
+    F(Sensitivity, "sensitivity")                             \
+    F(Short, "short")                                         \
+    F(SignDisplay, "signDisplay")                             \
+    F(SmallLetterInfinity, "infinity")                        \
+    F(SmallLetterLocale, "locale")                            \
+    F(SmallLetterNaN, "nan")                                  \
+    F(Standard, "standard")                                   \
+    F(Style, "style")                                         \
+    F(Time, "time")                                           \
     F(TimeZone, "timeZone")                                   \
     F(TimeZoneName, "timeZoneName")                           \
     F(TwoDigit, "2-digit")                                    \
-    F(Basic, "basic")                                         \
-    F(FormatMatcher, "formatMatcher")                         \
-    F(Kn, "kn")                                               \
-    F(Kf, "kf")                                               \
-    F(Base, "base")                                           \
-    F(Accent, "accent")                                       \
-    F(Case, "case")                                           \
-    F(Variant, "variant")                                     \
-    F(DataLocale, "dataLocale")                               \
-    F(Percent, "percent")                                     \
-    F(Code, "code")                                           \
-    F(NarrowSymbol, "narrowSymbol")                           \
-    F(CurrencyDisplay, "currencyDisplay")                     \
-    F(CurrencySign, "currencySign")                           \
-    F(Accounting, "accounting")                               \
-    F(Standard, "standard")                                   \
+    F(Type, "type")                                           \
+    F(Unit, "unit")                                           \
     F(UnitDisplay, "unitDisplay")                             \
-    F(Scientific, "scientific")                               \
-    F(Engineering, "engineering")                             \
-    F(Notation, "notation")                                   \
-    F(CompactDisplay, "compactDisplay")                       \
+    F(Upper, "upper")                                         \
+    F(Usage, "usage")                                         \
     F(UseGrouping, "useGrouping")                             \
-    F(Never, "never")                                         \
-    F(ExceptZero, "exceptZero")                               \
-    F(SignDisplay, "signDisplay")
+    F(Variant, "variant")                                     \
+    F(Week, "week")                                           \
+    F(Weekday, "weekday")                                     \
+    F(Year, "year")
 #else
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
 #endif
@@ -746,97 +755,86 @@ public:
     {
     }
 
-    AtomicString NegativeInfinity;
-    AtomicString stringTrue;
-    AtomicString stringFalse;
-    AtomicString stringPublic;
-    AtomicString stringProtected;
-    AtomicString stringPrivate;
-    AtomicString stringStatic;
+    // keyword string
+    AtomicString stringBreak;
+    AtomicString stringCase;
     AtomicString stringCatch;
-    AtomicString stringDelete;
-    AtomicString stringFor;
+    AtomicString stringClass;
+    AtomicString stringConst;
+    AtomicString stringContinue;
     AtomicString stringDefault;
+    AtomicString stringDelete;
+    AtomicString stringDo;
+    AtomicString stringElse;
+    AtomicString stringEnum;
+    AtomicString stringExport;
+    AtomicString stringFalse;
+    AtomicString stringFor;
+    AtomicString stringIf;
+    AtomicString stringImport;
+    AtomicString stringIn;
+    AtomicString stringMutable;
+    AtomicString stringNew;
+    AtomicString stringPrivate;
+    AtomicString stringProtected;
+    AtomicString stringPublic;
+    AtomicString stringReturn;
     AtomicString stringStarDefaultStar;
     AtomicString stringStarNamespaceStar;
-    AtomicString stringMutable;
-    AtomicString stringThis;
-
-    // this js keywords are used in esprima
-    // after removing esprima::keywordToString
-    // these strings are can be removed
-    AtomicString stringIf;
-    AtomicString stringIn;
-    AtomicString stringDo;
-    AtomicString stringVar;
-    AtomicString stringNew;
-    AtomicString stringTry;
-    AtomicString stringElse;
-    AtomicString stringCase;
-    AtomicString stringVoid;
-    AtomicString stringWith;
-    AtomicString stringEnum;
-    AtomicString stringWhile;
-    AtomicString stringBreak;
-    AtomicString stringThrow;
-    AtomicString stringConst;
-    AtomicString stringClass;
-    AtomicString stringSuper;
-    AtomicString stringReturn;
-    AtomicString stringTypeof;
+    AtomicString stringStatic;
     AtomicString stringSwitch;
-    AtomicString stringExport;
-    AtomicString stringImport;
-    AtomicString stringFinally;
-    AtomicString stringExtends;
-    AtomicString stringContinue;
-    AtomicString stringDebugger;
-    AtomicString stringInstanceof;
-    AtomicString stringError;
+    AtomicString stringThis;
+    AtomicString stringThrow;
+    AtomicString stringTrue;
+    AtomicString stringTry;
+    AtomicString stringVoid;
+    AtomicString stringWhile;
 
+    AtomicString $Ampersand;
+    AtomicString $Apostrophe;
+    AtomicString $GraveAccent;
+    AtomicString $PlusSign;
+
+    AtomicString NegativeInfinity;
     AtomicString defaultRegExpString;
-    AtomicString get__proto__;
-    AtomicString set__proto__;
-    AtomicString getbyteLength;
-    AtomicString getbyteOffset;
-    AtomicString getLength;
-    AtomicString getBuffer;
-    AtomicString getFlags;
-    AtomicString getGlobal;
-    AtomicString getDotAll;
-    AtomicString getIgnoreCase;
-    AtomicString getMultiline;
-    AtomicString getDescription;
-    AtomicString getSource;
-    AtomicString getSticky;
-    AtomicString getUnicode;
-    AtomicString getSize;
-    AtomicString getSymbolSpecies;
-    AtomicString getSymbolToStringTag;
-    AtomicString getCompare;
     AtomicString getBaseName;
+    AtomicString getBuffer;
     AtomicString getCalendar;
     AtomicString getCaseFirst;
     AtomicString getCollation;
-    AtomicString getHourCycle;
-    AtomicString getNumeric;
-    AtomicString getNumberingSystem;
-    AtomicString getLanguage;
-    AtomicString getScript;
-    AtomicString getRegion;
+    AtomicString getCompare;
+    AtomicString getDescription;
+    AtomicString getDotAll;
+    AtomicString getFlags;
     AtomicString getFormat;
-    AtomicString intlDotLocale;
+    AtomicString getGlobal;
+    AtomicString getHourCycle;
+    AtomicString getIgnoreCase;
+    AtomicString getLanguage;
+    AtomicString getLength;
+    AtomicString getMultiline;
+    AtomicString getNumberingSystem;
+    AtomicString getNumeric;
+    AtomicString getRegion;
+    AtomicString getScript;
+    AtomicString getSize;
+    AtomicString getSource;
+    AtomicString getSticky;
+    AtomicString getSymbolSpecies;
+    AtomicString getSymbolToStringTag;
+    AtomicString getUnicode;
+    AtomicString get__proto__;
+    AtomicString getbyteLength;
+    AtomicString getbyteOffset;
     AtomicString intlDotCollator;
+    AtomicString intlDotLocale;
     AtomicString intlDotRelativeTimeFormat;
-    AtomicString symbolSplit;
-    AtomicString symbolReplace;
-    AtomicString symbolSearch;
+    AtomicString set__proto__;
     AtomicString symbolMatch;
     AtomicString symbolMatchAll;
-    AtomicString $Ampersand;
-    AtomicString $PlusSign;
-    AtomicString $GraveAccent;
-    AtomicString $Apostrophe;
+    AtomicString symbolReplace;
+    AtomicString symbolSearch;
+    AtomicString symbolSplit;
 
 #if defined(ENABLE_WASM)
     AtomicString WebAssemblyDotModule;

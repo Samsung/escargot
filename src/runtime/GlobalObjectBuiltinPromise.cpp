@@ -347,7 +347,7 @@ static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_
     auto strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->stringFinally.string(), "%s: not a Promise object");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->finally.string(), "%s: not a Promise object");
     }
 
     Object* thisObject = thisValue.asObject();
@@ -762,8 +762,8 @@ void GlobalObject::installPromise(ExecutionState& state)
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.6.5.3 Promise.prototype.finally ( onFinally )
-    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->stringFinally),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringFinally, builtinPromiseFinally, 1, NativeFunctionInfo::Strict)),
+    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->finally),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->finally, builtinPromiseFinally, 1, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.5.4 Promise.prototype [ @@toStringTag ]
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),

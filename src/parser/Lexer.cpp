@@ -340,7 +340,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case DoKeyword:
         return ctx->staticStrings().stringDo;
     case VarKeyword:
-        return ctx->staticStrings().stringVar;
+        return ctx->staticStrings().var;
     case ForKeyword:
         return ctx->staticStrings().stringFor;
     case NewKeyword:
@@ -356,7 +356,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case VoidKeyword:
         return ctx->staticStrings().stringVoid;
     case WithKeyword:
-        return ctx->staticStrings().stringWith;
+        return ctx->staticStrings().with;
     case EnumKeyword:
         return ctx->staticStrings().stringEnum;
     case WhileKeyword:
@@ -372,11 +372,11 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case ClassKeyword:
         return ctx->staticStrings().stringClass;
     case SuperKeyword:
-        return ctx->staticStrings().stringSuper;
+        return ctx->staticStrings().super;
     case ReturnKeyword:
         return ctx->staticStrings().stringReturn;
     case TypeofKeyword:
-        return ctx->staticStrings().stringTypeof;
+        return ctx->staticStrings().typeof;
     case DeleteKeyword:
         return ctx->staticStrings().stringDelete;
     case SwitchKeyword:
@@ -388,17 +388,17 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case DefaultKeyword:
         return ctx->staticStrings().stringDefault;
     case FinallyKeyword:
-        return ctx->staticStrings().stringFinally;
+        return ctx->staticStrings().finally;
     case ExtendsKeyword:
-        return ctx->staticStrings().stringExtends;
+        return ctx->staticStrings().extends;
     case FunctionKeyword:
         return ctx->staticStrings().function;
     case ContinueKeyword:
         return ctx->staticStrings().stringContinue;
     case DebuggerKeyword:
-        return ctx->staticStrings().stringDebugger;
+        return ctx->staticStrings().debugger;
     case InstanceofKeyword:
-        return ctx->staticStrings().stringInstanceof;
+        return ctx->staticStrings().instanceof ;
     case ImplementsKeyword:
         return ctx->staticStrings().implements;
     case InterfaceKeyword:
@@ -419,7 +419,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
         return ctx->staticStrings().let;
     default:
         ASSERT_NOT_REACHED();
-        return ctx->staticStrings().stringError;
+        return ctx->staticStrings().error;
     }
 }
 
