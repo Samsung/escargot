@@ -128,12 +128,16 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
 {
     ASSERT(!!funcaddr);
 
+    wasm_ref_t* funcref = wasm_func_as_ref(funcaddr);
+
     // Let map be the surrounding agent's associated Exported Function cache.
     // If map[funcaddr] exists, Return map[funcaddr].
     WASMFunctionMap& map = state.context()->wasmCache()->functionMap;
-    auto mapIter = map.find(funcaddr);
-    if (mapIter != map.end()) {
-        return mapIter->second;
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(funcref, ref)) {
+            return iter->second;
+        }
     }
 
     // Let steps be "call the Exported Function funcaddr with arguments."
@@ -158,7 +162,7 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
     // Perform ! SetFunctionName(function, name).
 
     // Set map[funcaddr] to function.
-    map.insert(std::make_pair(funcaddr, function));
+    map.pushBack(std::make_pair(funcref, function));
 
     // Return function.
     return function;

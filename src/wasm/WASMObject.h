@@ -107,7 +107,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    static WASMMemoryObject* createMemoryObject(ExecutionState& state, wasm_memory_t* memory);
+    static WASMMemoryObject* createMemoryObject(ExecutionState& state, wasm_memory_t* memaddr);
 
     wasm_memory_t* memory() const
     {
@@ -175,12 +175,13 @@ private:
     wasm_global_t* m_global;
 };
 
-typedef std::unordered_map<void*, WASMMemoryObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMMemoryObject*>>> WASMMemoryMap;
-typedef std::unordered_map<void*, WASMTableObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMTableObject*>>> WASMTableMap;
-typedef std::unordered_map<void*, WASMGlobalObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, WASMGlobalObject*>>> WASMGlobalMap;
+// FIXME change vector structure to hash map (it requires hash value for each wasm_ref_t pointer)
+typedef Vector<std::pair<wasm_ref_t*, WASMMemoryObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMMemoryObject*>>> WASMMemoryMap;
+typedef Vector<std::pair<wasm_ref_t*, WASMTableObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMTableObject*>>> WASMTableMap;
+typedef Vector<std::pair<wasm_ref_t*, WASMGlobalObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMGlobalObject*>>> WASMGlobalMap;
 
 class ExportedFunctionObject;
-typedef std::unordered_map<void*, ExportedFunctionObject*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<void* const, ExportedFunctionObject*>>> WASMFunctionMap;
+typedef Vector<std::pair<wasm_ref_t*, ExportedFunctionObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, ExportedFunctionObject*>>> WASMFunctionMap;
 
 struct WASMCacheMap : public gc {
     WASMMemoryMap memoryMap;
