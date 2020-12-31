@@ -500,6 +500,8 @@ static Object* wasmCreateExportsObject(ExecutionState& state, wasm_module_t* mod
     // Perform ! SetIntegrityLevel(exportsObject, "frozen").
     Object::setIntegrityLevel(state, exportsObject, false);
 
+    wasm_exporttype_vec_delete(&export_types);
+
     // Return exportsObject.
     return exportsObject;
 }

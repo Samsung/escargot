@@ -339,10 +339,20 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     wasm_memory_t* memaddr = wasm_memory_new(state.context()->vmInstance()->wasmStore(), memtype);
     wasm_memorytype_delete(memtype);
 
+    wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
+
     // Let map be the surrounding agent's associated Memory object cache.
     // Assert: map[memaddr] doesn’t exist.
     WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
-    ASSERT(map.find(memaddr) == map.end());
+
+#ifndef NDEBUG
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(memref, ref)) {
+            ASSERT_NOT_REACHED();
+        }
+    }
+#endif
 
     // Create a memory buffer from memaddr
     ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
@@ -361,7 +371,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     WASMMemoryObject* memoryObj = new WASMMemoryObject(state, proto, memaddr, buffer);
 
     // Set map[memaddr] to memory.
-    map.insert(std::make_pair(memaddr, memoryObj));
+    map.pushBack(std::make_pair(memref, memoryObj));
 
     return memoryObj;
 }
@@ -399,7 +409,20 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     // Let map be the surrounding agent's associated Memory object cache.
     // Assert: map[memaddr] exists.
     WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
-    ASSERT(map.find(memaddr) != map.end());
+#ifndef NDEBUG
+    {
+        wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
+        bool cached = false;
+        for (auto iter = map.begin(); iter != map.end(); iter++) {
+            wasm_ref_t* ref = iter->first;
+            if (wasm_ref_same(memref, ref)) {
+                cached = true;
+                break;
+            }
+        }
+        ASSERT(cached);
+    }
+#endif
 
     // Perform ! DetachArrayBuffer(memory.[[BufferObject]], "WebAssembly.Memory").
     memoryObj->buffer()->detachArrayBufferWithoutFree();
@@ -485,10 +508,19 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     wasm_table_t* tableaddr = wasm_table_new(state.context()->vmInstance()->wasmStore(), tabletype, nullptr);
     wasm_tabletype_delete(tabletype);
 
+    wasm_ref_t* tableref = wasm_table_as_ref(tableaddr);
+
     // Let map be the surrounding agent's associated Table object cache.
     // Assert: map[tableaddr] doesn’t exist.
     WASMTableMap& map = state.context()->wasmCache()->tableMap;
-    ASSERT(map.find(tableaddr) == map.end());
+#ifndef NDEBUG
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(tableref, ref)) {
+            ASSERT_NOT_REACHED();
+        }
+    }
+#endif
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyTablePrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -499,7 +531,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     WASMTableObject* tableObj = new WASMTableObject(state, proto, tableaddr);
 
     // Set map[tableaddr] to table.
-    map.insert(std::make_pair(tableaddr, tableObj));
+    map.pushBack(std::make_pair(tableref, tableObj));
 
     return tableObj;
 }
@@ -685,10 +717,19 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     wasm_global_t* globaladdr = wasm_global_new(state.context()->vmInstance()->wasmStore(), globaltype, &value);
     wasm_globaltype_delete(globaltype);
 
+    wasm_ref_t* globalref = wasm_global_as_ref(globaladdr);
+
     // Let map be the surrounding agent's associated Global object cache.
     // Assert: map[globaladdr] doesn't exist.
     WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
-    ASSERT(map.find(globaladdr) == map.end());
+#ifndef NDEBUG
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(globalref, ref)) {
+            ASSERT_NOT_REACHED();
+        }
+    }
+#endif
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyGlobalPrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -699,7 +740,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     WASMGlobalObject* globalObj = new WASMGlobalObject(state, proto, globaladdr);
 
     // Set map[globaladdr] to global.
-    map.insert(std::make_pair(globaladdr, globalObj));
+    map.pushBack(std::make_pair(globalref, globalObj));
 
     return globalObj;
 }

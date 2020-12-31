@@ -155,11 +155,15 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
 {
     ASSERT(!!memory);
 
+    wasm_ref_t* memref = wasm_memory_as_ref(memory);
+
     // Let map be the surrounding agent's associated Memory object cache.
     WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
-    auto mapIter = map.find(memory);
-    if (mapIter != map.end()) {
-        return mapIter->second;
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(memref, ref)) {
+            return iter->second;
+        }
     }
 
     // Let memory be a new Memory.
@@ -176,7 +180,7 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
     WASMMemoryObject* memoryObj = new WASMMemoryObject(state, memory, buffer);
 
     // Set map[memory] to memory.
-    map.insert(std::make_pair(memory, memoryObj));
+    map.pushBack(std::make_pair(memref, memoryObj));
 
     //  Return memory.
     return memoryObj;
@@ -229,13 +233,16 @@ WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_
 {
     ASSERT(!!tableaddr);
 
+    wasm_ref_t* tableref = wasm_table_as_ref(tableaddr);
+
     // Let map be the surrounding agent's associated Table object cache.
     // If map[tableaddr] exists,
     WASMTableMap& map = state.context()->wasmCache()->tableMap;
-    auto mapIter = map.find(tableaddr);
-    if (mapIter != map.end()) {
-        // Return map[tableaddr].
-        return mapIter->second;
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(tableref, ref)) {
+            return iter->second;
+        }
     }
 
     // Let table be a new Table.
@@ -243,7 +250,7 @@ WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_
 
     // Initialize table from tableaddr.
     // Set map[tableaddr] to table.
-    map.insert(std::make_pair(tableaddr, table));
+    map.pushBack(std::make_pair(tableref, table));
 
     // Return table.
     return table;
@@ -284,13 +291,17 @@ WASMGlobalObject* WASMGlobalObject::createGlobalObject(ExecutionState& state, wa
 {
     ASSERT(!!globaladdr);
 
+    wasm_ref_t* globalref = wasm_global_as_ref(globaladdr);
+
     // Let map be the current agent's associated Global object cache.
     // If map[globaladdr] exists,
     WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
-    auto mapIter = map.find(globaladdr);
-    if (mapIter != map.end()) {
-        // Return map[globaladdr].
-        return mapIter->second;
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(globalref, ref)) {
+            // Return map[globaladdr].
+            return iter->second;
+        }
     }
 
     // Let global be a new Global.
@@ -298,7 +309,7 @@ WASMGlobalObject* WASMGlobalObject::createGlobalObject(ExecutionState& state, wa
 
     // Initialize global from globaladdr.
     // Set map[globaladdr] to global.
-    map.insert(std::make_pair(globaladdr, global));
+    map.pushBack(std::make_pair(globalref, global));
 
     // Return global.
     return global;
