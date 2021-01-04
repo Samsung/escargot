@@ -185,6 +185,11 @@ jobs:
         submodules: true
     - name: Install Packages
       run: sudo apt-get install ninja-build
+    - name: Patch WABT
+      working-directory: ./third_party/wasm/wabt
+      run: |
+        cp ../../../tools/test/wasm-js/imports_patch .
+        patch -p0 < imports_patch
     - name: Download Coverity Tool
       env:
         TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
@@ -194,7 +199,7 @@ jobs:
         tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
     - name: Build
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
         export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
         cmake -H. -Bout/coverity_scan $BUILD_OPTIONS

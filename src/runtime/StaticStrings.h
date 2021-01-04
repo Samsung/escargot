@@ -449,7 +449,6 @@ namespace Escargot {
     F(trimRight)                  \
     F(trimStart)                  \
     F(trunc)                      \
-    F(typeof)                     \
     F(undefined)                  \
     F(unescape)                   \
     F(unicode)                    \
@@ -787,6 +786,7 @@ public:
     AtomicString stringThrow;
     AtomicString stringTrue;
     AtomicString stringTry;
+    AtomicString stringTypeof;
     AtomicString stringVoid;
     AtomicString stringWhile;
 

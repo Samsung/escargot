@@ -376,7 +376,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case ReturnKeyword:
         return ctx->staticStrings().stringReturn;
     case TypeofKeyword:
-        return ctx->staticStrings().typeof;
+        return ctx->staticStrings().stringTypeof;
     case DeleteKeyword:
         return ctx->staticStrings().stringDelete;
     case SwitchKeyword:
