@@ -552,7 +552,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case CallFunctionComplexCaseOpcode: {
             CallFunctionComplexCase* cd = (CallFunctionComplexCase*)currentCode;
             if (cd->m_kind != CallFunctionComplexCase::InWithScope) {
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverOrThisIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);

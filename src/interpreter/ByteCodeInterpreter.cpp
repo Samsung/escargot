@@ -3094,7 +3094,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
     case CallFunctionComplexCase::MayBuiltinApply: {
         ASSERT(!code->m_isOptional);
         const Value& callee = registerFile[code->m_calleeIndex];
-        const Value& receiver = registerFile[code->m_receiverIndex];
+        const Value& receiver = registerFile[code->m_receiverOrThisIndex];
         if (UNLIKELY(!callee.isPointerValue() || !receiver.isPointerValue())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
         }
@@ -3125,7 +3125,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
             }
         }
         Value argv[2] = { registerFile[code->m_argumentsStartIndex], argumentsValue };
-        registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, registerFile[code->m_receiverIndex], 2, argv);
+        registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, registerFile[code->m_receiverOrThisIndex], 2, argv);
         break;
     }
     case CallFunctionComplexCase::MayBuiltinEval: {
@@ -3152,8 +3152,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
                 if (argc) {
                     arg = argv[0];
                 }
-                Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
-                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, stackStorage[0], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
+                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, registerFile[code->m_receiverOrThisIndex], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
             } else {
                 Value thisValue;
                 if (code->m_inWithScope) {
@@ -3177,7 +3176,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
     case CallFunctionComplexCase::WithSpreadElement: {
         ASSERT(!code->m_isOptional);
         const Value& callee = registerFile[code->m_calleeIndex];
-        const Value& receiver = code->m_receiverIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverIndex];
+        const Value& receiver = code->m_receiverOrThisIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverOrThisIndex];
 
         // if PointerValue is not callable, PointerValue::call function throws builtin error
         // https://www.ecma-international.org/ecma-262/6.0/#sec-call

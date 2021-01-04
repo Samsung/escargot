@@ -158,7 +158,7 @@ public:
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
-                                                        isOptional, REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                                        isOptional, context->m_classInfo.m_thisExpressionIndex, evalIndex, startIndex, dstRegister, m_arguments.size()),
                                 context, this);
             return;
         }
