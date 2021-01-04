@@ -1652,7 +1652,7 @@ public:
         , m_hasSpreadElement(hasSpreadElement)
         , m_isOptional(isOptional)
         , m_argumentCount(argumentCount)
-        , m_receiverIndex(receiverIndex)
+        , m_receiverOrThisIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_resultIndex(resultIndex)
@@ -1682,7 +1682,7 @@ public:
 
     union {
         struct {
-            ByteCodeRegisterIndex m_receiverIndex;
+            ByteCodeRegisterIndex m_receiverOrThisIndex;
             ByteCodeRegisterIndex m_calleeIndex;
         };
         AtomicString m_calleeName; // used with InWithScope
@@ -1696,8 +1696,8 @@ public:
         if (m_kind == Kind::InWithScope) {
             printf("call(complex inWith) r%d <- %s(r%d-r%d)", (int)m_resultIndex, m_calleeName.string()->toNonGCUTF8StringData().data(), (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
         } else {
-            if (m_receiverIndex != REGISTER_LIMIT) {
-                printf("call(complex %d) r%d <- r%d,r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+            if (m_receiverOrThisIndex != REGISTER_LIMIT) {
+                printf("call(complex %d) r%d <- r%d,r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_receiverOrThisIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
             } else {
                 printf("call(complex %d) r%d <- r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
             }

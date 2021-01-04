@@ -2984,7 +2984,6 @@
     <test id="language/expressions/class/elements/static-as-valid-instance-field-assigned"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-field-anonymous-function-length"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-field-anonymous-function-name"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/static-field-init-with-this"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-private-fields-proxy-default-handler-throws"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-private-getter-access-on-inner-arrow-function"><reason>TODO</reason></test>
@@ -5256,7 +5255,6 @@
     <test id="language/statements/class/elements/static-as-valid-instance-field-assigned"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-field-anonymous-function-length"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-field-anonymous-function-name"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/static-field-init-with-this"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-private-fields-proxy-default-handler-throws"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-private-getter-access-on-inner-arrow-function"><reason>TODO</reason></test>
