@@ -84,7 +84,7 @@ Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t&
 
 wasm_val_t WASMValueConverter::wasmToWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
 {
-    wasm_val_t result;
+    wasm_val_t result = WASM_INIT_VAL;
     switch (type) {
     case WASM_I32: {
         int32_t val = value.toInt32(state);
@@ -118,7 +118,7 @@ wasm_val_t WASMValueConverter::wasmToWebAssemblyValue(ExecutionState& state, con
 
 wasm_val_t WASMValueConverter::wasmDefaultValue(wasm_valkind_t type)
 {
-    wasm_val_t result;
+    wasm_val_t result = WASM_INIT_VAL;
     switch (type) {
     case WASM_I32: {
         result = WASM_I32_VAL(0);
