@@ -275,12 +275,12 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
                 code->assignOpcodeInAddress();
 
                 codePos += sizeof(BlockOperation);
-            } else if (e == ByteCodeGenerateContext::With) {
-                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(WithOperation));
-                WithOperation* code = new (self->m_pausedCode.data() + codePos) WithOperation(ByteCodeLOC(SIZE_MAX), REGISTER_LIMIT);
+            } else if (e == ByteCodeGenerateContext::OpenEnv) {
+                self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(OpenLexicalEnvironment));
+                OpenLexicalEnvironment* code = new (self->m_pausedCode.data() + codePos) OpenLexicalEnvironment(ByteCodeLOC(SIZE_MAX), OpenLexicalEnvironment::ResumeExecution, REGISTER_LIMIT);
                 code->assignOpcodeInAddress();
 
-                codePos += sizeof(WithOperation);
+                codePos += sizeof(OpenLexicalEnvironment);
             } else if (e == ByteCodeGenerateContext::Try) {
                 self->m_pausedCode.resizeWithUninitializedValues(self->m_pausedCode.size() + sizeof(TryOperation));
                 TryOperation* code = new (self->m_pausedCode.data() + codePos) TryOperation(ByteCodeLOC(SIZE_MAX));

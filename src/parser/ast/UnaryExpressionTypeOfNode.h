@@ -36,7 +36,7 @@ public:
     {
         if (m_argument->isIdentifier()) {
             AtomicString name = m_argument->asIdentifier()->name();
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name, context);
 
             if (!info.m_isResultSaved) {
                 if (UNLIKELY(m_argument->asIdentifier()->isPointsArgumentsObject(context))) {

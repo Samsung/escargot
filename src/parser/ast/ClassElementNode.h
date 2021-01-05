@@ -37,13 +37,14 @@ public:
     };
 
 
-    ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic)
+    ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic, bool seenSuperProperty)
         : Node()
         , m_key(key)
         , m_value(value)
         , m_kind(kind)
         , m_isComputed(isComputed)
         , m_isStatic(isStatic)
+        , m_seenSuperProperty(seenSuperProperty)
     {
     }
 
@@ -72,6 +73,11 @@ public:
         return m_isStatic;
     }
 
+    bool seenSuperProperty()
+    {
+        return m_seenSuperProperty;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::ClassElement; }
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
@@ -84,9 +90,10 @@ public:
 private:
     Node* m_key; // key: Literal | Identifier;
     Node* m_value; // value: Expression;
-    Kind m_kind;
+    Kind m_kind : 3;
     bool m_isComputed : 1;
     bool m_isStatic : 1;
+    bool m_seenSuperProperty : 1;
 };
 } // namespace Escargot
 

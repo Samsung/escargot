@@ -54,8 +54,8 @@ public:
 
     static void generateTryStatementBodyEndByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx)
     {
-        codeBlock->pushCode(TryCatchFinallyWithBlockBodyEnd(ByteCodeLOC(self->loc().index)), context, self);
-        ctx.tryCatchBodyPos = codeBlock->lastCodePosition<TryCatchFinallyWithBlockBodyEnd>();
+        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self);
+        ctx.tryCatchBodyPos = codeBlock->lastCodePosition<CloseLexicalEnvironment>();
     }
 
     static void generateTryHandlerStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, CatchClauseNode *handler)
@@ -113,7 +113,7 @@ public:
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         }
 
-        codeBlock->pushCode(TryCatchFinallyWithBlockBodyEnd(ByteCodeLOC(self->loc().index)), context, self);
+        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self);
         context->m_recursiveStatementStack.pop_back();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
     }

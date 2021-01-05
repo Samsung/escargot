@@ -42,7 +42,7 @@ public:
             if (!context->m_codeBlock->canUseIndexedVariableStorage()) {
                 nameCase = true;
             } else {
-                InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name, context->m_lexicalBlockIndex);
+                InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(name, context);
                 if (!info.m_isResultSaved) {
                     nameCase = true;
                 }

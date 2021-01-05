@@ -109,7 +109,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetParameter, 0, 0)                                   \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
-    F(TryCatchFinallyWithBlockBodyEnd, 0, 0)                \
+    F(CloseLexicalEnvironment, 0, 0)                        \
     F(ThrowOperation, 0, 0)                                 \
     F(ThrowStaticErrorOperation, 0, 0)                      \
     F(CreateEnumerateObject, 1, 0)                          \
@@ -119,7 +119,7 @@ struct GlobalVariableAccessCacheItem;
     F(IteratorOperation, 0, 0)                              \
     F(GetMethod, 0, 0)                                      \
     F(LoadRegExp, 1, 0)                                     \
-    F(WithOperation, 0, 0)                                  \
+    F(OpenLexicalEnvironment, 0, 0)                         \
     F(ObjectDefineGetterSetter, 0, 0)                       \
     F(CallFunctionComplexCase, 0, 0)                        \
     F(BindingRestElement, 1, 0)                             \
@@ -1908,17 +1908,17 @@ public:
 #endif
 };
 
-class TryCatchFinallyWithBlockBodyEnd : public ByteCode {
+class CloseLexicalEnvironment : public ByteCode {
 public:
-    explicit TryCatchFinallyWithBlockBodyEnd(const ByteCodeLOC& loc)
-        : ByteCode(Opcode::TryCatchFinallyWithBlockBodyEndOpcode, loc)
+    explicit CloseLexicalEnvironment(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::CloseLexicalEnvironmentOpcode, loc)
     {
     }
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("try-catch-finally-with-block");
+        printf("close lexical environment");
     }
 #endif
 };
@@ -2253,21 +2253,28 @@ public:
 #endif
 };
 
-class WithOperation : public ByteCode {
+class OpenLexicalEnvironment : public ByteCode {
 public:
-    WithOperation(const ByteCodeLOC& loc, size_t registerIndex)
-        : ByteCode(Opcode::WithOperationOpcode, loc)
-        , m_registerIndex(registerIndex)
+    enum Kind {
+        WithStatement,
+        ClassStaticFieldInit,
+        ResumeExecution
+    };
+    OpenLexicalEnvironment(const ByteCodeLOC& loc, Kind kind, size_t registerIndex)
+        : ByteCode(Opcode::OpenLexicalEnvironmentOpcode, loc)
+        , m_kind(kind)
+        , m_withOrThisRegisterIndex(registerIndex)
     {
-        m_withEndPostion = SIZE_MAX;
+        m_endPostion = SIZE_MAX;
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
-    size_t m_withEndPostion;
+    Kind m_kind : 2;
+    ByteCodeRegisterIndex m_withOrThisRegisterIndex : 16;
+    size_t m_endPostion;
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("with r%d", (int)m_registerIndex);
+        printf("open lexical env r%d(%d)", (int)m_withOrThisRegisterIndex, (int)m_kind);
     }
 #endif
 };

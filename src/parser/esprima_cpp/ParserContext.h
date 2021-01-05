@@ -49,6 +49,7 @@ struct ParserContext {
     bool inLoop : 1;
     bool inParameterParsing : 1;
     bool inParameterNameParsing : 1;
+    bool seenSuperProperty : 1;
     bool hasRestrictedWordInArrayOrObjectInitializer : 1;
     bool strict : 1;
     ::Escargot::EscargotLexer::Scanner::SmallScannerResult firstCoverInitializedNameError;

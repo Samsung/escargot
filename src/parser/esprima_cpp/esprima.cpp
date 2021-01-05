@@ -235,6 +235,7 @@ public:
         this->context->inLoop = false;
         this->context->inParameterParsing = false;
         this->context->inParameterNameParsing = false;
+        this->context->seenSuperProperty = false;
         this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         this->context->strict = this->sourceType == Module;
         this->setMarkers(startLoc);
@@ -1153,7 +1154,7 @@ public:
                     return this->finalize(node, builder.createThisExpressionNode());
                 } else if (this->matchKeyword(SuperKeyword)) {
                     throwIfSuperOperationIsNotAllowed();
-                    return this->finalize(node, builder.createSuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
+                    return finishSuperExpression(builder, node, this->lookahead.valuePunctuatorKind == LeftParenthesis);
                 } else if (this->matchKeyword(ClassKeyword)) {
                     return this->parseClassExpression(builder);
                 } else {
@@ -1547,22 +1548,33 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parsePropertyInitializer(ASTBuilder& builder)
+    std::pair<ASTNode, bool> parseClassFieldInitializer(ASTBuilder& builder)
     {
         ASSERT(this->match(Substitution));
 
         this->nextToken();
 
         const bool previousAllowArguments = this->context->allowArguments;
+        const bool previousSeenSuperProperty = this->context->seenSuperProperty;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+        const bool previousSubCodeBlockIndex = this->subCodeBlockIndex;
+
         this->context->allowArguments = false;
+        this->context->seenSuperProperty = false;
+        this->context->allowSuperProperty = true;
 
         MetaNode node = this->createNode();
         ASTNode expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+        bool seenSuperProperty = this->context->seenSuperProperty;
+        // TODO find seen super property correctly in function scope
+        seenSuperProperty |= this->subCodeBlockIndex != previousSubCodeBlockIndex;
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
+        this->context->seenSuperProperty = previousSeenSuperProperty;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
 
-        return expr;
+        return std::make_pair(expr, seenSuperProperty);
     }
 
     template <class ASTBuilder>
@@ -2235,7 +2247,7 @@ public:
             throwIfSuperOperationIsNotAllowed();
             this->currentScopeContext->m_hasSuperOrNewTarget = true;
 
-            exprNode = this->finalize(this->createNode(), builder.createSuperExpressionNode(this->lookahead.valuePunctuatorKind == LeftParenthesis));
+            exprNode = this->finishSuperExpression(builder, this->createNode(), this->lookahead.valuePunctuatorKind == LeftParenthesis);
         } else if (UNLIKELY(this->matchKeyword(NewKeyword))) {
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseNewExpression<ASTBuilder>);
         } else if (UNLIKELY(this->matchKeyword(ImportKeyword))) {
@@ -2348,6 +2360,14 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode finishSuperExpression(ASTBuilder& builder, MetaNode node, bool isCall)
+    {
+        this->currentScopeContext->m_hasSuperOrNewTarget = true;
+        this->context->seenSuperProperty = true;
+        return this->finalize(node, builder.createSuperExpressionNode(isCall));
+    }
+
+    template <class ASTBuilder>
     ASTNode parseSuper(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
@@ -2357,9 +2377,7 @@ public:
             this->throwUnexpectedToken(this->lookahead);
         }
 
-        this->currentScopeContext->m_hasSuperOrNewTarget = true;
-
-        return this->finalize(node, builder.createSuperExpressionNode(false));
+        return this->finishSuperExpression(builder, node, false);
     }
 
     template <class ASTBuilder>
@@ -4709,6 +4727,7 @@ public:
         bool previousInIteration = this->context->inIteration;
         bool previousInSwitch = this->context->inSwitch;
         bool previousInFunctionBody = this->context->inFunctionBody;
+        bool previousSeenSuperProperty = this->context->seenSuperProperty;
 
         this->context->labelSet.clear();
         this->context->inIteration = false;
@@ -4744,6 +4763,7 @@ public:
         this->context->inIteration = previousInIteration;
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
+        this->context->seenSuperProperty = previousSeenSuperProperty;
 
         this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -5391,6 +5411,7 @@ public:
         bool isStatic = false;
         bool isGenerator = false;
         bool isAsync = false;
+        bool seenSuperProperty = false;
 
         if (this->match(Multiply)) {
             this->nextToken();
@@ -5461,7 +5482,9 @@ public:
                 value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
             } else if (this->match(Substitution)) {
                 kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
-                value = this->parsePropertyInitializer(builder);
+                auto init = this->parseClassFieldInitializer(builder);
+                value = init.first;
+                seenSuperProperty = init.second;
             } else if (this->match(SemiColon)) {
                 auto metaNode = this->createNode();
                 this->nextToken();
@@ -5530,7 +5553,7 @@ public:
             }
         }
 
-        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic));
+        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic, seenSuperProperty));
     }
 
     template <class ASTBuilder>
@@ -5608,7 +5631,7 @@ public:
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
 
-        return this->finalize(startNode, builder.template createClass<ClassType>(idNode, superClass, classBody, classBlockContext.childLexicalBlockIndex, StringView(this->scanner->sourceAsNormalView, startNode.index, endNode.index)));
+        return this->finalize(startNode, builder.template createClass<ClassType>(idNode, superClass, classBody, classBlockContext.childLexicalBlockIndex, StringView(this->scanner->sourceAsNormalView, startNode.index - this->baseMarker.index, endNode.index - this->baseMarker.index)));
     }
 
     template <class ASTBuilder>

@@ -59,11 +59,11 @@ public:
         auto r = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, r);
         size_t withPos = codeBlock->currentCodeSize();
-        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::With, withPos));
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::OpenEnv, withPos));
         if (shouldCareScriptExecutionResult) {
             context->giveUpRegister();
         }
-        codeBlock->pushCode(WithOperation(ByteCodeLOC(m_loc.index), r), context, this);
+        codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index), OpenLexicalEnvironment::WithStatement, r), context, this);
         context->giveUpRegister();
 
         bool isWithScopeBefore = context->m_isWithScope;
@@ -71,8 +71,8 @@ public:
         m_body->generateStatementByteCode(codeBlock, context);
         context->registerJumpPositionsToComplexCase(start);
 
-        codeBlock->pushCode(TryCatchFinallyWithBlockBodyEnd(ByteCodeLOC(m_loc.index)), context, this);
-        codeBlock->peekCode<WithOperation>(withPos)->m_withEndPostion = codeBlock->currentCodeSize();
+        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(m_loc.index)), context, this);
+        codeBlock->peekCode<OpenLexicalEnvironment>(withPos)->m_endPostion = codeBlock->currentCodeSize();
         context->m_isWithScope = isWithScopeBefore;
 
         context->m_recursiveStatementStack.pop_back();
