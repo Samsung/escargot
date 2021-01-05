@@ -102,7 +102,7 @@ public:
     bool mayNeedsResolveAddress(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
     {
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context);
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                     if (context->m_isWithScope) {
@@ -147,7 +147,7 @@ public:
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context);
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization, true);
 
             if (!info.m_isResultSaved) {
@@ -233,7 +233,7 @@ public:
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context);
             addLexicalVariableErrorsIfNeeds(codeBlock, context, info, false);
 
             if (!info.m_isResultSaved) {
@@ -284,7 +284,7 @@ public:
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context->m_lexicalBlockIndex);
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context);
             if (!info.m_isResultSaved) {
                 return std::make_tuple(false, REGISTER_LIMIT, info);
             } else {

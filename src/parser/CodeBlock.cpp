@@ -804,11 +804,12 @@ bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
     return false;
 }
 
-InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentifierInfo(const AtomicString& name, LexicalBlockIndex blockIndex)
+InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentifierInfo(const AtomicString& name, ByteCodeGenerateContext* generatorContext)
 {
     size_t upperIndex = 0;
     IndexedIdentifierInfo info;
     InterpretedCodeBlock* blk = this;
+    LexicalBlockIndex blockIndex = generatorContext->m_lexicalBlockIndex;
     LexicalBlockIndex startBlockIndex = blockIndex;
     while (blk && blk->canUseIndexedVariableStorage()) {
         // search block first.
@@ -829,7 +830,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                     if (info.m_isStackAllocated) {
                         info.m_index += identifierOnStackCount();
                     }
-                    info.m_upperIndex = upperIndex;
+                    info.m_upperIndex = upperIndex + generatorContext->m_openedNonBlockEnvCount;
                     info.m_isMutable = bi->m_identifiers[i].m_isMutable;
                     info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
                     info.m_blockIndex = bi->m_blockIndex;
@@ -872,7 +873,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                 info.m_isResultSaved = true;
                 info.m_isGlobalLexicalVariable = false;
                 info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
-                info.m_upperIndex = upperIndex;
+                info.m_upperIndex = upperIndex + generatorContext->m_openedNonBlockEnvCount;
                 info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
                 info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
                 info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;

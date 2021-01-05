@@ -97,8 +97,16 @@ public:
             }
 
             size_t oldThisIndex = context->m_classInfo.m_thisExpressionIndex;
+
+            size_t valueExprStartPos = codeBlock->currentCodeSize();
             if (p->kind() == ClassElementNode::Kind::StaticField) {
                 context->m_classInfo.m_thisExpressionIndex = context->m_classInfo.m_constructorIndex;
+
+                if (p->seenSuperProperty()) {
+                    context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::OpenEnv, valueExprStartPos));
+                    context->m_openedNonBlockEnvCount++;
+                    codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index), OpenLexicalEnvironment::ClassStaticFieldInit, context->m_classInfo.m_thisExpressionIndex), context, this);
+                }
             }
 
             size_t valueIndex = p->value()->getRegister(codeBlock, context);
@@ -106,6 +114,13 @@ public:
 
             if (p->kind() == ClassElementNode::Kind::StaticField) {
                 context->m_classInfo.m_thisExpressionIndex = oldThisIndex;
+
+                if (p->seenSuperProperty()) {
+                    codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(m_loc.index)), context, this);
+                    codeBlock->peekCode<OpenLexicalEnvironment>(valueExprStartPos)->m_endPostion = codeBlock->currentCodeSize();
+                    context->m_openedNonBlockEnvCount--;
+                    context->m_recursiveStatementStack.pop_back();
+                }
             }
 
             if (p->kind() == ClassElementNode::Kind::Method) {

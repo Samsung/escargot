@@ -118,7 +118,6 @@ Value ExecutionState::makeSuperPropertyReference()
 {
     // Let env be GetThisEnvironment( ).
     EnvironmentRecord* env = getThisEnvironment();
-    ASSERT(env->isDeclarativeEnvironmentRecord() && env->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
 
     // If env.HasSuperBinding() is false, throw a ReferenceError exception.
     if (!env->hasSuperBinding()) {
@@ -130,7 +129,7 @@ Value ExecutionState::makeSuperPropertyReference()
     // auto actualThis = env->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(*this);
 
     // Let baseValue be env.GetSuperBase().
-    auto baseValue = env->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getSuperBase(*this);
+    auto baseValue = env->getSuperBase(*this);
     // Let bv be RequireObjectCoercible(baseValue).
     // ReturnIfAbrupt(bv).
     // Return a value of type Reference that is a Super Reference whose base value is bv, whose referenced name is propertyKey, whose thisValue is actualThis, and whose strict reference flag is strict.

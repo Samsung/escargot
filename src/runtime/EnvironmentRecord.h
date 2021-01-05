@@ -136,6 +136,17 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    virtual Value getSuperBase(ExecutionState& state)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual Value getThisBinding(ExecutionState& state)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+        return Value();
+    }
+
     virtual bool hasSuperBinding()
     {
         return false;
@@ -390,6 +401,33 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
+};
+
+class DeclarativeEnvironmentWithHomeObject : public DeclarativeEnvironmentRecord {
+public:
+    DeclarativeEnvironmentWithHomeObject(Object* homeObject)
+        : DeclarativeEnvironmentRecord()
+        , m_homeObject(homeObject)
+    {
+    }
+
+    virtual Value getSuperBase(ExecutionState& state) override
+    {
+        return m_homeObject->getPrototype(state);
+    }
+
+    virtual bool hasSuperBinding() override
+    {
+        return true;
+    }
+
+    virtual bool hasThisBinding() override
+    {
+        return true;
+    }
+
+private:
+    Object* m_homeObject;
 };
 
 class DeclarativeEnvironmentRecordIndexed : public DeclarativeEnvironmentRecord {
@@ -838,7 +876,7 @@ public:
         return thisMode() != ScriptFunctionObject::ThisMode::Lexical;
     }
 
-    Value getSuperBase(ExecutionState& state)
+    virtual Value getSuperBase(ExecutionState& state) override
     {
         if (homeObject() == nullptr) {
             return Value();
@@ -850,12 +888,6 @@ public:
     virtual void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    virtual Value getThisBinding(ExecutionState& state)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-        return Value();
     }
 
     virtual Object* newTarget()

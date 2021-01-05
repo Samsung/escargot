@@ -42,7 +42,7 @@ class CreateClass;
 class SuperReference;
 class SuperSetObjectOperation;
 class SuperGetObjectOperation;
-class WithOperation;
+class OpenLexicalEnvironment;
 class BlockOperation;
 class ReplaceBlockLexicalEnvironmentOperation;
 class TryOperation;
@@ -129,7 +129,7 @@ private:
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
     static void superSetObjectOperation(ExecutionState& state, SuperSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static Value superGetObjectOperation(ExecutionState& state, SuperGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
-    static Value withOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Value openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
     static bool binaryInOperation(ExecutionState& state, const Value& left, const Value& right);

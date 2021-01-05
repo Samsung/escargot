@@ -274,7 +274,7 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
         context->registerJumpPositionsToComplexCase(ctx.lexicalBlockStartPosition);
     }
 
-    this->pushCode(TryCatchFinallyWithBlockBodyEnd(ByteCodeLOC(SIZE_MAX)), context, nullptr);
+    this->pushCode(CloseLexicalEnvironment(ByteCodeLOC(SIZE_MAX)), context, nullptr);
     this->peekCode<BlockOperation>(ctx.lexicalBlockSetupStartPosition)->m_blockEndPosition = this->currentCodeSize();
     context->m_recursiveStatementStack.pop_back();
 }

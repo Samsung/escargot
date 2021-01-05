@@ -95,6 +95,7 @@ struct ByteCodeGenerateContext {
         , m_complexJumpLabeledBreakIgnoreCount(0)
         , m_complexJumpLabeledContinueIgnoreCount(0)
         , m_lexicalBlockIndex(0)
+        , m_openedNonBlockEnvCount(0)
         , m_classInfo()
         , m_numeralLiteralData(numeralLiteralData)
 #ifdef ESCARGOT_DEBUGGER
@@ -132,6 +133,7 @@ struct ByteCodeGenerateContext {
         , m_complexJumpLabeledBreakIgnoreCount(contextBefore.m_complexJumpLabeledBreakIgnoreCount)
         , m_complexJumpLabeledContinueIgnoreCount(contextBefore.m_complexJumpLabeledContinueIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
+        , m_openedNonBlockEnvCount(contextBefore.m_openedNonBlockEnvCount)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
 #ifdef ESCARGOT_DEBUGGER
@@ -360,7 +362,7 @@ struct ByteCodeGenerateContext {
         Try,
         Catch,
         Finally,
-        With,
+        OpenEnv,
         Block
     };
     std::vector<std::pair<RecursiveStatementKind, size_t>> m_recursiveStatementStack;
@@ -369,6 +371,7 @@ struct ByteCodeGenerateContext {
     int m_complexJumpLabeledBreakIgnoreCount;
     int m_complexJumpLabeledContinueIgnoreCount;
     size_t m_lexicalBlockIndex;
+    size_t m_openedNonBlockEnvCount;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     NumeralLiteralVector* m_numeralLiteralData;

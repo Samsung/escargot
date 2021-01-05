@@ -34,6 +34,7 @@ class LexicalEnvironment;
 class CodeBlock;
 class InterpretedCodeBlock;
 class Script;
+struct ByteCodeGenerateContext;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 // only in construct call, newTarget have Object*
@@ -679,7 +680,7 @@ public:
         return false;
     }
 
-    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, LexicalBlockIndex blockIndex);
+    IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, ByteCodeGenerateContext* context);
 
     size_t findVarName(const AtomicString& name)
     {

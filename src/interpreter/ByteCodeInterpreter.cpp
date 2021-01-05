@@ -996,7 +996,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             CreateObject* code = (CreateObject*)programCounter;
             registerFile[code->m_registerIndex] = new Object(*state);
 #if defined(ESCARGOT_SMALL_CONFIG)
-            registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
+            registerFile[code->m_withOrThisRegisterIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
 #endif
             ADD_PROGRAM_COUNTER(CreateObject);
             NEXT_INSTRUCTION();
@@ -1086,7 +1086,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(TryCatchFinallyWithBlockBodyEnd)
+        DEFINE_OPCODE(CloseLexicalEnvironment)
             :
         {
             (*(state->rareData()->m_controlFlowRecord))[state->rareData()->m_controlFlowRecord->size() - 1] = nullptr;
@@ -1100,10 +1100,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             state->context()->throwException(*state, registerFile[code->m_registerIndex]);
         }
 
-        DEFINE_OPCODE(WithOperation)
+        DEFINE_OPCODE(OpenLexicalEnvironment)
             :
         {
-            Value v = withOperation(state, programCounter, byteCodeBlock, registerFile);
+            Value v = openLexicalEnvironment(state, programCounter, byteCodeBlock, registerFile);
             if (!v.isEmpty()) {
                 return v;
             }
@@ -2834,12 +2834,12 @@ NEVER_INLINE Value ByteCodeInterpreter::superGetObjectOperation(ExecutionState& 
     return object.toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex])).value(state, thisValue);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    WithOperation* code = (WithOperation*)programCounter;
+    OpenLexicalEnvironment* code = (OpenLexicalEnvironment*)programCounter;
 
     bool inPauserScope = state->inPauserScope();
-    bool inPauserResumeProcess = code->m_registerIndex == REGISTER_LIMIT;
+    bool inPauserResumeProcess = code->m_kind == OpenLexicalEnvironment::ResumeExecution;
 
     LexicalEnvironment* newEnv;
     if (!LIKELY(inPauserResumeProcess)) {
@@ -2848,17 +2848,27 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
             state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
         }
         state->ensureRareData()->m_controlFlowRecord->pushBack(nullptr);
-        size_t newPc = programCounter + sizeof(WithOperation);
+        size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
         char* codeBuffer = byteCodeBlock->m_code.data();
 
         // setup new env
-        EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_registerIndex].toObject(*state));
-        newEnv = new LexicalEnvironment(newRecord, env);
+        if (code->m_kind == OpenLexicalEnvironment::WithStatement) {
+            EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_withOrThisRegisterIndex].toObject(*state));
+            newEnv = new LexicalEnvironment(newRecord, env);
+        } else {
+            ASSERT(code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInit);
+            EnvironmentRecord* newRecord = new DeclarativeEnvironmentWithHomeObject(registerFile[code->m_withOrThisRegisterIndex].asObject());
+            newEnv = new LexicalEnvironment(newRecord, env);
+        }
     } else {
         newEnv = nullptr;
     }
 
-    bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
+    bool shouldUseHeapAllocatedState = true;
+    if (inPauserResumeProcess) {
+        shouldUseHeapAllocatedState = false;
+    }
+
     ExecutionState* newState;
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
@@ -2876,13 +2886,13 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
     Debugger::updateStopState(state->context()->debugger(), state, newState);
 #endif /* ESCARGOT_DEBUGGER */
 
-    size_t newPc = programCounter + sizeof(WithOperation);
+    size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
     char* codeBuffer = byteCodeBlock->m_code.data();
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
 
     if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
-        code = (WithOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+        code = (OpenLexicalEnvironment*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -2912,7 +2922,7 @@ NEVER_INLINE Value ByteCodeInterpreter::withOperation(ExecutionState*& state, si
             return record->value();
         }
     } else {
-        programCounter = jumpTo(codeBuffer, code->m_withEndPostion);
+        programCounter = jumpTo(codeBuffer, code->m_endPostion);
         return Value(Value::EmptyValue);
     }
 }

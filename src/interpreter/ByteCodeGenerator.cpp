@@ -653,9 +653,9 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case WithOperationOpcode: {
-            WithOperation* cd = (WithOperation*)currentCode;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+        case OpenLexicalEnvironmentOpcode: {
+            OpenLexicalEnvironment* cd = (OpenLexicalEnvironment*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_withOrThisRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         case BinaryPlusOpcode:
