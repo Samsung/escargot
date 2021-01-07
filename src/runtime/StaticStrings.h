@@ -352,6 +352,7 @@ namespace Escargot {
     F(remainingElements)          \
     F(repeat)                     \
     F(replace)                    \
+    F(replaceAll)                 \
     F(resolve)                    \
     F(resolvedOptions)            \
     F(reverse)                    \

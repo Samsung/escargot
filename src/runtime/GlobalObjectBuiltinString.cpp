@@ -553,6 +553,76 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     }
 }
 
+static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (thisValue.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+    }
+    Value searchValue = argv[0];
+    Value replaceValue = argv[1];
+    // If searchValue is neither undefined nor null, then
+    if (!searchValue.isUndefinedOrNull()) {
+        // If isRegExp is true, then
+        if (searchValue.isObject() && searchValue.asObject()->isRegExp(state)) {
+            Value flags = searchValue.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, searchValue);
+            if (flags.isUndefinedOrNull() || !flags.toString(state)->contains("g")) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            }
+        }
+        // Let replacer be ? GetMethod(searchValue, @@replace).
+        Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
+        if (!replacer.isUndefined()) {
+            Value args[2] = { thisValue, replaceValue };
+            // Return ? Call(replacer, searchValue, « O, replaceValue »).
+            return Object::call(state, replacer, searchValue, 2, args);
+        }
+    }
+
+    String* string = thisValue.toString(state);
+    String* searchString = searchValue.toString(state);
+    String* replaceString = nullptr;
+    bool functionalReplace = replaceValue.isCallable();
+    // If functionalReplace is false, then
+    if (!functionalReplace) {
+        replaceString = replaceValue.toString(state);
+    }
+    size_t advanceBy = 1;
+    size_t searchLength = searchString->length();
+    advanceBy = (advanceBy < searchLength) ? searchLength : 1;
+    std::vector<size_t> matchPositions;
+    // Let position be ! StringIndexOf(string, searchString, 0).
+    size_t position = string->find(searchString, 0);
+
+    // Repeat, while position is not -1
+    while (position != SIZE_MAX) {
+        matchPositions.push_back(position);
+        position = string->find(searchString, position + advanceBy);
+    }
+    size_t endOfLastMatch = 0;
+    StringBuilder builder;
+    String* replacement;
+    // For each element p of matchPositions, do
+    for (uint i = 0; i < matchPositions.size(); i++) {
+        size_t p = matchPositions[i];
+        builder.appendSubString(string, endOfLastMatch, p);
+        // If functionalReplace is true, then
+        if (functionalReplace) {
+            Value args[3] = { searchString, Value(p), string };
+            replacement = Object::call(state, replaceValue, Value(), 3, args).toString(state);
+        } else {
+            StringVector captures;
+            replacement = replacement->getSubstitution(state, searchString, string, p, captures, Value(), replaceString);
+        }
+        builder.appendString(replacement);
+        endOfLastMatch = p + searchLength;
+    }
+    // If endOfLastMatch < the length of string, then
+    if (endOfLastMatch < string->length()) {
+        builder.appendSubString(string, endOfLastMatch, string->length());
+    }
+    return builder.finalize(&state);
+}
+
 static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
@@ -1608,6 +1678,9 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->replace),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->replace, builtinStringReplace, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->replaceAll),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->replaceAll, builtinStringReplaceAll, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->search),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->search, builtinStringSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
