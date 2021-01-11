@@ -58,6 +58,7 @@ class IteratorObject;
 class MapObject;
 class SetObject;
 class WeakMapObject;
+class WeakRefObject;
 class WeakSetObject;
 class GeneratorObject;
 class AsyncGeneratorObject;
@@ -308,6 +309,11 @@ public:
     }
 
     virtual bool isWeakMapObject() const
+    {
+        return false;
+    }
+
+    virtual bool isWeakRefObject() const
     {
         return false;
     }
@@ -656,6 +662,12 @@ public:
     {
         ASSERT(isWeakMapObject());
         return (WeakMapObject*)this;
+    }
+
+    WeakRefObject* asWeakRefObject()
+    {
+        ASSERT(isWeakRefObject());
+        return (WeakRefObject*)this;
     }
 
     WeakSetObject* asWeakSetObject()

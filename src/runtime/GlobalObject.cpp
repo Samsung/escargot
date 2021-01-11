@@ -90,6 +90,7 @@ void GlobalObject::installBuiltins(ExecutionState& state)
     installMap(state);
     installSet(state);
     installWeakMap(state);
+    installWeakRef(state);
     installWeakSet(state);
     installGenerator(state);
     installAsyncFunction(state);
