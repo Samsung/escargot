@@ -49,6 +49,7 @@
 #include "runtime/WeakSetObject.h"
 #include "runtime/MapObject.h"
 #include "runtime/WeakMapObject.h"
+#include "runtime/WeakRefObject.h"
 #include "runtime/GlobalObjectProxyObject.h"
 #include "runtime/CompressibleString.h"
 #include "runtime/ReloadableString.h"
@@ -759,6 +760,7 @@ DEFINE_IS_AS_POINTERVALUE_XXX(SetObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(WeakSetObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(MapObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(WeakMapObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(WeakRefObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObjectProxyObject)
 
 bool ValueRef::isSetIteratorObject()
@@ -2971,6 +2973,16 @@ void WeakMapObjectRef::set(ExecutionStateRef* state, ObjectRef* key, ValueRef* v
 bool WeakMapObjectRef::has(ExecutionStateRef* state, ObjectRef* key)
 {
     return toImpl(this)->has(*toImpl(state), toImpl(key));
+}
+
+WeakRefObjectRef* WeakRefObjectRef::create(ExecutionStateRef* state, ObjectRef* target)
+{
+    return toRef(new WeakRefObject(*toImpl(state), toImpl(target)));
+}
+
+bool WeakRefObjectRef::deleteOperation(ExecutionStateRef* state)
+{
+    return toImpl(this)->deleteOperation(*toImpl(state));
 }
 
 void TemplateRef::set(const TemplatePropertyNameRef& name, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)

@@ -73,6 +73,7 @@ class SetObjectRef;
 class WeakSetObjectRef;
 class MapObjectRef;
 class WeakMapObjectRef;
+class WeakRefObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
 class StringObjectRef;
@@ -714,6 +715,7 @@ public:
     bool isSetIteratorObject();
     bool isMapObject();
     bool isWeakMapObject();
+    bool isWeakRefObject();
     bool isMapIteratorObject();
     bool isGlobalObjectProxyObject();
 
@@ -774,6 +776,7 @@ public:
     WeakSetObjectRef* asWeakSetObject();
     MapObjectRef* asMapObject();
     WeakMapObjectRef* asWeakMapObject();
+    WeakRefObjectRef* asWeakRefObject();
     GlobalObjectProxyObjectRef* asGlobalObjectProxyObject();
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
@@ -1571,6 +1574,12 @@ public:
     ValueRef* get(ExecutionStateRef* state, ObjectRef* key);
     bool has(ExecutionStateRef* state, ObjectRef* key);
     void set(ExecutionStateRef* state, ObjectRef* key, ValueRef* value);
+};
+
+class ESCARGOT_EXPORT WeakRefObjectRef : public ObjectRef {
+public:
+    static WeakRefObjectRef* create(ExecutionStateRef* state, ObjectRef* target);
+    bool deleteOperation(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT TemplatePropertyNameRef {

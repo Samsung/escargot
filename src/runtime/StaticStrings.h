@@ -114,6 +114,7 @@ namespace Escargot {
     F(Uint8Array)                 \
     F(Uint8ClampedArray)          \
     F(WeakMap)                    \
+    F(WeakRef)                    \
     F(WeakSet)                    \
     F(__defineGetter__)           \
     F(__defineSetter__)           \
@@ -182,6 +183,7 @@ namespace Escargot {
     F(defineProperties)           \
     F(defineProperty)             \
     F(deleteProperty)             \
+    F(deref)                      \
     F(description)                \
     F(done)                       \
     F(dotAll)                     \
