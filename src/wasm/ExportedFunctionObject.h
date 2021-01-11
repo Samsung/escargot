@@ -40,7 +40,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    static ExportedFunctionObject* createExportedFunction(ExecutionState& state, wasm_func_t* func);
+    static ExportedFunctionObject* createExportedFunction(ExecutionState& state, wasm_func_t* func, uint32_t index);
 
     wasm_func_t* function() const
     {
