@@ -598,11 +598,19 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
         return Value(Value::Null);
     }
 
+    // FIXME result mush be cached in FunctionMap (this might be wrong)
     // Let function be the result of creating a new Exported Function from result.
-    ExportedFunctionObject* function = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(result));
+    // ExportedFunctionObject* function = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(result));
+    WASMFunctionMap& map = state.context()->wasmCache()->functionMap;
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        wasm_ref_t* ref = iter->first;
+        if (wasm_ref_same(result, ref)) {
+            return iter->second;
+        }
+    }
 
-    // Return function.
-    return function;
+    ASSERT_NOT_REACHED();
+    return Value();
 }
 
 static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

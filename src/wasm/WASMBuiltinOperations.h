@@ -449,9 +449,13 @@ static Object* wasmCreateExportsObject(ExecutionState& state, wasm_module_t* mod
             // Let func funcaddr be externval.
             wasm_func_t* funcaddr = wasm_extern_as_func(externval);
 
+            // FIXME getting a function index from instance which is not a standard (we should obtain the index from module)
+            uint32_t funcIndex = wasm_instance_func_index(instance, funcaddr);
+            ASSERT(funcIndex != wasm_limits_max_default);
+
             // Let func be the result of creating a new Exported Function from funcaddr.
             // Let value be func.
-            ExportedFunctionObject* func = ExportedFunctionObject::createExportedFunction(state, funcaddr);
+            ExportedFunctionObject* func = ExportedFunctionObject::createExportedFunction(state, funcaddr, funcIndex);
             value = Value(func);
             break;
         }

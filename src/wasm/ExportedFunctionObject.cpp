@@ -125,7 +125,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     return Value(Object::createArrayFromList(state, values));
 }
 
-ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(ExecutionState& state, wasm_func_t* funcaddr)
+ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(ExecutionState& state, wasm_func_t* funcaddr, uint32_t index)
 {
     ASSERT(!!funcaddr);
 
@@ -151,16 +151,16 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
     // Let arity be paramTypes?s size.
     size_t arity = wasm_func_param_arity(funcaddr);
 
+    // Let name be the name of the WebAssembly function funcaddr.
+    // Perform ! SetFunctionName(function, name).
+    AtomicString name = (index < ESCARGOT_STRINGS_NUMBERS_MAX) ? state.context()->staticStrings().numbers[index] : AtomicString(state.context(), String::fromDouble(index));
+
     // Perform ! SetFunctionLength(function, arity).
     // Let steps be "call the Exported Function funcaddr with arguments."
     // Let realm be the current Realm.
     // Let function be CreateBuiltinFunction(realm, steps, %FunctionPrototype%, ? [[FunctionAddress]] ?).
     // Set function.[[FunctionAddress]] to funcaddr.
-    ExportedFunctionObject* function = new ExportedFunctionObject(state, NativeFunctionInfo(AtomicString(), callExportedFunction, arity, NativeFunctionInfo::Strict), funcaddr);
-
-    // TODO
-    // Let name be the name of the WebAssembly function funcaddr.
-    // Perform ! SetFunctionName(function, name).
+    ExportedFunctionObject* function = new ExportedFunctionObject(state, NativeFunctionInfo(name, callExportedFunction, arity, NativeFunctionInfo::Strict), funcaddr);
 
     // Set map[funcaddr] to function.
     map.pushBack(std::make_pair(funcref, function));
