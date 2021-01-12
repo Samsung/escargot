@@ -75,7 +75,7 @@ public:
 
 private:
     void initBufferAccessData(void* data, size_t len, bool is8bit);
-    bool unloadWorker(void* callerSP);
+    ATTRIBUTE_NO_SANITIZE_ADDRESS bool unloadWorker(void* callerSP);
 
     size_t unloadedBufferSize()
     {
