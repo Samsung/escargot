@@ -144,10 +144,12 @@
 #endif
 #endif
 
+#ifndef ATTRIBUTE_NO_SANITIZE_ADDRESS
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
 #else
 #define ATTRIBUTE_NO_SANITIZE_ADDRESS
+#endif
 #endif
 
 // #define OS(NAME) (defined OS_##NAME && OS_##NAME)
