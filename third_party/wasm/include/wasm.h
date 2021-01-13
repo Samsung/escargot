@@ -516,6 +516,8 @@ WASM_API_EXTERN own wasm_instance_t* wasm_instance_new(
 
 WASM_API_EXTERN void wasm_instance_exports(const wasm_instance_t*, own wasm_extern_vec_t* out);
 
+WASM_API_EXTERN size_t wasm_instance_func_index(const wasm_instance_t*, const wasm_func_t*);
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Convenience

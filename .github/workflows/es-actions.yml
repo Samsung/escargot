@@ -136,8 +136,8 @@ jobs:
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |
-        cp ../../../tools/test/wasm-js/imports_patch .
-        patch -p0 < imports_patch
+        cp ../../../tools/test/wasm-js/func_index_patch .
+        patch -p0 < func_index_patch
     - name: Build x86
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -188,8 +188,8 @@ jobs:
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |
-        cp ../../../tools/test/wasm-js/imports_patch .
-        patch -p0 < imports_patch
+        cp ../../../tools/test/wasm-js/func_index_patch .
+        patch -p0 < func_index_patch
     - name: Download Coverity Tool
       env:
         TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
