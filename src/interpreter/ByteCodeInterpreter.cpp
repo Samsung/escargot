@@ -2855,17 +2855,21 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
         if (code->m_kind == OpenLexicalEnvironment::WithStatement) {
             EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_withOrThisRegisterIndex].toObject(*state));
             newEnv = new LexicalEnvironment(newRecord, env);
-        } else {
-            ASSERT(code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInit);
+        } else if (code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInitWithHeapEnv) {
             EnvironmentRecord* newRecord = new DeclarativeEnvironmentWithHomeObject(registerFile[code->m_withOrThisRegisterIndex].asObject());
             newEnv = new LexicalEnvironment(newRecord, env);
+        } else {
+            ASSERT(code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInit);
+            EnvironmentRecord* newRecord = new (alloca(sizeof(DeclarativeEnvironmentWithHomeObject)))
+                DeclarativeEnvironmentWithHomeObject(registerFile[code->m_withOrThisRegisterIndex].asObject());
+            newEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(newRecord, env);
         }
     } else {
         newEnv = nullptr;
     }
 
     bool shouldUseHeapAllocatedState = true;
-    if (inPauserResumeProcess) {
+    if (inPauserResumeProcess || code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInit) {
         shouldUseHeapAllocatedState = false;
     }
 

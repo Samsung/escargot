@@ -2258,6 +2258,7 @@ public:
     enum Kind {
         WithStatement,
         ClassStaticFieldInit,
+        ClassStaticFieldInitWithHeapEnv,
         ResumeExecution
     };
     OpenLexicalEnvironment(const ByteCodeLOC& loc, Kind kind, size_t registerIndex)
@@ -2268,7 +2269,7 @@ public:
         m_endPostion = SIZE_MAX;
     }
 
-    Kind m_kind : 2;
+    Kind m_kind : 4;
     ByteCodeRegisterIndex m_withOrThisRegisterIndex : 16;
     size_t m_endPostion;
 #ifndef NDEBUG

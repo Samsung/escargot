@@ -822,6 +822,8 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                 }
             }
 
+            ASSERT(bi);
+
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
                 if (bi->m_identifiers[i].m_name == name) {
                     info.m_isResultSaved = true;
