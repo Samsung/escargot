@@ -1,0 +1,24 @@
+diff --git src/interp/interp-wasm-c-api.cc src/interp/interp-wasm-c-api.cc
+index 75190feb..bbe42132 100644
+--- src/interp/interp-wasm-c-api.cc
++++ src/interp/interp-wasm-c-api.cc
+@@ -760,6 +760,19 @@ void wasm_instance_exports(const wasm_instance_t* instance,
+   }
+ }
+ 
++size_t wasm_instance_func_index(const wasm_instance_t* instance,
++                                const wasm_func_t* func) {
++  auto&& funcs = instance->As<Instance>()->funcs();
++
++  for (size_t i = 0; i < funcs.size(); ++i) {
++    if (funcs[i] == func->I.ref()) {
++      return i;
++    }
++  }
++
++  return wasm_limits_max_default;
++}
++
+ // wasm_functype
+ 
+ own wasm_functype_t* wasm_functype_new(own wasm_valtype_vec_t* params,
