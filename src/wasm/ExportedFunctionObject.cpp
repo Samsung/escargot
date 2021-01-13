@@ -23,6 +23,7 @@
 #include "wasm.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
+#include "runtime/ArrayObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
@@ -122,7 +123,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     }
 
     // Return CreateArrayFromList(values).
-    return Value(Object::createArrayFromList(state, values));
+    return Object::createArrayFromList(state, values);
 }
 
 ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(ExecutionState& state, wasm_func_t* funcaddr, uint32_t index)

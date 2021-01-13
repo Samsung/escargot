@@ -74,13 +74,10 @@ static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().instantiate.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-    }
+    Value firstArg = argv[0];
+    Value importObj = argv[1];
 
-    Object* firstArg = argv[0].asObject();
-
-    if (firstArg->isArrayBufferObject() || firstArg->isTypedArrayObject()) {
+    if (firstArg.isObject() && (firstArg.asObject()->isArrayBufferObject() || firstArg.asObject()->isTypedArrayObject())) {
         // Let stableBytes be a copy of the bytes held by the buffer bytes.
         Value stableBytes = wasmCopyStableBufferBytes(state, firstArg);
 
@@ -92,14 +89,50 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
         Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), stableBytes);
         state.context()->vmInstance()->enqueuePromiseJob(promiseOfModule, job);
 
-        Value importObj = argc > 1 ? argv[1] : Value();
+        // Instantiate promiseOfModule with imports importObject and return the result.
         auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateModule, 1, NativeFunctionInfo::Strict));
         moduleInstantiator->setInternalSlot(0, importObj);
 
         return promiseOfModule->then(state, moduleInstantiator);
     }
 
-    return Value();
+    // Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
+    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+
+    // Read the imports of module with imports importObject, and let imports be the result. If this operation throws an exception, catch it, reject promise with the exception, and return promise.
+    own wasm_extern_vec_t imports;
+    SandBox sb(state.context());
+    auto readImportsResult = sb.run([&]() -> Value {
+        Value moduleValue = firstArg;
+        if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_InstantiateModuleError);
+        }
+
+        // Let module be moduleObject.[[Module]].
+        WASMModuleObject* moduleObj = moduleValue.asPointerValue()->asWASMModuleObject();
+        wasm_module_t* module = moduleObj->module();
+
+        // Read the imports of module with imports importObject, and let imports be the result.
+        wasm_extern_vec_new_empty(&imports);
+        wasmReadImportsOfModule(state, module, importObj, &imports);
+
+        return Value();
+    });
+
+    if (!readImportsResult.error.isEmpty()) {
+        // If this operation throws an exception, catch it, reject promise with the exception.
+        Value reason[] = { readImportsResult.error };
+        Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
+    } else {
+        // FIXME pass imports data into ExtendedNativeFunctionObjectImpl and delete imports data inside ExtendedNativeFunctionObjectImpl
+        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateCoreModule, 1, NativeFunctionInfo::Strict));
+        moduleInstantiator->setInternalSlotAsPointer(0, imports.data);
+
+        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(moduleInstantiator, capability), firstArg);
+        state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
+    }
+
+    return capability.m_promise;
 }
 
 // WebAssembly.Module
@@ -263,7 +296,8 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 
     // TODO error exception
     if (!instance) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().instantiate.string(), "");
+        wasm_trap_delete(trap);
+        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
     // Initialize this from module and instance.
@@ -845,7 +879,7 @@ void GlobalObject::installWASM(ExecutionState& state)
 
     // WebAssembly.instantiate()
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->instantiate),
-                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 
     // WebAssembly.Module

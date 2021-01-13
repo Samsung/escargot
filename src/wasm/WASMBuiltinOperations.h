@@ -251,18 +251,17 @@ static void wasmReadImportsOfModule(ExecutionState& state, wasm_module_t* module
     own wasm_importtype_vec_t import_types;
     wasm_module_imports(module, &import_types);
 
-    // If module.imports is not empty, and importObject is not Object, throw a TypeError exception.
-    if (import_types.size > 0 && !importObj.isObject()) {
-        wasm_importtype_vec_delete(&import_types);
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
-    }
-
     if (!importObj.isObject()) {
+        ASSERT(importObj.isUndefined());
+        // If module.imports is not empty, and importObject is not Object, throw a TypeError exception.
+        bool throwError = import_types.size > 0 ? true : false;
         wasm_importtype_vec_delete(&import_types);
+        if (throwError) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
+        }
         return;
     }
 
-    ASSERT(importObj.isObject());
     Object* importObject = importObj.asObject();
 
     // Let imports be << >>
@@ -516,8 +515,8 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
     ASSERT(argv[0].isObject() && argv[0].asObject()->isWASMModuleObject());
 
     // Let module be moduleObject.[[Module]].
-    WASMModuleObject* moduleObj = argv[0].asPointerValue()->asWASMModuleObject();
-    wasm_module_t* module = moduleObj->module();
+    WASMModuleObject* moduleObject = argv[0].asPointerValue()->asWASMModuleObject();
+    wasm_module_t* module = moduleObject->module();
 
     // Read the imports of module with imports importObject, and let imports be the result.
     Value importObject = state.resolveCallee()->asExtendedNativeFunctionObject()->internalSlot(0);
@@ -536,7 +535,8 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     // TODO error exception
     if (!instance) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().instantiate.string(), "");
+        wasm_trap_delete(trap);
+        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
     // Initialize instanceObject from module and instance.
@@ -549,7 +549,49 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
     // Set instanceObject.[[Exports]] to exportsObject.
     WASMInstanceObject* instanceObject = new WASMInstanceObject(state, instance, exportsObject);
 
-    // Return instanceObject.
+    // Let result be the WebAssemblyInstantiatedSource value <<[ "module" -> module, "instance" -> instance ]>>.
+    Object* result = new Object(state);
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().module), ObjectPropertyDescriptor(moduleObject, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().instance), ObjectPropertyDescriptor(instanceObject, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+
+    return result;
+}
+
+static Value wasmInstantiateCoreModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // argv[0] should be module object
+    ASSERT(argc > 0);
+    ASSERT(argv[0].isObject() && argv[0].asObject()->isWASMModuleObject());
+
+    WASMModuleObject* moduleObj = argv[0].asPointerValue()->asWASMModuleObject();
+    wasm_module_t* module = moduleObj->module();
+
+    const wasm_extern_t** importsData = state.resolveCallee()->asExtendedNativeFunctionObject()->internalSlotAsPointer<const wasm_extern_t*>(0);
+    state.resolveCallee()->asExtendedNativeFunctionObject()->setInternalSlotAsPointer(0, nullptr);
+
+    // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
+    own wasm_trap_t* trap = nullptr;
+    own wasm_instance_t* instance = wasm_instance_new(state.context()->vmInstance()->wasmStore(), module, importsData, &trap);
+
+    // FIXME should not call destructor of each element in imports
+    // wasm_extern_vec_delete(&imports);
+    delete[] importsData;
+
+    // TODO error exception
+    if (!instance) {
+        wasm_trap_delete(trap);
+        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
+    }
+
+    // Create an exports object from module and instance and let exportsObject be the result.
+    Object* exportsObject = wasmCreateExportsObject(state, module, instance);
+
+    // FIXME consider getting proto by GetPrototypeFromConstructor
+    // Let instanceObject be a new Instance.
+    // Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
+    WASMInstanceObject* instanceObject = new WASMInstanceObject(state, instance, exportsObject);
+
+    // Resolve promise with instanceObject.
     return instanceObject;
 }
 
