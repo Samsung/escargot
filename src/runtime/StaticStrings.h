@@ -486,6 +486,7 @@ namespace Escargot {
     F(i64)                             \
     F(imports)                         \
     F(initial)                         \
+    F(instance)                        \
     F(instantiate)                     \
     F(kind)                            \
     F(maximum)                         \
