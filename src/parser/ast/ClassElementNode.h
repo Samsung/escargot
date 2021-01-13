@@ -37,14 +37,16 @@ public:
     };
 
 
-    ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic, bool seenSuperProperty)
+    ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic,
+                     bool hasSuperPropertyExpressionOnFieldInitializer, bool hasFunctionOnFieldInitializer)
         : Node()
         , m_key(key)
         , m_value(value)
         , m_kind(kind)
         , m_isComputed(isComputed)
         , m_isStatic(isStatic)
-        , m_seenSuperProperty(seenSuperProperty)
+        , m_hasSuperPropertyExpressionOnFieldInitializer(hasSuperPropertyExpressionOnFieldInitializer)
+        , m_hasFunctionOnFieldInitializer(hasFunctionOnFieldInitializer)
     {
     }
 
@@ -73,9 +75,14 @@ public:
         return m_isStatic;
     }
 
-    bool seenSuperProperty()
+    bool hasSuperPropertyExpressionOnFieldInitializer()
     {
-        return m_seenSuperProperty;
+        return m_hasSuperPropertyExpressionOnFieldInitializer;
+    }
+
+    bool hasFunctionOnFieldInitializer()
+    {
+        return m_hasFunctionOnFieldInitializer;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ClassElement; }
@@ -93,7 +100,8 @@ private:
     Kind m_kind : 3;
     bool m_isComputed : 1;
     bool m_isStatic : 1;
-    bool m_seenSuperProperty : 1;
+    bool m_hasSuperPropertyExpressionOnFieldInitializer : 1;
+    bool m_hasFunctionOnFieldInitializer : 1;
 };
 } // namespace Escargot
 

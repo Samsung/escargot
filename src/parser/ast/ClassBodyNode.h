@@ -99,13 +99,19 @@ public:
             size_t oldThisIndex = context->m_classInfo.m_thisExpressionIndex;
 
             size_t valueExprStartPos = codeBlock->currentCodeSize();
+
+            bool needsOpenEnv = p->hasSuperPropertyExpressionOnFieldInitializer() || p->hasFunctionOnFieldInitializer();
+            // TODO check using super keyword correctly
+            bool needsHeapEnvWhenOpen = p->hasFunctionOnFieldInitializer() || !codeBlock->m_codeBlock->canAllocateEnvironmentOnStack();
             if (p->kind() == ClassElementNode::Kind::StaticField) {
                 context->m_classInfo.m_thisExpressionIndex = context->m_classInfo.m_constructorIndex;
 
-                if (p->seenSuperProperty()) {
+                if (needsOpenEnv) {
                     context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::OpenEnv, valueExprStartPos));
                     context->m_openedNonBlockEnvCount++;
-                    codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index), OpenLexicalEnvironment::ClassStaticFieldInit, context->m_classInfo.m_thisExpressionIndex), context, this);
+                    codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index),
+                                                               needsHeapEnvWhenOpen ? OpenLexicalEnvironment::ClassStaticFieldInitWithHeapEnv : OpenLexicalEnvironment::ClassStaticFieldInit, context->m_classInfo.m_thisExpressionIndex),
+                                        context, this);
                 }
             }
 
@@ -115,7 +121,7 @@ public:
             if (p->kind() == ClassElementNode::Kind::StaticField) {
                 context->m_classInfo.m_thisExpressionIndex = oldThisIndex;
 
-                if (p->seenSuperProperty()) {
+                if (needsOpenEnv) {
                     codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(m_loc.index)), context, this);
                     codeBlock->peekCode<OpenLexicalEnvironment>(valueExprStartPos)->m_endPostion = codeBlock->currentCodeSize();
                     context->m_openedNonBlockEnvCount--;

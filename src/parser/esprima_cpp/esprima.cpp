@@ -1548,7 +1548,7 @@ public:
     }
 
     template <class ASTBuilder>
-    std::pair<ASTNode, bool> parseClassFieldInitializer(ASTBuilder& builder)
+    std::tuple<ASTNode, bool, bool> parseClassFieldInitializer(ASTBuilder& builder)
     {
         ASSERT(this->match(Substitution));
 
@@ -1565,16 +1565,15 @@ public:
 
         MetaNode node = this->createNode();
         ASTNode expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-        bool seenSuperProperty = this->context->seenSuperProperty;
-        // TODO find seen super property correctly in function scope
-        seenSuperProperty |= this->subCodeBlockIndex != previousSubCodeBlockIndex;
+        bool hasSuperPropertyExpressionOnFieldInitializer = this->context->seenSuperProperty;
+        bool hasFunctionOnFieldInitializer = this->subCodeBlockIndex != previousSubCodeBlockIndex;
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
         this->context->seenSuperProperty = previousSeenSuperProperty;
         this->context->allowSuperProperty = previousAllowSuperProperty;
 
-        return std::make_pair(expr, seenSuperProperty);
+        return std::make_tuple(expr, hasSuperPropertyExpressionOnFieldInitializer, hasFunctionOnFieldInitializer);
     }
 
     template <class ASTBuilder>
@@ -3033,7 +3032,9 @@ public:
                 bool previousAwait = this->context->await;
                 bool previousInArrowFunction = this->context->inArrowFunction;
                 bool previousAllowStrictDirective = this->context->allowStrictDirective;
+                bool previousSeenSuperProperty = this->context->seenSuperProperty;
 
+                this->context->seenSuperProperty = false;
                 this->context->allowYield = false;
                 this->context->inArrowFunction = true;
 
@@ -3092,6 +3093,7 @@ public:
                 this->context->await = previousAwait;
                 this->context->inArrowFunction = previousInArrowFunction;
                 this->context->allowStrictDirective = previousAllowStrictDirective;
+                this->context->seenSuperProperty = previousSeenSuperProperty;
             } else {
                 // check if restricted words are used as target in array/object initializer
                 if (checkLeftHasRestrictedWord) {
@@ -5411,7 +5413,8 @@ public:
         bool isStatic = false;
         bool isGenerator = false;
         bool isAsync = false;
-        bool seenSuperProperty = false;
+        bool hasSuperPropertyExpressionOnFieldInitializer = false;
+        bool hasFunctionOnFieldInitializer = false;
 
         if (this->match(Multiply)) {
             this->nextToken();
@@ -5483,8 +5486,9 @@ public:
             } else if (this->match(Substitution)) {
                 kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
                 auto init = this->parseClassFieldInitializer(builder);
-                value = init.first;
-                seenSuperProperty = init.second;
+                value = std::get<0>(init);
+                hasSuperPropertyExpressionOnFieldInitializer = std::get<1>(init);
+                hasFunctionOnFieldInitializer = std::get<2>(init);
             } else if (this->match(SemiColon)) {
                 auto metaNode = this->createNode();
                 this->nextToken();
@@ -5553,7 +5557,7 @@ public:
             }
         }
 
-        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic, seenSuperProperty));
+        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic, hasSuperPropertyExpressionOnFieldInitializer, hasFunctionOnFieldInitializer));
     }
 
     template <class ASTBuilder>
