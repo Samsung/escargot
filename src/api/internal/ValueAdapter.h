@@ -104,6 +104,7 @@ DEFINE_CAST(WeakSetObject);
 DEFINE_CAST(MapObject);
 DEFINE_CAST(WeakMapObject);
 DEFINE_CAST(WeakRefObject);
+DEFINE_CAST(FinalizationRegistryObject);
 DEFINE_CAST(Template);
 DEFINE_CAST(ObjectTemplate);
 DEFINE_CAST(FunctionTemplate);

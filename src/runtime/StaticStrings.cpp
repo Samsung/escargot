@@ -57,6 +57,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(stringPrivate, "private");
     INIT_STATIC_STRING(stringProtected, "protected");
     INIT_STATIC_STRING(stringPublic, "public");
+    INIT_STATIC_STRING(stringRegister, "register");
     INIT_STATIC_STRING(stringReturn, "return");
     INIT_STATIC_STRING(stringStarDefaultStar, "*default*");
     INIT_STATIC_STRING(stringStarNamespaceStar, "*namespace*");
