@@ -204,6 +204,9 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_WEAKREF(F, NAME) \
     F(weakRef, FunctionObject, NAME)          \
     F(weakRefPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, NAME) \
+    F(finalizationRegistry, FunctionObject, NAME)          \
+    F(finalizationRegistryPrototype, Object, NAME)
 //WebAssembly
 #if defined(ENABLE_WASM)
 #define GLOBALOBJECT_BUILTIN_WASM(F, NAME)     \
@@ -254,6 +257,7 @@ class FunctionObject;
     GLOBALOBJECT_BUILTIN_WEAKMAP(F, WeakMap)                             \
     GLOBALOBJECT_BUILTIN_WEAKSET(F, WeakSet)                             \
     GLOBALOBJECT_BUILTIN_WEAKREF(F, WeakRef)                             \
+    GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, FinalizationRegistry)   \
     GLOBALOBJECT_BUILTIN_WASM(F, WebAssembly)
 
 
@@ -340,6 +344,7 @@ private:
     void installWeakMap(ExecutionState& state);
     void installWeakRef(ExecutionState& state);
     void installWeakSet(ExecutionState& state);
+    void installFinalizationRegistry(ExecutionState& state);
     void installGenerator(ExecutionState& state);
     void installAsyncFunction(ExecutionState& state);
     void installAsyncIterator(ExecutionState& state);

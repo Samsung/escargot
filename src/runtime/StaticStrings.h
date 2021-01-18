@@ -56,6 +56,7 @@ namespace Escargot {
     F(Empty)                      \
     F(Error)                      \
     F(EvalError)                  \
+    F(FinalizationRegistry)       \
     F(Float32Array)               \
     F(Float64Array)               \
     F(Function)                   \
@@ -455,6 +456,7 @@ namespace Escargot {
     F(undefined)                  \
     F(unescape)                   \
     F(unicode)                    \
+    F(unregister)                 \
     F(unscopables)                \
     F(unshift)                    \
     F(value)                      \
@@ -780,6 +782,7 @@ public:
     AtomicString stringPrivate;
     AtomicString stringProtected;
     AtomicString stringPublic;
+    AtomicString stringRegister;
     AtomicString stringReturn;
     AtomicString stringStarDefaultStar;
     AtomicString stringStarNamespaceStar;

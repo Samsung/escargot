@@ -60,6 +60,7 @@ class SetObject;
 class WeakMapObject;
 class WeakRefObject;
 class WeakSetObject;
+class FinalizationRegistryObject;
 class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
@@ -319,6 +320,11 @@ public:
     }
 
     virtual bool isWeakSetObject() const
+    {
+        return false;
+    }
+
+    virtual bool isFinalizationRegistryObject() const
     {
         return false;
     }
@@ -674,6 +680,12 @@ public:
     {
         ASSERT(isWeakSetObject());
         return (WeakSetObject*)this;
+    }
+
+    FinalizationRegistryObject* asFinalizationRegistryObject()
+    {
+        ASSERT(isFinalizationRegistryObject());
+        return (FinalizationRegistryObject*)this;
     }
 
     GeneratorObject* asGeneratorObject()

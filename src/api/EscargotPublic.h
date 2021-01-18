@@ -74,6 +74,7 @@ class WeakSetObjectRef;
 class MapObjectRef;
 class WeakMapObjectRef;
 class WeakRefObjectRef;
+class FinalizationRegistryObjectRef;
 class ErrorObjectRef;
 class DateObjectRef;
 class StringObjectRef;
@@ -716,6 +717,7 @@ public:
     bool isMapObject();
     bool isWeakMapObject();
     bool isWeakRefObject();
+    bool isFinalizationRegistryObject();
     bool isMapIteratorObject();
     bool isGlobalObjectProxyObject();
 
@@ -777,6 +779,7 @@ public:
     MapObjectRef* asMapObject();
     WeakMapObjectRef* asWeakMapObject();
     WeakRefObjectRef* asWeakRefObject();
+    FinalizationRegistryObjectRef* asFinalizationRegistryObject();
     GlobalObjectProxyObjectRef* asGlobalObjectProxyObject();
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
@@ -1580,6 +1583,11 @@ class ESCARGOT_EXPORT WeakRefObjectRef : public ObjectRef {
 public:
     static WeakRefObjectRef* create(ExecutionStateRef* state, ObjectRef* target);
     bool deleteOperation(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT FinalizationRegistryObjectRef : public ObjectRef {
+public:
+    static FinalizationRegistryObjectRef* create(ExecutionStateRef* state, ValueRef* cleanupCallback, ObjectRef* realm);
 };
 
 class ESCARGOT_EXPORT TemplatePropertyNameRef {
