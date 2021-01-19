@@ -78,7 +78,7 @@ public:
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
-            codeBlock->pushCode(CreateClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src), context, this);
+            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src), context, this);
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);

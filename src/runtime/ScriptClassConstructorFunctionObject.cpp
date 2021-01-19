@@ -53,7 +53,9 @@ public:
         // Assert: The next step never returns an abrupt completion because envRec.[[thisBindingStatus]] is not "uninitialized".
         // Return envRec.BindThisValue(thisValue).
         if (self->constructorKind() == ScriptFunctionObject::ConstructorKind::Base) {
-            calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(calleeState, thisArgument);
+            FunctionEnvironmentRecord* r = calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            r->bindThisValue(calleeState, thisArgument);
+            r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers();
         }
 
         return thisArgument;
@@ -126,5 +128,9 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
     return FunctionObjectProcessCallGenerator::processCall<ScriptClassConstructorFunctionObject, true, true, true, ScriptClassConstructorFunctionObjectThisValueBinder,
                                                            ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget)
         .asObject();
+}
+
+void ScriptClassConstructorFunctionObject::initFieldMembers()
+{
 }
 } // namespace Escargot

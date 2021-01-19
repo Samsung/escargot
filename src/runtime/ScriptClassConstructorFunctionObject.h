@@ -38,6 +38,9 @@ public:
 };
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
+    friend class ScriptClassConstructorFunctionObjectThisValueBinder;
+    friend class ByteCodeInterpreter;
+
 public:
     ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode);
 
@@ -66,6 +69,8 @@ public:
     }
 
 private:
+    void initFieldMembers();
+
     virtual size_t functionPrototypeIndex() override
     {
         return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1;
