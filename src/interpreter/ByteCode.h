@@ -68,7 +68,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateArray, 1, 0)                                    \
     F(CreateSpreadArrayObject, 1, 0)                        \
     F(CreateFunction, 1, 0)                                 \
-    F(CreateClass, 0, 0)                                    \
+    F(InitializeClass, 0, 0)                                \
     F(CreateRestElement, 0, 0)                              \
     F(SuperReference, 1, 0)                                 \
     F(SuperSetObjectOperation, 0, 2)                        \
@@ -456,10 +456,10 @@ public:
 #endif
 };
 
-class CreateClass : public ByteCode {
+class InitializeClass : public ByteCode {
 public:
-    CreateClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src)
-        : ByteCode(Opcode::CreateClassOpcode, loc)
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
@@ -477,9 +477,9 @@ public:
     void dump(const char* byteCodeStart)
     {
         if (m_superClassRegisterIndex == REGISTER_LIMIT) {
-            printf("create class r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            printf("initialize class r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_classPrototypeRegisterIndex);
         } else {
-            printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            printf("initialize class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
         }
     }
 #endif

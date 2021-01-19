@@ -1020,12 +1020,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(CreateClass)
+        DEFINE_OPCODE(InitializeClass)
             :
         {
-            CreateClass* code = (CreateClass*)programCounter;
-            classOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(CreateClass);
+            InitializeClass* code = (InitializeClass*)programCounter;
+            initializeClassOperation(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(InitializeClass);
             NEXT_INSTRUCTION();
         }
 
@@ -2698,7 +2698,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::classOperation(ExecutionState& state, CreateClass* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile)
 {
     Value protoParent;
     Value constructorParent;
@@ -3236,7 +3236,9 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // Let thisER be GetThisEnvironment( ).
         // Return thisER.BindThisValue(result).
         EnvironmentRecord* thisER = state.getThisEnvironment();
-        thisER->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->bindThisValue(state, result);
+        FunctionEnvironmentRecord* r = thisER->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+        r->bindThisValue(state, result);
+        r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers();
         registerFile[code->m_resultIndex] = result;
         break;
     }

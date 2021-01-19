@@ -1548,7 +1548,7 @@ public:
     }
 
     template <class ASTBuilder>
-    std::tuple<ASTNode, bool, bool> parseClassFieldInitializer(ASTBuilder& builder)
+    std::tuple<ASTNode, bool, bool> parseClassStaticFieldInitializer(ASTBuilder& builder)
     {
         ASSERT(this->match(Substitution));
 
@@ -1574,6 +1574,29 @@ public:
         this->context->allowSuperProperty = previousAllowSuperProperty;
 
         return std::make_tuple(expr, hasSuperPropertyExpressionOnFieldInitializer, hasFunctionOnFieldInitializer);
+    }
+
+    template <class ASTBuilder>
+    ASTNode parseClassFieldInitializer(ASTBuilder& builder)
+    {
+        ASSERT(this->match(Substitution));
+
+        this->nextToken();
+
+        const bool previousAllowArguments = this->context->allowArguments;
+        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
+
+        this->context->allowArguments = false;
+        this->context->seenSuperProperty = false;
+        this->context->allowSuperProperty = true;
+
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder);
+        this->consumeSemicolon();
+
+        this->context->allowArguments = previousAllowArguments;
+        this->context->allowSuperProperty = previousAllowSuperProperty;
+
+        return expr;
     }
 
     template <class ASTBuilder>
@@ -3231,6 +3254,71 @@ public:
         }
 
         return exprNode;
+    }
+
+    // returns <resultNode, originalNode>
+    template <class ASTBuilder>
+    std::pair<ASTNode, ASTNode> parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder)
+    {
+        ASTNode result;
+        Marker startMarker = this->startMarker;
+
+        ASTNode originalNode = result = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+
+        if (!this->isParsingSingleFunction) {
+            // we need to reparse for tracking using name correctly(expression will be wrapped by arrow function)
+            // rewind scanner to begin
+            this->scanner->index = startMarker.index;
+            this->scanner->lineNumber = startMarker.lineNumber;
+            this->scanner->lineStart = startMarker.lineStart;
+            this->nextToken();
+
+            // reparse
+            BEGIN_FUNCTION_SCANNING(AtomicString());
+            auto startNode = this->createNode();
+
+            this->currentScopeContext->m_functionStartLOC.index = startNode.index;
+            this->currentScopeContext->m_functionStartLOC.column = startNode.column;
+            this->currentScopeContext->m_functionStartLOC.line = startNode.line;
+
+            this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+
+            this->currentScopeContext->m_isArrowFunctionExpression = true;
+            this->currentScopeContext->m_isOneExpressionOnlyArrowFunctionExpression = true;
+            this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
+
+            this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+            this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+            this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+#endif
+            END_FUNCTION_SCANNING();
+
+            // wrap right expression with arrow function
+            result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+            result = builder.createCallExpressionNode(result, ASTNodeList());
+        } else {
+            auto startNode = this->createNode();
+            InterpretedCodeBlock* currentTarget = this->codeBlock;
+            size_t orgIndex = this->lookahead.start;
+
+            InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
+            this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
+            this->scanner->lineNumber = childBlock->functionStart().line;
+            this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
+
+            this->lookahead.lineNumber = this->scanner->lineNumber;
+            this->lookahead.lineStart = this->scanner->lineStart;
+            this->nextToken();
+
+            // increase subCodeBlockIndex because parsing of an internal function is skipped
+            this->subCodeBlockIndex++;
+
+            result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+            result = builder.createCallExpressionNode(result, ASTNodeList());
+        }
+
+        return std::make_pair(result, originalNode);
     }
 
     // ECMA-262 12.16 Comma Operator
@@ -5484,11 +5572,18 @@ public:
                 }
                 value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
             } else if (this->match(Substitution)) {
-                kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
-                auto init = this->parseClassFieldInitializer(builder);
-                value = std::get<0>(init);
-                hasSuperPropertyExpressionOnFieldInitializer = std::get<1>(init);
-                hasFunctionOnFieldInitializer = std::get<2>(init);
+                if (isStatic) {
+                    kind = ClassElementNode::Kind::StaticField;
+                    auto init = this->parseClassStaticFieldInitializer(builder);
+                    value = std::get<0>(init);
+                    hasSuperPropertyExpressionOnFieldInitializer = std::get<1>(init);
+                    hasFunctionOnFieldInitializer = std::get<2>(init);
+                } else {
+                    kind = ClassElementNode::Kind::Field;
+                    auto init = this->parseClassStaticFieldInitializer(builder);
+                    value = std::get<0>(init);
+                }
+
             } else if (this->match(SemiColon)) {
                 auto metaNode = this->createNode();
                 this->nextToken();
@@ -5507,11 +5602,6 @@ public:
             if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
                 this->throwError(Messages::InvalidClassFieldName);
             }
-        }
-
-        // TODO
-        if (kind == ClassElementNode::Kind::Field) {
-            this->throwUnexpectedToken(this->lookahead);
         }
 
         if (kind == ClassElementNode::Kind::None) {

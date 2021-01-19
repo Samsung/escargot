@@ -38,7 +38,7 @@ struct GlobalVariableAccessCacheItem;
 class InitializeGlobalVariable;
 class CallFunctionComplexCase;
 class CreateFunction;
-class CreateClass;
+class InitializeClass;
 class SuperReference;
 class SuperSetObjectOperation;
 class SuperGetObjectOperation;
@@ -125,7 +125,7 @@ private:
 
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
-    static void classOperation(ExecutionState& state, CreateClass* code, Value* registerFile);
+    static void initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
     static void superSetObjectOperation(ExecutionState& state, SuperSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static Value superGetObjectOperation(ExecutionState& state, SuperGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);

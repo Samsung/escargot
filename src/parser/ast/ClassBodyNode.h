@@ -63,16 +63,29 @@ public:
     {
         size_t objIndex = context->m_classInfo.m_prototypeIndex;
 
+        std::vector<std::pair<ByteCodeRegisterIndex, ByteCodeRegisterIndex>> fieldRegisterSet;
         for (SentinelNode* element = m_elementList.begin(); element != m_elementList.end(); element = element->next()) {
             ClassElementNode* p = element->astNode()->asClassElement();
 
-            size_t destIndex = p->isStatic() ? classIndex : objIndex;
+            bool hasKeyName = p->key()->isIdentifier() && !p->isComputed();
+            if (p->kind() == ClassElementNode::Kind::Field) {
+                ByteCodeRegisterIndex keyIndex = context->getRegister();
+                if (hasKeyName) {
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), keyIndex, p->key()->asIdentifier()->name().string()), context, this);
+                } else {
+                    p->key()->generateExpressionByteCode(codeBlock, context, keyIndex);
+                }
 
-            bool hasKeyName = false;
+                ByteCodeRegisterIndex valueIndex = context->getRegister();
+                p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
+
+                fieldRegisterSet.push_back(std::make_pair(keyIndex, valueIndex));
+                continue;
+            }
+
+            size_t destIndex = p->isStatic() ? classIndex : objIndex;
             size_t propertyIndex = SIZE_MAX;
-            if (p->key()->isIdentifier() && !p->isComputed()) {
-                hasKeyName = true;
-            } else {
+            if (!hasKeyName) {
                 propertyIndex = p->key()->getRegister(codeBlock, context);
                 p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
             }
@@ -154,6 +167,12 @@ public:
 
             context->giveUpRegister(); // for drop value index
         }
+
+        for (size_t i = 0; i < fieldRegisterSet.size(); i++) {
+            context->giveUpRegister();
+            context->giveUpRegister();
+        }
+
         codeBlock->m_shouldClearStack = true;
     }
 
