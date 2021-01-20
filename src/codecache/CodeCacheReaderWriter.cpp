@@ -231,7 +231,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     m_buffer.put(codeBlock->m_isFunctionExpression);
     m_buffer.put(codeBlock->m_isFunctionDeclaration);
     m_buffer.put(codeBlock->m_isArrowFunctionExpression);
-    m_buffer.put(codeBlock->m_isOneExpressionOnlyArrowFunctionExpression);
+    m_buffer.put(codeBlock->m_isOneExpressionOnlyVirtualArrowFunctionExpression);
     m_buffer.put(codeBlock->m_isClassConstructor);
     m_buffer.put(codeBlock->m_isDerivedClassConstructor);
     m_buffer.put(codeBlock->m_isObjectMethod);
@@ -416,21 +416,23 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CODEBLOCK, (size_t)currentCode - codeBase, codeBlockIndex));
                 break;
             }
-            case CreateClassOpcode: {
-                CreateClass* bc = (CreateClass*)currentCode;
-                InterpretedCodeBlock* codeBlock = bc->m_codeBlock;
-                if (codeBlock) {
-                    size_t codeBlockIndex = VectorUtil::findInVector(block->codeBlock()->children(), codeBlock);
-                    ASSERT(codeBlockIndex != VectorUtil::invalidIndex);
-                    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CODEBLOCK, (size_t)currentCode - codeBase, codeBlockIndex));
+            case InitializeClassOpcode: {
+                InitializeClass* bc = (InitializeClass*)currentCode;
+                if (bc->m_stage == InitializeClass::CreateClass) {
+                    InterpretedCodeBlock* codeBlock = bc->m_codeBlock;
+                    if (codeBlock) {
+                        size_t codeBlockIndex = VectorUtil::findInVector(block->codeBlock()->children(), codeBlock);
+                        ASSERT(codeBlockIndex != VectorUtil::invalidIndex);
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CODEBLOCK, (size_t)currentCode - codeBase, codeBlockIndex));
+                    }
+
+                    String* string = bc->m_classSrc;
+                    ASSERT(!!string && string->length() > 0);
+                    size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
+
+                    ASSERT(stringIndex != VectorUtil::invalidIndex);
+                    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
                 }
-
-                String* string = bc->m_classSrc;
-                ASSERT(!!string && string->length() > 0);
-                size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
-
-                ASSERT(stringIndex != VectorUtil::invalidIndex);
-                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
                 break;
             }
             case ObjectDefineOwnPropertyWithNameOperationOpcode: {
@@ -719,7 +721,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     codeBlock->m_isFunctionExpression = m_buffer.get<bool>();
     codeBlock->m_isFunctionDeclaration = m_buffer.get<bool>();
     codeBlock->m_isArrowFunctionExpression = m_buffer.get<bool>();
-    codeBlock->m_isOneExpressionOnlyArrowFunctionExpression = m_buffer.get<bool>();
+    codeBlock->m_isOneExpressionOnlyVirtualArrowFunctionExpression = m_buffer.get<bool>();
     codeBlock->m_isClassConstructor = m_buffer.get<bool>();
     codeBlock->m_isDerivedClassConstructor = m_buffer.get<bool>();
     codeBlock->m_isObjectMethod = m_buffer.get<bool>();
@@ -936,19 +938,21 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 bc->m_codeBlock = children[childIndex];
                 break;
             }
-            case CreateClassOpcode: {
-                CreateClass* bc = (CreateClass*)currentCode;
+            case InitializeClassOpcode: {
+                InitializeClass* bc = (InitializeClass*)currentCode;
 
-                if (info.relocType == ByteCodeRelocType::RELOC_CODEBLOCK) {
-                    InterpretedCodeBlockVector& children = codeBlock->children();
-                    size_t childIndex = info.dataOffset;
-                    ASSERT(childIndex < children.size());
-                    bc->m_codeBlock = children[childIndex];
-                } else {
-                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_STRING);
-                    size_t stringIndex = info.dataOffset;
-                    ASSERT(stringIndex < stringLiteralData.size());
-                    bc->m_classSrc = stringLiteralData[stringIndex];
+                if (bc->m_stage == InitializeClass::CreateClass) {
+                    if (info.relocType == ByteCodeRelocType::RELOC_CODEBLOCK) {
+                        InterpretedCodeBlockVector& children = codeBlock->children();
+                        size_t childIndex = info.dataOffset;
+                        ASSERT(childIndex < children.size());
+                        bc->m_codeBlock = children[childIndex];
+                    } else {
+                        ASSERT(info.relocType == ByteCodeRelocType::RELOC_STRING);
+                        size_t stringIndex = info.dataOffset;
+                        ASSERT(stringIndex < stringLiteralData.size());
+                        bc->m_classSrc = stringLiteralData[stringIndex];
+                    }
                 }
                 break;
             }

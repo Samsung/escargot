@@ -653,6 +653,18 @@ public:
         return false;
     }
 
+    bool isPropertyKeyStartsWith(SyntaxNode key, char16_t c)
+    {
+        if (key.type() == Identifier) {
+            return key.name().string()->length() && key.name().string()->charAt(0) == c;
+        } else if (key.type() == Literal) {
+            return valueStringLiteral().length() && valueStringLiteral().charAt(0) == c;
+        }
+
+        return false;
+    }
+
+
 private:
     ParserStringView m_valueStringLiteral; // for StringLiteralNode (valueStringLiteral method)
 };
@@ -885,6 +897,19 @@ public:
         } else if (key->type() == Literal) {
             if (((LiteralNode*)key)->value().isString()) {
                 return ((LiteralNode*)key)->value().asString()->equals(value);
+            }
+        }
+
+        return false;
+    }
+
+    bool isPropertyKeyStartsWith(Node* key, char16_t c)
+    {
+        if (key->type() == Identifier) {
+            return ((IdentifierNode*)key)->name().string()->length() && ((IdentifierNode*)key)->name().string()->charAt(0) == c;
+        } else if (key->type() == Literal) {
+            if (((LiteralNode*)key)->value().isString() && ((LiteralNode*)key)->value().asString()->length()) {
+                return ((LiteralNode*)key)->value().asString()->charAt(0) == c;
             }
         }
 

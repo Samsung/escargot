@@ -702,8 +702,13 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case InitializeClassOpcode: {
             InitializeClass* cd = (InitializeClass*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_classConstructorRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            if (cd->m_stage == InitializeClass::CreateClass) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            } else if (cd->m_stage == InitializeClass::SetFieldData) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
             break;
         }
         case SuperReferenceOpcode: {

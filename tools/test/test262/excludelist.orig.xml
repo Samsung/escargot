@@ -1196,7 +1196,6 @@
     <test id="language/expressions/call/tco-non-eval-function-dynamic"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-global"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-with"><reason>TODO</reason></test>
-    <test id="language/expressions/class/constructor-this-tdz-during-initializers"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/async-private-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/async-private-gen-meth-ary-init-iter-no-close"><reason>TODO</reason></test>
     <test id="language/expressions/class/dstr/async-private-gen-meth-ary-name-iter-val"><reason>TODO</reason></test>
@@ -1915,7 +1914,6 @@
     <test id="language/expressions/class/elements/after-same-line-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-gen-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/after-same-line-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-gen-rs-private-method"><reason>TODO</reason></test>
@@ -1955,7 +1953,6 @@
     <test id="language/expressions/class/elements/after-same-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/after-same-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -1995,7 +1992,6 @@
     <test id="language/expressions/class/elements/after-same-line-static-async-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-gen-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/after-same-line-static-async-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-gen-rs-private-method"><reason>TODO</reason></test>
@@ -2035,7 +2031,6 @@
     <test id="language/expressions/class/elements/after-same-line-static-async-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/after-same-line-static-async-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-async-method-rs-private-method"><reason>TODO</reason></test>
@@ -2075,7 +2070,6 @@
     <test id="language/expressions/class/elements/after-same-line-static-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-gen-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/after-same-line-static-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-gen-rs-private-method"><reason>TODO</reason></test>
@@ -2115,7 +2109,6 @@
     <test id="language/expressions/class/elements/after-same-line-static-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/after-same-line-static-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/after-same-line-static-method-rs-private-method"><reason>TODO</reason></test>
@@ -2279,22 +2272,10 @@
     <test id="language/expressions/class/elements/class-name-static-initializer-decl"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/class-name-static-initializer-default-export"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/class-name-static-initializer-expr"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/computed-name-toprimitive"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/computed-name-toprimitive-symbol"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/ctor-called-after-fields-init"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/derived-cls-direct-eval-contains-superproperty-1"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/derived-cls-direct-eval-contains-superproperty-2"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-direct-eval-err-contains-supercall"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-direct-eval-err-contains-supercall-1"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-direct-eval-err-contains-supercall-2"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-indirect-eval-contains-superproperty-1"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-indirect-eval-contains-superproperty-2"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-indirect-eval-err-contains-supercall"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-indirect-eval-err-contains-supercall-1"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-indirect-eval-err-contains-supercall-2"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/direct-eval-err-contains-arguments"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/direct-eval-err-contains-newtarget"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/evaluation-error/computed-name-referenceerror"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/evaluation-error/computed-name-toprimitive-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/evaluation-error/computed-name-toprimitive-returns-noncallable"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/evaluation-error/computed-name-toprimitive-returns-nonobject"><reason>TODO</reason></test>
@@ -2302,11 +2283,7 @@
     <test id="language/expressions/class/elements/evaluation-error/computed-name-valueof-err"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/field-declaration"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/fields-anonymous-function-length"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/fields-asi-1"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/fields-asi-2"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/fields-asi-5"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/fields-multiple-definitions-static-private-methods-proxy"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/fields-run-once-on-double-super"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/gen-private-method-static/yield-spread-arr-multiple"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/gen-private-method-static/yield-spread-arr-single"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/gen-private-method-static/yield-spread-obj"><reason>TODO</reason></test>
@@ -2314,11 +2291,6 @@
     <test id="language/expressions/class/elements/gen-private-method/yield-spread-arr-single"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/gen-private-method/yield-spread-obj"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/grammar-private-field-optional-chaining"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/indirect-eval-err-contains-arguments"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/indirect-eval-err-contains-newtarget"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/init-err-evaluation"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/init-value-defined-after-class"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/init-value-incremental"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/intercalated-static-non-static-computed-fields"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-computed-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-computed-symbol-names"><reason>TODO</reason></test>
@@ -2330,7 +2302,6 @@
     <test id="language/expressions/class/elements/multiple-definitions-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/multiple-definitions-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-rs-private-method"><reason>TODO</reason></test>
@@ -2370,7 +2341,6 @@
     <test id="language/expressions/class/elements/multiple-stacked-definitions-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-stacked-definitions-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-stacked-definitions-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/multiple-stacked-definitions-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-stacked-definitions-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-stacked-definitions-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-stacked-definitions-rs-private-method"><reason>TODO</reason></test>
@@ -2410,7 +2380,6 @@
     <test id="language/expressions/class/elements/new-no-sc-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-no-sc-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-no-sc-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/new-no-sc-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-no-sc-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-no-sc-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-no-sc-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -2450,7 +2419,6 @@
     <test id="language/expressions/class/elements/new-sc-line-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-gen-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/new-sc-line-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-gen-rs-private-method"><reason>TODO</reason></test>
@@ -2490,7 +2458,6 @@
     <test id="language/expressions/class/elements/new-sc-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/new-sc-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/new-sc-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -2620,8 +2587,6 @@
     <test id="language/expressions/class/elements/prod-private-method-before-super-return-in-field-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/prod-private-setter-before-super-return-in-constructor"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/prod-private-setter-before-super-return-in-field-initializer"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/redeclaration"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/redeclaration-symbol"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-computed-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-computed-symbol-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-grammar-privatename-identifier-semantics-stringvalue"><reason>TODO</reason></test>
@@ -2632,7 +2597,6 @@
     <test id="language/expressions/class/elements/regular-definitions-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/regular-definitions-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/regular-definitions-rs-private-method"><reason>TODO</reason></test>
@@ -2672,7 +2636,6 @@
     <test id="language/expressions/class/elements/same-line-async-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-gen-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/same-line-async-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-gen-rs-private-method"><reason>TODO</reason></test>
@@ -2712,7 +2675,6 @@
     <test id="language/expressions/class/elements/same-line-async-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/same-line-async-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-async-method-rs-private-method"><reason>TODO</reason></test>
@@ -2752,7 +2714,6 @@
     <test id="language/expressions/class/elements/same-line-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-gen-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/same-line-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-gen-rs-private-method"><reason>TODO</reason></test>
@@ -2792,7 +2753,6 @@
     <test id="language/expressions/class/elements/same-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/same-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -2823,7 +2783,6 @@
     <test id="language/expressions/class/elements/same-line-method-static-private-methods-with-fields"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/same-line-method-string-literal-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-as-valid-instance-field"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/static-as-valid-instance-field-assigned"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-field-anonymous-function-length"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-field-anonymous-function-name"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-private-fields-proxy-default-handler-throws"><reason>TODO</reason></test>
@@ -2841,11 +2800,6 @@
     <test id="language/expressions/class/elements/static-private-setter-access-on-inner-arrow-function"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-private-setter-access-on-inner-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/static-private-setter-access-on-inner-function"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-field-classelementname-initializer"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-field-classelementname-initializer-alt"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-field-identifier-alt"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-fields-multi-line"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-privatemeth-duplicate-get-set"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-privatemeth-duplicate-meth-nestedclassmeth"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-privatename-classelementname-initializer"><reason>TODO</reason></test>
@@ -2869,7 +2823,6 @@
     <test id="language/expressions/class/elements/wrapped-in-sc-private-method-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-private-names"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/wrapped-in-sc-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/wrapped-in-sc-rs-private-method"><reason>TODO</reason></test>
@@ -3399,7 +3352,6 @@
     <test id="language/statements/async-generator/yield-star-async-from-sync-iterator-inaccessible"><reason>TODO</reason></test>
     <test id="language/statements/block/tco-stmt"><reason>TODO</reason></test>
     <test id="language/statements/block/tco-stmt-list"><reason>TODO</reason></test>
-    <test id="language/statements/class/classelementname-abrupt-completion"><reason>TODO</reason></test>
     <test id="language/statements/class/definition/early-errors-class-method-await-in-formals-default"><reason>TODO</reason></test>
     <test id="language/statements/class/definition/fn-name-static-precedence"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
@@ -4110,7 +4062,6 @@
     <test id="language/statements/class/dstr/private-meth-static-obj-ptrn-rest-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/private-meth-static-obj-ptrn-rest-skip-non-enumerable"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/private-meth-static-obj-ptrn-rest-val-obj"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/abrupt-completition-on-field-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-computed-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-computed-symbol-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-grammar-privatename-identifier-semantics-stringvalue"><reason>TODO</reason></test>
@@ -4121,7 +4072,6 @@
     <test id="language/statements/class/elements/after-same-line-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/after-same-line-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-gen-rs-private-method"><reason>TODO</reason></test>
@@ -4161,7 +4111,6 @@
     <test id="language/statements/class/elements/after-same-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/after-same-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -4201,7 +4150,6 @@
     <test id="language/statements/class/elements/after-same-line-static-async-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-gen-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/after-same-line-static-async-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-gen-rs-private-method"><reason>TODO</reason></test>
@@ -4241,7 +4189,6 @@
     <test id="language/statements/class/elements/after-same-line-static-async-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/after-same-line-static-async-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-async-method-rs-private-method"><reason>TODO</reason></test>
@@ -4281,7 +4228,6 @@
     <test id="language/statements/class/elements/after-same-line-static-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-gen-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/after-same-line-static-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-gen-rs-private-method"><reason>TODO</reason></test>
@@ -4321,7 +4267,6 @@
     <test id="language/statements/class/elements/after-same-line-static-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/after-same-line-static-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/after-same-line-static-method-rs-private-method"><reason>TODO</reason></test>
@@ -4481,36 +4426,17 @@
     <test id="language/statements/class/elements/async-gen-private-method/yield-star-sync-next"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/async-gen-private-method/yield-star-sync-return"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/async-gen-private-method/yield-star-sync-throw"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/class-field-is-observable-by-proxy"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/class-field-on-frozen-objects"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/computed-name-toprimitive"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/computed-name-toprimitive-symbol"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/computed-property-abrupt-completition"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/ctor-called-after-fields-init"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/derived-cls-direct-eval-contains-superproperty-1"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/derived-cls-direct-eval-contains-superproperty-2"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-direct-eval-err-contains-supercall"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-direct-eval-err-contains-supercall-1"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-direct-eval-err-contains-supercall-2"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-indirect-eval-contains-superproperty-1"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-indirect-eval-contains-superproperty-2"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-indirect-eval-err-contains-supercall"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-indirect-eval-err-contains-supercall-1"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-indirect-eval-err-contains-supercall-2"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/direct-eval-err-contains-arguments"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/direct-eval-err-contains-newtarget"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/evaluation-error/computed-name-referenceerror"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/evaluation-error/computed-name-toprimitive-err"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/evaluation-error/computed-name-toprimitive-returns-noncallable"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/evaluation-error/computed-name-toprimitive-returns-nonobject"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/evaluation-error/computed-name-tostring-err"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/evaluation-error/computed-name-valueof-err"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/field-declaration"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/fielddefinition-initializer-abrupt-completion"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/fields-anonymous-function-length"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/fields-asi-1"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/fields-asi-2"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/fields-asi-5"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/fields-computed-name-propname-constructor"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/fields-computed-name-static-propname-constructor"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/fields-computed-name-static-propname-prototype"><reason>TODO</reason></test>
@@ -4524,11 +4450,6 @@
     <test id="language/statements/class/elements/get-access-of-missing-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/get-access-of-missing-shadowed-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/grammar-private-field-optional-chaining"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/indirect-eval-err-contains-arguments"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/indirect-eval-err-contains-newtarget"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/init-err-evaluation"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/init-value-defined-after-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/init-value-incremental"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/intercalated-static-non-static-computed-fields"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-computed-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-computed-symbol-names"><reason>TODO</reason></test>
@@ -4540,7 +4461,6 @@
     <test id="language/statements/class/elements/multiple-definitions-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/multiple-definitions-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-rs-private-method"><reason>TODO</reason></test>
@@ -4580,7 +4500,6 @@
     <test id="language/statements/class/elements/multiple-stacked-definitions-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-stacked-definitions-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-stacked-definitions-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/multiple-stacked-definitions-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-stacked-definitions-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-stacked-definitions-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-stacked-definitions-rs-private-method"><reason>TODO</reason></test>
@@ -4620,7 +4539,6 @@
     <test id="language/statements/class/elements/new-no-sc-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-no-sc-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-no-sc-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/new-no-sc-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-no-sc-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-no-sc-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-no-sc-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -4660,7 +4578,6 @@
     <test id="language/statements/class/elements/new-sc-line-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-gen-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/new-sc-line-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-gen-rs-private-method"><reason>TODO</reason></test>
@@ -4700,7 +4617,6 @@
     <test id="language/statements/class/elements/new-sc-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/new-sc-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/new-sc-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -4875,7 +4791,6 @@
     <test id="language/statements/class/elements/privatefieldset-typeerror-5"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privategetter-on-proxy"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privatemethods-on-proxy"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/privatename-not-valid-eval-earlyerr-3"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privatename-not-valid-eval-earlyerr-4"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privatename-not-valid-eval-earlyerr-5"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privatename-valid-no-earlyerr"><reason>TODO</reason></test>
@@ -4885,10 +4800,6 @@
     <test id="language/statements/class/elements/prod-private-method-before-super-return-in-field-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/prod-private-setter-before-super-return-in-constructor"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/prod-private-setter-before-super-return-in-field-initializer"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/public-class-field-initialization-is-visible-to-proxy"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/public-class-field-initialization-on-super-class-with-setter"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/redeclaration"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/redeclaration-symbol"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-computed-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-computed-symbol-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-grammar-privatename-identifier-semantics-stringvalue"><reason>TODO</reason></test>
@@ -4899,7 +4810,6 @@
     <test id="language/statements/class/elements/regular-definitions-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/regular-definitions-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/regular-definitions-rs-private-method"><reason>TODO</reason></test>
@@ -4939,7 +4849,6 @@
     <test id="language/statements/class/elements/same-line-async-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-gen-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/same-line-async-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-gen-rs-private-method"><reason>TODO</reason></test>
@@ -4979,7 +4888,6 @@
     <test id="language/statements/class/elements/same-line-async-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/same-line-async-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-async-method-rs-private-method"><reason>TODO</reason></test>
@@ -5019,7 +4927,6 @@
     <test id="language/statements/class/elements/same-line-gen-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-gen-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-gen-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/same-line-gen-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-gen-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-gen-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-gen-rs-private-method"><reason>TODO</reason></test>
@@ -5059,7 +4966,6 @@
     <test id="language/statements/class/elements/same-line-method-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-method-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-method-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/same-line-method-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-method-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-method-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/same-line-method-rs-private-method"><reason>TODO</reason></test>
@@ -5094,7 +5000,6 @@
     <test id="language/statements/class/elements/set-access-of-private-method"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/set-access-of-shadowed-private-method"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-as-valid-instance-field"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/static-as-valid-instance-field-assigned"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-field-anonymous-function-length"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-field-anonymous-function-name"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/static-private-fields-proxy-default-handler-throws"><reason>TODO</reason></test>
@@ -5114,12 +5019,6 @@
     <test id="language/statements/class/elements/super-access-inside-a-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/super-access-inside-a-private-method"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/super-access-inside-a-private-setter"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/super-fielddefinition-initializer-abrupt-completion"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-field-classelementname-initializer"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-field-classelementname-initializer-alt"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-field-identifier-alt"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-fields-multi-line"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/syntax/valid/grammar-privatemeth-duplicate-get-set"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/syntax/valid/grammar-privatemeth-duplicate-meth-nestedclassmeth"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/syntax/valid/grammar-privatename-classelementname-initializer"><reason>TODO</reason></test>
@@ -5143,7 +5042,6 @@
     <test id="language/statements/class/elements/wrapped-in-sc-private-method-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-private-names"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-rs-field-identifier"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/wrapped-in-sc-rs-field-identifier-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-rs-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-rs-private-getter-alt"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/wrapped-in-sc-rs-private-method"><reason>TODO</reason></test>

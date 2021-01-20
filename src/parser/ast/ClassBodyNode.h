@@ -63,7 +63,20 @@ public:
     {
         size_t objIndex = context->m_classInfo.m_prototypeIndex;
 
-        std::vector<std::pair<ByteCodeRegisterIndex, ByteCodeRegisterIndex>> fieldRegisterSet;
+        size_t fieldSize = 0;
+        for (SentinelNode* element = m_elementList.begin(); element != m_elementList.end(); element = element->next()) {
+            ClassElementNode* p = element->astNode()->asClassElement();
+            if (p->kind() == ClassElementNode::Kind::Field) {
+                fieldSize++;
+            }
+        }
+
+        if (fieldSize) {
+            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldSize), context, this);
+        }
+
+        size_t fieldIndex = 0;
+
         for (SentinelNode* element = m_elementList.begin(); element != m_elementList.end(); element = element->next()) {
             ClassElementNode* p = element->astNode()->asClassElement();
 
@@ -79,7 +92,12 @@ public:
                 ByteCodeRegisterIndex valueIndex = context->getRegister();
                 p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
 
-                fieldRegisterSet.push_back(std::make_pair(keyIndex, valueIndex));
+                codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, keyIndex, valueIndex), context, this);
+
+                fieldIndex++;
+                context->giveUpRegister();
+                context->giveUpRegister();
+
                 continue;
             }
 
@@ -166,11 +184,6 @@ public:
             }
 
             context->giveUpRegister(); // for drop value index
-        }
-
-        for (size_t i = 0; i < fieldRegisterSet.size(); i++) {
-            context->giveUpRegister();
-            context->giveUpRegister();
         }
 
         codeBlock->m_shouldClearStack = true;
