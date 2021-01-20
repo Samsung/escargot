@@ -27,6 +27,10 @@
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
 
+// represent ownership of each object
+// object marked with 'own' should be deleted in the current context
+#define own
+
 namespace Escargot {
 
 WASMHostFunctionEnvironment::WASMHostFunctionEnvironment(Object* f, wasm_functype_t* ft)
@@ -321,7 +325,8 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     wasm_global_t* globaladdr = global();
 
     // Let value be global_read(store, globaladdr).
-    wasm_val_t value;
+    // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
+    own wasm_val_t value;
     wasm_global_get(globaladdr, &value);
 
     // Return ToJSValue(value).

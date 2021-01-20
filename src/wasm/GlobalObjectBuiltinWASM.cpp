@@ -50,7 +50,7 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
     ASSERT(!srcBuffer->isDetachedBuffer());
     size_t byteLength = srcBuffer->byteLength();
 
-    wasm_byte_vec_t binary;
+    own wasm_byte_vec_t binary;
     wasm_byte_vec_new_uninitialized(&binary, byteLength);
     memcpy(binary.data, srcBuffer->data(), byteLength);
 
@@ -124,9 +124,10 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
         Value reason[] = { readImportsResult.error };
         Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
     } else {
-        // FIXME pass imports data into ExtendedNativeFunctionObjectImpl and delete imports data inside ExtendedNativeFunctionObjectImpl
-        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateCoreModule, 1, NativeFunctionInfo::Strict));
-        moduleInstantiator->setInternalSlotAsPointer(0, imports.data);
+        // Note) pass imports data and its size into ExtendedNativeFunctionObjectImpl and delete imports vector inside ExtendedNativeFunctionObjectImpl call
+        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateCoreModule, 1, NativeFunctionInfo::Strict));
+        moduleInstantiator->setInternalSlot(0, Value(imports.size));
+        moduleInstantiator->setInternalSlotAsPointer(1, imports.data);
 
         Job* job = new PromiseReactionJob(state.context(), PromiseReaction(moduleInstantiator, capability), firstArg);
         state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
@@ -288,11 +289,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
     own wasm_instance_t* instance = wasm_instance_new(state.context()->vmInstance()->wasmStore(), module, imports.data, &trap);
-
-    // FIXME should not call destructor of each element in imports
-    // wasm_extern_vec_delete(&imports);
-    delete[] imports.data;
-    imports.size = 0;
+    wasm_extern_vec_delete(&imports);
 
     // TODO error exception
     if (!instance) {
@@ -367,10 +364,10 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
 
     // Let memtype be { min initial, max maximum }
     wasm_limits_t limits = { initial, maximum };
-    wasm_memorytype_t* memtype = wasm_memorytype_new(&limits);
+    own wasm_memorytype_t* memtype = wasm_memorytype_new(&limits);
 
     // Let (store, memaddr) be mem_alloc(store, memtype). If allocation fails, throw a RangeError exception.
-    wasm_memory_t* memaddr = wasm_memory_new(state.context()->vmInstance()->wasmStore(), memtype);
+    own wasm_memory_t* memaddr = wasm_memory_new(state.context()->vmInstance()->wasmStore(), memtype);
     wasm_memorytype_delete(memtype);
 
     wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
@@ -539,7 +536,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     own wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
 
     // Let (store, tableaddr) be table_alloc(store, type).
-    wasm_table_t* tableaddr = wasm_table_new(state.context()->vmInstance()->wasmStore(), tabletype, nullptr);
+    own wasm_table_t* tableaddr = wasm_table_new(state.context()->vmInstance()->wasmStore(), tabletype, nullptr);
     wasm_tabletype_delete(tabletype);
 
     wasm_ref_t* tableref = wasm_table_as_ref(tableaddr);
@@ -618,16 +615,16 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     // Let tableaddr be this.[[Table]].
     wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
 
-    // Let result be table_read(store, tableaddr, index).
-    wasm_ref_t* result = wasm_table_get(tableaddr, index);
-
     // If result is error, throw a RangeError exception.
-    // FIXME check the error by comparing the size
+    // FIXME check the error by comparing the size in advance
     if (index >= wasm_table_size(tableaddr)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
-    // FIXME for the case of empty function (nullptr)
+    // Let result be table_read(store, tableaddr, index).
+    own wasm_ref_t* result = wasm_table_get(tableaddr, index);
+
+    // FIXME wasm_table_get returns nullptr for the empty function and error case both
     if (!result) {
         return Value(Value::Null);
     }
@@ -639,11 +636,13 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     for (auto iter = map.begin(); iter != map.end(); iter++) {
         wasm_ref_t* ref = iter->first;
         if (wasm_ref_same(result, ref)) {
+            wasm_ref_delete(result);
             return iter->second;
         }
     }
 
     ASSERT_NOT_REACHED();
+    wasm_ref_delete(result);
     return Value();
 }
 
@@ -743,7 +742,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     }
 
     Value valueArg = argc > 1 ? argv[1] : Value();
-    wasm_val_t value;
+    own wasm_val_t value;
     if (valueArg.isUndefined()) {
         // let value be DefaultValue(valuetype).
         value = WASMValueConverter::wasmDefaultValue(valuetype);
@@ -753,10 +752,11 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     }
 
     // If mutable is true, let globaltype be var valuetype; otherwise, let globaltype be const valuetype.
-    wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(valuetype), mut);
+    // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
+    own wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(valuetype), mut);
 
     // Let (store, globaladdr) be global_alloc(store, globaltype, value).
-    wasm_global_t* globaladdr = wasm_global_new(state.context()->vmInstance()->wasmStore(), globaltype, &value);
+    own wasm_global_t* globaladdr = wasm_global_new(state.context()->vmInstance()->wasmStore(), globaltype, &value);
     wasm_globaltype_delete(globaltype);
 
     wasm_ref_t* globalref = wasm_global_as_ref(globaladdr);
@@ -811,19 +811,19 @@ static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue
     wasm_global_t* globaladdr = thisValue.asObject()->asWASMGlobalObject()->global();
 
     // Let mut valuetype be global_type(store, globaladdr).
-    wasm_globaltype_t* globaltype = wasm_global_type(globaladdr);
+    own wasm_globaltype_t* globaltype = wasm_global_type(globaladdr);
     wasm_mutability_t mut = wasm_globaltype_mutability(globaltype);
     wasm_valkind_t valuetype = wasm_valtype_kind(wasm_globaltype_content(globaltype));
+    wasm_globaltype_delete(globaltype);
 
     // If mut is const, throw a TypeError.
     if (mut == WASM_CONST) {
-        wasm_globaltype_delete(globaltype);
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::WASM_SetToGlobalConstValue);
     }
-    wasm_globaltype_delete(globaltype);
 
     // Let value be ToWebAssemblyValue(the given value, valuetype).
-    wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, argv[0], valuetype);
+    // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
+    own wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, argv[0], valuetype);
 
     // Let store be global_write(store, globaladdr, value).
     // TODO If store is error, throw a RangeError exception.
