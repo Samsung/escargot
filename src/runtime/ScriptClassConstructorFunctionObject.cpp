@@ -22,6 +22,7 @@
 
 #include "FunctionObjectInlines.h"
 #include "runtime/EnvironmentRecord.h"
+#include "runtime/ScriptVirtualArrowFunctionObject.h"
 
 namespace Escargot {
 ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
@@ -55,7 +56,7 @@ public:
         if (self->constructorKind() == ScriptFunctionObject::ConstructorKind::Base) {
             FunctionEnvironmentRecord* r = calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
             r->bindThisValue(calleeState, thisArgument);
-            r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers();
+            r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers(calleeState, thisArgument.asObject());
         }
 
         return thisArgument;
@@ -130,7 +131,12 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
         .asObject();
 }
 
-void ScriptClassConstructorFunctionObject::initFieldMembers()
+void ScriptClassConstructorFunctionObject::initFieldMembers(ExecutionState& state, Object* instance)
 {
+    size_t s = m_fieldInitData.size();
+    for (size_t i = 0; i < s; i++) {
+        Value v = Value(m_fieldInitData[i].second).asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(instance));
+        instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, m_fieldInitData[i].first), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+    }
 }
 } // namespace Escargot

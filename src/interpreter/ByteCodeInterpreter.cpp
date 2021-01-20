@@ -37,6 +37,7 @@
 #include "runtime/GeneratorObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptArrowFunctionObject.h"
+#include "runtime/ScriptVirtualArrowFunctionObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
 #include "runtime/ScriptClassMethodFunctionObject.h"
 #include "runtime/ScriptGeneratorFunctionObject.h"
@@ -2512,6 +2513,8 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[code->m_homeObjectRegisterIndex] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
+    } else if (cb->isOneExpressionOnlyVirtualArrowFunctionExpression()) {
+        registerFile[code->m_registerIndex] = new ScriptVirtualArrowFunctionObject(state, proto, cb, outerLexicalEnvironment);
     } else if (cb->isArrowFunctionExpression()) {
         registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex]);
     } else if (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) {
@@ -2700,77 +2703,86 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
 
 NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile)
 {
-    Value protoParent;
-    Value constructorParent;
+    if (code->m_stage == InitializeClass::CreateClass) {
+        Value protoParent;
+        Value constructorParent;
 
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-runtime-semantics-classdefinitionevaluation
+        // http://www.ecma-international.org/ecma-262/6.0/#sec-runtime-semantics-classdefinitionevaluation
 
-    bool heritagePresent = code->m_superClassRegisterIndex != REGISTER_LIMIT;
+        bool heritagePresent = code->m_superClassRegisterIndex != REGISTER_LIMIT;
 
-    // 5.
-    if (!heritagePresent) {
-        // 5.a
-        protoParent = state.context()->globalObject()->objectPrototype();
-        // 5.b
-        constructorParent = state.context()->globalObject()->functionPrototype();
-
-    } else {
-        // 5.a-c
-        const Value& superClass = registerFile[code->m_superClassRegisterIndex];
-
-        if (superClass.isNull()) {
-            protoParent = Value(Value::Null);
-            constructorParent = state.context()->globalObject()->functionPrototype();
-        } else if (!superClass.isConstructor()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Extends_Value_Is_Not_Object_Nor_Null);
-        } else {
-            if (superClass.isObject() && superClass.asObject()->isGeneratorObject()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
-            }
-
-            protoParent = superClass.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, Value());
-
-            if (!protoParent.isObject() && !protoParent.isNull()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
-            }
-
-            constructorParent = superClass;
-        }
-    }
-
-    constructorParent.asObject()->markAsPrototypeObject(state);
-
-    ScriptClassConstructorPrototypeObject* proto = new ScriptClassConstructorPrototypeObject(state);
-    proto->setPrototype(state, protoParent);
-
-    ScriptClassConstructorFunctionObject* constructor;
-
-    if (code->m_codeBlock) {
-        constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc);
-    } else {
+        // 5.
         if (!heritagePresent) {
-            Value argv[] = { String::emptyString, String::emptyString };
-            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
-            functionSource.codeBlock->setAsClassConstructor();
-            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+            // 5.a
+            protoParent = state.context()->globalObject()->objectPrototype();
+            // 5.b
+            constructorParent = state.context()->globalObject()->functionPrototype();
+
         } else {
-            Value argv[] = { state.context()->staticStrings().lazyDotDotDotArgs().string(),
-                             state.context()->staticStrings().lazySuperDotDotDotArgs().string() };
-            auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
-            functionSource.codeBlock->setAsClassConstructor();
-            functionSource.codeBlock->setAsDerivedClassConstructor();
-            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+            // 5.a-c
+            const Value& superClass = registerFile[code->m_superClassRegisterIndex];
+
+            if (superClass.isNull()) {
+                protoParent = Value(Value::Null);
+                constructorParent = state.context()->globalObject()->functionPrototype();
+            } else if (!superClass.isConstructor()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Extends_Value_Is_Not_Object_Nor_Null);
+            } else {
+                if (superClass.isObject() && superClass.asObject()->isGeneratorObject()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
+                }
+
+                protoParent = superClass.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, Value());
+
+                if (!protoParent.isObject() && !protoParent.isNull()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
+                }
+
+                constructorParent = superClass;
+            }
         }
+
+        constructorParent.asObject()->markAsPrototypeObject(state);
+
+        ScriptClassConstructorPrototypeObject* proto = new ScriptClassConstructorPrototypeObject(state);
+        proto->setPrototype(state, protoParent);
+
+        ScriptClassConstructorFunctionObject* constructor;
+
+        if (code->m_codeBlock) {
+            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc);
+        } else {
+            if (!heritagePresent) {
+                Value argv[] = { String::emptyString, String::emptyString };
+                auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
+                functionSource.codeBlock->setAsClassConstructor();
+                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+            } else {
+                Value argv[] = { state.context()->staticStrings().lazyDotDotDotArgs().string(),
+                                 state.context()->staticStrings().lazySuperDotDotDotArgs().string() };
+                auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
+                functionSource.codeBlock->setAsClassConstructor();
+                functionSource.codeBlock->setAsDerivedClassConstructor();
+                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+            }
+        }
+
+        constructor->asFunctionObject()->setFunctionPrototype(state, proto);
+
+        // Perform CreateMethodProperty(proto, "constructor", F).
+        // --> CreateMethodProperty: Let newDesc be the PropertyDescriptor{[[Value]]: V, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}.
+        proto->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(constructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ValuePresent)));
+
+        registerFile[code->m_classConstructorRegisterIndex] = constructor;
+        registerFile[code->m_classPrototypeRegisterIndex] = proto;
+    } else if (code->m_stage == InitializeClass::SetFieldSize) {
+        registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_fieldInitData.resize(code->m_fieldSize);
+    } else {
+        ASSERT(code->m_stage == InitializeClass::SetFieldData);
+        registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_fieldInitData[code->m_fieldIndex] = std::make_pair(
+            registerFile[code->m_propertyRegisterIndex],
+            registerFile[code->m_valueRegisterIndex]);
     }
-
-    constructor->asFunctionObject()->setFunctionPrototype(state, proto);
-
-    // Perform CreateMethodProperty(proto, "constructor", F).
-    // --> CreateMethodProperty: Let newDesc be the PropertyDescriptor{[[Value]]: V, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}.
-    proto->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(constructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ValuePresent)));
-
-    registerFile[code->m_classConstructorRegisterIndex] = constructor;
-    registerFile[code->m_classPrototypeRegisterIndex] = proto;
 }
 
 NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, SuperReference* code, Value* registerFile)
@@ -3238,7 +3250,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         EnvironmentRecord* thisER = state.getThisEnvironment();
         FunctionEnvironmentRecord* r = thisER->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
         r->bindThisValue(state, result);
-        r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers();
+        r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers(state, result.asObject());
         registerFile[code->m_resultIndex] = result;
         break;
     }

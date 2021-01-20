@@ -3256,14 +3256,11 @@ public:
         return exprNode;
     }
 
-    // returns <resultNode, originalNode>
     template <class ASTBuilder>
-    std::pair<ASTNode, ASTNode> parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder)
+    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder)
     {
         ASTNode result;
         Marker startMarker = this->startMarker;
-
-        ASTNode originalNode = result = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
         if (!this->isParsingSingleFunction) {
             // we need to reparse for tracking using name correctly(expression will be wrapped by arrow function)
@@ -3273,7 +3270,6 @@ public:
             this->scanner->lineStart = startMarker.lineStart;
             this->nextToken();
 
-            // reparse
             BEGIN_FUNCTION_SCANNING(AtomicString());
             auto startNode = this->createNode();
 
@@ -3284,7 +3280,7 @@ public:
             this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
             this->currentScopeContext->m_isArrowFunctionExpression = true;
-            this->currentScopeContext->m_isOneExpressionOnlyArrowFunctionExpression = true;
+            this->currentScopeContext->m_isOneExpressionOnlyVirtualArrowFunctionExpression = true;
             this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
 
             this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
@@ -3296,7 +3292,6 @@ public:
 
             // wrap right expression with arrow function
             result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
-            result = builder.createCallExpressionNode(result, ASTNodeList());
         } else {
             auto startNode = this->createNode();
             InterpretedCodeBlock* currentTarget = this->codeBlock;
@@ -3315,10 +3310,9 @@ public:
             this->subCodeBlockIndex++;
 
             result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
-            result = builder.createCallExpressionNode(result, ASTNodeList());
         }
 
-        return std::make_pair(result, originalNode);
+        return result;
     }
 
     // ECMA-262 12.16 Comma Operator
@@ -5580,8 +5574,7 @@ public:
                     hasFunctionOnFieldInitializer = std::get<2>(init);
                 } else {
                     kind = ClassElementNode::Kind::Field;
-                    auto init = this->parseClassStaticFieldInitializer(builder);
-                    value = std::get<0>(init);
+                    value = this->parseClassFieldInitializer(builder);
                 }
 
             } else if (this->match(SemiColon)) {
@@ -5600,6 +5593,12 @@ public:
 
         if (kind == ClassElementNode::Kind::StaticField) {
             if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
+                this->throwError(Messages::InvalidClassFieldName);
+            }
+        }
+
+        if (kind == ClassElementNode::Kind::Field || kind == ClassElementNode::Kind::StaticField) {
+            if (builder.isPropertyKeyStartsWith(keyNode, 0x200C) || builder.isPropertyKeyStartsWith(keyNode, 0x200D)) {
                 this->throwError(Messages::InvalidClassFieldName);
             }
         }
@@ -6341,7 +6340,7 @@ public:
             this->nextToken();
         }
 
-        if (this->codeBlock->isOneExpressionOnlyArrowFunctionExpression()) {
+        if (this->codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression()) {
             params = builder.createStatementContainer();
 
             auto previousLabelSet = this->context->labelSet;

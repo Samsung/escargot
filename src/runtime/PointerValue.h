@@ -32,6 +32,7 @@ class NativeFunctionObject;
 class ExtendedNativeFunctionObject;
 class ScriptFunctionObject;
 class ScriptArrowFunctionObject;
+class ScriptVirtualArrowFunctionObject;
 class ScriptGeneratorFunctionObject;
 class ScriptAsyncFunctionObject;
 class ScriptAsyncGeneratorFunctionObject;
@@ -179,6 +180,11 @@ public:
     }
 
     virtual bool isScriptArrowFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isScriptVirtualArrowFunctionObject() const
     {
         return false;
     }
@@ -512,6 +518,12 @@ public:
     {
         ASSERT(isScriptArrowFunctionObject());
         return (ScriptArrowFunctionObject*)this;
+    }
+
+    ScriptVirtualArrowFunctionObject* asScriptVirtualArrowFunctionObject()
+    {
+        ASSERT(isScriptVirtualArrowFunctionObject());
+        return (ScriptVirtualArrowFunctionObject*)this;
     }
 
     ScriptGeneratorFunctionObject* asScriptGeneratorFunctionObject()

@@ -536,9 +536,9 @@ public:
         return m_isArrowFunctionExpression;
     }
 
-    bool isOneExpressionOnlyArrowFunctionExpression() const
+    bool isOneExpressionOnlyVirtualArrowFunctionExpression() const
     {
-        return m_isOneExpressionOnlyArrowFunctionExpression;
+        return m_isOneExpressionOnlyVirtualArrowFunctionExpression;
     }
 
     bool isClassConstructor() const
@@ -830,7 +830,7 @@ protected:
     bool m_isFunctionDeclaration : 1;
     bool m_isArrowFunctionExpression : 1;
     // one expression only arrow function only contains one expression in body(no param, no placeholder, no brace)
-    bool m_isOneExpressionOnlyArrowFunctionExpression : 1;
+    bool m_isOneExpressionOnlyVirtualArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isDerivedClassConstructor : 1;
     bool m_isObjectMethod : 1;

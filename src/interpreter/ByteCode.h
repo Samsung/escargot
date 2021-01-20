@@ -458,8 +458,15 @@ public:
 
 class InitializeClass : public ByteCode {
 public:
+    enum Stage {
+        CreateClass,
+        SetFieldSize,
+        SetFieldData
+    };
+
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::CreateClass)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
@@ -468,18 +475,56 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_classConstructorRegisterIndex;
-    ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
-    ByteCodeRegisterIndex m_superClassRegisterIndex;
-    InterpretedCodeBlock* m_codeBlock;
-    String* m_classSrc;
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldSize)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::SetFieldSize)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_fieldSize(fieldSize)
+    {
+    }
+
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, const size_t valueIndex)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::SetFieldData)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_fieldIndex(fieldIndex)
+        , m_propertyRegisterIndex(propertyIndex)
+        , m_valueRegisterIndex(valueIndex)
+    {
+    }
+
+    Stage m_stage : 2;
+    ByteCodeRegisterIndex m_classConstructorRegisterIndex : 16;
+    union {
+        struct {
+            ByteCodeRegisterIndex m_classPrototypeRegisterIndex : 16;
+            ByteCodeRegisterIndex m_superClassRegisterIndex : 16;
+            InterpretedCodeBlock* m_codeBlock;
+            String* m_classSrc;
+        }; // CreateClass
+        struct {
+            size_t m_fieldSize;
+        }; // SetFieldSize
+        struct {
+            size_t m_fieldIndex;
+            ByteCodeRegisterIndex m_propertyRegisterIndex : 16;
+            ByteCodeRegisterIndex m_valueRegisterIndex : 16;
+        }; // SetFieldData
+    };
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        if (m_superClassRegisterIndex == REGISTER_LIMIT) {
-            printf("initialize class r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_classPrototypeRegisterIndex);
+        if (m_stage == Stage::CreateClass) {
+            if (m_superClassRegisterIndex == REGISTER_LIMIT) {
+                printf("create class r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            } else {
+                printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            }
+        } else if (m_stage == Stage::SetFieldSize) {
+            printf("set field size r%d -> %d", (int)m_classConstructorRegisterIndex, (int)m_fieldSize);
         } else {
-            printf("initialize class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+            ASSERT(m_stage == Stage::SetFieldData);
+            printf("set field data r%d.r%d = r%d", (int)m_classConstructorRegisterIndex, (int)m_propertyRegisterIndex, (int)m_valueRegisterIndex);
         }
     }
 #endif
