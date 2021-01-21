@@ -37,13 +37,20 @@ public:
     }
 
     friend class FunctionObjectProcessCallGenerator;
-    Value call(ExecutionState& state, const Value& thisValue);
+    Value call(ExecutionState& state, const Value& thisValue, Object* homeObject);
+
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
     virtual Value construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
 
     bool isConstructor() const override
     {
         return false;
+    }
+
+    virtual Object* homeObject() override
+    {
+        ASSERT(!hasRareData());
+        return m_prototype;
     }
 
 private:

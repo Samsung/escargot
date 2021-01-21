@@ -64,6 +64,9 @@ public:
     {
         InterpretedCodeBlock* codeBlock = interpretedCodeBlock();
         if (codeBlock->isArrowFunctionExpression()) {
+            if (UNLIKELY(codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression())) {
+                return ThisMode::Global;
+            }
             return ThisMode::Lexical;
         } else if (codeBlock->isStrict()) {
             return ThisMode::Strict;

@@ -32,8 +32,9 @@ public:
     }
 };
 
-Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value& thisValue)
+Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, Object* homeObject)
 {
+    m_prototype = homeObject;
     return FunctionObjectProcessCallGenerator::processCall<ScriptVirtualArrowFunctionObject, false, false, false, ScriptVirtualArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, 0, nullptr, nullptr);
 }
 
