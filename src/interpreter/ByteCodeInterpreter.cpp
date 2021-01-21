@@ -2513,10 +2513,12 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
         Value thisValue = cb->isArrowFunctionExpression() ? registerFile[code->m_homeObjectRegisterIndex] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
-    } else if (cb->isOneExpressionOnlyVirtualArrowFunctionExpression()) {
-        registerFile[code->m_registerIndex] = new ScriptVirtualArrowFunctionObject(state, proto, cb, outerLexicalEnvironment);
     } else if (cb->isArrowFunctionExpression()) {
-        registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex]);
+        if (UNLIKELY(cb->isOneExpressionOnlyVirtualArrowFunctionExpression())) {
+            registerFile[code->m_registerIndex] = new ScriptVirtualArrowFunctionObject(state, proto, cb, outerLexicalEnvironment);
+        } else {
+            registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex]);
+        }
     } else if (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) {
         registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
     } else {
@@ -2779,6 +2781,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
         registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_fieldInitData.resize(code->m_fieldSize);
     } else {
         ASSERT(code->m_stage == InitializeClass::SetFieldData);
+        registerFile[code->m_propertyRegisterIndex] = registerFile[code->m_propertyRegisterIndex].toPropertyKey(state);
         registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_fieldInitData[code->m_fieldIndex] = std::make_pair(
             registerFile[code->m_propertyRegisterIndex],
             registerFile[code->m_valueRegisterIndex]);

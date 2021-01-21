@@ -134,8 +134,12 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
 void ScriptClassConstructorFunctionObject::initFieldMembers(ExecutionState& state, Object* instance)
 {
     size_t s = m_fieldInitData.size();
+    Object* homeObject = getFunctionPrototype(state).isObject() ? getFunctionPrototype(state).asObject() : nullptr;
     for (size_t i = 0; i < s; i++) {
-        Value v = Value(m_fieldInitData[i].second).asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(instance));
+        Value v = m_fieldInitData[i].second;
+        if (!v.isUndefined()) {
+            v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(instance), homeObject);
+        }
         instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, m_fieldInitData[i].first), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
 }
