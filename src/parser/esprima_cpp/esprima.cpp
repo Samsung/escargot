@@ -5591,7 +5591,7 @@ public:
             }
         }
 
-        if (kind == ClassElementNode::Kind::StaticField) {
+        if (kind == ClassElementNode::Kind::StaticField && !computed) {
             if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
                 this->throwError(Messages::InvalidClassFieldName);
             }

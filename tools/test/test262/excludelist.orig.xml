@@ -4284,8 +4284,6 @@
     <test id="language/statements/class/elements/derived-cls-direct-eval-contains-superproperty-2"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/direct-eval-err-contains-arguments"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/fields-anonymous-function-length"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/fields-computed-name-static-propname-constructor"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/fields-computed-name-static-propname-prototype"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/gen-private-method-static/yield-spread-arr-multiple"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/gen-private-method-static/yield-spread-arr-single"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/gen-private-method-static/yield-spread-obj"><reason>TODO</reason></test>
