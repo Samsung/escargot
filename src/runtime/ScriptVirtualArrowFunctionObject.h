@@ -25,10 +25,13 @@
 namespace Escargot {
 
 class ScriptVirtualArrowFunctionObject : public ScriptFunctionObject {
+    friend class ScriptVirtualArrowFunctionObjectPrototypeSetter;
+
 public:
     ScriptVirtualArrowFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment)
         : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, codeBlock->isGenerator(), codeBlock->isAsync())
     {
+        m_prototype = nullptr;
     }
 
     virtual bool isScriptVirtualArrowFunctionObject() const override
