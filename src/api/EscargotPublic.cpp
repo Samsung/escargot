@@ -2148,9 +2148,7 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceD
     SandBox::StackTraceDataVector stackTraceData;
     SandBox::createStackTraceData(stackTraceData, *state);
 
-    GCManagedVector<Evaluator::StackTraceData> result;
-
-    new (&result) GCManagedVector<Evaluator::StackTraceData>(stackTraceData.size());
+    GCManagedVector<Evaluator::StackTraceData> result(stackTraceData.size());
     ByteCodeLOCDataMap locMap;
     for (size_t i = 0; i < stackTraceData.size(); i++) {
         if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
