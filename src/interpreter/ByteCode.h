@@ -461,7 +461,11 @@ public:
     enum Stage {
         CreateClass,
         SetFieldSize,
-        SetFieldData
+        InitField,
+        SetFieldData,
+        InitStaticField,
+        SetStaticFieldData,
+        CleanupStaticData,
     };
 
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src)
@@ -475,25 +479,71 @@ public:
     {
     }
 
-    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldSize)
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldSize, const size_t staticFieldSize)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetFieldSize)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_fieldSize(fieldSize)
+        , m_staticFieldSize(staticFieldSize)
     {
     }
 
-    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, const size_t valueIndex)
+    enum InitFieldDataTag {
+        InitFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, InitFieldDataTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::InitField)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_initFieldIndex(fieldIndex)
+        , m_propertyInitRegisterIndex(propertyIndex)
+    {
+    }
+
+    enum SetFieldDataTag {
+        SetFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, SetFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetFieldData)
         , m_classConstructorRegisterIndex(classRegisterIndex)
-        , m_fieldIndex(fieldIndex)
-        , m_propertyRegisterIndex(propertyIndex)
-        , m_valueRegisterIndex(valueIndex)
+        , m_setFieldIndex(fieldIndex)
+        , m_propertySetRegisterIndex(propertyIndex)
     {
     }
 
-    Stage m_stage : 2;
+    enum InitStaticFieldDataTag {
+        InitStaticFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, InitStaticFieldDataTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::InitStaticField)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_staticFieldInitIndex(fieldIndex)
+        , m_staticPropertyInitRegisterIndex(propertyIndex)
+    {
+    }
+
+    enum SetStaticFieldDataTag {
+        SetStaticFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t valueIndex, SetStaticFieldDataTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::SetStaticFieldData)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_staticFieldSetIndex(fieldIndex)
+        , m_staticPropertySetRegisterIndex(valueIndex)
+    {
+    }
+
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::CleanupStaticData)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+    {
+    }
+
+    Stage m_stage : 3;
     ByteCodeRegisterIndex m_classConstructorRegisterIndex : 16;
     union {
         struct {
@@ -504,12 +554,24 @@ public:
         }; // CreateClass
         struct {
             size_t m_fieldSize;
+            size_t m_staticFieldSize;
         }; // SetFieldSize
         struct {
-            size_t m_fieldIndex;
-            ByteCodeRegisterIndex m_propertyRegisterIndex : 16;
-            ByteCodeRegisterIndex m_valueRegisterIndex : 16;
+            size_t m_initFieldIndex;
+            ByteCodeRegisterIndex m_propertyInitRegisterIndex : 16;
+        }; // InitField
+        struct {
+            size_t m_setFieldIndex;
+            ByteCodeRegisterIndex m_propertySetRegisterIndex : 16;
         }; // SetFieldData
+        struct {
+            size_t m_staticFieldInitIndex;
+            ByteCodeRegisterIndex m_staticPropertyInitRegisterIndex : 16;
+        }; // InitStaticField
+        struct {
+            size_t m_staticFieldSetIndex;
+            ByteCodeRegisterIndex m_staticPropertySetRegisterIndex : 16;
+        }; // SetStaticFieldData
     };
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -522,9 +584,17 @@ public:
             }
         } else if (m_stage == Stage::SetFieldSize) {
             printf("set field size r%d -> %d", (int)m_classConstructorRegisterIndex, (int)m_fieldSize);
+        } else if (m_stage == Stage::InitField) {
+            printf("init field r%d[%d, r%d]", (int)m_classConstructorRegisterIndex, (int)m_initFieldIndex, (int)m_propertyInitRegisterIndex);
+        } else if (m_stage == Stage::SetFieldData) {
+            printf("set field data r%d[%d] = r%d", (int)m_classConstructorRegisterIndex, (int)m_setFieldIndex, (int)m_propertySetRegisterIndex);
+        } else if (m_stage == Stage::InitStaticField) {
+            printf("init static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertyInitRegisterIndex);
+        } else if (m_stage == Stage::SetStaticFieldData) {
+            printf("set static field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertyInitRegisterIndex);
         } else {
-            ASSERT(m_stage == Stage::SetFieldData);
-            printf("set field data r%d.r%d = r%d", (int)m_classConstructorRegisterIndex, (int)m_propertyRegisterIndex, (int)m_valueRegisterIndex);
+            ASSERT(m_stage == Stage::CleanupStaticData);
+            printf("cleanup static field data r%d", (int)m_classConstructorRegisterIndex);
         }
     }
 #endif
