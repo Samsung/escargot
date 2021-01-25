@@ -266,7 +266,7 @@ std::string ICU::findSystemTimezoneName()
             // We don't want a line feed on the end.
             char *tag = strtok_r(lasts, " \t\n", &lasts);
             // Idiot check.
-            if (tag && strlen(tag) > 0 && tag[0] != '#') {
+            if (tag && strlen(tag) > 0 && strlen(tag) < (tzSize - 1) && tag[0] != '#') {
                 strncpy(tz, tag, sizeof tz);
                 fclose(fd);
                 return tz;
