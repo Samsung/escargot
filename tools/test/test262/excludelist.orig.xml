@@ -2203,7 +2203,6 @@
     <test id="language/expressions/class/elements/gen-private-method/yield-spread-arr-single"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/gen-private-method/yield-spread-obj"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/grammar-private-field-optional-chaining"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/intercalated-static-non-static-computed-fields"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-grammar-privatename-identifier-semantics-stringvalue"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-private-field-usage"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/multiple-definitions-private-method-getter-usage"><reason>TODO</reason></test>
@@ -4248,7 +4247,6 @@
     <test id="language/statements/class/elements/get-access-of-missing-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/get-access-of-missing-shadowed-private-getter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/grammar-private-field-optional-chaining"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/intercalated-static-non-static-computed-fields"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-grammar-privatename-identifier-semantics-stringvalue"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-private-field-usage"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/multiple-definitions-private-method-getter-usage"><reason>TODO</reason></test>

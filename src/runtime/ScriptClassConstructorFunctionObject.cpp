@@ -56,7 +56,7 @@ public:
         if (self->constructorKind() == ScriptFunctionObject::ConstructorKind::Base) {
             FunctionEnvironmentRecord* r = calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
             r->bindThisValue(calleeState, thisArgument);
-            r->functionObject()->asScriptClassConstructorFunctionObject()->initFieldMembers(calleeState, thisArgument.asObject());
+            r->functionObject()->asScriptClassConstructorFunctionObject()->initInstanceFieldMembers(calleeState, thisArgument.asObject());
         }
 
         return thisArgument;
@@ -131,16 +131,16 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
         .asObject();
 }
 
-void ScriptClassConstructorFunctionObject::initFieldMembers(ExecutionState& state, Object* instance)
+void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionState& state, Object* instance)
 {
-    size_t s = m_fieldInitData.size();
+    size_t s = m_instanceFieldInitData.size();
     Object* homeObject = getFunctionPrototype(state).isObject() ? getFunctionPrototype(state).asObject() : nullptr;
     for (size_t i = 0; i < s; i++) {
-        Value v = m_fieldInitData[i].second;
+        Value v = m_instanceFieldInitData[i].second;
         if (!v.isUndefined()) {
             v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(instance), homeObject);
         }
-        instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, m_fieldInitData[i].first), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, m_instanceFieldInitData[i].first), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
 }
 } // namespace Escargot

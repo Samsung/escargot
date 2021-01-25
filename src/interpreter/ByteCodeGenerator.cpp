@@ -705,9 +705,14 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             if (cd->m_stage == InitializeClass::CreateClass) {
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_classPrototypeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_superClassRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            } else if (cd->m_stage == InitializeClass::InitField) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyInitRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             } else if (cd->m_stage == InitializeClass::SetFieldData) {
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertySetRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            } else if (cd->m_stage == InitializeClass::InitStaticField) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_staticPropertyInitRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            } else if (cd->m_stage == InitializeClass::SetStaticFieldData) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_staticPropertySetRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }
             break;
         }

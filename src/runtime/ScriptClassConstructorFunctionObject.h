@@ -69,7 +69,7 @@ public:
     }
 
 private:
-    void initFieldMembers(ExecutionState& state, Object* instance);
+    void initInstanceFieldMembers(ExecutionState& state, Object* instance);
 
     virtual size_t functionPrototypeIndex() override
     {
@@ -79,7 +79,8 @@ private:
     Object* m_homeObject;
     // We needs to store class source code for toString(). because class constructor stores its source code
     String* m_classSourceCode;
-    TightVector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>> m_fieldInitData;
+    TightVector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>> m_instanceFieldInitData;
+    VectorWithNoSize<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> m_staticFieldInitData;
 };
 } // namespace Escargot
 
