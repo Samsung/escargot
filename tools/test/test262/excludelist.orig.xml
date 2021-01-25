@@ -591,8 +591,6 @@
     <test id="built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value-negated"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.match/builtin-infer-unicode"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.replace/result-coerce-groups"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.replace/result-coerce-groups-err"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.search/u-lastindex-advance"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.split/u-lastindex-adv-thru-match"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/exec/u-lastindex-adv"><reason>TODO</reason></test>

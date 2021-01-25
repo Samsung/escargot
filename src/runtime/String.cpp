@@ -983,6 +983,10 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
     size_t m = captures.size();
     StringBuilder builder;
     bool twodigit = false;
+    Object* namedCaptureObj = nullptr;
+    if (!namedCapture.isUndefined()) {
+        namedCaptureObj = namedCapture.toObject(state);
+    }
 
     // dollar replace
     for (size_t i = 0; i < replacement->length(); i++) {
@@ -1035,9 +1039,9 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                     namedCaptureEnd++;
                     temp2 = replacement->charAt(namedCaptureEnd);
                 }
-                if (ValidNamedCapturedGroup) {
+                if (ValidNamedCapturedGroup && namedCaptureObj) {
                     String* groupName = replacement->substring((i + 2), (namedCaptureEnd));
-                    Value capture = namedCapture.asObject()->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
+                    Value capture = namedCaptureObj->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
                     if (!capture.isUndefined()) {
                         builder.appendString(capture.toString(state));
                     }
