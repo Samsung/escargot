@@ -95,7 +95,10 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     // Let (store, ret) be the result of func_invoke(store, funcaddr, args).
     // If ret is error, throw an exception. This exception should be a WebAssembly RuntimeError exception, unless otherwise indicated by the WebAssembly error mapping.
     if (own wasm_trap_t* trap = wasm_func_call(funcaddr, args.data, ret.data)) {
-        // TODO handle error message from trap
+        own wasm_name_t message;
+        wasm_trap_message(trap, &message);
+        ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
+        wasm_name_delete(&message);
         wasm_trap_delete(trap);
         ErrorObject::throwBuiltinError(state, ErrorObject::WASMRuntimeError, ErrorObject::Messages::WASM_FuncCallError);
         return Value();

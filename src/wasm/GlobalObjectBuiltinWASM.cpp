@@ -291,8 +291,11 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
     own wasm_instance_t* instance = wasm_instance_new(state.context()->vmInstance()->wasmStore(), module, imports.data, &trap);
     wasm_extern_vec_delete(&imports);
 
-    // TODO error exception
     if (!instance) {
+        own wasm_name_t message;
+        wasm_trap_message(trap, &message);
+        ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
+        wasm_name_delete(&message);
         wasm_trap_delete(trap);
         ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
