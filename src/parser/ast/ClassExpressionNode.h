@@ -78,8 +78,6 @@ public:
             codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src), context, this);
         }
 
-        m_class.classBody()->generateClassInitializer(codeBlock, context, dstIndex);
-
         // add class name property if there is no 'name' static member
         if (!m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
             // we don't need to root class name string because it is AtomicString
@@ -92,6 +90,8 @@ public:
                                 context, this);
             context->giveUpRegister();
         }
+
+        m_class.classBody()->generateClassInitializer(codeBlock, context, dstIndex);
 
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
             // Initialize class name
