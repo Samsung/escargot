@@ -2187,10 +2187,6 @@
     <test id="language/expressions/class/elements/async-gen-private-method/yield-star-sync-next"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/async-gen-private-method/yield-star-sync-return"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/async-gen-private-method/yield-star-sync-throw"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/class-name-static-initializer-anonymous"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/class-name-static-initializer-decl"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/class-name-static-initializer-default-export"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/class-name-static-initializer-expr"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/derived-cls-direct-eval-contains-superproperty-1"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/derived-cls-direct-eval-contains-superproperty-2"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/direct-eval-err-contains-arguments"><reason>TODO</reason></test>
@@ -3197,7 +3193,6 @@
     <test id="language/statements/block/tco-stmt"><reason>TODO</reason></test>
     <test id="language/statements/block/tco-stmt-list"><reason>TODO</reason></test>
     <test id="language/statements/class/definition/early-errors-class-method-await-in-formals-default"><reason>TODO</reason></test>
-    <test id="language/statements/class/definition/fn-name-static-precedence"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-init-iter-no-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-name-iter-val"><reason>TODO</reason></test>
