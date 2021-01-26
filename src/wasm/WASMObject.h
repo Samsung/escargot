@@ -30,6 +30,8 @@ struct wasm_global_t;
 struct wasm_functype_t;
 struct wasm_ref_t;
 
+#define WASMEmptyBlockAddress (void*)0x2u
+
 namespace Escargot {
 
 struct WASMHostFunctionEnvironment : public gc {
