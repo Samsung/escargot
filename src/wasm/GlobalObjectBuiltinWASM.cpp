@@ -387,9 +387,9 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
 
     // Create a memory buffer from memaddr
     ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
-    // FIXME wasm_memory_data with zero size returns null pointer
-    // temporal address is allocated by calloc for this case
-    void* dataBlock = initial == 0 ? calloc(0, 0) : wasm_memory_data(memaddr);
+    // Note) wasm_memory_data with zero size returns null pointer
+    // predefined temporal address is allocated for this case
+    void* dataBlock = initial == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
     buffer->attachBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyMemoryPrototype%").
@@ -460,10 +460,10 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
 
     // Let buffer be a the result of creating a memory buffer from memaddr.
     ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
-    // FIXME wasm_memory_data with zero size returns null pointer
-    // temporal address is allocated by calloc for this case
+    // Note) wasm_memory_data with zero size returns null pointer
+    // predefined temporal address is allocated for this case
     size_t dataSize = wasm_memory_data_size(memaddr);
-    void* dataBlock = dataSize == 0 ? calloc(0, 0) : wasm_memory_data(memaddr);
+    void* dataBlock = dataSize == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
     buffer->attachBuffer(state, dataBlock, dataSize);
 
     // Set memory.[[BufferObject]] to buffer.

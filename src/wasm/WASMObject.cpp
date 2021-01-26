@@ -174,9 +174,9 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
     // Initialize memory from memory.
     ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
 
-    // FIXME wasm_memory_data with zero size returns null pointer
-    // temporal address is allocated by calloc for this case
-    void* dataBlock = wasm_memory_size(memory) == 0 ? calloc(0, 0) : wasm_memory_data(memory);
+    // Note) wasm_memory_data with zero size returns null pointer
+    // predefined temporal address is allocated for this case
+    void* dataBlock = wasm_memory_size(memory) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memory);
     buffer->attachBuffer(state, dataBlock, wasm_memory_data_size(memory));
 
     // Set memory.[[Memory]] to memory.
