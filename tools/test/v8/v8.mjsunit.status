@@ -901,6 +901,9 @@
   'global-accessors': [SKIP],
   'accessors-on-global-object': [SKIP],
 
+  # class property order is changed
+  'es6/computed-property-names-classes': [SKIP],
+
   # Unicode spec changed
   'whitespaces': [SKIP],
 

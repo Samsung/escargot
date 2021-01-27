@@ -55,7 +55,12 @@ public:
         context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = hasSuper ? context->getRegister() : SIZE_MAX;
 
-        context->m_classInfo.m_name = classIdent->asIdentifier()->name();
+        // add class name property if there is no 'name' static member
+        if (m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
+            context->m_classInfo.m_name = Optional<AtomicString>();
+        } else {
+            context->m_classInfo.m_name = classIdent->asIdentifier()->name();
+        }
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
 
@@ -78,19 +83,9 @@ public:
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
-            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src), context, this);
-        }
-
-        // add class name property if there is no 'name' static member
-        if (!m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
-            size_t nameRegister = context->getRegister();
-            // we don't need to root class name string because it is AtomicString
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(context->m_classInfo.m_name.string())), context, this);
-            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), classIndex,
-                                                                         codeBlock->m_codeBlock->context()->staticStrings().name,
-                                                                         nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
+            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_prototypeIndex,
+                                                context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src, context->m_classInfo.m_name),
                                 context, this);
-            context->giveUpRegister();
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, classIndex);

@@ -39,7 +39,7 @@ struct ClassContextInformation {
         , m_constructorIndex(SIZE_MAX)
         , m_prototypeIndex(SIZE_MAX)
         , m_superIndex(SIZE_MAX)
-        , m_name(AtomicString())
+        , m_name()
         , m_src(String::emptyString)
     {
     }
@@ -48,7 +48,7 @@ struct ClassContextInformation {
     size_t m_constructorIndex;
     size_t m_prototypeIndex;
     size_t m_superIndex;
-    AtomicString m_name;
+    Optional<AtomicString> m_name;
     String* m_src;
 };
 

@@ -2751,21 +2751,26 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
 
         ScriptClassConstructorFunctionObject* constructor;
 
+        Optional<AtomicString> name;
+        if (code->m_name) {
+            name = AtomicString(state, code->m_name);
+        }
+
         if (code->m_codeBlock) {
-            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc);
+            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc, name);
         } else {
             if (!heritagePresent) {
                 Value argv[] = { String::emptyString, String::emptyString };
                 auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
                 functionSource.codeBlock->setAsClassConstructor();
-                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc, name);
             } else {
                 Value argv[] = { state.context()->staticStrings().lazyDotDotDotArgs().string(),
                                  state.context()->staticStrings().lazySuperDotDotDotArgs().string() };
                 auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
                 functionSource.codeBlock->setAsClassConstructor();
                 functionSource.codeBlock->setAsDerivedClassConstructor();
-                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc);
+                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc, name);
             }
         }
 

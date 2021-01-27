@@ -468,7 +468,8 @@ public:
         CleanupStaticData,
     };
 
-    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex, const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src)
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex,
+                    const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src, const Optional<AtomicString>& name)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::CreateClass)
         , m_classConstructorRegisterIndex(classRegisterIndex)
@@ -476,6 +477,7 @@ public:
         , m_superClassRegisterIndex(superClassRegisterIndex)
         , m_codeBlock(cb)
         , m_classSrc(src)
+        , m_name(name ? name.value().string() : nullptr)
     {
     }
 
@@ -551,6 +553,7 @@ public:
             ByteCodeRegisterIndex m_superClassRegisterIndex : 16;
             InterpretedCodeBlock* m_codeBlock;
             String* m_classSrc;
+            String* m_name;
         }; // CreateClass
         struct {
             size_t m_fieldSize;
