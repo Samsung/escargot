@@ -25,19 +25,32 @@
 #include "runtime/ScriptVirtualArrowFunctionObject.h"
 
 namespace Escargot {
-ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode)
-    : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, 2)
+ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name)
+    : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, name ? 3 : 2)
     , m_homeObject(homeObject)
     , m_classSourceCode(classSourceCode)
 {
     ASSERT(!codeBlock->isGenerator()); // Class constructor may not be a generator
 
-    m_structure = state.context()->defaultStructureForClassConstructorFunctionObject();
+    if (name) {
+        m_structure = state.context()->defaultStructureForClassConstructorFunctionObjectWithName();
+        m_prototypeIndex = 2;
 
-    ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
-    ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionLength()));
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = ObjectPropertyValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
+        ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
+        ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
+        ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2 < m_structure->propertyCount());
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionLength()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = name.value().string();
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = ObjectPropertyValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
+    } else {
+        m_structure = state.context()->defaultStructureForClassConstructorFunctionObject();
+        m_prototypeIndex = 1;
+
+        ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0 < m_structure->propertyCount());
+        ASSERT(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1 < m_structure->propertyCount());
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionLength()));
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = ObjectPropertyValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
+    }
 }
 
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
@@ -143,4 +156,14 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
         instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, m_instanceFieldInitData[i].first), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
 }
+
+bool ScriptClassConstructorFunctionObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
+{
+    bool ret = ScriptFunctionObject::deleteOwnProperty(state, P);
+    if (ret && !P.isUIntType() && P.objectStructurePropertyName() == state.context()->staticStrings().name) {
+        m_prototypeIndex = m_structure->findProperty(state.context()->staticStrings().name).first;
+    }
+    return ret;
+}
+
 } // namespace Escargot

@@ -197,6 +197,11 @@ public:
         return m_defaultStructureForClassConstructorFunctionObject;
     }
 
+    ObjectStructure* defaultStructureForClassConstructorFunctionObjectWithName()
+    {
+        return m_defaultStructureForClassConstructorFunctionObjectWithName;
+    }
+
     ObjectStructure* defaultStructureForStringObject()
     {
         return m_defaultStructureForStringObject;
@@ -333,6 +338,7 @@ private:
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
+    ObjectStructure* m_defaultStructureForClassConstructorFunctionObjectWithName;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;

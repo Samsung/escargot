@@ -52,7 +52,12 @@ public:
         context->m_classInfo.m_constructorIndex = dstIndex;
         context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = hasSuper ? context->getRegister() : SIZE_MAX;
-        context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : AtomicString();
+        // add class name property if there is no 'name' static member
+        if (m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
+            context->m_classInfo.m_name = Optional<AtomicString>();
+        } else {
+            context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : m_implicitName;
+        }
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
 
@@ -75,20 +80,9 @@ public:
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, dstIndex);
         } else {
-            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex, context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src), context, this);
-        }
-
-        // add class name property if there is no 'name' static member
-        if (!m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
-            // we don't need to root class name string because it is AtomicString
-            AtomicString className = context->m_classInfo.m_name.string()->length() ? context->m_classInfo.m_name : m_implicitName;
-            size_t nameRegister = context->getRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), nameRegister, Value(className.string())), context, this);
-            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstIndex,
-                                                                         codeBlock->m_codeBlock->context()->staticStrings().name,
-                                                                         nameRegister, ObjectPropertyDescriptor::ConfigurablePresent),
+            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex,
+                                                context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src, context->m_classInfo.m_name),
                                 context, this);
-            context->giveUpRegister();
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, dstIndex);

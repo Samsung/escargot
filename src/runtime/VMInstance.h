@@ -296,6 +296,7 @@ private:
     ObjectStructure* m_defaultStructureForFunctionPrototypeObject;
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
+    ObjectStructure* m_defaultStructureForClassConstructorFunctionObjectWithName;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;

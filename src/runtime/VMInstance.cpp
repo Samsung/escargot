@@ -224,6 +224,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForFunctionPrototypeObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForBoundFunctionObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForClassConstructorFunctionObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForClassConstructorFunctionObjectWithName));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForStringObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForRegExpObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
@@ -434,6 +435,15 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 
     m_defaultStructureForClassConstructorFunctionObject = m_defaultStructureForClassConstructorFunctionObject->addProperty(m_staticStrings.prototype,
                                                                                                                            ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
+
+    m_defaultStructureForClassConstructorFunctionObjectWithName = m_defaultStructureForObject->addProperty(m_staticStrings.length,
+                                                                                                           ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForClassConstructorFunctionObjectWithName = m_defaultStructureForClassConstructorFunctionObjectWithName->addProperty(m_staticStrings.name,
+                                                                                                                                           ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForClassConstructorFunctionObjectWithName = m_defaultStructureForClassConstructorFunctionObjectWithName->addProperty(m_staticStrings.prototype,
+                                                                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
 
 
     m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&stringLengthGetterSetterData));

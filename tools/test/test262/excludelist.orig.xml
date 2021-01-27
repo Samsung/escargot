@@ -1097,9 +1097,6 @@
     <test id="language/comments/hashbang/preceding-multi-line-comment"><reason>TODO</reason></test>
     <test id="language/comments/hashbang/preceding-whitespace"><reason>TODO</reason></test>
     <test id="language/comments/hashbang/use-strict"><reason>TODO</reason></test>
-    <test id="language/computed-property-names/class/static/method-number"><reason>TODO</reason></test>
-    <test id="language/computed-property-names/class/static/method-string"><reason>TODO</reason></test>
-    <test id="language/computed-property-names/class/static/method-symbol"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-implements-escaped"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-interface-escaped"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-package-escaped"><reason>TODO</reason></test>
