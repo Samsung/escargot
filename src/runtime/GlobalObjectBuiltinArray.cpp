@@ -1846,6 +1846,20 @@ static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, si
     return iter->next(state);
 }
 
+static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Array, entries);
+    size_t len = obj->length(state);
+    double relativeStart = argv[0].toInteger(state);
+    if (relativeStart < 0) {
+        relativeStart = len + relativeStart;
+    }
+    if (relativeStart < 0 || relativeStart >= len) {
+        return Value();
+    }
+    return obj->getIndexedProperty(state, Value(relativeStart)).value(state, thisValue);
+}
+
 void GlobalObject::installArray(ExecutionState& state)
 {
     m_array = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -1930,11 +1944,14 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().flat, builtinArrayFlat, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().flatMap),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().flatMap, builtinArrayFlatMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().at),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().at, builtinArrayAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     Object* blackList = new Object(state);
     blackList->markThisObjectDontNeedStructureTransitionTable();
     blackList->setPrototype(state, Value(Value::Null));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().at), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().copyWithin), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().entries), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fill), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
