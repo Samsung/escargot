@@ -1519,6 +1519,19 @@ static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t 
     return str->substring(intStart, intStart + resultLength);
 }
 
+static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
+    size_t len = str->length();
+    double relativeStart = argv[0].toInteger(state);
+    if (relativeStart < 0) {
+        relativeStart = len + relativeStart;
+    }
+    if (relativeStart < 0 || relativeStart >= len) {
+        return Value();
+    }
+    return String::fromCharCode(str->charAt(relativeStart));
+}
 
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                                    \
     static Value builtinString##fnName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
@@ -1753,6 +1766,10 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinStringIterator, 0, NativeFunctionInfo::Strict)),
+                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->at),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->at, builtinStringAt, 1, NativeFunctionInfo::Strict)),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, argLength)                                                                                                                                                    \

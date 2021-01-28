@@ -1607,6 +1607,21 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
     return Value();
 }
 
+static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    validateTypedArray(state, thisValue, state.context()->staticStrings().TypedArray.string());
+    Object* obj = thisValue.asObject();
+    size_t len = obj->length(state);
+    double relativeStart = argv[0].toInteger(state);
+    if (relativeStart < 0) {
+        relativeStart = len + relativeStart;
+    }
+    if (relativeStart < 0 || relativeStart >= len) {
+        return Value();
+    }
+    return obj->getIndexedProperty(state, Value(relativeStart)).value(state, thisValue);
+}
+
 template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
@@ -1713,6 +1728,9 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->keys, builtinTypedArrayKeys, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->entries),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->entries, builtinTypedArrayEntries, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->at),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->at, builtinTypedArrayAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(strings->values, builtinTypedArrayValues, 0, NativeFunctionInfo::Strict));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->values),

@@ -142,6 +142,7 @@ namespace Escargot {
     F(asinh)                      \
     F(assign)                     \
     F(asyncIterator)              \
+    F(at)                         \
     F(atan)                       \
     F(atan2)                      \
     F(atanh)                      \
