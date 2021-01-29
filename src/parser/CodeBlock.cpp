@@ -213,6 +213,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
+    , m_allowArguments(false)
 #ifndef NDEBUG
     , m_scopeContext(scopeCtx)
 #endif
@@ -268,6 +269,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
+    , m_allowArguments(false)
 #ifndef NDEBUG
     , m_scopeContext(scopeCtx)
 #endif
@@ -323,6 +325,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_hasParameterOtherThanIdentifier(false)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
+    , m_allowArguments(false)
 #ifndef NDEBUG
     , m_scopeContext(nullptr)
 #endif
@@ -353,6 +356,7 @@ void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bo
 
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
+    m_allowArguments = scopeCtx->m_allowArguments;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
@@ -402,6 +406,7 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
 
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
+    m_allowArguments = scopeCtx->m_allowArguments;
 
     const AtomicStringTightVector& parameterNames = scopeCtx->m_parameters;
     if (parameterNames.size() > 0) {

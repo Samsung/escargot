@@ -214,7 +214,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     m_buffer.put(codeBlock->m_functionBodyBlockIndex);
     m_buffer.put(codeBlock->m_lexicalBlockIndexFunctionLocatedIn);
 
-    m_buffer.ensureSize(29 * sizeof(bool));
+    m_buffer.ensureSize(30 * sizeof(bool));
     m_buffer.put(codeBlock->m_isFunctionNameSaveOnHeap);
     m_buffer.put(codeBlock->m_isFunctionNameExplicitlyDeclared);
     m_buffer.put(codeBlock->m_canUseIndexedVariableStorage);
@@ -244,6 +244,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     m_buffer.put(codeBlock->m_hasParameterOtherThanIdentifier);
     m_buffer.put(codeBlock->m_allowSuperCall);
     m_buffer.put(codeBlock->m_allowSuperProperty);
+    m_buffer.put(codeBlock->m_allowArguments);
 
     // InterpretedCodeBlockWithRareData
     if (UNLIKELY(hasRareData)) {
@@ -734,6 +735,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     codeBlock->m_hasParameterOtherThanIdentifier = m_buffer.get<bool>();
     codeBlock->m_allowSuperCall = m_buffer.get<bool>();
     codeBlock->m_allowSuperProperty = m_buffer.get<bool>();
+    codeBlock->m_allowArguments = m_buffer.get<bool>();
 
     // InterpretedCodeBlockWithRareData
     if (UNLIKELY(hasRareData)) {

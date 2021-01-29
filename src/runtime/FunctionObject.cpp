@@ -122,7 +122,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     try {
         srcToTest.appendString("\n) { }");
         String* cur = srcToTest.finalize(&state);
-        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, false, SIZE_MAX, false, false, true);
+        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), false, false, false, SIZE_MAX, false, false, true, true);
 
         // reset ASTAllocator
         state.context()->astAllocator().reset();
