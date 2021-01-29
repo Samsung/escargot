@@ -601,6 +601,11 @@ public:
         return m_allowSuperProperty;
     }
 
+    bool allowArguments() const
+    {
+        return m_allowArguments;
+    }
+
     bool isFunctionNameSaveOnHeap() const
     {
         return m_isFunctionNameSaveOnHeap;
@@ -843,6 +848,7 @@ protected:
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
+    bool m_allowArguments : 1;
 
 #ifndef NDEBUG
     ASTScopeContext* m_scopeContext;

@@ -3052,6 +3052,7 @@ public:
 
                 this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
                 this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
+                this->currentScopeContext->m_allowArguments = this->context->allowArguments;
 
                 this->currentScopeContext->m_functionStartLOC.index = startNode.index;
                 this->currentScopeContext->m_functionStartLOC.column = startNode.column;
@@ -3257,6 +3258,7 @@ public:
             this->currentScopeContext->m_functionStartLOC.line = startNode.line;
             this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
             this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
+            this->currentScopeContext->m_allowArguments = this->context->allowArguments;
 
             this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
@@ -6412,7 +6414,8 @@ public:
     }
 };
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside)
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside,
+                          bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
@@ -6426,6 +6429,7 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isMo
     parser.context->allowSuperCall = allowSuperCallFromOutside;
     parser.context->allowSuperProperty = allowSuperPropertyFromOutside;
     parser.context->allowNewTarget = allowNewTargetFromOutside;
+    parser.context->allowArguments = allowArgumentsFromOutside;
 
     ProgramNode* nd = parser.parseProgram(builder);
     return nd;

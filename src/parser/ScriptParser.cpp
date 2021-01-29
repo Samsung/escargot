@@ -284,13 +284,14 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
     bool allowSC = (parentCodeBlock ? parentCodeBlock->allowSuperCall() : false) || allowSuperCall;
     bool allowSP = (parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false) || allowSuperProperty;
+    bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
 
     // Parsing
     try {
         InterpretedCodeBlock* topCodeBlock = nullptr;
         StringView sourceView(source, 0, source->length());
 
-        ProgramNode* programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget);
+        ProgramNode* programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
 
         Script* script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
@@ -303,6 +304,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
             programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
             programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
             programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
+            programNode->scopeContext()->m_allowArguments = parentCodeBlock->allowArguments();
             topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, sourceView, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
             generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
         } else {
@@ -447,13 +449,14 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
     bool allowSC = (parentCodeBlock ? parentCodeBlock->allowSuperCall() : false) || allowSuperCall;
     bool allowSP = (parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false) || allowSuperProperty;
+    bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
 
     // Parsing
     try {
         InterpretedCodeBlock* topCodeBlock = nullptr;
         StringView sourceView(source, 0, source->length());
 
-        ProgramNode* programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget);
+        ProgramNode* programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget, allowArguments);
 
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
             m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_SOURCE_8BIT, source);

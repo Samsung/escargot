@@ -198,6 +198,7 @@ struct ASTScopeContext {
     bool m_hasParameterOtherThanIdentifier : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
+    bool m_allowArguments : 1;
     bool m_needRareData : 1;
     unsigned int m_nodeType : 2; // it is actually NodeType but used on FunctionExpression, ArrowFunctionExpression and FunctionDeclaration only
     unsigned int m_functionLength : 16; // represent the number of consecutive identifier parameters from the start of parameter list (function length)
@@ -574,6 +575,7 @@ struct ASTScopeContext {
         , m_hasParameterOtherThanIdentifier(false)
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
+        , m_allowArguments(true)
         , m_needRareData(false)
         , m_nodeType(ASTNodeType::Program)
         , m_functionLength(0)
