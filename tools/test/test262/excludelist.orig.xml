@@ -2184,8 +2184,6 @@
     <test id="language/expressions/class/elements/async-gen-private-method/yield-star-sync-next"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/async-gen-private-method/yield-star-sync-return"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/async-gen-private-method/yield-star-sync-throw"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-direct-eval-contains-superproperty-1"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/derived-cls-direct-eval-contains-superproperty-2"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/direct-eval-err-contains-arguments"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/fields-anonymous-function-length"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/fields-multiple-definitions-static-private-methods-proxy"><reason>TODO</reason></test>
@@ -4226,8 +4224,6 @@
     <test id="language/statements/class/elements/async-gen-private-method/yield-star-sync-next"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/async-gen-private-method/yield-star-sync-return"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/async-gen-private-method/yield-star-sync-throw"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-direct-eval-contains-superproperty-1"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/derived-cls-direct-eval-contains-superproperty-2"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/direct-eval-err-contains-arguments"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/fields-anonymous-function-length"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/gen-private-method-static/yield-spread-arr-multiple"><reason>TODO</reason></test>

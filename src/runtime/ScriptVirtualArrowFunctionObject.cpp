@@ -32,27 +32,11 @@ public:
     }
 };
 
-class ScriptVirtualArrowFunctionObjectPrototypeSetter {
-public:
-    ScriptVirtualArrowFunctionObjectPrototypeSetter(ScriptVirtualArrowFunctionObject* object, Object* proto)
-        : m_object(object)
-    {
-        ASSERT(!m_object->hasRareData());
-        m_object->m_prototype = proto;
-    }
-
-    ~ScriptVirtualArrowFunctionObjectPrototypeSetter()
-    {
-        m_object->m_prototype = nullptr;
-    }
-
-private:
-    ScriptVirtualArrowFunctionObject* m_object;
-};
-
 Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, Object* homeObject)
 {
-    ScriptVirtualArrowFunctionObjectPrototypeSetter p(this, homeObject);
+    // we should retain homeObject because sub functions can use this later
+    ASSERT(m_prototype == nullptr || m_prototype == homeObject);
+    m_prototype = homeObject;
     return FunctionObjectProcessCallGenerator::processCall<ScriptVirtualArrowFunctionObject, false, false, false, ScriptVirtualArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, 0, nullptr, nullptr);
 }
 

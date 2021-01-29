@@ -2795,12 +2795,17 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
         auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
         classConsturctor->m_staticFieldInitData[code->m_staticFieldInitIndex] = registerFile[code->m_staticPropertyInitRegisterIndex];
     } else if (code->m_stage == InitializeClass::SetStaticFieldData) {
-        ASSERT(code->m_stage == InitializeClass::SetStaticFieldData);
         auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
+
+        Value v = registerFile[code->m_staticPropertySetRegisterIndex];
+        if (!v.isUndefined()) {
+            v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConsturctor), classConsturctor);
+        }
         classConsturctor->defineOwnPropertyThrowsException(state,
                                                            ObjectPropertyName(state, classConsturctor->m_staticFieldInitData[code->m_staticFieldSetIndex]),
-                                                           ObjectPropertyDescriptor(registerFile[code->m_staticPropertySetRegisterIndex], ObjectPropertyDescriptor::AllPresent));
-    } else if (code->m_stage == InitializeClass::CleanupStaticData) {
+                                                           ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+    } else {
+        ASSERT(code->m_stage == InitializeClass::CleanupStaticData);
         auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
         classConsturctor->m_staticFieldInitData.clear();
     }
@@ -2885,26 +2890,14 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
         char* codeBuffer = byteCodeBlock->m_code.data();
 
         // setup new env
-        if (code->m_kind == OpenLexicalEnvironment::WithStatement) {
-            EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_withOrThisRegisterIndex].toObject(*state));
-            newEnv = new LexicalEnvironment(newRecord, env);
-        } else if (code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInitWithHeapEnv) {
-            EnvironmentRecord* newRecord = new DeclarativeEnvironmentWithHomeObject(registerFile[code->m_withOrThisRegisterIndex].asObject());
-            newEnv = new LexicalEnvironment(newRecord, env);
-        } else {
-            ASSERT(code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInit);
-            EnvironmentRecord* newRecord = new (alloca(sizeof(DeclarativeEnvironmentWithHomeObject)))
-                DeclarativeEnvironmentWithHomeObject(registerFile[code->m_withOrThisRegisterIndex].asObject());
-            newEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(newRecord, env);
-        }
+        ASSERT(code->m_kind == OpenLexicalEnvironment::WithStatement);
+        EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_withOrThisRegisterIndex].toObject(*state));
+        newEnv = new LexicalEnvironment(newRecord, env);
     } else {
         newEnv = nullptr;
     }
 
-    bool shouldUseHeapAllocatedState = true;
-    if (inPauserResumeProcess || code->m_kind == OpenLexicalEnvironment::ClassStaticFieldInit) {
-        shouldUseHeapAllocatedState = false;
-    }
+    bool shouldUseHeapAllocatedState = !inPauserResumeProcess;
 
     ExecutionState* newState;
 
@@ -3199,7 +3192,10 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
                 if (argc) {
                     arg = argv[0];
                 }
-                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, registerFile[code->m_receiverOrThisIndex], byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(), code->m_inWithScope);
+
+                registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, registerFile[code->m_receiverOrThisIndex],
+                                                                                               byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(),
+                                                                                               code->m_inWithScope);
             } else {
                 Value thisValue;
                 if (code->m_inWithScope) {

@@ -216,7 +216,8 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
     return arg;
 }
 
-Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation)
+Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue,
+                              InterpretedCodeBlock* parentCodeBlock, bool inWithOperation)
 {
     if (arg.isString()) {
         if (UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
@@ -256,7 +257,10 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
 
-        Script* script = parser.initializeScript(arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), parentCodeBlock, false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(), parentCodeBlock->allowSuperProperty(), allowNewTarget, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), parentCodeBlock,
+                                                 false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(),
+                                                 parentCodeBlock->allowSuperProperty(), allowNewTarget, true, stackRemainApprox)
+                             .scriptThrowsExceptionIfParseError(state);
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;
