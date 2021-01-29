@@ -125,7 +125,17 @@ public:
                 fieldIndex++;
                 context->giveUpRegister();
                 continue;
+            } else if (p->kind() == ClassElementNode::Kind::StaticField) {
+                ByteCodeRegisterIndex valueIndex = context->getRegister();
+
+                p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
+                codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, InitializeClass::SetStaticFieldDataTagValue), context, this);
+
+                staticFieldIndex++;
+                context->giveUpRegister();
+                continue;
             }
+
             bool hasKeyName = p->key()->isIdentifier() && !p->isComputed();
             size_t destIndex = p->isStatic() ? classIndex : objIndex;
             size_t propertyIndex = SIZE_MAX;
@@ -155,38 +165,10 @@ public:
                 }
             }
 
-            size_t oldThisIndex = context->m_classInfo.m_thisExpressionIndex;
-
             size_t valueExprStartPos = codeBlock->currentCodeSize();
-
-            bool needsOpenEnv = p->hasSuperPropertyExpressionOnFieldInitializer() || p->hasFunctionOnFieldInitializer();
-            // TODO check using super keyword correctly
-            bool needsHeapEnvWhenOpen = p->hasFunctionOnFieldInitializer() || !codeBlock->m_codeBlock->canAllocateEnvironmentOnStack();
-            if (p->kind() == ClassElementNode::Kind::StaticField) {
-                context->m_classInfo.m_thisExpressionIndex = context->m_classInfo.m_constructorIndex;
-
-                if (needsOpenEnv) {
-                    context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::OpenEnv, valueExprStartPos));
-                    context->m_openedNonBlockEnvCount++;
-                    codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index),
-                                                               needsHeapEnvWhenOpen ? OpenLexicalEnvironment::ClassStaticFieldInitWithHeapEnv : OpenLexicalEnvironment::ClassStaticFieldInit, context->m_classInfo.m_thisExpressionIndex),
-                                        context, this);
-                }
-            }
 
             size_t valueIndex = p->value()->getRegister(codeBlock, context);
             p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
-
-            if (p->kind() == ClassElementNode::Kind::StaticField) {
-                context->m_classInfo.m_thisExpressionIndex = oldThisIndex;
-
-                if (needsOpenEnv) {
-                    codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(m_loc.index)), context, this);
-                    codeBlock->peekCode<OpenLexicalEnvironment>(valueExprStartPos)->m_endPostion = codeBlock->currentCodeSize();
-                    context->m_openedNonBlockEnvCount--;
-                    context->m_recursiveStatementStack.pop_back();
-                }
-            }
 
             if (p->kind() == ClassElementNode::Kind::Method) {
                 if (hasKeyName) {
@@ -194,9 +176,6 @@ public:
                 } else {
                     codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent), true), context, this);
                 }
-            } else if (p->kind() == ClassElementNode::Kind::StaticField) {
-                codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, InitializeClass::SetStaticFieldDataTagValue), context, this);
-                staticFieldIndex++;
             } else if (p->kind() == ClassElementNode::Kind::Get) {
                 codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), true), context, this);
             } else {

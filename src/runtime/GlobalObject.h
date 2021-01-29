@@ -279,7 +279,8 @@ public:
     void installBuiltins(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
-    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation); // we get isInWithOperation as parameter because this affects bytecode
+    // we get isInWithOperation as parameter because this affects bytecode
+    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation);
 
 #define DECLARE_BUILTIN_FUNC(builtin, TYPE, NAME) \
     TYPE* builtin()                               \

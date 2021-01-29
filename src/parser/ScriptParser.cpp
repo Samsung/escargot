@@ -89,7 +89,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         if (scopeCtx->m_hasSuperOrNewTarget) {
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
-                if (c->isKindOfFunction() && !c->isArrowFunctionExpression()) { // ThisEnvironment
+                if (c->isKindOfFunction() && (!c->isArrowFunctionExpression() || c->isOneExpressionOnlyVirtualArrowFunctionExpression())) { // ThisEnvironment
                     c->m_canAllocateEnvironmentOnStack = false;
                     break;
                 }

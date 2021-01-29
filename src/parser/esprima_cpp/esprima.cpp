@@ -235,7 +235,6 @@ public:
         this->context->inLoop = false;
         this->context->inParameterParsing = false;
         this->context->inParameterNameParsing = false;
-        this->context->seenSuperProperty = false;
         this->context->hasRestrictedWordInArrayOrObjectInitializer = false;
         this->context->strict = this->sourceType == Module;
         this->setMarkers(startLoc);
@@ -1548,32 +1547,26 @@ public:
     }
 
     template <class ASTBuilder>
-    std::tuple<ASTNode, bool, bool> parseClassStaticFieldInitializer(ASTBuilder& builder)
+    ASTNode parseClassStaticFieldInitializer(ASTBuilder& builder)
     {
         ASSERT(this->match(Substitution));
 
         this->nextToken();
 
         const bool previousAllowArguments = this->context->allowArguments;
-        const bool previousSeenSuperProperty = this->context->seenSuperProperty;
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
-        const bool previousSubCodeBlockIndex = this->subCodeBlockIndex;
 
         this->context->allowArguments = false;
-        this->context->seenSuperProperty = false;
         this->context->allowSuperProperty = true;
 
         MetaNode node = this->createNode();
-        ASTNode expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-        bool hasSuperPropertyExpressionOnFieldInitializer = this->context->seenSuperProperty;
-        bool hasFunctionOnFieldInitializer = this->subCodeBlockIndex != previousSubCodeBlockIndex;
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder);
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
-        this->context->seenSuperProperty = previousSeenSuperProperty;
         this->context->allowSuperProperty = previousAllowSuperProperty;
 
-        return std::make_tuple(expr, hasSuperPropertyExpressionOnFieldInitializer, hasFunctionOnFieldInitializer);
+        return expr;
     }
 
     template <class ASTBuilder>
@@ -1587,7 +1580,6 @@ public:
         const bool previousAllowSuperProperty = this->context->allowSuperProperty;
 
         this->context->allowArguments = false;
-        this->context->seenSuperProperty = false;
         this->context->allowSuperProperty = true;
 
         ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder);
@@ -2385,7 +2377,6 @@ public:
     ASTNode finishSuperExpression(ASTBuilder& builder, MetaNode node, bool isCall)
     {
         this->currentScopeContext->m_hasSuperOrNewTarget = true;
-        this->context->seenSuperProperty = true;
         return this->finalize(node, builder.createSuperExpressionNode(isCall));
     }
 
@@ -3055,9 +3046,7 @@ public:
                 bool previousAwait = this->context->await;
                 bool previousInArrowFunction = this->context->inArrowFunction;
                 bool previousAllowStrictDirective = this->context->allowStrictDirective;
-                bool previousSeenSuperProperty = this->context->seenSuperProperty;
 
-                this->context->seenSuperProperty = false;
                 this->context->allowYield = false;
                 this->context->inArrowFunction = true;
 
@@ -3116,7 +3105,6 @@ public:
                 this->context->await = previousAwait;
                 this->context->inArrowFunction = previousInArrowFunction;
                 this->context->allowStrictDirective = previousAllowStrictDirective;
-                this->context->seenSuperProperty = previousSeenSuperProperty;
             } else {
                 // check if restricted words are used as target in array/object initializer
                 if (checkLeftHasRestrictedWord) {
@@ -3260,22 +3248,15 @@ public:
     ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder)
     {
         ASTNode result;
-        Marker startMarker = this->startMarker;
-
         if (!this->isParsingSingleFunction) {
-            // we need to reparse for tracking using name correctly(expression will be wrapped by arrow function)
-            // rewind scanner to begin
-            this->scanner->index = startMarker.index;
-            this->scanner->lineNumber = startMarker.lineNumber;
-            this->scanner->lineStart = startMarker.lineStart;
-            this->nextToken();
-
             BEGIN_FUNCTION_SCANNING(AtomicString());
             auto startNode = this->createNode();
 
             this->currentScopeContext->m_functionStartLOC.index = startNode.index;
             this->currentScopeContext->m_functionStartLOC.column = startNode.column;
             this->currentScopeContext->m_functionStartLOC.line = startNode.line;
+            this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
+            this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
 
             this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
@@ -4811,7 +4792,6 @@ public:
         bool previousInIteration = this->context->inIteration;
         bool previousInSwitch = this->context->inSwitch;
         bool previousInFunctionBody = this->context->inFunctionBody;
-        bool previousSeenSuperProperty = this->context->seenSuperProperty;
 
         this->context->labelSet.clear();
         this->context->inIteration = false;
@@ -4847,7 +4827,6 @@ public:
         this->context->inIteration = previousInIteration;
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
-        this->context->seenSuperProperty = previousSeenSuperProperty;
 
         this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -5495,8 +5474,6 @@ public:
         bool isStatic = false;
         bool isGenerator = false;
         bool isAsync = false;
-        bool hasSuperPropertyExpressionOnFieldInitializer = false;
-        bool hasFunctionOnFieldInitializer = false;
 
         if (this->match(Multiply)) {
             this->nextToken();
@@ -5568,10 +5545,7 @@ public:
             } else if (this->match(Substitution)) {
                 if (isStatic) {
                     kind = ClassElementNode::Kind::StaticField;
-                    auto init = this->parseClassStaticFieldInitializer(builder);
-                    value = std::get<0>(init);
-                    hasSuperPropertyExpressionOnFieldInitializer = std::get<1>(init);
-                    hasFunctionOnFieldInitializer = std::get<2>(init);
+                    value = this->parseClassStaticFieldInitializer(builder);
                 } else {
                     kind = ClassElementNode::Kind::Field;
                     value = this->parseClassFieldInitializer(builder);
@@ -5646,7 +5620,7 @@ public:
             }
         }
 
-        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic, hasSuperPropertyExpressionOnFieldInitializer, hasFunctionOnFieldInitializer));
+        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic));
     }
 
     template <class ASTBuilder>
