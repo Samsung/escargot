@@ -62,15 +62,14 @@ SET (ESCARGOT_CXXFLAGS
 
 IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -frounding-math -fsignaling-nans -Wno-unused-but-set-variable -Wno-unused-but-set-parameter)
+    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
+        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-ignored-qualifiers)
+    endif()
 ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register -Wno-expansion-to-defined -Wno-return-type -Wno-overloaded-virtual -Wno-unused-private-field)
 ELSE()
     MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
 ENDIF()
-
-if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
-    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-ignored-qualifiers)
-endif()
 
 SET (LDFLAGS_FROM_ENV $ENV{LDFLAGS})
 SEPARATE_ARGUMENTS(LDFLAGS_FROM_ENV)
