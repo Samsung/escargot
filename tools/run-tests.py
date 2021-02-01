@@ -437,7 +437,7 @@ def run_v8(engine, arch):
 
     arch = {'x86': 'x32', 'x86_64': 'x64'}[arch]
 
-    if (engine is "escargot"):
+    if (engine == "escargot"):
         shell_str = "../../../escargot"
     else:
         shell_str = engine
@@ -583,7 +583,7 @@ def run_wasm_js(engine, arch):
 
 @runner('cctest', default=False)
 def run_cctest(engine, arch):
-    if engine is "escargot":
+    if engine == "escargot":
         engine = "cctest"
     proc = Popen([engine], stdout=PIPE)
     stdout, _ = proc.communicate()
