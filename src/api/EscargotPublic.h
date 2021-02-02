@@ -1788,6 +1788,15 @@ public:
     virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) = 0;
 };
 
+#if defined(ENABLE_WASM)
+class ESCARGOT_EXPORT WASMOperationsRef {
+public:
+    static ValueRef* copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source);
+    static ObjectRef* asyncCompileModule(ExecutionStateRef* state, ValueRef* source);
+    static ObjectRef* instantiatePromiseOfModuleWithImportObject(ExecutionStateRef* state, PromiseObjectRef* promiseOfModule, ValueRef* importObj);
+};
+#endif
+
 } // namespace Escargot
 
 #endif

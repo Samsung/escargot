@@ -77,12 +77,12 @@ protected:
         }
     };
 
-    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
+    ExtendedNativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info)
         : NativeFunctionObject(state, info)
     {
     }
 
-    ExtendedNativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, NativeFunctionObject::ForBuiltinConstructor flag)
+    ExtendedNativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, NativeFunctionObject::ForBuiltinConstructor flag)
         : NativeFunctionObject(state, info, flag)
     {
     }
@@ -101,7 +101,7 @@ protected:
 template <const size_t slotNumber>
 class ExtendedNativeFunctionObjectImpl : public ExtendedNativeFunctionObject {
 public:
-    ExtendedNativeFunctionObjectImpl(ExecutionState& state, NativeFunctionInfo info)
+    ExtendedNativeFunctionObjectImpl(ExecutionState& state, const NativeFunctionInfo& info)
         : ExtendedNativeFunctionObject(state, info)
 #ifndef NDEBUG
         , m_slotCount(slotNumber)
@@ -109,7 +109,7 @@ public:
     {
     }
 
-    ExtendedNativeFunctionObjectImpl(ExecutionState& state, NativeFunctionInfo info, NativeFunctionObject::ForBuiltinConstructor flag)
+    ExtendedNativeFunctionObjectImpl(ExecutionState& state, const NativeFunctionInfo& info, NativeFunctionObject::ForBuiltinConstructor flag)
         : ExtendedNativeFunctionObject(state, info, flag)
 #ifndef NDEBUG
         , m_slotCount(slotNumber)

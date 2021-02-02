@@ -39,6 +39,7 @@ struct EncodedValueData {
 struct EncodedSmallValueData {
     uint32_t payload;
     EncodedSmallValueData()
+        : payload(0)
     {
     }
 

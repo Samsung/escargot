@@ -24,14 +24,14 @@
 
 namespace Escargot {
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info)
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
     initStructureAndValues(state, info.m_isConstructor, false, false);
 }
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForGlobalBuiltin)
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForGlobalBuiltin)
     : FunctionObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
@@ -39,7 +39,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     ASSERT(!NativeFunctionObject::isConstructor());
 }
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor)
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForBuiltinConstructor)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
@@ -49,7 +49,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunction
     }
 }
 
-NativeFunctionObject::NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor)
+NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForBuiltinProxyConstructor)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
