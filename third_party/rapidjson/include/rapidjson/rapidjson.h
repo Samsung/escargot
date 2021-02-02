@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,9 +7,9 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_RAPIDJSON_H_
@@ -17,7 +17,7 @@
 
 /*!\file rapidjson.h
     \brief common definitions and configuration
-    
+
     \see RAPIDJSON_CONFIG
  */
 
@@ -36,8 +36,8 @@
           different translation units of a single application.
  */
 
-#include <cstdlib>  // malloc(), realloc(), free(), size_t
-#include <cstring>  // memset(), memcpy(), memmove(), memcmp()
+#include <cstdlib> // malloc(), realloc(), free(), size_t
+#include <cstring> // memset(), memcpy(), memmove(), memcmp()
 
 ///////////////////////////////////////////////////////////////////////////////
 // RAPIDJSON_VERSION_STRING
@@ -165,8 +165,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 // RAPIDJSON_ENDIAN
-#define RAPIDJSON_LITTLEENDIAN  0   //!< Little endian machine
-#define RAPIDJSON_BIGENDIAN     1   //!< Big endian machine
+#define RAPIDJSON_LITTLEENDIAN 0 //!< Little endian machine
+#define RAPIDJSON_BIGENDIAN 1 //!< Big endian machine
 
 //! Endianness of the machine.
 /*!
@@ -183,39 +183,39 @@
 */
 #ifndef RAPIDJSON_ENDIAN
 // Detect with GCC 4.6's macro
-#  ifdef __BYTE_ORDER__
-#    if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#      define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
-#    elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#      define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
-#    else
-#      error Unknown machine endianess detected. User needs to define RAPIDJSON_ENDIAN.
-#    endif // __BYTE_ORDER__
+#ifdef __BYTE_ORDER__
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
+#else
+#error Unknown machine endianess detected. User needs to define RAPIDJSON_ENDIAN.
+#endif // __BYTE_ORDER__
 // Detect with GLIBC's endian.h
-#  elif defined(__GLIBC__)
-#    include <endian.h>
-#    if (__BYTE_ORDER == __LITTLE_ENDIAN)
-#      define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
-#    elif (__BYTE_ORDER == __BIG_ENDIAN)
-#      define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
-#    else
-#      error Unknown machine endianess detected. User needs to define RAPIDJSON_ENDIAN.
-#   endif // __GLIBC__
+#elif defined(__GLIBC__)
+#include <endian.h>
+#if (__BYTE_ORDER == __LITTLE_ENDIAN)
+#define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
+#elif (__BYTE_ORDER == __BIG_ENDIAN)
+#define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
+#else
+#error Unknown machine endianess detected. User needs to define RAPIDJSON_ENDIAN.
+#endif // __GLIBC__
 // Detect with _LITTLE_ENDIAN and _BIG_ENDIAN macro
-#  elif defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN)
-#    define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
-#  elif defined(_BIG_ENDIAN) && !defined(_LITTLE_ENDIAN)
-#    define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
+#elif defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN)
+#define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
+#elif defined(_BIG_ENDIAN) && !defined(_LITTLE_ENDIAN)
+#define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
 // Detect with architecture macros
-#  elif defined(__sparc) || defined(__sparc__) || defined(_POWER) || defined(__powerpc__) || defined(__ppc__) || defined(__hpux) || defined(__hppa) || defined(_MIPSEB) || defined(_POWER) || defined(__s390__)
-#    define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
-#  elif defined(__i386__) || defined(__alpha__) || defined(__ia64) || defined(__ia64__) || defined(_M_IX86) || defined(_M_IA64) || defined(_M_ALPHA) || defined(__amd64) || defined(__amd64__) || defined(_M_AMD64) || defined(__x86_64) || defined(__x86_64__) || defined(_M_X64) || defined(__bfin__)
-#    define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
-#  elif defined(RAPIDJSON_DOXYGEN_RUNNING)
-#    define RAPIDJSON_ENDIAN
-#  else
-#    error Unknown machine endianess detected. User needs to define RAPIDJSON_ENDIAN.   
-#  endif
+#elif defined(__sparc) || defined(__sparc__) || defined(_POWER) || defined(__powerpc__) || defined(__ppc__) || defined(__hpux) || defined(__hppa) || defined(_MIPSEB) || defined(_POWER) || defined(__s390__)
+#define RAPIDJSON_ENDIAN RAPIDJSON_BIGENDIAN
+#elif defined(__i386__) || defined(__alpha__) || defined(__ia64) || defined(__ia64__) || defined(_M_IX86) || defined(_M_IA64) || defined(_M_ALPHA) || defined(__amd64) || defined(__amd64__) || defined(_M_AMD64) || defined(__x86_64) || defined(__x86_64__) || defined(_M_X64) || defined(__bfin__)
+#define RAPIDJSON_ENDIAN RAPIDJSON_LITTLEENDIAN
+#elif defined(RAPIDJSON_DOXYGEN_RUNNING)
+#define RAPIDJSON_ENDIAN
+#else
+#error Unknown machine endianess detected. User needs to define RAPIDJSON_ENDIAN.
+#endif
 #endif // RAPIDJSON_ENDIAN
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -351,9 +351,15 @@ RAPIDJSON_NAMESPACE_END
 #ifndef RAPIDJSON_STATIC_ASSERT
 //!@cond RAPIDJSON_HIDDEN_FROM_DOXYGEN
 RAPIDJSON_NAMESPACE_BEGIN
-template <bool x> struct STATIC_ASSERTION_FAILURE;
-template <> struct STATIC_ASSERTION_FAILURE<true> { enum { value = 1 }; };
-template<int x> struct StaticAssertTest {};
+template <bool x>
+struct STATIC_ASSERTION_FAILURE;
+template <>
+struct STATIC_ASSERTION_FAILURE<true> {
+    enum { value = 1 };
+};
+template <int x>
+struct StaticAssertTest {
+};
 RAPIDJSON_NAMESPACE_END
 
 #define RAPIDJSON_JOIN(X, Y) RAPIDJSON_DO_JOIN(X, Y)
@@ -363,7 +369,7 @@ RAPIDJSON_NAMESPACE_END
 #if defined(__GNUC__)
 #define RAPIDJSON_STATIC_ASSERT_UNUSED_ATTRIBUTE __attribute__((unused))
 #else
-#define RAPIDJSON_STATIC_ASSERT_UNUSED_ATTRIBUTE 
+#define RAPIDJSON_STATIC_ASSERT_UNUSED_ATTRIBUTE
 #endif
 //!@endcond
 
@@ -372,10 +378,10 @@ RAPIDJSON_NAMESPACE_END
     \param x compile-time condition
     \hideinitializer
  */
-#define RAPIDJSON_STATIC_ASSERT(x) \
-    typedef ::RAPIDJSON_NAMESPACE::StaticAssertTest< \
-      sizeof(::RAPIDJSON_NAMESPACE::STATIC_ASSERTION_FAILURE<bool(x) >)> \
-    RAPIDJSON_JOIN(StaticAssertTypedef, __LINE__) RAPIDJSON_STATIC_ASSERT_UNUSED_ATTRIBUTE
+#define RAPIDJSON_STATIC_ASSERT(x)                                        \
+    typedef ::RAPIDJSON_NAMESPACE::StaticAssertTest<                      \
+        sizeof(::RAPIDJSON_NAMESPACE::STATIC_ASSERTION_FAILURE<bool(x)>)> \
+        RAPIDJSON_JOIN(StaticAssertTypedef, __LINE__) RAPIDJSON_STATIC_ASSERT_UNUSED_ATTRIBUTE
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -383,33 +389,34 @@ RAPIDJSON_NAMESPACE_END
 
 //!@cond RAPIDJSON_HIDDEN_FROM_DOXYGEN
 
-#define RAPIDJSON_MULTILINEMACRO_BEGIN do {  
+#define RAPIDJSON_MULTILINEMACRO_BEGIN do {
 #define RAPIDJSON_MULTILINEMACRO_END \
-} while((void)0, 0)
+    }                                \
+    while ((void)0, 0)
 
 // adopted from Boost
-#define RAPIDJSON_VERSION_CODE(x,y,z) \
-  (((x)*100000) + ((y)*100) + (z))
+#define RAPIDJSON_VERSION_CODE(x, y, z) \
+    (((x)*100000) + ((y)*100) + (z))
 
 ///////////////////////////////////////////////////////////////////////////////
 // RAPIDJSON_DIAG_PUSH/POP, RAPIDJSON_DIAG_OFF
 
 #if defined(__GNUC__)
 #define RAPIDJSON_GNUC \
-    RAPIDJSON_VERSION_CODE(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__)
+    RAPIDJSON_VERSION_CODE(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
 #endif
 
-#if defined(__clang__) || (defined(RAPIDJSON_GNUC) && RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4,2,0))
+#if defined(__clang__) || (defined(RAPIDJSON_GNUC) && RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4, 2, 0))
 
 #define RAPIDJSON_PRAGMA(x) _Pragma(RAPIDJSON_STRINGIFY(x))
 #define RAPIDJSON_DIAG_PRAGMA(x) RAPIDJSON_PRAGMA(GCC diagnostic x)
 #define RAPIDJSON_DIAG_OFF(x) \
-    RAPIDJSON_DIAG_PRAGMA(ignored RAPIDJSON_STRINGIFY(RAPIDJSON_JOIN(-W,x)))
+    RAPIDJSON_DIAG_PRAGMA(ignored RAPIDJSON_STRINGIFY(RAPIDJSON_JOIN(-W, x)))
 
 // push/pop support in Clang and GCC>=4.6
-#if defined(__clang__) || (defined(RAPIDJSON_GNUC) && RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4,6,0))
+#if defined(__clang__) || (defined(RAPIDJSON_GNUC) && RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4, 6, 0))
 #define RAPIDJSON_DIAG_PUSH RAPIDJSON_DIAG_PRAGMA(push)
-#define RAPIDJSON_DIAG_POP  RAPIDJSON_DIAG_PRAGMA(pop)
+#define RAPIDJSON_DIAG_POP RAPIDJSON_DIAG_PRAGMA(pop)
 #else // GCC >= 4.2, < 4.6
 #define RAPIDJSON_DIAG_PUSH /* ignored */
 #define RAPIDJSON_DIAG_POP /* ignored */
@@ -421,15 +428,16 @@ RAPIDJSON_NAMESPACE_END
 #define RAPIDJSON_PRAGMA(x) __pragma(x)
 #define RAPIDJSON_DIAG_PRAGMA(x) RAPIDJSON_PRAGMA(warning(x))
 
-#define RAPIDJSON_DIAG_OFF(x) RAPIDJSON_DIAG_PRAGMA(disable: x)
+#define RAPIDJSON_DIAG_OFF(x) RAPIDJSON_DIAG_PRAGMA(disable \
+                                                    : x)
 #define RAPIDJSON_DIAG_PUSH RAPIDJSON_DIAG_PRAGMA(push)
-#define RAPIDJSON_DIAG_POP  RAPIDJSON_DIAG_PRAGMA(pop)
+#define RAPIDJSON_DIAG_POP RAPIDJSON_DIAG_PRAGMA(pop)
 
 #else
 
 #define RAPIDJSON_DIAG_OFF(x) /* ignored */
-#define RAPIDJSON_DIAG_PUSH   /* ignored */
-#define RAPIDJSON_DIAG_POP    /* ignored */
+#define RAPIDJSON_DIAG_PUSH /* ignored */
+#define RAPIDJSON_DIAG_POP /* ignored */
 
 #endif // RAPIDJSON_DIAG_*
 
@@ -438,10 +446,8 @@ RAPIDJSON_NAMESPACE_END
 
 #ifndef RAPIDJSON_HAS_CXX11_RVALUE_REFS
 #if defined(__clang__)
-#define RAPIDJSON_HAS_CXX11_RVALUE_REFS __has_feature(cxx_rvalue_references) && \
-    (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__) && __GLIBCXX__ >= 20080306)
-#elif (defined(RAPIDJSON_GNUC) && (RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4,3,0)) && defined(__GXX_EXPERIMENTAL_CXX0X__)) || \
-      (defined(_MSC_VER) && _MSC_VER >= 1600)
+#define RAPIDJSON_HAS_CXX11_RVALUE_REFS __has_feature(cxx_rvalue_references) && (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__) && __GLIBCXX__ >= 20080306)
+#elif (defined(RAPIDJSON_GNUC) && (RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4, 3, 0)) && defined(__GXX_EXPERIMENTAL_CXX0X__)) || (defined(_MSC_VER) && _MSC_VER >= 1600)
 
 #define RAPIDJSON_HAS_CXX11_RVALUE_REFS 1
 #else
@@ -452,7 +458,7 @@ RAPIDJSON_NAMESPACE_END
 #ifndef RAPIDJSON_HAS_CXX11_NOEXCEPT
 #if defined(__clang__)
 #define RAPIDJSON_HAS_CXX11_NOEXCEPT __has_feature(cxx_noexcept)
-#elif (defined(RAPIDJSON_GNUC) && (RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4,6,0)) && defined(__GXX_EXPERIMENTAL_CXX0X__))
+#elif (defined(RAPIDJSON_GNUC) && (RAPIDJSON_GNUC >= RAPIDJSON_VERSION_CODE(4, 6, 0)) && defined(__GXX_EXPERIMENTAL_CXX0X__))
 //    (defined(_MSC_VER) && _MSC_VER >= ????) // not yet supported
 #define RAPIDJSON_HAS_CXX11_NOEXCEPT 1
 #else
@@ -544,7 +550,7 @@ concept Stream {
     For custom stream, this type can be specialized for other configuration.
     See TEST(Reader, CustomStringStream) in readertest.cpp for example.
 */
-template<typename Stream>
+template <typename Stream>
 struct StreamTraits {
     //! Whether to make local copy of stream for optimization during parsing.
     /*!
@@ -555,8 +561,9 @@ struct StreamTraits {
 };
 
 //! Put N copies of a character to a stream.
-template<typename Stream, typename Ch>
-inline void PutN(Stream& stream, Ch c, size_t n) {
+template <typename Stream, typename Ch>
+inline void PutN(Stream& stream, Ch c, size_t n)
+{
     for (size_t i = 0; i < n; i++)
         stream.Put(c);
 }
@@ -571,19 +578,31 @@ template <typename Encoding>
 struct GenericStringStream {
     typedef typename Encoding::Ch Ch;
 
-    GenericStringStream(const Ch *src) : src_(src), head_(src) {}
+    GenericStringStream(const Ch* src)
+        : src_(src)
+        , head_(src)
+    {
+    }
 
     Ch Peek() const { return *src_; }
     Ch Take() { return *src_++; }
     size_t Tell() const { return static_cast<size_t>(src_ - head_); }
 
-    Ch* PutBegin() { RAPIDJSON_ASSERT(false); return 0; }
+    Ch* PutBegin()
+    {
+        RAPIDJSON_ASSERT(false);
+        return 0;
+    }
     void Put(Ch) { RAPIDJSON_ASSERT(false); }
     void Flush() { RAPIDJSON_ASSERT(false); }
-    size_t PutEnd(Ch*) { RAPIDJSON_ASSERT(false); return 0; }
+    size_t PutEnd(Ch*)
+    {
+        RAPIDJSON_ASSERT(false);
+        return 0;
+    }
 
-    const Ch* src_;     //!< Current read position.
-    const Ch* head_;    //!< Original head of the string.
+    const Ch* src_; //!< Current read position.
+    const Ch* head_; //!< Original head of the string.
 };
 
 template <typename Encoding>
@@ -605,7 +624,12 @@ template <typename Encoding>
 struct GenericInsituStringStream {
     typedef typename Encoding::Ch Ch;
 
-    GenericInsituStringStream(Ch *src) : src_(src), dst_(0), head_(src) {}
+    GenericInsituStringStream(Ch* src)
+        : src_(src)
+        , dst_(0)
+        , head_(src)
+    {
+    }
 
     // Read
     Ch Peek() { return *src_; }
@@ -613,13 +637,22 @@ struct GenericInsituStringStream {
     size_t Tell() { return static_cast<size_t>(src_ - head_); }
 
     // Write
-    void Put(Ch c) { RAPIDJSON_ASSERT(dst_ != 0); *dst_++ = c; }
+    void Put(Ch c)
+    {
+        RAPIDJSON_ASSERT(dst_ != 0);
+        *dst_++ = c;
+    }
 
     Ch* PutBegin() { return dst_ = src_; }
     size_t PutEnd(Ch* begin) { return static_cast<size_t>(dst_ - begin); }
     void Flush() {}
 
-    Ch* Push(size_t count) { Ch* begin = dst_; dst_ += count; return begin; }
+    Ch* Push(size_t count)
+    {
+        Ch* begin = dst_;
+        dst_ += count;
+        return begin;
+    }
     void Pop(size_t count) { dst_ -= count; }
 
     Ch* src_;
@@ -640,13 +673,13 @@ typedef GenericInsituStringStream<UTF8<> > InsituStringStream;
 
 //! Type of JSON value
 enum Type {
-    kNullType = 0,      //!< null
-    kFalseType = 1,     //!< false
-    kTrueType = 2,      //!< true
-    kObjectType = 3,    //!< object
-    kArrayType = 4,     //!< array 
-    kStringType = 5,    //!< string
-    kNumberType = 6     //!< number
+    kNullType = 0, //!< null
+    kFalseType = 1, //!< false
+    kTrueType = 2, //!< true
+    kObjectType = 3, //!< object
+    kArrayType = 4, //!< array
+    kStringType = 5, //!< string
+    kNumberType = 6 //!< number
 };
 
 RAPIDJSON_NAMESPACE_END

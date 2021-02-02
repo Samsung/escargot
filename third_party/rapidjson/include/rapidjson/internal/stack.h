@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,9 +7,9 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_INTERNAL_STACK_H_
@@ -31,18 +31,25 @@ class Stack {
 public:
     // Optimization note: Do not allocate memory for stack_ in constructor.
     // Do it lazily when first Push() -> Expand() -> Resize().
-    Stack(Allocator* allocator, size_t stackCapacity) : allocator_(allocator), ownAllocator_(0), stack_(0), stackTop_(0), stackEnd_(0), initialCapacity_(stackCapacity) {
+    Stack(Allocator* allocator, size_t stackCapacity)
+        : allocator_(allocator)
+        , ownAllocator_(0)
+        , stack_(0)
+        , stackTop_(0)
+        , stackEnd_(0)
+        , initialCapacity_(stackCapacity)
+    {
         RAPIDJSON_ASSERT(stackCapacity > 0);
     }
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
     Stack(Stack&& rhs)
-        : allocator_(rhs.allocator_),
-          ownAllocator_(rhs.ownAllocator_),
-          stack_(rhs.stack_),
-          stackTop_(rhs.stackTop_),
-          stackEnd_(rhs.stackEnd_),
-          initialCapacity_(rhs.initialCapacity_)
+        : allocator_(rhs.allocator_)
+        , ownAllocator_(rhs.ownAllocator_)
+        , stack_(rhs.stack_)
+        , stackTop_(rhs.stackTop_)
+        , stackEnd_(rhs.stackEnd_)
+        , initialCapacity_(rhs.initialCapacity_)
     {
         rhs.allocator_ = 0;
         rhs.ownAllocator_ = 0;
@@ -53,14 +60,15 @@ public:
     }
 #endif
 
-    ~Stack() {
+    ~Stack()
+    {
         Destroy();
     }
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
-    Stack& operator=(Stack&& rhs) {
-        if (&rhs != this)
-        {
+    Stack& operator=(Stack&& rhs)
+    {
+        if (&rhs != this) {
             Destroy();
 
             allocator_ = rhs.allocator_;
@@ -81,25 +89,29 @@ public:
     }
 #endif
 
-    void Clear() { stackTop_ = stack_; }
+    void Clear()
+    {
+        stackTop_ = stack_;
+    }
 
-    void ShrinkToFit() { 
+    void ShrinkToFit()
+    {
         if (Empty()) {
             // If the stack is empty, completely deallocate the memory.
             Allocator::Free(stack_);
             stack_ = 0;
             stackTop_ = 0;
             stackEnd_ = 0;
-        }
-        else
+        } else
             Resize(GetSize());
     }
 
     // Optimization note: try to minimize the size of this function for force inline.
     // Expansion is run very infrequently, so it is moved to another (probably non-inline) function.
-    template<typename T>
-    RAPIDJSON_FORCEINLINE T* Push(size_t count = 1) {
-         // Expand the stack if needed
+    template <typename T>
+    RAPIDJSON_FORCEINLINE T* Push(size_t count = 1)
+    {
+        // Expand the stack if needed
         if (stackTop_ + sizeof(T) * count >= stackEnd_)
             Expand<T>(count);
 
@@ -108,20 +120,22 @@ public:
         return ret;
     }
 
-    template<typename T>
-    T* Pop(size_t count) {
+    template <typename T>
+    T* Pop(size_t count)
+    {
         RAPIDJSON_ASSERT(GetSize() >= count * sizeof(T));
         stackTop_ -= count * sizeof(T);
         return reinterpret_cast<T*>(stackTop_);
     }
 
-    template<typename T>
-    T* Top() { 
+    template <typename T>
+    T* Top()
+    {
         RAPIDJSON_ASSERT(GetSize() >= sizeof(T));
         return reinterpret_cast<T*>(stackTop_ - sizeof(T));
     }
 
-    template<typename T>
+    template <typename T>
     T* Bottom() { return (T*)stack_; }
 
     Allocator& GetAllocator() { return *allocator_; }
@@ -130,8 +144,9 @@ public:
     size_t GetCapacity() const { return static_cast<size_t>(stackEnd_ - stack_); }
 
 private:
-    template<typename T>
-    void Expand(size_t count) {
+    template <typename T>
+    void Expand(size_t count)
+    {
         // Only expand the capacity if the current stack exists. Otherwise just create a stack with initial capacity.
         size_t newCapacity;
         if (stack_ == 0) {
@@ -149,14 +164,16 @@ private:
         Resize(newCapacity);
     }
 
-    void Resize(size_t newCapacity) {
-        const size_t size = GetSize();  // Backup the current size
+    void Resize(size_t newCapacity)
+    {
+        const size_t size = GetSize(); // Backup the current size
         stack_ = (char*)allocator_->Realloc(stack_, GetCapacity(), newCapacity);
         stackTop_ = stack_ + size;
         stackEnd_ = stack_ + newCapacity;
     }
 
-    void Destroy() {
+    void Destroy()
+    {
         Allocator::Free(stack_);
         RAPIDJSON_DELETE(ownAllocator_); // Only delete if it is owned by the stack
     }
@@ -167,9 +184,9 @@ private:
 
     Allocator* allocator_;
     Allocator* ownAllocator_;
-    char *stack_;
-    char *stackTop_;
-    char *stackEnd_;
+    char* stack_;
+    char* stackTop_;
+    char* stackEnd_;
     size_t initialCapacity_;
 };
 
