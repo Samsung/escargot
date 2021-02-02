@@ -36,6 +36,9 @@
 
   ##############################################################################
 
+  # ES6 ESNEXT difference regexp.
+  'fuzz-accessors': [SKIP],
+
   # ES6 ES10 difference proxy.
   'es6/proxies-define-property': [SKIP],
   'es6/proxies-get-own-property-descriptor': [SKIP],

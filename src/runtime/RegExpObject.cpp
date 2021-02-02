@@ -61,6 +61,7 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastInd
     , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
+    , m_legacyFeaturesEnabled(true)
 {
     initRegExpObject(state, hasLastIndex);
 }
@@ -457,6 +458,18 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     } while (testResult);
 }
 
+static void invalidateLegacyRegExpStaticProperties(ExecutionState& state)
+{
+    state.context()->regexpStatus().input = String::emptyString;
+    state.context()->regexpStatus().lastMatch = StringView();
+    state.context()->regexpStatus().lastParen = StringView();
+    state.context()->regexpStatus().leftContext = StringView();
+    state.context()->regexpStatus().rightContext = StringView();
+    for (size_t i = 0; i < 9; i++) {
+        state.context()->regexpStatus().dollars[i] = StringView();
+    }
+}
+
 ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)
 {
     uint64_t len = 0;
@@ -495,6 +508,13 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             }
         }
         arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
+    }
+    Context* thisRealm = state.context();
+    Context* rRealm = this->getFunctionRealm(state);
+    if (thisRealm == rRealm) {
+        if (!this->legacyFeaturesEnabled()) {
+            invalidateLegacyRegExpStaticProperties(state);
+        }
     }
     return arr;
 }
