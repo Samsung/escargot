@@ -123,6 +123,7 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
         NAME = thisValue.asBigInt();                                                                                                                                                                                                                         \
     } else {                                                                                                                                                                                                                                                 \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);     \
+        return Value();                                                                                                                                                                                                                                      \
     }
 
 static Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

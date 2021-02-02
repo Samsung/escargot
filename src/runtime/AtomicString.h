@@ -45,11 +45,6 @@ public:
     {
     }
 
-    inline AtomicString(const AtomicString& src)
-        : m_string(src.m_string)
-    {
-    }
-
     static AtomicString fromPayload(void* payload)
     {
         return AtomicString((String*)payload);

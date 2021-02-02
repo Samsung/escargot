@@ -44,13 +44,6 @@ public:
         {
         }
 
-        Capability(const Capability& other)
-            : m_promise(other.m_promise)
-            , m_resolveFunction(other.m_resolveFunction)
-            , m_rejectFunction(other.m_rejectFunction)
-        {
-        }
-
         Object* m_promise;
         Object* m_resolveFunction;
         Object* m_rejectFunction;

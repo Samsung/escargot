@@ -22,7 +22,7 @@
 
 namespace Escargot {
 
-union EncodedValueData {
+struct EncodedValueData {
     intptr_t payload;
     EncodedValueData()
         : payload(0)
@@ -36,7 +36,7 @@ union EncodedValueData {
 };
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-union EncodedSmallValueData {
+struct EncodedSmallValueData {
     uint32_t payload;
     EncodedSmallValueData()
     {
