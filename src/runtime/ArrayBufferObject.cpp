@@ -70,13 +70,13 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     , m_fromExternalMemory(false)
 #endif
 {
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        ArrayBufferObject* self = (ArrayBufferObject*)obj;
+    addFinalizer([](Object* s, void* data) {
+        ArrayBufferObject* self = s->asArrayBufferObject();
         if (self->m_data) {
             self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
         }
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, ArrayBufferObject::FromExternalMemoryTag)
