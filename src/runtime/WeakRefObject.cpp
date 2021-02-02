@@ -33,26 +33,50 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, Object* targe
     : Object(state, proto)
     , m_target(target)
 {
+    ASSERT(m_target);
+    m_target->addFinalizer(WeakRefObject::finalizer, this);
+    addFinalizer([](Object* self, void* data) {
+        WeakRefObject* s = (WeakRefObject*)self;
+        if (s->m_target) {
+            s->m_target->removeFinalizer(WeakRefObject::finalizer, self);
+            s->m_target = nullptr;
+        }
+    },
+                 nullptr);
+}
+
+void WeakRefObject::finalizer(Object* self, void* data)
+{
+    WeakRefObject* s = (WeakRefObject*)data;
+    ASSERT(s->m_target);
+    s->m_target = nullptr;
 }
 
 void* WeakRefObject::operator new(size_t size)
 {
+#ifdef NDEBUG
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WeakRefObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakRefObject, m_target));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WeakRefObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#else
+    return CustomAllocator<WeakRefObject>().allocate(1);
+#endif
 }
 
 bool WeakRefObject::deleteOperation(ExecutionState& state)
 {
-    m_target = nullptr;
-    return true;
+    if (m_target) {
+        m_target->removeFinalizer(WeakRefObject::finalizer, this);
+        m_target = nullptr;
+        return true;
+    }
+    return false;
 }
 
 } // namespace Escargot

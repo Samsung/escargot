@@ -116,10 +116,12 @@ public:
     // ex) void* gcPointer;
     //     gcRegisterFinalizer(gcPointer, ....);
     //     ......
-    //     gcRegisterFinalizer(gcPointer, nullptr);
+    //     gcRegisterFinalizer(gcPointer, nullptr); // this removes finalizer
     //     Memory::gcFree(gcPointer);
-    // 2. You cannot register finalizer to escargot's gc allocated memory eg) ObjectRef
     static void gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback);
+
+    static void gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback);
+    static void gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback);
 
     static void gc();
 
@@ -1582,7 +1584,9 @@ public:
 class ESCARGOT_EXPORT WeakRefObjectRef : public ObjectRef {
 public:
     static WeakRefObjectRef* create(ExecutionStateRef* state, ObjectRef* target);
+    // returns true if target is alive
     bool deleteOperation(ExecutionStateRef* state);
+    OptionalRef<ObjectRef> deref();
 };
 
 class ESCARGOT_EXPORT FinalizationRegistryObjectRef : public ObjectRef {

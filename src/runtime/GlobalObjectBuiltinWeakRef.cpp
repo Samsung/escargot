@@ -52,7 +52,7 @@ Value builtinWeakRefDeRef(ExecutionState& state, Value thisValue, size_t argc, V
     }
     // Let weakRef be the this value.
     WeakRefObject* weakRef = thisValue.asObject()->asWeakRefObject();
-    return weakRef->getTarget();
+    return weakRef->targetAsValue();
 }
 
 

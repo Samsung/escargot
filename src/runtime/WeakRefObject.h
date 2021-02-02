@@ -25,6 +25,9 @@
 namespace Escargot {
 
 class WeakRefObject : public Object {
+#if !defined(NDEBUG)
+    friend int getValidValueInWeakRefObject(void* ptr, GC_mark_custom_result* arr);
+#endif
 public:
     explicit WeakRefObject(ExecutionState& state, Object* target);
     explicit WeakRefObject(ExecutionState& state, Object* proto, Object* target);
@@ -34,7 +37,12 @@ public:
         return true;
     }
 
-    Value getTarget()
+    Optional<Object*> target()
+    {
+        return m_target;
+    }
+
+    Value targetAsValue()
     {
         if (m_target.hasValue()) {
             return m_target.value();
@@ -48,6 +56,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    static void finalizer(Object* self, void* data);
     Optional<Object*> m_target;
 };
 } // namespace Escargot

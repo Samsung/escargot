@@ -24,6 +24,7 @@
 #include "runtime/Value.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/WeakRefObject.h"
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
 
@@ -184,6 +185,20 @@ void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC
     *to = (GC_word*)current->m_cachedhiddenClassChain;
 }
 
+#if !defined(NDEBUG)
+int getValidValueInWeakRefObject(void* ptr, GC_mark_custom_result* arr)
+{
+    WeakRefObject* current = (WeakRefObject*)ptr;
+    arr[0].from = (GC_word*)&current->m_structure;
+    arr[0].to = (GC_word*)current->m_structure;
+    arr[1].from = (GC_word*)&current->m_prototype;
+    arr[1].to = (GC_word*)current->m_prototype;
+    arr[2].from = (GC_word*)&current->m_values;
+    arr[2].to = (GC_word*)current->m_values.data();
+    return 0;
+}
+#endif
+
 void initializeCustomAllocators()
 {
     if (s_gcKinds[HeapObjectKind::ValueVectorKind]) {
@@ -238,6 +253,12 @@ void initializeCustomAllocators()
                                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
                                                                           FALSE,
                                                                           TRUE);
+#if !defined(NDEBUG)
+    s_gcKinds[HeapObjectKind::WeakRefObjectKind] = GC_new_kind(GC_new_free_list(),
+                                                               GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakRefObject, 3>), 0),
+                                                               FALSE,
+                                                               TRUE);
+#endif
 }
 
 void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, HeapObjectIteratorCallback callback)
@@ -347,5 +368,17 @@ GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(si
     ret = (GetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
     return ret;
 }
+
+#if !defined(NDEBUG)
+template <>
+WeakRefObject* CustomAllocator<WeakRefObject>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (WeakRefObject*)GC_MALLOC(sizeof(WeakRefObject));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::WeakRefObjectKind];
+    return (WeakRefObject*)GC_GENERIC_MALLOC(sizeof(WeakRefObject), kind);
+}
+#endif
 
 } // namespace Escargot

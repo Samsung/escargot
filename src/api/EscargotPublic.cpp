@@ -145,6 +145,22 @@ void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback)
     }
 }
 
+static void ObjectRefFinalizer(Object* self, void* fn)
+{
+    Memory::GCAllocatedMemoryFinalizer cb = (Memory::GCAllocatedMemoryFinalizer)fn;
+    cb(self);
+}
+
+void Memory::gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback)
+{
+    toImpl(ptr)->addFinalizer(ObjectRefFinalizer, (void*)callback);
+}
+
+void Memory::gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback)
+{
+    toImpl(ptr)->removeFinalizer(ObjectRefFinalizer, (void*)callback);
+}
+
 void Memory::gc()
 {
     GC_gcollect_and_unmap();
@@ -2983,6 +2999,14 @@ WeakRefObjectRef* WeakRefObjectRef::create(ExecutionStateRef* state, ObjectRef* 
 bool WeakRefObjectRef::deleteOperation(ExecutionStateRef* state)
 {
     return toImpl(this)->deleteOperation(*toImpl(state));
+}
+
+OptionalRef<ObjectRef> WeakRefObjectRef::deref()
+{
+    if (toImpl(this)->target()) {
+        return OptionalRef<ObjectRef>(toRef(toImpl(this)->target().value()));
+    }
+    return nullptr;
 }
 
 FinalizationRegistryObjectRef* FinalizationRegistryObjectRef::create(ExecutionStateRef* state, ValueRef* cleanupCallback, ObjectRef* realm)

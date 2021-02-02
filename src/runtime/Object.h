@@ -41,6 +41,19 @@ class ExecutionPauser;
 #define MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME (std::numeric_limits<uint32_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 #define MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME (std::numeric_limits<uint64_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
+typedef void (*ObjectFinalizer)(Object* self, void* data);
+
+struct ObjectExtendedExtraData : public gc {
+    bool m_finalizerRegistered;
+    void* m_extraData;
+    TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
+    ObjectExtendedExtraData(void* e)
+        : m_finalizerRegistered(false)
+        , m_extraData(e)
+    {
+    }
+};
+
 struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
@@ -49,11 +62,15 @@ struct ObjectRareData : public PointerValue {
     bool m_isSpreadArrayObject : 1;
     bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
     bool m_hasNonWritableLastIndexRegExpObject : 1;
+    bool m_hasExtendedExtraData : 1;
 #if defined(ESCARGOT_ENABLE_TEST)
     bool m_isHTMLDDA : 1;
 #endif
     uint8_t m_arrayObjectFastModeBufferExpandCount : 8;
-    void* m_extraData;
+    union {
+        void* m_extraData;
+        ObjectExtendedExtraData* m_extendedExtraData;
+    };
     Object* m_prototype;
     union {
         Object* m_internalSlot;
@@ -969,14 +986,23 @@ public:
     void* extraData()
     {
         if (hasRareData()) {
-            return rareData()->m_extraData;
+            auto rd = ensureRareData();
+            if (UNLIKELY(rd->m_hasExtendedExtraData)) {
+                return rd->m_extendedExtraData->m_extraData;
+            }
+            return rd->m_extraData;
         }
         return nullptr;
     }
 
     void setExtraData(void* e)
     {
-        ensureRareData()->m_extraData = e;
+        auto rd = ensureRareData();
+        if (UNLIKELY(rd->m_hasExtendedExtraData)) {
+            rd->m_extendedExtraData->m_extraData = e;
+        } else {
+            rd->m_extraData = e;
+        }
     }
 
 #if defined(ESCARGOT_ENABLE_TEST)
@@ -1077,6 +1103,9 @@ public:
         m_values[idx] = newValue;
     }
 
+    void addFinalizer(ObjectFinalizer fn, void* data);
+    void removeFinalizer(ObjectFinalizer fn, void* data);
+
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {
@@ -1096,6 +1125,17 @@ protected:
         ASSERT(hasRareData());
         return (ObjectRareData*)m_prototype;
     }
+
+    ObjectExtendedExtraData* ensureObjectExtendedExtraData()
+    {
+        auto rd = ensureRareData();
+        if (!rd->m_hasExtendedExtraData) {
+            rd->m_extendedExtraData = new ObjectExtendedExtraData(rd->m_extraData);
+            rd->m_hasExtendedExtraData = true;
+        }
+        return rd->m_extendedExtraData;
+    }
+
     ObjectStructure* m_structure;
     Object* m_prototype;
     ObjectPropertyValueVector m_values;

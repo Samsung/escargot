@@ -87,6 +87,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     , m_isSpreadArrayObject(false)
     , m_shouldUpdateEnumerateObject(false)
     , m_hasNonWritableLastIndexRegExpObject(false)
+    , m_hasExtendedExtraData(false)
 #if defined(ESCARGOT_ENABLE_TEST)
     , m_isHTMLDDA(false)
 #endif
@@ -1818,4 +1819,45 @@ bool Object::isRegExp(ExecutionState& state)
     }
     return isRegExpObject();
 }
+
+void Object::addFinalizer(ObjectFinalizer fn, void* data)
+{
+    auto r = ensureObjectExtendedExtraData();
+    if (!r->m_finalizerRegistered) {
+        r->m_finalizerRegistered = true;
+
+#ifndef NDEBUG
+        GC_finalization_proc of = nullptr;
+        void* od = nullptr;
+#endif
+
+        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+            Object* self = (Object*)obj;
+            auto r = self->ensureObjectExtendedExtraData();
+            for (size_t i = 0; i < r->m_finalizer.size(); i++) {
+                r->m_finalizer[i].first(self, r->m_finalizer[i].second);
+            }
+        },
+#ifdef NDEBUG
+                                       nullptr, nullptr, nullptr);
+#else
+                                       nullptr, &of, &od);
+#endif
+        ASSERT(!of);
+        ASSERT(!od);
+    }
+    r->m_finalizer.pushBack(std::make_pair(fn, data));
+}
+
+void Object::removeFinalizer(ObjectFinalizer fn, void* data)
+{
+    auto r = ensureObjectExtendedExtraData();
+    for (size_t i = 0; i < r->m_finalizer.size(); i++) {
+        if (r->m_finalizer[i].first == fn && r->m_finalizer[i].second == data) {
+            r->m_finalizer.erase(i);
+            break;
+        }
+    }
+}
+
 } // namespace Escargot
