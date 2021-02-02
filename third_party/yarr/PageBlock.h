@@ -40,7 +40,6 @@ inline bool isPowerOfTwo(size_t size) { return !(size & (size - 1)); }
 class PageBlock {
 public:
     PageBlock();
-    PageBlock(const PageBlock&);
     PageBlock(void*, size_t, bool hasGuardPages);
 
     void* base() const { return m_base; }
@@ -62,13 +61,6 @@ inline PageBlock::PageBlock()
     : m_realBase(0)
     , m_base(0)
     , m_size(0)
-{
-}
-
-inline PageBlock::PageBlock(const PageBlock& other)
-    : m_realBase(other.m_realBase)
-    , m_base(other.m_base)
-    , m_size(other.m_size)
 {
 }
 

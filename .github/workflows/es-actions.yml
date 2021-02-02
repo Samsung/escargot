@@ -11,7 +11,7 @@ env:
 
 jobs:
   clang_build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
@@ -30,11 +30,14 @@ jobs:
         ninja -Cout/clang/x64
 
   debugger_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
     - name: Install Packages
       run: sudo apt-get install ninja-build
     - name: Build
@@ -49,11 +52,14 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-client-source
 
   cctest:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
     - name: Install Packages
       run: sudo apt-get install ninja-build
     - name: Build
@@ -66,11 +72,14 @@ jobs:
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/cctest/cctest" cctest
 
   codecache_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -120,11 +129,14 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
 
   wasm_js_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -156,7 +168,7 @@ jobs:
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
 
   wasm_spec_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./third_party/wasm/wabt
@@ -178,7 +190,7 @@ jobs:
 
   coverity_scan:
     if: github.event_name == 'push'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:

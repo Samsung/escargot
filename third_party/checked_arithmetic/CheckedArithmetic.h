@@ -476,6 +476,8 @@ public:
         m_value = static_cast<T>(value);
     }
 
+    Checked(const Checked& rhs) = default;
+
     template <typename V>
     Checked(const Checked<T, V>& rhs)
         : m_value(rhs.m_value)

@@ -53,11 +53,6 @@ public:
         ASSERT(s->isString() || s->isSymbol());
     }
 
-    TemplatePropertyName(const TemplatePropertyName& src)
-        : m_ptr(src.m_ptr)
-    {
-    }
-
     ObjectStructurePropertyName toObjectStructurePropertyName(Context* c);
 
     bool equals(const TemplatePropertyName& src)
@@ -255,6 +250,8 @@ protected:
             m_propertyData = src.m_propertyData;
             m_accessorData = src.m_accessorData;
         }
+
+        TemplatePropertyData& operator=(const TemplatePropertyData&) = default;
 
         PropertyType propertyType() const
         {

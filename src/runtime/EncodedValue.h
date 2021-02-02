@@ -166,11 +166,6 @@ public:
         m_data.payload = (intptr_t)(ValueUndefined);
     }
 
-    EncodedValue(const EncodedValue& from)
-    {
-        m_data.payload = from.m_data.payload;
-    }
-
     explicit EncodedValue(const uint32_t from)
     {
         if (LIKELY(EncodedValueImpl::PlatformSmiTagging::IsValidSmi(from))) {
@@ -358,11 +353,6 @@ public:
     EncodedSmallValue()
     {
         m_data.payload = (intptr_t)(ValueUndefined);
-    }
-
-    EncodedSmallValue(const EncodedSmallValue& from)
-    {
-        m_data.payload = from.m_data.payload;
     }
 
     EncodedSmallValue(const Value& from)
