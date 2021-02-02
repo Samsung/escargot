@@ -72,6 +72,12 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         return constructorRealm->globalObject()->regexpPrototype();
     });
     RegExpObject* regexp = new RegExpObject(state, proto, source, option);
+    Context* thisRealm = state.context();
+    if (newTarget == thisRealm->globalObject()->regexp()) {
+        regexp->setLegacyFeaturesEnabled(true);
+    } else {
+        regexp->setLegacyFeaturesEnabled(false);
+    }
 
     // TODO http://www.ecma-international.org/ecma-262/6.0/index.html#sec-escaperegexppattern
     return regexp;
@@ -641,37 +647,52 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }
 
+#define DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(stringView)                                                                        \
+    if (!thisValue.isPointerValue() || thisValue.asPointerValue() != state.context()->globalObject()->regexp()) {               \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject); \
+    }                                                                                                                           \
+    if (stringView.isEmpty()) {                                                                                                 \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject); \
+    }                                                                                                                           \
+    return stringView;
+
 // For non-standard, read-only properties of RegExp
 static Value builtinRegExpInputGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return state.resolveCallee()->codeBlock()->context()->regexpStatus().input;
+    StringView* stringView = new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().input);
+    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(stringView));
 }
 
 static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    if (!thisValue.isPointerValue() || thisValue.asPointerValue() != state.context()->globalObject()->regexp()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+    }
     state.resolveCallee()->codeBlock()->context()->regexpStatus().input = argv[0].toString(state);
     return Value();
 }
 
 static Value builtinRegExpLastMatchGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().lastMatch));
+    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().lastMatch)))
 }
 
 static Value builtinRegExpLastParenGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().lastParen));
+    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().lastParen)))
 }
+
 
 static Value builtinRegExpLeftContextGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().leftContext));
+    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().leftContext)))
 }
 
 static Value builtinRegExpRightContextGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().rightContext));
+    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().rightContext)))
 }
+
 
 static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -687,9 +708,9 @@ static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisVa
     {                                                                                                                                               \
         auto& status = state.resolveCallee()->codeBlock()->context()->regexpStatus();                                                               \
         if (status.dollarCount < number) {                                                                                                          \
-            return Value(String::emptyString);                                                                                                      \
+            DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(String::emptyString)))                                                        \
         }                                                                                                                                           \
-        return Value(new StringView(status.dollars[number - 1]));                                                                                   \
+        DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(status.dollars[number - 1])))                                                     \
     }
 
 DEFINE_GETTER(1)
@@ -752,43 +773,43 @@ void GlobalObject::installRegExp(ExecutionState& state)
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpInputGetter, 0, NativeFunctionInfo::Strict)),
             new NativeFunctionObject(state, NativeFunctionInfo(strings->set, builtinRegExpInputSetter, 1, NativeFunctionInfo::Strict)));
-        m_regexp->defineOwnProperty(state, strings->input, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent)));
-        m_regexp->defineOwnProperty(state, strings->$_, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+        m_regexp->defineOwnProperty(state, strings->input, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_regexp->defineOwnProperty(state, strings->$_, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     }
 
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpLastMatchGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        m_regexp->defineOwnProperty(state, strings->lastMatch, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent)));
-        m_regexp->defineOwnProperty(state, strings->$Ampersand, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+        m_regexp->defineOwnProperty(state, strings->lastMatch, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_regexp->defineOwnProperty(state, strings->$Ampersand, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     }
 
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpLastParenGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        m_regexp->defineOwnProperty(state, strings->lastParen, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent)));
-        m_regexp->defineOwnProperty(state, strings->$PlusSign, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+        m_regexp->defineOwnProperty(state, strings->lastParen, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_regexp->defineOwnProperty(state, strings->$PlusSign, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     }
 
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpLeftContextGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        m_regexp->defineOwnProperty(state, strings->leftContext, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent)));
-        m_regexp->defineOwnProperty(state, strings->$GraveAccent, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+        m_regexp->defineOwnProperty(state, strings->leftContext, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_regexp->defineOwnProperty(state, strings->$GraveAccent, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     }
 
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpRightContextGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        m_regexp->defineOwnProperty(state, strings->rightContext, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent)));
-        m_regexp->defineOwnProperty(state, strings->$Apostrophe, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NotPresent)));
+        m_regexp->defineOwnProperty(state, strings->rightContext, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+        m_regexp->defineOwnProperty(state, strings->$Apostrophe, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     }
 
-#define DEFINE_ATTR(number)                                                                                                                                                              \
-    {                                                                                                                                                                                    \
-        JSGetterSetter gs(                                                                                                                                                               \
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpDollar##number##Getter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));            \
-        m_regexp->defineOwnProperty(state, strings->$##number, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent))); \
+#define DEFINE_ATTR(number)                                                                                                                                                                \
+    {                                                                                                                                                                                      \
+        JSGetterSetter gs(                                                                                                                                                                 \
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpDollar##number##Getter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));              \
+        m_regexp->defineOwnProperty(state, strings->$##number, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent))); \
     }
 
     DEFINE_ATTR(1)

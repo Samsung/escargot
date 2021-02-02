@@ -140,6 +140,18 @@ public:
     }
 
     void setLastIndex(ExecutionState& state, const Value& v);
+
+
+    bool legacyFeaturesEnabled()
+    {
+        return m_legacyFeaturesEnabled;
+    }
+
+    void setLegacyFeaturesEnabled(bool isEnabled)
+    {
+        m_legacyFeaturesEnabled = isEnabled;
+    }
+
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
 
     virtual bool isRegExpObject() const override
@@ -165,7 +177,6 @@ private:
 
     void parseOption(ExecutionState& state, String* optionString);
 
-
     String* m_source;
     String* m_optionString;
     Option m_option;
@@ -173,6 +184,7 @@ private:
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
     EncodedValue m_lastIndex;
     const String* m_lastExecutedString;
+    bool m_legacyFeaturesEnabled;
 };
 class RegExpStringIteratorObject : public IteratorObject {
 public:
