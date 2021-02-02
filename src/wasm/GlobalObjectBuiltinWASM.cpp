@@ -28,15 +28,84 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
-#include "runtime/TypedArrayObject.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/Job.h"
 #include "wasm/WASMObject.h"
 #include "wasm/ExportedFunctionObject.h"
 #include "wasm/WASMValueConverter.h"
-#include "wasm/WASMBuiltinOperations.h"
+#include "wasm/WASMOperations.h"
+
+// represent ownership of each object
+// object marked with 'own' should be deleted in the current context
+#define own
 
 namespace Escargot {
+
+static Value wasmGetValueFromMaybeObject(ExecutionState& state, const Value& obj, const AtomicString& property)
+{
+    Value result = obj;
+    if (obj.isObject()) {
+        auto desc = obj.asObject()->get(state, property);
+        if (desc.hasValue()) {
+            Value method = desc.value(state, obj);
+            if (method.isCallable()) {
+                result = Object::call(state, method, obj, 0, nullptr);
+            }
+        }
+    }
+
+    return result;
+}
+
+static std::pair<bool, Value> wasmGetValueFromObjectProperty(ExecutionState& state, const Value& obj, const AtomicString& property, const AtomicString& innerProperty)
+{
+    if (LIKELY(obj.isObject())) {
+        auto desc = obj.asObject()->get(state, property);
+        if (desc.hasValue()) {
+            Value result = desc.value(state, obj);
+
+            // handle inner property
+            if (result.isObject() && innerProperty.string()->length()) {
+                desc = result.asObject()->get(state, innerProperty);
+                if (desc.hasValue()) {
+                    Value method = desc.value(state, result);
+                    if (method.isCallable()) {
+                        result = Object::call(state, method, result, 0, nullptr);
+                    }
+                }
+            }
+
+            return std::make_pair(true, result);
+        }
+    }
+
+    return std::make_pair(false, Value());
+}
+
+static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkind_t kind)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    String* result = nullptr;
+    switch (kind) {
+    case WASM_EXTERN_FUNC:
+        result = strings->function.string();
+        break;
+    case WASM_EXTERN_TABLE:
+        result = strings->table.string();
+        break;
+    case WASM_EXTERN_MEMORY:
+        result = strings->memory.string();
+        break;
+    case WASM_EXTERN_GLOBAL:
+        result = strings->global.string();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+    return result;
+}
 
 // WebAssembly
 static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -46,7 +115,7 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().validate.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    ArrayBufferObject* srcBuffer = wasmCopyStableBufferBytes(state, source).asPointerValue()->asArrayBufferObject();
+    ArrayBufferObject* srcBuffer = WASMOperations::copyStableBufferBytes(state, source).asPointerValue()->asArrayBufferObject();
     ASSERT(!srcBuffer->isDetachedBuffer());
     size_t byteLength = srcBuffer->byteLength();
 
@@ -62,14 +131,11 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value source = wasmCopyStableBufferBytes(state, argv[0]);
+    // Let stableBytes be a copy of the bytes held by the buffer bytes.
+    Value source = WASMOperations::copyStableBufferBytes(state, argv[0]);
 
-    PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
-    NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), wasmCompileModule, 1, NativeFunctionInfo::Strict));
-    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), source);
-    state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
-
-    return capability.m_promise;
+    // Asynchronously compile a WebAssembly module from stableBytes and return the result.
+    return WASMOperations::asyncCompileModule(state, source);
 }
 
 static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -79,21 +145,13 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
 
     if (firstArg.isObject() && (firstArg.asObject()->isArrayBufferObject() || firstArg.asObject()->isTypedArrayObject())) {
         // Let stableBytes be a copy of the bytes held by the buffer bytes.
-        Value stableBytes = wasmCopyStableBufferBytes(state, firstArg);
+        Value stableBytes = WASMOperations::copyStableBufferBytes(state, firstArg);
 
         // Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
-        PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
-        PromiseObject* promiseOfModule = capability.m_promise->asPromiseObject();
-
-        NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), wasmCompileModule, 1, NativeFunctionInfo::Strict));
-        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), stableBytes);
-        state.context()->vmInstance()->enqueuePromiseJob(promiseOfModule, job);
+        PromiseObject* promiseOfModule = WASMOperations::asyncCompileModule(state, stableBytes)->asPromiseObject();
 
         // Instantiate promiseOfModule with imports importObject and return the result.
-        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateModule, 1, NativeFunctionInfo::Strict));
-        moduleInstantiator->setInternalSlot(0, importObj);
-
-        return promiseOfModule->then(state, moduleInstantiator);
+        return WASMOperations::instantiatePromiseOfModuleWithImportObject(state, promiseOfModule, importObj);
     }
 
     // Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
@@ -114,7 +172,7 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
 
         // Read the imports of module with imports importObject, and let imports be the result.
         wasm_extern_vec_new_empty(&imports);
-        wasmReadImportsOfModule(state, module, importObj, &imports);
+        WASMOperations::readImportsOfModule(state, module, importObj, &imports);
 
         return Value();
     });
@@ -125,7 +183,7 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
         Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
     } else {
         // Note) pass imports data and its size into ExtendedNativeFunctionObjectImpl and delete imports vector inside ExtendedNativeFunctionObjectImpl call
-        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), wasmInstantiateCoreModule, 1, NativeFunctionInfo::Strict));
+        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), WASMOperations::instantiateCoreModule, 1, NativeFunctionInfo::Strict));
         moduleInstantiator->setInternalSlot(0, Value(imports.size));
         moduleInstantiator->setInternalSlotAsPointer(1, imports.data);
 
@@ -144,9 +202,9 @@ static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
-    Value source = wasmCopyStableBufferBytes(state, argv[0]);
+    Value source = WASMOperations::copyStableBufferBytes(state, argv[0]);
     Value arg[] = { source };
-    return wasmCompileModule(state, thisValue, 1, arg, newTarget);
+    return WASMOperations::compileModule(state, thisValue, 1, arg, newTarget);
 }
 
 static Value builtinWASMModuleCustomSections(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -284,7 +342,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
     Value importObject = argc > 1 ? argv[1] : Value();
     own wasm_extern_vec_t imports;
     wasm_extern_vec_new_empty(&imports);
-    wasmReadImportsOfModule(state, module, importObject, &imports);
+    WASMOperations::readImportsOfModule(state, module, importObject, &imports);
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
@@ -302,7 +360,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 
     // Initialize this from module and instance.
     // Create an exports object from module and instance and let exportsObject be the result.
-    Object* exportsObject = wasmCreateExportsObject(state, module, instance);
+    Object* exportsObject = WASMOperations::createExportsObject(state, module, instance);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyInstancePrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {

@@ -62,6 +62,9 @@
 #include "runtime/BigIntObject.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
+#if defined(ENABLE_WASM)
+#include "wasm/WASMOperations.h"
+#endif
 
 namespace Escargot {
 
@@ -3265,4 +3268,21 @@ PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, 
     , errorCode(errorCode)
 {
 }
+
+#if defined(ENABLE_WASM)
+ValueRef* WASMOperationsRef::copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source)
+{
+    return toRef(WASMOperations::copyStableBufferBytes(*toImpl(state), toImpl(source)));
+}
+
+ObjectRef* WASMOperationsRef::asyncCompileModule(ExecutionStateRef* state, ValueRef* source)
+{
+    return toRef(WASMOperations::asyncCompileModule(*toImpl(state), toImpl(source)));
+}
+ObjectRef* WASMOperationsRef::instantiatePromiseOfModuleWithImportObject(ExecutionStateRef* state, PromiseObjectRef* promiseOfModule, ValueRef* importObj)
+{
+    return toRef(WASMOperations::instantiatePromiseOfModuleWithImportObject(*toImpl(state), toImpl(promiseOfModule), toImpl(importObj)));
+}
+#endif
+
 } // namespace Escargot

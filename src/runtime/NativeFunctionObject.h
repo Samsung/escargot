@@ -26,16 +26,16 @@ namespace Escargot {
 
 class NativeFunctionObject : public FunctionObject {
 public:
-    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info);
+    NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info);
 
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
-    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForGlobalBuiltin);
+    NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForGlobalBuiltin);
 
     enum ForBuiltinConstructor { __ForBuiltinConstructor__ };
-    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinConstructor);
+    NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForBuiltinConstructor);
 
     enum ForBuiltinProxyConstructor { __ForBuiltinProxyConstructor__ };
-    NativeFunctionObject(ExecutionState& state, NativeFunctionInfo info, ForBuiltinProxyConstructor);
+    NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForBuiltinProxyConstructor);
 
     virtual bool isNativeFunctionObject() const override
     {

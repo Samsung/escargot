@@ -39,6 +39,7 @@ union EncodedValueData {
 union EncodedSmallValueData {
     uint32_t payload;
     EncodedSmallValueData()
+        : payload(0)
     {
     }
 
