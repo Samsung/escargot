@@ -68,11 +68,11 @@ WASMModuleObject::WASMModuleObject(ExecutionState& state, Object* proto, wasm_mo
 {
     ASSERT(!!m_module);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         WASMModuleObject* self = (WASMModuleObject*)obj;
         wasm_module_delete(self->module());
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 void* WASMModuleObject::operator new(size_t size)
@@ -100,11 +100,11 @@ WASMInstanceObject::WASMInstanceObject(ExecutionState& state, Object* proto, was
 {
     ASSERT(!!m_instance && !!m_exports);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         WASMInstanceObject* self = (WASMInstanceObject*)obj;
         wasm_instance_delete(self->instance());
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 void* WASMInstanceObject::operator new(size_t size)
@@ -133,12 +133,12 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
 {
     ASSERT(!!m_memory && !!m_buffer);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         WASMMemoryObject* self = (WASMMemoryObject*)obj;
         wasm_memory_delete(self->memory());
         self->buffer()->detachArrayBufferWithoutFree();
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 void* WASMMemoryObject::operator new(size_t size)
@@ -213,11 +213,11 @@ WASMTableObject::WASMTableObject(ExecutionState& state, Object* proto, wasm_tabl
 {
     ASSERT(!!m_table);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         WASMTableObject* self = (WASMTableObject*)obj;
         wasm_table_delete(self->table());
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 void* WASMTableObject::operator new(size_t size)
@@ -271,11 +271,11 @@ WASMGlobalObject::WASMGlobalObject(ExecutionState& state, Object* proto, wasm_gl
 {
     ASSERT(!!m_global);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         WASMGlobalObject* self = (WASMGlobalObject*)obj;
         wasm_global_delete(self->global());
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 void* WASMGlobalObject::operator new(size_t size)
