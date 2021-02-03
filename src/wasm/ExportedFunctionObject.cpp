@@ -41,11 +41,11 @@ ExportedFunctionObject::ExportedFunctionObject(ExecutionState& state, NativeFunc
 {
     ASSERT(!!m_function);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         ExportedFunctionObject* self = (ExportedFunctionObject*)obj;
         wasm_func_delete(self->function());
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 void* ExportedFunctionObject::operator new(size_t size)
