@@ -39,10 +39,8 @@ Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisVa
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->finalizationRegistryPrototype();
     });
-    Object* activeFunction = state.resolveCallee();
-    FinalizationRegistryObject* FinalizationRegistry = new FinalizationRegistryObject(state, proto, argv[0], activeFunction);
 
-    return FinalizationRegistry;
+    return new FinalizationRegistryObject(state, proto, argv[0].asObject(), state.resolveCallee()->getFunctionRealm(state));
 }
 
 Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -59,14 +57,16 @@ Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue
     if (argv[0] == argv[1]) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "target and heldValue is the same");
     }
-    Value unregisterToken = argv[2];
-    if (argc >= 3 && !unregisterToken.isObject()) {
-        if (!unregisterToken.isUndefined()) {
+
+    Optional<Object*> unregisterToken;
+    if (argc >= 3) {
+        if (argv[2].isObject()) {
+            unregisterToken = argv[2].asObject();
+        } else if (!argv[2].isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not undefined");
         }
-        unregisterToken = Value(Value::EmptyValue);
     }
-    finalRegisty->setCell(state, argv[0], argv[1], unregisterToken);
+    finalRegisty->setCell(state, argv[0].asObject(), argv[1], unregisterToken);
     return Value();
 }
 
@@ -81,7 +81,24 @@ Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisVal
     if (argc == 0 || !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not object");
     }
-    return Value(finalRegisty->deleteCell(state, argv[0]));
+    return Value(finalRegisty->deleteCell(state, argv[0].asObject()));
+}
+
+Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    FinalizationRegistryObject* finalRegisty = thisValue.asObject()->asFinalizationRegistryObject();
+
+    if (argc && !argv[0].isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "callback is not callable");
+    }
+
+    finalRegisty->cleanupSome(state, argc ? argv[0].asObject() : nullptr);
+
+    return Value();
 }
 
 void GlobalObject::installFinalizationRegistry(ExecutionState& state)
@@ -104,6 +121,10 @@ void GlobalObject::installFinalizationRegistry(ExecutionState& state)
     m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringRegister),
                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringRegister, builtinfinalizationRegistryRegister, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    // https://github.com/tc39/proposal-cleanup-some
+    // FinalizationRegistry.prototype.cleanupSome
+    m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().cleanupSome),
+                                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().cleanupSome, builtinfinalizationRegistryCleanupSome, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_finalizationRegistry->setFunctionPrototype(state, m_finalizationRegistryPrototype);
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().FinalizationRegistry),

@@ -59,6 +59,7 @@ enum HeapObjectKind : unsigned {
     GetObjectInlineCacheDataKind,
 #if !defined(NDEBUG)
     WeakRefObjectKind,
+    FinalizationRegistryObjectItemKind,
 #endif
     NumberOfKind,
 };

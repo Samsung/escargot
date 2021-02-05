@@ -25,6 +25,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/WeakRefObject.h"
+#include "runtime/FinalizationRegistryObject.h"
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
 
@@ -197,6 +198,25 @@ int getValidValueInWeakRefObject(void* ptr, GC_mark_custom_result* arr)
     arr[2].to = (GC_word*)current->m_values.data();
     return 0;
 }
+
+int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_result* arr)
+{
+    FinalizationRegistryObject::FinalizationRegistryObjectItem* current = (FinalizationRegistryObject::FinalizationRegistryObjectItem*)ptr;
+    arr[0].from = (GC_word*)&current->heldValue;
+    if (current->heldValue.isStoredInHeap()) {
+        arr[0].to = (GC_word*)current->heldValue.payload();
+    } else {
+        arr[0].to = nullptr;
+    }
+    arr[1].from = (GC_word*)&current->unregisterToken;
+    if (current->unregisterToken.hasValue()) {
+        arr[1].to = (GC_word*)current->unregisterToken.value();
+    } else {
+        arr[1].to = nullptr;
+    }
+    return 0;
+}
+
 #endif
 
 void initializeCustomAllocators()
@@ -258,6 +278,11 @@ void initializeCustomAllocators()
                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakRefObject, 3>), 0),
                                                                FALSE,
                                                                TRUE);
+
+    s_gcKinds[HeapObjectKind::FinalizationRegistryObjectItemKind] = GC_new_kind(GC_new_free_list(),
+                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInFinalizationRegistryObjectItem, 3>), 0),
+                                                                                FALSE,
+                                                                                TRUE);
 #endif
 }
 
@@ -378,6 +403,16 @@ WeakRefObject* CustomAllocator<WeakRefObject>::allocate(size_type GC_n, const vo
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::WeakRefObjectKind];
     return (WeakRefObject*)GC_GENERIC_MALLOC(sizeof(WeakRefObject), kind);
+}
+
+template <>
+FinalizationRegistryObject::FinalizationRegistryObjectItem* CustomAllocator<FinalizationRegistryObject::FinalizationRegistryObjectItem>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (FinalizationRegistryObject::FinalizationRegistryObjectItem*)GC_MALLOC(sizeof(FinalizationRegistryObject::FinalizationRegistryObjectItem));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::FinalizationRegistryObjectItemKind];
+    return (FinalizationRegistryObject::FinalizationRegistryObjectItem*)GC_GENERIC_MALLOC(sizeof(FinalizationRegistryObject::FinalizationRegistryObjectItem), kind);
 }
 #endif
 

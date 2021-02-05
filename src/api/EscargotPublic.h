@@ -1591,7 +1591,7 @@ public:
 
 class ESCARGOT_EXPORT FinalizationRegistryObjectRef : public ObjectRef {
 public:
-    static FinalizationRegistryObjectRef* create(ExecutionStateRef* state, ValueRef* cleanupCallback, ObjectRef* realm);
+    static FinalizationRegistryObjectRef* create(ExecutionStateRef* state, ObjectRef* cleanupCallback, ContextRef* realm);
 };
 
 class ESCARGOT_EXPORT TemplatePropertyNameRef {
