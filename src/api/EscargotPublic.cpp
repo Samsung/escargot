@@ -3012,7 +3012,7 @@ OptionalRef<ObjectRef> WeakRefObjectRef::deref()
     return nullptr;
 }
 
-FinalizationRegistryObjectRef* FinalizationRegistryObjectRef::create(ExecutionStateRef* state, ValueRef* cleanupCallback, ObjectRef* realm)
+FinalizationRegistryObjectRef* FinalizationRegistryObjectRef::create(ExecutionStateRef* state, ObjectRef* cleanupCallback, ContextRef* realm)
 {
     return toRef(new FinalizationRegistryObject(*toImpl(state), toImpl(cleanupCallback), toImpl(realm)));
 }

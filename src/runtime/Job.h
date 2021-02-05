@@ -28,17 +28,9 @@ namespace Escargot {
 class ExecutionState;
 
 class Job : public gc {
-public:
-    enum JobType {
-        ScriptJob,
-        PromiseReactionJob,
-        PromiseResolveThenableJob,
-    };
-
 protected:
-    Job(JobType type, Context* relatedContext)
-        : m_type(type)
-        , m_relatedContext(relatedContext)
+    Job(Context* relatedContext)
+        : m_relatedContext(relatedContext)
     {
     }
 
@@ -55,13 +47,7 @@ public:
         return m_relatedContext;
     }
 
-    JobType type() const
-    {
-        return m_type;
-    }
-
 private:
-    JobType m_type;
     Context* m_relatedContext;
 };
 
@@ -69,7 +55,7 @@ private:
 class PromiseReactionJob : public Job {
 public:
     PromiseReactionJob(Context* relatedContext, PromiseReaction reaction, Value argument)
-        : Job(JobType::PromiseReactionJob, relatedContext)
+        : Job(relatedContext)
         , m_reaction(reaction)
         , m_argument(argument)
     {
@@ -86,7 +72,7 @@ private:
 class PromiseResolveThenableJob : public Job {
 public:
     PromiseResolveThenableJob(Context* relatedContext, PromiseObject* promise, Object* thenable, Object* then)
-        : Job(JobType::PromiseResolveThenableJob, relatedContext)
+        : Job(relatedContext)
         , m_promise(promise)
         , m_thenable(thenable)
         , m_then(then)

@@ -165,6 +165,7 @@ namespace Escargot {
     F(ceil)                       \
     F(charAt)                     \
     F(charCodeAt)                 \
+    F(cleanupSome)                \
     F(clear)                      \
     F(clz32)                      \
     F(codePointAt)                \

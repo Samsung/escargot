@@ -25,32 +25,44 @@
 namespace Escargot {
 
 class FinalizationRegistryObject : public Object {
+    friend class CleanupSomeJob;
+
 public:
     struct FinalizationRegistryObjectItem : public gc {
-        EncodedValue weakRefTarget;
+#if !defined(NDEBUG)
+        friend int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_result* arr);
+#endif
+        Object* weakRefTarget;
         EncodedValue heldValue;
-        EncodedValue unregisterToken;
+        FinalizationRegistryObject* source;
+        Optional<Object*> unregisterToken;
+
+        void* operator new(size_t size);
+        void* operator new[](size_t size) = delete;
     };
 
     typedef Vector<FinalizationRegistryObjectItem*, GCUtil::gc_malloc_allocator<FinalizationRegistryObjectItem*>> FinalizationRegistryObjectCells;
 
-    explicit FinalizationRegistryObject(ExecutionState& state, EncodedValue cleanupCallback, Object* realm);
-    explicit FinalizationRegistryObject(ExecutionState& state, Object* proto, EncodedValue cleanupCallback, Object* realm);
+    explicit FinalizationRegistryObject(ExecutionState& state, Object* cleanupCallback, Context* realm);
+    explicit FinalizationRegistryObject(ExecutionState& state, Object* proto, Object* cleanupCallback, Context* realm);
 
     virtual bool isFinalizationRegistryObject() const
     {
         return true;
     }
 
-    void setCell(ExecutionState& state, const Value& weakRefTarget, const Value& heldValue, const Value& unregisterToken);
-    bool deleteCell(ExecutionState& state, Value unregisterToken);
+    void setCell(ExecutionState& state, Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken);
+    bool deleteCell(ExecutionState& state, Object* unregisterToken);
+    void cleanupSome(ExecutionState& state, Optional<Object*> callback);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
-    Optional<EncodedValue> m_cleanupCallback;
-    Optional<Object*> m_realm;
+    static void finalizer(Object* self, void* data);
+
+    Optional<Object*> m_cleanupCallback;
+    Context* m_realm;
     FinalizationRegistryObjectCells m_cells;
 };
 } // namespace Escargot
