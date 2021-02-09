@@ -886,9 +886,33 @@ Evaluator::StackTraceData::StackTraceData()
 }
 
 Evaluator::EvaluatorResult::EvaluatorResult()
-    : result()
+    : result(ValueRef::createUndefined())
     , error()
 {
+}
+
+Evaluator::EvaluatorResult::EvaluatorResult(const EvaluatorResult& src)
+    : result(src.result)
+    , error(src.error)
+    , stackTraceData(src.stackTraceData)
+{
+}
+
+const Evaluator::EvaluatorResult& Evaluator::EvaluatorResult::operator=(Evaluator::EvaluatorResult& src)
+{
+    result = src.result;
+    error = src.error;
+    stackTraceData = src.stackTraceData;
+    return *this;
+}
+
+Evaluator::EvaluatorResult::EvaluatorResult(EvaluatorResult&& src)
+    : result(src.result)
+    , error(src.error)
+    , stackTraceData(std::move(src.stackTraceData))
+{
+    src.result = ValueRef::createUndefined();
+    src.error = nullptr;
 }
 
 StringRef* Evaluator::EvaluatorResult::resultOrErrorToString(ContextRef* ctx) const
@@ -3223,6 +3247,11 @@ StringRef* ScriptRef::src()
 StringRef* ScriptRef::sourceCode()
 {
     return toRef(toImpl(this)->sourceCode());
+}
+
+ContextRef* ScriptRef::context()
+{
+    return toRef(toImpl(this)->context());
 }
 
 ValueRef* ScriptRef::execute(ExecutionStateRef* state)

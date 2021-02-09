@@ -275,8 +275,18 @@ public:
         other.m_size = 0;
     }
 
-    GCManagedVector(const GCManagedVector<T>& other) = delete;
-    const GCManagedVector<T>& operator=(const GCManagedVector<T>& other) = delete;
+    GCManagedVector(const GCManagedVector<T>& other)
+    {
+        m_buffer = nullptr;
+        m_size = 0;
+        copyFrom(other);
+    }
+
+    const GCManagedVector<T>& operator=(const GCManagedVector<T>& other)
+    {
+        copyFrom(other);
+        return *this;
+    }
 
     ~GCManagedVector()
     {
@@ -329,6 +339,15 @@ public:
     void operator delete[](void* obj) = delete;
 
 private:
+    void copyFrom(const GCManagedVector<T>& other)
+    {
+        clear();
+        m_size = other.size();
+        m_buffer = (T*)Memory::gcMalloc(sizeof(T) * m_size);
+        for (size_t i = 0; i < m_size; i++) {
+            new (&m_buffer[i]) T(other[i]);
+        }
+    }
     T* m_buffer;
     size_t m_size;
 };
@@ -489,6 +508,10 @@ public:
 
     struct EvaluatorResult {
         EvaluatorResult();
+        EvaluatorResult(const EvaluatorResult& src);
+        const EvaluatorResult& operator=(EvaluatorResult& src);
+        EvaluatorResult(EvaluatorResult&& src);
+
         bool isSuccessful() const
         {
             return !error.hasValue();
@@ -1743,6 +1766,7 @@ public:
     bool isExecuted();
     StringRef* src();
     StringRef* sourceCode();
+    ContextRef* context();
     ValueRef* execute(ExecutionStateRef* state);
 
     // only module can use these functions

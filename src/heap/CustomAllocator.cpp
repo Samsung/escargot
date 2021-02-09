@@ -214,6 +214,8 @@ int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_resu
     } else {
         arr[1].to = nullptr;
     }
+    arr[2].from = (GC_word*)&current->source;
+    arr[2].to = (GC_word*)current->source;
     return 0;
 }
 
