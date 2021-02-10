@@ -274,8 +274,8 @@ static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, si
 static ValueRef* builtinDrainJobQueue(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     ContextRef* context = state->context();
-    while (context->vmInstance()->hasPendingPromiseJob()) {
-        auto jobResult = context->vmInstance()->executePendingPromiseJob();
+    while (context->vmInstance()->hasPendingJob()) {
+        auto jobResult = context->vmInstance()->executePendingJob();
         if (jobResult.error) {
             return ValueRef::create(false);
         }
@@ -458,7 +458,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
 
 class ShellPlatform : public PlatformRef {
 public:
-    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) override
+    virtual void markJSJobEnqueued(ContextRef* relatedContext) override
     {
         // ignore. we always check pending job after eval script
     }
@@ -632,8 +632,8 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
     }
 
-    while (context->vmInstance()->hasPendingPromiseJob()) {
-        auto jobResult = context->vmInstance()->executePendingPromiseJob();
+    while (context->vmInstance()->hasPendingJob()) {
+        auto jobResult = context->vmInstance()->executePendingJob();
         if (shouldPrintScriptResult) {
             if (jobResult.error) {
                 fprintf(stderr, "Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());

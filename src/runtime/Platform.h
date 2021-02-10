@@ -37,7 +37,7 @@ public:
     virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
 
     // Promise
-    virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) = 0;
+    virtual void markJSJobEnqueued(Context* relatedContext) = 0;
 
     // Module
     struct LoadModuleResult {

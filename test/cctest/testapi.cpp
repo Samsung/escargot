@@ -140,8 +140,8 @@ static std::string evalScript(ContextRef* context, StringRef* str, StringRef* fi
 
     result += evalResult.resultOrErrorToString(context)->toStdUTF8String();
 
-    while (context->vmInstance()->hasPendingPromiseJob()) {
-        context->vmInstance()->executePendingPromiseJob();
+    while (context->vmInstance()->hasPendingJob()) {
+        context->vmInstance()->executePendingJob();
     }
     return result;
 }
@@ -212,7 +212,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
 
 class ShellPlatform : public PlatformRef {
 public:
-    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) override
+    virtual void markJSJobEnqueued(ContextRef* relatedContext) override
     {
         // ignore. we always check pending job after eval script
     }

@@ -589,18 +589,18 @@ void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
     }
 }
 
-void VMInstance::enqueuePromiseJob(PromiseObject* promise, Job* job)
+void VMInstance::enqueueJob(Job* job)
 {
     m_jobQueue->enqueueJob(job);
-    m_platform->didPromiseJobEnqueued(job->relatedContext(), promise);
+    m_platform->markJSJobEnqueued(job->relatedContext());
 }
 
-bool VMInstance::hasPendingPromiseJob()
+bool VMInstance::hasPendingJob()
 {
     return m_jobQueue->hasNextJob();
 }
 
-SandBox::SandBoxResult VMInstance::executePendingPromiseJob()
+SandBox::SandBoxResult VMInstance::executePendingJob()
 {
     return m_jobQueue->nextJob()->run();
 }

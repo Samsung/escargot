@@ -91,46 +91,9 @@ bool FinalizationRegistryObject::deleteCell(ExecutionState& state, Object* unreg
     return removed;
 }
 
-class CleanupSomeJob : public Job {
-public:
-    CleanupSomeJob(Context* relatedContext, FinalizationRegistryObject* object, Optional<Object*> callback, PromiseObject* promise)
-        : Job(relatedContext)
-        , m_object(object)
-        , m_callback(callback)
-        , m_promise(promise)
-    {
-    }
-
-    SandBox::SandBoxResult run()
-    {
-        auto oldCallback = m_object->m_cleanupCallback;
-        m_object->m_cleanupCallback = m_callback;
-
-        clearStack<1024>();
-        GC_gcollect_and_unmap();
-        GC_gcollect_and_unmap();
-        GC_gcollect_and_unmap();
-        m_object->m_cleanupCallback = oldCallback;
-
-        SandBox sandbox(relatedContext());
-        return sandbox.run([&]() -> Value {
-            ExecutionState state(relatedContext());
-            m_promise->fulfill(state, Value());
-            return Value();
-        });
-    }
-
-private:
-    FinalizationRegistryObject* m_object;
-    Optional<Object*> m_callback;
-    PromiseObject* m_promise;
-};
-
 void FinalizationRegistryObject::cleanupSome(ExecutionState& state, Optional<Object*> callback)
 {
-    auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
-    auto promise = promiseCapability.m_promise->asPromiseObject();
-    state.context()->vmInstance()->enqueuePromiseJob(promise, new CleanupSomeJob(state.context(), this, callback, promise));
+    state.context()->vmInstance()->enqueueJob(new CleanupSomeJob(state.context(), this, callback));
 }
 
 void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(size_t size)

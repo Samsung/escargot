@@ -605,15 +605,15 @@ public:
     SymbolRef* splitSymbol();
     SymbolRef* asyncIteratorSymbol();
 
-    bool hasPendingPromiseJob();
-    Evaluator::EvaluatorResult executePendingPromiseJob();
+    bool hasPendingJob();
+    Evaluator::EvaluatorResult executePendingJob();
 };
 
 class ESCARGOT_EXPORT ContextRef {
 public:
     static PersistentRefHolder<ContextRef> create(VMInstanceRef* vmInstance);
 
-    void clearRelatedQueuedPromiseJobs();
+    void clearRelatedQueuedJobs();
 
     VMInstanceRef* vmInstance();
     ScriptParserRef* scriptParser();
@@ -1791,9 +1791,8 @@ public:
         return free(buffer);
     }
 
-    // Promise
-    // If you want to use promise on Escargot, you should call VMInstanceRef::executePendingPromiseJob after event. see Shell.cpp
-    virtual void didPromiseJobEnqueued(ContextRef* relatedContext, PromiseObjectRef* obj) = 0;
+    // If you want to add a Job event, you should call VMInstanceRef::executePendingJob after event. see Shell.cpp
+    virtual void markJSJobEnqueued(ContextRef* relatedContext) = 0;
 
     // Module
     // client needs cache module map<absolute_module_path, ScriptRef*>

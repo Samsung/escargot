@@ -188,7 +188,7 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
         moduleInstantiator->setInternalSlotAsPointer(1, imports.data);
 
         Job* job = new PromiseReactionJob(state.context(), PromiseReaction(moduleInstantiator, capability), firstArg);
-        state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
+        state.context()->vmInstance()->enqueueJob(job);
     }
 
     return capability.m_promise;
