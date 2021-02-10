@@ -26,25 +26,22 @@
 namespace Escargot {
 
 class ExecutionState;
+class FinalizationRegistryObject;
 
 class Job : public gc {
-protected:
-    Job(Context* relatedContext)
-        : m_relatedContext(relatedContext)
-    {
-    }
-
 public:
     virtual ~Job() {}
-    static Job* create()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
 
     virtual SandBox::SandBoxResult run() = 0;
     Context* relatedContext() const
     {
         return m_relatedContext;
+    }
+
+protected:
+    Job(Context* relatedContext)
+        : m_relatedContext(relatedContext)
+    {
     }
 
 private:
@@ -87,8 +84,21 @@ private:
     Object* m_then;
 };
 
+class CleanupSomeJob : public Job {
+public:
+    CleanupSomeJob(Context* relatedContext, FinalizationRegistryObject* object, Optional<Object*> callback)
+        : Job(relatedContext)
+        , m_object(object)
+        , m_callback(callback)
+    {
+    }
 
-class ScriptJob : public Job {
+    SandBox::SandBoxResult run();
+
+private:
+    FinalizationRegistryObject* m_object;
+    Optional<Object*> m_callback;
 };
+
 } // namespace Escargot
 #endif // __EscargotJob__

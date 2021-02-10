@@ -178,9 +178,9 @@ public:
         return m_jobQueue;
     }
 
-    void enqueuePromiseJob(PromiseObject* promise, Job* job);
-    bool hasPendingPromiseJob();
-    SandBox::SandBoxResult executePendingPromiseJob();
+    void enqueueJob(Job* job);
+    bool hasPendingJob();
+    SandBox::SandBoxResult executePendingJob();
 
     std::vector<ByteCodeBlock*>& compiledByteCodeBlocks()
     {

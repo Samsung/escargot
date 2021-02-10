@@ -238,7 +238,7 @@ Object* WASMOperations::asyncCompileModule(ExecutionState& state, Value source)
     PromiseReaction::Capability capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
     NativeFunctionObject* asyncCompiler = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), WASMOperations::compileModule, 1, NativeFunctionInfo::Strict));
     Job* job = new PromiseReactionJob(state.context(), PromiseReaction(asyncCompiler, capability), source);
-    state.context()->vmInstance()->enqueuePromiseJob(capability.m_promise->asPromiseObject(), job);
+    state.context()->vmInstance()->enqueueJob(job);
 
     return capability.m_promise;
 }

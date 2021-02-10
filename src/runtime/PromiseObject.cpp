@@ -175,12 +175,12 @@ Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledVa
     }
     case PromiseObject::PromiseState::FulFilled: {
         Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onFulfilled, capability), promiseResult());
-        state.context()->vmInstance()->enqueuePromiseJob(this, job);
+        state.context()->vmInstance()->enqueueJob(job);
         break;
     }
     case PromiseObject::PromiseState::Rejected: {
         Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onRejected, capability), promiseResult());
-        state.context()->vmInstance()->enqueuePromiseJob(this, job);
+        state.context()->vmInstance()->enqueueJob(job);
         break;
     }
     default:
@@ -197,7 +197,7 @@ Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledVa
 void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject::Reactions& reactions)
 {
     for (size_t i = 0; i < reactions.size(); i++) {
-        state.context()->vmInstance()->enqueuePromiseJob(this, new PromiseReactionJob(state.context(), reactions[i], m_promiseResult));
+        state.context()->vmInstance()->enqueueJob(new PromiseReactionJob(state.context(), reactions[i], m_promiseResult));
     }
 }
 
@@ -298,7 +298,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
     Value then = res.result;
 
     if (then.isCallable()) {
-        state.context()->vmInstance()->enqueuePromiseJob(promise, new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
+        state.context()->vmInstance()->enqueueJob(new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
     } else {
         promise->fulfill(state, resolution);
     }

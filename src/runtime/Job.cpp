@@ -21,6 +21,7 @@
 #include "Job.h"
 #include "Context.h"
 #include "SandBox.h"
+#include "runtime/FinalizationRegistryObject.h"
 
 namespace Escargot {
 
@@ -83,5 +84,21 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
         }
         return Value();
     });
+}
+
+SandBox::SandBoxResult CleanupSomeJob::run()
+{
+    auto oldCallback = m_object->m_cleanupCallback;
+    m_object->m_cleanupCallback = m_callback;
+
+    clearStack<1024>();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    m_object->m_cleanupCallback = oldCallback;
+
+    SandBox::SandBoxResult result;
+    result.result = Value();
+    return result;
 }
 } // namespace Escargot

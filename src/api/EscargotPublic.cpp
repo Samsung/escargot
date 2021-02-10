@@ -839,9 +839,9 @@ public:
         m_platform->onArrayBufferObjectDataBufferFree(toRef(whereObjectMade), toRef(obj), buffer);
     }
 
-    virtual void didPromiseJobEnqueued(Context* relatedContext, PromiseObject* obj) override
+    virtual void markJSJobEnqueued(Context* relatedContext) override
     {
-        m_platform->didPromiseJobEnqueued(toRef(relatedContext), toRef(obj));
+        m_platform->markJSJobEnqueued(toRef(relatedContext));
     }
 
     virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
@@ -1033,14 +1033,14 @@ void VMInstanceRef::clearCachesRelatedWithContext()
 DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 #undef DECLARE_GLOBAL_SYMBOLS
 
-bool VMInstanceRef::hasPendingPromiseJob()
+bool VMInstanceRef::hasPendingJob()
 {
-    return toImpl(this)->hasPendingPromiseJob();
+    return toImpl(this)->hasPendingJob();
 }
 
-Evaluator::EvaluatorResult VMInstanceRef::executePendingPromiseJob()
+Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 {
-    auto result = toImpl(this)->executePendingPromiseJob();
+    auto result = toImpl(this)->executePendingJob();
     return toEvaluatorResultRef(result);
 }
 
@@ -1050,7 +1050,7 @@ PersistentRefHolder<ContextRef> ContextRef::create(VMInstanceRef* vminstanceref)
     return PersistentRefHolder<ContextRef>(toRef(new Context(vminstance)));
 }
 
-void ContextRef::clearRelatedQueuedPromiseJobs()
+void ContextRef::clearRelatedQueuedJobs()
 {
     Context* imp = toImpl(this);
     imp->vmInstance()->jobQueue()->clearJobRelatedWithSpecificContext(imp);
