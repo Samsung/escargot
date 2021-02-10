@@ -32,19 +32,11 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
 WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
     : Object(state, proto)
 {
-}
-
-void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
-{
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(WeakMapObject::WeakMapObjectDataItem)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakMapObject::WeakMapObjectDataItem, data));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WeakMapObject::WeakMapObjectDataItem));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    addFinalizer([](Object* self, void* data) {
+        auto wm = self->asWeakMapObject();
+        wm->m_storage.clear();
+    },
+                 nullptr);
 }
 
 void* WeakMapObject::operator new(size_t size)
@@ -52,15 +44,30 @@ void* WeakMapObject::operator new(size_t size)
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(WeakMapObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakMapObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakMapObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakMapObject, m_values));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakMapObject, m_storage));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WeakMapObject));
+        GC_word desc[GC_BITMAP_SIZE(WeakMapObject)] = { 0 };
+        Object::fillGCDescriptor(desc);
+        GC_set_bit(desc, GC_WORD_OFFSET(WeakMapObject, m_storage));
+        descr = GC_make_descriptor(desc, GC_WORD_LEN(WeakMapObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
+{
+#ifdef NDEBUG
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word desc[GC_BITMAP_SIZE(WeakMapObject::WeakMapObjectDataItem)] = { 0 };
+        GC_set_bit(desc, GC_WORD_OFFSET(WeakMapObject::WeakMapObjectDataItem, data));
+        descr = GC_make_descriptor(desc, GC_WORD_LEN(WeakMapObject::WeakMapObjectDataItem));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#else
+    return CustomAllocator<WeakMapObject::WeakMapObjectDataItem>().allocate(1);
+#endif
 }
 
 bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
@@ -68,8 +75,8 @@ bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
     for (size_t i = 0; i < m_storage.size(); i++) {
         auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
-            m_storage[i]->key = nullptr;
-            m_storage[i]->data = EncodedValue(nullptr);
+            key->removeFinalizer(finalizer, this);
+            m_storage.erase(i);
             return true;
         }
     }
@@ -112,7 +119,19 @@ void WeakMapObject::set(ExecutionState& state, Object* key, const Value& value)
     auto newData = new WeakMapObjectDataItem();
     newData->key = key;
     newData->data = value;
-    GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(newData->key), newData->key);
     m_storage.pushBack(newData);
+
+    key->addFinalizer(WeakMapObject::finalizer, this);
+}
+
+void WeakMapObject::finalizer(Object* self, void* data)
+{
+    WeakMapObject* s = (WeakMapObject*)data;
+    for (size_t i = 0; i < s->m_storage.size(); i++) {
+        if (s->m_storage[i]->key == self) {
+            s->m_storage.erase(i);
+            break;
+        }
+    }
 }
 } // namespace Escargot

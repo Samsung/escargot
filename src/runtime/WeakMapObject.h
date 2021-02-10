@@ -34,7 +34,7 @@ public:
         void* operator new[](size_t size) = delete;
     };
 
-    typedef TightVector<WeakMapObjectDataItem*, GCUtil::gc_malloc_allocator<WeakMapObjectDataItem*>> WeakMapObjectData;
+    typedef Vector<WeakMapObjectDataItem*, GCUtil::gc_malloc_allocator<WeakMapObjectDataItem*>> WeakMapObjectData;
 
     explicit WeakMapObject(ExecutionState& state);
     explicit WeakMapObject(ExecutionState& state, Object* proto);
@@ -53,6 +53,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    static void finalizer(Object* self, void* data);
+
     WeakMapObjectData m_storage;
 };
 } // namespace Escargot

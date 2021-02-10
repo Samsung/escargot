@@ -155,9 +155,6 @@ void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(s
 void FinalizationRegistryObject::finalizer(Object* self, void* data)
 {
     FinalizationRegistryObjectItem* item = (FinalizationRegistryObjectItem*)data;
-    // finalizer call should not trigger GC
-    GC_disable();
-
     auto copyedCells = item->source->m_cells;
     for (size_t i = 0; i < item->source->m_cells.size(); i++) {
         if (self == item->source->m_cells[i]->weakRefTarget) {
@@ -184,8 +181,6 @@ void FinalizationRegistryObject::finalizer(Object* self, void* data)
             }
         }
     }
-
-    GC_enable();
 }
 
 } // namespace Escargot
