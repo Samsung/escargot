@@ -25,6 +25,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/WeakRefObject.h"
+#include "runtime/WeakMapObject.h"
 #include "runtime/FinalizationRegistryObject.h"
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
@@ -187,6 +188,18 @@ void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC
 }
 
 #if !defined(NDEBUG)
+int getValidValueInWeakMapObjectDataItemObject(void* ptr, GC_mark_custom_result* arr)
+{
+    WeakMapObject::WeakMapObjectDataItem* current = (WeakMapObject::WeakMapObjectDataItem*)ptr;
+    arr[0].from = (GC_word*)&current->data;
+    if (current->data.isStoredInHeap()) {
+        arr[0].to = (GC_word*)current->data.payload();
+    } else {
+        arr[0].to = nullptr;
+    }
+    return 0;
+}
+
 int getValidValueInWeakRefObject(void* ptr, GC_mark_custom_result* arr)
 {
     WeakRefObject* current = (WeakRefObject*)ptr;
@@ -276,6 +289,11 @@ void initializeCustomAllocators()
                                                                           FALSE,
                                                                           TRUE);
 #if !defined(NDEBUG)
+    s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind] = GC_new_kind(GC_new_free_list(),
+                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakMapObjectDataItemObject, 1>), 0),
+                                                                       FALSE,
+                                                                       TRUE);
+
     s_gcKinds[HeapObjectKind::WeakRefObjectKind] = GC_new_kind(GC_new_free_list(),
                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakRefObject, 3>), 0),
                                                                FALSE,
@@ -405,6 +423,16 @@ WeakRefObject* CustomAllocator<WeakRefObject>::allocate(size_type GC_n, const vo
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::WeakRefObjectKind];
     return (WeakRefObject*)GC_GENERIC_MALLOC(sizeof(WeakRefObject), kind);
+}
+
+template <>
+WeakMapObject::WeakMapObjectDataItem* CustomAllocator<WeakMapObject::WeakMapObjectDataItem>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (WeakRefObject*)GC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind];
+    return (WeakMapObject::WeakMapObjectDataItem*)GC_GENERIC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem), kind);
 }
 
 template <>

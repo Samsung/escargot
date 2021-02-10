@@ -32,6 +32,11 @@ WeakSetObject::WeakSetObject(ExecutionState& state)
 WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
     : Object(state, proto)
 {
+    addFinalizer([](Object* self, void* data) {
+        auto ws = self->asWeakSetObject();
+        ws->m_storage.clear();
+    },
+                 nullptr);
 }
 
 void* WeakSetObject::operator new(size_t size)
@@ -39,12 +44,10 @@ void* WeakSetObject::operator new(size_t size)
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(WeakSetObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakSetObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakSetObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakSetObject, m_values));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WeakSetObject, m_storage));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WeakSetObject));
+        GC_word desc[GC_BITMAP_SIZE(WeakSetObject)] = { 0 };
+        Object::fillGCDescriptor(desc);
+        GC_set_bit(desc, GC_WORD_OFFSET(WeakSetObject, m_storage));
+        descr = GC_make_descriptor(desc, GC_WORD_LEN(WeakSetObject));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
@@ -53,12 +56,10 @@ void* WeakSetObject::operator new(size_t size)
 bool WeakSetObject::deleteOperation(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i]) {
-            Object* existingKey = m_storage[i]->key;
-            if (existingKey == key) {
-                m_storage[i] = nullptr;
-                return true;
-            }
+        if (m_storage[i] == key) {
+            key->removeFinalizer(finalizer, this);
+            m_storage.erase(i);
+            return true;
         }
     }
     return false;
@@ -67,30 +68,33 @@ bool WeakSetObject::deleteOperation(ExecutionState& state, Object* key)
 void WeakSetObject::add(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i]) {
-            Object* existingKey = m_storage[i]->key;
-            if (existingKey == key) {
-                return;
-            }
+        if (m_storage[i] == key) {
+            return;
         }
     }
 
-    auto newData = new WeakSetObjectDataItem();
-    newData->key = key;
-    GC_GENERAL_REGISTER_DISAPPEARING_LINK((void**)&(newData->key), newData->key);
-    m_storage.pushBack(newData);
+    key->addFinalizer(WeakSetObject::finalizer, this);
+    m_storage.pushBack(key);
 }
 
 bool WeakSetObject::has(ExecutionState& state, Object* key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i]) {
-            Object* existingKey = m_storage[i]->key;
-            if (existingKey == key) {
-                return true;
-            }
+        if (m_storage[i] == key) {
+            return true;
         }
     }
     return false;
+}
+
+void WeakSetObject::finalizer(Object* self, void* data)
+{
+    WeakSetObject* s = (WeakSetObject*)data;
+    for (size_t i = 0; i < s->m_storage.size(); i++) {
+        if (s->m_storage[i] == self) {
+            s->m_storage.erase(i);
+            break;
+        }
+    }
 }
 } // namespace Escargot
