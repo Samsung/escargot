@@ -30,6 +30,7 @@
 #include "runtime/SandBox.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ModuleNamespaceObject.h"
+#include "runtime/ScriptAsyncFunctionObject.h"
 #include "parser/ast/AST.h"
 
 namespace Escargot {
@@ -337,12 +338,17 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
 
-    ExecutionState newState(context(), state.stackLimit());
-    ExecutionState* codeExecutionState = &newState;
+    ExecutionState* newState;
+    if (LIKELY(!m_topCodeBlock->isAsync())) {
+        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+    } else {
+        newState = new ExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExecutionState::ForPauser);
+    }
+    ExecutionState* codeExecutionState = newState;
 
     EnvironmentRecord* globalRecord = new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage());
     LexicalEnvironment* globalLexicalEnvironment = new LexicalEnvironment(globalRecord, nullptr);
-    newState.setLexicalEnvironment(globalLexicalEnvironment, m_topCodeBlock->isStrict());
+    newState->setLexicalEnvironment(globalLexicalEnvironment, m_topCodeBlock->isStrict());
 
     EnvironmentRecord* globalVariableRecord = globalRecord;
 
@@ -352,7 +358,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         EnvironmentRecord* newVariableRecord = new DeclarativeEnvironmentRecordNotIndexed(state, true);
         ExecutionState* newVariableState = new ExecutionState(context());
         newVariableState->setLexicalEnvironment(new LexicalEnvironment(newVariableRecord, globalLexicalEnvironment), m_topCodeBlock->isStrict());
-        newVariableState->setParent(&newState);
+        newVariableState->setParent(newState);
         codeExecutionState = newVariableState;
         if (inStrictMode) {
             globalVariableRecord = newVariableRecord;
@@ -421,8 +427,16 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     Value thisValue(context()->globalObjectProxy());
 
-    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    const size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
+    const size_t registerFileSize = byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
+    Value* registerFile;
+    if (LIKELY(!m_topCodeBlock->isAsync())) {
+        registerFile = (Value*)ALLOCA(registerFileSize * sizeof(Value), Value, state);
+    } else {
+        registerFile = CustomAllocator<Value>().allocate(registerFileSize);
+        // we need to reset allocated memory because customAllocator read it
+        memset(registerFile, 0, sizeof(Value) * registerFileSize);
+    }
     registerFile[0] = Value();
     Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = thisValue;
@@ -432,11 +446,18 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         literalStorage[i] = src[i];
     }
 
-    Value resultValue = ByteCodeInterpreter::interpret(codeExecutionState, byteCodeBlock, 0, registerFile);
-    clearStack<512>();
+    Value resultValue;
+    if (LIKELY(!m_topCodeBlock->isAsync())) {
+        resultValue = ByteCodeInterpreter::interpret(codeExecutionState, byteCodeBlock, 0, registerFile);
+        clearStack<512>();
 
-    // we give up program bytecodeblock after first excution for reducing memory usage
-    m_topCodeBlock->m_byteCodeBlock = nullptr;
+        // we give up program bytecodeblock after first excution for reducing memory usage
+        m_topCodeBlock->m_byteCodeBlock = nullptr;
+    } else {
+        ScriptAsyncFunctionObject* fakeFunctionObject = new ScriptAsyncFunctionObject(state, state.context()->globalObject()->asyncFunctionPrototype(), m_topCodeBlock, nullptr);
+        newState->setPauseSource(new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock));
+        resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
+    }
 
     return resultValue;
 }
@@ -932,11 +953,25 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state)
     LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
         new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage()), nullptr);
 
-    ExecutionState newState(context(), state.stackLimit());
-    newState.setLexicalEnvironment(new LexicalEnvironment(moduleData()->m_moduleRecord, globalLexicalEnv), true);
+    ExecutionState* newState;
+    if (LIKELY(!m_topCodeBlock->isAsync())) {
+        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+    } else {
+        newState = new ExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExecutionState::ForPauser);
+    }
+    newState->setLexicalEnvironment(new LexicalEnvironment(moduleData()->m_moduleRecord, globalLexicalEnv), true);
 
-    size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    Value* registerFile = (Value*)ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    const size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
+    const size_t registerFileSize = byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
+    Value* registerFile;
+    if (LIKELY(!m_topCodeBlock->isAsync())) {
+        registerFile = (Value*)ALLOCA(registerFileSize * sizeof(Value), Value, state);
+    } else {
+        registerFile = CustomAllocator<Value>().allocate(registerFileSize);
+        // we need to reset allocated memory because customAllocator read it
+        memset(registerFile, 0, sizeof(Value) * registerFileSize);
+    }
+
     registerFile[0] = Value();
     Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     stackStorage[0] = Value();
@@ -948,17 +983,28 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state)
 
     Value resultValue;
     bool gotExecption = false;
-    try {
-        ByteCodeInterpreter::interpret(&newState, byteCodeBlock, 0, registerFile);
-    } catch (const Value& e) {
-        resultValue = e;
-        gotExecption = true;
+
+    if (LIKELY(!m_topCodeBlock->isAsync())) {
+        try {
+            ByteCodeInterpreter::interpret(newState, byteCodeBlock, 0, registerFile);
+        } catch (const Value& e) {
+            resultValue = e;
+            gotExecption = true;
+        }
+
+        clearStack<512>();
+
+        // we give up program bytecodeblock after first excution for reducing memory usage
+        m_topCodeBlock->m_byteCodeBlock = nullptr;
+    } else {
+        ScriptAsyncFunctionObject* fakeFunctionObject = new ScriptAsyncFunctionObject(state, state.context()->globalObject()->asyncFunctionPrototype(), m_topCodeBlock, nullptr);
+        newState->setPauseSource(new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock));
+
+        // TODO
+        // pass exception to resultValue
+        resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
     }
 
-    clearStack<512>();
-
-    // we give up program bytecodeblock after first excution for reducing memory usage
-    m_topCodeBlock->m_byteCodeBlock = nullptr;
 
     return ModuleExecutionResult(gotExecption, resultValue);
 }

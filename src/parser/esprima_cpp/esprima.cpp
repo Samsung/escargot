@@ -240,6 +240,11 @@ public:
         this->setMarkers(startLoc);
     }
 
+    bool inGlobalSourceCodeParsing()
+    {
+        return !this->isParsingSingleFunction && this->currentScopeContext->m_nodeType == ASTNodeType::Program;
+    }
+
     void setMarkers(ExtendedNodeLOC startLoc)
     {
         this->baseMarker.index = startLoc.index;
@@ -2657,9 +2662,31 @@ public:
 
                 return exprNode;
             }
-        } else if (this->context->await && this->matchContextualKeyword("await")) {
-            ASTNode exprNode = this->parseAwaitExpression(builder);
-            return exprNode;
+        } else if (this->matchContextualKeyword("await")) {
+            bool parseAwait = false;
+            if (this->context->await) {
+                parseAwait = true;
+            } else {
+                if (inGlobalSourceCodeParsing()) {
+                    Marker startMarker = this->startMarker;
+                    this->nextToken();
+                    if (!this->match(PunctuatorKind::Comma) && !this->match(PunctuatorKind::Substitution) && !this->match(PunctuatorKind::RightParenthesis)
+                        && !this->match(PunctuatorKind::Colon) && !this->matchKeyword(KeywordKind::InstanceofKeyword)) {
+                        this->currentScopeContext->m_isAsync = true;
+                        parseAwait = true;
+                    }
+
+                    // rewind scanner
+                    this->scanner->index = startMarker.index;
+                    this->scanner->lineNumber = startMarker.lineNumber;
+                    this->scanner->lineStart = startMarker.lineStart;
+                    this->nextToken();
+                }
+            }
+            if (parseAwait) {
+                ASTNode exprNode = this->parseAwaitExpression(builder);
+                return exprNode;
+            }
         }
 
         return this->parseUpdateExpression(builder);
@@ -3026,7 +3053,8 @@ public:
 
                     if (type == ArrowParameterPlaceHolder && exprNode->asArrowParameterPlaceHolder()->async()) {
                         this->nextToken();
-                        isAsync = true;
+                        this->currentScopeContext->m_isAsync = true;
+                        this->context->await = true;
                     }
 
                     this->expect(LeftParenthesis);
@@ -3062,7 +3090,6 @@ public:
 
                 this->expect(Arrow);
 
-                this->context->await = isAsync;
                 this->context->allowStrictDirective = !this->currentScopeContext->m_hasParameterOtherThanIdentifier;
 
                 MetaNode node = this->startNode(startToken);
@@ -3096,7 +3123,6 @@ public:
                 this->currentScopeContext->m_isArrowFunctionExpression = true;
                 this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
                 this->currentScopeContext->m_isGenerator = false;
-                this->currentScopeContext->m_isAsync = isAsync;
 
                 END_FUNCTION_SCANNING();
                 exprNode = static_cast<ASTNode>(this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex)));

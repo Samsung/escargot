@@ -186,7 +186,7 @@ bool ExecutionState::inPauserScope()
             auto env = state->lexicalEnvironment();
             auto record = env->record();
             if (record->isGlobalEnvironmentRecord()) {
-                return false;
+                return state->hasRareData() && state->rareData()->m_pauseSource;
             }
             if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptGeneratorFunctionObject()
