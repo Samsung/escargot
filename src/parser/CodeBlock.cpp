@@ -42,9 +42,7 @@ void* NativeCodeBlock::operator new(size_t size)
 
 void* InterpretedCodeBlock::operator new(size_t size)
 {
-#ifdef GC_DEBUG
-    return CustomAllocator<InterpretedCodeBlock>().allocate(1);
-#else
+#ifdef NDEBUG
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
@@ -61,14 +59,14 @@ void* InterpretedCodeBlock::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#else
+    return CustomAllocator<InterpretedCodeBlock>().allocate(1);
 #endif
 }
 
 void* InterpretedCodeBlockWithRareData::operator new(size_t size)
 {
-#ifdef GC_DEBUG
-    return CustomAllocator<InterpretedCodeBlockWithRareData>().allocate(1);
-#else
+#ifdef NDEBUG
     static bool typeInited = false;
     static GC_descr descr;
     if (!typeInited) {
@@ -86,6 +84,8 @@ void* InterpretedCodeBlockWithRareData::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#else
+    return CustomAllocator<InterpretedCodeBlockWithRareData>().allocate(1);
 #endif
 }
 

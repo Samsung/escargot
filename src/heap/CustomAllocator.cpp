@@ -53,24 +53,6 @@ GC_ms_entry* markAndPushCustom(GC_word* addr,
     return GC_mark_and_push_custom(addr, mark_stack_ptr, mark_stack_limit, proc, subPtrs, number_of_sub_pointer);
 }
 
-int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
-{
-    ArrayObject* current = (ArrayObject*)ptr;
-    arr[0].from = (GC_word*)&current->m_structure;
-    arr[0].to = (GC_word*)current->m_structure;
-    arr[1].from = (GC_word*)&current->m_prototype;
-    arr[1].to = (GC_word*)current->m_prototype;
-    arr[2].from = (GC_word*)&current->m_values;
-    arr[2].to = (GC_word*)current->m_values.data();
-    arr[3].from = (GC_word*)&current->m_fastModeData;
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    arr[3].to = (GC_word*)current->m_fastModeData.data();
-#else
-    arr[3].to = (GC_word*)current->m_fastModeData;
-#endif
-    return 0;
-}
-
 void getNextValidInValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
     while (ptr < end) {
@@ -97,6 +79,14 @@ void getNextValidInValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, G
     *to = NULL;
 }
 
+void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
+{
+    GetObjectInlineCacheData* current = (GetObjectInlineCacheData*)ptr;
+    *next_ptr = (GC_word*)((size_t)ptr + sizeof(GetObjectInlineCacheData));
+    *from = (GC_word*)&current->m_cachedhiddenClassChain;
+    *to = (GC_word*)current->m_cachedhiddenClassChain;
+}
+
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
@@ -118,6 +108,39 @@ void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word**
     *to = NULL;
 }
 #endif
+
+#if !defined(NDEBUG)
+int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
+{
+    ArrayObject* current = (ArrayObject*)ptr;
+    arr[0].from = (GC_word*)&current->m_structure;
+    arr[0].to = (GC_word*)current->m_structure;
+    arr[1].from = (GC_word*)&current->m_prototype;
+    arr[1].to = (GC_word*)current->m_prototype;
+    arr[2].from = (GC_word*)&current->m_values;
+    arr[2].to = (GC_word*)current->m_values.data();
+    arr[3].from = (GC_word*)&current->m_fastModeData;
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    arr[3].to = (GC_word*)current->m_fastModeData.data();
+#else
+    arr[3].to = (GC_word*)current->m_fastModeData;
+#endif
+    return 0;
+}
+
+int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
+{
+    ArrayBufferObject* current = (ArrayBufferObject*)ptr;
+    arr[0].from = (GC_word*)&current->m_structure;
+    arr[0].to = (GC_word*)current->m_structure;
+    arr[1].from = (GC_word*)&current->m_prototype;
+    arr[1].to = (GC_word*)current->m_prototype;
+    arr[2].from = (GC_word*)&current->m_values;
+    arr[2].to = (GC_word*)current->m_values.data();
+    arr[3].from = (GC_word*)&current->m_context;
+    arr[3].to = (GC_word*)current->m_context;
+    return 0;
+}
 
 int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
 {
@@ -165,29 +188,6 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_re
     return 0;
 }
 
-int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
-{
-    ArrayBufferObject* current = (ArrayBufferObject*)ptr;
-    arr[0].from = (GC_word*)&current->m_structure;
-    arr[0].to = (GC_word*)current->m_structure;
-    arr[1].from = (GC_word*)&current->m_prototype;
-    arr[1].to = (GC_word*)current->m_prototype;
-    arr[2].from = (GC_word*)&current->m_values;
-    arr[2].to = (GC_word*)current->m_values.data();
-    arr[3].from = (GC_word*)&current->m_context;
-    arr[3].to = (GC_word*)current->m_context;
-    return 0;
-}
-
-void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
-{
-    GetObjectInlineCacheData* current = (GetObjectInlineCacheData*)ptr;
-    *next_ptr = (GC_word*)((size_t)ptr + sizeof(GetObjectInlineCacheData));
-    *from = (GC_word*)&current->m_cachedhiddenClassChain;
-    *to = (GC_word*)current->m_cachedhiddenClassChain;
-}
-
-#if !defined(NDEBUG)
 int getValidValueInWeakMapObjectDataItemObject(void* ptr, GC_mark_custom_result* arr)
 {
     WeakMapObject::WeakMapObjectDataItem* current = (WeakMapObject::WeakMapObjectDataItem*)ptr;
@@ -231,7 +231,6 @@ int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_resu
     arr[2].to = (GC_word*)current->source;
     return 0;
 }
-
 #endif
 
 void initializeCustomAllocators()
@@ -244,12 +243,19 @@ void initializeCustomAllocators()
                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInValueVector>), 0),
                                                              FALSE,
                                                              TRUE);
+
+    s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind] = GC_new_kind(GC_new_free_list(),
+                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
+                                                                                FALSE,
+                                                                                TRUE);
+
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                          GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInEncodedSmallValueVector>), 0),
                                                                          FALSE,
                                                                          TRUE);
 #endif
+
 #ifdef NDEBUG
     GC_word objBitmap[GC_BITMAP_SIZE(ArrayObject)] = { 0 };
     GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_structure));
@@ -267,7 +273,11 @@ void initializeCustomAllocators()
                                                                         GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayObject, 4>), 0),
                                                                         FALSE,
                                                                         TRUE);
-#endif
+
+    s_gcKinds[HeapObjectKind::ArrayBufferObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 4>), 0),
+                                                                              FALSE,
+                                                                              TRUE);
 
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
@@ -279,16 +289,6 @@ void initializeCustomAllocators()
                                                                                   FALSE,
                                                                                   TRUE);
 
-    s_gcKinds[HeapObjectKind::ArrayBufferObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 4>), 0),
-                                                                              FALSE,
-                                                                              TRUE);
-
-    s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataKind] = GC_new_kind(GC_new_free_list(),
-                                                                          GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
-                                                                          FALSE,
-                                                                          TRUE);
-#if !defined(NDEBUG)
     s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind] = GC_new_kind(GC_new_free_list(),
                                                                        GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakMapObjectDataItemObject, 1>), 0),
                                                                        FALSE,
@@ -346,6 +346,19 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
     return ret;
 }
 
+template <>
+GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (Value*)GC_MALLOC(sizeof(GetObjectInlineCacheData) * GC_n);
+    int kind = s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind];
+    size_t size = sizeof(GetObjectInlineCacheData) * GC_n;
+
+    GetObjectInlineCacheData* ret;
+    ret = (GetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
+    return ret;
+}
+
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 template <>
 EncodedSmallValue* CustomAllocator<EncodedSmallValue>::allocate(size_type GC_n, const void*)
@@ -371,6 +384,17 @@ ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
 }
 
+#if !defined(NDEBUG)
+template <>
+ArrayBufferObject* CustomAllocator<ArrayBufferObject>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (ArrayBufferObject*)GC_MALLOC(sizeof(ArrayBufferObject));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::ArrayBufferObjectKind];
+    return (ArrayBufferObject*)GC_GENERIC_MALLOC(sizeof(ArrayBufferObject), kind);
+}
+
 template <>
 InterpretedCodeBlock* CustomAllocator<InterpretedCodeBlock>::allocate(size_type GC_n, const void*)
 {
@@ -392,29 +416,15 @@ InterpretedCodeBlockWithRareData* CustomAllocator<InterpretedCodeBlockWithRareDa
 }
 
 template <>
-ArrayBufferObject* CustomAllocator<ArrayBufferObject>::allocate(size_type GC_n, const void*)
+WeakMapObject::WeakMapObjectDataItem* CustomAllocator<WeakMapObject::WeakMapObjectDataItem>::allocate(size_type GC_n, const void*)
 {
     // Un-comment this to use default allocator
-    // return (ArrayBufferObject*)GC_MALLOC(sizeof(ArrayBufferObject));
+    // return (WeakRefObject*)GC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem));
     ASSERT(GC_n == 1);
-    int kind = s_gcKinds[HeapObjectKind::ArrayBufferObjectKind];
-    return (ArrayBufferObject*)GC_GENERIC_MALLOC(sizeof(ArrayBufferObject), kind);
+    int kind = s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind];
+    return (WeakMapObject::WeakMapObjectDataItem*)GC_GENERIC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem), kind);
 }
 
-template <>
-GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (Value*)GC_MALLOC(sizeof(GetObjectInlineCacheData) * GC_n);
-    int kind = s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataKind];
-    size_t size = sizeof(GetObjectInlineCacheData) * GC_n;
-
-    GetObjectInlineCacheData* ret;
-    ret = (GetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
-    return ret;
-}
-
-#if !defined(NDEBUG)
 template <>
 WeakRefObject* CustomAllocator<WeakRefObject>::allocate(size_type GC_n, const void*)
 {
@@ -423,16 +433,6 @@ WeakRefObject* CustomAllocator<WeakRefObject>::allocate(size_type GC_n, const vo
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::WeakRefObjectKind];
     return (WeakRefObject*)GC_GENERIC_MALLOC(sizeof(WeakRefObject), kind);
-}
-
-template <>
-WeakMapObject::WeakMapObjectDataItem* CustomAllocator<WeakMapObject::WeakMapObjectDataItem>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (WeakRefObject*)GC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem));
-    ASSERT(GC_n == 1);
-    int kind = s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind];
-    return (WeakMapObject::WeakMapObjectDataItem*)GC_GENERIC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem), kind);
 }
 
 template <>

@@ -147,7 +147,20 @@ void ArrayBufferObject::detachArrayBufferWithoutFree()
 
 void* ArrayBufferObject::operator new(size_t size)
 {
+#ifdef NDEBUG
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayBufferObject)] = { 0 };
+        Object::fillGCDescriptor(obj_bitmap);
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_context));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#else
     return CustomAllocator<ArrayBufferObject>().allocate(1);
+#endif
 }
 
 // $24.1.1.6
