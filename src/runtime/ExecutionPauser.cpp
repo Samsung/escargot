@@ -149,13 +149,24 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         } else {
             // resume
             startPos = (size_t)self->m_pausedCode.data() - (size_t)self->m_byteCodeBlock->m_code.data();
-            ASSERT(originalState->resolveCallee()->isScriptFunctionObject());
-            LexicalEnvironment* env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(originalState->resolveCallee()->asScriptFunctionObject()), nullptr
+
+            LexicalEnvironment* env;
+            if (originalState->resolveCallee() && originalState->resolveCallee()->isScriptFunctionObject()) {
+                env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(originalState->resolveCallee()->asScriptFunctionObject()), nullptr
 #ifndef NDEBUG
-                                                             ,
-                                                             true
+                                             ,
+                                             true
 #endif
-            );
+                );
+            } else {
+                // top-level-await
+                env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(self->m_sourceObject->asScriptAsyncFunctionObject()), nullptr
+#ifndef NDEBUG
+                                             ,
+                                             true
+#endif
+                );
+            }
             es = new ExecutionState(&state, env, false);
         }
         result = ByteCodeInterpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
