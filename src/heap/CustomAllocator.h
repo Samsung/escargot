@@ -49,15 +49,15 @@ class ExecutionState;
 
 enum HeapObjectKind : unsigned {
     ValueVectorKind = 0,
+    GetObjectInlineCacheDataVectorKind,
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     EncodedSmallValueVectorKind,
 #endif
     ArrayObjectKind,
+#if !defined(NDEBUG)
+    ArrayBufferObjectKind,
     InterpretedCodeBlockKind,
     InterpretedCodeBlockWithRareDataKind,
-    ArrayBufferObjectKind,
-    GetObjectInlineCacheDataKind,
-#if !defined(NDEBUG)
     WeakMapObjectDataItemKind,
     WeakRefObjectKind,
     FinalizationRegistryObjectItemKind,
