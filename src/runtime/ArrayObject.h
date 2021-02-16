@@ -43,8 +43,6 @@ class ArrayObject : public Object {
 public:
     explicit ArrayObject(ExecutionState& state);
     explicit ArrayObject(ExecutionState& state, Object* proto);
-    ArrayObject(ExecutionState& state, double size); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-arraycreate
-    ArrayObject(ExecutionState& state, Object* proto, double size); // http://www.ecma-international.org/ecma-262/7.0/index.html#sec-arraycreate
     ArrayObject(ExecutionState& state, const uint64_t& size);
     ArrayObject(ExecutionState& state, Object* proto, const uint64_t& size);
     ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size);

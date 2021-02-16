@@ -2537,7 +2537,7 @@ NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(Execut
 
     if (argc > parameterLen) {
         size_t arrLen = argc - parameterLen;
-        newArray = new ArrayObject(state, (double)arrLen);
+        newArray = new ArrayObject(state, (uint64_t)arrLen);
         for (size_t i = 0; i < arrLen; i++) {
             newArray->setIndexedProperty(state, Value(i), argv[parameterLen + i]);
         }
