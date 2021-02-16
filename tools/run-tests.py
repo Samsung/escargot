@@ -182,10 +182,8 @@ def run_test262(engine, arch):
     copy(join(TEST262_OVERRIDE_DIR, 'parseTestRecord.py'), join(TEST262_DIR, 'tools', 'packaging', 'parseTestRecord.py'))
     copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
 
-    mode = "--fast_mode" if arch == str('x86') else ""
     stdout = run(['pypy', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         mode,
          '--full-summary'],
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
