@@ -1088,6 +1088,8 @@ public:
 
     bool set(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* value);
 
+    ValueRef* getIndexedProperty(ExecutionStateRef* state, ValueRef* property);
+    bool setIndexedProperty(ExecutionStateRef* state, ValueRef* property, ValueRef* value);
     bool has(ExecutionStateRef* state, ValueRef* propertyName);
 
     enum PresentAttribute {
@@ -1180,6 +1182,10 @@ public:
     ValueVectorRef* ownPropertyKeys(ExecutionStateRef* state);
 
     void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);
+
+    // get `length` property like ToLength(Get(obj, "length"))
+    // it returns 0 for exceptional cases (e.g. undefined, nan)
+    uint64_t length(ExecutionStateRef* state);
 
     bool isExtensible(ExecutionStateRef* state);
     bool preventExtensions(ExecutionStateRef* state);
@@ -1333,6 +1339,7 @@ public:
 class ESCARGOT_EXPORT ArrayObjectRef : public ObjectRef {
 public:
     static ArrayObjectRef* create(ExecutionStateRef* state);
+    static ArrayObjectRef* create(ExecutionStateRef* state, const uint64_t size);
     static ArrayObjectRef* create(ExecutionStateRef* state, ValueVectorRef* source);
     IteratorObjectRef* values(ExecutionStateRef* state);
     IteratorObjectRef* keys(ExecutionStateRef* state);

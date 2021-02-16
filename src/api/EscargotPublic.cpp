@@ -1447,6 +1447,20 @@ bool ObjectRef::set(ExecutionStateRef* state, ValueRef* propertyName, ValueRef* 
     return toImpl(this)->set(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)), toImpl(value), toImpl(this));
 }
 
+ValueRef* ObjectRef::getIndexedProperty(ExecutionStateRef* state, ValueRef* property)
+{
+    auto result = toImpl(this)->getIndexedProperty(*toImpl(state), toImpl(property));
+    if (result.hasValue()) {
+        return toRef(result.value(*toImpl(state), toImpl(this)));
+    }
+    return ValueRef::createUndefined();
+}
+
+bool ObjectRef::setIndexedProperty(ExecutionStateRef* state, ValueRef* property, ValueRef* value)
+{
+    return toImpl(this)->setIndexedProperty(*toImpl(state), toImpl(property), toImpl(value));
+}
+
 bool ObjectRef::has(ExecutionStateRef* state, ValueRef* propertyName)
 {
     return toImpl(this)->hasProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), toImpl(propertyName)));
@@ -1543,6 +1557,11 @@ ValueVectorRef* ObjectRef::ownPropertyKeys(ExecutionStateRef* state)
     }
 
     return result;
+}
+
+uint64_t ObjectRef::length(ExecutionStateRef* state)
+{
+    return toImpl(this)->length(*toImpl(state));
 }
 
 bool ObjectRef::isExtensible(ExecutionStateRef* state)
@@ -2482,6 +2501,11 @@ ValueRef* IteratorObjectRef::next(ExecutionStateRef* state)
 ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new ArrayObject(*toImpl(state)));
+}
+
+ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state, const uint64_t size)
+{
+    return toRef(new ArrayObject(*toImpl(state), size));
 }
 
 ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state, ValueVectorRef* source)

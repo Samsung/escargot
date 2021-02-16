@@ -43,26 +43,6 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     }
 }
 
-ArrayObject::ArrayObject(ExecutionState& state, double length)
-    : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), length)
-{
-}
-
-ArrayObject::ArrayObject(ExecutionState& state, Object* proto, double length)
-    : ArrayObject(state, proto)
-{
-    // If length is -0, let length be +0.
-    if (length == 0 && std::signbit(length)) {
-        length = +0.0;
-    }
-    // If length>2^32-1, throw a RangeError exception.
-    if (UNLIKELY(length > ((1LL << 32LL) - 1LL))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
-    }
-
-    setArrayLength(state, Value(length));
-}
-
 ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
     : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), size)
 {

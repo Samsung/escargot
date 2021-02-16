@@ -33,7 +33,7 @@ namespace Escargot {
 Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     bool interpretArgumentsAsElements = false;
-    uint32_t size = 0;
+    uint64_t size = 0;
     if (argc > 1) {
         size = argc;
         interpretArgumentsAsElements = true;
@@ -61,7 +61,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->arrayPrototype();
     });
-    ArrayObject* array = new ArrayObject(state, proto, (uint64_t)size);
+    ArrayObject* array = new ArrayObject(state, proto, size);
 
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
@@ -128,7 +128,7 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
 
     // If C is undefined, return ArrayCreate(length).
     if (C.isUndefined()) {
-        return new ArrayObject(state, static_cast<double>(length));
+        return new ArrayObject(state, static_cast<uint64_t>(length));
     }
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!C.isConstructor()) {
@@ -286,7 +286,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     // Let arrayLike be ! ToObject(items).
     Object* arrayLike = items.toObject(state);
     // Let len be ? ToLength(? Get(arrayLike, "length")).
-    int64_t len = arrayLike->length(state);
+    uint64_t len = arrayLike->length(state);
     // If IsConstructor(C) is true, then
     Object* A;
     if (C.isConstructor()) {
@@ -296,11 +296,11 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     } else {
         // Else,
         // Let A be ? ArrayCreate(len).
-        A = new ArrayObject(state, (double)len);
+        A = new ArrayObject(state, len);
     }
 
     // Let k be 0.
-    int64_t k = 0;
+    uint64_t k = 0;
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ! ToString(k).
@@ -339,7 +339,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
         Value arg[1] = { Value(len) };
         A = Object::construct(state, C, 1, arg).toObject(state);
     } else {
-        A = new ArrayObject(state, static_cast<double>(len));
+        A = new ArrayObject(state, static_cast<uint64_t>(len));
     }
 
     size_t k = 0;
