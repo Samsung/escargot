@@ -73,8 +73,6 @@ def BuildOptions():
                     help="Print summary after running tests")
   result.add_option("--full-summary", default=False, action="store_true",
                     help="Print summary and test output after running tests")
-  result.add_option("--fast_mode", default=False, action="store_true",
-                    help="Run fast mode")
   result.add_option("--strict_only", default=False, action="store_true",
                     help="Test only strict mode")
   result.add_option("--non_strict_only", default=False, action="store_true",
@@ -470,16 +468,16 @@ def CaseRunner(case):
 
 class TestSuite(object):
 
-  def __init__(self, root, fast_mode, strict_only, non_strict_only, unmarked_default, print_handle):
+  def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle):
     # TODO: derive from packagerConfig.py
     self.test_root = path.join(root, 'test')
     self.lib_root = path.join(root, 'harness')
-    self.fast_mode = fast_mode
     self.strict_only = strict_only
     self.non_strict_only = non_strict_only
     self.unmarked_default = unmarked_default
     self.print_handle = print_handle
     self.include_cache = { }
+    self.total_test_number = 0
 
   def Validate(self):
     if not path.exists(self.test_root):
@@ -523,6 +521,7 @@ class TestSuite(object):
       dirs.sort()
       for f in sorted(files):
         if self.IsTestCase(f):
+          skip = False
           full_path = path.join(root, f)
           if full_path.startswith(self.test_root):
             rel_path = full_path[len(self.test_root)+1:]
@@ -535,29 +534,27 @@ class TestSuite(object):
             file_path = rel_path[0:rel_path.rindex('.')]
             if file_path in EXCLUDE_LIST:
               #print 'Excluded: ' + rel_path
-              if self.fast_mode:
-                continue
-
-              file_index = EXCLUDE_LIST.index(file_path)
-              if str(EXCLUDE_REASON[file_index].firstChild.data) != "SLOW":
-                continue
-
+              skip = True
             elif EXCLUDE_LIST.count(basename) >= 1:
               #print 'Excluded: ' + basename
-              continue
+              skip = True
 
             if not self.non_strict_only:
               strict_case = TestCase(self, name, full_path, True)
               if not strict_case.IsNoStrict():
                 if strict_case.IsOnlyStrict() or \
                       self.unmarked_default in ['both', 'strict']:
-                  cases.append(strict_case)
+                  self.total_test_number += 1
+                  if not skip:
+                    cases.append(strict_case)
             if not self.strict_only:
               non_strict_case = TestCase(self, name, full_path, False)
               if not non_strict_case.IsOnlyStrict():
                 if non_strict_case.IsNoStrict() or \
                       self.unmarked_default in ['both', 'non_strict']:
-                  cases.append(non_strict_case)
+                  self.total_test_number += 1
+                  if not skip:
+                    cases.append(non_strict_case)
     logging.info("Done listing tests")
     return cases
 
@@ -574,10 +571,10 @@ class TestSuite(object):
     count = progress.count
     succeeded = progress.succeeded
     failed = progress.failed
-    write(" - Ran %i test%s" % MakePlural(count))
+    write(" - Ran %i test%s (total %i tests)" % (MakePlural(count) + (self.total_test_number,)))
     if progress.failed == 0:
       write(" - All tests succeeded")
-      write(" - Total Passed " + PercentFormat(count, 73255))
+      write(" - Total Passed " + PercentFormat(count, self.total_test_number))
     else:
       write(" - Passed " + PercentFormat(succeeded, count))
       write(" - Failed " + PercentFormat(failed, count))
@@ -711,7 +708,6 @@ def Main():
   (options, args) = parser.parse_args()
   ValidateOptions(options)
   test_suite = TestSuite(options.tests,
-                         options.fast_mode,
                          options.strict_only,
                          options.non_strict_only,
                          options.unmarked_default,
