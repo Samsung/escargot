@@ -230,9 +230,6 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
-    if (std::isnan(number) || std::isinf(number)) {
-        return Value(number).toString(state);
-    }
     double radix = 10;
     if (argc > 0 && !argv[0].isUndefined()) {
         radix = argv[0].toInteger(state);
@@ -240,7 +237,9 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_RadixInvalidRange);
         }
     }
-
+    if (std::isnan(number) || std::isinf(number)) {
+        return Value(number).toString(state);
+    }
     if (radix == 10) {
         return Value(number).toString(state);
     }

@@ -55,8 +55,8 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFu
     m_codeBlock = new NativeCodeBlock(state.context(), info);
     // The Proxy constructor does not have a prototype property
     m_structure = state.context()->defaultStructureForNotConstructorFunctionObject();
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionName().string()));
-    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionLength()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionLength()));
+    m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = (Value(m_codeBlock->functionName().string()));
 
     ASSERT(NativeFunctionObject::isConstructor());
 }

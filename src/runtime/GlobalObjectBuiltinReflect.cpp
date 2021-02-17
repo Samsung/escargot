@@ -25,6 +25,7 @@
 #include "runtime/NativeFunctionObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "ArrayObject.h"
+#include "VMInstance.h"
 
 namespace Escargot {
 
@@ -323,6 +324,9 @@ void GlobalObject::installReflect(ExecutionState& state)
 
     m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().setPrototypeOf),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setPrototypeOf, builtinReflectSetPrototypeOf, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                ObjectPropertyDescriptor(state.context()->staticStrings().Reflect.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     defineOwnProperty(state, ObjectPropertyName(strings->Reflect),
                       ObjectPropertyDescriptor(m_reflect, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

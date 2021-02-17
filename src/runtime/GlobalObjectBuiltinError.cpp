@@ -170,11 +170,10 @@ void GlobalObject::installError(ExecutionState& state)
     // 13.2.3 The [[ThrowTypeError]] Function Object
     m_throwTypeError = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinErrorThrowTypeError, 0, NativeFunctionInfo::Strict));
     m_throwTypeError->setGlobalIntrinsicObject(state, false);
-    m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name),
-                                        ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length),
                                         ObjectPropertyDescriptor(Value(0), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
-
+    m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name),
+                                        ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     m_throwTypeError->preventExtensions(state);
 
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
