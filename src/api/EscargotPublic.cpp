@@ -2677,6 +2677,11 @@ ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)
     return toRef(new ArrayBufferObject(*toImpl(state)));
 }
 
+ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state, FromExternalMemoryTag externalMemory)
+{
+    return toRef(new ArrayBufferObject(*toImpl(state), static_cast<ArrayBufferObject::FromExternalMemoryTag>(externalMemory)));
+}
+
 void ArrayBufferObjectRef::allocateBuffer(ExecutionStateRef* state, size_t bytelength)
 {
     toImpl(this)->allocateBuffer(*toImpl(state), bytelength);

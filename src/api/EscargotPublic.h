@@ -1457,7 +1457,14 @@ public:
 
 class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
+    enum FromExternalMemoryTag : size_t {
+        // denote that buffer memory is allocated on external memory area
+        // we do not need to malloc/free the buffer memory
+        FromExternalMemory
+    };
+
     static ArrayBufferObjectRef* create(ExecutionStateRef* state);
+    static ArrayBufferObjectRef* create(ExecutionStateRef* state, FromExternalMemoryTag);
     void allocateBuffer(ExecutionStateRef* state, size_t bytelength);
     void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
     void detachArrayBuffer(ExecutionStateRef* state);
