@@ -310,7 +310,7 @@ static ValueRef* builtin262CreateRealm(ExecutionStateRef* state, ValueRef* thisV
 static ValueRef* builtin262DetachArrayBuffer(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argv[0]->isArrayBufferObject()) {
-        argv[0]->asArrayBufferObject()->detachArrayBuffer(state);
+        argv[0]->asArrayBufferObject()->detachArrayBuffer();
     }
 
     return ValueRef::createUndefined();

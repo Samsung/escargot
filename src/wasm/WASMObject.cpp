@@ -136,7 +136,7 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
     addFinalizer([](Object* obj, void* data) {
         WASMMemoryObject* self = (WASMMemoryObject*)obj;
         wasm_memory_delete(self->memory());
-        self->buffer()->detachArrayBufferWithoutFree();
+        self->buffer()->detachArrayBuffer();
     },
                  nullptr);
 }
@@ -172,12 +172,12 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
 
     // Let memory be a new Memory.
     // Initialize memory from memory.
-    ArrayBufferObject* buffer = new ArrayBufferObject(state, ArrayBufferObject::FromExternalMemory);
+    ArrayBufferObject* buffer = new ArrayBufferObject(state);
 
     // Note) wasm_memory_data with zero size returns null pointer
     // predefined temporal address is allocated for this case
     void* dataBlock = wasm_memory_size(memory) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memory);
-    buffer->attachBuffer(state, dataBlock, wasm_memory_data_size(memory));
+    buffer->attachExternalBuffer(state, dataBlock, wasm_memory_data_size(memory));
 
     // Set memory.[[Memory]] to memory.
     // Set memory.[[BufferObject]] to buffer.

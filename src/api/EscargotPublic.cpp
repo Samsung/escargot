@@ -2711,9 +2711,14 @@ void ArrayBufferObjectRef::attachBuffer(ExecutionStateRef* state, void* buffer, 
     toImpl(this)->attachBuffer(*toImpl(state), buffer, bytelength);
 }
 
-void ArrayBufferObjectRef::detachArrayBuffer(ExecutionStateRef* state)
+void ArrayBufferObjectRef::attachExternalBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength)
 {
-    toImpl(this)->detachArrayBuffer(*toImpl(state));
+    toImpl(this)->attachExternalBuffer(*toImpl(state), buffer, bytelength);
+}
+
+void ArrayBufferObjectRef::detachArrayBuffer()
+{
+    toImpl(this)->detachArrayBuffer();
 }
 
 uint8_t* ArrayBufferObjectRef::rawBuffer()
@@ -2729,6 +2734,11 @@ size_t ArrayBufferObjectRef::byteLength()
 bool ArrayBufferObjectRef::isDetachedBuffer()
 {
     return toImpl(this)->isDetachedBuffer();
+}
+
+bool ArrayBufferObjectRef::pointsExternalMemory()
+{
+    return toImpl(this)->pointsExternalMemory();
 }
 
 ArrayBufferObjectRef* ArrayBufferViewRef::buffer()

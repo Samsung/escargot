@@ -1466,11 +1466,16 @@ class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
     static ArrayBufferObjectRef* create(ExecutionStateRef* state);
     void allocateBuffer(ExecutionStateRef* state, size_t bytelength);
+    // the buffer will be freed by PlatformRef::onArrayBufferObjectDataBufferFree
     void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
-    void detachArrayBuffer(ExecutionStateRef* state);
+    // the buffer will NOT be freed by PlatformRef::onArrayBufferObjectDataBufferFree
+    void attachExternalBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
+    void detachArrayBuffer();
+
     uint8_t* rawBuffer();
     size_t byteLength();
     bool isDetachedBuffer();
+    bool pointsExternalMemory();
 };
 
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
