@@ -186,6 +186,7 @@ private:
     const String* m_lastExecutedString;
     bool m_legacyFeaturesEnabled;
 };
+
 class RegExpStringIteratorObject : public IteratorObject {
 public:
     RegExpStringIteratorObject(ExecutionState& state, bool global, bool unicode, RegExpObject* regexp, String* string);

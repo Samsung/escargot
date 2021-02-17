@@ -302,8 +302,8 @@ bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMat
 
 bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
-    Context::RegExpStatus& globalRegExpStatus = state.context()->regexpStatus();
-    globalRegExpStatus.input = str;
+    Context::RegExpLegacyFeatures& legacyFeatures = state.context()->regexpLegacyFeatures();
+    legacyFeatures.input = str;
 
     m_lastExecutedString = str;
 
@@ -360,13 +360,13 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             }
 
             // Details:{3, 10, 3, 10, 3, 6, 7, 10, 1684872, 806200}
-            globalRegExpStatus.dollarCount = maxMatchedIndex;
+            legacyFeatures.dollarCount = maxMatchedIndex;
             unsigned dollarEnd = std::min(maxMatchedIndex, (unsigned)9);
             for (unsigned i = 1; i <= dollarEnd; i++) {
                 if (outputBuf[i * 2] == std::numeric_limits<unsigned>::max()) {
-                    globalRegExpStatus.dollars[i - 1] = StringView();
+                    legacyFeatures.dollars[i - 1] = StringView();
                 } else {
-                    globalRegExpStatus.dollars[i - 1] = StringView(str, outputBuf[i * 2], outputBuf[i * 2 + 1]);
+                    legacyFeatures.dollars[i - 1] = StringView(str, outputBuf[i * 2], outputBuf[i * 2 + 1]);
                 }
             }
 
@@ -376,13 +376,13 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                     setLastIndex(state, Value(outputBuf[1]));
                 }
                 if (!lastParenInvalid && subPatternNum) {
-                    globalRegExpStatus.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
+                    legacyFeatures.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
                 } else {
-                    globalRegExpStatus.lastParen = StringView();
+                    legacyFeatures.lastParen = StringView();
                 }
-                globalRegExpStatus.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
-                globalRegExpStatus.leftContext = StringView(str, 0, outputBuf[0]);
-                globalRegExpStatus.rightContext = StringView(str, outputBuf[1], length);
+                legacyFeatures.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
+                legacyFeatures.leftContext = StringView(str, 0, outputBuf[0]);
+                legacyFeatures.rightContext = StringView(str, outputBuf[1], length);
                 return true;
             }
             std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
@@ -396,14 +396,14 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             }
 
             if (!lastParenInvalid && subPatternNum) {
-                globalRegExpStatus.lastParen = StringView(str, piece[maxMatchedIndex].m_start, piece[maxMatchedIndex].m_end);
+                legacyFeatures.lastParen = StringView(str, piece[maxMatchedIndex].m_start, piece[maxMatchedIndex].m_end);
             } else {
-                globalRegExpStatus.lastParen = StringView();
+                legacyFeatures.lastParen = StringView();
             }
 
-            globalRegExpStatus.leftContext = StringView(str, 0, piece[0].m_start);
-            globalRegExpStatus.rightContext = StringView(str, piece[maxMatchedIndex].m_end, length);
-            globalRegExpStatus.lastMatch = StringView(str, piece[0].m_start, piece[0].m_end);
+            legacyFeatures.leftContext = StringView(str, 0, piece[0].m_start);
+            legacyFeatures.rightContext = StringView(str, piece[maxMatchedIndex].m_end, length);
+            legacyFeatures.lastMatch = StringView(str, piece[0].m_start, piece[0].m_end);
             matchResult.m_matchResults.push_back(std::vector<RegexMatchResult::RegexMatchResultPiece>(std::move(piece)));
             if (!isGlobal)
                 break;
@@ -458,18 +458,6 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     } while (testResult);
 }
 
-static void invalidateLegacyRegExpStaticProperties(ExecutionState& state)
-{
-    state.context()->regexpStatus().input = String::emptyString;
-    state.context()->regexpStatus().lastMatch = StringView();
-    state.context()->regexpStatus().lastParen = StringView();
-    state.context()->regexpStatus().leftContext = StringView();
-    state.context()->regexpStatus().rightContext = StringView();
-    for (size_t i = 0; i < 9; i++) {
-        state.context()->regexpStatus().dollars[i] = StringView();
-    }
-}
-
 ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)
 {
     uint64_t len = 0;
@@ -509,11 +497,11 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         }
         arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
     }
-    Context* thisRealm = state.context();
-    Context* rRealm = this->getFunctionRealm(state);
-    if (thisRealm == rRealm) {
+
+    // FIXME RegExp should have own Realm internal slot when allocated
+    if (state.context() == this->getFunctionRealm(state)) {
         if (!this->legacyFeaturesEnabled()) {
-            invalidateLegacyRegExpStaticProperties(state);
+            state.context()->regexpLegacyFeatures().invalidate();
         }
     }
     return arr;
@@ -559,6 +547,6 @@ void* RegExpStringIteratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-    ;
 }
+
 } // namespace Escargot
