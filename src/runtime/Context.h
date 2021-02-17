@@ -95,26 +95,45 @@ class Context : public gc {
 #endif
 
 public:
-    struct RegExpStatus {
+    // Legacy RegExp Features (non-standard)
+    struct RegExpLegacyFeatures {
         String* input; // RegExp.input ($_)
         StringView lastMatch;
         StringView lastParen;
         StringView leftContext;
         StringView rightContext;
-        size_t dollarCount;
         StringView dollars[9]; // RegExp.$1-$9
+        size_t dollarCount;
+        bool valid;
 
-        RegExpStatus()
+        RegExpLegacyFeatures()
             : input(String::emptyString)
             , lastMatch()
             , lastParen()
             , leftContext()
             , rightContext()
             , dollarCount(0)
+            , valid(true)
         {
             for (size_t i = 0; i < 9; i++) {
                 dollars[i] = StringView();
             }
+        }
+
+        bool isValid() { return valid; }
+
+        void invalidate()
+        {
+            input = String::emptyString;
+            lastMatch = StringView();
+            lastParen = StringView();
+            leftContext = StringView();
+            rightContext = StringView();
+            for (size_t i = 0; i < 9; i++) {
+                dollars[i] = StringView();
+            }
+            dollarCount = 0;
+            valid = false;
         }
     };
 
@@ -287,9 +306,9 @@ public:
         return m_astAllocator;
     }
 
-    RegExpStatus& regexpStatus()
+    RegExpLegacyFeatures& regexpLegacyFeatures()
     {
-        return m_regexpStatus;
+        return m_regexpLegacyFeatures;
     }
 
     InstantiatedFunctionObjects& instantiatedFunctionObjects()
@@ -354,7 +373,7 @@ private:
     ASTAllocator& m_astAllocator;
     // For non-standard, read-only properties of RegExp
     // contains the result of the last matched regular expressions
-    RegExpStatus m_regexpStatus;
+    RegExpLegacyFeatures m_regexpLegacyFeatures;
 
     InstantiatedFunctionObjects m_instantiatedFunctionObjects;
 

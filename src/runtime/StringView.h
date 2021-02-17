@@ -130,10 +130,6 @@ public:
         return true;
     }
 
-    void* operator new(size_t size, void* ptr)
-    {
-        return ptr;
-    }
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

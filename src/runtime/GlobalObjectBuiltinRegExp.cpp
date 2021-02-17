@@ -72,10 +72,8 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         return constructorRealm->globalObject()->regexpPrototype();
     });
     RegExpObject* regexp = new RegExpObject(state, proto, source, option);
-    Context* thisRealm = state.context();
-    if (newTarget == thisRealm->globalObject()->regexp()) {
-        regexp->setLegacyFeaturesEnabled(true);
-    } else {
+
+    if (newTarget != state.context()->globalObject()->regexp()) {
         regexp->setLegacyFeaturesEnabled(false);
     }
 
@@ -196,8 +194,8 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
 
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isPointerValue() || !thisValue.asPointerValue()->isObject() || !thisValue.asPointerValue()->asObject()->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'This' is not a RegExp object");
+    if (!thisValue.isObject() || !thisValue.asObject()->isRegExpObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isRegExpObject()) {
@@ -647,52 +645,75 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }
 
-#define DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(stringView)                                                                        \
-    if (!thisValue.isPointerValue() || thisValue.asPointerValue() != state.context()->globalObject()->regexp()) {               \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject); \
-    }                                                                                                                           \
-    if (stringView.isEmpty()) {                                                                                                 \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject); \
-    }                                                                                                                           \
-    return stringView;
 
-// For non-standard, read-only properties of RegExp
+// Legacy RegExp Features (non-standard)
 static Value builtinRegExpInputGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    StringView* stringView = new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().input);
-    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(stringView));
+    if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+    }
+    auto& status = state.context()->regexpLegacyFeatures();
+    if (!status.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::String_InvalidStringLength);
+    }
+    return status.input;
 }
 
 static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isPointerValue() || thisValue.asPointerValue() != state.context()->globalObject()->regexp()) {
+    if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
-    state.resolveCallee()->codeBlock()->context()->regexpStatus().input = argv[0].toString(state);
+    state.context()->regexpLegacyFeatures().input = argv[0].toString(state);
     return Value();
 }
 
-static Value builtinRegExpLastMatchGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().lastMatch)))
-}
+#define REGEXP_LEGACY_FEATURES(F) \
+    F(LastMatch, lastMatch)       \
+    F(LastParen, lastParen)       \
+    F(LeftContext, leftContext)   \
+    F(RightContext, rightContext)
 
-static Value builtinRegExpLastParenGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().lastParen)))
-}
+#define REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(F) \
+    F(1)                                        \
+    F(2)                                        \
+    F(3)                                        \
+    F(4)                                        \
+    F(5)                                        \
+    F(6)                                        \
+    F(7)                                        \
+    F(8)                                        \
+    F(9)
 
+#define DEFINE_LEGACY_FEATURE_GETTER(NAME, name)                                                                                            \
+    static Value builtinRegExp##NAME##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
+    {                                                                                                                                       \
+        if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {                                   \
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);         \
+        }                                                                                                                                   \
+                                                                                                                                            \
+        auto& status = state.context()->regexpLegacyFeatures();                                                                             \
+        if (!status.isValid()) {                                                                                                            \
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::String_InvalidStringLength);               \
+        }                                                                                                                                   \
+        return new StringView(status.name);                                                                                                 \
+    }
 
-static Value builtinRegExpLeftContextGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().leftContext)))
-}
+#define DEFINE_LEGACY_DOLLAR_NUMBER_FEATURE_GETTER(number)                                                                                          \
+    static Value builtinRegExpDollar##number##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
+    {                                                                                                                                               \
+        if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {                                           \
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);                 \
+        }                                                                                                                                           \
+        auto& status = state.context()->regexpLegacyFeatures();                                                                                     \
+        if (!status.isValid()) {                                                                                                                    \
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::String_InvalidStringLength);                       \
+        }                                                                                                                                           \
+        return (status.dollarCount < number) ? String::emptyString : new StringView(status.dollars[number - 1]);                                    \
+    }
 
-static Value builtinRegExpRightContextGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(state.resolveCallee()->codeBlock()->context()->regexpStatus().rightContext)))
-}
-
+REGEXP_LEGACY_FEATURES(DEFINE_LEGACY_FEATURE_GETTER);
+REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_FEATURE_GETTER);
 
 static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -702,28 +723,6 @@ static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisVa
     RegExpStringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asRegExpStringIteratorObject();
     return iter->next(state);
 }
-
-#define DEFINE_GETTER(number)                                                                                                                       \
-    static Value builtinRegExpDollar##number##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
-    {                                                                                                                                               \
-        auto& status = state.resolveCallee()->codeBlock()->context()->regexpStatus();                                                               \
-        if (status.dollarCount < number) {                                                                                                          \
-            DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(String::emptyString)))                                                        \
-        }                                                                                                                                           \
-        DEFINE_GETTER_LEGACY_REGEXP_PROPERTY(Value(new StringView(status.dollars[number - 1])))                                                     \
-    }
-
-DEFINE_GETTER(1)
-DEFINE_GETTER(2)
-DEFINE_GETTER(3)
-DEFINE_GETTER(4)
-DEFINE_GETTER(5)
-DEFINE_GETTER(6)
-DEFINE_GETTER(7)
-DEFINE_GETTER(8)
-DEFINE_GETTER(9)
-
-#undef DEFINE_GETTER
 
 std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state)
 {
@@ -768,7 +767,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
         m_regexp->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    // For non-standard, read-only properties of RegExp
+    // Legacy RegExp Features (non-standard)
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpInputGetter, 0, NativeFunctionInfo::Strict)),
@@ -805,24 +804,14 @@ void GlobalObject::installRegExp(ExecutionState& state)
         m_regexp->defineOwnProperty(state, strings->$Apostrophe, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     }
 
-#define DEFINE_ATTR(number)                                                                                                                                                                \
+#define DEFINE_LEGACY_DOLLAR_NUMBER_ATTR(number)                                                                                                                                           \
     {                                                                                                                                                                                      \
         JSGetterSetter gs(                                                                                                                                                                 \
             new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinRegExpDollar##number##Getter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));              \
         m_regexp->defineOwnProperty(state, strings->$##number, ObjectPropertyDescriptor(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent))); \
     }
 
-    DEFINE_ATTR(1)
-    DEFINE_ATTR(2)
-    DEFINE_ATTR(3)
-    DEFINE_ATTR(4)
-    DEFINE_ATTR(5)
-    DEFINE_ATTR(6)
-    DEFINE_ATTR(7)
-    DEFINE_ATTR(8)
-    DEFINE_ATTR(9)
-
-#undef DEFINE_ATTR
+    REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_ATTR);
 
     m_regexpPrototype = new Object(state);
     m_regexpPrototype->setGlobalIntrinsicObject(state, true);
