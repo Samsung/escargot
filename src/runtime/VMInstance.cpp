@@ -400,30 +400,32 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
                                                                                    ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&functionPrototypeNativeGetterSetterData));
 
-    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.name,
+    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.length,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
-    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.length,
+    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.name,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
 
-    m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.name,
-                                                                                                         ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.length,
                                                                                                          ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
-    m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.name,
+
+    m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.name,
+                                                                                                         ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
+    m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
                                                                                                  ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
-    m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForNotConstructorFunctionObject->addProperty(m_staticStrings.length,
+
+    m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForNotConstructorFunctionObject->addProperty(m_staticStrings.name,
                                                                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+
 
     m_defaultStructureForBoundFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
                                                                                         ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
     m_defaultStructureForBoundFunctionObject = m_defaultStructureForBoundFunctionObject->addProperty(m_staticStrings.name,
                                                                                                      ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 

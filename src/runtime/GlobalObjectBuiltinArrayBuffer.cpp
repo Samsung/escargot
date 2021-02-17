@@ -66,7 +66,13 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-arraybuffer.prototype.bytelength
 static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getbyteLength);
+    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().getbyteLength.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+    ArrayBufferObject* obj = thisValue.asObject()->asArrayBufferObject();
+    if (obj->isDetachedBuffer()) {
+        return Value(0);
+    }
     return Value(obj->byteLength());
 }
 
