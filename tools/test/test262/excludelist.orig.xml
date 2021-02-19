@@ -3465,7 +3465,6 @@
     <test id="language/expressions/object/identifier-shorthand-yield-invalid-strict-mode"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters"><reason>TODO</reason></test>
-    <test id="language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
@@ -3686,7 +3685,6 @@
     <test id="language/module-code/top-level-await/syntax/try-await-expr-template-literal"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/try-await-expr-this"><reason>TODO</reason></test>
     <test id="language/module-code/verify-dfs"><reason>TODO</reason></test>
-    <test id="language/statements/async-function/early-errors-declaration-await-in-formals-default"><reason>TODO</reason></test>
     <test id="language/statements/async-function/unscopables-with"><reason>TODO</reason></test>
     <test id="language/statements/async-function/unscopables-with-in-nested-fn"><reason>TODO</reason></test>
     <test id="language/statements/async-generator/eval-var-scope-syntax-err"><reason>TODO</reason></test>
@@ -3701,7 +3699,6 @@
     <test id="language/statements/class/cpn-class-decl-computed-property-name-from-await-expression"><reason>TODO</reason></test>
     <test id="language/statements/class/cpn-class-decl-fields-computed-property-name-from-await-expression"><reason>TODO</reason></test>
     <test id="language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-await-expression"><reason>TODO</reason></test>
-    <test id="language/statements/class/definition/early-errors-class-method-await-in-formals-default"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-init-iter-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-init-iter-no-close"><reason>TODO</reason></test>
     <test id="language/statements/class/dstr/async-private-gen-meth-ary-name-iter-val"><reason>TODO</reason></test>

@@ -1051,7 +1051,7 @@ public:
 
         switch (this->lookahead.type) {
         case Token::IdentifierToken: {
-            if ((this->sourceType == SourceType::Module || this->context->await) && this->lookahead.relatedSource(this->scanner->source) == "await") {
+            if ((this->sourceType == SourceType::Module || this->currentScopeContext->m_isAsync) && this->lookahead.relatedSource(this->scanner->source) == "await") {
                 this->throwUnexpectedToken(this->lookahead);
             }
             if (this->matchAsyncFunction()) {
@@ -3630,7 +3630,7 @@ public:
                     this->throwUnexpectedToken(*token);
                 }
             }
-        } else if ((this->sourceType == Module || this->context->await) && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
+        } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync) && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
             this->throwUnexpectedToken(*token);
         }
 
