@@ -185,10 +185,9 @@ bool ExecutionState::inPauserScope()
         if (state->lexicalEnvironment()) {
             auto env = state->lexicalEnvironment();
             auto record = env->record();
-            if (record->isGlobalEnvironmentRecord()) {
+            if (record->isGlobalEnvironmentRecord() || record->isModuleEnvironmentRecord()) {
                 return state->hasRareData() && state->rareData()->m_pauseSource;
-            }
-            if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            } else if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptGeneratorFunctionObject()
                     || record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptAsyncFunctionObject()
                     || record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptAsyncGeneratorFunctionObject();
