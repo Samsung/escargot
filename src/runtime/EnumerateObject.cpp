@@ -184,8 +184,8 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
 
     if (UNLIKELY(m_object->isArrayObject())) {
         m_arrayLength = m_object->asArrayObject()->arrayLength(state);
-    } else if (UNLIKELY(m_object->isTypedArrayObject())) {
-        m_object->asTypedArrayObject()->buffer()->throwTypeErrorIfDetached(state);
+    } else if (UNLIKELY(m_object->isTypedArrayObject() && m_object->asTypedArrayObject()->buffer()->isDetachedBuffer())) {
+        return;
     }
 
     bool shouldSearchProto = false;

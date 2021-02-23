@@ -50,11 +50,11 @@ bool TypedArrayObject::defineOwnProperty(ExecutionState& state, const ObjectProp
     if (LIKELY(P.isStringType())) {
         double index = P.canonicalNumericIndexString(state);
         if (LIKELY(index != Value::UndefinedIndex)) {
-            if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength() || desc.isAccessorDescriptor()) {
+            if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength() || desc.isAccessorDescriptor()) {
                 return false;
             }
 
-            if (desc.isConfigurablePresent() && desc.isConfigurable()) {
+            if (desc.isConfigurablePresent() && !desc.isConfigurable()) {
                 return false;
             }
             if (desc.isEnumerablePresent() && !desc.isEnumerable()) {
@@ -73,6 +73,20 @@ bool TypedArrayObject::defineOwnProperty(ExecutionState& state, const ObjectProp
     return Object::defineOwnProperty(state, P, desc);
 }
 
+bool TypedArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
+{
+    if (LIKELY(P.isStringType())) {
+        double index = P.canonicalNumericIndexString(state);
+        if (LIKELY(index != Value::UndefinedIndex)) {
+            if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+                return true;
+            }
+            return false;
+        }
+    }
+    return Object::deleteOwnProperty(state, P);
+}
+
 ObjectGetResult TypedArrayObject::get(ExecutionState& state, const ObjectPropertyName& P)
 {
     if (LIKELY(P.isStringType())) {
@@ -89,7 +103,8 @@ bool TypedArrayObject::set(ExecutionState& state, const ObjectPropertyName& P, c
     if (LIKELY(P.isStringType())) {
         double index = P.canonicalNumericIndexString(state);
         if (LIKELY(index != Value::UndefinedIndex)) {
-            return integerIndexedElementSet(state, index, v);
+            integerIndexedElementSet(state, index, v);
+            return true;
         }
     }
     return Object::set(state, P, v, receiver);
@@ -134,15 +149,13 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
 // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
 ObjectGetResult TypedArrayObject::integerIndexedElementGet(ExecutionState& state, double index)
 {
-    buffer()->throwTypeErrorIfDetached(state);
-
-    if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+    if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
         return ObjectGetResult();
     }
 
     size_t indexedPosition = (index * elementSize()) + byteOffset();
     // Return GetValueFromBuffer(buffer, indexedPosition, elementType, true, "Unordered").
-    return ObjectGetResult(buffer()->getValueFromBuffer(state, indexedPosition, typedArrayType()), true, true, false);
+    return ObjectGetResult(buffer()->getValueFromBuffer(state, indexedPosition, typedArrayType()), true, true, true);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementset
@@ -159,9 +172,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         numValue = Value(value.toNumber(state));
     }
 
-    buffer()->throwTypeErrorIfDetached(state);
-
-    if (!Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+    if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
         return false;
     }
 
@@ -232,7 +243,9 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
     ObjectGetResult TYPE##ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property)                                         \
     {                                                                                                                                           \
         if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
-            buffer()->throwTypeErrorIfDetached(state);                                                                                          \
+            if (buffer()->isDetachedBuffer()) {                                                                                                 \
+                return ObjectGetResult();                                                                                                       \
+            }                                                                                                                                   \
             size_t indexedPosition = property.asUInt32() * elementSize();                                                                       \
             return ObjectGetResult(getDirectValueFromBuffer(state, indexedPosition), true, true, false);                                        \
         }                                                                                                                                       \
@@ -241,8 +254,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
                                                                                                                                                 \
     bool TYPE##ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)                                \
     {                                                                                                                                           \
-        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
-            buffer()->throwTypeErrorIfDetached(state);                                                                                          \
+        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength() && !buffer()->isDetachedBuffer())) {                      \
             size_t indexedPosition = property.asUInt32() * elementSize();                                                                       \
             setDirectValueInBuffer(state, indexedPosition, value);                                                                              \
             return true;                                                                                                                        \
