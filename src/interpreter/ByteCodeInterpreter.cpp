@@ -3972,8 +3972,8 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& s
     if (willBeObject.isPrimitive()) {
         obj->preventExtensions(state);
     }
-
     bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
+
     if (UNLIKELY(!result) && state.inStrictMode()) {
         Object::throwCannotWriteError(state, ObjectStructurePropertyName(state, property.toString(state)));
     }

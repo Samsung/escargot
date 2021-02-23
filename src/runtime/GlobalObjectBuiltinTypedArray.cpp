@@ -571,15 +571,16 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
     while (k < len) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
         ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
-        ASSERT(kPresent.hasValue());
         // If kPresent is true, then
-        // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
-        Value elementK = kPresent.value(state, O);
+        if (kPresent.hasValue()) {
+            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
+            Value elementK = kPresent.value(state, O);
 
-        // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
-        if (elementK.equalsTo(state, argv[0])) {
-            // If same is true, return k.
-            return Value(k);
+            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
+            if (elementK.equalsTo(state, argv[0])) {
+                // If same is true, return k.
+                return Value(k);
+            }
         }
         // Increase k by 1.
         k++;
@@ -850,7 +851,6 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     // Repeat, while k < len
     while (k < len) {
         ObjectGetResult kResult = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(kResult.hasValue());
         // Let kValue be the result of calling the [[Get]] internal method of O with argument ToString(k).
         Value kValue = kResult.value(state, O);
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
@@ -990,7 +990,6 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
 
     while (k < len) {
         ObjectGetResult value = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(value.hasValue());
         // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
         Value kValue = value.value(state, O);
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
@@ -1226,7 +1225,6 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     size_t k = 0;
     while (k < len) {
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(res.hasValue());
         Value kValue = res.value(state, O);
         Value args[] = { kValue, Value(k), O };
         Object::call(state, callbackfn, T, 3, args);
@@ -1265,7 +1263,9 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
 
     StringBuilder builder;
     Value elem = O->getIndexedProperty(state, Value(0)).value(state, O);
-    RELEASE_ASSERT(!elem.isUndefinedOrNull());
+    if (elem.isUndefinedOrNull()) {
+        elem = String::emptyString;
+    }
     builder.appendString(elem.toString(state));
 
     size_t curIndex = 1;
@@ -1277,7 +1277,9 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
             builder.appendString(sep);
         }
         elem = O->getIndexedProperty(state, Value(curIndex)).value(state, O);
-        RELEASE_ASSERT(!elem.isUndefinedOrNull());
+        if (elem.isUndefinedOrNull()) {
+            elem = String::emptyString;
+        }
         builder.appendString(elem.toString(state));
         curIndex++;
     }
@@ -1352,13 +1354,11 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
         accumulator = argv[1];
     } else { // 8
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(res.hasValue());
         accumulator = res.value(state, O);
         k++;
     }
     while (k < len) { // 9
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(res.hasValue());
         Value kValue = res.value(state, O);
         Value args[] = { accumulator, kValue, Value(k), O };
         accumulator = Object::call(state, callbackfn, Value(), 4, args);
@@ -1402,7 +1402,6 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     } else {
         // Else, initialValue is not present
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(res.hasValue());
         accumulator = res.value(state, O);
         k--;
     }
@@ -1410,7 +1409,6 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     // Repeat, while k ≥ 0
     while (k >= 0) {
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        RELEASE_ASSERT(res.hasValue());
         Value kValue = res.value(state, O);
         Value args[] = { accumulator, kValue, Value(k), O };
         accumulator = Object::call(state, callbackfn, Value(), 4, args);
@@ -1484,6 +1482,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     if (O->typedArrayType() != target->typedArrayType()) {
         size_t n = 0;
         while (k < finalEnd) {
+            O->buffer()->throwTypeErrorIfDetached(state);
             Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
             A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kValue);
             k++;
