@@ -59,6 +59,7 @@ non262/RegExp/flags.js
 non262/regress/regress-591846.js
 non262/Reflect/surfaces.js
 non262/Reflect/target.js
+non262/Promise/iterator-close.js
 
 # Passed in 64bit but, Failed in 32bit binary due to value expression bug in 32bit mode
 non262/TypedArray/sort-negative-nan.js

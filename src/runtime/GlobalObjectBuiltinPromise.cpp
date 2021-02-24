@@ -65,6 +65,20 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
     return promise;
 }
 
+// https://tc39.es/ecma262/#sec-getpromiseresolve
+static Value getPromiseResolve(ExecutionState& state, Object* promiseConstructor)
+{
+    // Assert: IsConstructor(promiseConstructor) is true.
+    // Let promiseResolve be ? Get(promiseConstructor, "resolve").
+    auto promiseResolve = promiseConstructor->get(state, state.context()->staticStrings().resolve).value(state, promiseConstructor);
+    // If IsCallable(promiseResolve) is false, throw a TypeError exception.
+    if (!promiseResolve.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
+    }
+    // Return promiseResolve.
+    return promiseResolve;
+}
+
 static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://tc39.es/ecma262/#sec-performpromiseall
@@ -76,9 +90,20 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     Object* C = thisValue.asObject();
-
     // Let promiseCapability be NewPromiseCapability(C).
     PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
+    // Let promiseResolve be GetPromiseResolve(C).
+    Value promiseResolve;
+    try {
+        promiseResolve = getPromiseResolve(state, C);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
 
     // Let iteratorRecord be GetIterator(iterable).
     // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
@@ -101,13 +126,6 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
         ValueVector* values = new ValueVector();
         // Let remainingElementsCount be a new Record { [[value]]: 1 }.
         size_t* remainingElementsCount = new (PointerFreeGC) size_t(1);
-
-        // Let promiseResolve be ? Get(constructor, "resolve").
-        Value promiseResolve = C->get(state, ObjectPropertyName(state.context()->staticStrings().resolve)).value(state, C);
-        // If ! IsCallable(promiseResolve) is false, throw a TypeError exception.
-        if (!promiseResolve.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
-        }
 
         // Let index be 0.
         int64_t index = 0;
@@ -218,8 +236,20 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     Object* C = thisValue.asObject();
 
     // Let promiseCapability be NewPromiseCapability(C).
-    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
     // ReturnIfAbrupt(promiseCapability).
+    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
+    // Let promiseResolve be GetPromiseResolve(C).
+    Value promiseResolve;
+    try {
+        promiseResolve = getPromiseResolve(state, C);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
 
     // Let iteratorRecord be GetIterator(iterable).
     // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
@@ -238,12 +268,6 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
     Value result;
     try {
-        Value promiseResolve = C->get(state, ObjectPropertyName(state.context()->staticStrings().resolve)).value(state, C);
-        // If ! IsCallable(promiseResolve) is false, throw a TypeError exception.
-        if (!promiseResolve.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
-        }
-
         // Repeat
         while (true) {
             // Let next be IteratorStep(iteratorRecord).
@@ -384,7 +408,7 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
 }
 
 // https://tc39.es/ecma262/#sec-performpromiseallsettled
-static Value performPromiseAllSettled(ExecutionState& state, IteratorRecord* iteratorRecord, Object* constructor, PromiseReaction::Capability& resultCapability)
+static Value performPromiseAllSettled(ExecutionState& state, IteratorRecord* iteratorRecord, Object* constructor, PromiseReaction::Capability& resultCapability, Value promiseResolve)
 {
     // Assert: ! IsConstructor(constructor) is true.
     // Assert: resultCapability is a PromiseCapability Record.
@@ -394,12 +418,6 @@ static Value performPromiseAllSettled(ExecutionState& state, IteratorRecord* ite
     size_t* remainingElementsCount = new (PointerFreeGC) size_t(1);
     // Let index be 0.
     size_t index = 0;
-    // Let promiseResolve be ? Get(constructor, "resolve").
-    Value promiseResolve = constructor->get(state, ObjectPropertyName(state.context()->staticStrings().resolve)).value(state, constructor);
-    // If IsCallable(promiseResolve) is false, throw a TypeError exception.
-    if (!promiseResolve.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "resolve function is not callable");
-    }
 
     // Repeat,
     while (true) {
@@ -502,6 +520,19 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
     Object* C = thisValue.asObject();
     // Let promiseCapability be ? NewPromiseCapability(C).
     auto promiseCapability = PromiseObject::newPromiseCapability(state, C);
+    // Let promiseResolve be GetPromiseResolve(C).
+    Value promiseResolve;
+    try {
+        promiseResolve = getPromiseResolve(state, C);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        // If value is an abrupt completion,
+        // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);
+        // Return capability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+
     // Let iteratorRecord be GetIterator(iterable).
     // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
     IteratorRecord* iteratorRecord;
@@ -519,7 +550,7 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
     Value result;
     // Let result be PerformPromiseAllSettled(iteratorRecord, C, promiseCapability).
     try {
-        result = performPromiseAllSettled(state, iteratorRecord, C, promiseCapability);
+        result = performPromiseAllSettled(state, iteratorRecord, C, promiseCapability, promiseResolve);
     } catch (const Value& v) {
         Value exceptionValue = v;
         // If result is an abrupt completion,
@@ -546,20 +577,6 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
     }
     // Return Completion(result).
     return result;
-}
-
-// https://tc39.es/ecma262/#sec-getpromiseresolve
-static Value getPromiseResolve(ExecutionState& state, Object* promiseConstructor)
-{
-    // Assert: IsConstructor(promiseConstructor) is true.
-    // Let promiseResolve be ? Get(promiseConstructor, "resolve").
-    auto promiseResolve = promiseConstructor->get(state, state.context()->staticStrings().resolve).value(state, promiseConstructor);
-    // If IsCallable(promiseResolve) is false, throw a TypeError exception.
-    if (!promiseResolve.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
-    }
-    // Return promiseResolve.
-    return promiseResolve;
 }
 
 // https://tc39.es/ecma262/#sec-performpromiseany
