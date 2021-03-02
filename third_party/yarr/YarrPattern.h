@@ -376,6 +376,7 @@ struct YarrPattern : public gc {
         nonwordUnicodeIgnoreCasecharCached = nullptr;
         HashMap<unsigned, CharacterClass*>().swap(unicodePropertiesCached);
 
+        m_body = nullptr;
         m_disjunctions.clear();
         m_userCharacterClasses.clear();
         m_captureGroupNames.clear();
@@ -524,7 +525,7 @@ struct YarrPattern : public gc {
     unsigned m_numSubpatterns{ 0 };
     unsigned m_maxBackReference{ 0 };
     unsigned m_initialStartValueFrameLocation{ 0 };
-    PatternDisjunction* m_body;
+    PatternDisjunction* m_body{ nullptr };
     Vector<std::unique_ptr<PatternDisjunction>, 4> m_disjunctions;
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
     ::Escargot::Vector<String, GCUtil::gc_malloc_allocator<String>> m_captureGroupNames;

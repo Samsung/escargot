@@ -746,11 +746,11 @@ void IntlDateTimeFormat::initialize(ExecutionState& state, Object* dateTimeForma
 
     dateTimeFormat->internalSlot()->setExtraData(icuDateFormat);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(dateTimeFormat->internalSlot(), [](void* obj, void*) {
+    dateTimeFormat->internalSlot()->addFinalizer([](Object* obj, void* data) {
         Object* self = (Object*)obj;
         udat_close((UDateFormat*)self->extraData());
     },
-                                   nullptr, nullptr, nullptr);
+                                                 nullptr);
 
     // Set dateTimeFormat.[[boundFormat]] to undefined.
     // Set dateTimeFormat.[[initializedDateTimeFormat]] to true.

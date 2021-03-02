@@ -190,12 +190,12 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     m_locale = foundLocale;
     m_type = t;
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         IntlPluralRulesObject* self = (IntlPluralRulesObject*)obj;
         uplrules_close(self->m_icuPluralRules);
         unum_close(self->m_icuNumberFormat);
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 
     // Return pluralRules.
 }

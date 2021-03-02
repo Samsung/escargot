@@ -1849,15 +1849,16 @@ void Object::addFinalizer(ObjectFinalizer fn, void* data)
     r->m_finalizer.pushBack(std::make_pair(fn, data));
 }
 
-void Object::removeFinalizer(ObjectFinalizer fn, void* data)
+bool Object::removeFinalizer(ObjectFinalizer fn, void* data)
 {
     auto r = ensureObjectExtendedExtraData();
     for (size_t i = 0; i < r->m_finalizer.size(); i++) {
         if (r->m_finalizer[i].first == fn && r->m_finalizer[i].second == data) {
             r->m_finalizer.erase(i);
-            break;
+            return true;
         }
     }
+    return false;
 }
 
 } // namespace Escargot

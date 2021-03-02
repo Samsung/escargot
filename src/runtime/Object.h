@@ -1104,7 +1104,7 @@ public:
     }
 
     void addFinalizer(ObjectFinalizer fn, void* data);
-    void removeFinalizer(ObjectFinalizer fn, void* data);
+    bool removeFinalizer(ObjectFinalizer fn, void* data);
 
 protected:
     static inline void fillGCDescriptor(GC_word* desc)

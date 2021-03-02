@@ -416,11 +416,11 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
         internalSlot->setExtraData(ucollator);
 
-        GC_REGISTER_FINALIZER_NO_ORDER(internalSlot, [](void* obj, void*) {
+        internalSlot->addFinalizer([](Object* obj, void* data) {
             Object* self = (Object*)obj;
             ucol_close((UCollator*)self->extraData());
         },
-                                       nullptr, nullptr, nullptr);
+                                   nullptr);
     }
 }
 

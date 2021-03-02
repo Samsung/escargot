@@ -34,6 +34,9 @@ WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
 {
     addFinalizer([](Object* self, void* data) {
         auto ws = self->asWeakSetObject();
+        for (size_t i = 0; i < ws->m_storage.size(); i++) {
+            ws->m_storage[i]->removeFinalizer(WeakSetObject::finalizer, ws);
+        }
         ws->m_storage.clear();
     },
                  nullptr);
