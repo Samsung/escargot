@@ -211,22 +211,22 @@ dataLog(const char* fmt, ...)
 #define UNUSED_PARAM(e)
 #define ASSERT_UNUSED(variable, assertion) ASSERT(assertion)
 
-template <typename Key, typename Value>
-class HashMap : public std::unordered_map<Key, Value> {
+template <typename Key, typename Value, typename Allocator = std::allocator<std::pair<Key const, Value>>>
+class HashMap : public std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, Allocator> {
 public:
     void add(const Key& k, const Value& v)
     {
-        std::unordered_map<Key, Value>::insert(std::make_pair(k, v));
+        std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, Allocator>::insert(std::make_pair(k, v));
     }
 
     const Value& get(const Key& k)
     {
-        return std::unordered_map<Key, Value>::find(k)->second;
+        return std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, Allocator>::find(k)->second;
     }
 };
 
-template <typename Key>
-class HashSet : public std::unordered_set<Key> {
+template <typename Key, typename Allocator = std::allocator<Key>>
+class HashSet : public std::unordered_set<Key, std::hash<Key>, std::equal_to<Key>, Allocator> {
 public:
     struct AddResult {
         bool isNewEntry;
@@ -234,13 +234,13 @@ public:
     AddResult add(const Key& k)
     {
         AddResult r;
-        r.isNewEntry = std::unordered_set<Key>::insert(k).second;
+        r.isNewEntry = std::unordered_set<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::insert(k).second;
         return r;
     }
 
     bool contains(const Key& k)
     {
-        return std::unordered_set<Key>::find(k) != std::unordered_set<Key>::end();
+        return std::unordered_set<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::find(k) != std::unordered_set<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::end();
     }
 };
 
