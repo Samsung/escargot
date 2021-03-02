@@ -776,11 +776,11 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
 
     numberFormat->internalSlot()->setExtraData(fomatter);
 
-    GC_REGISTER_FINALIZER_NO_ORDER(numberFormat->internalSlot(), [](void* obj, void*) {
+    numberFormat->internalSlot()->addFinalizer([](Object* obj, void* data) {
         Object* self = (Object*)obj;
         unumf_close((UNumberFormatter*)self->extraData());
     },
-                                   nullptr, nullptr, nullptr);
+                                               nullptr);
 }
 
 UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, double x)

@@ -34,6 +34,9 @@ WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
 {
     addFinalizer([](Object* self, void* data) {
         auto wm = self->asWeakMapObject();
+        for (size_t i = 0; i < wm->m_storage.size(); i++) {
+            wm->m_storage[i]->key->removeFinalizer(WeakMapObject::finalizer, wm);
+        }
         wm->m_storage.clear();
     },
                  nullptr);

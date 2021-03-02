@@ -152,11 +152,11 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize RelativeTimeFormat");
     }
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+    addFinalizer([](Object* obj, void* data) {
         IntlRelativeTimeFormatObject* self = (IntlRelativeTimeFormatObject*)obj;
         ureldatefmt_close(self->m_icuRelativeDateTimeFormatter);
     },
-                                   nullptr, nullptr, nullptr);
+                 nullptr);
 }
 
 static URelativeDateTimeUnit icuRelativeTimeUnitFromString(String* unit)
