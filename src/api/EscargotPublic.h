@@ -76,6 +76,7 @@ class WeakMapObjectRef;
 class WeakRefObjectRef;
 class FinalizationRegistryObjectRef;
 class ErrorObjectRef;
+class DataViewObjectRef;
 class DateObjectRef;
 class StringObjectRef;
 class SymbolObjectRef;
@@ -682,7 +683,7 @@ public:
     static ValueRef* createNull();
     static ValueRef* createUndefined();
 
-    bool isStoreInHeap();
+    bool isStoredInHeap();
     bool isBoolean();
     bool isNumber();
     bool isNull();
@@ -702,6 +703,7 @@ public:
     {
         return isUndefined() || isNull();
     }
+
     bool isObject();
     bool isFunctionObject();
     bool isArrayObject();
@@ -772,6 +774,7 @@ public:
     StringRef* asString();
     SymbolRef* asSymbol();
     BigIntRef* asBigInt();
+
     ObjectRef* asObject();
     FunctionObjectRef* asFunctionObject();
     ArrayObjectRef* asArrayObject();
@@ -781,6 +784,7 @@ public:
     NumberObjectRef* asNumberObject();
     BooleanObjectRef* asBooleanObject();
     RegExpObjectRef* asRegExpObject();
+    DataViewObjectRef* asDataViewObject();
     DateObjectRef* asDateObject();
     GlobalObjectRef* asGlobalObject();
     ErrorObjectRef* asErrorObject();
@@ -1487,6 +1491,11 @@ public:
     size_t byteLength();
     size_t byteOffset();
     size_t arrayLength();
+};
+
+class ESCARGOT_EXPORT DataViewObjectRef : public ArrayBufferViewRef {
+public:
+    static DataViewObjectRef* create(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT Int8ArrayObjectRef : public ArrayBufferViewRef {

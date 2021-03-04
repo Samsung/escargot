@@ -44,6 +44,7 @@ class BigIntObject;
 class NumberObject;
 class BooleanObject;
 class RegExpObject;
+class DataViewObject;
 class DateObject;
 class ErrorObject;
 class GlobalObject;
@@ -638,6 +639,12 @@ public:
     {
         ASSERT(isArrayBufferView());
         return (ArrayBufferView*)this;
+    }
+
+    DataViewObject* asDataViewObject()
+    {
+        ASSERT(isDataViewObject());
+        return (DataViewObject*)this;
     }
 
     DoubleInEncodedValue* asDoubleInEncodedValue()

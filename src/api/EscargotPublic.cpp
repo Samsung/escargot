@@ -33,6 +33,7 @@
 #include "runtime/IteratorObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/DataViewObject.h"
 #include "runtime/DateObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/NumberObject.h"
@@ -708,11 +709,22 @@ DEFINE_IS_AS_POINTERVALUE_XXX(BigIntObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(NumberObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(BooleanObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(RegExpObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(DataViewObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(DateObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(ErrorObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferObject)
 DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferView)
+DEFINE_IS_AS_POINTERVALUE_XXX(PromiseObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(ProxyObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(SetObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(WeakSetObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(MapObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(WeakMapObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(WeakRefObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(FinalizationRegistryObject)
+DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObjectProxyObject)
+
 
 bool ValueRef::isArrayPrototypeObject()
 {
@@ -727,11 +739,6 @@ bool ValueRef::isTypedArrayObject()
 bool ValueRef::isTypedArrayPrototypeObject()
 {
     return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayPrototypeObject();
-}
-
-bool ValueRef::isDataViewObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isDataViewObject();
 }
 
 #define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                                                                                                  \
@@ -758,9 +765,6 @@ DEFINE_TYPEDARRAY_IMPL(BigInt64);
 DEFINE_TYPEDARRAY_IMPL(BigUint64);
 
 
-DEFINE_IS_AS_POINTERVALUE_XXX(PromiseObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(ProxyObject)
-
 bool ValueRef::isArgumentsObject()
 {
     return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArgumentsObject();
@@ -775,14 +779,6 @@ bool ValueRef::isGeneratorObject()
 {
     return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isGeneratorObject();
 }
-
-DEFINE_IS_AS_POINTERVALUE_XXX(SetObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(WeakSetObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(MapObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(WeakMapObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(WeakRefObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(FinalizationRegistryObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObjectProxyObject)
 
 bool ValueRef::isSetIteratorObject()
 {
@@ -2317,7 +2313,7 @@ bool ValueRef::isBoolean()
     return toImpl(this).isBoolean();
 }
 
-bool ValueRef::isStoreInHeap()
+bool ValueRef::isStoredInHeap()
 {
     auto value = EncodedValue::fromPayload(this);
     if (value.isStoredInHeap()) {
@@ -2774,6 +2770,11 @@ size_t ArrayBufferViewRef::byteOffset()
 size_t ArrayBufferViewRef::arrayLength()
 {
     return toImpl(this)->arrayLength();
+}
+
+DataViewObjectRef* DataViewObjectRef::create(ExecutionStateRef* state)
+{
+    return toRef(new DataViewObject(*toImpl(state)));
 }
 
 Int8ArrayObjectRef* Int8ArrayObjectRef::create(ExecutionStateRef* state)
