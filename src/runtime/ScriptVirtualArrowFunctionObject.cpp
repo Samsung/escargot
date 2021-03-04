@@ -40,14 +40,14 @@ Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value&
     return FunctionObjectProcessCallGenerator::processCall<ScriptVirtualArrowFunctionObject, false, false, false, ScriptVirtualArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, 0, nullptr, nullptr);
 }
 
-Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This function cannot be invoked");
     ASSERT_NOT_REACHED();
     return Value();
 }
 
-Value ScriptVirtualArrowFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ScriptVirtualArrowFunctionObject::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This function cannot be invoked");
     ASSERT_NOT_REACHED();

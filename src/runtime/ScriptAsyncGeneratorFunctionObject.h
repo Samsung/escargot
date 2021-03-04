@@ -57,9 +57,9 @@ public:
 
     friend class FunctionObjectProcessCallGenerator;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv) override;
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
-    virtual Value construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override;
+    virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override;
 
 private:
     EncodedValue m_thisValue;

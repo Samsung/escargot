@@ -70,12 +70,12 @@ public:
     }
 };
 
-Value ScriptAsyncFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+Value ScriptAsyncFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     return FunctionObjectProcessCallGenerator::processCall<ScriptAsyncFunctionObject, false, false, false, ScriptAsyncFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, argc, argv, nullptr);
 }
 
-Value ScriptAsyncFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ScriptAsyncFunctionObject::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Async function cannot be invoked with 'new'");
     ASSERT_NOT_REACHED();

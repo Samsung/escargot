@@ -72,13 +72,13 @@ bool NativeFunctionObject::isConstructor() const
     return nativeCodeBlock()->isNativeConstructor();
 }
 
-Value NativeFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+Value NativeFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ASSERT(codeBlock()->isNativeCodeBlock());
     return processNativeFunctionCall<false>(state, thisValue, argc, argv, nullptr);
 }
 
-Value NativeFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value NativeFunctionObject::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
     // Assert: Type(newTarget) is Object.
     ASSERT(newTarget->isObject());
