@@ -20,9 +20,6 @@
 #ifndef __EscargotValueAdapter__
 #define __EscargotValueAdapter__
 
-#include "runtime/Value.h"
-#include "runtime/EncodedValue.h"
-
 namespace Escargot {
 
 class ValueRef;
@@ -81,6 +78,7 @@ DEFINE_CAST(GlobalObject);
 DEFINE_CAST(GlobalObjectProxyObject);
 DEFINE_CAST(FunctionObject);
 DEFINE_CAST(DateObject);
+DEFINE_CAST(DataViewObject);
 DEFINE_CAST(PromiseObject);
 DEFINE_CAST(ProxyObject);
 DEFINE_CAST(Job);
