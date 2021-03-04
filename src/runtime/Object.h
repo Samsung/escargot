@@ -1054,8 +1054,8 @@ public:
         return state.context();
     }
 
-    static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv);
-    static Value construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget = nullptr);
+    static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, Value* argv);
+    static Value construct(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, Object* newTarget = nullptr);
     static bool setIntegrityLevel(ExecutionState& state, Object* O, bool isSealed);
     static bool testIntegrityLevel(ExecutionState& state, Object* O, bool isSealed);
 

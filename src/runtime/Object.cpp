@@ -1111,7 +1111,7 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-call
-Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, Value* argv)
 {
     if (!callee.isPointerValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
@@ -1121,7 +1121,7 @@ Value Object::call(ExecutionState& state, const Value& callee, const Value& this
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-construct
-Value Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, Object* newTarget)
 {
     // If newTarget was not passed, let newTarget be F.
     if (newTarget == nullptr) {

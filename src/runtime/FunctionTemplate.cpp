@@ -52,7 +52,7 @@ public:
     {
     }
 
-    virtual Value construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget) override
+    virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override
     {
         return processNativeFunctionCall<true, false>(state, Value(), argc, argv, newTarget);
     }

@@ -53,7 +53,7 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
     }
 }
 
-Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
     return Value();
@@ -110,7 +110,7 @@ public:
 };
 
 
-Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
     // Assert: Type(newTarget) is Object.
     Object* thisArgument = nullptr;

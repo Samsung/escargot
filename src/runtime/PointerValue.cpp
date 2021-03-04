@@ -29,7 +29,7 @@ size_t PointerValue::g_arrayPrototypeObjectTag;
 size_t PointerValue::g_objectRareDataTag;
 size_t PointerValue::g_doubleInEncodedValueTag;
 
-Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, NULLABLE Value* argv)
+Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ASSERT(!isCallable());
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
@@ -39,7 +39,7 @@ Value PointerValue::call(ExecutionState& state, const Value& thisValue, const si
     return Value(Value::EmptyValue);
 }
 
-Value PointerValue::construct(ExecutionState& state, const size_t argc, NULLABLE Value* argv, Object* newTarget)
+Value PointerValue::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
     ASSERT(!isConstructor());
     if (isFunctionObject()) {
