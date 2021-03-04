@@ -21,12 +21,11 @@
 #define __EscargotFunctionTemplate__
 
 #include "runtime/Template.h"
-#include "runtime/ObjectTemplate.h"
-#include "parser/CodeBlock.h"
 #include "api/EscargotPublic.h"
 
 namespace Escargot {
 
+class ObjectTemplate;
 class CallTemplateFunctionData;
 
 class FunctionTemplate : public Template {

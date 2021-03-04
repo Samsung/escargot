@@ -19,11 +19,11 @@
 
 #include "Escargot.h"
 #include "FunctionTemplate.h"
+#include "runtime/ObjectTemplate.h"
 #include "runtime/Context.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/SandBox.h"
 #include "api/internal/ValueAdapter.h"
-
 #include "runtime/FunctionObjectInlines.h"
 
 namespace Escargot {

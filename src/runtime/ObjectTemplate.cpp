@@ -23,6 +23,7 @@
 #include "runtime/Object.h"
 #include "runtime/Context.h"
 #include "runtime/FunctionTemplate.h"
+#include "api/EscargotPublic.h"
 #include "api/internal/ValueAdapter.h"
 
 namespace Escargot {

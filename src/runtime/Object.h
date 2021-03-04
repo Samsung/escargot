@@ -760,49 +760,7 @@ public:
         return true;
     }
 
-    ErrorObject* asErrorObject()
-    {
-        ASSERT(isErrorObject());
-        return (ErrorObject*)this;
-    }
-
-    ArrayObject* asArrayObject()
-    {
-        ASSERT(isArrayObject());
-        return (ArrayObject*)this;
-    }
-
-    RegExpObject* asRegExpObject()
-    {
-        ASSERT(isRegExpObject());
-        return (RegExpObject*)this;
-    }
-
     String* optionString(ExecutionState& state);
-
-    ArrayBufferObject* asArrayBufferObject()
-    {
-        ASSERT(isArrayBufferObject());
-        return (ArrayBufferObject*)this;
-    }
-
-    ArrayBufferView* asArrayBufferView()
-    {
-        ASSERT(isArrayBufferView());
-        return (ArrayBufferView*)this;
-    }
-
-    DataViewObject* asDataViewObject()
-    {
-        ASSERT(isDataViewObject());
-        return (DataViewObject*)this;
-    }
-
-    ArgumentsObject* asArgumentsObject()
-    {
-        ASSERT(isArgumentsObject());
-        return (ArgumentsObject*)this;
-    }
 
     bool isConcatSpreadable(ExecutionState& state);
 
