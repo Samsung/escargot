@@ -41,60 +41,81 @@
 #pragma message("You should define `_GLIBCXX_DEBUG` in {debug mode + libstdc++} because Escargot uses it")
 #endif
 
+#define ESCARGOT_POINTERVALUE_CHILD_REF_LIST(F) \
+    F(ArrayBufferObject)                        \
+    F(ArrayBufferView)                          \
+    F(ArrayObject)                              \
+    F(BigInt)                                   \
+    F(BigIntObject)                             \
+    F(BooleanObject)                            \
+    F(DataViewObject)                           \
+    F(DateObject)                               \
+    F(ErrorObject)                              \
+    F(FinalizationRegistryObject)               \
+    F(FunctionObject)                           \
+    F(GlobalObject)                             \
+    F(GlobalObjectProxyObject)                  \
+    F(IteratorObject)                           \
+    F(MapObject)                                \
+    F(NumberObject)                             \
+    F(Object)                                   \
+    F(PromiseObject)                            \
+    F(ProxyObject)                              \
+    F(RegExpObject)                             \
+    F(SetObject)                                \
+    F(String)                                   \
+    F(StringObject)                             \
+    F(Symbol)                                   \
+    F(SymbolObject)                             \
+    F(WeakMapObject)                            \
+    F(WeakRefObject)                            \
+    F(WeakSetObject)
+
+#define ESCARGOT_ERROR_REF_LIST(F) \
+    F(AggregateErrorObject)        \
+    F(EvalErrorObject)             \
+    F(RangeErrorObject)            \
+    F(ReferenceErrorObject)        \
+    F(SyntaxErrorObject)           \
+    F(TypeErrorObject)             \
+    F(URIErrorObject)
+
+#define ESCARGOT_TYPEDARRAY_REF_LIST(F) \
+    F(BigInt64ArrayObject)              \
+    F(BigUint64ArrayObject)             \
+    F(Float32ArrayObject)               \
+    F(Float64ArrayObject)               \
+    F(Int16ArrayObject)                 \
+    F(Int32ArrayObject)                 \
+    F(Int8ArrayObject)                  \
+    F(Uint16ArrayObject)                \
+    F(Uint32ArrayObject)                \
+    F(Uint8ArrayObject)                 \
+    F(Uint8ClampedArrayObject)
+
+#define ESCARGOT_REF_LIST(F)                \
+    F(Context)                              \
+    F(ExecutionState)                       \
+    F(FunctionTemplate)                     \
+    F(ObjectTemplate)                       \
+    F(PointerValue)                         \
+    F(RopeString)                           \
+    F(Script)                               \
+    F(ScriptParser)                         \
+    F(Template)                             \
+    F(VMInstance)                           \
+    ESCARGOT_POINTERVALUE_CHILD_REF_LIST(F) \
+    ESCARGOT_ERROR_REF_LIST(F)              \
+    ESCARGOT_TYPEDARRAY_REF_LIST(F)
+
+
 namespace Escargot {
 
-class VMInstanceRef;
-class ContextRef;
-class StringRef;
-class RopeStringRef;
-class SymbolRef;
-class BigIntRef;
 class ValueRef;
-class PointerValueRef;
-class ObjectRef;
-class GlobalObjectRef;
-class FunctionObjectRef;
-class ArrayObjectRef;
-class ArrayBufferObjectRef;
-class ArrayBufferViewRef;
-class Int8ArrayObjectRef;
-class Uint8ArrayObjectRef;
-class Int16ArrayObjectRef;
-class Uint16ArrayObjectRef;
-class Int32ArrayObjectRef;
-class Uint32ArrayObjectRef;
-class Uint8ClampedArrayObjectRef;
-class Float32ArrayObjectRef;
-class Float64ArrayObjectRef;
-class BigInt64ArrayObjectRef;
-class BigUint64ArrayObjectRef;
-class PromiseObjectRef;
-class SetObjectRef;
-class WeakSetObjectRef;
-class MapObjectRef;
-class WeakMapObjectRef;
-class WeakRefObjectRef;
-class FinalizationRegistryObjectRef;
-class ErrorObjectRef;
-class DataViewObjectRef;
-class DateObjectRef;
-class StringObjectRef;
-class SymbolObjectRef;
-class BigIntObjectRef;
-class NumberObjectRef;
-class BooleanObjectRef;
-class RegExpObjectRef;
-class ProxyObjectRef;
-class GlobalObjectProxyObjectRef;
 class PlatformRef;
-class ScriptRef;
-class ScriptParserRef;
-class ExecutionStateRef;
-class ValueVectorRef;
-class JobRef;
-class TemplateRef;
-class ObjectTemplateRef;
-class FunctionTemplateRef;
+#define DECLARE_REF_CLASS(Name) class Name##Ref;
+ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
+#undef DECLARE_REF_CLASS
 
 class ESCARGOT_EXPORT Globals {
 public:
@@ -693,60 +714,36 @@ public:
     bool isDouble();
     bool isTrue();
     bool isFalse();
-    bool isString();
-    bool isSymbol();
-    bool isBigInt();
-    bool isPointerValue();
     bool isCallable(); // can ValueRef::call
     bool isConstructible(); // can ValueRef::construct
     bool isUndefinedOrNull()
     {
         return isUndefined() || isNull();
     }
+    bool isPointerValue();
 
-    bool isObject();
-    bool isFunctionObject();
-    bool isArrayObject();
-    bool isArrayPrototypeObject();
-    bool isStringObject();
-    bool isSymbolObject();
-    bool isBigIntObject();
-    bool isNumberObject();
-    bool isBooleanObject();
-    bool isRegExpObject();
-    bool isDateObject();
-    bool isGlobalObject();
-    bool isErrorObject();
-    bool isArrayBufferObject();
-    bool isArrayBufferView();
-    bool isInt8ArrayObject();
-    bool isUint8ArrayObject();
-    bool isInt16ArrayObject();
-    bool isUint16ArrayObject();
-    bool isInt32ArrayObject();
-    bool isUint32ArrayObject();
-    bool isUint8ClampedArrayObject();
-    bool isFloat32ArrayObject();
-    bool isFloat64ArrayObject();
-    bool isBigInt64ArrayObject();
-    bool isBigUint64ArrayObject();
-    bool isTypedArrayObject();
-    bool isTypedArrayPrototypeObject();
-    bool isDataViewObject();
-    bool isPromiseObject();
-    bool isProxyObject();
     bool isArgumentsObject();
+    bool isArrayPrototypeObject();
     bool isGeneratorFunctionObject();
     bool isGeneratorObject();
-    bool isSetObject();
-    bool isWeakSetObject();
-    bool isSetIteratorObject();
-    bool isMapObject();
-    bool isWeakMapObject();
-    bool isWeakRefObject();
-    bool isFinalizationRegistryObject();
     bool isMapIteratorObject();
-    bool isGlobalObjectProxyObject();
+    bool isSetIteratorObject();
+    bool isTypedArrayObject();
+    bool isTypedArrayPrototypeObject();
+
+    bool asBoolean();
+    double asNumber();
+    int32_t asInt32();
+    uint32_t asUint32();
+    PointerValueRef* asPointerValue();
+
+#define DEFINE_VALUEREF_IS_AS(Name) \
+    bool is##Name();                \
+    Name##Ref* as##Name();
+
+    ESCARGOT_POINTERVALUE_CHILD_REF_LIST(DEFINE_VALUEREF_IS_AS);
+    ESCARGOT_TYPEDARRAY_REF_LIST(DEFINE_VALUEREF_IS_AS);
+#undef DEFINE_VALUEREF_IS_AS
 
     bool toBoolean(ExecutionStateRef* state);
     double toNumber(ExecutionStateRef* state);
@@ -765,51 +762,6 @@ public:
 
     enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     uint32_t toArrayIndex(ExecutionStateRef* state);
-
-    bool asBoolean();
-    double asNumber();
-    int32_t asInt32();
-    uint32_t asUint32();
-    PointerValueRef* asPointerValue();
-    StringRef* asString();
-    SymbolRef* asSymbol();
-    BigIntRef* asBigInt();
-
-    ObjectRef* asObject();
-    FunctionObjectRef* asFunctionObject();
-    ArrayObjectRef* asArrayObject();
-    StringObjectRef* asStringObject();
-    SymbolObjectRef* asSymbolObject();
-    BigIntObjectRef* asBigIntObject();
-    NumberObjectRef* asNumberObject();
-    BooleanObjectRef* asBooleanObject();
-    RegExpObjectRef* asRegExpObject();
-    DataViewObjectRef* asDataViewObject();
-    DateObjectRef* asDateObject();
-    GlobalObjectRef* asGlobalObject();
-    ErrorObjectRef* asErrorObject();
-    ArrayBufferObjectRef* asArrayBufferObject();
-    ArrayBufferViewRef* asArrayBufferView();
-    Int8ArrayObjectRef* asInt8ArrayObject();
-    Uint8ArrayObjectRef* asUint8ArrayObject();
-    Int16ArrayObjectRef* asInt16ArrayObject();
-    Uint16ArrayObjectRef* asUint16ArrayObject();
-    Int32ArrayObjectRef* asInt32ArrayObject();
-    Uint32ArrayObjectRef* asUint32ArrayObject();
-    Uint8ClampedArrayObjectRef* asUint8ClampedArrayObject();
-    Float32ArrayObjectRef* asFloat32ArrayObject();
-    Float64ArrayObjectRef* asFloat64ArrayObject();
-    BigInt64ArrayObjectRef* asBigInt64ArrayObject();
-    BigUint64ArrayObjectRef* asBigUint64ArrayObject();
-    PromiseObjectRef* asPromiseObject();
-    ProxyObjectRef* asProxyObject();
-    SetObjectRef* asSetObject();
-    WeakSetObjectRef* asWeakSetObject();
-    MapObjectRef* asMapObject();
-    WeakMapObjectRef* asWeakMapObject();
-    WeakRefObjectRef* asWeakRefObject();
-    FinalizationRegistryObjectRef* asFinalizationRegistryObject();
-    GlobalObjectProxyObjectRef* asGlobalObjectProxyObject();
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
     bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // ===

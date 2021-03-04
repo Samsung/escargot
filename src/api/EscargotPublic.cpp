@@ -40,7 +40,6 @@
 #include "runtime/BooleanObject.h"
 #include "runtime/RegExpObject.h"
 #include "runtime/ModuleNamespaceObject.h"
-#include "runtime/Job.h"
 #include "runtime/JobQueue.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/ProxyObject.h"
@@ -687,135 +686,6 @@ bool BigIntRef::isInfinity()
 BigIntRef* BigIntRef::negativeValue()
 {
     return toRef(toImpl(this)->negativeValue());
-}
-
-#define DEFINE_IS_POINTERVALUE_XXX(XXX) \
-    bool ValueRef::is##XXX() { return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->is##XXX(); }
-#define DEFINE_AS_POINTERVALUE_XXX(XXX) \
-    XXX##Ref* ValueRef::as##XXX() { return toRef(toImpl(this).asPointerValue()->as##XXX()); }
-#define DEFINE_IS_AS_POINTERVALUE_XXX(XXX) \
-    DEFINE_IS_POINTERVALUE_XXX(XXX)        \
-    DEFINE_AS_POINTERVALUE_XXX(XXX)
-
-DEFINE_IS_AS_POINTERVALUE_XXX(String)
-DEFINE_IS_AS_POINTERVALUE_XXX(Symbol)
-DEFINE_IS_AS_POINTERVALUE_XXX(BigInt)
-DEFINE_IS_AS_POINTERVALUE_XXX(Object)
-DEFINE_IS_AS_POINTERVALUE_XXX(FunctionObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(ArrayObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(StringObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(SymbolObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(BigIntObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(NumberObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(BooleanObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(RegExpObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(DataViewObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(DateObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(ErrorObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(ArrayBufferView)
-DEFINE_IS_AS_POINTERVALUE_XXX(PromiseObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(ProxyObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(SetObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(WeakSetObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(MapObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(WeakMapObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(WeakRefObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(FinalizationRegistryObject)
-DEFINE_IS_AS_POINTERVALUE_XXX(GlobalObjectProxyObject)
-
-
-bool ValueRef::isArrayPrototypeObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArrayPrototypeObject();
-}
-
-bool ValueRef::isTypedArrayObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject();
-}
-
-bool ValueRef::isTypedArrayPrototypeObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayPrototypeObject();
-}
-
-#define DEFINE_TYPEDARRAY_IMPL(TypeName)                                                                                                                                                                  \
-    bool ValueRef::is##TypeName##ArrayObject()                                                                                                                                                            \
-    {                                                                                                                                                                                                     \
-        return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject() && toImpl(this).asPointerValue()->asTypedArrayObject()->typedArrayType() == TypedArrayType::TypeName; \
-    }                                                                                                                                                                                                     \
-                                                                                                                                                                                                          \
-    TypeName##ArrayObjectRef* ValueRef::as##TypeName##ArrayObject()                                                                                                                                       \
-    {                                                                                                                                                                                                     \
-        return toRef((TypeName##ArrayObject*)(toImpl(this).asPointerValue()->asTypedArrayObject()));                                                                                                      \
-    }
-
-DEFINE_TYPEDARRAY_IMPL(Int8);
-DEFINE_TYPEDARRAY_IMPL(Uint8);
-DEFINE_TYPEDARRAY_IMPL(Int16);
-DEFINE_TYPEDARRAY_IMPL(Uint16);
-DEFINE_TYPEDARRAY_IMPL(Int32);
-DEFINE_TYPEDARRAY_IMPL(Uint32);
-DEFINE_TYPEDARRAY_IMPL(Uint8Clamped);
-DEFINE_TYPEDARRAY_IMPL(Float32);
-DEFINE_TYPEDARRAY_IMPL(Float64);
-DEFINE_TYPEDARRAY_IMPL(BigInt64);
-DEFINE_TYPEDARRAY_IMPL(BigUint64);
-
-
-bool ValueRef::isArgumentsObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArgumentsObject();
-}
-
-bool ValueRef::isGeneratorFunctionObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isFunctionObject() && toImpl(this).asPointerValue()->asFunctionObject()->isGenerator();
-}
-
-bool ValueRef::isGeneratorObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isGeneratorObject();
-}
-
-bool ValueRef::isSetIteratorObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isSetIteratorObject();
-}
-
-bool ValueRef::isMapIteratorObject()
-{
-    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isMapIteratorObject();
-}
-
-ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
-{
-    auto impl = toImpl(this);
-    if (UNLIKELY(!impl.isPointerValue())) {
-        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
-    }
-    PointerValue* o = impl.asPointerValue();
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
-    for (size_t i = 0; i < argc; i++) {
-        newArgv[i] = toImpl(argv[i]);
-    }
-    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
-}
-
-ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
-{
-    auto impl = toImpl(this);
-    if (UNLIKELY(!impl.isPointerValue())) {
-        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
-    }
-    PointerValue* o = impl.asPointerValue();
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
-    for (size_t i = 0; i < argc; i++) {
-        newArgv[i] = toImpl(argv[i]);
-    }
-    return toRef(Object::construct(*toImpl(state), o, argc, newArgv));
 }
 
 class PlatformBridge : public Platform {
@@ -2251,62 +2121,29 @@ OptionalRef<ExecutionStateRef> ExecutionStateRef::parent()
     return toRef(imp->parent());
 }
 
-ValueRef* ValueRef::create(bool value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
+// ValueRef
+#define DEFINE_VALUEREF_POINTERVALUE_IS_AS(Name)                                                                     \
+    bool ValueRef::is##Name() { return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->is##Name(); } \
+    Name##Ref* ValueRef::as##Name() { return toRef(toImpl(this).asPointerValue()->as##Name()); }
 
-ValueRef* ValueRef::create(int value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
+ESCARGOT_POINTERVALUE_CHILD_REF_LIST(DEFINE_VALUEREF_POINTERVALUE_IS_AS);
+#undef DEFINE_VALUEREF_POINTERVALUE_IS_AS
 
-ValueRef* ValueRef::create(unsigned value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
 
-ValueRef* ValueRef::create(float value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
+#define DEFINE_VALUEREF_TYPEDARRAY_IS_AS(Name, name, siz, nativeType)                                         \
+    bool ValueRef::is##Name##ArrayObject()                                                                    \
+    {                                                                                                         \
+        return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject()           \
+            && toImpl(this).asPointerValue()->asTypedArrayObject()->typedArrayType() == TypedArrayType::Name; \
+    }                                                                                                         \
+                                                                                                              \
+    Name##ArrayObjectRef* ValueRef::as##Name##ArrayObject()                                                   \
+    {                                                                                                         \
+        return toRef((Name##ArrayObject*)(toImpl(this).asPointerValue()->asTypedArrayObject()));              \
+    }
 
-ValueRef* ValueRef::create(double value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
-
-ValueRef* ValueRef::create(long value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
-
-ValueRef* ValueRef::create(unsigned long value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
-
-ValueRef* ValueRef::create(long long value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
-
-ValueRef* ValueRef::create(unsigned long long value)
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
-}
-
-ValueRef* ValueRef::createNull()
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Null))
-                                           .payload());
-}
-
-ValueRef* ValueRef::createUndefined()
-{
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Undefined))
-                                           .payload());
-}
+FOR_EACH_TYPEDARRAY_TYPES(DEFINE_VALUEREF_TYPEDARRAY_IS_AS);
+#undef DEFINE_VALUEREF_TYPEDARRAY_IS_AS
 
 bool ValueRef::isBoolean()
 {
@@ -2377,6 +2214,156 @@ bool ValueRef::isConstructible() // can ValueRef::construct
     return toImpl(this).isConstructor();
 }
 
+bool ValueRef::isArgumentsObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArgumentsObject();
+}
+
+bool ValueRef::isArrayPrototypeObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isArrayPrototypeObject();
+}
+
+bool ValueRef::isGeneratorFunctionObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isFunctionObject() && toImpl(this).asPointerValue()->asFunctionObject()->isGenerator();
+}
+
+bool ValueRef::isGeneratorObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isGeneratorObject();
+}
+
+bool ValueRef::isMapIteratorObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isMapIteratorObject();
+}
+
+bool ValueRef::isSetIteratorObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isSetIteratorObject();
+}
+
+bool ValueRef::isTypedArrayObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayObject();
+}
+
+bool ValueRef::isTypedArrayPrototypeObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayPrototypeObject();
+}
+
+bool ValueRef::asBoolean()
+{
+    return toImpl(this).asBoolean();
+}
+
+double ValueRef::asNumber()
+{
+    return toImpl(this).asNumber();
+}
+
+int32_t ValueRef::asInt32()
+{
+    return toImpl(this).asInt32();
+}
+
+uint32_t ValueRef::asUint32()
+{
+    return toImpl(this).asUInt32();
+}
+
+PointerValueRef* ValueRef::asPointerValue()
+{
+    return toRef(toImpl(this).asPointerValue());
+}
+
+ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
+{
+    auto impl = toImpl(this);
+    if (UNLIKELY(!impl.isPointerValue())) {
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    PointerValue* o = impl.asPointerValue();
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+    return toRef(Object::call(*toImpl(state), o, toImpl(receiver), argc, newArgv));
+}
+
+ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
+{
+    auto impl = toImpl(this);
+    if (UNLIKELY(!impl.isPointerValue())) {
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    PointerValue* o = impl.asPointerValue();
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+    return toRef(Object::construct(*toImpl(state), o, argc, newArgv));
+}
+
+ValueRef* ValueRef::create(bool value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(int value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(unsigned value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(float value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(double value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(long value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(unsigned long value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(long long value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::create(unsigned long long value)
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
+}
+
+ValueRef* ValueRef::createNull()
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Null))
+                                           .payload());
+}
+
+ValueRef* ValueRef::createUndefined()
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Undefined))
+                                           .payload());
+}
+
 bool ValueRef::toBoolean(ExecutionStateRef* es)
 {
     ExecutionState* esi = toImpl(es);
@@ -2442,31 +2429,6 @@ uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
         ExecutionState* esi = toImpl(state);
         return Value(s).tryToUseAsArrayIndex(*esi);
     }
-}
-
-bool ValueRef::asBoolean()
-{
-    return toImpl(this).asBoolean();
-}
-
-double ValueRef::asNumber()
-{
-    return toImpl(this).asNumber();
-}
-
-int32_t ValueRef::asInt32()
-{
-    return toImpl(this).asInt32();
-}
-
-uint32_t ValueRef::asUint32()
-{
-    return toImpl(this).asUInt32();
-}
-
-PointerValueRef* ValueRef::asPointerValue()
-{
-    return toRef(toImpl(this).asPointerValue());
 }
 
 bool ValueRef::abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const
