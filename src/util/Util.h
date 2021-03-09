@@ -61,9 +61,9 @@ inline void* currentStackPointer()
 #error
 #endif
 
-class StorePositiveIntergerAsOdd {
+class StorePositiveNumberAsOddNumber {
 public:
-    StorePositiveIntergerAsOdd(const size_t& src = 0)
+    StorePositiveNumberAsOddNumber(const size_t& src = 0)
     {
         ASSERT(src < std::numeric_limits<size_t>::max() / 2);
         m_data = (src << 1) | 0x1;

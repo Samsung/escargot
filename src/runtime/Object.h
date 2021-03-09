@@ -74,7 +74,7 @@ struct ObjectRareData : public PointerValue {
     Object* m_prototype;
     union {
         Object* m_internalSlot;
-        StorePositiveIntergerAsOdd m_arrayObjectFastModeBufferCapacity;
+        StorePositiveNumberAsOddNumber m_arrayObjectFastModeBufferCapacity;
     };
     explicit ObjectRareData(Object* obj);
 

@@ -66,7 +66,7 @@ private:
     TightVectorWithNoSize<std::pair<EncodedValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, AtomicString>>> m_parameterMap;
 
     struct ModifiedArguments : public gc {
-        StorePositiveIntergerAsOdd m_argc;
+        StorePositiveNumberAsOddNumber m_argc;
         bool* m_modified;
 
         ModifiedArguments(size_t s)
