@@ -215,9 +215,9 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
             }                                                                                                                                   \
         }                                                                                                                                       \
         if (std::is_same<int64_t, nativeType>::value) {                                                                                         \
-            return Value(new BigInt(state.context()->vmInstance(), (int64_t)res));                                                              \
+            return Value(new BigInt((int64_t)res));                                                                                             \
         } else if (std::is_same<uint64_t, nativeType>::value) {                                                                                 \
-            return Value(new BigInt(state.context()->vmInstance(), (uint64_t)res));                                                             \
+            return Value(new BigInt((uint64_t)res));                                                                                            \
         }                                                                                                                                       \
         return Value(res);                                                                                                                      \
     }                                                                                                                                           \

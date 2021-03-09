@@ -41,6 +41,30 @@
 
 namespace Escargot {
 
+bf_context_t VMInstance::g_bfContext;
+
+void VMInstance::initialize()
+{
+    bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
+        return realloc(ptr, size);
+    },
+                    nullptr);
+}
+
+void VMInstance::finalize()
+{
+    // this function should be invoked after full gc (Heap::finalize)
+    // because some registered gc-finalizers could use these global values
+    bf_context_end(&g_bfContext);
+}
+
+bf_context_t* VMInstance::bfContext()
+{
+    // g_bfContext should be initialized before
+    ASSERT(!!g_bfContext.realloc_func);
+    return &g_bfContext;
+}
+
 bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
@@ -292,8 +316,6 @@ VMInstance::~VMInstance()
     wasm_store_delete(m_wasmData.m_store);
     wasm_engine_delete(m_wasmData.m_engine);
 #endif
-
-    bf_context_end(&m_bfContext);
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
@@ -374,11 +396,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
         m_randEngine = std::mt19937(0);
     }
 #endif
-
-    bf_context_init(&m_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
-        return realloc(ptr, size);
-    },
-                    nullptr);
 
     GC_add_event_callback(gcEventCallback, this);
 
@@ -529,7 +546,7 @@ void VMInstance::clearCachesRelatedWithContext()
     // this lock should be released immediately (destructor may be called later)
     m_codeCache->clear();
 #endif
-    bf_clear_cache(&m_bfContext);
+    bf_clear_cache(&g_bfContext);
 }
 
 void VMInstance::enterIdleMode()

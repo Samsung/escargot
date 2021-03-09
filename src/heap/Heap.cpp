@@ -26,17 +26,11 @@
 
 namespace Escargot {
 
-static bool g_isInited = false;
-
 void Heap::initialize()
 {
-    if (g_isInited)
-        return;
-
     RELEASE_ASSERT(GC_get_all_interior_pointers() == 0);
 
     GC_set_force_unmap_on_gcollect(1);
-    g_isInited = true;
     initializeCustomAllocators();
 
 #ifdef PROFILE_BDWGC

@@ -543,7 +543,7 @@ std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scann
 
         // bigint case
         if (UNLIKELY(buffer[length - 1] == 'n')) {
-            return std::make_pair(Value(BigInt::parseString(scannerInstance->escargotContext->vmInstance(), buffer, length - 1).value()), true);
+            return std::make_pair(Value(BigInt::parseString(buffer, length - 1).value()), true);
         }
 
         int lengthDummy;

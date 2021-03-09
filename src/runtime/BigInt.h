@@ -25,15 +25,14 @@
 namespace Escargot {
 
 class BigInt;
-class VMInstance;
 
 class BigIntData {
     friend class BigInt;
 
 public:
-    BigIntData(VMInstance* vmInstance, const double& d);
-    BigIntData(VMInstance* vmInstance, String* src);
-    BigIntData(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
+    BigIntData(const double& d);
+    BigIntData(String* src);
+    BigIntData(const char* buf, size_t length, int radix = 10);
     BigIntData(BigIntData&& src);
     BigIntData(const BigIntData& src) = delete;
     BigIntData operator=(const BigIntData& src) = delete;
@@ -48,7 +47,7 @@ public:
     bool isInfinity();
 
 private:
-    void init(VMInstance* vmInstance, const char* buf, size_t length, int radix);
+    void init(const char* buf, size_t length, int radix);
     bf_t m_data;
 };
 
@@ -56,13 +55,13 @@ class BigInt : public PointerValue {
     friend class BigIntData;
 
 public:
-    BigInt(VMInstance* vmInstance, int64_t num);
-    BigInt(VMInstance* vmInstance, uint64_t num);
-    BigInt(VMInstance* vmInstance, BigIntData&& n);
-    BigInt(VMInstance* vmInstance, bf_t num);
+    BigInt(int64_t num);
+    BigInt(uint64_t num);
+    BigInt(BigIntData&& n);
+    BigInt(bf_t num);
 
-    static Optional<BigInt*> parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix = 10);
-    static Optional<BigInt*> parseString(VMInstance* vmInstance, String* str, int radix = 10);
+    static Optional<BigInt*> parseString(const char* buf, size_t length, int radix = 10);
+    static Optional<BigInt*> parseString(String* str, int radix = 10);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -116,12 +115,11 @@ public:
     }
 
 private:
-    BigInt(VMInstance* vmInstance);
+    BigInt();
 
     void initFinalizer();
 
     size_t m_tag;
-    VMInstance* m_vmInstance;
     bf_t m_bf;
 };
 } // namespace Escargot
