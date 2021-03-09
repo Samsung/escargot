@@ -118,6 +118,8 @@ ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
 #undef DECLARE_REF_CLASS
 
 class ESCARGOT_EXPORT Globals {
+    static bool g_globalsInited;
+
 public:
     static void initialize();
     static void finalize();
@@ -904,9 +906,9 @@ public:
 
 class ESCARGOT_EXPORT BigIntRef : public PointerValueRef {
 public:
-    static BigIntRef* create(VMInstanceRef* context, StringRef* desc);
-    static BigIntRef* create(VMInstanceRef* vmInstance, int64_t num);
-    static BigIntRef* create(VMInstanceRef* vmInstance, uint64_t num);
+    static BigIntRef* create(StringRef* desc);
+    static BigIntRef* create(int64_t num);
+    static BigIntRef* create(uint64_t num);
 
     StringRef* toString(int radix = 10);
     double toNumber();

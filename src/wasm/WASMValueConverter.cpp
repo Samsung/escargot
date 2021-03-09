@@ -70,7 +70,7 @@ Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t&
         break;
     }
     case WASM_I64: {
-        result = new BigInt(state.context()->vmInstance(), value.of.i64);
+        result = new BigInt(value.of.i64);
         break;
     }
     default: {

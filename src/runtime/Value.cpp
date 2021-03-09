@@ -150,14 +150,14 @@ BigInt* Value::toBigInt(ExecutionState& state) const
     if (prim.isBigInt()) {
         return prim.asBigInt();
     } else if (prim.isBoolean()) {
-        return new BigInt(state.context()->vmInstance(), prim.asBoolean() ? (uint64_t)1 : (uint64_t)0);
+        return new BigInt(prim.asBoolean() ? (uint64_t)1 : (uint64_t)0);
     } else if (prim.isString()) {
         // Let n be ! StringToBigInt(prim).
         // If n is NaN, throw a SyntaxError exception.
         // Return n.
-        auto b = BigInt::parseString(state.context()->vmInstance(), prim.asString()->trim());
+        auto b = BigInt::parseString(prim.asString()->trim());
         if (!b) {
-            b = BigInt::parseString(state.context()->vmInstance(), prim.asString()->trim());
+            b = BigInt::parseString(prim.asString()->trim());
             ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Cannot parse String as BigInt");
         }
         return b.value();
@@ -300,7 +300,7 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
         } else if (UNLIKELY(selfIsBigInt && valIsString)) {
             // If Type(x) is BigInt and Type(y) is String, then
             // Let n be StringToBigInt(y).
-            BigIntData a(state.context()->vmInstance(), val.asString());
+            BigIntData a(val.asString());
             // If n is NaN, return false.
             if (a.isNaN()) {
                 return false;

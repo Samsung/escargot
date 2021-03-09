@@ -191,9 +191,9 @@ struct TypedArrayHelper {
         case TypedArrayType::Float64:
             return Value(*reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
         case TypedArrayType::BigInt64:
-            return Value(new BigInt(state.context()->vmInstance(), *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes)));
+            return Value(new BigInt(*reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes)));
         case TypedArrayType::BigUint64:
-            return Value(new BigInt(state.context()->vmInstance(), *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes)));
+            return Value(new BigInt(*reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes)));
         default:
             RELEASE_ASSERT_NOT_REACHED();
             return Value();

@@ -46,7 +46,7 @@ static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, si
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The value you input to BigInt constructor is not integer");
         }
         // Return the BigInt value that represents the mathematical value of number.
-        return new BigInt(state.context()->vmInstance(), (int64_t)prim.asNumber());
+        return new BigInt((int64_t)prim.asNumber());
     } else {
         // Otherwise, return ? ToBigInt(value).
         return argv[0].toBigInt(state);
@@ -64,15 +64,15 @@ static Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t
     BigInt* bigint = argv[1].toBigInt(state);
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
-    bf_init(state.context()->vmInstance()->bfContext(), &mask);
-    bf_init(state.context()->vmInstance()->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &mask);
+    bf_init(VMInstance::bfContext(), &r);
     bf_set_ui(&mask, 1);
     bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
     bf_add_si(&mask, &mask, -1, BF_PREC_INF, BF_RNDZ);
     bf_logic_and(&r, bigint->bf(), &mask);
     bf_delete(&mask);
 
-    return new BigInt(state.context()->vmInstance(), r);
+    return new BigInt(r);
 }
 
 static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -86,8 +86,8 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
     BigInt* bigint = argv[1].toBigInt(state);
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
-    bf_init(state.context()->vmInstance()->bfContext(), &mask);
-    bf_init(state.context()->vmInstance()->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &mask);
+    bf_init(VMInstance::bfContext(), &r);
     bf_set_ui(&mask, 1);
     bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
     bf_add_si(&mask, &mask, -1, BF_PREC_INF, BF_RNDZ);
@@ -103,7 +103,7 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
     }
     bf_delete(&mask);
 
-    return new BigInt(state.context()->vmInstance(), r);
+    return new BigInt(r);
 }
 
 // The abstract operation thisBigIntValue(value) performs the following steps:

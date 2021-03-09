@@ -1915,7 +1915,7 @@ ALWAYS_INLINE bool abstractLeftIsLessThanRightNumeric(ExecutionState& state, con
     // If Type(px) is BigInt and Type(py) is String, then
     if (UNLIKELY(lvalIsBigInt && rvalIsString)) {
         // Let ny be StringToBigInt(py).
-        BigIntData ny(state.context()->vmInstance(), rval.asString());
+        BigIntData ny(rval.asString());
         // If ny is NaN, return undefined.
         if (ny.isNaN()) {
             return false;
@@ -1927,7 +1927,7 @@ ALWAYS_INLINE bool abstractLeftIsLessThanRightNumeric(ExecutionState& state, con
     // If Type(px) is String and Type(py) is BigInt, then
     if (UNLIKELY(lvalIsString && rvalIsBigInt)) {
         // Let nx be StringToBigInt(px).
-        BigIntData nx(state.context()->vmInstance(), lval.asString());
+        BigIntData nx(lval.asString());
         // If nx is NaN, return undefined.
         if (nx.isNaN()) {
             return false;
@@ -1952,11 +1952,11 @@ ALWAYS_INLINE bool abstractLeftIsLessThanRightNumeric(ExecutionState& state, con
         if (UNLIKELY(ny.second)) {
             return compBigIntBigInt(nx.first.asBigInt(), ny.first.asBigInt());
         } else {
-            return compBigIntBigIntData(nx.first.asBigInt(), BigIntData(state.context()->vmInstance(), ny.first.asNumber()));
+            return compBigIntBigIntData(nx.first.asBigInt(), BigIntData(ny.first.asNumber()));
         }
     } else {
         if (UNLIKELY(ny.second)) {
-            return compBigIntDataBigInt(BigIntData(state.context()->vmInstance(), nx.first.asNumber()), ny.first.asBigInt());
+            return compBigIntDataBigInt(BigIntData(nx.first.asNumber()), ny.first.asBigInt());
         } else {
             return compDoubleDouble(nx.first.asNumber(), ny.first.asNumber());
         }

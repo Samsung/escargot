@@ -90,12 +90,19 @@ class VMInstance : public gc {
     friend class ScriptParser;
     friend class SandBox;
 
+    // global values which should be initialized once and shared during the runtime
+    static bf_context_t g_bfContext;
+
 public:
     VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
     ~VMInstance();
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    static void initialize();
+    static void finalize();
+    static bf_context_t* bfContext();
 
     void enterIdleMode();
     void clearCachesRelatedWithContext();
@@ -267,11 +274,6 @@ public:
     }
 #endif
 
-    bf_context_t* bfContext()
-    {
-        return &m_bfContext;
-    }
-
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -358,8 +360,6 @@ private:
 #if defined(ENABLE_WASM)
     GlobalWASMData m_wasmData;
 #endif
-
-    bf_context_t m_bfContext;
 };
 } // namespace Escargot
 

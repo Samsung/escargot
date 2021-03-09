@@ -36,13 +36,13 @@ BigIntData::BigIntData(BigIntData&& src)
     bf_init(m_data.ctx, &src.m_data);
 }
 
-BigIntData::BigIntData(VMInstance* vmInstance, const double& d)
+BigIntData::BigIntData(const double& d)
 {
-    bf_init(vmInstance->bfContext(), &m_data);
+    bf_init(VMInstance::bfContext(), &m_data);
     bf_set_float64(&m_data, d);
 }
 
-BigIntData::BigIntData(VMInstance* vmInstance, String* src)
+BigIntData::BigIntData(String* src)
 {
     const auto& bd = src->bufferAccessData();
     char* buffer;
@@ -51,34 +51,34 @@ BigIntData::BigIntData(VMInstance* vmInstance, String* src)
         buffer = (char*)bd.bufferAs8Bit;
     } else {
         if (!isAllASCII(bd.bufferAs16Bit, bd.length)) {
-            bf_init(vmInstance->bfContext(), &m_data);
+            bf_init(VMInstance::bfContext(), &m_data);
             bf_set_nan(&m_data);
             return;
         }
-        buffer = ALLOCA(bd.length, char, vmInstance);
+        buffer = ALLOCA(bd.length, char, nullptr);
 
         for (size_t i = 0; i < bd.length; i++) {
             buffer[i] = bd.uncheckedCharAtFor16Bit(i);
         }
     }
 
-    init(vmInstance, buffer, bd.length, 10);
+    init(buffer, bd.length, 10);
 }
 
-BigIntData::BigIntData(VMInstance* vmInstance, const char* buf, size_t length, int radix)
+BigIntData::BigIntData(const char* buf, size_t length, int radix)
 {
-    init(vmInstance, buf, length, radix);
+    init(buf, length, radix);
 }
 
-void BigIntData::init(VMInstance* vmInstance, const char* buf, size_t length, int radix)
+void BigIntData::init(const char* buf, size_t length, int radix)
 {
-    bf_init(vmInstance->bfContext(), &m_data);
+    bf_init(VMInstance::bfContext(), &m_data);
     if (!length) {
         bf_set_zero(&m_data, 0);
         return;
     }
     // bf_atof needs zero-terminated string
-    char* newBuf = ALLOCA(length + 1, char, vmInstance);
+    char* newBuf = ALLOCA(length + 1, char, nullptr);
     bool seenE = false;
     for (size_t i = 0; i < length; i++) {
         if (UNLIKELY(buf[i] == '.')) {
@@ -145,7 +145,6 @@ void* BigInt::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(BigInt)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(BigInt, m_vmInstance));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(BigInt));
         typeInited = true;
     }
@@ -161,11 +160,10 @@ void BigInt::initFinalizer()
                                    nullptr, nullptr, nullptr);
 }
 
-BigInt::BigInt(VMInstance* vmInstance)
+BigInt::BigInt()
     : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
-    , m_vmInstance(vmInstance)
 {
-    bf_init(m_vmInstance->bfContext(), &m_bf);
+    bf_init(VMInstance::bfContext(), &m_bf);
     initFinalizer();
 }
 
@@ -182,8 +180,8 @@ static void setBigInt(bf_t* bf, uint64_t num)
     }
 }
 
-BigInt::BigInt(VMInstance* vmInstance, int64_t num)
-    : BigInt(vmInstance)
+BigInt::BigInt(int64_t num)
+    : BigInt()
 {
     int sign = num < 0;
     if (sign) {
@@ -195,37 +193,36 @@ BigInt::BigInt(VMInstance* vmInstance, int64_t num)
     }
 }
 
-BigInt::BigInt(VMInstance* vmInstance, uint64_t num)
-    : BigInt(vmInstance)
+BigInt::BigInt(uint64_t num)
+    : BigInt()
 {
     setBigInt(&m_bf, num);
 }
 
-BigInt::BigInt(VMInstance* vmInstance, BigIntData&& n)
-    : BigInt(vmInstance)
+BigInt::BigInt(BigIntData&& n)
+    : BigInt()
 {
     bf_move(&m_bf, &n.m_data);
     bf_init(m_bf.ctx, &n.m_data);
 }
 
-BigInt::BigInt(VMInstance* vmInstance, bf_t bf)
+BigInt::BigInt(bf_t bf)
     : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
-    , m_vmInstance(vmInstance)
     , m_bf(bf)
 {
     initFinalizer();
 }
 
-Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, const char* buf, size_t length, int radix)
+Optional<BigInt*> BigInt::parseString(const char* buf, size_t length, int radix)
 {
-    BigIntData dat(vmInstance, buf, length, radix);
+    BigIntData dat(buf, length, radix);
     if (dat.isNaN()) {
         return nullptr;
     }
-    return new BigInt(vmInstance, std::move(dat));
+    return new BigInt(std::move(dat));
 }
 
-Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, String* str, int radix)
+Optional<BigInt*> BigInt::parseString(String* str, int radix)
 {
     const auto& bd = str->bufferAccessData();
     char* buffer;
@@ -236,14 +233,14 @@ Optional<BigInt*> BigInt::parseString(VMInstance* vmInstance, String* str, int r
         if (!isAllASCII(bd.bufferAs16Bit, bd.length)) {
             return nullptr;
         }
-        buffer = ALLOCA(bd.length, char, vmInstance);
+        buffer = ALLOCA(bd.length, char, nullptr);
 
         for (size_t i = 0; i < bd.length; i++) {
             buffer[i] = bd.uncheckedCharAtFor16Bit(i);
         }
     }
 
-    return parseString(vmInstance, buffer, bd.length, radix);
+    return parseString(buffer, bd.length, radix);
 }
 
 String* BigInt::toString(int radix)
@@ -261,7 +258,7 @@ String* BigInt::toString(int radix)
         return String::emptyString;
     } else {
         String* ret = String::fromASCII(str, resultLen);
-        bf_free(m_vmInstance->bfContext(), str);
+        bf_free(VMInstance::bfContext(), str);
         return ret;
     }
 }
@@ -300,13 +297,13 @@ bool BigInt::equals(const BigIntData& b)
 
 bool BigInt::equals(String* s)
 {
-    BigIntData bd(m_vmInstance, s);
+    BigIntData bd(s);
     return equals(bd);
 }
 
 bool BigInt::equals(double b)
 {
-    BigIntData bd(m_vmInstance, b);
+    BigIntData bd(b);
     return equals(bd);
 }
 
@@ -353,112 +350,112 @@ bool BigInt::greaterThanEqual(BigInt* b)
 BigInt* BigInt::addition(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_add(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::subtraction(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_sub(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::multiply(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_mul(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::division(BigInt* b)
 {
     bf_t r, rem;
-    bf_init(m_vmInstance->bfContext(), &r);
-    bf_init(m_vmInstance->bfContext(), &rem);
+    bf_init(VMInstance::bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &rem);
     bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
               BF_RNDZ);
     bf_delete(&rem);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::remainder(BigInt* b)
 {
     bf_t r, rem;
-    bf_init(m_vmInstance->bfContext(), &r);
-    bf_init(m_vmInstance->bfContext(), &rem);
+    bf_init(VMInstance::bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &rem);
     bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
               BF_RNDZ);
     bf_delete(&r);
-    return new BigInt(m_vmInstance, rem);
+    return new BigInt(rem);
 }
 
 BigInt* BigInt::pow(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_pow(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::bitwiseAnd(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_logic_and(&r, &m_bf, &b->m_bf);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::bitwiseOr(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_logic_or(&r, &m_bf, &b->m_bf);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::bitwiseXor(BigInt* b)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_logic_xor(&r, &m_bf, &b->m_bf);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::increment()
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::decrement()
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_add_si(&r, &m_bf, -1, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::bitwiseNot()
 {
     // The abstract operation BigInt::bitwiseNOT with an argument x of BigInt type returns the one's complement of x; that is, -x - 1.
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
     bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
     bf_neg(&r);
 
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::leftShift(BigInt* src)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
 
     slimb_t v2;
 #if defined(ESCARGOT_32)
@@ -478,13 +475,13 @@ BigInt* BigInt::leftShift(BigInt* src)
     if (v2 < 0) {
         bf_rint(&r, BF_RNDD);
     }
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 BigInt* BigInt::rightShift(BigInt* src)
 {
     bf_t r;
-    bf_init(m_vmInstance->bfContext(), &r);
+    bf_init(VMInstance::bfContext(), &r);
 
     slimb_t v2;
 #if defined(ESCARGOT_32)
@@ -503,7 +500,7 @@ BigInt* BigInt::rightShift(BigInt* src)
     if (v2 < 0) {
         bf_rint(&r, BF_RNDD);
     }
-    return new BigInt(m_vmInstance, r);
+    return new BigInt(r);
 }
 
 bool BigInt::isNaN()
@@ -533,9 +530,9 @@ BigInt* BigInt::negativeValue()
     }
 
     bf_t bf;
-    bf_init(m_vmInstance->bfContext(), &bf);
+    bf_init(VMInstance::bfContext(), &bf);
     bf_set(&bf, &m_bf);
     bf_neg(&bf);
-    return new BigInt(m_vmInstance, bf);
+    return new BigInt(bf);
 }
 } // namespace Escargot

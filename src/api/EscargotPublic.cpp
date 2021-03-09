@@ -101,14 +101,25 @@ inline AtomicString toImpl(AtomicStringRef* v)
     return AtomicString::fromPayload(reinterpret_cast<void*>(v));
 }
 
+bool Globals::g_globalsInited = false;
 void Globals::initialize()
 {
+    // initialize global value or context
+    // this function should be invoked once at the start of the program
+    RELEASE_ASSERT(!g_globalsInited);
     Heap::initialize();
+    VMInstance::initialize();
+    g_globalsInited = true;
 }
 
 void Globals::finalize()
 {
+    // finalize global value or context
+    // this function should be invoked once at the end of the program
+    RELEASE_ASSERT(!!g_globalsInited);
     Heap::finalize();
+    VMInstance::finalize();
+    g_globalsInited = false;
 }
 
 void* Memory::gcMalloc(size_t siz)
@@ -528,19 +539,19 @@ StringRef* SymbolRef::symbolDescriptiveString()
     return toRef(toImpl(this)->symbolDescriptiveString());
 }
 
-BigIntRef* BigIntRef::create(VMInstanceRef* vmInstance, StringRef* desc)
+BigIntRef* BigIntRef::create(StringRef* desc)
 {
-    return toRef(new BigInt(toImpl(vmInstance), BigIntData(toImpl(vmInstance), toImpl(desc))));
+    return toRef(new BigInt(BigIntData(toImpl(desc))));
 }
 
-BigIntRef* BigIntRef::create(VMInstanceRef* vmInstance, int64_t num)
+BigIntRef* BigIntRef::create(int64_t num)
 {
-    return toRef(new BigInt(toImpl(vmInstance), num));
+    return toRef(new BigInt(num));
 }
 
-BigIntRef* BigIntRef::create(VMInstanceRef* vmInstance, uint64_t num)
+BigIntRef* BigIntRef::create(uint64_t num)
 {
-    return toRef(new BigInt(toImpl(vmInstance), num));
+    return toRef(new BigInt(num));
 }
 
 StringRef* BigIntRef::toString(int radix)
