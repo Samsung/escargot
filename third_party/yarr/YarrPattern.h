@@ -380,7 +380,8 @@ struct YarrPattern : public gc {
         m_disjunctions.clear();
         m_userCharacterClasses.clear();
         m_captureGroupNames.clear();
-        m_namedGroupToParenIndex.clear();
+        m_namedForwardReferences.clear();
+        HashMap<String, unsigned>().swap(m_namedGroupToParenIndex);
     }
 
     bool containsIllegalBackReference()
@@ -529,8 +530,8 @@ struct YarrPattern : public gc {
     Vector<std::unique_ptr<PatternDisjunction>, 4> m_disjunctions;
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
     ::Escargot::Vector<String, GCUtil::gc_malloc_allocator<String>> m_captureGroupNames;
-    HashMap<String, ::Escargot::StorePositiveIntergerAsOdd, GCUtil::gc_malloc_allocator<std::pair<String const, ::Escargot::StorePositiveIntergerAsOdd>>> m_namedGroupToParenIndex;
-    HashSet<String, GCUtil::gc_malloc_allocator<String>> m_namedForwardReferences;
+    ::Escargot::Vector<String, GCUtil::gc_malloc_allocator<String>> m_namedForwardReferences;
+    HashMap<String, unsigned> m_namedGroupToParenIndex;
 
 private:
     JS_EXPORT_PRIVATE YarrPattern(const String& pattern, RegExpFlags, ErrorCode&, void* stackLimit = nullptr);
@@ -541,7 +542,6 @@ private:
         if (!typeInited) {
             GC_word obj_bitmap[GC_BITMAP_SIZE(YarrPattern)] = { 0 };
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(YarrPattern, m_captureGroupNames));
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(YarrPattern, m_namedGroupToParenIndex));
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(YarrPattern, m_namedForwardReferences));
             descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(YarrPattern));
             typeInited = true;

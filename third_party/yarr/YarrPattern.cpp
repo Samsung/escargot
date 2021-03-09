@@ -700,7 +700,7 @@ public:
                 return;
             }
         }
-        m_pattern.m_namedForwardReferences.add(subpatternName);
+        m_pattern.m_namedForwardReferences.push_back(subpatternName);
         m_alternative->m_terms.append(PatternTerm::ForwardReference());
     }
 
