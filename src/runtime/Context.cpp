@@ -59,7 +59,6 @@ Context::Context(VMInstance* instance)
     , m_globalDeclarativeStorage(new EncodedValueVector())
     , m_globalVariableAccessCache(new (GC) GlobalVariableAccessCache)
     , m_loadedModules(new LoadedModuleVector())
-    , m_bumpPointerAllocator(instance->m_bumpPointerAllocator)
     , m_regexpCache(instance->m_regexpCache)
 #if defined(ENABLE_WASM)
     , m_wasmCache(new WASMCacheMap())
@@ -84,7 +83,6 @@ Context::Context(VMInstance* instance)
     , m_securityPolicyCheckCallback(nullptr)
     , m_virtualIdentifierCallbackPublic(nullptr)
     , m_securityPolicyCheckCallbackPublic(nullptr)
-    , m_astAllocator(*instance->m_astAllocator)
 #ifdef ESCARGOT_DEBUGGER
     , m_debugger(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
@@ -92,10 +90,6 @@ Context::Context(VMInstance* instance)
     ExecutionState stateForInit(this);
     m_globalObjectProxy = m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->installBuiltins(stateForInit);
-
-    // initialize object tag values after installation of builtins
-    PointerValue::g_arrayObjectTag = ArrayObject(stateForInit).getTag();
-    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject(stateForInit).getTag();
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)
@@ -121,6 +115,11 @@ void Context::setGlobalObjectProxy(Object* newGlobalObjectProxy)
         return Value();
     },
            newGlobalObjectProxy);
+}
+
+ASTAllocator& Context::astAllocator()
+{
+    return *VMInstance::astAllocator();
 }
 
 #ifdef ESCARGOT_DEBUGGER

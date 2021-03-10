@@ -88,6 +88,14 @@ public:
         }
     }
 
+protected:
+    ArrayObject()
+        : Object()
+    {
+        // dummy default constructor
+        // only called by VMInstance::initialize to set tag value
+    }
+
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
@@ -129,8 +137,18 @@ private:
 };
 
 class ArrayPrototypeObject : public ArrayObject {
+    friend class VMInstance;
+
 public:
     explicit ArrayPrototypeObject(ExecutionState& state);
+
+private:
+    ArrayPrototypeObject()
+        : ArrayObject()
+    {
+        // dummy default constructor
+        // only called by VMInstance::initialize to set tag value
+    }
 };
 
 class ArrayIteratorObject : public IteratorObject {

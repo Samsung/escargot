@@ -41,29 +41,80 @@
 
 namespace Escargot {
 
+/////////////////////////////////////////////////
+// VMInstance Global Data
+/////////////////////////////////////////////////
+std::mt19937 VMInstance::g_randEngine((unsigned int)time(NULL));
 bf_context_t VMInstance::g_bfContext;
+#if defined(ENABLE_WASM)
+WASMContext VMInstance::g_wasmContext;
+#endif
+ASTAllocator* VMInstance::g_astAllocator;
+WTF::BumpPointerAllocator* VMInstance::g_bumpPointerAllocator;
 
 void VMInstance::initialize()
 {
+    // g_randEngine already initialized
+
+    // g_bfContext
     bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
         return realloc(ptr, size);
     },
                     nullptr);
+
+#if defined(ENABLE_WASM)
+    // g_wasmContext
+    g_wasmContext.engine = wasm_engine_new();
+    g_wasmContext.store = wasm_store_new(g_wasmContext.engine);
+#endif
+
+    // g_astAllocator
+    g_astAllocator = new ASTAllocator();
+
+    // g_bumpPointerAllocator
+    g_bumpPointerAllocator = new WTF::BumpPointerAllocator();
+
+    // initialize PointerValue tag values
+    // tag values should be initialized once and not changed
+    PointerValue::g_arrayObjectTag = ArrayObject().getTag();
+    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
+    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
+    PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
 }
 
 void VMInstance::finalize()
 {
     // this function should be invoked after full gc (Heap::finalize)
     // because some registered gc-finalizers could use these global values
-    bf_context_end(&g_bfContext);
-}
 
-bf_context_t* VMInstance::bfContext()
-{
-    // g_bfContext should be initialized before
-    ASSERT(!!g_bfContext.realloc_func);
-    return &g_bfContext;
+    // g_randEngine does not need finalization
+
+    // g_bfContext
+    bf_context_end(&g_bfContext);
+
+#if defined(ENABLE_WASM)
+    // g_wasmContext
+    wasm_store_delete(g_wasmContext.store);
+    wasm_engine_delete(g_wasmContext.engine);
+    g_wasmContext.store = nullptr;
+    g_wasmContext.engine = nullptr;
+#endif
+
+    // g_astAllocator
+    delete g_astAllocator;
+    g_astAllocator = nullptr;
+
+    // g_bumpPointerAllocator
+    delete g_bumpPointerAllocator;
+    g_bumpPointerAllocator = nullptr;
+
+    // reset PointerValue tag values
+    PointerValue::g_arrayObjectTag = 0;
+    PointerValue::g_arrayPrototypeObjectTag = 0;
+    PointerValue::g_objectRareDataTag = 0;
+    PointerValue::g_doubleInEncodedValueTag = 0;
 }
+/////////////////////////////////////////////////
 
 bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
@@ -255,7 +306,6 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_bumpPointerAllocator));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
@@ -307,21 +357,15 @@ VMInstance::~VMInstance()
 #ifdef ENABLE_ICU
     vzone_close(m_timezone);
 #endif
-    delete m_astAllocator;
 
 #if defined(ENABLE_CODE_CACHE)
     delete m_codeCache;
-#endif
-#if defined(ENABLE_WASM)
-    wasm_store_delete(m_wasmData.m_store);
-    wasm_engine_delete(m_wasmData.m_engine);
 #endif
 }
 
 VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
     : m_staticStrings(&m_atomicStringMap)
     , m_currentSandBox(nullptr)
-    , m_randEngine((unsigned int)time(NULL))
     , m_isFinalized(false)
     , m_inEnterIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
@@ -337,7 +381,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_onVMInstanceDestroyData(nullptr)
     , m_cachedUTC(nullptr)
     , m_platform(platform)
-    , m_astAllocator(new ASTAllocator())
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
@@ -363,7 +406,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     }
     m_staticStrings.initStaticStrings();
 
-    m_bumpPointerAllocator = new (PointerFreeGC) WTF::BumpPointerAllocator();
     m_regexpCache = new (GC) RegExpCacheMap();
     m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(64 * sizeof(ASCIIString*));
     memset(m_regexpOptionStringCache, 0, 64 * sizeof(ASCIIString*));
@@ -391,20 +433,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     }
 #endif
 
-#if defined(ESCARGOT_ENABLE_TEST)
-    if (getenv("RANDOM_SEED_ZERO")) {
-        m_randEngine = std::mt19937(0);
-    }
-#endif
-
     GC_add_event_callback(gcEventCallback, this);
-
-    // initialize tag values
-    // object tags will have valid values after installation of builtins
-    PointerValue::g_arrayObjectTag = 0;
-    PointerValue::g_arrayPrototypeObjectTag = 0;
-    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
-    PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
 
 #define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(new ASCIIStringFromExternalMemory("Symbol." #name, sizeof("Symbol." #name) - 1));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
@@ -486,10 +515,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
         baseCacheDir = "/tmp";
     }
     m_codeCache = new CodeCache(baseCacheDir);
-#endif
-#if defined(ENABLE_WASM)
-    m_wasmData.m_engine = wasm_engine_new();
-    m_wasmData.m_store = wasm_store_new(m_wasmData.m_engine);
 #endif
 }
 

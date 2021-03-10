@@ -797,6 +797,7 @@ public:
 private:
     inline bool hasTag(const size_t tag) const
     {
+        ASSERT(!!tag);
         return tag == *((size_t*)(this));
     }
 

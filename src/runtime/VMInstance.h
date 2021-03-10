@@ -21,31 +21,33 @@
 #define __EscargotVMInstance__
 
 #include "runtime/Platform.h"
-#include "runtime/Context.h"
 #include "runtime/AtomicString.h"
-#include "runtime/GlobalObject.h"
-#include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
-#include "runtime/String.h"
-#include "runtime/Symbol.h"
 #include "runtime/ToStringRecursionPreventer.h"
 
 #if defined(ENABLE_WASM)
 struct wasm_engine_t;
 struct wasm_store_t;
-struct GlobalWASMData {
-    wasm_engine_t* m_engine;
-    wasm_store_t* m_store;
+struct WASMContext {
+    wasm_engine_t* engine;
+    wasm_store_t* store;
 };
 #endif
+
+namespace WTF {
+class BumpPointerAllocator;
+}
 
 namespace Escargot {
 
 class SandBox;
+class Context;
 class CodeBlock;
 class JobQueue;
 class Job;
 class ASTAllocator;
+class Symbol;
+class String;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 class CompressibleString;
 #endif
@@ -90,19 +92,57 @@ class VMInstance : public gc {
     friend class ScriptParser;
     friend class SandBox;
 
+    /////////////////////////////////
+    // Global Data
     // global values which should be initialized once and shared during the runtime
+    static std::mt19937 g_randEngine;
     static bf_context_t g_bfContext;
+#if defined(ENABLE_WASM)
+    static WASMContext g_wasmContext;
+#endif
+
+    static ASTAllocator* g_astAllocator;
+    static WTF::BumpPointerAllocator* g_bumpPointerAllocator;
+    /////////////////////////////////
 
 public:
+    /////////////////////////////////
+    // Global Data Static Function
+    static void initialize();
+    static void finalize();
+    static std::mt19937& randEngine()
+    {
+        return g_randEngine;
+    }
+    static bf_context_t* bfContext()
+    {
+        ASSERT(!!g_bfContext.realloc_func);
+        return &g_bfContext;
+    }
+#if defined(ENABLE_WASM)
+    static wasm_store_t* wasmStore()
+    {
+        ASSERT(!!g_wasmContext.store);
+        return g_wasmContext.store;
+    }
+#endif
+    static ASTAllocator* astAllocator()
+    {
+        ASSERT(!!g_astAllocator);
+        return g_astAllocator;
+    }
+    static WTF::BumpPointerAllocator* bumpPointerAllocator()
+    {
+        ASSERT(!!g_bumpPointerAllocator);
+        return g_bumpPointerAllocator;
+    }
+    /////////////////////////////////
+
     VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
     ~VMInstance();
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
-
-    static void initialize();
-    static void finalize();
-    static bf_context_t* bfContext();
 
     void enterIdleMode();
     void clearCachesRelatedWithContext();
@@ -218,11 +258,6 @@ public:
     }
 #endif
 
-    std::mt19937& randEngine()
-    {
-        return m_randEngine;
-    }
-
     Platform* platform()
     {
         return m_platform;
@@ -266,13 +301,6 @@ public:
         return m_codeCache;
     }
 #endif
-#if defined(ENABLE_WASM)
-    struct wasm_store_t* wasmStore() const
-    {
-        ASSERT(!!m_wasmData.m_store);
-        return m_wasmData.m_store;
-    }
-#endif
 
 private:
     StaticStrings m_staticStrings;
@@ -280,8 +308,6 @@ private:
     GlobalSymbols m_globalSymbols;
     GlobalSymbolRegistryVector m_globalSymbolRegistry;
     SandBox* m_currentSandBox;
-
-    std::mt19937 m_randEngine;
 
     bool m_isFinalized;
     bool m_inEnterIdleMode;
@@ -327,7 +353,6 @@ private:
     void* m_stackStartAddress;
 
     // regexp object data
-    WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
     ASCIIString** m_regexpOptionStringCache;
 
@@ -340,7 +365,6 @@ private:
     DateObject* m_cachedUTC;
 
     Platform* m_platform;
-    ASTAllocator* m_astAllocator;
 
     // promise job queue
     JobQueue* m_jobQueue;
@@ -356,9 +380,6 @@ private:
 
 #if defined(ENABLE_CODE_CACHE)
     CodeCache* m_codeCache;
-#endif
-#if defined(ENABLE_WASM)
-    GlobalWASMData m_wasmData;
 #endif
 };
 } // namespace Escargot
