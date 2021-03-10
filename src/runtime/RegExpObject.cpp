@@ -318,7 +318,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         if (entry.m_bytecodePattern) {
             m_bytecodePattern = entry.m_bytecodePattern;
         } else {
-            WTF::BumpPointerAllocator* bumpAlloc = state.context()->bumpPointerAllocator();
+            WTF::BumpPointerAllocator* bumpAlloc = VMInstance::bumpPointerAllocator();
             std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc);
             m_bytecodePattern = ownedBytecode.release();
             entry.m_bytecodePattern = m_bytecodePattern;

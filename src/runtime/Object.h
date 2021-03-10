@@ -1072,6 +1072,12 @@ protected:
         GC_set_bit(desc, GC_WORD_OFFSET(Object, m_values));
     }
 
+    Object()
+    {
+        // dummy default constructor
+        // only called by VMInstance::initialize to set tag value
+    }
+
     explicit Object(ExecutionState& state, Object* proto, size_t defaultSpace);
     enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
     explicit Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin);

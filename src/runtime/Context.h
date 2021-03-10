@@ -26,10 +26,6 @@
 #include "runtime/StaticStrings.h"
 #include "runtime/String.h"
 
-namespace WTF {
-class BumpPointerAllocator;
-}
-
 namespace Escargot {
 
 class VMInstance;
@@ -176,11 +172,6 @@ public:
     }
 #endif
 
-    WTF::BumpPointerAllocator* bumpPointerAllocator()
-    {
-        return m_bumpPointerAllocator;
-    }
-
     ObjectStructure* defaultStructureForObject()
     {
         return m_defaultStructureForObject;
@@ -301,11 +292,6 @@ public:
         return m_loadedModules;
     }
 
-    ASTAllocator& astAllocator()
-    {
-        return m_astAllocator;
-    }
-
     RegExpLegacyFeatures& regexpLegacyFeatures()
     {
         return m_regexpLegacyFeatures;
@@ -315,6 +301,8 @@ public:
     {
         return m_instantiatedFunctionObjects;
     }
+
+    ASTAllocator& astAllocator();
 
 #ifdef ESCARGOT_DEBUGGER
     Debugger* debugger()
@@ -343,7 +331,6 @@ private:
     EncodedValueVector* m_globalDeclarativeStorage;
     GlobalVariableAccessCache* m_globalVariableAccessCache;
     LoadedModuleVector* m_loadedModules;
-    WTF::BumpPointerAllocator* m_bumpPointerAllocator;
     RegExpCacheMap* m_regexpCache;
 #if defined(ENABLE_WASM)
     WASMCacheMap* m_wasmCache;
@@ -370,7 +357,6 @@ private:
     void* m_virtualIdentifierCallbackPublic;
     void* m_securityPolicyCheckCallbackPublic;
 
-    ASTAllocator& m_astAllocator;
     // For non-standard, read-only properties of RegExp
     // contains the result of the last matched regular expressions
     RegExpLegacyFeatures m_regexpLegacyFeatures;
