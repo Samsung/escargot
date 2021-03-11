@@ -1,8 +1,20 @@
 diff --git src/interp/interp-wasm-c-api.cc src/interp/interp-wasm-c-api.cc
-index 75190feb..867cc607 100644
+index 75190feb..2a0c861d 100644
 --- src/interp/interp-wasm-c-api.cc
 +++ src/interp/interp-wasm-c-api.cc
-@@ -760,6 +760,20 @@ void wasm_instance_exports(const wasm_instance_t* instance,
+@@ -626,6 +626,11 @@ own wasm_store_t* wasm_store_new(wasm_engine_t* engine) {
+   return new wasm_store_t(s_features);
+ }
+ 
++void wasm_store_gc(wasm_store_t* store) {
++  assert(store);
++  store->I.Collect();
++}
++
+ // wasm_module
+ 
+ own wasm_module_t* wasm_module_new(wasm_store_t* store,
+@@ -760,6 +765,20 @@ void wasm_instance_exports(const wasm_instance_t* instance,
    }
  }
  
@@ -23,7 +35,7 @@ index 75190feb..867cc607 100644
  // wasm_functype
  
  own wasm_functype_t* wasm_functype_new(own wasm_valtype_vec_t* params,
-@@ -1170,6 +1184,16 @@ void wasm_val_vec_delete(own wasm_val_vec_t* vec) {
+@@ -1170,6 +1189,16 @@ void wasm_val_vec_delete(own wasm_val_vec_t* vec) {
      }                                                                   \
      delete[] vec->data;                                                 \
      vec->size = 0;                                                      \
