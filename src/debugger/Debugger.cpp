@@ -22,10 +22,10 @@
 #include "DebuggerTcp.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
+#include "runtime/SandBox.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/GlobalObject.h"
-#include "runtime/SandBox.h"
 #include "parser/Script.h"
 
 #ifdef ESCARGOT_DEBUGGER

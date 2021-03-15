@@ -18,9 +18,11 @@
  */
 
 #include "Escargot.h"
+#include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayInlines.h"
+#include "runtime/Platform.h"
 
 namespace Escargot {
 
@@ -63,7 +65,6 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_context(state.context())
     , m_data(nullptr)
     , m_bytelength(0)
     , m_fromExternalMemory(false)
@@ -71,7 +72,7 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     addFinalizer([](Object* s, void* data) {
         ArrayBufferObject* self = s->asArrayBufferObject();
         if (self->m_data && !self->m_fromExternalMemory) {
-            self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
+            VMInstance::platform()->onArrayBufferObjectDataBufferFree(self, self->m_data);
         }
     },
                  nullptr);
@@ -94,7 +95,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
         GC_invoke_finalizers();
     }
 
-    m_data = (uint8_t*)m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, bytelength);
+    m_data = (uint8_t*)VMInstance::platform()->onArrayBufferObjectDataBufferMalloc(this, bytelength);
     m_bytelength = bytelength;
 }
 
@@ -105,7 +106,7 @@ void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t
     // if buffer is null, the ArrayBuffer object still seems detached
     if (buffer == nullptr) {
         ASSERT(bytelength == 0);
-        buffer = m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, 0);
+        buffer = VMInstance::platform()->onArrayBufferObjectDataBufferMalloc(this, 0);
     }
 
     m_data = (uint8_t*)buffer;
@@ -124,7 +125,7 @@ void ArrayBufferObject::attachExternalBuffer(ExecutionState& state, void* buffer
 void ArrayBufferObject::detachArrayBuffer()
 {
     if (m_data && !m_fromExternalMemory) {
-        m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
+        VMInstance::platform()->onArrayBufferObjectDataBufferFree(this, m_data);
     }
     m_data = nullptr;
     m_bytelength = 0;
@@ -139,7 +140,6 @@ void* ArrayBufferObject::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayBufferObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_context));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferObject));
         typeInited = true;
     }
@@ -184,6 +184,13 @@ void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex
         for (size_t i = 0; i < elemSize; i++) {
             rawStart[i] = rawBytes[elemSize - i - 1];
         }
+    }
+}
+
+void ArrayBufferObject::throwTypeErrorIfDetached(ExecutionState& state)
+{
+    if (UNLIKELY(isDetachedBuffer())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
     }
 }
 } // namespace Escargot

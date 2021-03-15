@@ -137,8 +137,6 @@ int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
     arr[1].to = (GC_word*)current->m_prototype;
     arr[2].from = (GC_word*)&current->m_values;
     arr[2].to = (GC_word*)current->m_values.data();
-    arr[3].from = (GC_word*)&current->m_context;
-    arr[3].to = (GC_word*)current->m_context;
     return 0;
 }
 

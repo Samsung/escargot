@@ -60,6 +60,7 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/BigInt.h"
 #include "runtime/BigIntObject.h"
+#include "runtime/Platform.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
 #if defined(ENABLE_WASM)
@@ -67,6 +68,64 @@
 #endif
 
 namespace Escargot {
+
+class PlatformBridge : public Platform {
+public:
+    PlatformBridge(PlatformInterface* p)
+        : m_platform(p)
+    {
+        ASSERT(!!p);
+    }
+
+    virtual ~PlatformBridge()
+    {
+        delete m_platform;
+    }
+
+    virtual void* onArrayBufferObjectDataBufferMalloc(ArrayBufferObject* obj, size_t sizeInByte) override
+    {
+        return m_platform->onArrayBufferObjectDataBufferMalloc(toRef(obj), sizeInByte);
+    }
+
+    virtual void onArrayBufferObjectDataBufferFree(ArrayBufferObject* obj, void* buffer) override
+    {
+        m_platform->onArrayBufferObjectDataBufferFree(toRef(obj), buffer);
+    }
+
+    virtual void markJSJobEnqueued(Context* relatedContext) override
+    {
+        m_platform->markJSJobEnqueued(toRef(relatedContext));
+    }
+
+    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
+    {
+        LoadModuleResult result;
+        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
+
+        result.script = toImpl(refResult.script.get());
+        result.errorMessage = toImpl(refResult.errorMessage);
+        result.errorCode = refResult.errorCode;
+
+        return result;
+    }
+
+    virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) override
+    {
+        if (whereRequestFrom) {
+            m_platform->didLoadModule(toRef(relatedContext), toRef(whereRequestFrom.value()), toRef(loadedModule));
+        } else {
+            m_platform->didLoadModule(toRef(relatedContext), nullptr, toRef(loadedModule));
+        }
+    }
+
+    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
+    {
+        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
+    }
+
+private:
+    PlatformInterface* m_platform;
+};
 
 inline OptionalRef<ValueRef> toOptionalValue(const Value& v)
 {
@@ -102,13 +161,13 @@ inline AtomicString toImpl(AtomicStringRef* v)
 }
 
 bool Globals::g_globalsInited = false;
-void Globals::initialize()
+void Globals::initialize(PlatformInterface* platform)
 {
     // initialize global value or context
     // this function should be invoked once at the start of the program
     RELEASE_ASSERT(!g_globalsInited);
     Heap::initialize();
-    VMInstance::initialize();
+    VMInstance::initialize(new PlatformBridge(platform));
     g_globalsInited = true;
 }
 
@@ -699,57 +758,6 @@ BigIntRef* BigIntRef::negativeValue()
     return toRef(toImpl(this)->negativeValue());
 }
 
-class PlatformBridge : public Platform {
-public:
-    PlatformBridge(PlatformRef* p)
-        : m_platform(p)
-    {
-    }
-
-    virtual void* onArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) override
-    {
-        return m_platform->onArrayBufferObjectDataBufferMalloc(toRef(whereObjectMade), toRef(obj), sizeInByte);
-    }
-
-    virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) override
-    {
-        m_platform->onArrayBufferObjectDataBufferFree(toRef(whereObjectMade), toRef(obj), buffer);
-    }
-
-    virtual void markJSJobEnqueued(Context* relatedContext) override
-    {
-        m_platform->markJSJobEnqueued(toRef(relatedContext));
-    }
-
-    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
-    {
-        LoadModuleResult result;
-        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
-
-        result.script = toImpl(refResult.script.get());
-        result.errorMessage = toImpl(refResult.errorMessage);
-        result.errorCode = refResult.errorCode;
-
-        return result;
-    }
-
-    virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) override
-    {
-        if (whereRequestFrom) {
-            m_platform->didLoadModule(toRef(relatedContext), toRef(whereRequestFrom.value()), toRef(loadedModule));
-        } else {
-            m_platform->didLoadModule(toRef(relatedContext), nullptr, toRef(loadedModule));
-        }
-    }
-
-    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
-    {
-        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
-    }
-
-    PlatformRef* m_platform;
-};
-
 Evaluator::StackTraceData::StackTraceData()
     : src(toRef(String::emptyString))
     , sourceCode(toRef(String::emptyString))
@@ -872,24 +880,9 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
     return toEvaluatorResultRef(result);
 }
 
-PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, const char* locale, const char* timezone)
+PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(const char* locale, const char* timezone)
 {
-    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(new PlatformBridge(platform), locale, timezone)));
-}
-
-PlatformRef* VMInstanceRef::platform()
-{
-    return ((PlatformBridge*)toImpl(this)->platform())->m_platform;
-}
-
-void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
-{
-    toImpl(this)->setOnDestroyCallback([](VMInstance* instance, void* data) {
-        if (data) {
-            ((OnVMInstanceDelete)data)(toRef(instance));
-        }
-    },
-                                       (void*)cb);
+    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(locale, timezone)));
 }
 
 void VMInstanceRef::enterIdleMode()
@@ -3292,14 +3285,14 @@ ValueRef* ScriptRef::moduleEvaluationError()
     return toRef(toImpl(this)->moduleEvaluationError());
 }
 
-PlatformRef::LoadModuleResult::LoadModuleResult(ScriptRef* result)
+PlatformInterface::LoadModuleResult::LoadModuleResult(ScriptRef* result)
     : script(result)
     , errorMessage(StringRef::emptyString())
     , errorCode(ErrorObjectRef::Code::None)
 {
 }
 
-PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, StringRef* errorMessage)
+PlatformInterface::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, StringRef* errorMessage)
     : script(nullptr)
     , errorMessage(errorMessage)
     , errorCode(errorCode)

@@ -21,7 +21,6 @@
 #define __EscargotSandBox__
 
 #include "parser/ast/Node.h"
-#include "runtime/Context.h"
 
 namespace Escargot {
 

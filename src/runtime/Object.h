@@ -1073,6 +1073,8 @@ protected:
     }
 
     Object()
+        : m_structure(nullptr)
+        , m_prototype(nullptr)
     {
         // dummy default constructor
         // only called by VMInstance::initialize to set tag value

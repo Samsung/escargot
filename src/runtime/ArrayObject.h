@@ -91,6 +91,10 @@ public:
 protected:
     ArrayObject()
         : Object()
+        , m_arrayLength(0)
+#if !defined(ESCARGOT_64) || !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_fastModeData(nullptr)
+#endif
     {
         // dummy default constructor
         // only called by VMInstance::initialize to set tag value

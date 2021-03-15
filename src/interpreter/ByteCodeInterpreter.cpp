@@ -43,6 +43,7 @@
 #include "runtime/ScriptGeneratorFunctionObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/ScriptAsyncGeneratorFunctionObject.h"
+#include "runtime/Platform.h"
 #include "parser/ScriptParser.h"
 #include "CheckedArithmetic.h"
 
@@ -3300,8 +3301,8 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
             break;
         }
         // Perform ! HostImportModuleDynamically(referencingScriptOrModule, specifierString, promiseCapability).
-        state.context()->vmInstance()->platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
-                                                                               referencingScriptOrModule, specifierString, promiseCapability.m_promise->asPromiseObject());
+        VMInstance::platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
+                                                            referencingScriptOrModule, specifierString, promiseCapability.m_promise->asPromiseObject());
         // Return promiseCapability.[[Promise]].
         registerFile[code->m_resultIndex] = promiseCapability.m_promise;
         break;

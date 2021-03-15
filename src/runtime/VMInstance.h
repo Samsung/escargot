@@ -20,10 +20,11 @@
 #ifndef __EscargotVMInstance__
 #define __EscargotVMInstance__
 
-#include "runtime/Platform.h"
+#include "runtime/SandBox.h"
 #include "runtime/AtomicString.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/ToStringRecursionPreventer.h"
+#include "runtime/RegExpObject.h"
 
 #if defined(ENABLE_WASM)
 struct wasm_engine_t;
@@ -40,7 +41,6 @@ class BumpPointerAllocator;
 
 namespace Escargot {
 
-class SandBox;
 class Context;
 class CodeBlock;
 class JobQueue;
@@ -48,6 +48,7 @@ class Job;
 class ASTAllocator;
 class Symbol;
 class String;
+class Platform;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 class CompressibleString;
 #endif
@@ -95,6 +96,8 @@ class VMInstance : public gc {
     /////////////////////////////////
     // Global Data
     // global values which should be initialized once and shared during the runtime
+    static Platform* g_platform;
+
     static std::mt19937 g_randEngine;
     static bf_context_t g_bfContext;
 #if defined(ENABLE_WASM)
@@ -108,8 +111,13 @@ class VMInstance : public gc {
 public:
     /////////////////////////////////
     // Global Data Static Function
-    static void initialize();
+    static void initialize(Platform* platform);
     static void finalize();
+    static Platform* platform()
+    {
+        ASSERT(!!g_platform);
+        return g_platform;
+    }
     static std::mt19937& randEngine()
     {
         return g_randEngine;
@@ -138,7 +146,7 @@ public:
     }
     /////////////////////////////////
 
-    VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
+    VMInstance(const char* locale = nullptr, const char* timezone = nullptr);
     ~VMInstance();
 
     void* operator new(size_t size);
@@ -258,11 +266,6 @@ public:
     }
 #endif
 
-    Platform* platform()
-    {
-        return m_platform;
-    }
-
     SandBox* currentSandBox()
     {
         return m_currentSandBox;
@@ -276,13 +279,6 @@ public:
     ASCIIString** regexpOptionStringCache()
     {
         return m_regexpOptionStringCache;
-    }
-
-
-    void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
-    {
-        m_onVMInstanceDestroy = onVMInstanceDestroy;
-        m_onVMInstanceDestroyData = data;
     }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
@@ -345,8 +341,6 @@ private:
 #endif
 
     static void gcEventCallback(GC_EventType t, void* data);
-    void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
-    void* m_onVMInstanceDestroyData;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 
@@ -363,8 +357,6 @@ private:
     std::string m_timezoneID;
 #endif
     DateObject* m_cachedUTC;
-
-    Platform* m_platform;
 
     // promise job queue
     JobQueue* m_jobQueue;

@@ -210,7 +210,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
     }
 }
 
-class ShellPlatform : public PlatformRef {
+class ShellPlatform : public PlatformInterface {
 public:
     virtual void markJSJobEnqueued(ContextRef* relatedContext) override
     {
@@ -332,19 +332,20 @@ int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
 
-    Globals::initialize();
+    Globals::initialize(new ShellPlatform());
 
     Memory::setGCFrequency(24);
 
-    ShellPlatform* platform = new ShellPlatform();
-    PersistentRefHolder<VMInstanceRef> g_instance = VMInstanceRef::create(platform);
-    g_instance->setOnVMInstanceDelete([](VMInstanceRef* instance) {
-        delete instance->platform();
-    });
-
+    PersistentRefHolder<VMInstanceRef> g_instance = VMInstanceRef::create();
     g_context = ContextRef::create(g_instance.get());
 
-    return RUN_ALL_TESTS();
+    int result = RUN_ALL_TESTS();
+
+    g_context.release();
+    g_instance.release();
+    Globals::finalize();
+
+    return result;
 }
 
 TEST(EvalScript, Run) {

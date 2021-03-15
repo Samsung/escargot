@@ -20,6 +20,7 @@
 #ifndef __EscargotTypedArrayObject__
 #define __EscargotTypedArrayObject__
 
+#include "runtime/Context.h"
 #include "runtime/ArrayBufferObject.h"
 
 namespace Escargot {

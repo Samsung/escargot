@@ -456,7 +456,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
     return context;
 }
 
-class ShellPlatform : public PlatformRef {
+class ShellPlatform : public PlatformInterface {
 public:
     virtual void markJSJobEnqueued(ContextRef* relatedContext) override
     {
@@ -659,15 +659,11 @@ int main(int argc, char* argv[])
     mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
 
-    Globals::initialize();
+    Globals::initialize(new ShellPlatform());
 
     Memory::setGCFrequency(24);
 
-    ShellPlatform* platform = new ShellPlatform();
-    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create(platform);
-    instance->setOnVMInstanceDelete([](VMInstanceRef* instance) {
-        delete instance->platform();
-    });
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
     if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {

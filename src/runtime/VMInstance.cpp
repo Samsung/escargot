@@ -25,9 +25,11 @@
 #include "runtime/StringObject.h"
 #include "runtime/DateObject.h"
 #include "runtime/JobQueue.h"
+#include "runtime/FunctionObject.h"
 #include "runtime/CompressibleString.h"
 #include "runtime/ReloadableString.h"
 #include "runtime/Intl.h"
+#include "runtime/Platform.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ASTAllocator.h"
 #if defined(ENABLE_CODE_CACHE)
@@ -44,6 +46,7 @@ namespace Escargot {
 /////////////////////////////////////////////////
 // VMInstance Global Data
 /////////////////////////////////////////////////
+Platform* VMInstance::g_platform;
 std::mt19937 VMInstance::g_randEngine((unsigned int)time(NULL));
 bf_context_t VMInstance::g_bfContext;
 #if defined(ENABLE_WASM)
@@ -52,8 +55,11 @@ WASMContext VMInstance::g_wasmContext;
 ASTAllocator* VMInstance::g_astAllocator;
 WTF::BumpPointerAllocator* VMInstance::g_bumpPointerAllocator;
 
-void VMInstance::initialize()
+void VMInstance::initialize(Platform* platform)
 {
+    // g_platform
+    g_platform = platform;
+
     // g_randEngine already initialized
 
     // g_bfContext
@@ -86,6 +92,10 @@ void VMInstance::finalize()
 {
     // this function should be invoked after full gc (Heap::finalize)
     // because some registered gc-finalizers could use these global values
+
+    // g_platform
+    delete g_platform;
+    g_platform = nullptr;
 
     // g_randEngine does not need finalization
 
@@ -304,12 +314,10 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForRegExpObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_platform));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
 #if defined(ENABLE_INTL)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlAvailableLocales));
@@ -350,9 +358,6 @@ VMInstance::~VMInstance()
 #endif
     m_isFinalized = true;
     GC_remove_event_callback(gcEventCallback, this);
-    if (m_onVMInstanceDestroy) {
-        m_onVMInstanceDestroy(this, m_onVMInstanceDestroyData);
-    }
     clearCachesRelatedWithContext();
 #ifdef ENABLE_ICU
     vzone_close(m_timezone);
@@ -363,7 +368,7 @@ VMInstance::~VMInstance()
 #endif
 }
 
-VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
+VMInstance::VMInstance(const char* locale, const char* timezone)
     : m_staticStrings(&m_atomicStringMap)
     , m_currentSandBox(nullptr)
     , m_isFinalized(false)
@@ -377,10 +382,7 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_lastCompressibleStringsTestTime(0)
     , m_compressibleStringsUncomressedBufferSize(0)
 #endif
-    , m_onVMInstanceDestroy(nullptr)
-    , m_onVMInstanceDestroyData(nullptr)
     , m_cachedUTC(nullptr)
-    , m_platform(platform)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
@@ -636,7 +638,7 @@ void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
 void VMInstance::enqueueJob(Job* job)
 {
     m_jobQueue->enqueueJob(job);
-    m_platform->markJSJobEnqueued(job->relatedContext());
+    platform()->markJSJobEnqueued(job->relatedContext());
 }
 
 bool VMInstance::hasPendingJob()

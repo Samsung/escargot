@@ -112,7 +112,7 @@
 namespace Escargot {
 
 class ValueRef;
-class PlatformRef;
+class PlatformInterface;
 #define DECLARE_REF_CLASS(Name) class Name##Ref;
 ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
 #undef DECLARE_REF_CLASS
@@ -121,7 +121,7 @@ class ESCARGOT_EXPORT Globals {
     static bool g_globalsInited;
 
 public:
-    static void initialize();
+    static void initialize(PlatformInterface* platform);
     static void finalize();
 };
 
@@ -599,10 +599,7 @@ class ESCARGOT_EXPORT VMInstanceRef {
 public:
     // you can to provide timezone as TZ database name like "US/Pacific".
     // if you don't provide, we try to detect system timezone.
-    static PersistentRefHolder<VMInstanceRef> create(PlatformRef* platform, const char* locale = nullptr, const char* timezone = nullptr);
-
-    typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
-    void setOnVMInstanceDelete(OnVMInstanceDelete cb);
+    static PersistentRefHolder<VMInstanceRef> create(const char* locale = nullptr, const char* timezone = nullptr);
 
     // this function enforce do gc,
     // remove every compiled bytecodes,
@@ -612,8 +609,6 @@ public:
     // force clear every caches related with context
     // you can call this function if you don't want to use every alive contexts
     void clearCachesRelatedWithContext();
-
-    PlatformRef* platform();
 
     SymbolRef* toStringTagSymbol();
     SymbolRef* iteratorSymbol();
@@ -1424,9 +1419,9 @@ class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
     static ArrayBufferObjectRef* create(ExecutionStateRef* state);
     void allocateBuffer(ExecutionStateRef* state, size_t bytelength);
-    // the buffer will be freed by PlatformRef::onArrayBufferObjectDataBufferFree
+    // the buffer will be freed by PlatformInterface::onArrayBufferObjectDataBufferFree
     void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
-    // the buffer will NOT be freed by PlatformRef::onArrayBufferObjectDataBufferFree
+    // the buffer will NOT be freed by PlatformInterface::onArrayBufferObjectDataBufferFree
     void attachExternalBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
     void detachArrayBuffer();
 
@@ -1752,16 +1747,16 @@ public:
     ValueRef* moduleEvaluationError();
 };
 
-class ESCARGOT_EXPORT PlatformRef {
+class ESCARGOT_EXPORT PlatformInterface {
 public:
-    virtual ~PlatformRef() {}
+    virtual ~PlatformInterface() {}
     // ArrayBuffer
     // client must returns zero-filled memory
-    virtual void* onArrayBufferObjectDataBufferMalloc(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, size_t sizeInByte)
+    virtual void* onArrayBufferObjectDataBufferMalloc(ArrayBufferObjectRef* obj, size_t sizeInByte)
     {
         return calloc(sizeInByte, 1);
     }
-    virtual void onArrayBufferObjectDataBufferFree(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
+    virtual void onArrayBufferObjectDataBufferFree(ArrayBufferObjectRef* obj, void* buffer)
     {
         return free(buffer);
     }

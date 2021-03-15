@@ -20,10 +20,7 @@
 #ifndef __EscargotRegExpObject__
 #define __EscargotRegExpObject__
 
-#include "runtime/Object.h"
-#include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
-
 
 namespace JSC {
 namespace Yarr {

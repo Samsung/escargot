@@ -31,6 +31,7 @@
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ModuleNamespaceObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
+#include "runtime/Platform.h"
 #include "parser/ast/AST.h"
 
 namespace Escargot {
@@ -76,12 +77,12 @@ Context* Script::context()
 
 Script* Script::loadModuleFromScript(ExecutionState& state, String* src)
 {
-    Platform::LoadModuleResult result = context()->vmInstance()->platform()->onLoadModule(context(), this, src);
+    Platform::LoadModuleResult result = VMInstance::platform()->onLoadModule(context(), this, src);
     if (!result.script) {
         ErrorObject::throwBuiltinError(state, (ErrorObject::Code)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
     }
     if (!result.script->moduleData()->m_didCallLoadedCallback) {
-        context()->vmInstance()->platform()->didLoadModule(context(), this, result.script.value());
+        VMInstance::platform()->didLoadModule(context(), this, result.script.value());
         result.script->moduleData()->m_didCallLoadedCallback = true;
     }
     return result.script.value();
@@ -320,7 +321,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     if (isModule()) {
         ASSERT(!moduleData()->m_didCallLoadedCallback);
         if (!moduleData()->m_didCallLoadedCallback) {
-            context()->vmInstance()->platform()->didLoadModule(context(), nullptr, this);
+            VMInstance::platform()->didLoadModule(context(), nullptr, this);
             moduleData()->m_didCallLoadedCallback = true;
         }
 

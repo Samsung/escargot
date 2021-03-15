@@ -20,21 +20,20 @@
 #ifndef __EscargotPlatform__
 #define __EscargotPlatform__
 
-#include "runtime/SandBox.h"
-
 namespace Escargot {
 
 class ArrayBufferObject;
 class PromiseObject;
 class Context;
 class Job;
+class Script;
 
-class Platform : public gc {
+class Platform {
 public:
     virtual ~Platform() {}
     // ArrayBuffer
-    virtual void* onArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) = 0;
-    virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) = 0;
+    virtual void* onArrayBufferObjectDataBufferMalloc(ArrayBufferObject* obj, size_t sizeInByte) = 0;
+    virtual void onArrayBufferObjectDataBufferFree(ArrayBufferObject* obj, void* buffer) = 0;
 
     // Promise
     virtual void markJSJobEnqueued(Context* relatedContext) = 0;

@@ -20,8 +20,6 @@
 #ifndef __EscargotArrayBufferObject__
 #define __EscargotArrayBufferObject__
 
-#include "runtime/Context.h"
-
 namespace Escargot {
 
 enum class TypedArrayType : unsigned {
@@ -79,12 +77,7 @@ public:
         return (data() == nullptr);
     }
 
-    ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
-    {
-        if (UNLIKELY(isDetachedBuffer())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
-        }
-    }
+    void throwTypeErrorIfDetached(ExecutionState& state);
 
     void fillData(const uint8_t* data, size_t length)
     {
@@ -96,7 +89,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    Context* m_context;
     uint8_t* m_data;
     size_t m_bytelength;
     bool m_fromExternalMemory;
