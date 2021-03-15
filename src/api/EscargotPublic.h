@@ -599,7 +599,7 @@ class ESCARGOT_EXPORT VMInstanceRef {
 public:
     // you can to provide timezone as TZ database name like "US/Pacific".
     // if you don't provide, we try to detect system timezone.
-    static PersistentRefHolder<VMInstanceRef> create(PlatformRef* platform, const char* locale = nullptr, const char* timezone = nullptr);
+    static PersistentRefHolder<VMInstanceRef> create(PlatformRef* platform, const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
 
     typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
     void setOnVMInstanceDelete(OnVMInstanceDelete cb);
