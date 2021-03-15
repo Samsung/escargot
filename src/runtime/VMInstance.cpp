@@ -363,7 +363,7 @@ VMInstance::~VMInstance()
 #endif
 }
 
-VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone)
+VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone, const char* baseCacheDir)
     : m_staticStrings(&m_atomicStringMap)
     , m_currentSandBox(nullptr)
     , m_isFinalized(false)
@@ -510,9 +510,8 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     m_jobQueue = new JobQueue();
 
 #if defined(ENABLE_CODE_CACHE)
-    const char* baseCacheDir = getenv("HOME");
     if (!baseCacheDir || strlen(baseCacheDir) == 0) {
-        baseCacheDir = "/tmp";
+        baseCacheDir = getenv("HOME");
     }
     m_codeCache = new CodeCache(baseCacheDir);
 #endif

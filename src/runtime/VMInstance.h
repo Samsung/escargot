@@ -138,7 +138,7 @@ public:
     }
     /////////////////////////////////
 
-    VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr);
+    VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
     ~VMInstance();
 
     void* operator new(size_t size);

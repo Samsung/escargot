@@ -872,9 +872,9 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
     return toEvaluatorResultRef(result);
 }
 
-PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, const char* locale, const char* timezone)
+PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, const char* locale, const char* timezone, const char* baseCacheDir)
 {
-    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(new PlatformBridge(platform), locale, timezone)));
+    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(new PlatformBridge(platform), locale, timezone, baseCacheDir)));
 }
 
 PlatformRef* VMInstanceRef::platform()
