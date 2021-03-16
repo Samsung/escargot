@@ -1115,7 +1115,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             JumpComplexCase* code = (JumpComplexCase*)programCounter;
-            state->ensureRareData()->m_controlFlowRecord->back() = code->m_controlFlowRecord->clone();
+            state->ensureRareData()->m_controlFlowRecord->back() = byteCodeBlock->m_jumpFlowRecordData[code->m_recordIndex].createControlFlowRecord();
             return Value();
         }
 

@@ -510,8 +510,9 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     m_jobQueue = new JobQueue();
 
 #if defined(ENABLE_CODE_CACHE)
-    if (!baseCacheDir || strlen(baseCacheDir) == 0) {
-        baseCacheDir = getenv("HOME");
+    if (UNLIKELY(!baseCacheDir || strlen(baseCacheDir) == 0)) {
+        const char* homeDir = getenv("HOME");
+        baseCacheDir = (!homeDir || strlen(homeDir) == 0) ? "/tmp" : homeDir;
     }
     m_codeCache = new CodeCache(baseCacheDir);
 #endif

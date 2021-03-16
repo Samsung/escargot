@@ -268,9 +268,9 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
                 ASSERT(!!topCodeBlock && !!topByteBlock);
                 script->m_topCodeBlock = topCodeBlock;
                 topCodeBlock->m_byteCodeBlock = topByteBlock;
-#ifndef NDEBUG
+
                 ESCARGOT_LOG_INFO("CODECACHE: Load CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
-#endif
+
                 ScriptParser::InitializeScriptResult result;
                 result.script = script;
                 return result;
@@ -339,9 +339,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
                 topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
 
                 codeCache->postCacheWriting(srcHash);
-#ifndef NDEBUG
+
                 ESCARGOT_LOG_INFO("CODECACHE: Store CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
-#endif
             } else {
                 topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
             }

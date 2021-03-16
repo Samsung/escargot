@@ -84,7 +84,7 @@ public:
         size_t whileEnd = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, whileEnd, context->tryCatchWithBlockStatementCount());
         if (testPos != SIZE_MAX)
-            codeBlock->peekCode<JumpByteCode>(testPos)->m_jumpPosition = whileEnd;
+            codeBlock->peekCode<Jump>(testPos)->m_jumpPosition = whileEnd;
         newContext.m_positionToContinue = context->m_positionToContinue;
         newContext.propagateInformationTo(*context);
     }

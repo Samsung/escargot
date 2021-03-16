@@ -92,6 +92,10 @@ void CodeCache::initialize(const char* baseCacheDir)
     m_cacheReader = new CodeCacheReader();
     m_enabled = true;
     m_status = Status::READY;
+
+#ifndef NDEBUG
+    ESCARGOT_LOG_INFO("[CodeCache] initialization done on cache directory: %s\n", m_cacheDirPath.data());
+#endif
 }
 
 bool CodeCache::tryInitCacheDir()
@@ -616,8 +620,12 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     // clear
     tempCodeBlockMap.clear();
     m_cacheReader->clearBuffer();
-
     ASSERT(topCodeBlock->isGlobalCodeBlock());
+
+#ifndef NDEBUG
+    ESCARGOT_LOG_INFO("[CodeCache] loading CodeBlock tree done\n");
+#endif
+
     // return topCodeBlock
     return topCodeBlock;
 }

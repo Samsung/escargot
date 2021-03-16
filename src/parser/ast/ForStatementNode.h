@@ -203,7 +203,7 @@ public:
 
         size_t forEnd = codeBlock->currentCodeSize();
         if (m_test) {
-            codeBlock->peekCode<JumpByteCode>(testPos)->m_jumpPosition = forEnd;
+            codeBlock->peekCode<Jump>(testPos)->m_jumpPosition = forEnd;
         }
 
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {

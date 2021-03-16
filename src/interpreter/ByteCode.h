@@ -231,23 +231,6 @@ public:
 #endif
 };
 
-class JumpByteCode : public ByteCode {
-public:
-    explicit JumpByteCode(Opcode code, const ByteCodeLOC& loc, size_t jumpPosition)
-        : ByteCode(code, loc)
-        , m_jumpPosition(jumpPosition)
-    {
-    }
-
-    size_t m_jumpPosition;
-#ifndef NDEBUG
-    void dump(const char* byteCodeStart)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-#endif
-};
-
 class LoadLiteral : public ByteCode {
 public:
     LoadLiteral(const ByteCodeLOC& loc, const size_t registerIndex, const Value& v)
@@ -1427,6 +1410,12 @@ public:
     {
     }
 
+    explicit Jump(Opcode code, const ByteCodeLOC& loc, size_t jumpPosition)
+        : ByteCode(code, loc)
+        , m_jumpPosition(jumpPosition)
+    {
+    }
+
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
@@ -1521,46 +1510,57 @@ private:
     size_t m_outerLimitCount;
 };
 
-class JumpComplexCase : public ByteCode {
+class JumpFlowRecord {
 public:
-    JumpComplexCase(ControlFlowRecord* controlFlowRecord)
-        : ByteCode(Opcode::JumpComplexCaseOpcode, ByteCodeLOC(SIZE_MAX))
-        , m_controlFlowRecord(controlFlowRecord)
+    JumpFlowRecord(const size_t value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
+        : m_wordValue(value)
+        , m_count(count)
+        , m_outerLimitCount(outerLimitCount)
     {
     }
 
-    ControlFlowRecord* m_controlFlowRecord;
+    MAKE_STACK_ALLOCATED();
+
+    ControlFlowRecord* createControlFlowRecord()
+    {
+        return new ControlFlowRecord(ControlFlowRecord::ControlFlowRecord::NeedsJump, m_wordValue, m_count, m_outerLimitCount);
+    }
+
+    size_t m_wordValue;
+    size_t m_count;
+    size_t m_outerLimitCount;
+};
+
+class JumpComplexCase : public ByteCode {
+public:
+    JumpComplexCase(size_t recordIndex)
+        : ByteCode(Opcode::JumpComplexCaseOpcode, ByteCodeLOC(SIZE_MAX))
+        , m_recordIndex(recordIndex)
+    {
+    }
+
+    size_t m_recordIndex;
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
         printf("jump complex");
-
-        printf(" out count %d ", (int)m_controlFlowRecord->count());
-
-        if (m_controlFlowRecord->reason() == ControlFlowRecord::NeedsReturn) {
-            printf("(return)");
-        } else if (m_controlFlowRecord->reason() == ControlFlowRecord::NeedsJump) {
-            printf("(jump -> %d)", (int)m_controlFlowRecord->wordValue());
-        } else if (m_controlFlowRecord->reason() == ControlFlowRecord::NeedsThrow) {
-            printf("(throw)");
-        }
     }
 #endif
 };
 
 COMPILE_ASSERT(sizeof(Jump) == sizeof(JumpComplexCase), "");
 
-class JumpIfTrue : public JumpByteCode {
+class JumpIfTrue : public Jump {
 public:
     JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex)
-        : JumpByteCode(Opcode::JumpIfTrueOpcode, loc, SIZE_MAX)
+        : Jump(Opcode::JumpIfTrueOpcode, loc, SIZE_MAX)
         , m_registerIndex(registerIndex)
     {
     }
 
     JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
-        : JumpByteCode(Opcode::JumpIfTrueOpcode, loc, pos)
+        : Jump(Opcode::JumpIfTrueOpcode, loc, pos)
         , m_registerIndex(registerIndex)
     {
     }
@@ -1575,17 +1575,17 @@ public:
 #endif
 };
 
-class JumpIfUndefinedOrNull : public JumpByteCode {
+class JumpIfUndefinedOrNull : public Jump {
 public:
     JumpIfUndefinedOrNull(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex)
-        : JumpByteCode(Opcode::JumpIfUndefinedOrNullOpcode, loc, SIZE_MAX)
+        : Jump(Opcode::JumpIfUndefinedOrNullOpcode, loc, SIZE_MAX)
         , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
     JumpIfUndefinedOrNull(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex, size_t pos)
-        : JumpByteCode(Opcode::JumpIfUndefinedOrNullOpcode, loc, pos)
+        : Jump(Opcode::JumpIfUndefinedOrNullOpcode, loc, pos)
         , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
@@ -1606,10 +1606,10 @@ public:
 #endif
 };
 
-class JumpIfFalse : public JumpByteCode {
+class JumpIfFalse : public Jump {
 public:
     JumpIfFalse(const ByteCodeLOC& loc, const size_t registerIndex)
-        : JumpByteCode(Opcode::JumpIfFalseOpcode, loc, SIZE_MAX)
+        : Jump(Opcode::JumpIfFalseOpcode, loc, SIZE_MAX)
         , m_registerIndex(registerIndex)
     {
     }
@@ -1624,11 +1624,11 @@ public:
 #endif
 };
 
-class JumpIfNotFulfilled : public JumpByteCode {
+class JumpIfNotFulfilled : public Jump {
 public:
     // compare if left value is less than (or equal) right value
     JumpIfNotFulfilled(const ByteCodeLOC& loc, const size_t leftIndex, const size_t rightIndex, bool containEqual, bool switched)
-        : JumpByteCode(Opcode::JumpIfNotFulfilledOpcode, loc, SIZE_MAX)
+        : Jump(Opcode::JumpIfNotFulfilledOpcode, loc, SIZE_MAX)
         , m_leftIndex(leftIndex)
         , m_rightIndex(rightIndex)
         , m_containEqual(containEqual)
@@ -1663,10 +1663,10 @@ public:
 #endif
 };
 
-class JumpIfEqual : public JumpByteCode {
+class JumpIfEqual : public Jump {
 public:
     JumpIfEqual(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, bool isStrict, bool shouldNegate)
-        : JumpByteCode(Opcode::JumpIfEqualOpcode, loc, SIZE_MAX)
+        : Jump(Opcode::JumpIfEqualOpcode, loc, SIZE_MAX)
         , m_registerIndex0(registerIndex0)
         , m_registerIndex1(registerIndex1)
         , m_isStrict(isStrict)
@@ -2607,6 +2607,8 @@ public:
 
 typedef Vector<char, std::allocator<char>, ComputeReservedCapacityFunctionWithLog2<200>> ByteCodeBlockData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
+typedef Vector<JumpFlowRecord, std::allocator<JumpFlowRecord>> ByteCodeJumpFlowRecordData;
+
 typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>> ByteCodeStringLiteralData;
 typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeOtherLiteralData;
 
@@ -2710,6 +2712,7 @@ public:
         size_t siz = m_code.capacity();
         siz += sizeof(ByteCodeBlock);
         siz += m_numeralLiteralData.size() * sizeof(Value);
+        siz += m_jumpFlowRecordData.size() * sizeof(JumpFlowRecord);
         siz += m_stringLiteralData.size() * sizeof(intptr_t);
         siz += m_otherLiteralData.size() * sizeof(intptr_t);
         siz += m_inlineCacheDataSize;
@@ -2727,6 +2730,7 @@ public:
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
+    ByteCodeJumpFlowRecordData m_jumpFlowRecordData;
 
     // m_stringLiteralData only holds String addesses not to be deallocated by GC
     ByteCodeStringLiteralData m_stringLiteralData;

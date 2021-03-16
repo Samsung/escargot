@@ -38,7 +38,6 @@ enum class ByteCodeRelocType : uint8_t {
     RELOC_STRING,
     RELOC_ATOMICSTRING,
     RELOC_CODEBLOCK,
-    RELOC_CONTROLFLOWRECORD,
     RELOC_BLOCKINFO,
 };
 
