@@ -280,6 +280,10 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;
     m_buffer.putData(numeralLiteralData.data(), numeralLiteralData.size());
 
+    // ByteCodeBlock::m_jumpFlowRecordData
+    ByteCodeJumpFlowRecordData& jumpFlowRecordData = block->m_jumpFlowRecordData;
+    m_buffer.putData(jumpFlowRecordData.data(), jumpFlowRecordData.size());
+
     // ByteCodeBlock::m_stringLiteralData
     ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
     size = stringLiteralData.size();
@@ -289,16 +293,9 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
         m_buffer.putString(stringLiteralData[i]);
     }
 
+    // TODO
     // ByteCodeBlock::m_otherLiteralData
-    ByteCodeOtherLiteralData& otherLiteralData = block->m_otherLiteralData;
-    size = otherLiteralData.size();
-    m_buffer.ensureSize(sizeof(size_t) + size * sizeof(ControlFlowRecord));
-    m_buffer.put(size);
-    for (size_t i = 0; i < size; i++) {
-        ControlFlowRecord* record = (ControlFlowRecord*)otherLiteralData[i];
-        ASSERT(record->m_reason == ControlFlowRecord::NeedsJump);
-        m_buffer.put(*record);
-    }
+    ASSERT(!block->m_otherLiteralData.size());
 
     // ByteCodeBlock::m_code bytecode stream
     storeByteCodeStream(block);
@@ -454,14 +451,6 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
             case UnaryDeleteOpcode: {
                 UnaryDelete* bc = (UnaryDelete*)currentCode;
                 STORE_ATOMICSTRING_RELOC(m_id);
-                break;
-            }
-            case JumpComplexCaseOpcode: {
-                JumpComplexCase* bc = (JumpComplexCase*)currentCode;
-                ControlFlowRecord* record = bc->m_controlFlowRecord;
-                size_t recordIndex = VectorUtil::findInVector(block->m_otherLiteralData, (void*)record);
-                ASSERT(recordIndex != VectorUtil::invalidIndex);
-                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CONTROLFLOWRECORD, (size_t)currentCode - codeBase, recordIndex));
                 break;
             }
             case CallFunctionComplexCaseOpcode: {
@@ -773,6 +762,12 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
     numeralLiteralData.resizeWithUninitializedValues(size);
     m_buffer.getData(numeralLiteralData.data(), size);
 
+    // ByteCodeBlock::m_jumpFlowRecordData
+    ByteCodeJumpFlowRecordData& jumpFlowRecordData = block->m_jumpFlowRecordData;
+    size = m_buffer.get<size_t>();
+    jumpFlowRecordData.resizeWithUninitializedValues(size);
+    m_buffer.getData(jumpFlowRecordData.data(), size);
+
     // ByteCodeBlock::m_stringLiteralData
     ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
     size = m_buffer.get<size_t>();
@@ -781,15 +776,8 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
         stringLiteralData[i] = m_buffer.getString();
     }
 
+    // TODO
     // ByteCodeBlock::m_otherLiteralData
-    ByteCodeOtherLiteralData& otherLiteralData = block->m_otherLiteralData;
-    size = m_buffer.get<size_t>();
-    otherLiteralData.resizeWithUninitializedValues(size);
-    for (size_t i = 0; i < size; i++) {
-        ControlFlowRecord* record = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, SIZE_MAX, SIZE_MAX);
-        m_buffer.getData(record, 1);
-        otherLiteralData[i] = record;
-    }
 
     // ByteCodeBlock::m_code bytecode stream
     loadByteCodeStream(context, block);
@@ -976,14 +964,6 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
             case UnaryDeleteOpcode: {
                 UnaryDelete* bc = (UnaryDelete*)currentCode;
                 LOAD_ATOMICSTRING_RELOC(m_id);
-                break;
-            }
-            case JumpComplexCaseOpcode: {
-                JumpComplexCase* bc = (JumpComplexCase*)currentCode;
-                size_t recordIndex = info.dataOffset;
-                ByteCodeOtherLiteralData& otherLiteralData = block->m_otherLiteralData;
-                ASSERT(recordIndex < otherLiteralData.size());
-                bc->m_controlFlowRecord = (ControlFlowRecord*)otherLiteralData[recordIndex];
                 break;
             }
             case CallFunctionComplexCaseOpcode: {

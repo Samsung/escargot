@@ -87,9 +87,9 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 {
     auto iter = m_complexCaseStatementPositions.find(codePos);
     if (iter != m_complexCaseStatementPositions.end()) {
-        ControlFlowRecord* r = new ControlFlowRecord(ControlFlowRecord::ControlFlowReason::NeedsJump, (cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second, outerLimitCount);
-        m_byteCodeBlock->m_otherLiteralData.pushBack(r);
-        new (cb->m_code.data() + codePos) JumpComplexCase(r);
+        size_t index = m_byteCodeBlock->m_jumpFlowRecordData.size();
+        m_byteCodeBlock->m_jumpFlowRecordData.pushBack(JumpFlowRecord((cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second, outerLimitCount));
+        new (cb->m_code.data() + codePos) JumpComplexCase(index);
         m_complexCaseStatementPositions.erase(iter);
     }
 }

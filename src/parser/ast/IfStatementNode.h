@@ -68,7 +68,7 @@ public:
             codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
             jPos2 = codeBlock->lastCodePosition<Jump>();
         }
-        codeBlock->peekCode<JumpByteCode>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
+        codeBlock->peekCode<Jump>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         if (m_alternate) {
             m_alternate->generateStatementByteCode(codeBlock, context);

@@ -108,6 +108,7 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
 
         self->m_code.clear();
         self->m_numeralLiteralData.clear();
+        self->m_jumpFlowRecordData.clear();
 
         if (!self->m_isOwnerMayFreed) {
             auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
