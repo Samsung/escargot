@@ -33,10 +33,14 @@ class AtomicString;
 class ByteCodeBlock;
 class InterpretedCodeBlock;
 
+// size_t and limb_t should have the same size (for putBF and getBF)
+COMPILE_ASSERT(sizeof(size_t) == sizeof(limb_t), "");
+
 enum class ByteCodeRelocType : uint8_t {
     RELOC_INVALID,
     RELOC_STRING,
     RELOC_ATOMICSTRING,
+    RELOC_BIGINT,
     RELOC_CODEBLOCK,
     RELOC_BLOCKINFO,
 };
@@ -130,6 +134,9 @@ public:
         {
             ensureSize(sizeof(size_t) + size * sizeof(IntegralType));
             put(size);
+            if (UNLIKELY(!size)) {
+                return;
+            }
             memcpy(m_buffer + m_index, data, size * sizeof(IntegralType));
             m_index += (size * sizeof(IntegralType));
         }
@@ -146,6 +153,14 @@ public:
                 ASSERT(string->length() > 0);
                 putData(string->characters16(), string->length());
             }
+        }
+
+        void putBF(bf_t* bf)
+        {
+            ensureSize(sizeof(int) + sizeof(slimb_t));
+            put(bf->sign);
+            put(bf->expn);
+            putData(bf->tab, bf->len);
         }
 
     private:
@@ -225,6 +240,9 @@ public:
         template <typename IntegralType>
         void getData(IntegralType* data, size_t size)
         {
+            if (UNLIKELY(!size)) {
+                return;
+            }
             size_t dataSize = size * sizeof(IntegralType);
             memcpy(data, m_buffer + m_index, dataSize);
             m_index += dataSize;
@@ -256,6 +274,19 @@ public:
                 delete[] buffer;
             }
             return str;
+        }
+
+        bf_t getBF(bf_context_t* bfContext)
+        {
+            bf_t bf;
+            bf_init(bfContext, &bf);
+            bf.sign = get<int>();
+            bf.expn = get<slimb_t>();
+
+            limb_t len = get<limb_t>();
+            bf_resize(&bf, len);
+            getData(bf.tab, len);
+            return bf;
         }
 
     private:

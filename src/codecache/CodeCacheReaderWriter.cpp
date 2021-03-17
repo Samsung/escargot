@@ -26,6 +26,7 @@
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 #include "runtime/ObjectStructurePropertyName.h"
 
 namespace Escargot {
@@ -269,7 +270,7 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     ASSERT(GC_is_disabled());
     ASSERT(!!block);
 
-    size_t size;
+    size_t size = 0;
 
     m_buffer.ensureSize(2 * sizeof(bool) + sizeof(uint16_t));
     m_buffer.put(block->m_shouldClearStack);
@@ -293,9 +294,17 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
         m_buffer.putString(stringLiteralData[i]);
     }
 
-    // TODO
     // ByteCodeBlock::m_otherLiteralData
-    ASSERT(!block->m_otherLiteralData.size());
+    // Note) only BigInt exists
+    ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
+    size = bigIntData.size();
+    m_buffer.ensureSize(sizeof(size_t));
+    m_buffer.put(size);
+    for (size_t i = 0; i < size; i++) {
+        ASSERT(((PointerValue*)bigIntData[i])->isBigInt());
+        bf_t* bf = ((PointerValue*)bigIntData[i])->asBigInt()->bf();
+        m_buffer.putBF(bf);
+    }
 
     // ByteCodeBlock::m_code bytecode stream
     storeByteCodeStream(block);
@@ -357,6 +366,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
 
     Vector<ByteCodeRelocInfo, std::allocator<ByteCodeRelocInfo>> relocInfoVector;
     ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
+    ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
 
     // mark bytecode relocation infos
     {
@@ -376,16 +386,24 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
             switch (opcode) {
             case LoadLiteralOpcode: {
                 LoadLiteral* bc = (LoadLiteral*)currentCode;
-                if (bc->m_value.isPointerValue()) {
-                    ASSERT(bc->m_value.asPointerValue()->isString());
-                    String* string = bc->m_value.asPointerValue()->asString();
-                    size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
-                    if (stringIndex != VectorUtil::invalidIndex) {
-                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                Value value = bc->m_value;
+                if (value.isPointerValue()) {
+                    if (value.asPointerValue()->isString()) {
+                        String* string = value.asPointerValue()->asString();
+                        size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
+                        if (stringIndex != VectorUtil::invalidIndex) {
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                        } else {
+                            ASSERT(string->isAtomicStringSource());
+                            stringIndex = m_stringTable->add(AtomicString(context, string));
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                        }
                     } else {
-                        ASSERT(string->isAtomicStringSource());
-                        stringIndex = m_stringTable->add(AtomicString(context, string));
-                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                        ASSERT(value.asPointerValue()->isBigInt());
+                        BigInt* bigInt = value.asPointerValue()->asBigInt();
+                        size_t bigIntIndex = VectorUtil::findInVector(bigIntData, bigInt);
+                        ASSERT(bigIntIndex != VectorUtil::invalidIndex);
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BIGINT, (size_t)currentCode - codeBase, bigIntIndex));
                     }
                 }
                 break;
@@ -776,8 +794,14 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
         stringLiteralData[i] = m_buffer.getString();
     }
 
-    // TODO
     // ByteCodeBlock::m_otherLiteralData
+    // Note) only BigInt exists
+    ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
+    size = m_buffer.get<size_t>();
+    bigIntData.resizeWithUninitializedValues(size);
+    for (size_t i = 0; i < size; i++) {
+        bigIntData[i] = new BigInt(m_buffer.getBF(VMInstance::bfContext()));
+    }
 
     // ByteCodeBlock::m_code bytecode stream
     loadByteCodeStream(context, block);
@@ -863,6 +887,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
 
     Vector<ByteCodeRelocInfo, std::allocator<ByteCodeRelocInfo>> relocInfoVector;
     ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
+    ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
 
     // load relocInfoVector
     {
@@ -893,15 +918,18 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
             switch (opcode) {
             case LoadLiteralOpcode: {
                 LoadLiteral* bc = (LoadLiteral*)currentCode;
-                size_t stringIndex = info.dataOffset;
+                size_t dataIndex = info.dataOffset;
 
                 if (info.relocType == ByteCodeRelocType::RELOC_STRING) {
-                    ASSERT(stringIndex < stringLiteralData.size());
-                    String* string = stringLiteralData[stringIndex];
+                    ASSERT(dataIndex < stringLiteralData.size());
+                    String* string = stringLiteralData[dataIndex];
                     bc->m_value = Value(string);
+                } else if (info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING) {
+                    bc->m_value = Value(m_stringTable->get(dataIndex).string());
                 } else {
-                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING);
-                    bc->m_value = Value(m_stringTable->get(stringIndex).string());
+                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_BIGINT);
+                    PointerValue* value = (PointerValue*)bigIntData[dataIndex];
+                    bc->m_value = Value(value->asBigInt());
                 }
                 break;
             }
