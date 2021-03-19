@@ -143,7 +143,7 @@ private:
 
     static void yieldOperation(ExecutionState& state, Value* registerFile, size_t programCounter, char* codeBuffer);
     static Value yieldDelegateOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
-    static Value executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
+    static void executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
     static Value executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
     static void metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
