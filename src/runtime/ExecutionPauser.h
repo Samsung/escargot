@@ -47,17 +47,9 @@ public:
         Return
     };
 
-    // yield is implemented throw this type of by this class
-    // we cannot use normal return logic because we must not modify ExecutionState(some statements(block,with..) needs modifying control flow data for exit function)
     struct PauseValue : public gc {
         PauseReason m_pauseReason;
-        Value m_value;
-
-        void* operator new(size_t size)
-        {
-            // we MUST use uncollectable malloc. bdwgc cannot track thrown value
-            return GC_MALLOC_UNCOLLECTABLE(size);
-        }
+        EncodedValue m_value;
     };
 
     void release()
@@ -66,6 +58,7 @@ public:
         m_registerFile = nullptr;
         m_byteCodeBlock = nullptr;
         m_pausedCode.clear();
+        m_pauseValue = nullptr;
         m_resumeValue = EncodedValue();
         m_promiseCapability.m_promise = nullptr;
         m_promiseCapability.m_resolveFunction = nullptr;
@@ -97,6 +90,7 @@ private:
     Vector<char, GCUtil::gc_malloc_atomic_allocator<char>> m_pausedCode;
     size_t m_byteCodePosition; // this indicates where we should execute next in interpreter
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
+    PauseValue* m_pauseValue;
     EncodedValue m_resumeValue;
     ByteCodeRegisterIndex m_resumeValueIndex;
     ByteCodeRegisterIndex m_resumeStateIndex;

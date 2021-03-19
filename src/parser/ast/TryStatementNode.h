@@ -137,7 +137,7 @@ public:
         }
         context->registerJumpPositionsToComplexCase(ctx.tryStartPosition);
         if (codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_hasFinalizer) {
-            // we can use `End` here because we don't care about return value of interpret function
+            // we should use End opcode here because we don't want to remove ControlFlowRecord here
             codeBlock->pushCode(End(ByteCodeLOC(self->loc().index), 0), context, self);
         }
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_finallyEndPosition = codeBlock->currentCodeSize();

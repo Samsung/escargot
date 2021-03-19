@@ -58,6 +58,7 @@ struct ExecutionStateRareData : public gc {
 class ExecutionState : public gc {
     friend class FunctionObject;
     friend class ByteCodeInterpreter;
+    friend class ExecutionPauser;
     friend class ExecutionStateProgramCounterBinder;
     friend class FunctionObjectProcessCallGenerator;
     friend class SandBox;
@@ -74,6 +75,7 @@ public:
         , m_inStrictMode(false)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_inExecutionStopState(false)
         , m_argc(0)
         , m_argv(nullptr)
     {
@@ -97,6 +99,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_inExecutionStopState(false)
         , m_argc(parent->argc())
         , m_argv(parent->argv())
     {
@@ -112,6 +115,7 @@ public:
         , m_inStrictMode(false)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_inExecutionStopState(false)
         , m_argc(0)
         , m_argv(nullptr)
     {
@@ -127,6 +131,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_inExecutionStopState(false)
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -142,6 +147,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(true)
+        , m_inExecutionStopState(false)
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -160,6 +166,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
+        , m_inExecutionStopState(false)
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -242,6 +249,11 @@ public:
         return m_inTryStatement;
     }
 
+    bool inExecutionStopState()
+    {
+        return m_inExecutionStopState;
+    }
+
     // callee is pauser && isNotInEvalCode
     bool inPauserScope();
 
@@ -301,10 +313,11 @@ private:
     bool m_inStrictMode : 1;
     bool m_inTryStatement : 1;
     bool m_isNativeFunctionObjectExecutionContext : 1;
+    bool m_inExecutionStopState : 1;
 #ifdef ESCARGOT_32
-    size_t m_argc : 28;
+    size_t m_argc : 27;
 #else
-    size_t m_argc : 60;
+    size_t m_argc : 59;
 #endif
     Value* m_argv;
 };

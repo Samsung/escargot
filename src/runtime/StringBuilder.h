@@ -27,8 +27,26 @@ namespace Escargot {
 
 class ExecutionState;
 
-class StringBuilder {
+class StringBuilderBase {
     MAKE_STACK_ALLOCATED();
+
+public:
+    StringBuilderBase()
+    {
+        m_has8BitContent = true;
+        m_contentLength = 0;
+        m_piecesInlineStorageUsage = 0;
+    }
+
+    void clear()
+    {
+        m_has8BitContent = true;
+        m_contentLength = 0;
+        m_piecesInlineStorageUsage = 0;
+        m_pieces.clear();
+    }
+
+protected:
     struct StringBuilderPiece {
         StringBuilderPiece()
             : m_type(Char)
@@ -54,16 +72,92 @@ class StringBuilder {
         size_t m_start, m_end;
     };
 
-    void appendPiece(char16_t ch);
-    void appendPiece(const char* str);
-    void appendPiece(String* str, size_t s, size_t e);
+    String* finalizeBase(StringBuilderPiece* piecesInlineStorage, ExecutionState* state);
+
+    bool m_has8BitContent : 1;
+    size_t m_piecesInlineStorageUsage;
+    size_t m_contentLength;
+    Vector<StringBuilderPiece, GCUtil::gc_malloc_allocator<StringBuilderPiece>, ComputeReservedCapacityFunctionWithLog2<>> m_pieces;
+};
+
+template <const size_t InlineStorageSize>
+class StringBuilderImpl : public StringBuilderBase {
+    void appendPiece(String* str, size_t s, size_t e)
+    {
+        if (e - s > 0) {
+            StringBuilderPiece piece;
+            piece.m_string = str;
+            piece.m_start = s;
+            piece.m_end = e;
+
+            const auto& data = str->bufferAccessData();
+            if (!data.has8BitContent) {
+                bool has8 = true;
+                for (size_t i = s; i < e; i++) {
+                    if (((char16_t*)data.buffer)[i] > 255) {
+                        has8 = false;
+                        break;
+                    }
+                }
+
+                if (!has8) {
+                    m_has8BitContent = false;
+                    piece.m_type = StringBuilderPiece::Type::UTF16StringStringPiece;
+                } else {
+                    piece.m_type = StringBuilderPiece::Type::UTF16StringStringButLatin1ContentPiece;
+                }
+
+            } else {
+                piece.m_type = StringBuilderPiece::Type::Latin1StringPiece;
+            }
+
+            m_contentLength += e - s;
+            if (m_piecesInlineStorageUsage < InlineStorageSize) {
+                m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+            } else
+                m_pieces.push_back(piece);
+        }
+    }
+
+    void appendPiece(const char* str)
+    {
+        StringBuilderPiece piece;
+        piece.m_start = 0;
+        piece.m_end = strlen(str);
+        piece.m_raw = str;
+        piece.m_type = StringBuilderPiece::Type::ConstChar;
+        if (piece.m_end) {
+            m_contentLength += piece.m_end;
+            if (m_piecesInlineStorageUsage < InlineStorageSize) {
+                m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+            } else
+                m_pieces.push_back(piece);
+        }
+    }
+
+    void appendPiece(char16_t ch)
+    {
+        StringBuilderPiece piece;
+        piece.m_start = 0;
+        piece.m_end = 1;
+        piece.m_ch = ch;
+        piece.m_type = StringBuilderPiece::Type::Char;
+
+        if (ch > 255) {
+            m_has8BitContent = false;
+        }
+
+        m_contentLength += 1;
+        if (m_piecesInlineStorageUsage < InlineStorageSize) {
+            m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+        } else
+            m_pieces.push_back(piece);
+    }
 
 public:
-    StringBuilder()
+    StringBuilderImpl()
+        : StringBuilderBase()
     {
-        m_has8BitContent = true;
-        m_contentLength = 0;
-        m_piecesInlineStorageUsage = 0;
     }
 
     size_t contentLength() const { return m_contentLength; }
@@ -102,23 +196,18 @@ public:
         appendPiece(str, s, e);
     }
 
-    String* finalize(ExecutionState* state = nullptr); // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
-
-    void clear()
+    String* finalize(ExecutionState* state = nullptr) // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
     {
-        m_has8BitContent = true;
-        m_contentLength = 0;
-        m_piecesInlineStorageUsage = 0;
-        m_pieces.clear();
+        return finalizeBase(m_piecesInlineStorage, state);
     }
 
 private:
-    bool m_has8BitContent : 1;
-    size_t m_piecesInlineStorageUsage;
-    size_t m_contentLength;
-    StringBuilderPiece m_piecesInlineStorage[STRING_BUILDER_INLINE_STORAGE_MAX];
-    Vector<StringBuilderPiece, GCUtil::gc_malloc_allocator<StringBuilderPiece>> m_pieces;
+    StringBuilderPiece m_piecesInlineStorage[InlineStorageSize];
 };
+
+using StringBuilder = StringBuilderImpl<STRING_BUILDER_INLINE_STORAGE_DEFAULT>;
+using LargeStringBuilder = StringBuilderImpl<STRING_BUILDER_INLINE_STORAGE_DEFAULT * 4>;
+
 } // namespace Escargot
 
 #endif

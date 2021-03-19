@@ -1091,7 +1091,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             (*(state->rareData()->m_controlFlowRecord))[state->rareData()->m_controlFlowRecord->size() - 1] = nullptr;
-            return Value();
+            return Value(Value::EmptyValue);
         }
 
         DEFINE_OPCODE(ThrowOperation)
@@ -1116,7 +1116,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             JumpComplexCase* code = (JumpComplexCase*)programCounter;
             state->ensureRareData()->m_controlFlowRecord->back() = byteCodeBlock->m_jumpFlowRecordData[code->m_recordIndex].createControlFlowRecord();
-            return Value();
+            return Value(Value::EmptyValue);
         }
 
         DEFINE_OPCODE(CreateEnumerateObject)
@@ -1247,7 +1247,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (UNLIKELY(state->rareData() != nullptr) && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size()) {
                 state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, registerFile[code->m_registerIndex], state->rareData()->m_controlFlowRecord->size());
             }
-            return Value();
+            return Value(Value::EmptyValue);
         }
 
         DEFINE_OPCODE(CallFunctionComplexCase)
@@ -1319,7 +1319,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             ExecutionPause* code = (ExecutionPause*)programCounter;
             executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
-            ASSERT_NOT_REACHED();
+            return Value();
         }
 
         DEFINE_OPCODE(BlockOperation)
@@ -2585,6 +2585,12 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             newState->m_inTryStatement = true;
             size_t newPc = programCounter + sizeof(TryOperation);
             interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+            if (newState->inExecutionStopState()) {
+                return Value();
+            }
+            if (UNLIKELY(code->m_isTryResumeProcess && newState->parent()->inExecutionStopState())) {
+                return Value();
+            }
             clearStack<512>();
             if (UNLIKELY(code->m_isTryResumeProcess)) {
 #ifdef ESCARGOT_DEBUGGER
@@ -2628,6 +2634,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 registerFile[code->m_catchedValueRegisterIndex] = val;
                 try {
                     interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                    if (newState->inExecutionStopState()) {
+                        return Value();
+                    }
                 } catch (const Value& val) {
                     stackTraceData = newState->context()->vmInstance()->currentSandBox()->stackTraceData();
                     newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
@@ -2637,6 +2646,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     } else if (code->m_isCatchResumeProcess) {
         try {
             interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
+            if (UNLIKELY(newState->inExecutionStopState() || newState->parent()->inExecutionStopState())) {
+                return Value();
+            }
             state = newState->parent();
             code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
         } catch (const Value& val) {
@@ -2648,6 +2660,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
 
     if (code->m_isFinallyResumeProcess) {
         interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
+        if (newState->inExecutionStopState() || newState->parent()->inExecutionStopState()) {
+            return Value();
+        }
         state = newState->parent();
         code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     } else if (code->m_hasFinalizer) {
@@ -2662,6 +2677,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         }
 
         interpret(newState, byteCodeBlock, code->m_tryCatchEndPosition, registerFile);
+        if (newState->inExecutionStopState()) {
+            return Value();
+        }
     }
 
     clearStack<512>();
@@ -2918,7 +2936,11 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
 
     size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
     char* codeBuffer = byteCodeBlock->m_code.data();
+
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
+        return Value();
+    }
 
     if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
@@ -3037,6 +3059,9 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
     }
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
+        return Value();
+    }
 
     if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
@@ -3370,7 +3395,7 @@ NEVER_INLINE void ByteCodeInterpreter::markEnumerateKey(ExecutionState& state, M
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
+NEVER_INLINE void ByteCodeInterpreter::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
 {
     ExecutionPause* code = (ExecutionPause*)programCounter;
     if (code->m_reason == ExecutionPause::Yield) {
@@ -3400,10 +3425,6 @@ NEVER_INLINE Value ByteCodeInterpreter::executionPauseOperation(ExecutionState& 
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_asyncGeneratorInitializeData.m_tailDataLength;
         ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, REGISTER_LIMIT, ExecutionPauser::PauseReason::GeneratorsInitialize);
     }
-
-    ASSERT_NOT_REACHED();
-    // never get here. but I add return statement for removing compile warning
-    return Value(Value::EmptyValue);
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
@@ -3416,6 +3437,7 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
     // update old parent
     auto data = code->m_pauser;
     ExecutionState* orgTreePointer = data->m_executionState;
+    orgTreePointer->m_inExecutionStopState = false;
     ExecutionState* tmpTreePointer = state;
 
     size_t pos = programCounter + sizeof(ExecutionResume);
@@ -3437,6 +3459,7 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
         orgTreePointer = orgTreePointer->parent();
         tmpTreePointer = tmpTreePointer->parent();
 
+        orgTreePointer->m_inExecutionStopState = false;
         tmpTreePointerSave->setParent(orgTreePointerSave->parent());
         tmpTreePointerSave->ensureRareData()->m_programCounterWhenItStoppedByYield = codePos;
     }

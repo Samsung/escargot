@@ -47,6 +47,7 @@ void* ExecutionPauser::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_registerFile));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_byteCodeBlock));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_pausedCode));
+        GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_pauseValue));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_resumeValue));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_promise));
         GC_set_bit(desc, GC_WORD_OFFSET(ExecutionPauser, m_promiseCapability.m_resolveFunction));
@@ -64,6 +65,7 @@ ExecutionPauser::ExecutionPauser(ExecutionState& state, Object* sourceObject, Ex
     , m_byteCodeBlock(blk)
     , m_byteCodePosition(SIZE_MAX)
     , m_resumeByteCodePosition(SIZE_MAX)
+    , m_pauseValue(nullptr)
     , m_resumeValueIndex(REGISTER_LIMIT)
     , m_resumeStateIndex(REGISTER_LIMIT)
 {
@@ -170,38 +172,42 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             es = new ExecutionState(&state, env, false);
         }
         result = ByteCodeInterpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
-        // normal return means execution end
-        if (from == StartFrom::Generator) {
-            source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedReturn;
-            result = IteratorObject::createIterResultObject(state, result, true);
-        } else if (from == StartFrom::AsyncGenerator) {
-            source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
-            result = AsyncGeneratorObject::asyncGeneratorResolve(state, source->asAsyncGeneratorObject(), result, true);
-        } else {
-            ASSERT(from == StartFrom::Async);
-            Value argv = result;
-            Object::call(state, self->m_promiseCapability.m_resolveFunction, Value(), 1, &argv);
-            result = self->m_promiseCapability.m_promise;
-        }
-        self->release();
-    } catch (PauseValue* exitValue) {
-        result = exitValue->m_value;
-        auto pauseReason = exitValue->m_pauseReason;
-        delete exitValue;
 
-        if (pauseReason == ExecutionPauser::PauseReason::GeneratorsInitialize) {
-            return result;
-        }
+        if (self->m_pauseValue) {
+            PauseValue* exitValue = self->m_pauseValue;
+            self->m_pauseValue = nullptr;
+            result = exitValue->m_value;
+            auto pauseReason = exitValue->m_pauseReason;
 
-        if (from == StartFrom::Generator) {
-            if (source->asGeneratorObject()->m_generatorState >= GeneratorObject::GeneratorState::CompletedReturn) {
-                return IteratorObject::createIterResultObject(state, result, true);
+            if (pauseReason == ExecutionPauser::PauseReason::GeneratorsInitialize) {
+                return result;
             }
-            return result;
-        } else if (from == StartFrom::Async) {
-            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
-            // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
-            result = self->m_promiseCapability.m_promise;
+
+            if (from == StartFrom::Generator) {
+                if (source->asGeneratorObject()->m_generatorState >= GeneratorObject::GeneratorState::CompletedReturn) {
+                    return IteratorObject::createIterResultObject(state, result, true);
+                }
+                return result;
+            } else if (from == StartFrom::Async) {
+                // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
+                // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
+                result = self->m_promiseCapability.m_promise;
+            }
+        } else {
+            // normal execution end
+            if (from == StartFrom::Generator) {
+                source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedReturn;
+                result = IteratorObject::createIterResultObject(state, result, true);
+            } else if (from == StartFrom::AsyncGenerator) {
+                source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
+                result = AsyncGeneratorObject::asyncGeneratorResolve(state, source->asAsyncGeneratorObject(), result, true);
+            } else {
+                ASSERT(from == StartFrom::Async);
+                Value argv = result;
+                Object::call(state, self->m_promiseCapability.m_resolveFunction, Value(), 1, &argv);
+                result = self->m_promiseCapability.m_promise;
+            }
+            self->release();
         }
     } catch (const Value& thrownValue) {
         auto promiseCapability = self->m_promiseCapability;
@@ -235,6 +241,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     ExecutionState* originalState = &state;
     ExecutionPauser* self;
     while (true) {
+        originalState->m_inExecutionStopState = true;
         self = originalState->pauseSource();
         if (self) {
             break;
@@ -340,6 +347,6 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     exitValue->m_value = returnValue;
     exitValue->m_pauseReason = (ExecutionPauser::PauseReason)reason;
 
-    throw exitValue;
+    self->m_pauseValue = exitValue;
 }
 } // namespace Escargot
