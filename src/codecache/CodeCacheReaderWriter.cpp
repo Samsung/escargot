@@ -22,6 +22,7 @@
 #include "Escargot.h"
 #include "runtime/AtomicString.h"
 #include "CodeCacheReaderWriter.h"
+#include "CodeCache.h"
 #include "parser/Script.h"
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
@@ -104,6 +105,8 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     ASSERT(GC_is_disabled());
     ASSERT(!!codeBlock && codeBlock->isInterpretedCodeBlock());
 
+    std::unordered_map<InterpretedCodeBlock*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<InterpretedCodeBlock* const, size_t>>>& codeBlockIndex = m_codeBlockCacheInfo->m_codeBlockIndex;
+
     size_t size;
 
     m_buffer.ensureSize(sizeof(bool) + 4 * sizeof(size_t));
@@ -121,8 +124,11 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     }
 
     // InterpretedCodeBlock::m_parent
-    // end position is used as cache id of each CodeBlock
-    size = codeBlock->parent() ? codeBlock->parent()->src().end() : SIZE_MAX;
+    size = SIZE_MAX;
+    if (codeBlock->parent()) {
+        ASSERT(codeBlockIndex.find(codeBlock->parent()) != codeBlockIndex.end());
+        size = codeBlockIndex.find(codeBlock->parent())->second;
+    }
     m_buffer.put(size);
 
     // InterpretedCodeBlock::m_children
@@ -130,9 +136,9 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     m_buffer.put(size);
     m_buffer.ensureSize(size * sizeof(size_t));
     for (size_t i = 0; i < size; i++) {
-        // end position is used as cache id of each CodeBlock
-        size_t srcIndex = codeBlock->children()[i]->src().end();
-        m_buffer.put(srcIndex);
+        ASSERT(codeBlockIndex.find(codeBlock->children()[i]) != codeBlockIndex.end());
+        size_t childIndex = codeBlockIndex.find(codeBlock->children()[i])->second;
+        m_buffer.put(childIndex);
     }
 
     // InterpretedCodeBlock::m_parameterNames
@@ -448,6 +454,13 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
 
                     ASSERT(stringIndex != VectorUtil::invalidIndex);
                     relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+
+                    String* name = bc->m_name;
+                    if (name) {
+                        ASSERT(name->isAtomicStringSource());
+                        size_t nameIndex = m_stringTable->add(AtomicString(context, name));
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, nameIndex));
+                    }
                 }
                 break;
             }
@@ -631,8 +644,8 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         InterpretedCodeBlockVector* codeBlockVector = new InterpretedCodeBlockVector();
         codeBlockVector->resizeWithUninitializedValues(vectorSize);
         for (size_t i = 0; i < vectorSize; i++) {
-            size_t srcIndex = m_buffer.get<size_t>();
-            (*codeBlockVector)[i] = (InterpretedCodeBlock*)srcIndex;
+            size_t childIndex = m_buffer.get<size_t>();
+            (*codeBlockVector)[i] = (InterpretedCodeBlock*)childIndex;
         }
         codeBlock->setChildren(codeBlockVector);
     }
@@ -960,16 +973,17 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 InitializeClass* bc = (InitializeClass*)currentCode;
 
                 if (bc->m_stage == InitializeClass::CreateClass) {
+                    size_t dataIndex = info.dataOffset;
                     if (info.relocType == ByteCodeRelocType::RELOC_CODEBLOCK) {
                         InterpretedCodeBlockVector& children = codeBlock->children();
-                        size_t childIndex = info.dataOffset;
-                        ASSERT(childIndex < children.size());
-                        bc->m_codeBlock = children[childIndex];
+                        ASSERT(dataIndex < children.size());
+                        bc->m_codeBlock = children[dataIndex];
+                    } else if (info.relocType == ByteCodeRelocType::RELOC_STRING) {
+                        ASSERT(dataIndex < stringLiteralData.size());
+                        bc->m_classSrc = stringLiteralData[dataIndex];
                     } else {
-                        ASSERT(info.relocType == ByteCodeRelocType::RELOC_STRING);
-                        size_t stringIndex = info.dataOffset;
-                        ASSERT(stringIndex < stringLiteralData.size());
-                        bc->m_classSrc = stringLiteralData[stringIndex];
+                        ASSERT(info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING);
+                        bc->m_name = m_stringTable->get(dataIndex).string();
                     }
                 }
                 break;

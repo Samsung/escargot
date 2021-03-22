@@ -33,6 +33,10 @@ class Context;
 class ProgramNode;
 class Node;
 
+#if defined(ENABLE_CODE_CACHE)
+struct CodeBlockCacheInfo;
+#endif
+
 class ScriptParser : public gc {
 public:
     explicit ScriptParser(Context* c);
@@ -66,6 +70,11 @@ public:
 
     void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
 
+#if defined(ENABLE_CODE_CACHE)
+    void setCodeBlockCacheInfo(CodeBlockCacheInfo* info);
+    void deleteCodeBlockCacheInfo();
+#endif
+
 private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
     InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
@@ -80,6 +89,10 @@ private:
 #endif /* ESCARGOT_DEBUGGER */
 
     Context* m_context;
+
+#if defined(ENABLE_CODE_CACHE)
+    CodeBlockCacheInfo* m_codeBlockCacheInfo;
+#endif
 };
 } // namespace Escargot
 

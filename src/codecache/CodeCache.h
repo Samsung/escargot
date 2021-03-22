@@ -28,8 +28,10 @@
 
 #if defined(ESCARGOT_ENABLE_TEST)
 #define CODE_CACHE_MIN_SOURCE_LENGTH 1024
+#define CODE_CACHE_MAX_CACHE_NUM 128
 #else
 #define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 4
+#define CODE_CACHE_MAX_CACHE_NUM 32
 #endif
 
 namespace Escargot {
@@ -41,6 +43,16 @@ class CodeCacheReader;
 class CacheStringTable;
 class ByteCodeBlock;
 class InterpretedCodeBlock;
+
+struct CodeBlockCacheInfo {
+    CodeBlockCacheInfo()
+        : m_codeBlockCount(0)
+    {
+    }
+
+    size_t m_codeBlockCount;
+    std::unordered_map<InterpretedCodeBlock*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<InterpretedCodeBlock* const, size_t>>> m_codeBlockIndex;
+};
 
 enum class CodeCacheType : uint8_t {
     CACHE_CODEBLOCK = 0,
@@ -144,7 +156,7 @@ public:
     void postCacheWriting(size_t srcHash);
 
     void storeStringTable();
-    void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
+    void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock, CodeBlockCacheInfo* codeBlockCacheInfo);
     void storeByteCodeBlock(ByteCodeBlock* block);
 
     CacheStringTable* loadCacheStringTable(Context* context);

@@ -32,6 +32,7 @@ class StringView;
 class AtomicString;
 class ByteCodeBlock;
 class InterpretedCodeBlock;
+struct CodeBlockCacheInfo;
 
 // size_t and limb_t should have the same size (for putBF and getBF)
 COMPILE_ASSERT(sizeof(size_t) == sizeof(limb_t), "");
@@ -171,12 +172,14 @@ public:
 
     CodeCacheWriter()
         : m_stringTable(nullptr)
+        , m_codeBlockCacheInfo(nullptr)
     {
     }
 
     ~CodeCacheWriter()
     {
         m_stringTable = nullptr;
+        m_codeBlockCacheInfo = nullptr;
         clearBuffer();
     }
 
@@ -191,9 +194,24 @@ public:
         return m_stringTable;
     }
 
+    void setCodeBlockCacheInfo(CodeBlockCacheInfo* info)
+    {
+        ASSERT(!m_codeBlockCacheInfo && !!info);
+        m_codeBlockCacheInfo = info;
+    }
+
+    CodeBlockCacheInfo* codeBlockCacheInfo()
+    {
+        return m_codeBlockCacheInfo;
+    }
+
     char* bufferData() { return m_buffer.data(); }
     size_t bufferSize() const { return m_buffer.size(); }
-    void clearBuffer() { m_buffer.reset(); }
+    void clearBuffer()
+    {
+        m_codeBlockCacheInfo = nullptr;
+        m_buffer.reset();
+    }
     void storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock);
     void storeByteCodeBlock(ByteCodeBlock* block);
     void storeStringTable();
@@ -201,6 +219,7 @@ public:
 private:
     CacheBuffer m_buffer;
     CacheStringTable* m_stringTable;
+    CodeBlockCacheInfo* m_codeBlockCacheInfo;
 
     void storeByteCodeStream(ByteCodeBlock* block);
     void storeGlobalVariableAccessCache(Context* context);
