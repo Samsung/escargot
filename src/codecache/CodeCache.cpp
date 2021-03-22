@@ -35,7 +35,6 @@
 
 #define CODE_CACHE_FILE_DIR "/Escargot-cache/"
 #define CODE_CACHE_LIST_FILE_NAME "cache_list"
-#define CODE_CACHE_MAX_CACHE_NUM 32
 
 namespace Escargot {
 
@@ -477,18 +476,20 @@ void CodeCache::storeStringTable()
     m_status = Status::FINISH;
 }
 
-void CodeCache::storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
+void CodeCache::storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock, CodeBlockCacheInfo* codeBlockCacheInfo)
 {
     if (m_status != Status::IN_PROGRESS) {
         // Caching process failed in the previous stage
         return;
     }
 
+    ASSERT(!!codeBlockCacheInfo);
     ASSERT(m_currentContext.m_cacheDataOffset == 0);
     ASSERT(!!m_currentContext.m_cacheStringTable);
     ASSERT(!!topCodeBlock);
 
     m_cacheWriter->setStringTable(m_currentContext.m_cacheStringTable);
+    m_cacheWriter->setCodeBlockCacheInfo(codeBlockCacheInfo);
 
     size_t nodeCount = 0;
     storeCodeBlockTreeNode(topCodeBlock, nodeCount);
@@ -501,6 +502,7 @@ void CodeCache::storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
 void CodeCache::storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount)
 {
     ASSERT(!!codeBlock);
+    ASSERT(m_cacheWriter->codeBlockCacheInfo()->m_codeBlockIndex.find(codeBlock)->second == nodeCount);
 
     m_cacheWriter->storeInterpretedCodeBlock(codeBlock);
     nodeCount++;
@@ -579,15 +581,14 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     }
 
     // temporal vector to keep the loaded InterpretedCodeBlock in GC heap
-    std::unordered_map<size_t, InterpretedCodeBlock*, std::hash<size_t>, std::equal_to<size_t>, GCUtil::gc_malloc_allocator<std::pair<size_t const, InterpretedCodeBlock*>>> tempCodeBlockMap;
+    Vector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<InterpretedCodeBlock*>> tempCodeBlockVector;
 
     // CodeCacheMetaInfo::codeBlockCount has the value of nodeCount for CACHE_CODEBLOCK
     size_t nodeCount = metaInfo.codeBlockCount;
+    tempCodeBlockVector.resizeWithUninitializedValues(nodeCount);
     for (size_t i = 0; i < nodeCount; i++) {
         InterpretedCodeBlock* codeBlock = m_cacheReader->loadInterpretedCodeBlock(context, script);
-        // end position is used as cache id of each CodeBlock
-        ASSERT(tempCodeBlockMap.find(codeBlock->src().end()) == tempCodeBlockMap.end());
-        tempCodeBlockMap.insert(std::make_pair(codeBlock->src().end(), codeBlock));
+        tempCodeBlockVector[i] = codeBlock;
 
         if (i == 0) {
             // GlobalCodeBlock is firstly stored and loaded
@@ -596,29 +597,27 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     }
 
     // link CodeBlock tree
-    for (auto iter = tempCodeBlockMap.begin(); iter != tempCodeBlockMap.end(); iter++) {
-        InterpretedCodeBlock* codeBlock = iter->second;
+    for (size_t i = 0; i < tempCodeBlockVector.size(); i++) {
+        InterpretedCodeBlock* codeBlock = tempCodeBlockVector[i];
         size_t parentIndex = (size_t)codeBlock->parent();
         if (parentIndex == SIZE_MAX) {
             codeBlock->setParent(nullptr);
         } else {
-            auto parentIter = tempCodeBlockMap.find(parentIndex);
-            ASSERT(parentIter != tempCodeBlockMap.end());
-            codeBlock->setParent(parentIter->second);
+            ASSERT(parentIndex < tempCodeBlockVector.size());
+            codeBlock->setParent(tempCodeBlockVector[parentIndex]);
         }
 
         if (codeBlock->hasChildren()) {
-            for (size_t childIndex = 0; childIndex < codeBlock->children().size(); childIndex++) {
-                size_t srcIndex = (size_t)codeBlock->children()[childIndex];
-                auto childIter = tempCodeBlockMap.find(srcIndex);
-                ASSERT(childIter != tempCodeBlockMap.end());
-                codeBlock->children()[childIndex] = childIter->second;
+            for (size_t j = 0; j < codeBlock->children().size(); j++) {
+                size_t childIndex = (size_t)codeBlock->children()[j];
+                ASSERT(childIndex < tempCodeBlockVector.size());
+                codeBlock->children()[j] = tempCodeBlockVector[childIndex];
             }
         }
     }
 
     // clear
-    tempCodeBlockMap.clear();
+    tempCodeBlockVector.clear();
     m_cacheReader->clearBuffer();
     ASSERT(topCodeBlock->isGlobalCodeBlock());
 
