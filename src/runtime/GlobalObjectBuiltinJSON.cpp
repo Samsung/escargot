@@ -129,22 +129,23 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
             }
         }
     } else if (value.IsArray()) {
-        ArrayObject* arr = new ArrayObject(state);
+        ArrayObject* arr = new ArrayObject(state, value.Size(), false);
         size_t i = 0;
-        auto iter = value.Begin();
-        while (iter != value.End()) {
-            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(i++)), ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, *iter), ObjectPropertyDescriptor::AllPresent));
-            iter++;
+        for (size_t i = 0; i < value.Size(); i++) {
+            arr->defineOwnIndexedPropertyWithExpandedLength(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i]));
         }
         return arr;
     } else if (value.IsObject()) {
         Object* obj = new Object(state);
-        obj->markThisObjectDontNeedStructureTransitionTable();
+        if (value.MemberCount() > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
+            obj->markThisObjectDontNeedStructureTransitionTable();
+        }
         auto iter = value.MemberBegin();
         while (iter != value.MemberEnd()) {
             Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
             ASSERT(propertyName.isString());
-            obj->defineOwnProperty(state, ObjectPropertyName(state, propertyName), ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
+            obj->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, propertyName.toString(state))),
+                                   ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
             iter++;
         }
         return obj;
@@ -252,7 +253,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
                     Object* object = val.asObject();
 
                     ObjectPropertyNameVector keys;
-                    if (object->isProxyObject()) {
+                    if (!object->canUseOwnPropertyKeysFastPath()) {
                         auto keyValues = Object::enumerableOwnProperties(state, object, EnumerableOwnPropertiesType::Key);
 
                         for (size_t i = 0; i < keyValues.size(); ++i) {
@@ -289,7 +290,7 @@ static Value builtinJSONParse(ExecutionState& state, Value thisValue, size_t arg
     return unfiltered;
 }
 
-static void builtinJSONArrayReplacerHelper(ExecutionState& state, ObjectPropertyNameVector& propertyList, Value property)
+static void builtinJSONArrayReplacerHelper(ExecutionState& state, ValueVectorWithInlineStorage& propertyList, Value property)
 {
     String* item;
 
@@ -304,12 +305,315 @@ static void builtinJSONArrayReplacerHelper(ExecutionState& state, ObjectProperty
     }
 
     for (size_t i = 0; i < propertyList.size(); i++) {
-        ObjectPropertyName& v = propertyList[i];
-        if (v.toObjectStructurePropertyName(state).equals(item)) {
+        if (propertyList[i].abstractEqualsTo(state, item)) {
             return;
         }
     }
-    propertyList.push_back(ObjectPropertyName(state, Value(item)));
+    propertyList.push_back(Value(item));
+}
+
+static Optional<String*> builtinJSONStringifyStr(ExecutionState& state, Value key, Object* holder,
+                                                 StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList);
+static String* builtinJSONStringifyJA(ExecutionState& state, Object* obj,
+                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList);
+static String* builtinJSONStringifyJO(ExecutionState& state, Object* value,
+                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList);
+static void builtinJSONStringifyQuote(ExecutionState& state, Value value, LargeStringBuilder& product);
+static String* builtinJSONStringifyQuote(ExecutionState& state, String* value);
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonproperty
+static Optional<String*> builtinJSONStringifyStr(ExecutionState& state, Value key, Object* holder,
+                                                 StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList)
+{
+    Value value = holder->get(state, ObjectPropertyName(state, key)).value(state, holder);
+    if (value.isObject() || value.isBigInt()) {
+        Value toJson = Object::getV(state, value, ObjectPropertyName(state, strings->toJSON));
+        if (toJson.isCallable()) {
+            Value arguments[] = { key.toString(state) };
+            value = Object::call(state, toJson, value, 1, arguments);
+        }
+    }
+
+    if (!replacerFunc.isUndefined()) {
+        Value arguments[] = { key.toString(state), value };
+        value = Object::call(state, replacerFunc, holder, 2, arguments);
+    }
+
+    if (value.isObject()) {
+        if (value.asObject()->isNumberObject()) {
+            value = Value(value.toNumber(state));
+        } else if (value.asObject()->isStringObject()) {
+            value = Value(value.toString(state));
+        } else if (value.asObject()->isBooleanObject()) {
+            value = Value(value.asObject()->asBooleanObject()->primitiveValue());
+        } else if (value.asObject()->isBigIntObject()) {
+            value = Value(value.asObject()->asBigIntObject()->primitiveValue());
+        }
+    }
+    if (value.isNull()) {
+        return strings->null.string();
+    }
+    if (value.isBoolean()) {
+        return value.asBoolean() ? strings->stringTrue.string() : strings->stringFalse.string();
+    }
+    if (value.isString()) {
+        return builtinJSONStringifyQuote(state, value.asString());
+    }
+    if (value.isNumber()) {
+        double d = value.toNumber(state);
+        if (std::isfinite(d)) {
+            return value.toString(state);
+        }
+        return strings->null.string();
+    }
+    if (value.isBigInt()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Could not serialize a BigInt");
+    }
+    if (value.isObject() && !value.isCallable()) {
+        if (value.asObject()->isArray(state)) {
+            return builtinJSONStringifyJA(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+        } else {
+            return builtinJSONStringifyJO(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+        }
+    }
+
+    return nullptr;
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonarray
+static String* builtinJSONStringifyJA(ExecutionState& state, Object* obj,
+                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList)
+{
+    // 1
+    for (size_t i = 0; i < stack.size(); i++) {
+        Value& v = stack[i];
+        if (v == Value(obj)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
+        }
+    }
+    // 2
+    stack.push_back(Value(obj));
+    // 3
+    String* stepback = indent;
+    // 4
+    StringBuilder newIndent;
+    newIndent.appendString(indent);
+    newIndent.appendString(gap);
+    indent = newIndent.finalize(&state);
+
+    // 6, 7
+    uint32_t len = obj->length(state);
+
+    // Each array element requires at least 1 character for the value, and 1 character for the separator
+    if (len / 2 > STRING_MAXIMUM_LENGTH) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
+    }
+
+    // 8 ~ 9
+    uint32_t index = 0;
+    StringBuilder finalValue;
+    bool first = true;
+    String* seperator = strings->asciiTable[(size_t)','].string();
+
+    finalValue.appendChar('[');
+    while (index < len) {
+        if (first) {
+            if (gap->length()) {
+                finalValue.appendChar('\n');
+                finalValue.appendString(indent);
+                StringBuilder seperatorBuilder;
+                seperatorBuilder.appendChar(',');
+                seperatorBuilder.appendChar('\n');
+                seperatorBuilder.appendString(indent);
+                seperator = seperatorBuilder.finalize(&state);
+            }
+            first = false;
+        } else {
+            finalValue.appendString(seperator);
+        }
+
+        auto strP = builtinJSONStringifyStr(state, Value(index), obj, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+        if (strP) {
+            finalValue.appendString(strP.value());
+        } else {
+            finalValue.appendString(strings->null.string());
+        }
+        index++;
+    }
+
+    if (!first && gap->length()) {
+        finalValue.appendChar('\n');
+        finalValue.appendString(stepback);
+    }
+
+    finalValue.appendChar(']');
+
+    // 11
+    stack.pop_back();
+    // 12
+    indent = stepback;
+
+    return finalValue.finalize(&state);
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonobject
+static String* builtinJSONStringifyJO(ExecutionState& state, Object* value,
+                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList)
+{
+    // 1
+    for (size_t i = 0; i < stack.size(); i++) {
+        if (stack[i] == value) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
+        }
+    }
+    // 2
+    stack.push_back(Value(value));
+    // 3
+    String* stepback = indent;
+    // 4
+    StringBuilder newIndent;
+    newIndent.appendString(indent);
+    newIndent.appendString(gap);
+    indent = newIndent.finalize(&state);
+    // 5, 6
+    ValueVectorWithInlineStorage k;
+    if (propertyListTouched) {
+        k = propertyList;
+    } else {
+        k = Object::enumerableOwnProperties(state, value, EnumerableOwnPropertiesType::Key);
+    }
+
+    // 7 ~ 9
+    LargeStringBuilder finalValue;
+    bool first = true;
+    size_t len = k.size();
+    String* seperator = strings->asciiTable[(size_t)','].string();
+
+    finalValue.appendChar('{');
+    for (size_t i = 0; i < len; i++) {
+        auto strP = builtinJSONStringifyStr(state, k[i], value, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+        if (strP) {
+            if (first) {
+                if (gap->length()) {
+                    finalValue.appendChar('\n');
+                    finalValue.appendString(indent);
+                    StringBuilder seperatorBuilder;
+                    seperatorBuilder.appendChar(',');
+                    seperatorBuilder.appendChar('\n');
+                    seperatorBuilder.appendString(indent);
+                    seperator = seperatorBuilder.finalize(&state);
+                }
+                first = false;
+            } else {
+                finalValue.appendString(seperator);
+            }
+
+            builtinJSONStringifyQuote(state, k[i], finalValue);
+            finalValue.appendChar(':');
+            if (gap->length() != 0) {
+                finalValue.appendChar(' ');
+            }
+            finalValue.appendString(strP.value());
+        }
+    }
+
+    if (!first && gap->length()) {
+        finalValue.appendChar('\n');
+        finalValue.appendString(stepback);
+    }
+
+    finalValue.appendChar('}');
+
+    // 11
+    stack.pop_back();
+    // 12
+    indent = stepback;
+
+    return finalValue.finalize(&state);
+}
+
+// https://www.ecma-international.org/ecma-262/6.0/#sec-quotejsonstring
+static void builtinJSONStringifyQuote(ExecutionState& state, String* value, LargeStringBuilder& product)
+{
+    auto bad = value->bufferAccessData();
+    product.appendChar('"');
+    for (size_t i = 0; i < bad.length; ++i) {
+        char16_t c = bad.charAt(i);
+
+        switch (c) {
+        case u'\"':
+        case u'\\':
+            product.appendChar('\\');
+            product.appendChar(c);
+            break;
+        case u'\b':
+            product.appendChar('\\');
+            product.appendChar('b');
+            break;
+        case u'\f':
+            product.appendChar('\\');
+            product.appendChar('f');
+            break;
+        case u'\n':
+            product.appendChar('\\');
+            product.appendChar('n');
+            break;
+        case u'\r':
+            product.appendChar('\\');
+            product.appendChar('r');
+            break;
+        case u'\t':
+            product.appendChar('\\');
+            product.appendChar('t');
+            break;
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 11:
+        case 14:
+        case 15:
+        case 16:
+        case 17:
+        case 18:
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27:
+        case 28:
+        case 29:
+        case 30:
+        case 31:
+            product.appendChar('\\');
+            product.appendChar('u');
+            product.appendString(codePointTo4digitString(c));
+            break;
+        default:
+            product.appendChar(c);
+        }
+    }
+    product.appendChar('"');
+}
+static String* builtinJSONStringifyQuote(ExecutionState& state, String* value)
+{
+    LargeStringBuilder product;
+    builtinJSONStringifyQuote(state, value, product);
+    return product.finalize(&state);
+}
+
+static void builtinJSONStringifyQuote(ExecutionState& state, Value value, LargeStringBuilder& product)
+{
+    String* str = value.toString(state);
+    builtinJSONStringifyQuote(state, str, product);
 }
 
 static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -322,7 +626,7 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Value space = argv[2];
     String* indent = String::emptyString;
     ValueVectorWithInlineStorage stack;
-    ObjectPropertyNameVector propertyList;
+    ValueVectorWithInlineStorage propertyList;
     bool propertyListTouched = false;
 
     // 4
@@ -392,273 +696,15 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
         }
     }
 
-    std::function<Value(ObjectPropertyName key, Object * holder)> Str;
-    std::function<String*(Object*)> JA;
-    std::function<String*(Object*)> JO;
-    std::function<String*(ObjectPropertyName value)> Quote;
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonproperty
-    Str = [&](ObjectPropertyName key, Object* holder) -> Value {
-        Value value = holder->get(state, key).value(state, holder);
-        if (value.isObject() || value.isBigInt()) {
-            Value toJson = Object::getV(state, value, ObjectPropertyName(state, strings->toJSON));
-            if (toJson.isCallable()) {
-                Value arguments[] = { key.toPlainValue(state) };
-                value = Object::call(state, toJson, value, 1, arguments);
-            }
-        }
-
-        if (!replacerFunc.isUndefined()) {
-            Value arguments[] = { key.toPlainValue(state), value };
-            value = Object::call(state, replacerFunc, holder, 2, arguments);
-        }
-
-        if (value.isObject()) {
-            if (value.asObject()->isNumberObject()) {
-                value = Value(value.toNumber(state));
-            } else if (value.asObject()->isStringObject()) {
-                value = Value(value.toString(state));
-            } else if (value.asObject()->isBooleanObject()) {
-                value = Value(value.asObject()->asBooleanObject()->primitiveValue());
-            } else if (value.asObject()->isBigIntObject()) {
-                value = Value(value.asObject()->asBigIntObject()->primitiveValue());
-            }
-        }
-        if (value.isNull()) {
-            return strings->null.string();
-        }
-        if (value.isBoolean()) {
-            return value.asBoolean() ? strings->stringTrue.string() : strings->stringFalse.string();
-        }
-        if (value.isString()) {
-            return Value(Quote(ObjectPropertyName(state, value)));
-        }
-        if (value.isNumber()) {
-            double d = value.toNumber(state);
-            if (std::isfinite(d)) {
-                return value.toString(state);
-            }
-            return strings->null.string();
-        }
-        if (value.isBigInt()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Could not serialize a BigInt");
-        }
-        if (value.isObject() && !value.isCallable()) {
-            if (value.asObject()->isArray(state)) {
-                return JA(value.asObject());
-            } else {
-                return JO(value.asObject());
-            }
-        }
-
-        return Value();
-    };
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-quotejsonstring
-    Quote = [&](ObjectPropertyName value) -> String* {
-        String* str = value.toObjectStructurePropertyName(state).plainString();
-
-        StringBuilder product;
-        product.appendChar('"');
-        for (size_t i = 0; i < str->length(); ++i) {
-            char16_t c = str->charAt(i);
-
-            if (c == u'\"' || c == u'\\') {
-                product.appendChar('\\');
-                product.appendChar(c);
-            } else if (c == u'\b') {
-                product.appendChar('\\');
-                product.appendChar('b');
-            } else if (c == u'\f') {
-                product.appendChar('\\');
-                product.appendChar('f');
-            } else if (c == u'\n') {
-                product.appendChar('\\');
-                product.appendChar('n');
-            } else if (c == u'\r') {
-                product.appendChar('\\');
-                product.appendChar('r');
-            } else if (c == u'\t') {
-                product.appendChar('\\');
-                product.appendChar('t');
-            } else if (c < u' ') {
-                product.appendChar('\\');
-                product.appendChar('u');
-                product.appendString(codePointTo4digitString(c));
-            } else {
-                product.appendChar(c);
-            }
-        }
-        product.appendChar('"');
-        return product.finalize(&state);
-    };
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonarray
-    JA = [&](Object* obj) -> String* {
-        // 1
-        for (size_t i = 0; i < stack.size(); i++) {
-            Value& v = stack[i];
-            if (v == Value(obj)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
-            }
-        }
-        // 2
-        stack.push_back(Value(obj));
-        // 3
-        String* stepback = indent;
-        // 4
-        StringBuilder newIndent;
-        newIndent.appendString(indent);
-        newIndent.appendString(gap);
-        indent = newIndent.finalize(&state);
-        // 5
-        VectorWithInlineStorage<32, String*, GCUtil::gc_malloc_allocator<String*>> partial;
-        // 6, 7
-        uint32_t len = obj->length(state);
-
-        // Each array element requires at least 1 character for the value, and 1 character for the separator
-        if (len / 2 > STRING_MAXIMUM_LENGTH) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
-        }
-
-        uint32_t index = 0;
-        // 8
-        while (index < len) {
-            Value strP = Str(ObjectPropertyName(state, Value(index).toString(state)), obj);
-            if (strP.isUndefined()) {
-                partial.push_back(strings->null.string());
-            } else {
-                partial.push_back(strP.asString());
-            }
-            index++;
-        }
-        // 9
-        StringBuilder finalValue;
-        finalValue.appendChar('[');
-        if (partial.size() != 0) {
-            if (gap->length() == 0) {
-                for (size_t i = 0; i < partial.size(); ++i) {
-                    finalValue.appendString(partial[i]);
-                    if (i < partial.size() - 1) {
-                        finalValue.appendChar(',');
-                    }
-                }
-            } else {
-                finalValue.appendChar('\n');
-                finalValue.appendString(indent);
-                StringBuilder seperatorBuilder;
-                seperatorBuilder.appendChar(',');
-                seperatorBuilder.appendChar('\n');
-                seperatorBuilder.appendString(indent);
-                String* seperator = seperatorBuilder.finalize(&state);
-                for (size_t i = 0; i < partial.size(); ++i) {
-                    finalValue.appendString(partial[i]);
-                    if (i < partial.size() - 1) {
-                        finalValue.appendString(seperator);
-                    }
-                }
-                finalValue.appendChar('\n');
-                finalValue.appendString(stepback);
-            }
-        }
-        finalValue.appendChar(']');
-
-        // 11
-        stack.pop_back();
-        // 12
-        indent = stepback;
-
-        return finalValue.finalize(&state);
-    };
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonobject
-    JO = [&](Object* value) -> String* {
-        // 1
-        for (size_t i = 0; i < stack.size(); i++) {
-            if (stack[i] == value) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
-            }
-        }
-        // 2
-        stack.push_back(Value(value));
-        // 3
-        String* stepback = indent;
-        // 4
-        StringBuilder newIndent;
-        newIndent.appendString(indent);
-        newIndent.appendString(gap);
-        indent = newIndent.finalize(&state);
-        // 5, 6
-        ObjectPropertyNameVector k;
-        if (propertyListTouched) {
-            k = propertyList;
-        } else {
-            auto keyValues = Object::enumerableOwnProperties(state, value, EnumerableOwnPropertiesType::Key);
-            for (size_t i = 0; i < keyValues.size(); ++i) {
-                k.push_back(ObjectPropertyName(state, keyValues[i]));
-            }
-        }
-
-        // 7
-        VectorWithInlineStorage<32, String*, GCUtil::gc_malloc_allocator<String*>> partial;
-        // 8
-        int len = k.size();
-        for (int i = 0; i < len; ++i) {
-            Value strP = Str(k[i], value);
-            if (!strP.isUndefined()) {
-                StringBuilder member;
-                member.appendString(Quote(k[i]));
-                member.appendChar(':');
-                if (gap->length() != 0) {
-                    member.appendChar(' ');
-                }
-                member.appendString(strP.toString(state));
-                partial.push_back(member.finalize(&state));
-            }
-        }
-        // 9
-        LargeStringBuilder finalValue;
-        finalValue.appendChar('{');
-        if (partial.size() != 0) {
-            if (gap->length() == 0) {
-                for (size_t i = 0; i < partial.size(); ++i) {
-                    finalValue.appendString(partial[i]);
-                    if (i < partial.size() - 1) {
-                        finalValue.appendChar(',');
-                    }
-                }
-            } else {
-                finalValue.appendChar('\n');
-                finalValue.appendString(indent);
-                StringBuilder seperatorBuilder;
-                seperatorBuilder.appendChar(',');
-                seperatorBuilder.appendChar('\n');
-                seperatorBuilder.appendString(indent);
-                String* seperator = seperatorBuilder.finalize(&state);
-                for (size_t i = 0; i < partial.size(); ++i) {
-                    finalValue.appendString(partial[i]);
-                    if (i < partial.size() - 1) {
-                        finalValue.appendString(seperator);
-                    }
-                }
-                finalValue.appendChar('\n');
-                finalValue.appendString(stepback);
-            }
-        }
-        finalValue.appendChar('}');
-        // 11
-        stack.pop_back();
-        // 12
-        indent = stepback;
-
-        return finalValue.finalize(&state);
-    };
-
     // 9
     Object* wrapper = new Object(state);
     // 10
     wrapper->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
-    return Str(ObjectPropertyName(state, Value(String::emptyString)), wrapper);
+    auto str = builtinJSONStringifyStr(state, String::emptyString, wrapper, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+    if (str) {
+        return str.value();
+    }
+    return Value();
 }
 
 void GlobalObject::installJSON(ExecutionState& state)

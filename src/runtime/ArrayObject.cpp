@@ -43,19 +43,19 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     }
 }
 
-ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size)
-    : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), size)
+ArrayObject::ArrayObject(ExecutionState& state, const uint64_t& size, bool shouldConsiderHole)
+    : ArrayObject(state, state.context()->globalObject()->arrayPrototype(), size, shouldConsiderHole)
 {
 }
 
-ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& size)
+ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& size, bool shouldConsiderHole)
     : ArrayObject(state, proto)
 {
     if (UNLIKELY(size > ((1LL << 32LL) - 1LL))) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
-    setArrayLength(state, size, true);
+    setArrayLength(state, size, true, shouldConsiderHole);
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size)
@@ -64,7 +64,7 @@ ArrayObject::ArrayObject(ExecutionState& state, const Value* src, const uint64_t
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const Value* src, const uint64_t& size)
-    : ArrayObject(state, proto, size)
+    : ArrayObject(state, proto, size, false)
 {
     // Let array be ! ArrayCreate(0).
     // Let n be 0.
@@ -365,10 +365,10 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
     return ret;
 }
 
-bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage)
+bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage, bool considerHole)
 {
     bool isFastMode = isFastModeArray();
-    if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE))) {
+    if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE) && considerHole)) {
         uint32_t orgLength = arrayLength(state);
         constexpr uint32_t maxSize = std::numeric_limits<uint32_t>::max() / 2;
         if (newLength > orgLength && ((newLength - orgLength > ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP) || newLength >= maxSize)) {

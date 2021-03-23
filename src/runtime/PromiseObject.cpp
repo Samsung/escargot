@@ -90,6 +90,13 @@ PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionSta
 PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& state, Object* constructor)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-newpromisecapability
+
+    // fast path
+    if (constructor == state.context()->globalObject()->promise()) {
+        PromiseObject* promise = new PromiseObject(state, state.context()->globalObject()->promisePrototype());
+        return promise->createResolvingFunctions(state);
+    }
+
     const StaticStrings* strings = &state.context()->staticStrings();
 
     // If IsConstructor(C) is false, throw a TypeError exception.
