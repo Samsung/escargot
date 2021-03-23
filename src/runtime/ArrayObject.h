@@ -43,8 +43,8 @@ class ArrayObject : public Object {
 public:
     explicit ArrayObject(ExecutionState& state);
     explicit ArrayObject(ExecutionState& state, Object* proto);
-    ArrayObject(ExecutionState& state, const uint64_t& size);
-    ArrayObject(ExecutionState& state, Object* proto, const uint64_t& size);
+    ArrayObject(ExecutionState& state, const uint64_t& size, bool shouldConsiderHole = true);
+    ArrayObject(ExecutionState& state, Object* proto, const uint64_t& size, bool shouldConsiderHole = true);
     ArrayObject(ExecutionState& state, const Value* src, const uint64_t& size);
     ArrayObject(ExecutionState& state, Object* proto, const Value* src, const uint64_t& size);
 
@@ -127,7 +127,7 @@ private:
     }
 
     bool setArrayLength(ExecutionState& state, const Value& newLength);
-    bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false);
+    bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false, bool considerHole = true);
     void convertIntoNonFastMode(ExecutionState& state);
 
     ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
