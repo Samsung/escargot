@@ -541,7 +541,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             replStr = replValue.toString(state);
         } else {
             StringVector captures;
-            replStr = replStr->getSubstitution(state, matched, string, pos, captures, Value(), replaceValue.toString(state));
+            replStr = String::getSubstitution(state, matched, string, pos, captures, Value(), replaceValue.toString(state));
         }
         size_t tailpos = pos + matched->length();
         StringBuilder builder;
@@ -580,27 +580,28 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
 
     String* string = thisValue.toString(state);
     String* searchString = searchValue.toString(state);
-    String* replaceString = nullptr;
+
     bool functionalReplace = replaceValue.isCallable();
     // If functionalReplace is false, then
     if (!functionalReplace) {
-        replaceString = replaceValue.toString(state);
+        replaceValue = replaceValue.toString(state);
     }
-    size_t advanceBy = 1;
+
     size_t searchLength = searchString->length();
-    advanceBy = (advanceBy < searchLength) ? searchLength : 1;
+    size_t advanceBy = (1 < searchLength) ? searchLength : 1;
+
     std::vector<size_t> matchPositions;
     // Let position be ! StringIndexOf(string, searchString, 0).
     size_t position = string->find(searchString, 0);
-
     // Repeat, while position is not -1
     while (position != SIZE_MAX) {
         matchPositions.push_back(position);
         position = string->find(searchString, position + advanceBy);
     }
     size_t endOfLastMatch = 0;
+
     StringBuilder builder;
-    String* replacement;
+    String* replacement = String::emptyString;
     // For each element p of matchPositions, do
     for (uint i = 0; i < matchPositions.size(); i++) {
         size_t p = matchPositions[i];
@@ -611,7 +612,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
             replacement = Object::call(state, replaceValue, Value(), 3, args).toString(state);
         } else {
             StringVector captures;
-            replacement = replacement->getSubstitution(state, searchString, string, p, captures, Value(), replaceString);
+            replacement = String::getSubstitution(state, searchString, string, p, captures, Value(), replaceValue.asString());
         }
         builder.appendString(replacement);
         endOfLastMatch = p + searchLength;

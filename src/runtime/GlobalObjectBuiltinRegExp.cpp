@@ -479,7 +479,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
 
             replacement = Object::call(state, replaceValue, Value(), replacerArgsSize, replacerArgs).toString(state);
         } else {
-            replacement = replacement->getSubstitution(state, matched, str, position, captures, namedCaptures, replaceValue.toString(state));
+            replacement = String::getSubstitution(state, matched, str, position, captures, namedCaptures, replaceValue.toString(state));
         }
         if (position >= nextSourcePosition) {
             builder.appendSubString(str, nextSourcePosition, position);
