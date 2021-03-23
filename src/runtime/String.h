@@ -302,6 +302,8 @@ public:
     static String* fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len);
 #endif
 
+    static String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, Value namedCapture, String* replacement);
+
     size_t length() const
     {
         return m_bufferData.length;
@@ -352,7 +354,7 @@ public:
 
         return true;
     }
-    String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, Value namedCapture, String* replacement);
+
     size_t find(String* str, size_t pos = 0);
 
     template <size_t N>
