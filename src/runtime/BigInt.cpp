@@ -243,6 +243,22 @@ Optional<BigInt*> BigInt::parseString(String* str, int radix)
     return parseString(buffer, bd.length, radix);
 }
 
+void BigInt::throwBFException(ExecutionState& state, int status)
+{
+    const char* message = nullptr;
+    if (status & BF_ST_MEM_ERROR) {
+        message = ErrorObject::Messages::OutOfMemory;
+    } else if (status & BF_ST_DIVIDE_ZERO) {
+        message = ErrorObject::Messages::DivisionByZero;
+    } else if (status & BF_ST_INVALID_OP) {
+        message = ErrorObject::Messages::GlobalObject_RangeError;
+    } else {
+        message = ErrorObject::Messages::Overflow;
+    }
+    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, message);
+    return;
+}
+
 String* BigInt::toString(int radix)
 {
     int savedSign = m_bf.sign;
@@ -347,112 +363,120 @@ bool BigInt::greaterThanEqual(BigInt* b)
     return bf_cmp(&m_bf, &b->m_bf) >= 0;
 }
 
-BigInt* BigInt::addition(BigInt* b)
+BigInt* BigInt::addition(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_add(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_add(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::subtraction(BigInt* b)
+BigInt* BigInt::subtraction(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_sub(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_sub(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::multiply(BigInt* b)
+BigInt* BigInt::multiply(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_mul(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_mul(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::division(BigInt* b)
+BigInt* BigInt::division(ExecutionState& state, BigInt* b)
 {
     bf_t r, rem;
     bf_init(VMInstance::bfContext(), &r);
     bf_init(VMInstance::bfContext(), &rem);
-    bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
-              BF_RNDZ);
+    int ret = bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
+                        BF_RNDZ);
     bf_delete(&rem);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::remainder(BigInt* b)
-{
-    bf_t r, rem;
-    bf_init(VMInstance::bfContext(), &r);
-    bf_init(VMInstance::bfContext(), &rem);
-    bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
-              BF_RNDZ);
-    bf_delete(&r);
-    return new BigInt(rem);
-}
-
-BigInt* BigInt::pow(BigInt* b)
+BigInt* BigInt::remainder(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_pow(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_rem(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
+                     BF_RNDZ)
+        & BF_ST_INVALID_OP;
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseAnd(BigInt* b)
+BigInt* BigInt::pow(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_logic_and(&r, &m_bf, &b->m_bf);
+    int ret = bf_pow(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseOr(BigInt* b)
+BigInt* BigInt::bitwiseAnd(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_logic_or(&r, &m_bf, &b->m_bf);
+    int ret = bf_logic_and(&r, &m_bf, &b->m_bf);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseXor(BigInt* b)
+BigInt* BigInt::bitwiseOr(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_logic_xor(&r, &m_bf, &b->m_bf);
+    int ret = bf_logic_or(&r, &m_bf, &b->m_bf);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::increment()
+BigInt* BigInt::bitwiseXor(ExecutionState& state, BigInt* b)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
-    bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_logic_xor(&r, &m_bf, &b->m_bf);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
     return new BigInt(r);
 }
 
-BigInt* BigInt::decrement()
-{
-    bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
-    bf_add_si(&r, &m_bf, -1, BF_PREC_INF, BF_RNDZ);
-    return new BigInt(r);
-}
-
-BigInt* BigInt::bitwiseNot()
-{
-    // The abstract operation BigInt::bitwiseNOT with an argument x of BigInt type returns the one's complement of x; that is, -x - 1.
-    bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
-    bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
-    bf_neg(&r);
-
-    return new BigInt(r);
-}
-
-BigInt* BigInt::leftShift(BigInt* src)
+BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
@@ -470,15 +494,19 @@ BigInt* BigInt::leftShift(BigInt* src)
 #endif
     // if (op == OP_sar)
     //     v2 = -v2;
-    bf_set(&r, &m_bf);
-    bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_set(&r, &m_bf);
+    ret |= bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
     if (v2 < 0) {
-        bf_rint(&r, BF_RNDD);
+        ret |= bf_rint(&r, BF_RNDD) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
+    }
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
     }
     return new BigInt(r);
 }
 
-BigInt* BigInt::rightShift(BigInt* src)
+BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src)
 {
     bf_t r;
     bf_init(VMInstance::bfContext(), &r);
@@ -495,12 +523,96 @@ BigInt* BigInt::rightShift(BigInt* src)
         v2 = std::numeric_limits<int64_t>::min() + 1;
 #endif
     v2 = -v2;
-    bf_set(&r, &m_bf);
-    bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_set(&r, &m_bf);
+    ret |= bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
     if (v2 < 0) {
-        bf_rint(&r, BF_RNDD);
+        ret |= bf_rint(&r, BF_RNDD) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
+    }
+    // FIXME check overflow for rightshift operation
+    /*
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
+    */
+    return new BigInt(r);
+}
+
+BigInt* BigInt::increment(ExecutionState& state)
+{
+    bf_t r;
+    bf_init(VMInstance::bfContext(), &r);
+    int ret = bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
     }
     return new BigInt(r);
+}
+
+BigInt* BigInt::decrement(ExecutionState& state)
+{
+    bf_t r;
+    bf_init(VMInstance::bfContext(), &r);
+    int ret = bf_add_si(&r, &m_bf, -1, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
+    return new BigInt(r);
+}
+
+BigInt* BigInt::bitwiseNot(ExecutionState& state)
+{
+    // The abstract operation BigInt::bitwiseNOT with an argument x of BigInt type returns the one's complement of x; that is, -x - 1.
+    bf_t r;
+    bf_init(VMInstance::bfContext(), &r);
+    int ret = bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
+    bf_neg(&r);
+
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
+    return new BigInt(r);
+}
+
+BigInt* BigInt::negativeValue(ExecutionState& state)
+{
+    if (isNaN() || isZero()) {
+        return this;
+    }
+
+    bf_t r;
+    bf_init(VMInstance::bfContext(), &r);
+    int ret = bf_set(&r, &m_bf);
+    bf_neg(&r);
+    if (UNLIKELY(ret)) {
+        bf_delete(&r);
+        throwBFException(state, ret);
+    }
+    return new BigInt(r);
+}
+
+BigInt* BigInt::negativeValue()
+{
+    // used only for parsing
+    // any exception is not allowed
+    if (isNaN() || isZero()) {
+        return this;
+    }
+
+    bf_t r;
+    bf_init(VMInstance::bfContext(), &r);
+    int ret = bf_set(&r, &m_bf);
+    bf_neg(&r);
+    ASSERT(!ret);
+    return new BigInt(r);
+}
+
+bool BigInt::isZero()
+{
+    return bf_is_zero(&m_bf);
 }
 
 bool BigInt::isNaN()
@@ -513,26 +625,9 @@ bool BigInt::isInfinity()
     return !bf_is_finite(&m_bf);
 }
 
-bool BigInt::isZero()
-{
-    return bf_is_zero(&m_bf);
-}
-
 bool BigInt::isNegative()
 {
     return m_bf.sign;
 }
 
-BigInt* BigInt::negativeValue()
-{
-    if (isNaN() || isZero()) {
-        return this;
-    }
-
-    bf_t bf;
-    bf_init(VMInstance::bfContext(), &bf);
-    bf_set(&bf, &m_bf);
-    bf_neg(&bf);
-    return new BigInt(bf);
-}
 } // namespace Escargot
