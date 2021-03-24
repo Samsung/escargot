@@ -924,28 +924,27 @@ public:
     bool greaterThan(BigIntRef* b);
     bool greaterThanEqual(BigIntRef* b);
 
-    BigIntRef* addition(BigIntRef* b);
-    BigIntRef* subtraction(BigIntRef* b);
-    BigIntRef* multiply(BigIntRef* b);
-    BigIntRef* division(BigIntRef* b);
-    BigIntRef* remainder(BigIntRef* b);
-    BigIntRef* pow(BigIntRef* b);
-    BigIntRef* bitwiseAnd(BigIntRef* b);
-    BigIntRef* bitwiseOr(BigIntRef* b);
-    BigIntRef* bitwiseXor(BigIntRef* b);
-    BigIntRef* increment();
-    BigIntRef* decrement();
-    BigIntRef* bitwiseNot();
+    BigIntRef* addition(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* subtraction(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* multiply(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* division(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* remainder(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* pow(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* bitwiseAnd(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* bitwiseOr(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* bitwiseXor(ExecutionStateRef* state, BigIntRef* b);
+    BigIntRef* leftShift(ExecutionStateRef* state, BigIntRef* c);
+    BigIntRef* rightShift(ExecutionStateRef* state, BigIntRef* c);
 
-    BigIntRef* leftShift(BigIntRef* c);
-    BigIntRef* rightShift(BigIntRef* c);
+    BigIntRef* increment(ExecutionStateRef* state);
+    BigIntRef* decrement(ExecutionStateRef* state);
+    BigIntRef* bitwiseNot(ExecutionStateRef* state);
+    BigIntRef* negativeValue(ExecutionStateRef* state);
 
     bool isZero();
     bool isNaN();
     bool isInfinity();
     bool isNegative();
-
-    BigIntRef* negativeValue();
 };
 
 class ObjectPropertyDescriptorRef {

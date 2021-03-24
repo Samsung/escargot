@@ -609,74 +609,79 @@ bool BigIntRef::greaterThanEqual(BigIntRef* b)
     return toImpl(this)->greaterThanEqual(toImpl(b));
 }
 
-BigIntRef* BigIntRef::addition(BigIntRef* b)
+BigIntRef* BigIntRef::addition(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->addition(toImpl(b)));
+    return toRef(toImpl(this)->addition(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::subtraction(BigIntRef* b)
+BigIntRef* BigIntRef::subtraction(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->subtraction(toImpl(b)));
+    return toRef(toImpl(this)->subtraction(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::multiply(BigIntRef* b)
+BigIntRef* BigIntRef::multiply(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->multiply(toImpl(b)));
+    return toRef(toImpl(this)->multiply(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::division(BigIntRef* b)
+BigIntRef* BigIntRef::division(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->division(toImpl(b)));
+    return toRef(toImpl(this)->division(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::remainder(BigIntRef* b)
+BigIntRef* BigIntRef::remainder(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->remainder(toImpl(b)));
+    return toRef(toImpl(this)->remainder(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::pow(BigIntRef* b)
+BigIntRef* BigIntRef::pow(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->pow(toImpl(b)));
+    return toRef(toImpl(this)->pow(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::bitwiseAnd(BigIntRef* b)
+BigIntRef* BigIntRef::bitwiseAnd(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->bitwiseAnd(toImpl(b)));
+    return toRef(toImpl(this)->bitwiseAnd(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::bitwiseOr(BigIntRef* b)
+BigIntRef* BigIntRef::bitwiseOr(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->bitwiseOr(toImpl(b)));
+    return toRef(toImpl(this)->bitwiseOr(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::bitwiseXor(BigIntRef* b)
+BigIntRef* BigIntRef::bitwiseXor(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->bitwiseXor(toImpl(b)));
+    return toRef(toImpl(this)->bitwiseXor(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::increment()
+BigIntRef* BigIntRef::leftShift(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->increment());
+    return toRef(toImpl(this)->leftShift(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::decrement()
+BigIntRef* BigIntRef::rightShift(ExecutionStateRef* state, BigIntRef* b)
 {
-    return toRef(toImpl(this)->decrement());
+    return toRef(toImpl(this)->rightShift(*toImpl(state), toImpl(b)));
 }
 
-BigIntRef* BigIntRef::bitwiseNot()
+BigIntRef* BigIntRef::increment(ExecutionStateRef* state)
 {
-    return toRef(toImpl(this)->bitwiseNot());
+    return toRef(toImpl(this)->increment(*toImpl(state)));
 }
 
-BigIntRef* BigIntRef::leftShift(BigIntRef* b)
+BigIntRef* BigIntRef::decrement(ExecutionStateRef* state)
 {
-    return toRef(toImpl(this)->leftShift(toImpl(b)));
+    return toRef(toImpl(this)->decrement(*toImpl(state)));
 }
 
-BigIntRef* BigIntRef::rightShift(BigIntRef* b)
+BigIntRef* BigIntRef::bitwiseNot(ExecutionStateRef* state)
 {
-    return toRef(toImpl(this)->rightShift(toImpl(b)));
+    return toRef(toImpl(this)->bitwiseNot(*toImpl(state)));
+}
+
+BigIntRef* BigIntRef::negativeValue(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->negativeValue(*toImpl(state)));
 }
 
 bool BigIntRef::isZero()
@@ -694,9 +699,9 @@ bool BigIntRef::isInfinity()
     return toImpl(this)->isInfinity();
 }
 
-BigIntRef* BigIntRef::negativeValue()
+bool BigIntRef::isNegative()
 {
-    return toRef(toImpl(this)->negativeValue());
+    return toImpl(this)->isNegative();
 }
 
 class PlatformBridge : public Platform {

@@ -1573,7 +1573,7 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
         // Let T be Type(lnum).
         // Return T::add(lnum, rnum).
         if (UNLIKELY(lnum.second)) {
-            ret = Value(lnum.first.asBigInt()->addition(rnum.first.asBigInt()));
+            ret = Value(lnum.first.asBigInt()->addition(state, rnum.first.asBigInt()));
         } else {
             ret = Value(lnum.first.asNumber() + rnum.first.asNumber());
         }
@@ -1600,7 +1600,7 @@ NEVER_INLINE Value ByteCodeInterpreter::minusSlowCase(ExecutionState& state, con
     // Let T be Type(lnum).
     // Return T::subtract(lnum, rnum).
     if (UNLIKELY(lnum.second)) {
-        return Value(lnum.first.asBigInt()->subtraction(rnum.first.asBigInt()));
+        return Value(lnum.first.asBigInt()->subtraction(state, rnum.first.asBigInt()));
     } else {
         return Value(lnum.first.asNumber() - rnum.first.asNumber());
     }
@@ -1614,7 +1614,7 @@ NEVER_INLINE Value ByteCodeInterpreter::multiplySlowCase(ExecutionState& state, 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     if (UNLIKELY(lnum.second)) {
-        return Value(lnum.first.asBigInt()->multiply(rnum.first.asBigInt()));
+        return Value(lnum.first.asBigInt()->multiply(state, rnum.first.asBigInt()));
     } else {
         return Value(Value::EncodeAsDouble, lnum.first.asNumber() * rnum.first.asNumber());
     }
@@ -1631,7 +1631,7 @@ NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, 
         if (UNLIKELY(rnum.first.asBigInt()->isZero())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::DivisionByZero);
         }
-        return Value(lnum.first.asBigInt()->division(rnum.first.asBigInt()));
+        return Value(lnum.first.asBigInt()->division(state, rnum.first.asBigInt()));
     } else {
         return Value(Value::EncodeAsDouble, lnum.first.asNumber() / rnum.first.asNumber());
     }
@@ -1641,7 +1641,7 @@ NEVER_INLINE Value ByteCodeInterpreter::unaryMinusSlowCase(ExecutionState& state
 {
     auto r = src.toNumeric(state);
     if (r.second) {
-        return r.first.asBigInt()->negativeValue();
+        return r.first.asBigInt()->negativeValue(state);
     } else {
         return Value(-r.first.asNumber());
     }
@@ -1665,7 +1665,7 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
             if (UNLIKELY(rnum.first.asBigInt()->isZero())) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::DivisionByZero);
             }
-            return Value(lnum.first.asBigInt()->remainder(rnum.first.asBigInt()));
+            return Value(lnum.first.asBigInt()->remainder(state, rnum.first.asBigInt()));
         }
 
         double lvalue = lnum.first.asNumber();
@@ -1709,7 +1709,7 @@ NEVER_INLINE Value ByteCodeInterpreter::exponentialOperation(ExecutionState& sta
         if (UNLIKELY(rnum.first.asBigInt()->isNegative())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::ExponentByNegative);
         }
-        return Value(lnum.first.asBigInt()->pow(rnum.first.asBigInt()));
+        return Value(lnum.first.asBigInt()->pow(state, rnum.first.asBigInt()));
     }
 
     double base = lnum.first.asNumber();
@@ -1749,11 +1749,11 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseOperationSlowCase(ExecutionState&
     if (UNLIKELY(lnum.second)) {
         switch (kind) {
         case BitwiseOperationKind::And:
-            return lnum.first.asBigInt()->bitwiseAnd(rnum.first.asBigInt());
+            return lnum.first.asBigInt()->bitwiseAnd(state, rnum.first.asBigInt());
         case BitwiseOperationKind::Or:
-            return lnum.first.asBigInt()->bitwiseOr(rnum.first.asBigInt());
+            return lnum.first.asBigInt()->bitwiseOr(state, rnum.first.asBigInt());
         case BitwiseOperationKind::Xor:
-            return lnum.first.asBigInt()->bitwiseXor(rnum.first.asBigInt());
+            return lnum.first.asBigInt()->bitwiseXor(state, rnum.first.asBigInt());
         default:
             ASSERT_NOT_REACHED();
         }
@@ -1778,7 +1778,7 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseNotOperationSlowCase(ExecutionSta
 {
     auto r = a.toNumeric(state);
     if (r.second) {
-        return r.first.asBigInt()->bitwiseNot();
+        return r.first.asBigInt()->bitwiseNot(state);
     } else {
         return Value(~r.first.toInt32(state));
     }
@@ -1794,9 +1794,9 @@ NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& s
     if (UNLIKELY(lnum.second)) {
         switch (kind) {
         case ShiftOperationKind::Left:
-            return lnum.first.asBigInt()->leftShift(rnum.first.asBigInt());
+            return lnum.first.asBigInt()->leftShift(state, rnum.first.asBigInt());
         case ShiftOperationKind::SignedRight:
-            return lnum.first.asBigInt()->rightShift(rnum.first.asBigInt());
+            return lnum.first.asBigInt()->rightShift(state, rnum.first.asBigInt());
         case ShiftOperationKind::UnsignedRight:
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "BigInts have no unsigned right shift, use >> instead");
             break;
@@ -3712,7 +3712,7 @@ NEVER_INLINE Value ByteCodeInterpreter::incrementOperationSlowCase(ExecutionStat
     // https://www.ecma-international.org/ecma-262/#sec-prefix-increment-operator
     auto newVal = value.toNumeric(state);
     if (UNLIKELY(newVal.second)) {
-        return Value(newVal.first.asBigInt()->increment());
+        return Value(newVal.first.asBigInt()->increment(state));
     } else {
         return Value(newVal.first.asNumber() + 1);
     }
@@ -3741,7 +3741,7 @@ NEVER_INLINE Value ByteCodeInterpreter::decrementOperationSlowCase(ExecutionStat
     // https://www.ecma-international.org/ecma-262/#sec-prefix-decrement-operator
     auto newVal = value.toNumeric(state);
     if (UNLIKELY(newVal.second)) {
-        return Value(newVal.first.asBigInt()->decrement());
+        return Value(newVal.first.asBigInt()->decrement(state));
     } else {
         return Value(value.toNumber(state) - 1);
     }

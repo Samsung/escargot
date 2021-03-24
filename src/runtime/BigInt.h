@@ -62,6 +62,7 @@ public:
 
     static Optional<BigInt*> parseString(const char* buf, size_t length, int radix = 10);
     static Optional<BigInt*> parseString(String* str, int radix = 10);
+    static void throwBFException(ExecutionState& state, int status);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -86,28 +87,30 @@ public:
     bool greaterThan(BigInt* b);
     bool greaterThanEqual(BigInt* b);
 
-    BigInt* addition(BigInt* b);
-    BigInt* subtraction(BigInt* b);
-    BigInt* multiply(BigInt* b);
-    BigInt* division(BigInt* b);
-    BigInt* remainder(BigInt* b);
-    BigInt* pow(BigInt* b);
-    BigInt* bitwiseAnd(BigInt* b);
-    BigInt* bitwiseOr(BigInt* b);
-    BigInt* bitwiseXor(BigInt* b);
-    BigInt* increment();
-    BigInt* decrement();
-    BigInt* bitwiseNot();
+    // Binary BigInt Operations
+    BigInt* addition(ExecutionState& state, BigInt* b);
+    BigInt* subtraction(ExecutionState& state, BigInt* b);
+    BigInt* multiply(ExecutionState& state, BigInt* b);
+    BigInt* division(ExecutionState& state, BigInt* b);
+    BigInt* remainder(ExecutionState& state, BigInt* b);
+    BigInt* pow(ExecutionState& state, BigInt* b);
+    BigInt* bitwiseAnd(ExecutionState& state, BigInt* b);
+    BigInt* bitwiseOr(ExecutionState& state, BigInt* b);
+    BigInt* bitwiseXor(ExecutionState& state, BigInt* b);
+    BigInt* leftShift(ExecutionState& state, BigInt* c);
+    BigInt* rightShift(ExecutionState& state, BigInt* c);
 
-    BigInt* leftShift(BigInt* c);
-    BigInt* rightShift(BigInt* c);
+    // Unary BigInt Operations
+    BigInt* increment(ExecutionState& state);
+    BigInt* decrement(ExecutionState& state);
+    BigInt* bitwiseNot(ExecutionState& state);
+    BigInt* negativeValue(ExecutionState& state);
+    BigInt* negativeValue();
 
     bool isZero();
     bool isNaN();
     bool isInfinity();
     bool isNegative();
-
-    BigInt* negativeValue();
 
     bf_t* bf()
     {

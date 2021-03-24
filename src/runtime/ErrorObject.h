@@ -70,6 +70,8 @@ public:
         static constexpr const char* CanNotMixBigIntWithOtherTypes = "Cannot mix BigInt and other types, use explicit conversions";
         static constexpr const char* CanNotConvertValueToIndex = "Cannot convert value to index";
         static constexpr const char* DivisionByZero = "Division by zero";
+        static constexpr const char* Overflow = "overflow occurred";
+        static constexpr const char* OutOfMemory = "out of memory";
         static constexpr const char* ExponentByNegative = "Exponent must be positive";
         static constexpr const char* GlobalObject_ThisUndefinedOrNull = "%s: this value is undefined or null";
         static constexpr const char* GlobalObject_ThisNotObject = "%s: this value is not an object";

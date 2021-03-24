@@ -45,8 +45,19 @@ static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, si
         if (!prim.isInteger(state)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The value you input to BigInt constructor is not integer");
         }
+        double numValue = prim.asNumber();
+        if ((numValue > (double)std::numeric_limits<int64_t>::max()) || (numValue < (double)std::numeric_limits<int64_t>::min())) {
+            // handle overflowed integer number
+            bf_t r;
+            bf_init(VMInstance::bfContext(), &r);
+            int ret = bf_set_float64(&r, numValue);
+            ASSERT(!ret);
+            ASSERT(bf_is_finite(&r));
+
+            return new BigInt(r);
+        }
         // Return the BigInt value that represents the mathematical value of number.
-        return new BigInt((int64_t)prim.asNumber());
+        return new BigInt((int64_t)numValue);
     } else {
         // Otherwise, return ? ToBigInt(value).
         return argv[0].toBigInt(state);
