@@ -312,18 +312,25 @@ static void builtinJSONArrayReplacerHelper(ExecutionState& state, ValueVectorWit
     propertyList.push_back(Value(item));
 }
 
-static Optional<String*> builtinJSONStringifyStr(ExecutionState& state, Value key, Object* holder,
-                                                 StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList);
-static String* builtinJSONStringifyJA(ExecutionState& state, Object* obj,
-                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList);
-static String* builtinJSONStringifyJO(ExecutionState& state, Object* value,
-                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList);
+static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* holder,
+                                    StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent,
+                                    String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList,
+                                    LargeStringBuilder& product);
+static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
+                                   StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent,
+                                   String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList,
+                                   LargeStringBuilder& product);
+static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
+                                   StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent,
+                                   String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList,
+                                   LargeStringBuilder& product);
 static void builtinJSONStringifyQuote(ExecutionState& state, Value value, LargeStringBuilder& product);
-static String* builtinJSONStringifyQuote(ExecutionState& state, String* value);
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonproperty
-static Optional<String*> builtinJSONStringifyStr(ExecutionState& state, Value key, Object* holder,
-                                                 StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList)
+static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* holder,
+                                    StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack,
+                                    String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList,
+                                    LargeStringBuilder& product)
 {
     Value value = holder->get(state, ObjectPropertyName(state, key)).value(state, holder);
     if (value.isObject() || value.isBigInt()) {
@@ -351,38 +358,46 @@ static Optional<String*> builtinJSONStringifyStr(ExecutionState& state, Value ke
         }
     }
     if (value.isNull()) {
-        return strings->null.string();
+        product.appendString(strings->null.string());
+        return true;
     }
     if (value.isBoolean()) {
-        return value.asBoolean() ? strings->stringTrue.string() : strings->stringFalse.string();
+        product.appendString(value.asBoolean() ? strings->stringTrue.string() : strings->stringFalse.string());
+        return true;
     }
     if (value.isString()) {
-        return builtinJSONStringifyQuote(state, value.asString());
+        builtinJSONStringifyQuote(state, value.asString(), product);
+        return true;
     }
     if (value.isNumber()) {
         double d = value.toNumber(state);
         if (std::isfinite(d)) {
-            return value.toString(state);
+            product.appendString(value.toString(state));
+            return true;
         }
-        return strings->null.string();
+        product.appendString(strings->null.string());
+        return true;
     }
     if (value.isBigInt()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Could not serialize a BigInt");
     }
     if (value.isObject() && !value.isCallable()) {
         if (value.asObject()->isArray(state)) {
-            return builtinJSONStringifyJA(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+            builtinJSONStringifyJA(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
         } else {
-            return builtinJSONStringifyJO(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+            builtinJSONStringifyJO(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
         }
+        return true;
     }
 
-    return nullptr;
+    return false;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonarray
-static String* builtinJSONStringifyJA(ExecutionState& state, Object* obj,
-                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList)
+static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
+                                   StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack,
+                                   String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList,
+                                   LargeStringBuilder& product)
 {
     // 1
     for (size_t i = 0; i < stack.size(); i++) {
@@ -411,16 +426,15 @@ static String* builtinJSONStringifyJA(ExecutionState& state, Object* obj,
 
     // 8 ~ 9
     uint32_t index = 0;
-    StringBuilder finalValue;
     bool first = true;
     String* seperator = strings->asciiTable[(size_t)','].string();
 
-    finalValue.appendChar('[');
+    product.appendChar('[');
     while (index < len) {
         if (first) {
             if (gap->length()) {
-                finalValue.appendChar('\n');
-                finalValue.appendString(indent);
+                product.appendChar('\n');
+                product.appendString(indent);
                 StringBuilder seperatorBuilder;
                 seperatorBuilder.appendChar(',');
                 seperatorBuilder.appendChar('\n');
@@ -429,36 +443,33 @@ static String* builtinJSONStringifyJA(ExecutionState& state, Object* obj,
             }
             first = false;
         } else {
-            finalValue.appendString(seperator);
+            product.appendString(seperator);
         }
 
-        auto strP = builtinJSONStringifyStr(state, Value(index), obj, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
-        if (strP) {
-            finalValue.appendString(strP.value());
-        } else {
-            finalValue.appendString(strings->null.string());
+        bool strP = builtinJSONStringifyStr(state, Value(index), obj, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
+        if (!strP) {
+            product.appendString(strings->null.string());
         }
         index++;
     }
 
     if (!first && gap->length()) {
-        finalValue.appendChar('\n');
-        finalValue.appendString(stepback);
+        product.appendChar('\n');
+        product.appendString(stepback);
     }
 
-    finalValue.appendChar(']');
+    product.appendChar(']');
 
     // 11
     stack.pop_back();
     // 12
     indent = stepback;
-
-    return finalValue.finalize(&state);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-serializejsonobject
-static String* builtinJSONStringifyJO(ExecutionState& state, Object* value,
-                                      StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList)
+static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
+                                   StaticStrings* strings, Value replacerFunc, ValueVectorWithInlineStorage& stack, String* indent,
+                                   String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList, LargeStringBuilder& product)
 {
     // 1
     for (size_t i = 0; i < stack.size(); i++) {
@@ -484,19 +495,19 @@ static String* builtinJSONStringifyJO(ExecutionState& state, Object* value,
     }
 
     // 7 ~ 9
-    LargeStringBuilder finalValue;
     bool first = true;
     size_t len = k.size();
     String* seperator = strings->asciiTable[(size_t)','].string();
 
-    finalValue.appendChar('{');
+    product.appendChar('{');
+    LargeStringBuilder subProduct;
     for (size_t i = 0; i < len; i++) {
-        auto strP = builtinJSONStringifyStr(state, k[i], value, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
+        auto strP = builtinJSONStringifyStr(state, k[i], value, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, subProduct);
         if (strP) {
             if (first) {
                 if (gap->length()) {
-                    finalValue.appendChar('\n');
-                    finalValue.appendString(indent);
+                    product.appendChar('\n');
+                    product.appendString(indent);
                     StringBuilder seperatorBuilder;
                     seperatorBuilder.appendChar(',');
                     seperatorBuilder.appendChar('\n');
@@ -505,31 +516,30 @@ static String* builtinJSONStringifyJO(ExecutionState& state, Object* value,
                 }
                 first = false;
             } else {
-                finalValue.appendString(seperator);
+                product.appendString(seperator);
             }
 
-            builtinJSONStringifyQuote(state, k[i], finalValue);
-            finalValue.appendChar(':');
+            builtinJSONStringifyQuote(state, k[i], product);
+            product.appendChar(':');
             if (gap->length() != 0) {
-                finalValue.appendChar(' ');
+                product.appendChar(' ');
             }
-            finalValue.appendString(strP.value());
+            product.appendStringBuilder(subProduct);
+            subProduct.clear();
         }
     }
 
     if (!first && gap->length()) {
-        finalValue.appendChar('\n');
-        finalValue.appendString(stepback);
+        product.appendChar('\n');
+        product.appendString(stepback);
     }
 
-    finalValue.appendChar('}');
+    product.appendChar('}');
 
     // 11
     stack.pop_back();
     // 12
     indent = stepback;
-
-    return finalValue.finalize(&state);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-quotejsonstring
@@ -602,12 +612,6 @@ static void builtinJSONStringifyQuote(ExecutionState& state, String* value, Larg
         }
     }
     product.appendChar('"');
-}
-static String* builtinJSONStringifyQuote(ExecutionState& state, String* value)
-{
-    LargeStringBuilder product;
-    builtinJSONStringifyQuote(state, value, product);
-    return product.finalize(&state);
 }
 
 static void builtinJSONStringifyQuote(ExecutionState& state, Value value, LargeStringBuilder& product)
@@ -700,9 +704,10 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     Object* wrapper = new Object(state);
     // 10
     wrapper->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
-    auto str = builtinJSONStringifyStr(state, String::emptyString, wrapper, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList);
-    if (str) {
-        return str.value();
+    LargeStringBuilder product;
+    auto ret = builtinJSONStringifyStr(state, String::emptyString, wrapper, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
+    if (ret) {
+        return product.finalize(&state);
     }
     return Value();
 }

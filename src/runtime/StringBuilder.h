@@ -196,6 +196,29 @@ public:
         appendPiece(str, s, e);
     }
 
+    void appendStringBuilder(StringBuilderImpl<InlineStorageSize>& src)
+    {
+        for (size_t i = 0; i < src.m_piecesInlineStorageUsage; i++) {
+            if (src.m_piecesInlineStorage[i].m_type == StringBuilderPiece::Type::Char) {
+                appendPiece(src.m_piecesInlineStorage[i].m_ch);
+            } else if (src.m_piecesInlineStorage[i].m_type == StringBuilderPiece::Type::ConstChar) {
+                appendPiece(src.m_piecesInlineStorage[i].m_raw);
+            } else {
+                appendSubString(src.m_piecesInlineStorage[i].m_string, src.m_piecesInlineStorage[i].m_start, src.m_piecesInlineStorage[i].m_end);
+            }
+        }
+
+        for (size_t i = 0; i < src.m_pieces.size(); i++) {
+            if (src.m_pieces[i].m_type == StringBuilderPiece::Type::Char) {
+                appendPiece(src.m_pieces[i].m_ch);
+            } else if (src.m_pieces[i].m_type == StringBuilderPiece::Type::ConstChar) {
+                appendPiece(src.m_pieces[i].m_raw);
+            } else {
+                appendSubString(src.m_pieces[i].m_string, src.m_pieces[i].m_start, src.m_pieces[i].m_end);
+            }
+        }
+    }
+
     String* finalize(ExecutionState* state = nullptr) // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
     {
         return finalizeBase(m_piecesInlineStorage, state);
