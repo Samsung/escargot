@@ -383,13 +383,13 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
             m_arrayLength = newLength;
             if (useFitStorage || oldLength == 0 || newLength <= 128) {
                 bool hasRD = hasRareData();
-                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : 0;
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
                 m_fastModeData.resizeWithUninitializedValues(oldLength, newLength);
                 for (size_t i = oldLength; i < newLength; i++) {
                     m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
                 }
 #else
+                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : 0;
                 if (oldCapacity) {
                     if (newLength > oldCapacity) {
                         m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * newLength);

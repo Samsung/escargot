@@ -116,11 +116,6 @@ void VMInstance::finalize()
 }
 /////////////////////////////////////////////////
 
-bool VMInstance::undefinedNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
-{
-    return false;
-}
-
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
