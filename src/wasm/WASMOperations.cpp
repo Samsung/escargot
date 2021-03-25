@@ -461,8 +461,6 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
         }
         case WASM_EXTERN_MEMORY: {
             // If externtype is of the form mem memtype,
-            wasm_memorytype_t* memtype = wasm_externtype_as_memorytype(externtype);
-
             // If v does not implement Memory, throw a LinkError exception.
             if (!v.isObject() || !v.asObject()->isWASMMemoryObject()) {
                 throwLinkError = true;
@@ -478,8 +476,6 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
         }
         case WASM_EXTERN_TABLE: {
             // If externtype is of the form table tabletype,
-            wasm_tabletype_t* tabletype = wasm_externtype_as_tabletype(externtype);
-
             // If v does not implement Table, throw a LinkError exception.
             if (!v.isObject() || !v.asObject()->isWASMTableObject()) {
                 throwLinkError = true;

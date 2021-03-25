@@ -74,15 +74,13 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
         SandBox sb(state.context());
         auto res = sb.run([&]() -> Value {
             Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
-            Value thenCallResult = Object::call(state, m_then, m_thenable, 2, arguments);
-            Value value[] = { thenCallResult };
-            return Value();
+            return Object::call(state, m_then, m_thenable, 2, arguments);
         });
         if (!res.error.isEmpty()) {
             Value reason[] = { res.error };
             return Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
         }
-        return Value();
+        return res.result;
     });
 }
 

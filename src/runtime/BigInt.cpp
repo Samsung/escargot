@@ -79,7 +79,6 @@ void BigIntData::init(const char* buf, size_t length, int radix)
     }
     // bf_atof needs zero-terminated string
     char* newBuf = ALLOCA(length + 1, char, nullptr);
-    bool seenE = false;
     for (size_t i = 0; i < length; i++) {
         if (UNLIKELY(buf[i] == '.')) {
             bf_set_nan(&m_data);
@@ -528,6 +527,7 @@ BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src)
     if (v2 < 0) {
         ret |= bf_rint(&r, BF_RNDD) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
     }
+    UNUSED_VARIABLE(ret);
     // FIXME check overflow for rightshift operation
     /*
     if (UNLIKELY(ret)) {

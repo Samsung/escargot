@@ -220,10 +220,9 @@ static Value builtinWASMModuleCustomSections(ExecutionState& state, Value thisVa
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    // Let module be moduleObject.[[Module]].
-    wasm_module_t* module = moduleValue.asObject()->asWASMModuleObject()->module();
-
     // TODO wasm-c-api do not support custom sections
+    // Let module be moduleObject.[[Module]].
+    // wasm_module_t* module = moduleValue.asObject()->asWASMModuleObject()->module();
     // Let bytes be moduleObject.[[Bytes]].
     // Let customSections be << >>
     // For each custom section customSection of bytes, interpreted according to the module grammar,
@@ -500,9 +499,9 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
 
     // Let map be the surrounding agent's associated Memory object cache.
     // Assert: map[memaddr] exists.
-    WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
 #ifndef NDEBUG
     {
+        WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
         wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
         bool cached = false;
         for (auto iter = map.begin(); iter != map.end(); iter++) {

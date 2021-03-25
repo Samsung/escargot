@@ -183,9 +183,6 @@ public:
     // object
     // []
 
-    // undefined setter
-    static bool undefinedNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
-
     // function
     // [name, length] or [prototype, name, length]
     static Value functionPrototypeNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea);
