@@ -565,6 +565,16 @@ TEST(ObjectTemplate, Basic4) {
         return OptionalRef<ValueRef>();
     };
 
+    handler.descriptor = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+        if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("eee", 3)) {
+            ObjectRef* desc = ObjectRef::create(state);
+            desc->set(state, StringRef::createFromASCII("value"), ValueRef::createNull());
+            return desc;
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
     tpl->setNamedPropertyHandler(handler);
 
     ObjectRef* obj = tpl->instantiate(g_context.get());
@@ -612,6 +622,10 @@ TEST(ObjectTemplate, Basic4) {
 
         EXPECT_TRUE(obj->deleteOwnProperty(state, StringRef::createFromASCII("fff")));
         EXPECT_FALSE(obj->deleteOwnProperty(state, StringRef::createFromASCII("ddd")));
+
+        auto descObj = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("eee"));
+        EXPECT_TRUE(descObj->isObject());
+        EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
 
         return ValueRef::createUndefined();
     }, obj);

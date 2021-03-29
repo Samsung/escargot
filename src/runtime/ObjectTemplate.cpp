@@ -95,6 +95,21 @@ public:
         return Object::getOwnProperty(state, P);
     }
 
+    virtual Value getOwnPropertyDescriptor(ExecutionState& state, const ObjectPropertyName& P) override
+    {
+        if (m_data->descriptor) {
+            auto ret = m_data->descriptor(toRef(&state), toRef(this), m_data->data,
+                                          TemplatePropertyNameRef(toTemplatePropertyNameRef(P)));
+            if (ret.hasValue()) {
+                return toImpl(ret.value());
+            } else {
+                return Object::getOwnPropertyDescriptor(state, P);
+            }
+        } else {
+            return Object::getOwnPropertyDescriptor(state, P);
+        }
+    }
+
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override
     {
         if (!P.isIndexString()) {

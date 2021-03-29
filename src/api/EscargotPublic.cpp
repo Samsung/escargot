@@ -1244,8 +1244,7 @@ ValueRef* ObjectRef::getOwnProperty(ExecutionStateRef* state, ValueRef* property
 ValueRef* ObjectRef::getOwnPropertyDescriptor(ExecutionStateRef* state, ValueRef* propertyName)
 {
     Value name = toImpl(propertyName).toString(*toImpl(state));
-    ObjectGetResult desc = toImpl(this)->getOwnProperty(*toImpl(state), ObjectPropertyName(*toImpl(state), name));
-    return toRef(desc.toPropertyDescriptor(*toImpl(state), toImpl(this)));
+    return toRef(toImpl(this)->getOwnPropertyDescriptor(*toImpl(state), ObjectPropertyName(*toImpl(state), name)));
 }
 
 void* ObjectRef::NativeDataAccessorPropertyData::operator new(size_t size)
