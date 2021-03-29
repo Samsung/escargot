@@ -651,6 +651,8 @@ TEST(FunctionTemplate, Basic1) {
         }
     });
 
+    ft->setName(AtomicStringRef::create(g_context.get(), "asdf2"));
+
     int a = 100;
     int* testPtr = &a;
     ft->setInstanceExtraData(testPtr);
@@ -671,6 +673,10 @@ TEST(FunctionTemplate, Basic1) {
 
         ValueRef* ret = fn->construct(state, 0, nullptr);
         EXPECT_TRUE(ret->isNull());
+
+        ValueRef* name = fn->getOwnProperty(state, StringRef::createFromASCII("name", 4));
+        EXPECT_TRUE(name->asString()->equalsWithASCIIString("asdf2", 5));
+
         return ValueRef::createUndefined();
     }, fn);
     EXPECT_TRUE(r.isSuccessful());

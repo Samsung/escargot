@@ -120,6 +120,12 @@ void FunctionTemplate::updateCallbackFunction(FunctionTemplateRef::NativeFunctio
     m_nativeFunctionData->m_publicCallback = fn;
 }
 
+void FunctionTemplate::setName(AtomicString name)
+{
+    ASSERT(m_cachedObjectStructure == nullptr);
+    m_name = name;
+}
+
 Object* FunctionTemplate::instantiate(Context* ctx)
 {
     auto& instantiatedFunctionObjects = ctx->instantiatedFunctionObjects();

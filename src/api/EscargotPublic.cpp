@@ -1056,38 +1056,37 @@ const ObjectPropertyDescriptorRef& ObjectPropertyDescriptorRef::operator=(const 
     return *this;
 }
 
-ValueRef* ObjectPropertyDescriptorRef::value()
+ValueRef* ObjectPropertyDescriptorRef::value() const
 {
     return toRef(((ObjectPropertyDescriptor*)m_privateData)->value());
 }
 
-bool ObjectPropertyDescriptorRef::hasValue()
+bool ObjectPropertyDescriptorRef::hasValue() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isDataDescriptor();
 }
 
-ValueRef* ObjectPropertyDescriptorRef::getter()
+ValueRef* ObjectPropertyDescriptorRef::getter() const
 {
     return toRef(((ObjectPropertyDescriptor*)m_privateData)->getterSetter().getter());
 }
 
-bool ObjectPropertyDescriptorRef::hasGetter()
+bool ObjectPropertyDescriptorRef::hasGetter() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->hasJSGetter();
 }
 
-ValueRef* ObjectPropertyDescriptorRef::setter()
+ValueRef* ObjectPropertyDescriptorRef::setter() const
 {
     return toRef(((ObjectPropertyDescriptor*)m_privateData)->getterSetter().setter());
 }
 
-bool ObjectPropertyDescriptorRef::hasSetter()
+bool ObjectPropertyDescriptorRef::hasSetter() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->hasJSSetter();
 }
 
-
-bool ObjectPropertyDescriptorRef::isEnumerable()
+bool ObjectPropertyDescriptorRef::isEnumerable() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isEnumerable();
 }
@@ -1097,7 +1096,7 @@ void ObjectPropertyDescriptorRef::setEnumerable(bool enumerable)
     ((ObjectPropertyDescriptor*)m_privateData)->setEnumerable(enumerable);
 }
 
-bool ObjectPropertyDescriptorRef::hasEnumerable()
+bool ObjectPropertyDescriptorRef::hasEnumerable() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isEnumerablePresent();
 }
@@ -1107,22 +1106,22 @@ void ObjectPropertyDescriptorRef::setConfigurable(bool configurable)
     ((ObjectPropertyDescriptor*)m_privateData)->setEnumerable(configurable);
 }
 
-bool ObjectPropertyDescriptorRef::isConfigurable()
+bool ObjectPropertyDescriptorRef::isConfigurable() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isConfigurablePresent();
 }
 
-bool ObjectPropertyDescriptorRef::hasConfigurable()
+bool ObjectPropertyDescriptorRef::hasConfigurable() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isConfigurablePresent();
 }
 
-bool ObjectPropertyDescriptorRef::isWritable()
+bool ObjectPropertyDescriptorRef::isWritable() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isWritable();
 }
 
-bool ObjectPropertyDescriptorRef::hasWritable()
+bool ObjectPropertyDescriptorRef::hasWritable() const
 {
     return ((ObjectPropertyDescriptor*)m_privateData)->isWritablePresent();
 }
@@ -3181,6 +3180,11 @@ FunctionTemplateRef* FunctionTemplateRef::create(AtomicStringRef* name, size_t a
                                                  FunctionTemplateRef::NativeFunctionPointer fn)
 {
     return toRef(new FunctionTemplate(toImpl(name), argumentCount, isStrict, isConstructor, fn));
+}
+
+void FunctionTemplateRef::setName(AtomicStringRef* name)
+{
+    toImpl(this)->setName(toImpl(name));
 }
 
 void FunctionTemplateRef::updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn)
