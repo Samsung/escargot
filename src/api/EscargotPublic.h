@@ -957,24 +957,24 @@ public:
     const ObjectPropertyDescriptorRef& operator=(const ObjectPropertyDescriptorRef& src);
     ~ObjectPropertyDescriptorRef();
 
-    ValueRef* value();
-    bool hasValue();
+    ValueRef* value() const;
+    bool hasValue() const;
 
-    ValueRef* getter();
-    bool hasGetter();
-    ValueRef* setter();
-    bool hasSetter();
+    ValueRef* getter() const;
+    bool hasGetter() const;
+    ValueRef* setter() const;
+    bool hasSetter() const;
 
-    bool isEnumerable();
+    bool isEnumerable() const;
     void setEnumerable(bool enumerable);
-    bool hasEnumerable();
+    bool hasEnumerable() const;
 
-    bool isConfigurable();
+    bool isConfigurable() const;
     void setConfigurable(bool configurable);
-    bool hasConfigurable();
+    bool hasConfigurable() const;
 
-    bool isWritable();
-    bool hasWritable();
+    bool isWritable() const;
+    bool hasWritable() const;
 
     static void* operator new(size_t) = delete;
     static void* operator new[](size_t) = delete;
@@ -1705,6 +1705,7 @@ public:
     static FunctionTemplateRef* create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
                                        FunctionTemplateRef::NativeFunctionPointer fn);
 
+    void setName(AtomicStringRef* name);
     void updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn);
 
     ObjectTemplateRef* prototypeTemplate();

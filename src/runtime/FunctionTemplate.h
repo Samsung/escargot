@@ -75,6 +75,8 @@ public:
         return m_isConstructor;
     }
 
+    void setName(AtomicString name);
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
