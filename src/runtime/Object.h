@@ -843,6 +843,12 @@ public:
         return getOwnProperty(state, propertyName).hasValue();
     }
 
+    virtual Value getOwnPropertyDescriptor(ExecutionState& state, const ObjectPropertyName& propertyName)
+    {
+        ObjectGetResult desc = getOwnProperty(state, propertyName);
+        return desc.toPropertyDescriptor(state, this);
+    }
+
     // http://www.ecma-international.org/ecma-262/6.0/#sec-hasproperty
     // basically there is no difference [[hasProperty]] and [[get]]
     // but on ProxyObject, we need to call "has" handler. that's all

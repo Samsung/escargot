@@ -1656,7 +1656,7 @@ typedef TemplateNamedPropertyHandlerEnumerationCallbackResultVector (*TemplateNa
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
 typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc);
-typedef OptionalRef<ObjectRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, void* data);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
 
 struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
     TemplateNamedPropertyHandlerGetterCallback getter;

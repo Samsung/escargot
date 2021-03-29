@@ -424,13 +424,12 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
     Value name = argv[1];
 
     // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
-    ObjectGetResult desc = O->getOwnProperty(state, ObjectPropertyName(state, name));
-
     // Return the result of calling FromPropertyDescriptor(desc) (8.10.4).
-    return desc.toPropertyDescriptor(state, O);
+    return O->getOwnPropertyDescriptor(state, ObjectPropertyName(state, name));
 }
+
 // 19.1.2.9Object.getOwnPropertyDescriptors ( O )
-//https://www.ecma-international.org/ecma-262/8.0/#sec-object.getownpropertydescriptors
+// https://www.ecma-international.org/ecma-262/8.0/#sec-object.getownpropertydescriptors
 static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Object* obj = argv[0].toObject(state);
@@ -438,8 +437,7 @@ static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value
     Object* descriptors = new Object(state);
 
     for (uint64_t i = 0; i < ownKeys.size(); i++) {
-        ObjectGetResult desc = obj->getOwnProperty(state, ObjectPropertyName(state, ownKeys[i]));
-        Value descriptor = desc.toPropertyDescriptor(state, obj);
+        Value descriptor = obj->getOwnPropertyDescriptor(state, ObjectPropertyName(state, ownKeys[i]));
         if (!descriptor.isUndefined()) {
             descriptors->defineOwnProperty(state, ObjectPropertyName(state, ownKeys[i]), ObjectPropertyDescriptor(descriptor, ObjectPropertyDescriptor::AllPresent));
         }
