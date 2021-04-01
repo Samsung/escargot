@@ -959,13 +959,13 @@ public:
         return result;
     }
 
-    template <class ASTBuilder, typename T, typename ArgType>
-    ALWAYS_INLINE ASTNode isolateCoverGrammar(ASTBuilder& builder, T parseFunction, const ArgType& arg)
+    template <class ASTBuilder, typename T, typename... Args>
+    ALWAYS_INLINE ASTNode isolateCoverGrammar(ASTBuilder& builder, T parseFunction, Args... args)
     {
         IsolateCoverGrammarContext grammarContext;
         startCoverGrammar(&grammarContext);
 
-        ASTNode result = (this->*parseFunction)(builder, arg);
+        ASTNode result = (this->*parseFunction)(builder, args...);
         endIsolateCoverGrammar(&grammarContext);
 
         return result;
@@ -3848,7 +3848,7 @@ public:
         this->context->allowLexicalDeclaration = false;
         this->context->inIteration = true;
 
-        ASTNode body = this->parseStatement(builder, false);
+        ASTNode body = this->parseStatement(builder, false, false);
         this->context->inIteration = previousInIteration;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
@@ -3883,7 +3883,7 @@ public:
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        ASTNode body = this->parseStatement(builder, false);
+        ASTNode body = this->parseStatement(builder, false, false);
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
@@ -4141,7 +4141,7 @@ public:
         this->context->inIteration = true;
         ASTNode body = nullptr;
 
-        body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false);
+        body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false, false);
 
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
@@ -4294,7 +4294,7 @@ public:
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
 
-        ASTNode body = this->parseStatement(builder, false);
+        ASTNode body = this->parseStatement(builder, false, false);
         this->context->inWith = prevInWith;
 
         return this->finalize(node, builder.createWithStatementNode(object, body));
@@ -4390,7 +4390,7 @@ public:
     // ECMA-262 13.13 Labelled Statements
 
     template <class ASTBuilder>
-    ASTNode parseLabelledStatement(ASTBuilder& builder, size_t multiLabelCount = 1)
+    ASTNode parseLabelledStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true, size_t multiLabelCount = 1)
     {
         MetaNode node = this->createNode();
         ASTNode expr = nullptr;
@@ -4413,8 +4413,8 @@ public:
 
             this->context->labelSet.push_back(std::make_pair(name, false));
 
-            if (this->lookahead.type == IdentifierToken) {
-                ASTNode labeledBody = this->parseLabelledStatement(builder, multiLabelCount + 1);
+            if (this->lookahead.type == IdentifierToken && !this->matchAsyncFunction()) {
+                ASTNode labeledBody = this->parseLabelledStatement(builder, allowFunctionDeclaration, multiLabelCount + 1);
                 statement = builder.createLabeledStatementNode(labeledBody, name.string());
             } else {
                 if (this->matchKeyword(DoKeyword) || this->matchKeyword(ForKeyword) || this->matchKeyword(WhileKeyword)) {
@@ -4427,7 +4427,7 @@ public:
                     }
                 }
 
-                ASTNode labeledBody = this->parseStatement(builder, !this->context->strict);
+                ASTNode labeledBody = this->parseStatement(builder, allowFunctionDeclaration && !this->context->strict, false);
                 statement = builder.createLabeledStatementNode(labeledBody, name.string());
             }
             removeLabel(name);
@@ -4577,7 +4577,7 @@ public:
 
     // ECMA-262 13 Statements
     template <class ASTBuilder>
-    ASTNode parseStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true)
+    ASTNode parseStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true, bool allowAsyncGeneratorClassDeclaration = true)
     {
         checkRecursiveLimit();
         ASTNode statement = nullptr;
@@ -4606,9 +4606,8 @@ public:
             break;
         }
         case Token::IdentifierToken:
-            statement = this->matchAsyncFunction() ? this->parseFunctionDeclaration(builder) : this->parseLabelledStatement(builder);
+            statement = this->matchAsyncFunction() ? this->parseFunctionDeclaration(builder, allowAsyncGeneratorClassDeclaration) : this->parseLabelledStatement(builder, allowFunctionDeclaration);
             break;
-
         case Token::KeywordToken:
             switch (this->lookahead.valueKeywordKind) {
             case BreakKeyword:
@@ -4630,7 +4629,7 @@ public:
                 if (!allowFunctionDeclaration) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
-                statement = this->parseFunctionDeclaration(builder);
+                statement = this->parseFunctionDeclaration(builder, allowAsyncGeneratorClassDeclaration);
                 break;
             }
             case IfKeyword:
@@ -4658,9 +4657,13 @@ public:
             case WithKeyword:
                 statement = this->parseWithStatement(builder);
                 break;
-            case ClassKeyword:
+            case ClassKeyword: {
+                if (!allowAsyncGeneratorClassDeclaration) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
                 statement = this->parseClassDeclaration(builder);
                 break;
+            }
             case YieldKeyword: {
                 // TODO consider case that class method is generator function
                 if (builder.isNodeGenerator()) {
@@ -4866,7 +4869,7 @@ public:
     }
 
     template <class ASTBuilder, bool treatEmptyNameAsDefault = false>
-    ASTNode parseFunctionDeclaration(ASTBuilder& builder)
+    ASTNode parseFunctionDeclaration(ASTBuilder& builder, bool allowAsyncGeneratorDeclaration = true)
     {
         MetaNode node = this->createNode();
         bool isAsync = this->matchContextualKeyword("async");
@@ -4879,6 +4882,10 @@ public:
         bool isGenerator = this->match(Multiply);
         if (isGenerator) {
             this->nextToken();
+        }
+
+        if (UNLIKELY(!allowAsyncGeneratorDeclaration && (isAsync || isGenerator))) {
+            this->throwError(Messages::AsyncGeneratorFuncDeclLocationError);
         }
 
         const char* message = nullptr;

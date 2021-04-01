@@ -98,6 +98,7 @@ public:
     static constexpr const char* BadSetterRestParameter = "Setter function argument must not be a rest parameter";
     static constexpr const char* CannotChainLogicalWithNullish = "Cannot chain logical expression with nullish operator";
     static constexpr const char* KeywordMustNotContainEscapedCharacters = "Keyword must not contain escaped characters";
+    static constexpr const char* AsyncGeneratorFuncDeclLocationError = "Async or generator function can only be declared at the top level or inside a block";
 };
 
 } // namespace esprima
