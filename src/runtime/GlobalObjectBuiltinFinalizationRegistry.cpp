@@ -26,6 +26,12 @@
 
 namespace Escargot {
 
+#define RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(NAME, BUILT_IN_METHOD)                                                                                                                                                                                               \
+    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {                                                                                                                                                                                 \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().FinalizationRegistry.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                     \
+    FinalizationRegistryObject* NAME = thisValue.asObject()->asFinalizationRegistryObject();
+
 Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -45,11 +51,7 @@ Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisVa
 
 Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
-    }
-
-    FinalizationRegistryObject* finalRegisty = thisValue.asObject()->asFinalizationRegistryObject();
+    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, stringRegister);
 
     if (argc == 0 || !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "target is not object");
@@ -66,37 +68,33 @@ Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not undefined");
         }
     }
-    finalRegisty->setCell(state, argv[0].asObject(), argv[1], unregisterToken);
+    finalRegistry->setCell(state, argv[0].asObject(), argv[1], unregisterToken);
     return Value();
 }
 
 Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
-    }
-
-    FinalizationRegistryObject* finalRegisty = thisValue.asObject()->asFinalizationRegistryObject();
-
+    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, unregister);
     if (argc == 0 || !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not object");
     }
-    return Value(finalRegisty->deleteCell(state, argv[0].asObject()));
+    return Value(finalRegistry->deleteCell(state, argv[0].asObject()));
 }
 
 Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, cleanupSome);
+
+    // If callback is not undefined and IsCallable(callback) is false, throw a TypeError exception
+    Object* callback = nullptr;
+    if (argc && !argv[0].isUndefined()) {
+        if (!argv[0].isCallable()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "callback is not callable");
+        }
+        callback = argv[0].asObject();
     }
 
-    FinalizationRegistryObject* finalRegisty = thisValue.asObject()->asFinalizationRegistryObject();
-
-    if (argc && !argv[0].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "callback is not callable");
-    }
-
-    finalRegisty->cleanupSome(state, argc ? argv[0].asObject() : nullptr);
+    finalRegistry->cleanupSome(state, callback);
 
     return Value();
 }
@@ -117,7 +115,7 @@ void GlobalObject::installFinalizationRegistry(ExecutionState& state)
     m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().unregister),
                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unregister, builtinfinalizationRegistryUnregister, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    // FinalizationRegistry.prototype.unregister
+    // FinalizationRegistry.prototype.register
     m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringRegister),
                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringRegister, builtinfinalizationRegistryRegister, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
