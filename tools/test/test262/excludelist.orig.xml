@@ -456,7 +456,6 @@
     <test id="built-ins/DataView/toindex-bytelength-sab"><reason>TODO</reason></test>
     <test id="built-ins/DataView/toindex-byteoffset-sab"><reason>TODO</reason></test>
     <test id="built-ins/Date/UTC/fp-evaluation-order"><reason>TODO</reason></test>
-    <test id="built-ins/FinalizationRegistry/prototype/cleanupSome/return-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Function/internals/Construct/derived-this-uninitialized-realm"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/line-terminator-normalisation-CR"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/private-method-class-expression"><reason>TODO</reason></test>
