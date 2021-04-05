@@ -136,7 +136,7 @@ enum ASTNodeType : uint16_t {
     ImportNamespaceSpecifier,
     ImportSpecifier,
     InitializeParameterExpression,
-    LabeledStatement,
+    LabelledStatement,
     Literal,
     MemberExpression,
     MetaProperty,

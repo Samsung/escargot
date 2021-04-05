@@ -40,7 +40,7 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
-        context->pushLabeledBreakPositions(codeBlock->lastCodePosition<Jump>(), m_label);
+        context->pushLabelledBreakPositions(codeBlock->lastCodePosition<Jump>(), m_label);
     }
 
 private:

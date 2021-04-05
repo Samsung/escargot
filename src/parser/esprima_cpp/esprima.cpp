@@ -4414,8 +4414,8 @@ public:
             this->context->labelSet.push_back(std::make_pair(name, false));
 
             if (this->lookahead.type == IdentifierToken && !this->matchAsyncFunction()) {
-                ASTNode labeledBody = this->parseLabelledStatement(builder, allowFunctionDeclaration, multiLabelCount + 1);
-                statement = builder.createLabeledStatementNode(labeledBody, name.string());
+                ASTNode labelledBody = this->parseLabelledStatement(builder, allowFunctionDeclaration, multiLabelCount + 1);
+                statement = builder.createLabelledStatementNode(labelledBody, name.string());
             } else {
                 if (this->matchKeyword(DoKeyword) || this->matchKeyword(ForKeyword) || this->matchKeyword(WhileKeyword)) {
                     // Turn labels to accept continue references.
@@ -4427,8 +4427,8 @@ public:
                     }
                 }
 
-                ASTNode labeledBody = this->parseStatement(builder, allowFunctionDeclaration && !this->context->strict, false);
-                statement = builder.createLabeledStatementNode(labeledBody, name.string());
+                ASTNode labelledBody = this->parseStatement(builder, allowFunctionDeclaration && !this->context->strict, false);
+                statement = builder.createLabelledStatementNode(labelledBody, name.string());
             }
             removeLabel(name);
         } else {
