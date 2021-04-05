@@ -617,7 +617,8 @@ static Value builtinDecodeURIComponent(ExecutionState& state, Value thisValue, s
 }
 
 // make three code unit "%XY" and append to string builder
-static inline bool convertAndAppendCodeUnit(StringBuilder* builder, char16_t ch)
+using URIBuilderString = Vector<char, GCUtil::gc_malloc_atomic_allocator<char>, ComputeReservedCapacityFunctionWithLog2<>>;
+static inline bool convertAndAppendCodeUnit(URIBuilderString* escaped, char16_t ch)
 {
     unsigned char dig1 = (ch & 0xF0) >> 4;
     unsigned char dig2 = (ch & 0x0F);
@@ -626,23 +627,25 @@ static inline bool convertAndAppendCodeUnit(StringBuilder* builder, char16_t ch)
     char ch1 = (dig1 <= 9) ? dig1 + '0' : dig1 - 10 + 'A';
     char ch2 = (dig2 <= 9) ? dig2 + '0' : dig2 - 10 + 'A';
 
-    builder->appendChar('%');
-    builder->appendChar(ch1);
-    builder->appendChar(ch2);
+    escaped->pushBack('%');
+    escaped->pushBack(ch1);
+    escaped->pushBack(ch2);
     return true;
 }
 
 static Value encode(ExecutionState& state, String* uriString, bool noComponent, String* funcName)
 {
     String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
-    int strLen = uriString->length();
+    auto bad = uriString->bufferAccessData();
 
-    StringBuilder escaped;
-    for (int i = 0; i < strLen; i++) {
-        char16_t t = uriString->charAt(i);
+    URIBuilderString escaped;
+    escaped.reserve(bad.length * 1.25);
+
+    for (size_t i = 0; i < bad.length; i++) {
+        char16_t t = bad.charAt(i);
         if (isDecimalDigit(t) || isURIAlpha(t) || isURIMark(t)
             || (noComponent && isURIReservedOrSharp(t))) {
-            escaped.appendChar(uriString->charAt(i));
+            escaped.pushBack((char)t);
         } else if (t <= 0x007F) {
             convertAndAppendCodeUnit(&escaped, t);
         } else if (0x0080 <= t && t <= 0x07FF) {
@@ -654,8 +657,8 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
             convertAndAppendCodeUnit(&escaped, 0x0080 + (t & 0x0FC0) / 0x0040);
             convertAndAppendCodeUnit(&escaped, 0x0080 + (t & 0x003F));
         } else if (0xD800 <= t && t <= 0xDBFF) {
-            if (i + 1 < strLen && 0xDC00 <= uriString->charAt(i + 1) && uriString->charAt(i + 1) <= 0xDFFF) {
-                int index = (t - 0xD800) * 0x400 + (uriString->charAt(i + 1) - 0xDC00) + 0x10000;
+            if (i + 1 < bad.length && 0xDC00 <= bad.charAt(i + 1) && bad.charAt(i + 1) <= 0xDFFF) {
+                int index = (t - 0xD800) * 0x400 + (bad.charAt(i + 1) - 0xDC00) + 0x10000;
                 convertAndAppendCodeUnit(&escaped, 0x00F0 + (index & 0x1C0000) / 0x40000);
                 convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x3F000) / 0x1000);
                 convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x0FC0) / 0x0040);
@@ -670,7 +673,11 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
             RELEASE_ASSERT_NOT_REACHED();
         }
     }
-    return escaped.finalize(&state);
+
+
+    size_t newLen = escaped.size();
+    auto ptr = escaped.takeBuffer();
+    return new ASCIIString(ptr, newLen, ASCIIString::FromGCBufferTag);
 }
 
 static Value builtinEncodeURI(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -688,7 +695,7 @@ static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, s
 }
 
 
-ASCIIStringDataNonGCStd char2hex(char dec)
+void char2hex(char dec, URIBuilderString& result)
 {
     unsigned char dig1 = (dec & 0xF0) >> 4;
     unsigned char dig2 = (dec & 0x0F);
@@ -700,14 +707,13 @@ ASCIIStringDataNonGCStd char2hex(char dec)
         dig2 += 48;
     if (10 <= dig2 && dig2 <= 15)
         dig2 += 65 - 10;
-    ASCIIStringDataNonGCStd r;
     char dig1_appended = static_cast<char>(dig1);
     char dig2_appended = static_cast<char>(dig2);
-    r.append(&dig1_appended, 1);
-    r.append(&dig2_appended, 1);
-    return r;
+    result.pushBack(dig1_appended);
+    result.pushBack(dig2_appended);
 }
-ASCIIStringDataNonGCStd char2hex4digit(char16_t dec)
+
+void char2hex4digit(char16_t dec, URIBuilderString& result)
 {
     char dig[4];
     ASCIIStringDataNonGCStd r;
@@ -717,21 +723,21 @@ ASCIIStringDataNonGCStd char2hex4digit(char16_t dec)
             dig[i] += 48; // 0, 48inascii
         if (10 <= dig[i] && dig[i] <= 15)
             dig[i] += 65 - 10; // a, 97inascii
-        r.append(&dig[i], 1);
+        result.pushBack(dig[i]);
     }
-    return r;
 }
 
 
 static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     String* str = argv[0].toString(state);
-    size_t length = str->length();
-    ASCIIStringDataNonGCStd R;
+    auto bad = str->bufferAccessData();
+    size_t length = bad.length;
+    URIBuilderString R;
 
     size_t len = 0;
     for (size_t i = 0; i < length; i++) {
-        char16_t t = str->charAt(i);
+        char16_t t = bad.charAt(i);
         if ((48 <= t && t <= 57) // DecimalDigit
             || (65 <= t && t <= 90) // uriAlpha - upper case
             || (97 <= t && t <= 122) // uriAlpha - lower case
@@ -740,16 +746,17 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
             len += 1;
         } else if (t < 256) {
             // %xy
-            R.append("%");
-            R.append(char2hex(t));
+            R.pushBack('%');
+            char2hex(t, R);
 
-            len = R.length();
+            len = R.size();
         } else {
             // %uwxyz
-            R.append("%u");
-            R.append(char2hex4digit(t));
+            R.pushBack('%');
+            R.pushBack('u');
+            char2hex4digit(t, R);
 
-            len = R.length();
+            len = R.size();
         }
 
         if (UNLIKELY(len > STRING_MAXIMUM_LENGTH)) {
@@ -757,7 +764,9 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
         }
     }
 
-    return new ASCIIString(R.data(), R.size());
+    size_t newLen = R.size();
+    auto ptr = R.takeBuffer();
+    return new ASCIIString(ptr, newLen, ASCIIString::FromGCBufferTag);
 }
 
 char16_t hex2char(char16_t first, char16_t second)
