@@ -31,15 +31,15 @@
 
 namespace Escargot {
 
-void ByteCodeGenerateContext::consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
+void ByteCodeGenerateContext::consumeLabelledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
 {
-    for (size_t i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
-        if (*m_labeledContinueStatmentPositions[i].first == *lbl) {
-            Jump* shouldBeJump = cb->peekCode<Jump>(m_labeledContinueStatmentPositions[i].second);
+    for (size_t i = 0; i < m_labelledContinueStatmentPositions.size(); i++) {
+        if (*m_labelledContinueStatmentPositions[i].first == *lbl) {
+            Jump* shouldBeJump = cb->peekCode<Jump>(m_labelledContinueStatmentPositions[i].second);
             ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
             shouldBeJump->m_jumpPosition = position;
-            morphJumpPositionIntoComplexCase(cb, m_labeledContinueStatmentPositions[i].second, outerLimitCount);
-            m_labeledContinueStatmentPositions.erase(m_labeledContinueStatmentPositions.begin() + i);
+            morphJumpPositionIntoComplexCase(cb, m_labelledContinueStatmentPositions[i].second, outerLimitCount);
+            m_labelledContinueStatmentPositions.erase(m_labelledContinueStatmentPositions.begin() + i);
             i = -1;
         }
     }
@@ -57,15 +57,15 @@ void ByteCodeGenerateContext::consumeBreakPositions(ByteCodeBlock* cb, size_t po
     m_breakStatementPositions.clear();
 }
 
-void ByteCodeGenerateContext::consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
+void ByteCodeGenerateContext::consumeLabelledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
 {
-    for (size_t i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
-        if (*m_labeledBreakStatmentPositions[i].first == *lbl) {
-            Jump* shouldBeJump = cb->peekCode<Jump>(m_labeledBreakStatmentPositions[i].second);
+    for (size_t i = 0; i < m_labelledBreakStatmentPositions.size(); i++) {
+        if (*m_labelledBreakStatmentPositions[i].first == *lbl) {
+            Jump* shouldBeJump = cb->peekCode<Jump>(m_labelledBreakStatmentPositions[i].second);
             ASSERT(shouldBeJump->m_orgOpcode == JumpOpcode);
             shouldBeJump->m_jumpPosition = position;
-            morphJumpPositionIntoComplexCase(cb, m_labeledBreakStatmentPositions[i].second, outerLimitCount);
-            m_labeledBreakStatmentPositions.erase(m_labeledBreakStatmentPositions.begin() + i);
+            morphJumpPositionIntoComplexCase(cb, m_labelledBreakStatmentPositions[i].second, outerLimitCount);
+            m_labelledBreakStatmentPositions.erase(m_labelledBreakStatmentPositions.begin() + i);
             i = -1;
         }
     }

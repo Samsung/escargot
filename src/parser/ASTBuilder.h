@@ -100,7 +100,7 @@ namespace Escargot {
     F(ImportNamespaceSpecifier)               \
     F(ImportSpecifier)                        \
     F(InitializeParameterExpression)          \
-    F(LabeledStatement)                       \
+    F(LabelledStatement)                      \
     F(Literal)                                \
     F(MemberExpression)                       \
     F(MetaProperty)                           \

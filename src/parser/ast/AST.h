@@ -104,7 +104,7 @@
 #include "ImportSpecifierNode.h"
 #include "ImportDefaultSpecifierNode.h"
 #include "ImportNamespaceSpecifierNode.h"
-#include "LabeledStatementNode.h"
+#include "LabelledStatementNode.h"
 #include "LiteralNode.h"
 #include "MemberExpressionNode.h"
 #include "MetaPropertyNode.h"

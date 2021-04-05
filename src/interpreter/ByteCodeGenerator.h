@@ -92,8 +92,8 @@ struct ByteCodeGenerateContext {
         , m_positionToContinue(0)
         , m_complexJumpBreakIgnoreCount(0)
         , m_complexJumpContinueIgnoreCount(0)
-        , m_complexJumpLabeledBreakIgnoreCount(0)
-        , m_complexJumpLabeledContinueIgnoreCount(0)
+        , m_complexJumpLabelledBreakIgnoreCount(0)
+        , m_complexJumpLabelledContinueIgnoreCount(0)
         , m_lexicalBlockIndex(0)
         , m_openedNonBlockEnvCount(0)
         , m_classInfo()
@@ -130,8 +130,8 @@ struct ByteCodeGenerateContext {
         , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
         , m_complexJumpBreakIgnoreCount(contextBefore.m_complexJumpBreakIgnoreCount)
         , m_complexJumpContinueIgnoreCount(contextBefore.m_complexJumpContinueIgnoreCount)
-        , m_complexJumpLabeledBreakIgnoreCount(contextBefore.m_complexJumpLabeledBreakIgnoreCount)
-        , m_complexJumpLabeledContinueIgnoreCount(contextBefore.m_complexJumpLabeledContinueIgnoreCount)
+        , m_complexJumpLabelledBreakIgnoreCount(contextBefore.m_complexJumpLabelledBreakIgnoreCount)
+        , m_complexJumpLabelledContinueIgnoreCount(contextBefore.m_complexJumpLabelledContinueIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_openedNonBlockEnvCount(contextBefore.m_openedNonBlockEnvCount)
         , m_classInfo(contextBefore.m_classInfo)
@@ -150,8 +150,8 @@ struct ByteCodeGenerateContext {
     {
         ctx.m_breakStatementPositions.insert(ctx.m_breakStatementPositions.end(), m_breakStatementPositions.begin(), m_breakStatementPositions.end());
         ctx.m_continueStatementPositions.insert(ctx.m_continueStatementPositions.end(), m_continueStatementPositions.begin(), m_continueStatementPositions.end());
-        ctx.m_labeledBreakStatmentPositions.insert(ctx.m_labeledBreakStatmentPositions.end(), m_labeledBreakStatmentPositions.begin(), m_labeledBreakStatmentPositions.end());
-        ctx.m_labeledContinueStatmentPositions.insert(ctx.m_labeledContinueStatmentPositions.end(), m_labeledContinueStatmentPositions.begin(), m_labeledContinueStatmentPositions.end());
+        ctx.m_labelledBreakStatmentPositions.insert(ctx.m_labelledBreakStatmentPositions.end(), m_labelledBreakStatmentPositions.begin(), m_labelledBreakStatmentPositions.end());
+        ctx.m_labelledContinueStatmentPositions.insert(ctx.m_labelledContinueStatmentPositions.end(), m_labelledContinueStatmentPositions.begin(), m_labelledContinueStatmentPositions.end());
         ctx.m_complexCaseStatementPositions.insert(m_complexCaseStatementPositions.begin(), m_complexCaseStatementPositions.end());
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
@@ -159,8 +159,8 @@ struct ByteCodeGenerateContext {
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();
-        m_labeledBreakStatmentPositions.clear();
-        m_labeledContinueStatmentPositions.clear();
+        m_labelledBreakStatmentPositions.clear();
+        m_labelledContinueStatmentPositions.clear();
         m_complexCaseStatementPositions.clear();
 
         ctx.m_recursiveStatementStack = std::move(m_recursiveStatementStack);
@@ -171,9 +171,9 @@ struct ByteCodeGenerateContext {
         m_breakStatementPositions.push_back(pos);
     }
 
-    void pushLabeledBreakPositions(size_t pos, String* lbl)
+    void pushLabelledBreakPositions(size_t pos, String* lbl)
     {
-        m_labeledBreakStatmentPositions.push_back(std::make_pair(lbl, pos));
+        m_labelledBreakStatmentPositions.push_back(std::make_pair(lbl, pos));
     }
 
     void pushContinuePositions(size_t pos)
@@ -181,9 +181,9 @@ struct ByteCodeGenerateContext {
         m_continueStatementPositions.push_back(pos);
     }
 
-    void pushLabeledContinuePositions(size_t pos, String* lbl)
+    void pushLabelledContinuePositions(size_t pos, String* lbl)
     {
-        m_labeledContinueStatmentPositions.push_back(std::make_pair(lbl, pos));
+        m_labelledContinueStatmentPositions.push_back(std::make_pair(lbl, pos));
     }
 
     void registerJumpPositionsToComplexCase(size_t frontlimit)
@@ -205,18 +205,18 @@ struct ByteCodeGenerateContext {
             }
         }
 
-        for (unsigned i = 0; i < m_labeledBreakStatmentPositions.size(); i++) {
-            if (m_labeledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() - m_complexJumpLabeledBreakIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabeledBreakIgnoreCount));
+        for (unsigned i = 0; i < m_labelledBreakStatmentPositions.size(); i++) {
+            if (m_labelledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
+                if (tryCatchWithBlockStatementCount() - m_complexJumpLabelledBreakIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabelledBreakIgnoreCount));
                 }
             }
         }
 
-        for (unsigned i = 0; i < m_labeledContinueStatmentPositions.size(); i++) {
-            if (m_labeledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labeledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() - m_complexJumpLabeledContinueIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labeledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabeledContinueIgnoreCount));
+        for (unsigned i = 0; i < m_labelledContinueStatmentPositions.size(); i++) {
+            if (m_labelledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
+                if (tryCatchWithBlockStatementCount() - m_complexJumpLabelledContinueIgnoreCount > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabelledContinueIgnoreCount));
                 }
             }
         }
@@ -261,9 +261,9 @@ struct ByteCodeGenerateContext {
     }
 
     void consumeBreakPositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);
-    void consumeLabeledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
+    void consumeLabelledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
     void consumeContinuePositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);
-    void consumeLabeledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
+    void consumeLabelledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
     void morphJumpPositionIntoComplexCase(ByteCodeBlock* cb, size_t codePos, size_t outerLimitCount = SIZE_MAX);
 
     bool shouldCareScriptExecutionResult() const
@@ -352,8 +352,8 @@ struct ByteCodeGenerateContext {
     std::vector<AtomicString> m_initializedParameterNames;
     std::vector<size_t> m_breakStatementPositions;
     std::vector<size_t> m_continueStatementPositions;
-    std::vector<std::pair<String*, size_t>> m_labeledBreakStatmentPositions;
-    std::vector<std::pair<String*, size_t>> m_labeledContinueStatmentPositions;
+    std::vector<std::pair<String*, size_t>> m_labelledBreakStatmentPositions;
+    std::vector<std::pair<String*, size_t>> m_labelledContinueStatmentPositions;
     std::vector<size_t> m_getObjectCodePositions;
     // For Label Statement
     size_t m_positionToContinue;
@@ -368,8 +368,8 @@ struct ByteCodeGenerateContext {
     std::vector<std::pair<RecursiveStatementKind, size_t>> m_recursiveStatementStack;
     int m_complexJumpBreakIgnoreCount;
     int m_complexJumpContinueIgnoreCount;
-    int m_complexJumpLabeledBreakIgnoreCount;
-    int m_complexJumpLabeledContinueIgnoreCount;
+    int m_complexJumpLabelledBreakIgnoreCount;
+    int m_complexJumpLabelledContinueIgnoreCount;
     size_t m_lexicalBlockIndex;
     size_t m_openedNonBlockEnvCount;
     ClassContextInformation m_classInfo;
