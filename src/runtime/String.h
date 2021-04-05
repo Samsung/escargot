@@ -607,6 +607,17 @@ public:
         initBufferAccessData(stringData);
     }
 
+    enum FromGCBuffer {
+        FromGCBufferTag
+    };
+    ASCIIString(char* str, size_t len, FromGCBuffer)
+        : String()
+    {
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = len;
+        m_bufferData.buffer = str;
+    }
+
     virtual char16_t charAt(const size_t idx) const override
     {
         return m_bufferData.uncheckedCharAtFor8Bit(idx);

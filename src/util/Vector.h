@@ -452,6 +452,14 @@ public:
         }
     }
 
+    T* takeBuffer()
+    {
+        T* buf = m_buffer;
+        m_buffer = nullptr;
+        clear();
+        return buf;
+    }
+
     void* operator new(size_t size)
     {
         static bool typeInited = false;

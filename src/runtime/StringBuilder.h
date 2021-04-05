@@ -77,7 +77,9 @@ protected:
     bool m_has8BitContent : 1;
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
-    Vector<StringBuilderPiece, GCUtil::gc_malloc_allocator<StringBuilderPiece>, ComputeReservedCapacityFunctionWithLog2<>> m_pieces;
+    Vector<StringBuilderPiece, GCUtil::gc_malloc_allocator<StringBuilderPiece>,
+           ComputeReservedCapacityFunctionWithLog2<200>>
+        m_pieces;
 };
 
 template <const size_t InlineStorageSize>
