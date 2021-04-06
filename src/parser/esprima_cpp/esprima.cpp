@@ -3805,7 +3805,6 @@ public:
         ASTNode test = nullptr;
         ASTNode consequent = nullptr;
         ASTNode alternate = nullptr;
-        bool allowFunctionDeclaration = !this->context->strict;
 
         this->expectKeyword(IfKeyword);
         MetaNode node = this->createNode();
@@ -3815,19 +3814,28 @@ public:
 
         this->expect(RightParenthesis);
 
+        bool allowFunctionDeclaration = !this->context->strict;
         bool allowLexicalDeclarationBefore = this->context->allowLexicalDeclaration;
         this->context->allowLexicalDeclaration = false;
 
-        ParserBlockContext blockContext;
-        bool shouldOpenBlock = allowFunctionDeclaration && this->matchKeyword(KeywordKind::FunctionKeyword);
-
-        consequent = shouldOpenBlock ? this->parseSingleStatementNodeAsBlockStatement(builder, allowFunctionDeclaration) : this->parseStatement(builder, allowFunctionDeclaration);
+        if (allowFunctionDeclaration && this->matchKeyword(KeywordKind::FunctionKeyword)) {
+            // In non-strict mode, functions can declared as the body of an if statement
+            // https://tc39.es/ecma262/#sec-labelled-function-declarations
+            consequent = this->parseSingleFunctionDeclarationAsBlockStatement(builder);
+        } else {
+            consequent = this->parseStatement(builder, false, true);
+        }
 
         this->context->allowLexicalDeclaration = false;
         if (this->matchKeyword(ElseKeyword)) {
             this->nextToken();
-            shouldOpenBlock = allowFunctionDeclaration && this->matchKeyword(KeywordKind::FunctionKeyword);
-            alternate = shouldOpenBlock ? this->parseSingleStatementNodeAsBlockStatement(builder, allowFunctionDeclaration) : this->parseStatement(builder, allowFunctionDeclaration);
+            if (allowFunctionDeclaration && this->matchKeyword(KeywordKind::FunctionKeyword)) {
+                // In non-strict mode, functions can declared as the body of an else statement
+                // https://tc39.es/ecma262/#sec-labelled-function-declarations
+                alternate = this->parseSingleFunctionDeclarationAsBlockStatement(builder);
+            } else {
+                alternate = this->parseStatement(builder, false, true);
+            }
         }
 
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
@@ -3848,7 +3856,7 @@ public:
         this->context->allowLexicalDeclaration = false;
         this->context->inIteration = true;
 
-        ASTNode body = this->parseStatement(builder, false, false);
+        ASTNode body = this->parseStatement(builder, false, true);
         this->context->inIteration = previousInIteration;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
 
@@ -3883,7 +3891,7 @@ public:
 
         bool previousInIteration = this->context->inIteration;
         this->context->inIteration = true;
-        ASTNode body = this->parseStatement(builder, false, false);
+        ASTNode body = this->parseStatement(builder, false, true);
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
         this->context->allowLexicalDeclaration = allowLexicalDeclarationBefore;
@@ -4141,7 +4149,7 @@ public:
         this->context->inIteration = true;
         ASTNode body = nullptr;
 
-        body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false, false);
+        body = this->isolateCoverGrammar(builder, &Parser::parseStatement<ASTBuilder>, false, true);
 
         this->context->inIteration = previousInIteration;
         this->context->inLoop = prevInLoop;
@@ -4294,7 +4302,7 @@ public:
         bool prevInWith = this->context->inWith;
         this->context->inWith = true;
 
-        ASTNode body = this->parseStatement(builder, false, false);
+        ASTNode body = this->parseStatement(builder, false, true);
         this->context->inWith = prevInWith;
 
         return this->finalize(node, builder.createWithStatementNode(object, body));
@@ -4390,7 +4398,7 @@ public:
     // ECMA-262 13.13 Labelled Statements
 
     template <class ASTBuilder>
-    ASTNode parseLabelledStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true, size_t multiLabelCount = 1)
+    ASTNode parseLabelledStatement(ASTBuilder& builder, bool allowLabelledFunction = true, size_t multiLabelCount = 1)
     {
         MetaNode node = this->createNode();
         ASTNode expr = nullptr;
@@ -4414,7 +4422,7 @@ public:
             this->context->labelSet.push_back(std::make_pair(name, false));
 
             if (this->lookahead.type == IdentifierToken && !this->matchAsyncFunction()) {
-                ASTNode labelledBody = this->parseLabelledStatement(builder, allowFunctionDeclaration, multiLabelCount + 1);
+                ASTNode labelledBody = this->parseLabelledStatement(builder, allowLabelledFunction, multiLabelCount + 1);
                 statement = builder.createLabelledStatementNode(labelledBody, name.string());
             } else {
                 if (this->matchKeyword(DoKeyword) || this->matchKeyword(ForKeyword) || this->matchKeyword(WhileKeyword)) {
@@ -4427,7 +4435,7 @@ public:
                     }
                 }
 
-                ASTNode labelledBody = this->parseStatement(builder, allowFunctionDeclaration && !this->context->strict, false);
+                ASTNode labelledBody = this->parseStatement(builder, allowLabelledFunction && !this->context->strict, true);
                 statement = builder.createLabelledStatementNode(labelledBody, name.string());
             }
             removeLabel(name);
@@ -4561,13 +4569,15 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseSingleStatementNodeAsBlockStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true)
+    ASTNode parseSingleFunctionDeclarationAsBlockStatement(ASTBuilder& builder)
     {
+        // parse single normal function declaration as a block statement
         ParserBlockContext blockContext;
         openBlock(blockContext);
 
         ASTStatementContainer block = builder.createStatementContainer();
-        block->appendChild(this->parseStatement(builder, allowFunctionDeclaration), nullptr);
+        // async or generator function declaration is not allowed
+        block->appendChild(this->parseFunctionDeclaration(builder, true), nullptr);
 
         closeBlock(blockContext);
 
@@ -4577,7 +4587,7 @@ public:
 
     // ECMA-262 13 Statements
     template <class ASTBuilder>
-    ASTNode parseStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true, bool allowAsyncGeneratorClassDeclaration = true)
+    ASTNode parseStatement(ASTBuilder& builder, bool allowFunctionDeclaration = true, bool shouldTopLevelDeclaration = false)
     {
         checkRecursiveLimit();
         ASTNode statement = nullptr;
@@ -4606,7 +4616,7 @@ public:
             break;
         }
         case Token::IdentifierToken:
-            statement = this->matchAsyncFunction() ? this->parseFunctionDeclaration(builder, allowAsyncGeneratorClassDeclaration) : this->parseLabelledStatement(builder, allowFunctionDeclaration);
+            statement = this->matchAsyncFunction() ? this->parseFunctionDeclaration(builder, shouldTopLevelDeclaration) : this->parseLabelledStatement(builder, allowFunctionDeclaration);
             break;
         case Token::KeywordToken:
             switch (this->lookahead.valueKeywordKind) {
@@ -4629,7 +4639,7 @@ public:
                 if (!allowFunctionDeclaration) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
-                statement = this->parseFunctionDeclaration(builder, allowAsyncGeneratorClassDeclaration);
+                statement = this->parseFunctionDeclaration(builder, shouldTopLevelDeclaration);
                 break;
             }
             case IfKeyword:
@@ -4658,7 +4668,7 @@ public:
                 statement = this->parseWithStatement(builder);
                 break;
             case ClassKeyword: {
-                if (!allowAsyncGeneratorClassDeclaration) {
+                if (shouldTopLevelDeclaration) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 statement = this->parseClassDeclaration(builder);
@@ -4869,7 +4879,7 @@ public:
     }
 
     template <class ASTBuilder, bool treatEmptyNameAsDefault = false>
-    ASTNode parseFunctionDeclaration(ASTBuilder& builder, bool allowAsyncGeneratorDeclaration = true)
+    ASTNode parseFunctionDeclaration(ASTBuilder& builder, bool disallowAsyncOrGenerator = false)
     {
         MetaNode node = this->createNode();
         bool isAsync = this->matchContextualKeyword("async");
@@ -4884,7 +4894,7 @@ public:
             this->nextToken();
         }
 
-        if (UNLIKELY(!allowAsyncGeneratorDeclaration && (isAsync || isGenerator))) {
+        if (UNLIKELY(disallowAsyncOrGenerator && (isAsync || isGenerator))) {
             this->throwError(Messages::AsyncGeneratorFuncDeclLocationError);
         }
 
