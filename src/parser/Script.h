@@ -35,7 +35,7 @@ class Script : public gc {
     friend class ModuleNamespaceObject;
 
 public:
-    // http://www.ecma-international.org/ecma-262/6.0/#table-39
+    // https://tc39.es/ecma262/#importentry-record
     struct ImportEntry {
         // [[ModuleRequest]]   String  String value of the ModuleSpecifier of the ImportDeclaration.
         String* m_moduleRequest;
@@ -51,7 +51,7 @@ public:
     };
     typedef Vector<ImportEntry, GCUtil::gc_malloc_allocator<ImportEntry>> ImportEntryVector;
 
-    // http://www.ecma-international.org/ecma-262/6.0/#table-41
+    // https://tc39.es/ecma262/#exportentry-record
     struct ExportEntry {
         // [[ExportName]]  String  The name used to export this binding by this module.
         Optional<AtomicString> m_exportName;
@@ -67,14 +67,14 @@ public:
     struct ModuleData : public gc {
         bool m_didCallLoadedCallback;
         // Abstract Module Records
-        // https://www.ecma-international.org/ecma-262/#sec-abstract-module-records
+        // https://tc39.es/ecma262/#sec-abstract-module-records
         // [[Environment]]
         ModuleEnvironmentRecord* m_moduleRecord; // this record contains namespace object
         // [[Namespace]]
         Optional<ModuleNamespaceObject*> m_namespace;
 
         // Source Text Module Records
-        // https://www.ecma-international.org/ecma-262/#sec-source-text-module-records
+        // https://tc39.es/ecma262/#sec-source-text-module-records
         // [[ImportEntries]]
         ImportEntryVector m_importEntries;
         // [[LocalExportEntries]]
@@ -85,19 +85,18 @@ public:
         ExportEntryVector m_starExportEntries;
 
         // Cyclic Module Records
-        // https://www.ecma-international.org/ecma-262/#sec-cyclic-module-records
+        // https://tc39.es/ecma262/#table-cyclic-module-fields
         enum ModuleStatus {
-            Uninstantiated,
-            Instantiating,
-            Instantiated,
+            Unlinked,
+            Linking,
+            Linked,
             Evaluating,
             Evaluated
         };
         // [[Status]]
         ModuleStatus m_status;
         // [[EvaluationError]]
-        bool m_hasEvaluationError;
-        EncodedValue m_evaluationError;
+        Optional<EncodedValue> m_evaluationError;
         // [[DFSIndex]]
         Optional<uint32_t> m_dfsIndex;
         // [[DFSAncestorIndex]]
@@ -110,8 +109,7 @@ public:
         ModuleData()
             : m_didCallLoadedCallback(false)
             , m_moduleRecord(nullptr)
-            , m_status(Uninstantiated)
-            , m_hasEvaluationError(false)
+            , m_status(Unlinked)
         {
         }
     };
@@ -163,10 +161,10 @@ public:
     bool wasThereErrorOnModuleEvaluation();
     Value moduleEvaluationError();
 
-    // https://www.ecma-international.org/ecma-262/#sec-meta-properties-runtime-semantics-evaluation
+    // https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
     Object* importMetaProperty(ExecutionState& state);
 
-    // https://www.ecma-international.org/ecma-262/#sec-getmodulenamespace
+    // https://tc39.es/ecma262/#sec-getmodulenamespace
     ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
 
 private:
@@ -196,14 +194,14 @@ private:
         return resolveExport(state, exportName, resolveSet);
     }
 
-    // https://www.ecma-international.org/ecma-262/#sec-resolveexport
+    // https://tc39.es/ecma262/#sec-resolveexport
     ResolveExportResult resolveExport(ExecutionState& state, AtomicString exportName, std::vector<std::tuple<Script*, AtomicString>>& resolveSet);
     AtomicStringVector exportedNames(ExecutionState& state)
     {
         std::vector<Script*> exportStarSet;
         return exportedNames(state, exportStarSet);
     }
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-getexportednames
+    // https://tc39.es/ecma262/#sec-getexportednames
     AtomicStringVector exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet);
 
     struct ModuleExecutionResult {
@@ -216,22 +214,22 @@ private:
         {
         }
     };
-    // https://www.ecma-international.org/ecma-262/#sec-moduledeclarationinstantiation
-    ModuleExecutionResult moduleInstantiate(ExecutionState& state);
+    // https://tc39.es/ecma262/#sec-moduledeclarationlinking
+    ModuleExecutionResult moduleLinking(ExecutionState& state);
 
-    // https://www.ecma-international.org/ecma-262/#sec-innermoduleinstantiation
-    ModuleExecutionResult innerModuleInstantiation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
+    // https://tc39.es/ecma262/#sec-InnerModuleLinking
+    ModuleExecutionResult innerModuleLinking(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
 
-    // https://www.ecma-international.org/ecma-262/#sec-moduleevaluation
+    // https://tc39.es/ecma262/#sec-moduleevaluation
     ModuleExecutionResult moduleEvaluate(ExecutionState& state);
 
-    // https://www.ecma-international.org/ecma-262/#sec-innermoduleevaluation
+    // https://tc39.es/ecma262/#sec-innermoduleevaluation
     ModuleExecutionResult innerModuleEvaluation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
 
-    // https://www.ecma-international.org/ecma-262/#sec-source-text-module-record-initialize-environment
+    // https://tc39.es/ecma262/#sec-source-text-module-record-initialize-environment
     Value moduleInitializeEnvironment(ExecutionState& state);
 
-    // https://www.ecma-international.org/ecma-262/#sec-source-text-module-record-execute-module
+    // https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
     // returns gotExecption and Value
     ModuleExecutionResult moduleExecute(ExecutionState& state);
 
