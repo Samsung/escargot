@@ -221,6 +221,18 @@ struct ScanRegExpResult {
     String* flags;
 };
 
+struct ScanState {
+    ScanState(size_t idx, size_t lineNum, size_t lineSt)
+        : index(idx)
+        , lineNumber(lineNum)
+        , lineStart(lineSt)
+    {
+    }
+    size_t index;
+    size_t lineNumber;
+    size_t lineStart;
+};
+
 class ErrorHandler {
 public:
     ErrorHandler()
@@ -496,6 +508,18 @@ public:
 
     // Scanner always allocated on the stack
     MAKE_STACK_ALLOCATED();
+
+    ScanState saveState()
+    {
+        return ScanState(this->index, this->lineNumber, this->lineStart);
+    }
+
+    void restoreState(ScanState& state)
+    {
+        this->index = state.index;
+        this->lineNumber = state.lineNumber;
+        this->lineStart = state.lineStart;
+    }
 
     bool eof()
     {
