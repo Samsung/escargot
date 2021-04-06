@@ -5231,13 +5231,11 @@
     <test id="language/statements/class/elements/wrapped-in-sc-static-private-methods-with-fields"><reason>TODO</reason></test>
     <test id="language/statements/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/statements/class/subclass-builtins/subclass-SharedArrayBuffer"><reason>TODO</reason></test>
-    <test id="language/statements/do-while/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-non-callable"><reason>TODO</reason></test>
-    <test id="language/statements/for-await-of/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/for-in/dstr/array-elem-nested-array-invalid"><reason>TODO</reason></test>
     <test id="language/statements/for-in/dstr/array-elem-nested-obj-invalid"><reason>TODO</reason></test>
     <test id="language/statements/for-in/dstr/array-elem-target-simple-strict"><reason>TODO</reason></test>
@@ -5256,7 +5254,6 @@
     <test id="language/statements/for-in/dstr/obj-rest-not-last-element-invalid"><reason>TODO</reason></test>
     <test id="language/statements/for-in/head-lhs-invalid-asnmt-ptrn-ary"><reason>TODO</reason></test>
     <test id="language/statements/for-in/head-lhs-invalid-asnmt-ptrn-obj"><reason>TODO</reason></test>
-    <test id="language/statements/for-in/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-elem-target-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/array-rest-init"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid"><reason>TODO</reason></test>
@@ -5273,8 +5270,6 @@
     <test id="language/statements/for-of/head-lhs-async-dot"><reason>TODO</reason></test>
     <test id="language/statements/for-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/for-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/let-array-with-newline"><reason>TODO</reason></test>
-    <test id="language/statements/for/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-const-body"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-let-body"><reason>TODO</reason></test>
     <test id="language/statements/for/tco-lhs-body"><reason>TODO</reason></test>
@@ -5286,10 +5281,8 @@
     <test id="language/statements/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/statements/generators/unscopables-with"><reason>TODO</reason></test>
     <test id="language/statements/generators/unscopables-with-in-nested-fn"><reason>TODO</reason></test>
-    <test id="language/statements/if/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/if/tco-else-body"><reason>TODO</reason></test>
     <test id="language/statements/if/tco-if-body"><reason>TODO</reason></test>
-    <test id="language/statements/labeled/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/labeled/tco"><reason>TODO</reason></test>
     <test id="language/statements/labeled/value-await-module-escaped"><reason>TODO</reason></test>
     <test id="language/statements/return/tco"><reason>TODO</reason></test>
@@ -5303,7 +5296,5 @@
     <test id="language/statements/try/tco-catch"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-catch-finally"><reason>TODO</reason></test>
     <test id="language/statements/try/tco-finally"><reason>TODO</reason></test>
-    <test id="language/statements/while/let-array-with-newline"><reason>TODO</reason></test>
     <test id="language/statements/while/tco-body"><reason>TODO</reason></test>
-    <test id="language/statements/with/let-array-with-newline"><reason>TODO</reason></test>
 </excludeList>

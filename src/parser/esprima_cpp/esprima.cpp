@@ -48,7 +48,6 @@
 #include "parser/Script.h"
 #include "parser/ASTBuilder.h"
 #include "parser/esprima_cpp/ParserContext.h"
-#include "util/BloomFilter.h"
 
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
 
@@ -83,8 +82,6 @@
     this->subCodeBlockIndex = oldSubCodeBlockIndex;
 
 using namespace Escargot::EscargotLexer;
-
-typedef Escargot::BloomFilter<64> BlockUsingNameBloomFilter;
 
 namespace Escargot {
 namespace esprima {
@@ -1466,17 +1463,29 @@ public:
     {
         bool match = this->matchContextualKeyword("async");
         if (match) {
-            auto previousIndex = this->scanner->index;
-            auto previousLineNumber = this->scanner->lineNumber;
-            auto previousLineStart = this->scanner->lineStart;
+            ScanState state = this->scanner->saveState();
             this->collectComments();
             ALLOC_TOKEN(next);
             this->scanner->lex(next);
-            this->scanner->index = previousIndex;
-            this->scanner->lineNumber = previousLineNumber;
-            this->scanner->lineStart = previousLineStart;
+            this->scanner->restoreState(state);
 
-            match = (previousLineNumber == next->lineNumber) && (next->type == Token::KeywordToken) && (next->valueKeywordKind == KeywordKind::FunctionKeyword);
+            match = (state.lineNumber == next->lineNumber) && (next->type == Token::KeywordToken) && (next->valueKeywordKind == KeywordKind::FunctionKeyword);
+        }
+
+        return match;
+    }
+
+    bool matchLetArray()
+    {
+        bool match = this->matchKeyword(LetKeyword);
+        if (match) {
+            ScanState state = this->scanner->saveState();
+            this->collectComments();
+            ALLOC_TOKEN(next);
+            this->scanner->lex(next);
+            this->scanner->restoreState(state);
+
+            match = (next->type == Token::PunctuatorToken) && (next->valuePunctuatorKind == LeftSquareBracket);
         }
 
         return match;
@@ -3594,15 +3603,11 @@ public:
 
     bool isLexicalDeclaration()
     {
-        auto previousIndex = this->scanner->index;
-        auto previousLineNumber = this->scanner->lineNumber;
-        auto previousLineStart = this->scanner->lineStart;
+        ScanState state = this->scanner->saveState();
         this->collectComments();
         ALLOC_TOKEN(next);
         this->scanner->lex(next);
-        this->scanner->index = previousIndex;
-        this->scanner->lineNumber = previousLineNumber;
-        this->scanner->lineStart = previousLineStart;
+        this->scanner->restoreState(state);
 
         return (next->type == Token::IdentifierToken) || (next->type == Token::PunctuatorToken && next->valuePunctuatorKind == PunctuatorKind::LeftSquareBracket) || (next->type == Token::PunctuatorToken && next->valuePunctuatorKind == PunctuatorKind::LeftBrace) || (next->type == Token::KeywordToken && next->valueKeywordKind == KeywordKind::LetKeyword) || (next->type == Token::KeywordToken && next->valueKeywordKind == KeywordKind::YieldKeyword);
     }
@@ -4636,7 +4641,7 @@ public:
                 statement = this->parseForStatement(builder);
                 break;
             case FunctionKeyword: {
-                if (!allowFunctionDeclaration) {
+                if (UNLIKELY(!allowFunctionDeclaration)) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 statement = this->parseFunctionDeclaration(builder, shouldTopLevelDeclaration);
@@ -4658,6 +4663,14 @@ public:
                 statement = this->parseTryStatement(builder);
                 break;
             // Lexical declaration (let, const) cannot appear in a single-statement context
+            case LetKeyword: {
+                // check let array e.g. let [a]
+                if (UNLIKELY(this->matchLetArray())) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+                statement = this->parseExpressionStatement(builder);
+                break;
+            }
             case VarKeyword:
                 statement = this->parseVariableStatement(builder, this->lookahead.valueKeywordKind);
                 break;
@@ -4668,7 +4681,7 @@ public:
                 statement = this->parseWithStatement(builder);
                 break;
             case ClassKeyword: {
-                if (shouldTopLevelDeclaration) {
+                if (UNLIKELY(shouldTopLevelDeclaration)) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 statement = this->parseClassDeclaration(builder);
