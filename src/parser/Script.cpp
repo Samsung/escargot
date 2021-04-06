@@ -54,19 +54,22 @@ void* Script::operator new(size_t size)
 bool Script::isExecuted()
 {
     if (isModule()) {
-        return m_moduleData->m_status != ModuleData::ModuleStatus::Uninstantiated;
+        return m_moduleData->m_status != ModuleData::ModuleStatus::Unlinked;
     }
     return m_topCodeBlock->byteCodeBlock() == nullptr;
 }
 
 bool Script::wasThereErrorOnModuleEvaluation()
 {
-    return m_moduleData && m_moduleData->m_hasEvaluationError;
+    return m_moduleData && m_moduleData->m_evaluationError.hasValue();
 }
 
 Value Script::moduleEvaluationError()
 {
-    return m_moduleData ? Value(m_moduleData->m_evaluationError) : Value();
+    if (m_moduleData && m_moduleData->m_evaluationError.hasValue()) {
+        return m_moduleData->m_evaluationError.value();
+    }
+    return Value();
 }
 
 Context* Script::context()
@@ -325,7 +328,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         }
 
         // https://www.ecma-international.org/ecma-262/#sec-toplevelmoduleevaluationjob
-        auto result = moduleInstantiate(state);
+        auto result = moduleLinking(state);
         if (result.gotExecption) {
             throw result.value;
         }
@@ -580,28 +583,28 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     return resultValue;
 }
 
-Script::ModuleExecutionResult Script::moduleInstantiate(ExecutionState& state)
+Script::ModuleExecutionResult Script::moduleLinking(ExecutionState& state)
 {
-    // On success, Instantiate transitions this module's [[Status]] from "uninstantiated" to "instantiated". On failure, an exception is thrown and this module's [[Status]] remains "uninstantiated".
+    // On success, Instantiate transitions this module's [[Status]] from "unlinked" to "linked". On failure, an exception is thrown and this module's [[Status]] remains "unlinked".
     ASSERT(isModule());
 
     // Let module be this Cyclic Module Record.
-    // Assert: module.[[Status]] is not "instantiating" or "evaluating".
-    ASSERT(moduleData()->m_status != ModuleData::Instantiating && moduleData()->m_status != ModuleData::Evaluating);
+    // Assert: module.[[Status]] is not "linking" or "evaluating".
+    ASSERT(moduleData()->m_status != ModuleData::Linking && moduleData()->m_status != ModuleData::Evaluating);
     // Let stack be a new empty List.
     std::vector<Script*> stack;
     // Let result be InnerModuleInstantiation(module, stack, 0).
-    ModuleExecutionResult result = innerModuleInstantiation(state, stack, 0);
+    ModuleExecutionResult result = innerModuleLinking(state, stack, 0);
     // If result is an abrupt completion, then
     if (result.gotExecption) {
         // For each module m in stack, do
         for (size_t i = 0; i < stack.size(); i++) {
-            // Assert: m.[[Status]] is "instantiating".
+            // Assert: m.[[Status]] is "linking".
             ASSERT(stack[i]->isModule());
             ModuleData* m = stack[i]->moduleData();
-            ASSERT(m->m_status == ModuleData::Instantiating);
-            // Set m.[[Status]] to "uninstantiated".
-            m->m_status = ModuleData::Uninstantiated;
+            ASSERT(m->m_status == ModuleData::Linking);
+            // Set m.[[Status]] to "unlinked".
+            m->m_status = ModuleData::Unlinked;
             // Set m.[[Environment]] to undefined.
             m->m_moduleRecord = nullptr;
             // Set m.[[DFSIndex]] to undefined.
@@ -609,37 +612,37 @@ Script::ModuleExecutionResult Script::moduleInstantiate(ExecutionState& state)
             // Set m.[[DFSAncestorIndex]] to undefined.
             m->m_dfsAncestorIndex.reset();
         }
-        // Assert: module.[[Status]] is "uninstantiated".
-        ASSERT(moduleData()->m_status == ModuleData::Uninstantiated);
+        // Assert: module.[[Status]] is "unlinked".
+        ASSERT(moduleData()->m_status == ModuleData::Unlinked);
         // Return result.
         return result;
     }
-    // Assert: module.[[Status]] is "instantiated" or "evaluated".
-    ASSERT(moduleData()->m_status == ModuleData::Instantiated || moduleData()->m_status == ModuleData::Evaluated);
+    // Assert: module.[[Status]] is "linked" or "evaluated".
+    ASSERT(moduleData()->m_status == ModuleData::Linked || moduleData()->m_status == ModuleData::Evaluated);
     // Assert: stack is empty.
     ASSERT(stack.empty());
     // Return undefined.
     return ModuleExecutionResult(false, Value());
 }
 
-Script::ModuleExecutionResult Script::innerModuleInstantiation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index)
+Script::ModuleExecutionResult Script::innerModuleLinking(ExecutionState& state, std::vector<Script*>& stack, uint32_t index)
 {
     // If module is not a Cyclic Module Record, then
     //    Perform ? module.Instantiate().
     //    Return index.
     ASSERT(isModule());
 
-    // If module.[[Status]] is "instantiating", "instantiated", or "evaluated", then
+    // If module.[[Status]] is "linking", "linked", or "evaluated", then
     ModuleData* md = moduleData();
-    if (md->m_status == ModuleData::Instantiating || md->m_status == ModuleData::Instantiated || md->m_status == ModuleData::Evaluated) {
+    if (md->m_status == ModuleData::Linking || md->m_status == ModuleData::Linked || md->m_status == ModuleData::Evaluated) {
         // Return index.
         return Script::ModuleExecutionResult(false, Value(index));
     }
 
-    // Assert: module.[[Status]] is "uninstantiated".
-    ASSERT(md->m_status == ModuleData::Uninstantiated);
-    // Set module.[[Status]] to "instantiating".
-    md->m_status = ModuleData::Instantiating;
+    // Assert: module.[[Status]] is "unlinked".
+    ASSERT(md->m_status == ModuleData::Unlinked);
+    // Set module.[[Status]] to "linking".
+    md->m_status = ModuleData::Linking;
     // Set module.[[DFSIndex]] to index.
     md->m_dfsIndex = index;
     // Set module.[[DFSAncestorIndex]] to index.
@@ -656,16 +659,16 @@ Script::ModuleExecutionResult Script::innerModuleInstantiation(ExecutionState& s
         Script* requiredModule = loadModuleFromScript(state, moduleRequest(i));
         // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
         // Set index to ? innerModuleInstantiation(requiredModule, stack, index).
-        auto result = requiredModule->innerModuleInstantiation(state, stack, index);
+        auto result = requiredModule->innerModuleLinking(state, stack, index);
         if (result.gotExecption) {
             return result;
         }
         index = result.value.asNumber();
 
-        // Assert: requiredModule.[[Status]] is either "instantiating", "instantiated", or "evaluated".
-        ASSERT(requiredModule->moduleData()->m_status == ModuleData::Instantiating || requiredModule->moduleData()->m_status == ModuleData::Instantiated || requiredModule->moduleData()->m_status == ModuleData::Evaluated);
-        // Assert: requiredModule.[[Status]] is "instantiating" if and only if requiredModule is in stack.
-        if (requiredModule->moduleData()->m_status == ModuleData::Instantiating) {
+        // Assert: requiredModule.[[Status]] is either "linking", "linked", or "evaluated".
+        ASSERT(requiredModule->moduleData()->m_status == ModuleData::Linking || requiredModule->moduleData()->m_status == ModuleData::Linked || requiredModule->moduleData()->m_status == ModuleData::Evaluated);
+        // Assert: requiredModule.[[Status]] is "linking" if and only if requiredModule is in stack.
+        if (requiredModule->moduleData()->m_status == ModuleData::Linking) {
             bool onStack = false;
             for (size_t j = 0; j < stack.size(); j++) {
                 if (stack[j] == requiredModule) {
@@ -676,8 +679,8 @@ Script::ModuleExecutionResult Script::innerModuleInstantiation(ExecutionState& s
             ASSERT(onStack);
         }
 
-        // If requiredModule.[[Status]] is "instantiating", then
-        if (requiredModule->moduleData()->m_status == ModuleData::Instantiating) {
+        // If requiredModule.[[Status]] is "linking", then
+        if (requiredModule->moduleData()->m_status == ModuleData::Linking) {
             // Set module.[[DFSAncestorIndex]] to min(module.[[DFSAncestorIndex]], requiredModule.[[DFSAncestorIndex]]).
             md->m_dfsAncestorIndex = std::min(md->m_dfsAncestorIndex.value(), requiredModule->moduleData()->m_dfsAncestorIndex.value());
         }
@@ -703,8 +706,8 @@ Script::ModuleExecutionResult Script::innerModuleInstantiation(ExecutionState& s
             Script* requiredModule = stack.back();
             // Remove the last element of stack.
             stack.pop_back();
-            // Set requiredModule.[[Status]] to "instantiated".
-            requiredModule->moduleData()->m_status = ModuleData::Instantiated;
+            // Set requiredModule.[[Status]] to "linked".
+            requiredModule->moduleData()->m_status = ModuleData::Linked;
             // If requiredModule and module are the same Module Record, set done to true.
             if (requiredModule == this) {
                 done = true;
@@ -719,8 +722,8 @@ Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
 {
     // Let module be this Cyclic Module Record.
     ModuleData* md = moduleData();
-    // Assert: module.[[Status]] is "instantiated" or "evaluated".
-    ASSERT(md->m_status == ModuleData::Instantiated || md->m_status == ModuleData::Evaluated);
+    // Assert: module.[[Status]] is "linked" or "evaluated".
+    ASSERT(md->m_status == ModuleData::Linked || md->m_status == ModuleData::Evaluated);
     // Let stack be a new empty List.
     std::vector<Script*> stack;
     // Let result be InnerModuleEvaluation(module, stack, 0).
@@ -735,8 +738,7 @@ Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
             // Set m.[[EvaluationError]] to result.
             // Assert: module.[[Status]] is "evaluated" and module.[[EvaluationError]] is result.
             stack[i]->moduleData()->m_status = ModuleData::Evaluated;
-            stack[i]->moduleData()->m_evaluationError = result.value;
-            stack[i]->moduleData()->m_hasEvaluationError = true;
+            stack[i]->moduleData()->m_evaluationError = EncodedValue(result.value);
         }
         // Return result.
         return result;
@@ -759,11 +761,11 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
     // If module.[[Status]] is "evaluated", then
     if (md->m_status == ModuleData::Evaluated) {
         // If module.[[EvaluationError]] is undefined, return index.
-        if (md->m_evaluationError == EncodedValue()) {
+        if (!md->m_evaluationError.hasValue() || Value(md->m_evaluationError.value()).isUndefined()) {
             return Script::ModuleExecutionResult(false, Value(index));
         }
         // Otherwise return module.[[EvaluationError]].
-        return Script::ModuleExecutionResult(true, md->m_evaluationError);
+        return Script::ModuleExecutionResult(true, md->m_evaluationError.value());
     }
 
     // If module.[[Status]] is "evaluating", return index.
@@ -771,8 +773,8 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
         return Script::ModuleExecutionResult(false, Value(index));
     }
 
-    // Assert: module.[[Status]] is "instantiated".
-    ASSERT(md->m_status == ModuleData::Instantiated);
+    // Assert: module.[[Status]] is "linked".
+    ASSERT(md->m_status == ModuleData::Linked);
     // Set module.[[Status]] to "evaluating".
     md->m_status = ModuleData::Evaluating;
     // Set module.[[DFSIndex]] to index.
@@ -1013,8 +1015,8 @@ ModuleNamespaceObject* Script::getModuleNamespace(ExecutionState& state)
 {
     // Assert: module is an instance of a concrete subclass of Module Record.
     ASSERT(isModule());
-    // Assert: module.[[Status]] is not "uninstantiated".
-    ASSERT(moduleData()->m_status != ModuleData::Uninstantiated);
+    // Assert: module.[[Status]] is not "unlinked".
+    ASSERT(moduleData()->m_status != ModuleData::Unlinked);
 
     if (!moduleData()->m_namespace) {
         moduleData()->m_namespace = new ModuleNamespaceObject(state, this);
