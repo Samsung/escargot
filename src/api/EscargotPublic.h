@@ -1146,6 +1146,7 @@ public:
 
     bool isExtensible(ExecutionStateRef* state);
     bool preventExtensions(ExecutionStateRef* state);
+    bool setIntegrityLevel(ExecutionStateRef* state, bool isSealed);
 
     void* extraData();
     void setExtraData(void* e);
