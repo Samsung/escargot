@@ -586,7 +586,6 @@ public:
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
     void throwException(ValueRef* value);
-    bool inTryStatement(); // test ExecutionStateRef in scope of try-statement directly
 
     GCManagedVector<Evaluator::StackTraceData> computeStackTraceData();
 
