@@ -1454,6 +1454,11 @@ bool ObjectRef::preventExtensions(ExecutionStateRef* state)
     return toImpl(this)->preventExtensions(*toImpl(state));
 }
 
+bool ObjectRef::setIntegrityLevel(ExecutionStateRef* state, bool isSealed)
+{
+    return Object::setIntegrityLevel(*toImpl(state), toImpl(this), isSealed);
+}
+
 void* ObjectRef::extraData()
 {
     return toImpl(this)->extraData();
