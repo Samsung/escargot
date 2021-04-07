@@ -73,7 +73,6 @@ public:
         , m_parent(0)
         , m_hasRareData(false)
         , m_inStrictMode(false)
-        , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
         , m_argc(0)
@@ -97,7 +96,6 @@ public:
         , m_parent(parent)
         , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
-        , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
         , m_argc(parent->argc())
@@ -113,7 +111,6 @@ public:
         , m_parent(0)
         , m_hasRareData(false)
         , m_inStrictMode(false)
-        , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
         , m_argc(0)
@@ -129,7 +126,6 @@ public:
         , m_parent(parent)
         , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
-        , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
         , m_argc(argc)
@@ -145,7 +141,6 @@ public:
         , m_parent(parent)
         , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
-        , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(true)
         , m_inExecutionStopState(false)
         , m_argc(argc)
@@ -164,7 +159,6 @@ public:
         , m_parent(parent)
         , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
-        , m_inTryStatement(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
         , m_argc(argc)
@@ -244,11 +238,6 @@ public:
         return m_inStrictMode;
     }
 
-    bool inTryStatement()
-    {
-        return m_inTryStatement;
-    }
-
     bool inExecutionStopState()
     {
         return m_inExecutionStopState;
@@ -311,7 +300,6 @@ private:
 
     bool m_hasRareData : 1;
     bool m_inStrictMode : 1;
-    bool m_inTryStatement : 1;
     bool m_isNativeFunctionObjectExecutionContext : 1;
     bool m_inExecutionStopState : 1;
 #ifdef ESCARGOT_32

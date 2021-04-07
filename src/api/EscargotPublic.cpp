@@ -2082,12 +2082,6 @@ void ExecutionStateRef::throwException(ValueRef* value)
     imp->throwException(toImpl(value));
 }
 
-bool ExecutionStateRef::inTryStatement()
-{
-    ExecutionState* imp = toImpl(this);
-    return imp->inTryStatement();
-}
-
 GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceData()
 {
     ExecutionState* state = toImpl(this);

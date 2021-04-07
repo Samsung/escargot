@@ -2552,7 +2552,6 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
     TryOperation* code = (TryOperation*)programCounter;
-    bool oldInTryStatement = state->m_inTryStatement;
 
     bool inPauserScope = state->inPauserScope();
     bool inPauserResumeProcess = code->m_isTryResumeProcess || code->m_isCatchResumeProcess || code->m_isFinallyResumeProcess;
@@ -2582,7 +2581,6 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
-            newState->m_inTryStatement = true;
             size_t newPc = programCounter + sizeof(TryOperation);
             interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
             if (newState->inExecutionStopState()) {
@@ -2601,7 +2599,6 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
                 newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
             }
-            newState->m_inTryStatement = oldInTryStatement;
         } catch (const Value& val) {
             if (UNLIKELY(code->m_isTryResumeProcess)) {
 #ifdef ESCARGOT_DEBUGGER
@@ -2612,7 +2609,6 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
                 newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
             }
-            newState->m_inTryStatement = oldInTryStatement;
 
             newState->context()->vmInstance()->currentSandBox()->fillStackDataIntoErrorObject(val);
 
@@ -2893,12 +2889,12 @@ NEVER_INLINE Value ByteCodeInterpreter::superGetObjectOperation(ExecutionState& 
 NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     OpenLexicalEnvironment* code = (OpenLexicalEnvironment*)programCounter;
+    bool inWithStatement = code->m_kind == OpenLexicalEnvironment::WithStatement;
 
-    bool inPauserScope = state->inPauserScope();
-    bool inPauserResumeProcess = code->m_kind == OpenLexicalEnvironment::ResumeExecution;
+    ExecutionState* newState = nullptr;
 
-    LexicalEnvironment* newEnv;
-    if (!LIKELY(inPauserResumeProcess)) {
+    if (LIKELY(inWithStatement)) {
+        // with statement case
         LexicalEnvironment* env = state->lexicalEnvironment();
         if (!state->ensureRareData()->m_controlFlowRecord) {
             state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -2908,26 +2904,15 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
         char* codeBuffer = byteCodeBlock->m_code.data();
 
         // setup new env
-        ASSERT(code->m_kind == OpenLexicalEnvironment::WithStatement);
         EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_withOrThisRegisterIndex].toObject(*state));
-        newEnv = new LexicalEnvironment(newRecord, env);
-    } else {
-        newEnv = nullptr;
-    }
+        LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
 
-    bool shouldUseHeapAllocatedState = !inPauserResumeProcess;
-
-    ExecutionState* newState;
-
-    if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExecutionState(state, newEnv, state->inStrictMode());
-        newState->ensureRareData();
-    } else {
-        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, newEnv, state->inStrictMode());
-    }
-
-    if (!LIKELY(inPauserResumeProcess)) {
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
+    } else {
+        // resume execution case
+        ASSERT(code->m_kind == OpenLexicalEnvironment::ResumeExecution);
+        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(state, nullptr, state->inStrictMode());
     }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -2938,11 +2923,12 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
     char* codeBuffer = byteCodeBlock->m_code.data();
 
     interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
-    if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
+
+    if (newState->inExecutionStopState() || (!inWithStatement && newState->parent()->inExecutionStopState())) {
         return Value();
     }
 
-    if (UNLIKELY(inPauserResumeProcess)) {
+    if (UNLIKELY(!inWithStatement)) {
         state = newState->parent();
         code = (OpenLexicalEnvironment*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }

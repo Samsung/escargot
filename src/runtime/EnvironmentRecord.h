@@ -251,13 +251,15 @@ public:
 
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
+        // https://tc39.es/ecma262/#sec-object-environment-records-getbindingvalue-n-s
         ObjectPropertyName propertyName(name);
         auto result = m_bindingObject->hasProperty(state, propertyName);
 
         if (result) {
+            // we check conditions same as hasBinding for performance reason
+            // directly call getBindingValue instead of checking the result of hasBinding in advance
             Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
-
-            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, ObjectPropertyName(state, name)).value(state, unscopables).toBoolean(state))) {
+            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
                 return GetBindingValueResult();
             }
 
@@ -267,14 +269,23 @@ public:
         return GetBindingValueResult();
     }
 
-    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& atomicName) override
+    virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
     {
-        auto result = m_bindingObject->hasProperty(state, ObjectPropertyName(atomicName));
+        // https://tc39.es/ecma262/#sec-object-environment-records-hasbinding-n
+        ObjectPropertyName propertyName(name);
+        auto result = m_bindingObject->hasProperty(state, propertyName);
         if (result) {
+            // If envRec.[[IsWithEnvironment]] is false, return true. skipped
+            // ObjectEnvironmentRecord is created only for with statement, so `IsWithEnvironment` is always true.
+            Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
+            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
+                return BindingSlot(this, SIZE_MAX, false);
+            }
+
             return BindingSlot(this, SIZE_MAX - 1, false);
-        } else {
-            return BindingSlot(this, SIZE_MAX, false);
         }
+
+        return BindingSlot(this, SIZE_MAX, false);
     }
 
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v) override
