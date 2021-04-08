@@ -28,30 +28,30 @@
 
 namespace Escargot {
 
-#define WASM_I32_VAL(i)                     \
-    {                                       \
-        .kind = WASM_I32, .of = {.i32 = i } \
-    }
-#define WASM_I64_VAL(i)                     \
-    {                                       \
-        .kind = WASM_I64, .of = {.i64 = i } \
-    }
-#define WASM_F32_VAL(z)                     \
-    {                                       \
-        .kind = WASM_F32, .of = {.f32 = z } \
-    }
-#define WASM_F64_VAL(z)                     \
-    {                                       \
-        .kind = WASM_F64, .of = {.f64 = z } \
-    }
-#define WASM_REF_VAL(r)                        \
-    {                                          \
-        .kind = WASM_ANYREF, .of = {.ref = r } \
-    }
-#define WASM_INIT_VAL                             \
-    {                                             \
-        .kind = WASM_ANYREF, .of = {.ref = NULL } \
-    }
+#define WASM_I32_VAL(result, i) \
+    result.kind = WASM_I32;     \
+    result.of.i32 = i;
+
+#define WASM_I64_VAL(result, i) \
+    result.kind = WASM_I64;     \
+    result.of.i64 = i
+
+#define WASM_F32_VAL(result, z) \
+    result.kind = WASM_F32;     \
+    result.of.f32 = z;
+
+#define WASM_F64_VAL(result, z) \
+    result.kind = WASM_F64;     \
+    result.of.f64 = z
+
+#define WASM_REF_VAL(result, r) \
+    result.kind = WASM_ANYREF;  \
+    result.of.ref = r
+
+#define WASM_INIT_VAL(result)  \
+    wasm_val_t result{};       \
+    result.kind = WASM_ANYREF; \
+    result.of.ref = NULL;
 
 Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t& value)
 {
@@ -84,27 +84,27 @@ Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t&
 
 wasm_val_t WASMValueConverter::wasmToWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
 {
-    wasm_val_t result = WASM_INIT_VAL;
+    WASM_INIT_VAL(result);
     switch (type) {
     case WASM_I32: {
         int32_t val = value.toInt32(state);
-        result = WASM_I32_VAL(val);
+        WASM_I32_VAL(result, val);
         break;
     }
     case WASM_F32: {
         // FIXME Let f32 be ? ToNumber(v) rounded to the nearest representable value using IEEE 754-2019 round to nearest, ties to even mode.
         float32_t val = value.toNumber(state);
-        result = WASM_F32_VAL(val);
+        WASM_F32_VAL(result, val);
         break;
     }
     case WASM_F64: {
         float64_t val = value.toNumber(state);
-        result = WASM_F64_VAL(val);
+        WASM_F64_VAL(result, val);
         break;
     }
     case WASM_I64: {
         int64_t val = value.toBigInt(state)->toInt64();
-        result = WASM_I64_VAL(val);
+        WASM_I64_VAL(result, val);
         break;
     }
     default: {
@@ -118,22 +118,22 @@ wasm_val_t WASMValueConverter::wasmToWebAssemblyValue(ExecutionState& state, con
 
 wasm_val_t WASMValueConverter::wasmDefaultValue(wasm_valkind_t type)
 {
-    wasm_val_t result = WASM_INIT_VAL;
+    WASM_INIT_VAL(result);
     switch (type) {
     case WASM_I32: {
-        result = WASM_I32_VAL(0);
+        WASM_I32_VAL(result, 0);
         break;
     }
     case WASM_I64: {
-        result = WASM_I64_VAL(0);
+        WASM_I64_VAL(result, 0);
         break;
     }
     case WASM_F32: {
-        result = WASM_F32_VAL(0);
+        WASM_F32_VAL(result, 0);
         break;
     }
     case WASM_F64: {
-        result = WASM_F64_VAL(0);
+        WASM_F64_VAL(result, 0);
         break;
     }
     default: {
