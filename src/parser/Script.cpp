@@ -27,10 +27,11 @@
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/SandBox.h"
 #include "runtime/ScriptFunctionObject.h"
-#include "runtime/ModuleNamespaceObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
+#include "runtime/ModuleNamespaceObject.h"
 #include "parser/ast/AST.h"
 
 namespace Escargot {
@@ -458,7 +459,9 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         m_topCodeBlock->m_byteCodeBlock = nullptr;
     } else {
         ScriptAsyncFunctionObject* fakeFunctionObject = new ScriptAsyncFunctionObject(state, state.context()->globalObject()->asyncFunctionPrototype(), m_topCodeBlock, nullptr);
-        newState->setPauseSource(new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock));
+        auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock);
+        newState->setPauseSource(ep);
+        ep->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
         resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
     }
 
@@ -720,12 +723,31 @@ Script::ModuleExecutionResult Script::innerModuleLinking(ExecutionState& state, 
 
 Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
 {
+    // + https://tc39.es/proposal-top-level-await/#sec-moduleevaluation
+
     // Let module be this Cyclic Module Record.
     ModuleData* md = moduleData();
     // Assert: module.[[Status]] is "linked" or "evaluated".
     ASSERT(md->m_status == ModuleData::Linked || md->m_status == ModuleData::Evaluated);
+
+    // If module.[[Status]] is evaluated, set module to module.[[CycleRoot]].
+    if (md->m_status == ModuleData::Evaluated) {
+        md->m_cycleRoot = this;
+    }
+    // If module.[[TopLevelCapability]] is not empty, then
+    if (md->m_topLevelCapability.hasValue()) {
+        // Return module.[[TopLevelCapability]].[[Promise]].
+        return Script::ModuleExecutionResult(false, md->m_topLevelCapability.value().m_promise);
+    }
+
     // Let stack be a new empty List.
     std::vector<Script*> stack;
+
+    // Let capability be ! NewPromiseCapability(%Promise%).
+    auto capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    // Set module.[[TopLevelCapability]] to capability.
+    md->m_topLevelCapability = capability;
+
     // Let result be InnerModuleEvaluation(module, stack, 0).
     auto result = innerModuleEvaluation(state, stack, 0);
     // If result is an abrupt completion, then
@@ -740,17 +762,29 @@ Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
             stack[i]->moduleData()->m_status = ModuleData::Evaluated;
             stack[i]->moduleData()->m_evaluationError = EncodedValue(result.value);
         }
-        // Return result.
-        return result;
+        // Perform ! Call(capability.[[Reject]], undefined, « result.[[Value]] »).
+        Value arg = result.value;
+        Object::call(state, capability.m_rejectFunction, Value(), 1, &arg);
+    } else {
+        // Otherwise,
+        // Assert: module.[[Status]] is "evaluated" and module.[[EvaluationError]] is undefined.
+        // If module.[[AsyncEvaluating]] is false, then
+        if (!md->m_asyncEvaluating) {
+            // Perform ! Call(capability.[[Resolve]], undefined, « undefined »).
+            Value arg;
+            Object::call(state, capability.m_resolveFunction, Value(), 1, &arg);
+        }
+        // Assert: stack is empty.
     }
-    // Assert: module.[[Status]] is "evaluated" and module.[[EvaluationError]] is undefined.
-    // Assert: stack is empty.
-    // Return undefined.
-    return ModuleExecutionResult(false, Value());
+
+    // Return capability.[[Promise]].
+    // FIXME return promise
+    return result;
 }
 
 Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index)
 {
+    //+ https://tc39.es/proposal-top-level-await/#sec-innermoduleevaluation
     // If module is not a Cyclic Module Record, then
     //     Perform ? module.Evaluate().
     //     Return index.
@@ -781,6 +815,8 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
     md->m_dfsIndex = index;
     // Set module.[[DFSAncestorIndex]] to index.
     md->m_dfsAncestorIndex = index;
+    // Set module.[[PendingAsyncDependencies]] to 0.
+    md->m_pendingAsyncDependencies = size_t(0);
     // Increase index by 1.
     index++;
     // Append module to stack.
@@ -819,20 +855,49 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
             ASSERT(requiredModule->isModule());
             // Set module.[[DFSAncestorIndex]] to min(module.[[DFSAncestorIndex]], requiredModule.[[DFSAncestorIndex]]).
             md->m_dfsAncestorIndex = std::min(md->m_dfsAncestorIndex.value(), requiredModule->moduleData()->m_dfsAncestorIndex.value());
+        } else {
+            // Otherwise,
+            // Set requiredModule to requiredModule.[[CycleRoot]].
+            requiredModule = requiredModule->moduleData()->m_cycleRoot.value();
+            // Assert: requiredModule.[[Status]] is evaluated.
+            ASSERT(requiredModule->moduleData()->m_status == ModuleData::Evaluated);
+            // If requiredModule.[[EvaluationError]] is not empty, return requiredModule.[[EvaluationError]].
+            if (requiredModule->moduleData()->m_evaluationError.hasValue()) {
+                return Script::ModuleExecutionResult(true, requiredModule->moduleData()->m_evaluationError.value());
+            }
+        }
+
+        // If requiredModule.[[AsyncEvaluating]] is true, then
+        if (requiredModule->moduleData()->m_asyncEvaluating) {
+            // Set module.[[PendingAsyncDependencies]] to module.[[PendingAsyncDependencies]] + 1.
+            md->m_pendingAsyncDependencies = size_t(md->m_pendingAsyncDependencies.value() + 1);
+            // Append module to requiredModule.[[AsyncParentModules]].
+            requiredModule->moduleData()->m_asyncParentModules.pushBack(this);
         }
     }
 
-    // Perform ? module.ExecuteModule().
-    auto result = moduleExecute(state);
-    if (result.gotExecption) {
-        return result;
+    // If module.[[PendingAsyncDependencies]] > 0, set module.[[AsyncEvaluating]] to true.
+    if (md->m_pendingAsyncDependencies.hasValue() && md->m_pendingAsyncDependencies.value() > 0) {
+        md->m_asyncEvaluating = true;
+    } else if (m_topCodeBlock->isAsync()) {
+        // Otherwise, if module.[[Async]] is true, perform ! ExecuteAsyncModule(module).
+        moduleExecuteAsyncModule(state);
+    } else {
+        // Otherwise, perform ? module.ExecuteModule().
+        auto result = moduleExecute(state);
+        if (result.gotExecption) {
+            return result;
+        }
     }
+
     // Assert: module occurs exactly once in stack.
     // Assert: module.[[DFSAncestorIndex]] is less than or equal to module.[[DFSIndex]].
     ASSERT(md->m_dfsAncestorIndex.value() <= md->m_dfsIndex.value());
 
     // If module.[[DFSAncestorIndex]] equals module.[[DFSIndex]], then
     if (md->m_dfsAncestorIndex.value() == md->m_dfsIndex.value()) {
+        // Let cycleRoot be module.
+        auto cycleRoot = this;
         // Let done be false.
         bool done = false;
         // Repeat, while done is false,
@@ -847,6 +912,8 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
             if (requiredModule == this) {
                 done = true;
             }
+            // Set requiredModule.[[CycleRoot]] to cycleRoot.
+            requiredModule->moduleData()->m_cycleRoot = cycleRoot;
         }
     }
     // Return index.
@@ -946,7 +1013,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
     return Value(Value::EmptyValue);
 }
 
-Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state)
+Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optional<PromiseReaction::Capability> capability)
 {
     ASSERT(isModule());
 
@@ -999,16 +1066,149 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state)
         // we give up program bytecodeblock after first excution for reducing memory usage
         m_topCodeBlock->m_byteCodeBlock = nullptr;
     } else {
+        ASSERT(capability);
         ScriptAsyncFunctionObject* fakeFunctionObject = new ScriptAsyncFunctionObject(state, state.context()->globalObject()->asyncFunctionPrototype(), m_topCodeBlock, nullptr);
-        newState->setPauseSource(new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock));
-
-        // TODO
-        // pass exception to resultValue
+        auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock);
+        newState->setPauseSource(ep);
+        ep->m_promiseCapability = capability.value();
         resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
     }
 
-
     return ModuleExecutionResult(gotExecption, resultValue);
+}
+
+// https://tc39.es/proposal-top-level-await/#sec-async-module-execution-fulfilled
+void Script::asyncModuleFulfilled(ExecutionState& state, Script* module)
+{
+    // Assert: module.[[Status]] is evaluated.
+    ASSERT(module->moduleData()->m_status == Script::ModuleData::Evaluated);
+    // If module.[[AsyncEvaluating]] is false,
+    if (!module->moduleData()->m_asyncEvaluating) {
+        // Assert: module.[[EvaluationError]] is not empty.
+        ASSERT(module->moduleData()->m_evaluationError.hasValue());
+        // Return undefined.
+        return;
+    }
+    // Assert: module.[[EvaluationError]] is empty.
+    ASSERT(!module->moduleData()->m_evaluationError.hasValue());
+    // Set module.[[AsyncEvaluating]] to false.
+    module->moduleData()->m_asyncEvaluating = false;
+
+    // For each Module m of module.[[AsyncParentModules]], do
+    for (size_t i = 0; i < module->moduleData()->m_asyncParentModules.size(); i++) {
+        auto m = module->moduleData()->m_asyncParentModules[i];
+        // Decrement m.[[PendingAsyncDependencies]] by 1.
+        m->moduleData()->m_pendingAsyncDependencies = m->moduleData()->m_pendingAsyncDependencies.value() - 1;
+        // If m.[[PendingAsyncDependencies]] is 0 and m.[[EvaluationError]] is empty, then
+        if (m->moduleData()->m_pendingAsyncDependencies && !m->moduleData()->m_evaluationError.hasValue()) {
+            // Assert: m.[[AsyncEvaluating]] is true.
+            ASSERT(m->moduleData()->m_asyncEvaluating);
+            // If m.[[CycleRoot]].[[EvaluationError]] is not empty, return undefined.
+            if (m->moduleData()->m_cycleRoot->moduleData()->m_evaluationError.hasValue()) {
+                return;
+            }
+            // If m.[[Async]] is true, then
+            if (m->topCodeBlock()->isAsync()) {
+                // Perform ! ExecuteAsyncModule(m).
+                m->moduleExecuteAsyncModule(state);
+            } else {
+                // Otherwise,
+                // Let result be m.ExecuteModule().
+                auto result = m->moduleExecute(state);
+                // If result is a normal completion,
+                if (!result.gotExecption) {
+                    // Perform ! AsyncModuleExecutionFulfilled(m).
+                    asyncModuleFulfilled(state, m);
+                } else {
+                    // Otherwise,
+                    // Perform ! AsyncModuleExecutionRejected(m, result.[[Value]]).
+                    asyncModuleRejected(state, m, result.value);
+                }
+            }
+        }
+    }
+}
+
+Value Script::asyncModuleFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
+    Script* module = self->internalSlotAsPointer<Script>(0);
+    Script::asyncModuleFulfilled(state, module);
+    return Value();
+}
+
+// https://tc39.es/proposal-top-level-await/#sec-async-module-execution-rejected
+void Script::asyncModuleRejected(ExecutionState& state, Script* module, Value error)
+{
+    // Assert: module.[[Status]] is evaluated.
+    ASSERT(module->moduleData()->m_status == Script::ModuleData::Evaluated);
+    // If module.[[AsyncEvaluating]] is false,
+    if (!module->moduleData()->m_asyncEvaluating) {
+        // Assert: module.[[EvaluationError]] is not empty.
+        ASSERT(module->moduleData()->m_evaluationError.hasValue());
+        // Return undefined.
+        return;
+    }
+
+    // Assert: module.[[EvaluationError]] is empty.
+    ASSERT(!module->moduleData()->m_evaluationError.hasValue());
+    // Set module.[[EvaluationError]] to ThrowCompletion(error).
+    module->moduleData()->m_evaluationError = EncodedValue(error);
+    // Set module.[[AsyncEvaluating]] to false.
+    module->moduleData()->m_asyncEvaluating = false;
+    // For each Module m of module.[[AsyncParentModules]], do
+    for (size_t i = 0; i < module->moduleData()->m_asyncParentModules.size(); i++) {
+        // Perform ! AsyncModuleExecutionRejected(m, error).
+        asyncModuleRejected(state, module->moduleData()->m_asyncParentModules[i], error);
+    }
+    // If module.[[TopLevelCapability]] is not empty, then
+    if (module->moduleData()->m_topLevelCapability) {
+        // Assert: module.[[CycleRoot]] is equal to module.
+        ASSERT(module->moduleData()->m_cycleRoot.value() == module);
+        // Perform ! Call(module.[[TopLevelCapability]].[[Reject]], undefined, «error»).
+        Value argv = error;
+        Object::call(state, module->moduleData()->m_topLevelCapability.value().m_rejectFunction, Value(), 1, &argv);
+    }
+
+    // Return undefined.
+    return;
+}
+
+Value Script::asyncModuleRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
+    Script* module = self->internalSlotAsPointer<Script>(0);
+    Script::asyncModuleRejected(state, module, argv[0]);
+    return Value();
+}
+
+void Script::moduleExecuteAsyncModule(ExecutionState& state)
+{
+    auto md = moduleData();
+    // Assert: module.[[Status]] is evaluating or evaluated.
+    ASSERT(md->m_status == ModuleData::Evaluating || md->m_status == ModuleData::Evaluated);
+    // Assert: module.[[Async]] is true.
+    ASSERT(m_topCodeBlock->isAsync());
+    // Set module.[[AsyncEvaluating]] to true.
+    md->m_asyncEvaluating = true;
+    // Let capability be ! NewPromiseCapability(%Promise%).
+    auto capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    // Let stepsFulfilled be the steps of a CallAsyncModuleFulfilled function as specified below.
+    // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[Module]] »).
+    // Set onFulfilled.[[Module]] to module.
+    // Let stepsRejected be the steps of a CallAsyncModuleRejected function as specified below.
+    // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[Module]] »).
+    // Set onRejected.[[Module]] to module.
+    ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncModuleFulfilledFunction, 1));
+    onFulfilled->setInternalSlotAsPointer(0, this);
+    ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncModuleRejectedFunction, 1));
+    onRejected->setInternalSlotAsPointer(0, this);
+    // Perform ! PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
+    capability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
+
+    // Perform ! module.ExecuteModule(capability).
+    moduleExecute(state, capability);
+    // Return.
 }
 
 ModuleNamespaceObject* Script::getModuleNamespace(ExecutionState& state)

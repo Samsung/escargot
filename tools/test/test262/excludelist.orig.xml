@@ -3519,13 +3519,9 @@
     <test id="language/module-code/top-level-await/await-dynamic-import-resolution"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/dynamic-import-rejection"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/dynamic-import-resolution"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-async-import-async-resolution-ticks"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/module-import-rejection"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/module-import-rejection-body"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/module-import-rejection-tick"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-import-resolution"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-import-unwrapped"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-sync-import-async-resolution-ticks"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/for-await-await-expr-array-literal"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/for-await-await-expr-func-expression"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/for-await-await-expr-identifier"><reason>TODO</reason></test>

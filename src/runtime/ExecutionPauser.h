@@ -32,6 +32,8 @@ public:
     friend class GeneratorObject;
     friend class AsyncGeneratorObject;
     friend class ByteCodeInterpreter;
+    friend class Script;
+    friend class FunctionObjectProcessCallGenerator;
 
     ExecutionPauser(ExecutionState& state, Object* sourceObject, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 

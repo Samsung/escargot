@@ -143,11 +143,6 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             // need to fresh start
             startPos = 0;
             es = self->m_executionState;
-
-            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-function-definitions-EvaluateBody
-            if (from == StartFrom::Async) {
-                self->m_promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
-            }
         } else {
             // resume
             startPos = (size_t)self->m_pausedCode.data() - (size_t)self->m_byteCodeBlock->m_code.data();
