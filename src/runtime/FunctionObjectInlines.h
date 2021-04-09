@@ -212,6 +212,7 @@ public:
             } else {
                 AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, proto, newState, registerFile, blk);
                 newState->setPauseSource(gen->executionPauser());
+                newState->pauseSource()->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
                 ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::AsyncGenerator);
                 generatorObject = gen;
             }
@@ -225,6 +226,7 @@ public:
         if (std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
             newState = new ExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict, ExecutionState::ForPauser);
             newState->setPauseSource(new ExecutionPauser(state, self, newState, registerFile, blk));
+            newState->pauseSource()->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
         } else {
             newState = new (alloca(sizeof(ExecutionState))) ExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
         }

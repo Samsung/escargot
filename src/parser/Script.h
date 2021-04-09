@@ -21,6 +21,7 @@
 #define __EscargotScript__
 
 #include "runtime/Value.h"
+#include "runtime/PromiseObject.h"
 
 namespace Escargot {
 
@@ -83,6 +84,8 @@ public:
         ExportEntryVector m_indirectExportEntries;
         // [[StarExportEntries]]
         ExportEntryVector m_starExportEntries;
+        // [[ImportMeta]]
+        Optional<Object*> m_importMeta;
 
         // Cyclic Module Records
         // https://tc39.es/ecma262/#table-cyclic-module-fields
@@ -103,13 +106,25 @@ public:
         Optional<uint32_t> m_dfsAncestorIndex;
         // [[RequestedModules]] is same with moduleRequests
         StringVector m_requestedModules;
-        // [[ImportMeta]]
-        Optional<Object*> m_importMeta;
+
+        // + https://tc39.es/proposal-top-level-await/#sec-cyclic-module-records
+        // [[CycleRoot]]
+        Optional<Script*> m_cycleRoot;
+        // [[Async]] -> has same value with m_topCodeBlock->isAsync()
+        // [[AsyncEvaluating]]
+        bool m_asyncEvaluating;
+        // [[TopLevelCapability]]
+        Optional<PromiseReaction::Capability> m_topLevelCapability;
+        // [[AsyncParentModules]]
+        Vector<Script*, GCUtil::gc_malloc_allocator<Script*>> m_asyncParentModules;
+        // [[PendingAsyncDependencies]]
+        Optional<size_t> m_pendingAsyncDependencies;
 
         ModuleData()
             : m_didCallLoadedCallback(false)
             , m_moduleRecord(nullptr)
             , m_status(Unlinked)
+            , m_asyncEvaluating(false)
         {
         }
     };
@@ -231,7 +246,15 @@ private:
 
     // https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
     // returns gotExecption and Value
-    ModuleExecutionResult moduleExecute(ExecutionState& state);
+    ModuleExecutionResult moduleExecute(ExecutionState& state, Optional<PromiseReaction::Capability> capability = nullptr);
+
+    // https://tc39.es/proposal-top-level-await/#sec-execute-async-module
+    void moduleExecuteAsyncModule(ExecutionState& state);
+
+    static void asyncModuleFulfilled(ExecutionState& state, Script* module);
+    static void asyncModuleRejected(ExecutionState& state, Script* module, Value error);
+    static Value asyncModuleFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+    static Value asyncModuleRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
     bool m_canExecuteAgain;
     String* m_srcName;
