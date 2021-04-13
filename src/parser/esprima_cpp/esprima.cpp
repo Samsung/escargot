@@ -1561,7 +1561,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassStaticFieldInitializer(ASTBuilder& builder)
+    ASTNode parseClassStaticFieldInitializer(ASTBuilder& builder, const AtomicString& className)
     {
         ASSERT(this->match(Substitution));
 
@@ -1574,7 +1574,7 @@ public:
         this->context->allowSuperProperty = true;
 
         MetaNode node = this->createNode();
-        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder);
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, className);
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
@@ -1596,7 +1596,7 @@ public:
         this->context->allowArguments = false;
         this->context->allowSuperProperty = true;
 
-        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder);
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, AtomicString());
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
@@ -3281,12 +3281,21 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder)
+    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder, const AtomicString& paramName)
     {
         ASTNode result;
         if (!this->isParsingSingleFunction) {
             BEGIN_FUNCTION_SCANNING(AtomicString());
             auto startNode = this->createNode();
+
+            if (paramName.string()->length()) {
+                // insert optional paramter name
+                this->currentScopeContext->m_functionLength = 1;
+                this->currentScopeContext->m_parameterCount = 1;
+                this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
+                this->currentScopeContext->m_parameters[0] = paramName;
+                this->currentScopeContext->insertVarName(paramName, 0, true, true, true);
+            }
 
             this->currentScopeContext->m_functionStartLOC.index = startNode.index;
             this->currentScopeContext->m_functionStartLOC.column = startNode.column;
@@ -5516,7 +5525,7 @@ public:
     // ECMA-262 14.5 Class Definitions
 
     template <class ASTBuilder>
-    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass)
+    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass, const AtomicString& className)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -5603,7 +5612,7 @@ public:
             } else if (this->match(Substitution)) {
                 if (isStatic) {
                     kind = ClassElementNode::Kind::StaticField;
-                    value = this->parseClassStaticFieldInitializer(builder);
+                    value = this->parseClassStaticFieldInitializer(builder, className);
                 } else {
                     kind = ClassElementNode::Kind::Field;
                     value = this->parseClassFieldInitializer(builder);
@@ -5682,7 +5691,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, MetaNode& endNode)
+    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, MetaNode& endNode, const AtomicString& className)
     {
         MetaNode node = this->createNode();
 
@@ -5694,7 +5703,7 @@ public:
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass);
+                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className);
                 if (classElement) {
                     body.append(this->allocator, classElement);
                 }
@@ -5751,7 +5760,7 @@ public:
         }
 
         MetaNode endNode;
-        ASTNode classBody = this->parseClassBody(builder, hasSuperClass, endNode);
+        ASTNode classBody = this->parseClassBody(builder, hasSuperClass, endNode, id);
 
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
@@ -6372,8 +6381,18 @@ public:
             this->nextToken();
         }
 
-        if (this->codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression()) {
+        if (UNLIKELY(this->codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression())) {
             params = builder.createStatementContainer();
+
+            if (this->codeBlock->parameterNames().size()) {
+                // static field initialization case
+                // add a virtual argument for class constructor
+                ASSERT(this->codeBlock->parameterNames().size() == 1);
+
+                Node* param = builder.createIdentifierNode(this->codeBlock->parameterNames()[0]);
+                InitializeParameterExpressionNode* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, 0));
+                params->appendChild(this->finalize(node, builder.createExpressionStatementNode(init)));
+            }
 
             auto previousLabelSet = this->context->labelSet;
             bool previousInIteration = this->context->inIteration;

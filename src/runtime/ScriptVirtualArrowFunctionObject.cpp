@@ -37,7 +37,16 @@ Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value&
     // we should retain homeObject because sub functions can use this later
     ASSERT(m_prototype == nullptr || m_prototype == homeObject);
     m_prototype = homeObject;
-    return FunctionObjectProcessCallGenerator::processCall<ScriptVirtualArrowFunctionObject, false, false, false, ScriptVirtualArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, 0, nullptr, nullptr);
+
+    if (interpretedCodeBlock()->parameterCount()) {
+        // virtual parameter for static field initialization
+        // should have only one parameter which is for class constructor
+        ASSERT(interpretedCodeBlock()->parameterCount() == 1 && !!homeObject);
+        Value arg = homeObject;
+        return FunctionObjectProcessCallGenerator::processCall<ScriptVirtualArrowFunctionObject, false, false, false, ScriptVirtualArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, 1, &arg, nullptr);
+    } else {
+        return FunctionObjectProcessCallGenerator::processCall<ScriptVirtualArrowFunctionObject, false, false, false, ScriptVirtualArrowFunctionObjectThisValueBinder, FunctionObjectNewTargetBinder, FunctionObjectReturnValueBinder>(state, this, thisValue, 0, nullptr, nullptr);
+    }
 }
 
 Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)

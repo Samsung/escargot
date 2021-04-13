@@ -2797,31 +2797,31 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
         registerFile[code->m_classConstructorRegisterIndex] = constructor;
         registerFile[code->m_classPrototypeRegisterIndex] = proto;
     } else if (code->m_stage == InitializeClass::SetFieldSize) {
-        auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-        classConsturctor->m_instanceFieldInitData.resize(code->m_fieldSize);
-        classConsturctor->m_staticFieldInitData.resize(0, code->m_staticFieldSize);
+        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
+        classConstructor->m_instanceFieldInitData.resize(code->m_fieldSize);
+        classConstructor->m_staticFieldInitData.resize(0, code->m_staticFieldSize);
     } else if (code->m_stage == InitializeClass::InitField) {
         registerFile[code->m_propertyInitRegisterIndex] = registerFile[code->m_propertyInitRegisterIndex].toPropertyKey(state);
         registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_instanceFieldInitData[code->m_initFieldIndex].first = registerFile[code->m_propertyInitRegisterIndex];
     } else if (code->m_stage == InitializeClass::SetFieldData) {
         registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_instanceFieldInitData[code->m_setFieldIndex].second = registerFile[code->m_propertySetRegisterIndex];
     } else if (code->m_stage == InitializeClass::InitStaticField) {
-        auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-        classConsturctor->m_staticFieldInitData[code->m_staticFieldInitIndex] = registerFile[code->m_staticPropertyInitRegisterIndex];
+        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
+        classConstructor->m_staticFieldInitData[code->m_staticFieldInitIndex] = registerFile[code->m_staticPropertyInitRegisterIndex];
     } else if (code->m_stage == InitializeClass::SetStaticFieldData) {
-        auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
+        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
 
         Value v = registerFile[code->m_staticPropertySetRegisterIndex];
         if (!v.isUndefined()) {
-            v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConsturctor), classConsturctor);
+            v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConstructor), classConstructor);
         }
-        classConsturctor->defineOwnPropertyThrowsException(state,
-                                                           ObjectPropertyName(state, classConsturctor->m_staticFieldInitData[code->m_staticFieldSetIndex]),
+        classConstructor->defineOwnPropertyThrowsException(state,
+                                                           ObjectPropertyName(state, classConstructor->m_staticFieldInitData[code->m_staticFieldSetIndex]),
                                                            ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     } else {
         ASSERT(code->m_stage == InitializeClass::CleanupStaticData);
-        auto classConsturctor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-        classConsturctor->m_staticFieldInitData.clear();
+        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
+        classConstructor->m_staticFieldInitData.clear();
     }
 }
 
