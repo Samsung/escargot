@@ -35,6 +35,8 @@
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/GeneratorObject.h"
+#include "runtime/ModuleNamespaceObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptArrowFunctionObject.h"
 #include "runtime/ScriptVirtualArrowFunctionObject.h"
@@ -3110,6 +3112,44 @@ NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state
     return constructor.asPointerValue()->construct(state, argc, argv, constructor.asObject());
 }
 
+static Value callDynamicImportResolved(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
+    Script::ModuleData::ModulePromiseObject* promise = self->internalSlotAsPointer<Script::ModuleData::ModulePromiseObject>(0);
+    Script::ModuleData::ModulePromiseObject* outerPromise = (Script::ModuleData::ModulePromiseObject*)argv[0].asPointerValue()->asPromiseObject();
+
+    SandBox sb(state.context());
+    auto result = sb.run([](ExecutionState& state, void* data) -> Value {
+        Script* s = (Script*)data;
+        if (!s->isExecuted()) {
+            s->execute(state);
+        }
+        return Value(s->getModuleNamespace(state));
+    },
+                         outerPromise->m_loadedScript);
+
+    if (result.error.isEmpty()) {
+        if (outerPromise->m_loadedScript->moduleData()->m_asyncEvaluating) {
+            outerPromise->m_loadedScript->moduleData()->m_asyncPendingPromises.pushBack(promise);
+        } else {
+            promise->fulfill(state, result.result);
+        }
+    } else {
+        promise->reject(state, result.error);
+    }
+
+    return Value();
+}
+
+static Value callDynamicImportRejected(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
+    Script::ModuleData::ModulePromiseObject* promise = self->internalSlotAsPointer<Script::ModuleData::ModulePromiseObject>(0);
+    Script::ModuleData::ModulePromiseObject* outerPromise = (Script::ModuleData::ModulePromiseObject*)argv[0].asPointerValue()->asPromiseObject();
+    promise->reject(state, outerPromise->m_value);
+    return Value();
+}
+
 NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     switch (code->m_kind) {
@@ -3296,6 +3336,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         const Value& specifier = registerFile[code->m_argumentsStartIndex];
         // Let promiseCapability be ! NewPromiseCapability(%Promise%).
         auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+
         // Let specifierString be ToString(specifier).
         String* specifierString = String::emptyString;
         // IfAbruptRejectPromise(specifierString, promiseCapability).
@@ -3310,9 +3351,27 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
             registerFile[code->m_resultIndex] = promiseCapability.m_promise;
             break;
         }
+
         // Perform ! HostImportModuleDynamically(referencingScriptOrModule, specifierString, promiseCapability).
+        // + https://tc39.es/proposal-top-level-await/#sec-finishdynamicimport
+        // Let stepsFulfilled be the steps of a CallDynamicImportResolved function as specified below.
+        // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « »).
+        // Let stepsRejected be the steps of a CallDynamicImportRejected function as specified below.
+        // Let onRejected be CreateBuiltinFunction(stepsRejected, « »).
+        // Perform ! PerformPromiseThen(innerPromise.[[Promise]], onFulfilled, onRejected).
+        auto newModuleInnerPromise = new Script::ModuleData::ModulePromiseObject(state, state.context()->globalObject()->promisePrototype());
+        auto innerPromiseCapability = newModuleInnerPromise->createResolvingFunctions(state);
+
+        ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), callDynamicImportResolved, 1));
+        onFulfilled->setInternalSlotAsPointer(0, promiseCapability.m_promise);
+        ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), callDynamicImportRejected, 1));
+        onRejected->setInternalSlotAsPointer(0, promiseCapability.m_promise);
+        // Perform ! PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
+        innerPromiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
+
         state.context()->vmInstance()->platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
-                                                                               referencingScriptOrModule, specifierString, promiseCapability.m_promise->asPromiseObject());
+                                                                               referencingScriptOrModule, specifierString, innerPromiseCapability.m_promise->asPromiseObject());
+
         // Return promiseCapability.[[Promise]].
         registerFile[code->m_resultIndex] = promiseCapability.m_promise;
         break;

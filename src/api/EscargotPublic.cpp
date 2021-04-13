@@ -755,6 +755,49 @@ public:
     PlatformRef* m_platform;
 };
 
+void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult)
+{
+    auto result = Evaluator::execute(relatedContext, [](ExecutionStateRef* state, LoadModuleResult loadModuleResult, Script::ModuleData::ModulePromiseObject* promise) -> ValueRef* {
+        if (loadModuleResult.script) {
+            if (loadModuleResult.script.value()->isExecuted()) {
+                if (loadModuleResult.script.value()->wasThereErrorOnModuleEvaluation()) {
+                    state->throwException(loadModuleResult.script.value()->moduleEvaluationError());
+                }
+            }
+        } else {
+            state->throwException(ErrorObjectRef::create(state, loadModuleResult.errorCode, loadModuleResult.errorMessage));
+        }
+        return ValueRef::createUndefined();
+    },
+                                     loadModuleResult, (Script::ModuleData::ModulePromiseObject*)promise);
+
+    Script::ModuleData::ModulePromiseObject* mp = (Script::ModuleData::ModulePromiseObject*)promise;
+    mp->m_referrer = toImpl(referrer);
+    if (loadModuleResult.script.hasValue()) {
+        mp->m_loadedScript = toImpl(loadModuleResult.script.value());
+        if (!mp->m_loadedScript->moduleData()->m_didCallLoadedCallback) {
+            Context* ctx = toImpl(relatedContext);
+            ctx->vmInstance()->platform()->didLoadModule(ctx, toImpl(referrer), mp->m_loadedScript);
+            mp->m_loadedScript->moduleData()->m_didCallLoadedCallback = true;
+        }
+    }
+
+    if (result.error) {
+        mp->m_value = toImpl(result.error.value());
+        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
+            promise->reject(state, promise);
+            return ValueRef::createUndefined();
+        },
+                           result.error.value(), promise);
+    } else {
+        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
+            promise->fulfill(state, promise);
+            return ValueRef::createUndefined();
+        },
+                           result.error.value(), promise);
+    }
+}
+
 Evaluator::StackTraceData::StackTraceData()
     : src(toRef(String::emptyString))
     , sourceCode(toRef(String::emptyString))

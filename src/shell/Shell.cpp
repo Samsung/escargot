@@ -551,32 +551,7 @@ public:
     virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) override
     {
         LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src);
-
-        Evaluator::EvaluatorResult executionResult = Evaluator::execute(relatedContext, [](ExecutionStateRef* state, LoadModuleResult loadedModuleResult, PromiseObjectRef* promise) -> ValueRef* {
-            if (loadedModuleResult.script) {
-                if (loadedModuleResult.script.value()->isExecuted()) {
-                    if (loadedModuleResult.script.value()->wasThereErrorOnModuleEvaluation()) {
-                        state->throwException(loadedModuleResult.script.value()->moduleEvaluationError());
-                    }
-                } else {
-                    loadedModuleResult.script.value()->execute(state);
-                }
-            } else {
-                state->throwException(ErrorObjectRef::create(state, loadedModuleResult.errorCode, loadedModuleResult.errorMessage));
-            }
-            return loadedModuleResult.script.value()->moduleNamespace(state);
-        },
-                                                                        loadedModuleResult, promise);
-
-        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, bool isSuccessful, ValueRef* value, PromiseObjectRef* promise) -> ValueRef* {
-            if (isSuccessful) {
-                promise->fulfill(state, value);
-            } else {
-                promise->reject(state, value);
-            }
-            return ValueRef::createUndefined();
-        },
-                           executionResult.isSuccessful(), executionResult.isSuccessful() ? executionResult.result : executionResult.error.value(), promise);
+        notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, loadedModuleResult);
     }
 };
 

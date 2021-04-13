@@ -1783,7 +1783,11 @@ public:
     virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> whereRequestFrom, ScriptRef* loadedModule) = 0;
 
     // Dynamic Import
-    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) = 0;
+    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise)
+    {
+        notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, onLoadModule(relatedContext, referrer, src));
+    }
+    void notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult);
 };
 
 #if defined(ENABLE_WASM)

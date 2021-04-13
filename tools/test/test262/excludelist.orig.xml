@@ -3516,7 +3516,6 @@
     <test id="language/module-code/export-star-as-dflt"><reason>TODO</reason></test>
     <test id="language/module-code/privatename-valid-no-earlyerr"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/await-dynamic-import-rejection"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/await-dynamic-import-resolution"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/dynamic-import-rejection"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/dynamic-import-resolution"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/module-import-rejection"><reason>TODO</reason></test>

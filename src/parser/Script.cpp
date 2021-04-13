@@ -322,7 +322,6 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     }
 
     if (isModule()) {
-        ASSERT(!moduleData()->m_didCallLoadedCallback);
         if (!moduleData()->m_didCallLoadedCallback) {
             context()->vmInstance()->platform()->didLoadModule(context(), nullptr, this);
             moduleData()->m_didCallLoadedCallback = true;
@@ -584,6 +583,22 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     clearStack<512>();
 
     return resultValue;
+}
+
+void* Script::ModuleData::ModulePromiseObject::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        GC_word desc[GC_BITMAP_SIZE(ModulePromiseObject)] = { 0 };
+        PromiseObject::fillGCDescriptor(desc);
+        GC_set_bit(desc, GC_WORD_OFFSET(ModulePromiseObject, m_referrer));
+        GC_set_bit(desc, GC_WORD_OFFSET(ModulePromiseObject, m_loadedScript));
+        GC_set_bit(desc, GC_WORD_OFFSET(ModulePromiseObject, m_value));
+        descr = GC_make_descriptor(desc, GC_WORD_LEN(ModulePromiseObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
 Script::ModuleExecutionResult Script::moduleLinking(ExecutionState& state)
@@ -1127,6 +1142,11 @@ void Script::asyncModuleFulfilled(ExecutionState& state, Script* module)
             }
         }
     }
+
+    for (size_t i = 0; i < module->moduleData()->m_asyncPendingPromises.size(); i++) {
+        module->moduleData()->m_asyncPendingPromises[i]->fulfill(state, module->getModuleNamespace(state));
+    }
+    module->moduleData()->m_asyncPendingPromises.clear();
 }
 
 Value Script::asyncModuleFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
