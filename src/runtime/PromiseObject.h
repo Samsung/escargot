@@ -144,7 +144,15 @@ public:
     // https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
     static Value promiseAnyRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
-private:
+protected:
+    static inline void fillGCDescriptor(GC_word* desc)
+    {
+        Object::fillGCDescriptor(desc);
+        GC_set_bit(desc, GC_WORD_OFFSET(PromiseObject, m_promiseResult));
+        GC_set_bit(desc, GC_WORD_OFFSET(PromiseObject, m_fulfillReactions));
+        GC_set_bit(desc, GC_WORD_OFFSET(PromiseObject, m_rejectReactions));
+    }
+
     PromiseState m_state;
     EncodedValue m_promiseResult;
     Reactions m_fulfillReactions;

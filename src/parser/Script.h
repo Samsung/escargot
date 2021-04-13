@@ -120,6 +120,23 @@ public:
         // [[PendingAsyncDependencies]]
         Optional<size_t> m_pendingAsyncDependencies;
 
+        Vector<PromiseObject*, GCUtil::gc_malloc_allocator<PromiseObject*>> m_asyncPendingPromises;
+
+        class ModulePromiseObject : public PromiseObject {
+        public:
+            explicit ModulePromiseObject(ExecutionState& state, Object* proto)
+                : PromiseObject(state, proto)
+                , m_referrer(nullptr)
+                , m_loadedScript(nullptr)
+            {
+            }
+            void* operator new(size_t size);
+            void* operator new[](size_t size) = delete;
+            Script* m_referrer;
+            Script* m_loadedScript;
+            EncodedValue m_value;
+        };
+
         ModuleData()
             : m_didCallLoadedCallback(false)
             , m_moduleRecord(nullptr)
