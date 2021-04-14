@@ -55,8 +55,12 @@ SandBox::SandBoxResult PromiseReactionJob::run()
             return Object::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
         });
         if (!res.error.isEmpty()) {
-            Value reason[] = { res.error };
-            return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, reason);
+            if (m_reaction.m_capability.m_rejectFunction) {
+                Value reason[] = { res.error };
+                return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, reason);
+            } else {
+                state.throwException(res.error);
+            }
         }
         return res.result;
     });

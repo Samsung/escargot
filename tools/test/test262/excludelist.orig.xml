@@ -3515,12 +3515,8 @@
     <test id="language/module-code/export-expname-import-string-binding"><reason>TODO</reason></test>
     <test id="language/module-code/export-star-as-dflt"><reason>TODO</reason></test>
     <test id="language/module-code/privatename-valid-no-earlyerr"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/await-dynamic-import-rejection"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/dynamic-import-rejection"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/dynamic-import-resolution"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-import-rejection"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-import-rejection-body"><reason>TODO</reason></test>
-    <test id="language/module-code/top-level-await/module-import-rejection-tick"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/for-await-await-expr-array-literal"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/for-await-await-expr-func-expression"><reason>TODO</reason></test>
     <test id="language/module-code/top-level-await/syntax/for-await-await-expr-identifier"><reason>TODO</reason></test>
