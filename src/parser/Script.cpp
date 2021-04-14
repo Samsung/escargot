@@ -1190,8 +1190,12 @@ void Script::asyncModuleRejected(ExecutionState& state, Script* module, Value er
         Object::call(state, module->moduleData()->m_topLevelCapability.value().m_rejectFunction, Value(), 1, &argv);
     }
 
+    module->moduleData()->m_asyncPendingPromises.clear();
+
     // Return undefined.
-    return;
+    // throw error instead of return undefined
+    // if don't throw error, user cannot notify the error was occured
+    state.throwException(error);
 }
 
 Value Script::asyncModuleRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

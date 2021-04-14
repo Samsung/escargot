@@ -607,17 +607,19 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
     }
 
+    bool result = true;
     while (context->vmInstance()->hasPendingJob()) {
         auto jobResult = context->vmInstance()->executePendingJob();
-        if (shouldPrintScriptResult) {
+        if (shouldPrintScriptResult || jobResult.error) {
             if (jobResult.error) {
                 fprintf(stderr, "Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                result = false;
             } else {
                 fprintf(stderr, "%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
             }
         }
     }
-    return true;
+    return result;
 }
 
 int main(int argc, char* argv[])
