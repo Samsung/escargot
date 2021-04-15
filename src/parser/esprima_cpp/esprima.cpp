@@ -177,7 +177,7 @@ public:
     };
 
     Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
-        : scannerInstance(escargotContext, &contextInstance, code, startLoc.line, startLoc.column)
+        : scannerInstance(escargotContext, &contextInstance, code, isModule, startLoc.line, startLoc.column)
         , allocator(escargotContext->astAllocator())
         , fakeContext(escargotContext->astAllocator())
     {
@@ -3938,7 +3938,7 @@ public:
         this->expectKeyword(ForKeyword);
         MetaNode node = this->createNode();
 
-        if (this->context->await) {
+        if (UNLIKELY(this->context->await || (this->sourceType == Module && inGlobalSourceCodeParsing()))) {
             seenAwait = this->matchContextualKeyword("await");
             if (seenAwait) {
                 this->nextToken();

@@ -494,6 +494,7 @@ public:
     ::Escargot::Context* escargotContext;
     ::Escargot::esprima::ParserContext* parserContext;
     StringBufferAccessData sourceCodeAccessData;
+    bool isModule;
 
     size_t length;
     size_t index;
@@ -504,7 +505,7 @@ public:
     {
     }
 
-    Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, size_t startLine = 0, size_t startColumn = 0);
+    Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, bool isModule, size_t startLine = 0, size_t startColumn = 0);
 
     // Scanner always allocated on the stack
     MAKE_STACK_ALLOCATED();
@@ -571,7 +572,7 @@ public:
                 }
             } else if (start && ch == 0x2D) { // U+002D is '-'
                 // U+003E is '>'
-                if ((this->sourceCharAt(this->index + 1) == 0x2D) && (this->sourceCharAt(this->index + 2) == 0x3E)) {
+                if (!this->isModule && (this->sourceCharAt(this->index + 1) == 0x2D) && (this->sourceCharAt(this->index + 2) == 0x3E)) {
                     // '-->' is a single-line comment
                     this->index += 3;
                     this->skipSingleLineComment();
@@ -579,7 +580,7 @@ public:
                     break;
                 }
             } else if (ch == 0x3C) { // U+003C is '<'
-                if (this->length > this->index + 4) {
+                if (!this->isModule && this->length > this->index + 4) {
                     if (this->sourceCharAt(this->index + 1) == '!'
                         && this->sourceCharAt(this->index + 2) == '-'
                         && this->sourceCharAt(this->index + 3) == '-') {

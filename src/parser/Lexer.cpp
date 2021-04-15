@@ -670,12 +670,13 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
     this->valueStringLiteralData.m_stringIfNewlyAllocated = newStr;
 }
 
-Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, size_t startLine, size_t startColumn)
+Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, bool isModule, size_t startLine, size_t startColumn)
     : source(code, 0, code.length())
     , sourceAsNormalView(code)
     , escargotContext(escargotContext)
     , parserContext(parserContext)
     , sourceCodeAccessData(code.bufferAccessData())
+    , isModule(isModule)
     , length(code.length())
     , index(0)
     , lineNumber(startLine)
