@@ -80,13 +80,14 @@ namespace RuntimeICUBinder {
     F(uscript_hasScript, UBool (*)(UChar32 c, UScriptCode sc), UBool)                                                                                                      \
     F(uscript_getShortName, const char* (*)(UScriptCode scriptCode), const char*)
 
-#define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                         \
-    F(u_getVersion, void (*)(UVersionInfo versionArray), void)                                                                                                                                         \
-    F(uiter_setString, void (*)(UCharIterator * iter, const UChar* s, int32_t length), void)                                                                                                           \
-    F(ucnv_close, void (*)(UConverter * converter), void)                                                                                                                                              \
-    F(ucnv_toUnicode, void (*)(UConverter * converter, UChar * *target, const UChar* targetLimit, const char** source, const char* sourceLimit, int32_t* offsets, UBool flush, UErrorCode* err), void) \
-    F(ubidi_close, void (*)(UBiDi * pBiDi), void)                                                                                                                                                      \
-    F(ubidi_setPara, void (*)(UBiDi * pBiDi, const UChar* text, int32_t length, UBiDiLevel paraLevel, UBiDiLevel* embeddingLevels, UErrorCode* pErrorCode), void)                                      \
+#define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                          \
+    F(u_getVersion, void (*)(UVersionInfo versionArray), void)                                                                                                                                          \
+    F(uiter_setString, void (*)(UCharIterator * iter, const UChar* s, int32_t length), void)                                                                                                            \
+    F(ucnv_close, void (*)(UConverter * converter), void)                                                                                                                                               \
+    F(ucnv_toUnicode, void (*)(UConverter * converter, UChar * *target, const UChar* targetLimit, const char** source, const char* sourceLimit, int32_t* offsets, UBool flush, UErrorCode* err), void)  \
+    F(ucnv_fromUnicode, void (*)(UConverter * converter, char** target, const char* targetLimit, const UChar** source, const UChar* sourceLimit, int32_t* offsets, UBool flush, UErrorCode* err), void) \
+    F(ubidi_close, void (*)(UBiDi * pBiDi), void)                                                                                                                                                       \
+    F(ubidi_setPara, void (*)(UBiDi * pBiDi, const UChar* text, int32_t length, UBiDiLevel paraLevel, UBiDiLevel* embeddingLevels, UErrorCode* pErrorCode), void)                                       \
     F(ubidi_getLogicalRun, void (*)(const UBiDi* pBiDi, int32_t logicalPosition, int32_t* pLogicalLimit, UBiDiLevel* pLevel), void)
 
 #define FOR_EACH_I18N_OP(F)                                                                                                                                                                    \
@@ -347,6 +348,6 @@ private:
     void* m_functions[FunctionMax];
     int m_icuVersion;
 };
-}
+} // namespace RuntimeICUBinder
 
 #endif

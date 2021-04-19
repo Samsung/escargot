@@ -324,4 +324,4 @@ ICU::ICU()
         }
     }
 }
-}
+} // namespace RuntimeICUBinder
