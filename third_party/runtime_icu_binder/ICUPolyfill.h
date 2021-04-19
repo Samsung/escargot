@@ -132,6 +132,7 @@
 #define ucnv_compareNames RuntimeICUBinder::ICU::instance().ucnv_compareNames
 #define ucnv_close RuntimeICUBinder::ICU::instance().ucnv_close
 #define ucnv_toUnicode RuntimeICUBinder::ICU::instance().ucnv_toUnicode
+#define ucnv_fromUnicode RuntimeICUBinder::ICU::instance().ucnv_fromUnicode
 #define ucnv_getDisplayName RuntimeICUBinder::ICU::instance().ucnv_getDisplayName
 #define ucnv_getName RuntimeICUBinder::ICU::instance().ucnv_getName
 
