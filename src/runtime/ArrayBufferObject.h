@@ -21,6 +21,7 @@
 #define __EscargotArrayBufferObject__
 
 #include "runtime/Context.h"
+#include "runtime/BackingStore.h"
 
 namespace Escargot {
 
@@ -53,22 +54,24 @@ public:
     static const uint32_t maxArrayBufferSize = 210000000;
 
     void allocateBuffer(ExecutionState& state, size_t bytelength);
-    void attachBuffer(ExecutionState& state, void* buffer, size_t bytelength);
-    void attachExternalBuffer(ExecutionState& state, void* buffer, size_t bytelength);
+    void attachBuffer(BackingStore* backingStore);
     void detachArrayBuffer();
+    Optional<BackingStore*> backingStore()
+    {
+        if (m_backingStore) {
+            m_mayPointsSharedBackingStore = true;
+        }
+        return m_backingStore;
+    }
 
     virtual bool isArrayBufferObject() const
     {
         return true;
     }
 
-    bool pointsExternalMemory() const
-    {
-        return m_fromExternalMemory;
-    }
 
     ALWAYS_INLINE const uint8_t* data() { return m_data; }
-    ALWAYS_INLINE size_t byteLength() { return m_bytelength; }
+    ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
     // $24.1.1.6
     Value getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian = true);
     // $24.1.1.8
@@ -96,10 +99,10 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    Context* m_context;
-    uint8_t* m_data;
-    size_t m_bytelength;
-    bool m_fromExternalMemory;
+    uint8_t* m_data; // Points backing stores data address
+    size_t m_byteLength; // Indicates backing stores byte length
+    bool m_mayPointsSharedBackingStore;
+    Optional<BackingStore*> m_backingStore;
 };
 
 class ArrayBufferView : public Object {

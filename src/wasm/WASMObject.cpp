@@ -177,7 +177,11 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
     // Note) wasm_memory_data with zero size returns null pointer
     // predefined temporal address is allocated for this case
     void* dataBlock = wasm_memory_size(memory) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memory);
-    buffer->attachExternalBuffer(state, dataBlock, wasm_memory_data_size(memory));
+
+    // Init BackingStore with empty deleter
+    BackingStore* backingStore = new BackingStore(dataBlock, wasm_memory_data_size(memory),
+                                                  [](void* data, size_t length, void* deleterData) {}, nullptr);
+    buffer->attachBuffer(backingStore);
 
     // Set memory.[[Memory]] to memory.
     // Set memory.[[BufferObject]] to buffer.

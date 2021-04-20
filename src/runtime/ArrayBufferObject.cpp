@@ -63,30 +63,22 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_context(state.context())
     , m_data(nullptr)
-    , m_bytelength(0)
-    , m_fromExternalMemory(false)
+    , m_byteLength(0)
+    , m_mayPointsSharedBackingStore(false)
 {
-    addFinalizer([](Object* s, void* data) {
-        ArrayBufferObject* self = s->asArrayBufferObject();
-        if (self->m_data && !self->m_fromExternalMemory) {
-            self->m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(self->m_context, self, self->m_data);
-        }
-    },
-                 nullptr);
 }
 
-void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
+void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
 {
     detachArrayBuffer();
 
-    ASSERT(bytelength < (size_t)ArrayBufferObject::maxArrayBufferSize);
+    ASSERT(byteLength < (size_t)ArrayBufferObject::maxArrayBufferSize);
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
-    if (bytelength > (GC_get_heap_size() / ratio)) {
+    if (byteLength > (GC_get_heap_size() / ratio)) {
         size_t n = 0;
-        size_t times = bytelength / (GC_get_heap_size() / ratio) / 3;
+        size_t times = byteLength / (GC_get_heap_size() / ratio) / 3;
         do {
             GC_gcollect_and_unmap();
             n += 1;
@@ -94,41 +86,32 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t bytelength)
         GC_invoke_finalizers();
     }
 
-    m_data = (uint8_t*)m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, bytelength);
-    m_bytelength = bytelength;
+    m_backingStore = new BackingStore(byteLength);
+    m_backingStore->m_isShared = true;
+    m_data = (uint8_t*)m_backingStore->data();
+    m_byteLength = byteLength;
 }
 
-void ArrayBufferObject::attachBuffer(ExecutionState& state, void* buffer, size_t bytelength)
+void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
 {
     detachArrayBuffer();
 
-    // if buffer is null, the ArrayBuffer object still seems detached
-    if (buffer == nullptr) {
-        ASSERT(bytelength == 0);
-        buffer = m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferMalloc(m_context, this, 0);
-    }
-
-    m_data = (uint8_t*)buffer;
-    m_bytelength = bytelength;
-}
-
-void ArrayBufferObject::attachExternalBuffer(ExecutionState& state, void* buffer, size_t bytelength)
-{
-    detachArrayBuffer();
-
-    m_fromExternalMemory = true;
-    m_data = (uint8_t*)buffer;
-    m_bytelength = bytelength;
+    m_mayPointsSharedBackingStore = true;
+    m_backingStore = backingStore;
+    m_backingStore->m_isShared = true;
+    m_data = (uint8_t*)backingStore->data();
+    m_byteLength = backingStore->byteLength();
 }
 
 void ArrayBufferObject::detachArrayBuffer()
 {
-    if (m_data && !m_fromExternalMemory) {
-        m_context->vmInstance()->platform()->onArrayBufferObjectDataBufferFree(m_context, this, m_data);
+    if (m_data && !m_mayPointsSharedBackingStore) {
+        delete m_backingStore.value();
     }
     m_data = nullptr;
-    m_bytelength = 0;
-    m_fromExternalMemory = false;
+    m_byteLength = 0;
+    m_backingStore.reset();
+    m_mayPointsSharedBackingStore = false;
 }
 
 void* ArrayBufferObject::operator new(size_t size)
@@ -139,7 +122,7 @@ void* ArrayBufferObject::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayBufferObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_context));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_backingStore));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferObject));
         typeInited = true;
     }
@@ -153,9 +136,9 @@ void* ArrayBufferObject::operator new(size_t size)
 Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)
 {
     // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(m_bytelength);
+    ASSERT(m_byteLength);
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= m_bytelength);
+    ASSERT(byteindex + elemSize <= m_byteLength);
     uint8_t* rawStart = m_data + byteindex;
     if (LIKELY(isLittleEndian)) {
         return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
@@ -172,9 +155,9 @@ Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t bytein
 void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian)
 {
     // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(m_bytelength);
+    ASSERT(m_byteLength);
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= m_bytelength);
+    ASSERT(byteindex + elemSize <= m_byteLength);
     uint8_t* rawStart = m_data + byteindex;
     uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
     TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);

@@ -104,6 +104,7 @@
     F(ScriptParser)                         \
     F(Template)                             \
     F(VMInstance)                           \
+    F(BackingStore)                         \
     ESCARGOT_POINTERVALUE_CHILD_REF_LIST(F) \
     ESCARGOT_ERROR_REF_LIST(F)              \
     ESCARGOT_TYPEDARRAY_REF_LIST(F)
@@ -1419,20 +1420,32 @@ public:
     RegExpObjectOption option();
 };
 
+class ESCARGOT_EXPORT BackingStoreRef {
+    friend class ArrayBufferObject;
+
+public:
+    static BackingStoreRef* create(size_t byteLength);
+    typedef void (*BackingStoreRefDeleterCallback)(void* data, size_t length,
+                                                   void* deleterData);
+    static BackingStoreRef* create(void* data, size_t byteLength, BackingStoreRefDeleterCallback callback, void* callbackData);
+
+    void* data();
+    size_t byteLength();
+    // Indicates whether the backing store was created for an ArrayBufferObject
+    bool isShared();
+};
+
 class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
 public:
     static ArrayBufferObjectRef* create(ExecutionStateRef* state);
     void allocateBuffer(ExecutionStateRef* state, size_t bytelength);
-    // the buffer will be freed by PlatformRef::onArrayBufferObjectDataBufferFree
-    void attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
-    // the buffer will NOT be freed by PlatformRef::onArrayBufferObjectDataBufferFree
-    void attachExternalBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength);
+    void attachBuffer(BackingStoreRef* backingStore);
     void detachArrayBuffer();
 
+    OptionalRef<BackingStoreRef> backingStore();
     uint8_t* rawBuffer();
     size_t byteLength();
     bool isDetachedBuffer();
-    bool pointsExternalMemory();
 };
 
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
@@ -1755,16 +1768,6 @@ public:
 class ESCARGOT_EXPORT PlatformRef {
 public:
     virtual ~PlatformRef() {}
-    // ArrayBuffer
-    // client must returns zero-filled memory
-    virtual void* onArrayBufferObjectDataBufferMalloc(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, size_t sizeInByte)
-    {
-        return calloc(sizeInByte, 1);
-    }
-    virtual void onArrayBufferObjectDataBufferFree(ContextRef* whereObjectMade, ArrayBufferObjectRef* obj, void* buffer)
-    {
-        return free(buffer);
-    }
 
     // If you want to add a Job event, you should call VMInstanceRef::executePendingJob after event. see Shell.cpp
     virtual void markJSJobEnqueued(ContextRef* relatedContext) = 0;
