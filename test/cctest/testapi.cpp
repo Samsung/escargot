@@ -302,26 +302,7 @@ public:
     virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) override
     {
         LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src);
-
-        Evaluator::EvaluatorResult executionResult = Evaluator::execute(relatedContext, [](ExecutionStateRef* state, LoadModuleResult loadedModuleResult, PromiseObjectRef* promise) -> ValueRef* {
-            if (loadedModuleResult.script) {
-                if (!loadedModuleResult.script.value()->isExecuted()) {
-                    loadedModuleResult.script.value()->execute(state);
-                }
-            } else {
-                state->throwException(ErrorObjectRef::create(state, loadedModuleResult.errorCode, loadedModuleResult.errorMessage));
-            }
-            return loadedModuleResult.script.value()->moduleNamespace(state);
-        }, loadedModuleResult, promise);
-
-        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, bool isSuccessful, ValueRef* value, PromiseObjectRef* promise) -> ValueRef* {
-            if (isSuccessful) {
-                promise->reject(state, value);
-            } else {
-                promise->fulfill(state, value);
-            }
-            return ValueRef::createUndefined();
-        }, executionResult.isSuccessful(), executionResult.isSuccessful() ? executionResult.result : executionResult.error.value(), promise);
+        notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, loadedModuleResult);
     }
 };
 
@@ -752,3 +733,34 @@ TEST(FunctionTemplate, Basic3) {
     }, ftchild);
 }
 
+TEST(BackingStore, Basic1) {
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        auto bs = BackingStoreRef::create(1024);
+        EXPECT_FALSE(bs->isShared());
+        EXPECT_TRUE(bs->byteLength() == 1024);
+        auto abo = ArrayBufferObjectRef::create(state);
+        abo->attachBuffer(bs);
+        EXPECT_TRUE(bs->data() == abo->rawBuffer());
+        EXPECT_TRUE(bs->isShared());
+        EXPECT_TRUE(abo->byteLength() == 1024);
+        abo->detachArrayBuffer();
+        EXPECT_TRUE(abo->byteLength() == 0);
+        EXPECT_TRUE(abo->isDetachedBuffer());
+        EXPECT_TRUE(abo->rawBuffer() == nullptr);
+        EXPECT_FALSE(abo->backingStore().hasValue());
+
+        abo->allocateBuffer(state, 1024);
+        EXPECT_TRUE(abo->byteLength() == 1024);
+
+        // there is no error
+        bs = BackingStoreRef::create(calloc(1024, 1), 1024, [](void* data, size_t length,
+            void* deleterData) {
+            free(data);
+        }, nullptr);
+        EXPECT_FALSE(bs->isShared());
+        EXPECT_TRUE(bs->byteLength() == 1024);
+        bs = nullptr;
+
+        return ValueRef::createUndefined();
+    });
+}
