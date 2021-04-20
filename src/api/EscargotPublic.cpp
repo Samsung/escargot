@@ -43,6 +43,7 @@
 #include "runtime/JobQueue.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/ProxyObject.h"
+#include "runtime/BackingStore.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
 #include "runtime/SetObject.h"
@@ -709,16 +710,6 @@ public:
     PlatformBridge(PlatformRef* p)
         : m_platform(p)
     {
-    }
-
-    virtual void* onArrayBufferObjectDataBufferMalloc(Context* whereObjectMade, ArrayBufferObject* obj, size_t sizeInByte) override
-    {
-        return m_platform->onArrayBufferObjectDataBufferMalloc(toRef(whereObjectMade), toRef(obj), sizeInByte);
-    }
-
-    virtual void onArrayBufferObjectDataBufferFree(Context* whereObjectMade, ArrayBufferObject* obj, void* buffer) override
-    {
-        m_platform->onArrayBufferObjectDataBufferFree(toRef(whereObjectMade), toRef(obj), buffer);
     }
 
     virtual void markJSJobEnqueued(Context* relatedContext) override
@@ -2710,6 +2701,31 @@ RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
     return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
+BackingStoreRef* BackingStoreRef::create(size_t byteLength)
+{
+    return toRef(new BackingStore(byteLength));
+}
+
+BackingStoreRef* BackingStoreRef::create(void* data, size_t byteLength, BackingStoreRef::BackingStoreRefDeleterCallback callback, void* callbackData)
+{
+    return toRef(new BackingStore(data, byteLength, (BackingStoreDeleterCallback)callback, callbackData));
+}
+
+void* BackingStoreRef::data()
+{
+    return toImpl(this)->data();
+}
+
+size_t BackingStoreRef::byteLength()
+{
+    return toImpl(this)->byteLength();
+}
+
+bool BackingStoreRef::isShared()
+{
+    return toImpl(this)->isShared();
+}
+
 ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new ArrayBufferObject(*toImpl(state)));
@@ -2720,19 +2736,23 @@ void ArrayBufferObjectRef::allocateBuffer(ExecutionStateRef* state, size_t bytel
     toImpl(this)->allocateBuffer(*toImpl(state), bytelength);
 }
 
-void ArrayBufferObjectRef::attachBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength)
+void ArrayBufferObjectRef::attachBuffer(BackingStoreRef* backingStore)
 {
-    toImpl(this)->attachBuffer(*toImpl(state), buffer, bytelength);
-}
-
-void ArrayBufferObjectRef::attachExternalBuffer(ExecutionStateRef* state, void* buffer, size_t bytelength)
-{
-    toImpl(this)->attachExternalBuffer(*toImpl(state), buffer, bytelength);
+    toImpl(this)->attachBuffer(toImpl(backingStore));
 }
 
 void ArrayBufferObjectRef::detachArrayBuffer()
 {
     toImpl(this)->detachArrayBuffer();
+}
+
+OptionalRef<BackingStoreRef> ArrayBufferObjectRef::backingStore()
+{
+    if (toImpl(this)->backingStore()) {
+        return toRef(toImpl(this)->backingStore().value());
+    } else {
+        return nullptr;
+    }
 }
 
 uint8_t* ArrayBufferObjectRef::rawBuffer()
@@ -2748,11 +2768,6 @@ size_t ArrayBufferObjectRef::byteLength()
 bool ArrayBufferObjectRef::isDetachedBuffer()
 {
     return toImpl(this)->isDetachedBuffer();
-}
-
-bool ArrayBufferObjectRef::pointsExternalMemory()
-{
-    return toImpl(this)->pointsExternalMemory();
 }
 
 ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
