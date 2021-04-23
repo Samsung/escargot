@@ -96,6 +96,14 @@ def yamlAttrParser(testRecord, attrs, name):
 
 def parseTestRecord(src, name):
     testRecord = {}
+    # skip hashbang
+    # our testRecordPattern cannot skip hashbang
+    # we need to skip hashbang before copyright comment
+    if len(src) > 1 and (src[0] == '#' or src[0] == '\\'):
+      src = src[src.find("// Copyright"):]
+    elif src[:25].rfind("#!") is not -1:
+      src = src[src.find("// Copyright"):]
+
     match = matchParts(src, name)
     testRecord['header'] = match.group(1).strip()
     testRecord['test'] = match.group(3) # do not trim

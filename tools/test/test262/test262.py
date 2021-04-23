@@ -246,6 +246,7 @@ class TestCase(object):
     self.strict_mode = strict_mode
     f = open(self.full_path)
     self.contents = f.read()
+    self.source = self.contents
     f.close()
     testRecord = parseTestRecord(self.contents, name)
     self.test = testRecord["test"]
@@ -319,9 +320,16 @@ class TestCase(object):
 
   def GetSource(self):
     if self.IsRaw():
-        return self.test
+        return self.source
 
-    source = self.test
+    source = self.source
+    # if test is hashbang test
+    if len(source) > 1 and (source[0] == '#' or source[0] == '\\'):
+      lines = source.splitlines()
+      if self.strict_mode:
+        lines.insert(1, 'var strict_mode = true;')
+        lines.insert(1, '"use strict";')
+      return "\n".join(lines)
 
     if self.strict_mode:
       source = '"use strict";\nvar strict_mode = true;\n' + source
