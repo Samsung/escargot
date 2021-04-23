@@ -686,6 +686,23 @@ Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::Pars
     // trackComment = false;
 }
 
+void Scanner::skipSingleLine()
+{
+    while (!this->eof()) {
+        char16_t ch = this->peekCharWithoutEOF();
+        ++this->index;
+
+        if (isLineTerminator(ch)) {
+            if (ch == 13 && this->peekCharWithoutEOF() == 10) {
+                ++this->index;
+            }
+            ++this->lineNumber;
+            this->lineStart = this->index;
+            return;
+        }
+    }
+}
+
 void Scanner::skipSingleLineComment(void)
 {
     while (!this->eof()) {
@@ -1152,6 +1169,15 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
             ++this->index;
         }
         break;
+
+    case '#':
+        if (this->index == 1 && this->peekChar() == '!') {
+            kind = HashBang;
+            ++this->index;
+            break;
+        }
+
+        FALLTHROUGH;
 
     default:
         this->throwUnexpectedToken();
