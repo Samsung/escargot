@@ -5260,6 +5260,38 @@ public:
         ALLOC_TOKEN(token);
         while (true) {
             *token = this->lookahead;
+
+            // https://github.com/tc39/proposal-hashbang
+            // InputElementHashbangOrRegExp ::
+            //   WhiteSpace
+            //   LineTerminator
+            //   Comment
+            //   CommonToken
+            //   HashbangComment
+            //   RegularExpressionLiteral
+            // HashbangComment ::
+            //   `#!` SingleLineCommentChars?
+            if (UNLIKELY(token->type == Token::PunctuatorToken
+                         && token->valuePunctuatorKind == PunctuatorKind::HashBang)) {
+                size_t tokenLineNumber = this->lookahead.lineNumber;
+                this->scanner->skipSingleLine();
+                this->scanner->scanComments();
+
+                this->startMarker.index = this->scanner->index;
+                this->startMarker.lineNumber = this->scanner->lineNumber;
+                this->startMarker.lineStart = this->scanner->lineStart;
+
+                this->scanner->lex(token);
+                this->hasLineTerminator = tokenLineNumber != token->lineNumber;
+
+                if (this->context->strict && token->type == Token::IdentifierToken
+                    && this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
+                    this->scanner->convertToKeywordInStrictMode(token);
+                }
+
+                this->lookahead = *token;
+            }
+
             if (token->type != StringLiteralToken) {
                 break;
             }
