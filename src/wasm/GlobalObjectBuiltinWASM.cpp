@@ -544,7 +544,26 @@ static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().buffer.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
-    return thisValue.asObject()->asWASMMemoryObject()->buffer();
+    WASMMemoryObject* memoryObj = thisValue.asObject()->asWASMMemoryObject();
+    if (UNLIKELY(wasm_memory_data_size(memoryObj->memory()) != memoryObj->buffer()->byteLength())) {
+        // FIXME data block of memory has been changed by previous memory.grow operation, but not yet reflected
+        // So, we update the buffer here to reflect modifications on data block and its size.
+        // TODO Actually, this change should be applied immediately after memory.grow operation
+        memoryObj->buffer()->detachArrayBuffer();
+
+        ArrayBufferObject* buffer = new ArrayBufferObject(state);
+        size_t dataSize = wasm_memory_data_size(memoryObj->memory());
+        void* dataBlock = dataSize == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memoryObj->memory());
+
+        BackingStore* backingStore = new BackingStore(dataBlock, dataSize,
+                                                      [](void* data, size_t length, void* deleterData) {}, nullptr);
+        buffer->attachBuffer(backingStore);
+
+        memoryObj->setBuffer(buffer);
+    }
+
+    ASSERT(wasm_memory_data_size(memoryObj->memory()) == memoryObj->buffer()->byteLength());
+    return memoryObj->buffer();
 }
 
 // WebAssembly.Table
