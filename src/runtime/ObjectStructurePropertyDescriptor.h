@@ -24,19 +24,22 @@
 
 namespace Escargot {
 
-typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea);
-typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
+typedef Value (*ObjectPropertyNativeGetter)(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea);
+typedef bool (*ObjectPropertyNativeSetter)(ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
 struct ObjectPropertyNativeGetterSetterData : public gc {
-    size_t m_presentAttributes;
+    size_t m_presentAttributes : 31;
+    bool m_actsLikeJSGetterSetter : 1;
     ObjectPropertyNativeGetter m_getter;
     ObjectPropertyNativeSetter m_setter;
 
     ObjectPropertyNativeGetterSetterData(bool isWritable, bool isEnumerable, bool isConfigurable,
-                                         ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter);
+                                         ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter,
+                                         bool actsLikeJSGetterSetter = false);
     ObjectPropertyNativeGetterSetterData(size_t presentAttributes,
                                          ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
         : m_presentAttributes(presentAttributes)
+        , m_actsLikeJSGetterSetter(false)
         , m_getter(getter)
         , m_setter(setter)
     {
@@ -242,8 +245,10 @@ private:
 };
 
 inline ObjectPropertyNativeGetterSetterData::ObjectPropertyNativeGetterSetterData(bool isWritable, bool isEnumerable, bool isConfigurable,
-                                                                                  ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter)
+                                                                                  ObjectPropertyNativeGetter getter, ObjectPropertyNativeSetter setter,
+                                                                                  bool actsLikeJSGetterSetter)
     : m_presentAttributes(0)
+    , m_actsLikeJSGetterSetter(actsLikeJSGetterSetter)
     , m_getter(getter)
     , m_setter(setter)
 {

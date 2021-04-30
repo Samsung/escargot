@@ -1095,8 +1095,8 @@ public:
     bool defineAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, const AccessorPropertyDescriptor& desc);
 
     struct NativeDataAccessorPropertyData;
-    typedef ValueRef* (*NativeDataAccessorPropertyGetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data);
-    typedef bool (*NativeDataAccessorPropertySetter)(ExecutionStateRef* state, ObjectRef* self, NativeDataAccessorPropertyData* data, ValueRef* setterInputData);
+    typedef ValueRef* (*NativeDataAccessorPropertyGetter)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, NativeDataAccessorPropertyData* data);
+    typedef bool (*NativeDataAccessorPropertySetter)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, NativeDataAccessorPropertyData* data, ValueRef* setterInputData);
     // client extend this struct to give data for getter, setter if needs
     // this struct must allocated in gc-heap
     // only setter can be null
@@ -1122,7 +1122,7 @@ public:
     };
     // this function differ with defineDataPropety and defineAccessorPropety.
     // !hasOwnProperty(state, P) is needed for success
-    bool defineNativeDataAccessorProperty(ExecutionStateRef* state, ValueRef* P, NativeDataAccessorPropertyData* data);
+    bool defineNativeDataAccessorProperty(ExecutionStateRef* state, ValueRef* P, NativeDataAccessorPropertyData* data, bool actsLikeJSGetterSetter = false);
 
     bool deleteOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
     bool hasOwnProperty(ExecutionStateRef* state, ValueRef* propertyName);
@@ -1632,8 +1632,8 @@ public:
     void set(const TemplatePropertyNameRef& name, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
     void setAccessorProperty(const TemplatePropertyNameRef& name, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable);
     void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
-                                       bool isWritable, bool isEnumerable, bool isConfigurable);
-    void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyData* data);
+                                       bool isWritable, bool isEnumerable, bool isConfigurable, bool actsLikeJSGetterSetter = false);
+    void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyData* data, bool actsLikeJSGetterSetter = false);
 
     bool has(const TemplatePropertyNameRef& name);
     // return true if removed
