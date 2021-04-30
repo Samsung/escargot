@@ -460,20 +460,64 @@ TEST(ObjectTemplate, Basic3) {
     data->m_isConfigurable = false;
     data->m_isEnumerable = false;
     data->m_isWritable = true;
-    data->m_getter = [](ExecutionStateRef* state, ObjectRef* self, ObjectRef::NativeDataAccessorPropertyData* data) -> ValueRef* {
+    data->m_getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) -> ValueRef* {
         return ValueRef::create(((TestNativeDataAccessorPropertyData*)data)->number);
     };
 
-    data->m_setter = [](ExecutionStateRef* state, ObjectRef* self, ObjectRef::NativeDataAccessorPropertyData* data, ValueRef* setterInputData) -> bool {
+    data->m_setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data, ValueRef* setterInputData) -> bool {
         ((TestNativeDataAccessorPropertyData*)data)->number = setterInputData->toNumber(state);
         return true;
     };
 
     tpl->setNativeDataAccessorProperty(StringRef::createFromASCII("asdf"), data);
 
+    class TestNativeDataAccessorPropertyData2 : public ObjectRef::NativeDataAccessorPropertyData {
+    public:
+        TestNativeDataAccessorPropertyData2()
+        : ObjectRef::NativeDataAccessorPropertyData(false, false, false, nullptr, nullptr)
+        {
+            child = nullptr;
+            parent = nullptr;
+            value = ValueRef::createUndefined();
+
+            getterCallCount = 0;
+            setterCallCount = 0;
+        }
+
+        ObjectRef* child;
+        ObjectRef* parent;
+        ValueRef* value;
+
+        int getterCallCount;
+        int setterCallCount;
+    };
+
+    TestNativeDataAccessorPropertyData2* data2 = new TestNativeDataAccessorPropertyData2();
+    data2->m_isConfigurable = false;
+    data2->m_isEnumerable = false;
+    data2->m_isWritable = true;
+    data2->m_getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) -> ValueRef* {
+        if (((TestNativeDataAccessorPropertyData2*)data)->getterCallCount == 0) {
+            EXPECT_TRUE(((TestNativeDataAccessorPropertyData2*)data)->parent == self);
+            EXPECT_TRUE(((TestNativeDataAccessorPropertyData2*)data)->child == receiver);
+        }
+        ((TestNativeDataAccessorPropertyData2*)data)->getterCallCount++;
+        return ((TestNativeDataAccessorPropertyData2*)data)->value;
+    };
+
+    data2->m_setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data, ValueRef* setterInputData) -> bool {
+        ((TestNativeDataAccessorPropertyData2*)data)->setterCallCount++;
+        ((TestNativeDataAccessorPropertyData2*)data)->value = ValueRef::create(setterInputData->asNumber() * 2);
+        EXPECT_TRUE(((TestNativeDataAccessorPropertyData2*)data)->parent == self);
+        EXPECT_TRUE(((TestNativeDataAccessorPropertyData2*)data)->child == receiver);
+        return true;
+    };
+
+    tpl->setNativeDataAccessorProperty(StringRef::createFromASCII("asdf2"), data2, true);
+
     ObjectRef* obj = tpl->instantiate(g_context.get());
 
-    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj, TestNativeDataAccessorPropertyData2* data2) -> ValueRef* {
         auto desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("asdf"));
 
         auto value = desc->asObject()->get(state, StringRef::createFromASCII("enumerable"));
@@ -489,8 +533,28 @@ TEST(ObjectTemplate, Basic3) {
 
         EXPECT_TRUE(obj->get(state, StringRef::createFromASCII("asdf"))->equalsTo(state, ValueRef::create(20)));
 
+        ObjectRef* child = ObjectRef::create(state);
+        child->setPrototype(state, obj);
+
+        data2->child = child;
+        data2->parent = obj;
+
+        child->set(state, StringRef::createFromASCII("asdf2"), ValueRef::create(64));
+        EXPECT_TRUE(data2->setterCallCount == 1);
+        EXPECT_TRUE(data2->value->equalsTo(state, ValueRef::create(128)));
+
+        child->get(state, StringRef::createFromASCII("asdf2"));
+        EXPECT_TRUE(data2->getterCallCount == 1);
+
+        EXPECT_TRUE(obj->hasOwnProperty(state, StringRef::createFromASCII("asdf2")));
+        EXPECT_FALSE(child->hasOwnProperty(state, StringRef::createFromASCII("asdf2")));
+
+        auto desc2 = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("asdf2"));
+        desc2 = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc2);
+        EXPECT_TRUE(desc2->toString(state)->toStdUTF8String() == "{\"value\":128,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
+
         return ValueRef::createUndefined();
-    }, obj);
+    }, obj, data2);
 }
 
 TEST(ObjectTemplate, Basic4) {
