@@ -115,6 +115,9 @@ void* ObjectRareData::operator new(size_t size)
 
 Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receiver) const
 {
+    if (LIKELY(isDataProperty())) {
+        return m_nativeGetterSetterData.m_nativeGetterSetterData->m_getter(state, m_nativeGetterSetterData.m_object, receiver, m_nativeGetterSetterData.m_internalData);
+    }
 #ifdef ESCARGOT_32
     if (m_jsGetterSetter->getter().isCallable()) {
 #else
@@ -606,7 +609,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
                 return ObjectGetResult(m_values[findResult.first], presentAttributes & ObjectStructurePropertyDescriptor::WritablePresent, presentAttributes & ObjectStructurePropertyDescriptor::EnumerablePresent, presentAttributes & ObjectStructurePropertyDescriptor::ConfigurablePresent);
             } else {
                 ObjectPropertyNativeGetterSetterData* data = desc.nativeGetterSetterData();
-                return ObjectGetResult(data->m_getter(state, this, m_values[findResult.first]), presentAttributes & ObjectStructurePropertyDescriptor::WritablePresent, presentAttributes & ObjectStructurePropertyDescriptor::EnumerablePresent, presentAttributes & ObjectStructurePropertyDescriptor::ConfigurablePresent);
+                return ObjectGetResult(data, this, m_values[findResult.first], presentAttributes & ObjectStructurePropertyDescriptor::WritablePresent, presentAttributes & ObjectStructurePropertyDescriptor::EnumerablePresent, presentAttributes & ObjectStructurePropertyDescriptor::ConfigurablePresent);
             }
         } else {
             const Value& v = m_values[findResult.first];
@@ -771,7 +774,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
         if (!shouldDelete) {
             if (newDesc.isDataDescriptor()) {
                 if (desc.isValuePresent()) {
-                    return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *item, newDesc.value());
+                    return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *item, newDesc.value(), Value(this));
                 }
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
@@ -787,7 +790,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
             }
 
             if (newDesc.isDataDescriptor()) {
-                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->readProperty(idx), newDesc.value());
+                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->readProperty(idx), newDesc.value(), Value(this));
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
@@ -995,6 +998,19 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
         if (!receiver.isObject()) {
             return false;
         }
+
+        if (UNLIKELY(ownDesc.isDataAccessorProperty() && ownDesc.nativeGetterSetterData()->m_actsLikeJSGetterSetter)) {
+            if (UNLIKELY(isEverSetAsPrototypeObject() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && propertyName.isIndexString())) {
+                state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+            }
+            ObjectStructurePropertyName propertyStructureName = propertyName.toObjectStructurePropertyName(state);
+            auto findResult = m_structure->findProperty(propertyStructureName);
+            ASSERT(findResult.first != SIZE_MAX);
+            size_t idx = findResult.first;
+            const ObjectStructureItem* item = findResult.second.value();
+            return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *item, v, receiver.asObject());
+        }
+
         // 5.c. Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
         Object* receiverObj = receiver.asObject();
         auto existingDesc = receiverObj->getOwnProperty(state, propertyName);

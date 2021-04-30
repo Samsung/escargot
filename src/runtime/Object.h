@@ -576,6 +576,7 @@ public:
         , m_isEnumerable(false)
         , m_isConfigurable(false)
         , m_isDataProperty(true)
+        , m_isDataAccessorProperty(false)
         , m_value()
     {
     }
@@ -586,8 +587,22 @@ public:
         , m_isEnumerable(isEnumerable)
         , m_isConfigurable(isConfigurable)
         , m_isDataProperty(true)
+        , m_isDataAccessorProperty(false)
         , m_value(v)
     {
+    }
+
+    ObjectGetResult(ObjectPropertyNativeGetterSetterData* nativeGetterSetter, Object* self, const EncodedValue& internalData, bool isWritable, bool isEnumerable, bool isConfigurable)
+        : m_hasValue(true)
+        , m_isWritable(isWritable)
+        , m_isEnumerable(isEnumerable)
+        , m_isConfigurable(isConfigurable)
+        , m_isDataProperty(true)
+        , m_isDataAccessorProperty(true)
+    {
+        m_nativeGetterSetterData.m_nativeGetterSetterData = nativeGetterSetter;
+        m_nativeGetterSetterData.m_object = self;
+        m_nativeGetterSetterData.m_internalData = internalData;
     }
 
     ObjectGetResult(JSGetterSetter* getterSetter, bool isEnumerable, bool isConfigurable)
@@ -596,20 +611,21 @@ public:
         , m_isEnumerable(isEnumerable)
         , m_isConfigurable(isConfigurable)
         , m_isDataProperty(false)
+        , m_isDataAccessorProperty(true)
+        , m_jsGetterSetter(getterSetter)
     {
-        m_jsGetterSetter = getterSetter;
     }
 
     Value value(ExecutionState& state, const Value& receiver) const
     {
-        if (LIKELY(m_isDataProperty))
+        if (LIKELY(!m_isDataAccessorProperty))
             return m_value;
         return valueSlowCase(state, receiver);
     }
 
     JSGetterSetter* jsGetterSetter()
     {
-        ASSERT(!m_isDataProperty);
+        ASSERT(!isDataProperty());
         return m_jsGetterSetter;
     }
 
@@ -643,17 +659,37 @@ public:
         return m_isDataProperty;
     }
 
+    bool isDataAccessorProperty() const
+    {
+        ASSERT(hasValue());
+        return m_isDataAccessorProperty;
+    }
+
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.10.4
     Value toPropertyDescriptor(ExecutionState& state, const Value& receiver);
+
+    ObjectPropertyNativeGetterSetterData* nativeGetterSetterData()
+    {
+        ASSERT(isDataAccessorProperty() && isDataProperty());
+        return m_nativeGetterSetterData.m_nativeGetterSetterData;
+    }
 
 private:
     bool m_hasValue : 1;
     bool m_isWritable : 1;
     bool m_isEnumerable : 1;
     bool m_isConfigurable : 1;
+    // this includes DataAccessorProperty.
+    // if isDataAccessorProperty is true, isDataProperty is always true
     bool m_isDataProperty : 1;
+    bool m_isDataAccessorProperty : 1;
     union {
         Value m_value;
+        struct {
+            ObjectPropertyNativeGetterSetterData* m_nativeGetterSetterData;
+            Object* m_object;
+            EncodedValue m_internalData;
+        } m_nativeGetterSetterData;
         JSGetterSetter* m_jsGetterSetter;
     };
 
@@ -1131,11 +1167,11 @@ protected:
         if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
             return m_values[idx];
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, m_values[idx]);
+            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
         }
     }
 
-    ALWAYS_INLINE bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructureItem& item, const Value& newValue)
+    ALWAYS_INLINE bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructureItem& item, const Value& newValue, const Value& receiver)
     {
         if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
             m_values[idx] = newValue;
@@ -1143,20 +1179,20 @@ protected:
         } else {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
             EncodedValue t = m_values[idx];
-            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, t, newValue);
+            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, receiver, t, newValue);
             m_values[idx] = t;
             return ret;
 #else
-            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, m_values[idx], newValue);
+            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, receiver, m_values[idx], newValue);
 #endif
         }
     }
 
-    ALWAYS_INLINE bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue)
+    ALWAYS_INLINE bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(idx);
         if (LIKELY(item.m_descriptor.isWritable())) {
-            return setOwnDataPropertyUtilForObjectInner(state, idx, item, newValue);
+            return setOwnDataPropertyUtilForObjectInner(state, idx, item, newValue, receiver);
         } else {
             return false;
         }
@@ -1170,7 +1206,7 @@ protected:
             if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
                 return m_values[idx];
             } else {
-                return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, m_values[idx]);
+                return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
             }
         } else {
             return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
@@ -1182,7 +1218,7 @@ protected:
     {
         const ObjectStructureItem& item = m_structure->readProperty(idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {
-            return setOwnDataPropertyUtilForObject(state, idx, newValue);
+            return setOwnDataPropertyUtilForObject(state, idx, newValue, receiver);
         } else {
             return setOwnPropertyUtilForObjectAccCase(state, idx, newValue, receiver);
         }

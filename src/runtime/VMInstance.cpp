@@ -116,7 +116,7 @@ void VMInstance::finalize()
 }
 /////////////////////////////////////////////////
 
-Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
+Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
     if (privateDataFromObjectPrivateArea.isEmpty()) {
@@ -126,7 +126,7 @@ Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* s
     }
 }
 
-bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::functionPrototypeNativeSetter(ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isFunctionObject());
     privateDataFromObjectPrivateArea = setterInputData;
@@ -139,13 +139,13 @@ static ObjectPropertyNativeGetterSetterData functionPrototypeNativeGetterSetterD
 static ObjectPropertyNativeGetterSetterData builtinFunctionPrototypeNativeGetterSetterData(
     false, false, false, &VMInstance::functionPrototypeNativeGetter, &VMInstance::functionPrototypeNativeSetter);
 
-Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
+Value VMInstance::stringLengthNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isStringObject());
     return Value(self->asStringObject()->primitiveValue()->length());
 }
 
-bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     return false;
 }
@@ -153,7 +153,7 @@ bool VMInstance::stringLengthNativeSetter(ExecutionState& state, Object* self, E
 static ObjectPropertyNativeGetterSetterData stringLengthGetterSetterData(
     false, false, false, &VMInstance::stringLengthNativeGetter, &VMInstance::stringLengthNativeSetter);
 
-Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const EncodedValue& privateDataFromObjectPrivateArea)
+Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     if (!self->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-RegExp object");
@@ -161,7 +161,7 @@ Value VMInstance::regexpLastIndexNativeGetter(ExecutionState& state, Object* sel
     return self->asRegExpObject()->lastIndex();
 }
 
-bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
+bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData)
 {
     ASSERT(self->isRegExpObject());
     self->asRegExpObject()->setLastIndex(state, setterInputData);
