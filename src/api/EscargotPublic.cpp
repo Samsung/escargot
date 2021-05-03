@@ -3234,6 +3234,20 @@ void ObjectTemplateRef::removeNamedPropertyHandler()
     toImpl(this)->removeNamedPropertyHandler();
 }
 
+OptionalRef<FunctionTemplateRef> ObjectTemplateRef::constructor()
+{
+    if (toImpl(this)->constructor()) {
+        return toRef(toImpl(this)->constructor().value());
+    } else {
+        return nullptr;
+    }
+}
+
+bool ObjectTemplateRef::installTo(ContextRef* ctx, ObjectRef* target)
+{
+    return toImpl(this)->installTo(toImpl(ctx), toImpl(target));
+}
+
 FunctionTemplateRef* FunctionTemplateRef::create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
                                                  FunctionTemplateRef::NativeFunctionPointer fn)
 {

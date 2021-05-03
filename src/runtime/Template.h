@@ -79,6 +79,28 @@ public:
         return !equals(src);
     }
 
+    bool isString()
+    {
+        return m_ptr->isString();
+    }
+
+    String* asString()
+    {
+        ASSERT(isString());
+        return m_ptr->asString();
+    }
+
+    bool isSymbol()
+    {
+        return m_ptr->isString();
+    }
+
+    Symbol* asSymbol()
+    {
+        ASSERT(isSymbol());
+        return m_ptr->asSymbol();
+    }
+
 private:
     PointerValue* m_ptr;
 };
