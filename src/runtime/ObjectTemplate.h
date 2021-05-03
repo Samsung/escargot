@@ -38,6 +38,15 @@ public:
 
     virtual Object* instantiate(Context* ctx) override;
 
+    // this adds the properties only.
+    // the named property handler, extraData and constructor are ignored.
+    bool installTo(Context* ctx, Object* target);
+
+    Optional<FunctionTemplate*> constructor()
+    {
+        return m_constructor;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

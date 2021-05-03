@@ -23,6 +23,7 @@
 #include "runtime/Object.h"
 #include "runtime/Context.h"
 #include "runtime/FunctionTemplate.h"
+#include "runtime/SandBox.h"
 #include "api/EscargotPublic.h"
 #include "api/internal/ValueAdapter.h"
 
@@ -284,6 +285,69 @@ Object* ObjectTemplate::instantiate(Context* ctx)
 
     postProcessing(result);
     return result;
+}
+
+bool ObjectTemplate::installTo(Context* ctx, Object* target)
+{
+    if (!m_properties.size()) {
+        return true;
+    }
+
+    struct Sender {
+        ObjectTemplate* self;
+        Context* ctx;
+        Object* target;
+    } sender;
+
+    sender.self = this;
+    sender.ctx = ctx;
+    sender.target = target;
+
+    SandBox sb(ctx);
+    auto result = sb.run([](ExecutionState& state, void* data) -> Value {
+        Sender* sender = (Sender*)data;
+        size_t propertyCount = sender->self->m_properties.size();
+        auto properties = sender->self->m_properties;
+        for (size_t i = 0; i < propertyCount; i++) {
+            ObjectPropertyName name(properties[i].first.toObjectStructurePropertyName(sender->ctx));
+
+            auto a = properties[i].second.presentAttributes();
+            int attr = 0;
+
+            if (a & ObjectStructurePropertyDescriptor::PresentAttribute::WritablePresent) {
+                attr |= ObjectPropertyDescriptor::WritablePresent;
+            }
+            if (a & ObjectStructurePropertyDescriptor::PresentAttribute::EnumerablePresent) {
+                attr |= ObjectPropertyDescriptor::EnumerablePresent;
+            }
+            if (a & ObjectStructurePropertyDescriptor::PresentAttribute::ConfigurablePresent) {
+                attr |= ObjectPropertyDescriptor::ConfigurablePresent;
+            }
+
+            auto type = properties[i].second.propertyType();
+            ObjectStructurePropertyDescriptor desc;
+            if (type == Template::TemplatePropertyData::PropertyType::PropertyValueData) {
+                sender->target->defineOwnPropertyThrowsException(state, name,
+                                                                 ObjectPropertyDescriptor(properties[i].second.valueData(), (ObjectPropertyDescriptor::PresentAttribute)attr));
+            } else if (type == Template::TemplatePropertyData::PropertyType::PropertyTemplateData) {
+                sender->target->defineOwnPropertyThrowsException(state, name,
+                                                                 ObjectPropertyDescriptor(properties[i].second.templateData()->instantiate(sender->ctx), (ObjectPropertyDescriptor::PresentAttribute)attr));
+            } else if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
+                sender->target->defineNativeDataAccessorProperty(state, name, properties[i].second.nativeAccessorData(),
+                                                                 Value(Value::FromPayload, (intptr_t)properties[i].second.nativeAccessorPrivateData()));
+            } else {
+                ASSERT(type == Template::TemplatePropertyData::PropertyType::PropertyAccessorData);
+                Value getter = properties[i].second.accessorData().m_getterTemplate ? properties[i].second.accessorData().m_getterTemplate->instantiate(sender->ctx) : Value(Value::EmptyValue);
+                Value setter = properties[i].second.accessorData().m_setterTemplate ? properties[i].second.accessorData().m_setterTemplate->instantiate(sender->ctx) : Value(Value::EmptyValue);
+                sender->target->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(JSGetterSetter(getter, setter), (ObjectPropertyDescriptor::PresentAttribute)attr));
+            }
+        }
+
+        return Value();
+    },
+                         &sender);
+
+    return result.error.isEmpty();
 }
 
 void ObjectTemplate::setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data)

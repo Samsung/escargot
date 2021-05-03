@@ -1707,6 +1707,12 @@ public:
     static ObjectTemplateRef* create();
     void setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data);
     void removeNamedPropertyHandler();
+
+    // returns function template if object template is instance template of function template
+    OptionalRef<FunctionTemplateRef> constructor();
+
+    // returns the installation was successful
+    bool installTo(ContextRef* ctx, ObjectRef* target);
 };
 
 // FunctionTemplateRef returns the unique function instance in context.
