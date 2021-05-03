@@ -465,7 +465,7 @@ TEST(ObjectTemplate, Basic3) {
     };
 
     data->m_setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data, ValueRef* setterInputData) -> bool {
-        ((TestNativeDataAccessorPropertyData*)data)->number = setterInputData->toNumber(state);
+        ((TestNativeDataAccessorPropertyData*)data)->number = setterInputData->toNumber(state) * 2;
         return true;
     };
 
@@ -517,7 +517,7 @@ TEST(ObjectTemplate, Basic3) {
 
     ObjectRef* obj = tpl->instantiate(g_context.get());
 
-    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj, TestNativeDataAccessorPropertyData2* data2) -> ValueRef* {
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj, TestNativeDataAccessorPropertyData2* data2, ObjectTemplateRef* tpl) -> ValueRef* {
         auto desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("asdf"));
 
         auto value = desc->asObject()->get(state, StringRef::createFromASCII("enumerable"));
@@ -531,7 +531,25 @@ TEST(ObjectTemplate, Basic3) {
 
         obj->set(state, StringRef::createFromASCII("asdf"), ValueRef::create(20));
 
-        EXPECT_TRUE(obj->get(state, StringRef::createFromASCII("asdf"))->equalsTo(state, ValueRef::create(20)));
+        EXPECT_TRUE(obj->get(state, StringRef::createFromASCII("asdf"))->equalsTo(state, ValueRef::create(40)));
+
+        auto obj2 = ObjectRef::create(state);
+        tpl->installTo(state->context(), obj2);
+
+        desc = obj2->getOwnPropertyDescriptor(state, StringRef::createFromASCII("asdf"));
+
+        value = desc->asObject()->get(state, StringRef::createFromASCII("enumerable"));
+        EXPECT_TRUE(value->isFalse());
+
+        value = desc->asObject()->get(state, StringRef::createFromASCII("configurable"));
+        EXPECT_TRUE(value->isFalse());
+
+        value = desc->asObject()->get(state, StringRef::createFromASCII("writable"));
+        EXPECT_TRUE(value->isTrue());
+
+        obj2->set(state, StringRef::createFromASCII("asdf"), ValueRef::create(20));
+
+        EXPECT_TRUE(obj2->get(state, StringRef::createFromASCII("asdf"))->equalsTo(state, ValueRef::create(40)));
 
         ObjectRef* child = ObjectRef::create(state);
         child->setPrototype(state, obj);
@@ -554,7 +572,7 @@ TEST(ObjectTemplate, Basic3) {
         EXPECT_TRUE(desc2->toString(state)->toStdUTF8String() == "{\"value\":128,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
 
         return ValueRef::createUndefined();
-    }, obj, data2);
+    }, obj, data2, tpl);
 }
 
 TEST(ObjectTemplate, Basic4) {
