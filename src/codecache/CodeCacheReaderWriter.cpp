@@ -256,17 +256,20 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     // InterpretedCodeBlockWithRareData
     if (UNLIKELY(hasRareData)) {
         ASSERT(codeBlock->taggedTemplateLiteralCache().size() == 0);
-        ASSERT(codeBlock->identifierInfoMap() && !codeBlock->identifierInfoMap()->empty());
 
-        auto varMap = codeBlock->identifierInfoMap();
-        size_t mapSize = varMap->size();
-        m_buffer.ensureSize((1 + mapSize * 2) * sizeof(size_t));
-        m_buffer.put(mapSize);
-        for (auto iter = varMap->begin(); iter != varMap->end(); iter++) {
-            size_t stringIndex = m_stringTable->add(iter->first);
-            size_t index = iter->second;
-            m_buffer.put(stringIndex);
-            m_buffer.put(index);
+        if (auto varMap = codeBlock->identifierInfoMap()) {
+            size_t mapSize = varMap->size();
+            m_buffer.ensureSize((1 + mapSize * 2) * sizeof(size_t));
+            m_buffer.put(mapSize);
+            for (auto iter = varMap->begin(); iter != varMap->end(); iter++) {
+                size_t stringIndex = m_stringTable->add(iter->first);
+                size_t index = iter->second;
+                m_buffer.put(stringIndex);
+                m_buffer.put(index);
+            }
+        } else {
+            m_buffer.ensureSize(sizeof(size_t));
+            m_buffer.put((size_t)0);
         }
     }
 }
@@ -394,22 +397,28 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 LoadLiteral* bc = (LoadLiteral*)currentCode;
                 Value value = bc->m_value;
                 if (value.isPointerValue()) {
-                    if (value.asPointerValue()->isString()) {
+                    if (LIKELY(value.asPointerValue()->isString())) {
                         String* string = value.asPointerValue()->asString();
-                        size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
-                        if (stringIndex != VectorUtil::invalidIndex) {
-                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                        if (UNLIKELY(!string->length())) {
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, SIZE_MAX));
                         } else {
-                            ASSERT(string->isAtomicStringSource());
-                            stringIndex = m_stringTable->add(AtomicString(context, string));
-                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                            size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
+                            if (stringIndex != VectorUtil::invalidIndex) {
+                                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                            } else {
+                                ASSERT(string->isAtomicStringSource());
+                                stringIndex = m_stringTable->add(AtomicString(context, string));
+                                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                            }
                         }
-                    } else {
-                        ASSERT(value.asPointerValue()->isBigInt());
+                    } else if (value.asPointerValue()->isBigInt()) {
                         BigInt* bigInt = value.asPointerValue()->asBigInt();
                         size_t bigIntIndex = VectorUtil::findInVector(bigIntData, bigInt);
                         ASSERT(bigIntIndex != VectorUtil::invalidIndex);
                         relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BIGINT, (size_t)currentCode - codeBase, bigIntIndex));
+                    } else {
+                        ASSERT(value.asPointerValue()->isFunctionObject() && value.asPointerValue() == context->globalObject()->objectFreeze());
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_FREEZEFUNC, (size_t)currentCode - codeBase, SIZE_MAX));
                     }
                 }
                 break;
@@ -505,11 +514,16 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 ASSERT(!!optionString);
 
                 size_t bodyIndex = VectorUtil::findInVector(stringLiteralData, bodyString);
-                size_t optionIndex = VectorUtil::findInVector(stringLiteralData, optionString);
                 ASSERT(bodyIndex != VectorUtil::invalidIndex);
-                ASSERT(optionIndex != VectorUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, bodyIndex));
-                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, optionIndex));
+
+                if (optionString->length()) {
+                    size_t optionIndex = VectorUtil::findInVector(stringLiteralData, optionString);
+                    ASSERT(optionIndex != VectorUtil::invalidIndex);
+                    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, optionIndex));
+                } else {
+                    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, SIZE_MAX));
+                }
                 break;
             }
             case BlockOperationOpcode: {
@@ -762,14 +776,16 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         ASSERT(codeBlock->hasRareData());
         ASSERT(codeBlock->taggedTemplateLiteralCache().size() == 0);
         ASSERT(!codeBlock->identifierInfoMap());
-        FunctionContextVarMap* varMap = new (GC) FunctionContextVarMap();
-        size_t mapSize = m_buffer.get<size_t>();
-        for (size_t i = 0; i < mapSize; i++) {
-            size_t stringIndex = m_buffer.get<size_t>();
-            size_t index = m_buffer.get<size_t>();
-            varMap->insert(std::make_pair(m_stringTable->get(stringIndex), index));
+
+        if (size_t mapSize = m_buffer.get<size_t>()) {
+            FunctionContextVarMap* varMap = new (GC) FunctionContextVarMap();
+            for (size_t i = 0; i < mapSize; i++) {
+                size_t stringIndex = m_buffer.get<size_t>();
+                size_t index = m_buffer.get<size_t>();
+                varMap->insert(std::make_pair(m_stringTable->get(stringIndex), index));
+            }
+            codeBlock->rareData()->m_identifierInfoMap = varMap;
         }
-        codeBlock->rareData()->m_identifierInfoMap = varMap;
     }
 
     return codeBlock;
@@ -933,16 +949,34 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 LoadLiteral* bc = (LoadLiteral*)currentCode;
                 size_t dataIndex = info.dataOffset;
 
-                if (info.relocType == ByteCodeRelocType::RELOC_STRING) {
-                    ASSERT(dataIndex < stringLiteralData.size());
-                    String* string = stringLiteralData[dataIndex];
-                    bc->m_value = Value(string);
-                } else if (info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING) {
+                switch (info.relocType) {
+                case ByteCodeRelocType::RELOC_STRING: {
+                    if (UNLIKELY(dataIndex == SIZE_MAX)) {
+                        bc->m_value = String::emptyString;
+                    } else {
+                        ASSERT(dataIndex < stringLiteralData.size());
+                        String* string = stringLiteralData[dataIndex];
+                        bc->m_value = Value(string);
+                    }
+                    break;
+                }
+                case ByteCodeRelocType::RELOC_ATOMICSTRING: {
                     bc->m_value = Value(m_stringTable->get(dataIndex).string());
-                } else {
-                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_BIGINT);
+                    break;
+                }
+                case ByteCodeRelocType::RELOC_BIGINT: {
                     PointerValue* value = (PointerValue*)bigIntData[dataIndex];
                     bc->m_value = Value(value->asBigInt());
+                    break;
+                }
+                case ByteCodeRelocType::RELOC_FREEZEFUNC: {
+                    bc->m_value = Value(context->globalObject()->objectFreeze());
+                    break;
+                }
+                default: {
+                    ASSERT_NOT_REACHED();
+                    break;
+                }
                 }
                 break;
             }
@@ -1021,17 +1055,17 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
             }
             case LoadRegExpOpcode: {
                 LoadRegExp* bc = (LoadRegExp*)currentCode;
-
-                String* bodyString = bc->m_body;
-                String* optionString = bc->m_option;
-
                 if (bodyStringForLoadRegExp) {
                     ASSERT(info.dataOffset < stringLiteralData.size());
                     bc->m_body = stringLiteralData[info.dataOffset];
                     bodyStringForLoadRegExp = false;
                 } else {
-                    ASSERT(info.dataOffset < stringLiteralData.size());
-                    bc->m_option = stringLiteralData[info.dataOffset];
+                    if (info.dataOffset == SIZE_MAX) {
+                        bc->m_option = String::emptyString;
+                    } else {
+                        ASSERT(info.dataOffset < stringLiteralData.size());
+                        bc->m_option = stringLiteralData[info.dataOffset];
+                    }
                     bodyStringForLoadRegExp = true;
                 }
                 break;

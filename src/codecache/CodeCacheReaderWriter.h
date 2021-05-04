@@ -44,6 +44,7 @@ enum class ByteCodeRelocType : uint8_t {
     RELOC_BIGINT,
     RELOC_CODEBLOCK,
     RELOC_BLOCKINFO,
+    RELOC_FREEZEFUNC,
 };
 
 struct ByteCodeRelocInfo {
@@ -144,14 +145,13 @@ public:
 
         void putString(String* string)
         {
+            ASSERT(string->length());
             bool is8Bit = string->has8BitContent();
             ensureSize(sizeof(bool));
             put(is8Bit);
-
             if (LIKELY(is8Bit)) {
                 putData(string->characters8(), string->length());
             } else {
-                ASSERT(string->length() > 0);
                 putData(string->characters16(), string->length());
             }
         }
@@ -272,25 +272,18 @@ public:
         {
             String* str = nullptr;
             bool is8Bit = get<bool>();
+            size_t length = get<size_t>();
+            ASSERT(length);
             if (LIKELY(is8Bit)) {
-                size_t length = get<size_t>();
-                if (length == 0) {
-                    str = String::emptyString;
-                } else {
-                    LChar* buffer = new LChar[length + 1];
-                    buffer[length] = '\0';
-                    getData(buffer, length);
-                    str = new Latin1String(buffer, length);
-                    delete[] buffer;
-                }
+                LChar* buffer = ALLOCA(sizeof(LChar) * (length + 1), LChar, nullptr);
+                buffer[length] = '\0';
+                getData(buffer, length);
+                str = new Latin1String(buffer, length);
             } else {
-                size_t length = get<size_t>();
-                ASSERT(length > 0);
-                UChar* buffer = new UChar[length + 1];
+                UChar* buffer = ALLOCA(sizeof(UChar) * (length + 1), UChar, nullptr);
                 buffer[length] = '\0';
                 getData(buffer, length);
                 str = new UTF16String(buffer, length);
-                delete[] buffer;
             }
             return str;
         }

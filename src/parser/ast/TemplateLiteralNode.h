@@ -57,9 +57,14 @@ public:
         ASSERT(m_expressions.size() + 1 == m_quasis->size());
         Value value;
         if ((*m_quasis)[0]->value) {
-            String* str = new UTF16String(std::move((*m_quasis)[0]->value.value()));
-            codeBlock->m_stringLiteralData.push_back(str);
-            value = str;
+            UTF16StringData& sd = (*m_quasis)[0]->value.value();
+            if (sd.size()) {
+                String* str = new UTF16String(std::move((*m_quasis)[0]->value.value()));
+                codeBlock->m_stringLiteralData.push_back(str);
+                value = str;
+            } else {
+                value = String::emptyString;
+            }
         }
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, value), context, this);
 
@@ -71,8 +76,9 @@ public:
             context->giveUpRegister();
 
             if ((*m_quasis)[index + 1]->value) {
-                String* str = new UTF16String(std::move((*m_quasis)[index + 1]->value.value()));
-                if (str->length()) {
+                UTF16StringData& sd = (*m_quasis)[index + 1]->value.value();
+                if (sd.size()) {
+                    String* str = new UTF16String(std::move(sd));
                     codeBlock->m_stringLiteralData.push_back(str);
                     size_t reg = context->getRegister();
                     codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this);

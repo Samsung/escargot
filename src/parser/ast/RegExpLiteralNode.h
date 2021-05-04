@@ -39,8 +39,12 @@ public:
     String* flag() { return m_flag; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        // body string should not be empty string
+        ASSERT(m_body->length());
         codeBlock->m_stringLiteralData.pushBack(m_body);
-        codeBlock->m_stringLiteralData.pushBack(m_flag);
+        if (m_flag->length()) {
+            codeBlock->m_stringLiteralData.pushBack(m_flag);
+        }
         codeBlock->pushCode(LoadRegExp(ByteCodeLOC(m_loc.index), dstRegister, m_body, m_flag), context, this);
     }
 

@@ -851,7 +851,11 @@ public:
             Value value;
             if ((*templateLiteralNode->quasis())[i]->value) {
                 UTF16StringData& sd = (*templateLiteralNode->quasis())[i]->value.value();
-                value = new UTF16String(std::move(sd));
+                if (sd.size()) {
+                    value = new UTF16String(std::move(sd));
+                } else {
+                    value = String::emptyString;
+                }
             }
 
             elements.append(m_allocator, new (m_allocator) LiteralNode(value));
@@ -860,10 +864,15 @@ public:
         ArrayExpressionNode* arrayExpressionForRaw = nullptr;
         {
             NodeList elements;
+            Value value;
             for (size_t i = 0; i < templateLiteralNode->quasis()->size(); i++) {
                 UTF16StringData& sd = (*templateLiteralNode->quasis())[i]->valueRaw;
-                String* str = new UTF16String(std::move(sd));
-                elements.append(m_allocator, new (m_allocator) LiteralNode(Value(str)));
+                if (sd.size()) {
+                    value = new UTF16String(std::move(sd));
+                } else {
+                    value = String::emptyString;
+                }
+                elements.append(m_allocator, new (m_allocator) LiteralNode(value));
             }
             arrayExpressionForRaw = new (m_allocator) ArrayExpressionNode(elements);
         }

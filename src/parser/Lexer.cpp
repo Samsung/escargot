@@ -1879,6 +1879,10 @@ String* Scanner::scanRegExpFlags()
         }
     }
 
+    if (!flags.length()) {
+        return String::emptyString;
+    }
+
     if (isAllASCII(flags.data(), flags.length())) {
         return new ASCIIString(flags.data(), flags.length());
     }
