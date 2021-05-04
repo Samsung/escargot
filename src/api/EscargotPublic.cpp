@@ -1051,10 +1051,23 @@ void ValueVectorRef::resize(size_t newSize)
     toImpl(this)->resize(newSize);
 }
 
+void* ObjectPropertyDescriptorRef::operator new(size_t size)
+{
+    return GC_MALLOC(size);
+}
+
+void ObjectPropertyDescriptorRef::operator delete(void* ptr)
+{
+    // destructor of ObjectPropertyDescriptorRef is implicitly invoked
+    GC_FREE(ptr);
+}
+
 ObjectPropertyDescriptorRef::~ObjectPropertyDescriptorRef()
 {
+    ASSERT(!!m_privateData);
     ((ObjectPropertyDescriptor*)m_privateData)->~ObjectPropertyDescriptor();
     GC_FREE(m_privateData);
+    m_privateData = nullptr;
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(void* src)
