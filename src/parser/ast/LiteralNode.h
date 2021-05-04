@@ -42,7 +42,12 @@ public:
     {
         if (m_value.isPointerValue()) {
             if (LIKELY(m_value.asPointerValue()->isString())) {
-                codeBlock->m_stringLiteralData.pushBack(m_value.asPointerValue()->asString());
+                if (LIKELY(m_value.asPointerValue()->asString()->length())) {
+                    codeBlock->m_stringLiteralData.pushBack(m_value.asPointerValue()->asString());
+                } else {
+                    // change the value as empty string
+                    m_value = String::emptyString;
+                }
             } else {
                 ASSERT(m_value.asPointerValue()->isBigInt());
                 codeBlock->m_otherLiteralData.pushBack(m_value.asPointerValue()->asBigInt());
