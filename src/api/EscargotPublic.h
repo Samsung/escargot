@@ -976,8 +976,10 @@ public:
     bool isWritable() const;
     bool hasWritable() const;
 
-    static void* operator new(size_t) = delete;
-    static void* operator new[](size_t) = delete;
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+    void operator delete(void* ptr);
+    void operator delete[](void* obj) = delete;
 
 private:
     friend class ObjectWithNamedPropertyHandler;
