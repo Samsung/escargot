@@ -23,10 +23,14 @@
 #include "ArrayObject.h"
 #include "VMInstance.h"
 
+#ifdef ENABLE_QUICKJS_REGEXP
+#include "libregexp.h"
+#else /* !ENABLE_QUICKJS_REGEXP */
 #include "WTFBridge.h"
 #include "Yarr.h"
 #include "YarrPattern.h"
 #include "YarrInterpreter.h"
+#endif /* ENABLE_QUICKJS_REGEXP */
 
 namespace Escargot {
 
@@ -57,8 +61,13 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastInd
     , m_source(NULL)
     , m_optionString(NULL)
     , m_option(None)
+#ifdef ENABLE_QUICKJS_REGEXP
+    , m_bytecode(NULL)
+    , m_groupNames(NULL)
+#else /* !ENABLE_QUICKJS_REGEXP */
     , m_yarrPattern(NULL)
     , m_bytecodePattern(NULL)
+#endif /* ENABLE_QUICKJS_REGEXP */
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
     , m_legacyFeaturesEnabled(true)
@@ -90,8 +99,13 @@ void* RegExpObject::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_values));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_source));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_optionString));
+#ifdef ENABLE_QUICKJS_REGEXP
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_bytecode));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_groupNames));
+#else /* !ENABLE_QUICKJS_REGEXP */
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_yarrPattern));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_bytecodePattern));
+#endif /* ENABLE_QUICKJS_REGEXP */
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastIndex));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastExecutedString));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RegExpObject));
@@ -170,14 +184,19 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, String* o
     m_source = escapeSlashInPattern(m_source);
 
     auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
-    if (entry.m_yarrError) {
+    if (entry.m_error) {
         m_source = previousSource;
         m_option = previousOptions;
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_yarrError);
+        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_error);
     }
     setLastIndex(state, Value(0));
+#ifdef ENABLE_QUICKJS_REGEXP
+    m_bytecode = entry.m_bytecode;
+    m_groupNames = entry.m_groupNames;
+#else /* !ENABLE_QUICKJS_REGEXP */
     m_yarrPattern = entry.m_yarrPattern;
     m_bytecodePattern = entry.m_bytecodePattern;
+#endif /* ENABLE_QUICKJS_REGEXP */
 }
 
 void RegExpObject::init(ExecutionState& state, String* source, String* option)
@@ -263,11 +282,7 @@ void RegExpObject::parseOption(ExecutionState& state, String* optionString)
 
 void RegExpObject::setOption(const Option& option)
 {
-    if (((m_option & Option::MultiLine) != (option & Option::MultiLine))
-        || ((m_option & Option::IgnoreCase) != (option & Option::IgnoreCase))) {
-        ASSERT(!m_yarrPattern);
-        m_bytecodePattern = NULL;
-    }
+    ASSERT((m_option | Option::Global) == (option | Option::Global));
     m_option = option;
 }
 
@@ -278,16 +293,72 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
     if (it != cache->end()) {
         return it->second;
     } else {
-        const char* yarrError = nullptr;
+#ifdef ENABLE_QUICKJS_REGEXP
+        char* error = nullptr;
+        uint8_t* bytecode = nullptr;
+        CaptureGroupNameVector* groupNames = nullptr;
+
+        UTF8StringDataNonGCStd str = source->toNonGCUTF8StringData();
+
+        int bytecodeLen;
+        char errorMessage[128];
+        int flags = 0;
+
+        if (option & Option::IgnoreCase) {
+            flags |= LRE_FLAG_IGNORECASE;
+        }
+        if (option & Option::MultiLine) {
+            flags |= LRE_FLAG_MULTILINE;
+        }
+        if (option & Option::Sticky) {
+            flags |= LRE_FLAG_STICKY;
+        }
+        if (option & Option::Unicode) {
+            flags |= LRE_FLAG_UTF16;
+        }
+        if (option & Option::DotAll) {
+            flags |= LRE_FLAG_DOTALL;
+        }
+
+        bytecode = lre_compile(&bytecodeLen, errorMessage, sizeof(errorMessage), str.data(), str.length(), flags, NULL);
+
+        if (bytecode == nullptr) {
+            size_t size = strlen(errorMessage);
+            error = reinterpret_cast<char*>(GC_MALLOC(size + 1));
+            memcpy(error, errorMessage, size + 1);
+        } else {
+            const char* groupNamesUtf8 = lre_get_groupnames(bytecode);
+
+            if (groupNamesUtf8 != nullptr) {
+                groupNames = new CaptureGroupNameVector();
+                size_t subPatternNum = (size_t)lre_get_capture_count(bytecode);
+
+                for (size_t index = 1; index < subPatternNum; index++) {
+                    if (*groupNamesUtf8 == '\0') {
+                        groupNamesUtf8++;
+                        continue;
+                    }
+
+                    size_t length = strlen(groupNamesUtf8);
+
+                    groupNames->pushBack(CaptureGroupName(String::fromUTF8(groupNamesUtf8, length), index));
+                    groupNamesUtf8 += length + 1;
+                }
+            }
+        }
+        return cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(error, bytecode, groupNames))).first->second;
+#else /* !ENABLE_QUICKJS_REGEXP */
+        const char* error = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
         try {
             JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
             yarrPattern = JSC::Yarr::YarrPattern::createYarrPattern(source, (JSC::Yarr::RegExpFlags)option, errorCode);
-            yarrError = JSC::Yarr::errorMessage(errorCode);
+            error = JSC::Yarr::errorMessage(errorCode);
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "got too complicated RegExp pattern to process");
         }
-        return cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first->second;
+        return cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(error, yarrPattern))).first->second;
+#endif /* ENABLE_QUICKJS_REGEXP */
     }
 }
 
@@ -307,9 +378,116 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
 
     m_lastExecutedString = str;
 
+#ifdef ENABLE_QUICKJS_REGEXP
+    if (!m_bytecode) {
+        RegExpCacheEntry& entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
+        if (entry.m_error) {
+            matchResult.m_subPatternNum = 0;
+            return false;
+        }
+        m_bytecode = entry.m_bytecode;
+        m_groupNames = entry.m_groupNames;
+    }
+
+    int subPatternNum = lre_get_capture_count(m_bytecode);
+    matchResult.m_subPatternNum = subPatternNum - 1;
+    int length = (int)str->length();
+    int start = (int)startIndex;
+    int result;
+    bool isGlobal = option() & RegExpObject::Option::Global;
+    bool isSticky = option() & RegExpObject::Option::Sticky;
+    bool gotResult = false;
+    int buffer_type = str->has8BitContent() ? 0 : 1;
+    const uint8_t* buffer = buffer_type == 0 ? str->characters8() : (const uint8_t*)str->characters16();
+    uint8_t** outputBuf = ALLOCA(sizeof(uint8_t*) * 2 * subPatternNum, uint8_t*, state);
+
+    while (true) {
+        if (start > length) {
+            break;
+        }
+
+        memset(outputBuf, 0, sizeof(uint8_t*) * 2 * subPatternNum);
+        result = lre_exec(outputBuf, m_bytecode, buffer, start, length, buffer_type, NULL);
+
+        if (result != 1) {
+            break;
+        }
+
+        gotResult = true;
+        unsigned maxMatchedIndex = subPatternNum - 1;
+
+        bool lastParenInvalid = false;
+        for (; maxMatchedIndex > 0; maxMatchedIndex--) {
+            if (outputBuf[maxMatchedIndex * 2] != NULL) {
+                break;
+            } else {
+                lastParenInvalid = true;
+            }
+        }
+
+        // Details:{3, 10, 3, 10, 3, 6, 7, 10, 1684872, 806200}
+        legacyFeatures.dollarCount = maxMatchedIndex;
+        unsigned dollarEnd = std::min(maxMatchedIndex, (unsigned)9);
+        for (unsigned i = 1; i <= dollarEnd; i++) {
+            if (outputBuf[i * 2] == NULL) {
+                legacyFeatures.dollars[i - 1] = StringView();
+            } else {
+                legacyFeatures.dollars[i - 1] = StringView(str, (outputBuf[i * 2] - buffer) >> buffer_type, (outputBuf[i * 2 + 1] - buffer) >> buffer_type);
+            }
+        }
+
+        if (UNLIKELY(testOnly)) {
+            // outputBuf[1] should be set to lastIndex
+            if (isGlobal || isSticky) {
+                setLastIndex(state, Value((outputBuf[1] - buffer) >> buffer_type));
+            }
+            if (!lastParenInvalid && subPatternNum > 1) {
+                legacyFeatures.lastParen = StringView(str, (outputBuf[maxMatchedIndex * 2] - buffer) >> buffer_type, (outputBuf[maxMatchedIndex * 2 + 1] - buffer) >> buffer_type);
+            } else {
+                legacyFeatures.lastParen = StringView();
+            }
+            legacyFeatures.lastMatch = StringView(str, (outputBuf[0] - buffer) >> buffer_type, (outputBuf[1] - buffer) >> buffer_type);
+            legacyFeatures.leftContext = StringView(str, 0, (outputBuf[0] - buffer) >> buffer_type);
+            legacyFeatures.rightContext = StringView(str, (outputBuf[1] - buffer) >> buffer_type, length);
+            return true;
+        }
+        std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
+        piece.resize(subPatternNum);
+
+        for (int i = 0; i < subPatternNum; i++) {
+            RegexMatchResult::RegexMatchResultPiece p;
+            p.m_start = (outputBuf[i * 2] - buffer) >> buffer_type;
+            p.m_end = (outputBuf[i * 2 + 1] - buffer) >> buffer_type;
+            piece[i] = p;
+        }
+
+        if (!lastParenInvalid && subPatternNum > 1) {
+            legacyFeatures.lastParen = StringView(str, piece[maxMatchedIndex].m_start, piece[maxMatchedIndex].m_end);
+        } else {
+            legacyFeatures.lastParen = StringView();
+        }
+
+        legacyFeatures.leftContext = StringView(str, 0, piece[0].m_start);
+        legacyFeatures.rightContext = StringView(str, piece[maxMatchedIndex].m_end, length);
+        legacyFeatures.lastMatch = StringView(str, piece[0].m_start, piece[0].m_end);
+        matchResult.m_matchResults.push_back(std::vector<RegexMatchResult::RegexMatchResultPiece>(std::move(piece)));
+        if (!isGlobal)
+            break;
+
+        int new_start = (outputBuf[1] - buffer) >> buffer_type;
+        if (start == new_start) {
+            start++;
+            if (start > length) {
+                break;
+            }
+        } else {
+            start = new_start;
+        }
+    }
+#else /* !ENABLE_QUICKJS_REGEXP */
     if (!m_bytecodePattern) {
         RegExpCacheEntry& entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
-        if (entry.m_yarrError) {
+        if (entry.m_error) {
             matchResult.m_subPatternNum = 0;
             return false;
         }
@@ -417,6 +595,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             break;
         }
     } while (result != JSC::Yarr::offsetNoMatch);
+#endif /* ENABLE_QUICKJS_REGEXP */
 
     if (!gotResult && ((option() & (RegExpObject::Option::Global | RegExpObject::Option::Sticky)))) {
         setLastIndex(state, Value(0));
@@ -483,6 +662,19 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         }
     }
 
+#ifdef ENABLE_QUICKJS_REGEXP
+    if (m_groupNames == NULL) {
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+    } else {
+        Object* groups = new Object(state);
+        groups->setPrototype(state, Value(Value::Null));
+        for (auto it = m_groupNames->begin(); it != m_groupNames->end(); ++it) {
+            groups->defineOwnProperty(state, ObjectPropertyName(state, it->name),
+                                      ObjectPropertyDescriptor(arr->getOwnProperty(state, ObjectPropertyName(state, it->index)).value(state, this), ObjectPropertyDescriptor::AllPresent));
+        }
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
+    }
+#else /* !ENABLE_QUICKJS_REGEXP */
     if (m_yarrPattern->m_namedGroupToParenIndex.empty()) {
         arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
     } else {
@@ -497,6 +689,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         }
         arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
     }
+#endif /* ENABLE_QUICKJS_REGEXP */
 
     // FIXME RegExp should have own Realm internal slot when allocated
     if (state.context() == this->getFunctionRealm(state)) {
@@ -523,6 +716,15 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
                 return;
         }
     }
+}
+
+bool RegExpObject::hasNamedGroups()
+{
+#ifdef ENABLE_QUICKJS_REGEXP
+    return lre_get_groupnames(m_bytecode) != NULL;
+#else /* !ENABLE_QUICKJS_REGEXP */
+    return m_yarrPattern->m_captureGroupNames.size() != 0;
+#endif /* ENABLE_QUICKJS_REGEXP */
 }
 
 RegExpStringIteratorObject::RegExpStringIteratorObject(ExecutionState& state, bool global, bool unicode, RegExpObject* regexp, String* string)

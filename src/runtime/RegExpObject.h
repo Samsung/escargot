@@ -24,15 +24,31 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
 
-
+#ifndef ENABLE_QUICKJS_REGEXP
 namespace JSC {
 namespace Yarr {
 struct YarrPattern;
 struct BytecodePattern;
 } // namespace Yarr
 } // namespace JSC
+#endif /* !ENABLE_QUICKJS_REGEXP */
 
 namespace Escargot {
+
+#ifdef ENABLE_QUICKJS_REGEXP
+struct CaptureGroupName {
+    CaptureGroupName(String* name, size_t index)
+        : name(name)
+        , index(index)
+    {
+    }
+
+    String* name;
+    size_t index;
+};
+
+typedef Vector<CaptureGroupName, GCUtil::gc_malloc_allocator<CaptureGroupName>> CaptureGroupNameVector;
+#endif /* !ENABLE_QUICKJS_REGEXP */
 
 struct RegexMatchResult {
     struct RegexMatchResultPiece {
@@ -75,16 +91,28 @@ public:
     };
 
     struct RegExpCacheEntry {
-        RegExpCacheEntry(const char* yarrError = nullptr, JSC::Yarr::YarrPattern* yarrPattern = nullptr, JSC::Yarr::BytecodePattern* bytecodePattern = nullptr)
-            : m_yarrError(yarrError)
-            , m_yarrPattern(yarrPattern)
-            , m_bytecodePattern(bytecodePattern)
+#ifdef ENABLE_QUICKJS_REGEXP
+        RegExpCacheEntry(const char* error = nullptr, uint8_t* bytecode = nullptr, CaptureGroupNameVector* groupNames = nullptr)
+            : m_bytecode(bytecode)
+            , m_groupNames(groupNames)
+            , m_error(error)
         {
         }
 
-        const char* m_yarrError;
+        uint8_t* m_bytecode;
+        CaptureGroupNameVector* m_groupNames;
+#else /* !ENABLE_QUICKJS_REGEXP */
+        RegExpCacheEntry(const char* error = nullptr, JSC::Yarr::YarrPattern* yarrPattern = nullptr, JSC::Yarr::BytecodePattern* bytecodePattern = nullptr)
+            : m_yarrPattern(yarrPattern)
+            , m_bytecodePattern(bytecodePattern)
+            , m_error(error)
+        {
+        }
+
         JSC::Yarr::YarrPattern* m_yarrPattern;
         JSC::Yarr::BytecodePattern* m_bytecodePattern;
+#endif /* ENABLE_QUICKJS_REGEXP */
+        const char* m_error;
     };
 
     RegExpObject(ExecutionState& state, String* source, String* option);
@@ -124,23 +152,14 @@ public:
         return m_option;
     }
 
-    JSC::Yarr::YarrPattern* yarrPatern()
-    {
-        return m_yarrPattern;
-    }
-
-    JSC::Yarr::BytecodePattern* bytecodePattern()
-    {
-        return m_bytecodePattern;
-    }
-
     Value lastIndex()
     {
         return m_lastIndex;
     }
 
-    void setLastIndex(ExecutionState& state, const Value& v);
+    bool hasNamedGroups();
 
+    void setLastIndex(ExecutionState& state, const Value& v);
 
     bool legacyFeaturesEnabled()
     {
@@ -180,8 +199,13 @@ private:
     String* m_source;
     String* m_optionString;
     Option m_option;
+#ifdef ENABLE_QUICKJS_REGEXP
+    uint8_t* m_bytecode;
+    CaptureGroupNameVector* m_groupNames;
+#else /* !ENABLE_QUICKJS_REGEXP */
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
+#endif /* ENABLE_QUICKJS_REGEXP */
     EncodedValue m_lastIndex;
     const String* m_lastExecutedString;
     bool m_legacyFeaturesEnabled;
