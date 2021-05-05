@@ -24,13 +24,14 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
 
-
+#ifndef ENABLE_QUICKJS_REGEX
 namespace JSC {
 namespace Yarr {
 struct YarrPattern;
 struct BytecodePattern;
 } // namespace Yarr
 } // namespace JSC
+#endif /* !ENABLE_QUICKJS_REGEX */
 
 namespace Escargot {
 
@@ -75,16 +76,26 @@ public:
     };
 
     struct RegExpCacheEntry {
-        RegExpCacheEntry(const char* yarrError = nullptr, JSC::Yarr::YarrPattern* yarrPattern = nullptr, JSC::Yarr::BytecodePattern* bytecodePattern = nullptr)
-            : m_yarrError(yarrError)
-            , m_yarrPattern(yarrPattern)
-            , m_bytecodePattern(bytecodePattern)
+#ifdef ENABLE_QUICKJS_REGEX
+        RegExpCacheEntry(const char* error = nullptr, uint8_t *bytecode = nullptr)
+            : m_bytecode(bytecode)
+            , m_error(error)
         {
         }
 
-        const char* m_yarrError;
+        uint8_t *m_bytecode;
+#else /* !ENABLE_QUICKJS_REGEX */
+        RegExpCacheEntry(const char* error = nullptr, JSC::Yarr::YarrPattern* yarrPattern = nullptr, JSC::Yarr::BytecodePattern* bytecodePattern = nullptr)
+            : m_yarrPattern(yarrPattern)
+            , m_bytecodePattern(bytecodePattern)
+            , m_error(error)
+        {
+        }
+
         JSC::Yarr::YarrPattern* m_yarrPattern;
         JSC::Yarr::BytecodePattern* m_bytecodePattern;
+#endif /* ENABLE_QUICKJS_REGEX */
+        const char* m_error;
     };
 
     RegExpObject(ExecutionState& state, String* source, String* option);
@@ -124,7 +135,13 @@ public:
         return m_option;
     }
 
-    JSC::Yarr::YarrPattern* yarrPatern()
+#ifdef ENABLE_QUICKJS_REGEX
+    uint8_t* bytecode()
+    {
+        return m_bytecode;
+    }
+#else /* !ENABLE_QUICKJS_REGEX */
+    JSC::Yarr::YarrPattern* yarrPattern()
     {
         return m_yarrPattern;
     }
@@ -133,14 +150,16 @@ public:
     {
         return m_bytecodePattern;
     }
+#endif /* ENABLE_QUICKJS_REGEX */
 
     Value lastIndex()
     {
         return m_lastIndex;
     }
 
-    void setLastIndex(ExecutionState& state, const Value& v);
+    bool hasNamedGroups();
 
+    void setLastIndex(ExecutionState& state, const Value& v);
 
     bool legacyFeaturesEnabled()
     {
@@ -180,8 +199,12 @@ private:
     String* m_source;
     String* m_optionString;
     Option m_option;
+#ifdef ENABLE_QUICKJS_REGEX
+    uint8_t *m_bytecode;
+#else /* !ENABLE_QUICKJS_REGEX */
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
+#endif /* ENABLE_QUICKJS_REGEX */
     EncodedValue m_lastIndex;
     const String* m_lastExecutedString;
     bool m_legacyFeaturesEnabled;

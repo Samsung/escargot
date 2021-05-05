@@ -173,6 +173,10 @@ IF (ESCARGOT_WASM)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_WASM)
 ENDIF()
 
+IF (ESCARGOT_QUICKJS_REGEX)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_QUICKJS_REGEX)
+ENDIF()
+
 #######################################################
 # flags for $(MODE) : debug/release
 #######################################################

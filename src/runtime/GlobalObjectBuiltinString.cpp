@@ -347,7 +347,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 
     bool isSearchValueRegExp = searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject();
     // we should keep fast-path while performace issue is unresolved
-    bool canUseFastPath = searchValue.isString() || (isSearchValueRegExp && searchValue.asPointerValue()->asRegExpObject()->yarrPatern()->m_captureGroupNames.size() == 0);
+    bool canUseFastPath = searchValue.isString() || (isSearchValueRegExp && !searchValue.asPointerValue()->asRegExpObject()->hasNamedGroups());
     if (!searchValue.isUndefinedOrNull()) {
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
         if (canUseFastPath && isSearchValueRegExp && replacer.isPointerValue() && replacer.asPointerValue() == state.context()->globalObject()->regexpReplaceMethod()) {
