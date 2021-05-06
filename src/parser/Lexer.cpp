@@ -1732,7 +1732,7 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
             this->throwUnexpectedToken();
         }
     } catch (esprima::Error* err) {
-        error = new (UseGC) esprima::Error(*err);
+        error = new (GC) esprima::Error(*err);
         delete err;
         this->index = indexForError;
 

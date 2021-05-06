@@ -288,7 +288,7 @@ Object* ObjectTemplate::instantiate(Context* ctx)
 
 void ObjectTemplate::setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data)
 {
-    m_namedPropertyHandler = new (UseGC) ObjectTemplateNamedPropertyHandlerData(data);
+    m_namedPropertyHandler = new (GC) ObjectTemplateNamedPropertyHandlerData(data);
 }
 
 void ObjectTemplate::removeNamedPropertyHandler()

@@ -1071,28 +1071,28 @@ ObjectPropertyDescriptorRef::~ObjectPropertyDescriptorRef()
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(void* src)
-    : m_privateData(new (UseGC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src)))
+    : m_privateData(new (GC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src)))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value)
-    : m_privateData(new (UseGC) ObjectPropertyDescriptor(toImpl(value), ObjectPropertyDescriptor::ValuePresent))
+    : m_privateData(new (GC) ObjectPropertyDescriptor(toImpl(value), ObjectPropertyDescriptor::ValuePresent))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value, bool writable)
-    : m_privateData(new (UseGC) ObjectPropertyDescriptor(toImpl(value),
-                                                         (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : 0) | ObjectPropertyDescriptor::ValuePresent)))
+    : m_privateData(new (GC) ObjectPropertyDescriptor(toImpl(value),
+                                                      (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : 0) | ObjectPropertyDescriptor::ValuePresent)))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* getter, ValueRef* setter)
-    : m_privateData(new (UseGC) ObjectPropertyDescriptor(JSGetterSetter(toImpl(getter), toImpl(setter)), ObjectPropertyDescriptor::NotPresent))
+    : m_privateData(new (GC) ObjectPropertyDescriptor(JSGetterSetter(toImpl(getter), toImpl(setter)), ObjectPropertyDescriptor::NotPresent))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(const ObjectPropertyDescriptorRef& src)
-    : m_privateData(new (UseGC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src.m_privateData)))
+    : m_privateData(new (GC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src.m_privateData)))
 {
 }
 
