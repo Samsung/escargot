@@ -259,14 +259,14 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
-ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property)
+ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
     Value::ValueIndex index = property.tryToUseAsIndex(state);
     if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
         return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true);
     }
 
-    ObjectGetResult result = Object::get(state, ObjectPropertyName(state, property));
+    ObjectGetResult result = get(state, ObjectPropertyName(state, property), receiver);
 
     if (isMatchedArgument(index)) {
         ASSERT(result.hasValue());
@@ -305,7 +305,7 @@ bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& prope
     return Object::set(state, propertyName, v, receiver);
 }
 
-bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)
 {
     Value::ValueIndex index = property.tryToUseAsIndex(state);
     if (LIKELY(isMatchedArgument(index))) {
@@ -313,7 +313,7 @@ bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& pro
         return true;
     }
 
-    return Object::set(state, ObjectPropertyName(state, property), value, this);
+    return Object::set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
 Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index)

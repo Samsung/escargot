@@ -902,7 +902,11 @@ public:
     }
     OwnPropertyKeyAndDescVector ownPropertyKeysFastPath(ExecutionState& state);
 
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P);
+    ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P)
+    {
+        return get(state, P, Value(this));
+    }
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver);
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver);
     bool isRegExp(ExecutionState& state);
 
@@ -929,11 +933,19 @@ public:
         }
     }
 
-    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property);
-    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value);
+    ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property)
+    {
+        return getIndexedProperty(state, property, this);
+    }
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver);
+    bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+    {
+        return setIndexedProperty(state, property, value, this);
+    }
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver);
     void setIndexedPropertyThrowsException(ExecutionState& state, const Value& property, const Value& value)
     {
-        if (!setIndexedProperty(state, property, value)) {
+        if (!setIndexedProperty(state, property, value, this)) {
             throwCannotDefineError(state, ObjectStructurePropertyName(state, property.toString(state)));
         }
     }

@@ -946,7 +946,7 @@ Object::OwnPropertyKeyVector Object::ownPropertyKeys(ExecutionState& state)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
-ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName)
+ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
 {
     Object* iter = this;
 
@@ -963,7 +963,7 @@ ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& pro
         }
 
         if (UNLIKELY(iter->isProxyObject())) {
-            return iter->get(state, propertyName);
+            return iter->get(state, propertyName, receiver);
         }
     }
     return ObjectGetResult();
@@ -1641,14 +1641,14 @@ bool Object::defineNativeDataAccessorProperty(ExecutionState& state, const Objec
     return true;
 }
 
-ObjectGetResult Object::getIndexedProperty(ExecutionState& state, const Value& property)
+ObjectGetResult Object::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
-    return get(state, ObjectPropertyName(state, property));
+    return get(state, ObjectPropertyName(state, property), receiver);
 }
 
-bool Object::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+bool Object::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)
 {
-    return set(state, ObjectPropertyName(state, property), value, this);
+    return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
 IteratorObject* Object::values(ExecutionState& state)

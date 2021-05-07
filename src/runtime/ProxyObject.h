@@ -76,7 +76,7 @@ public:
 
     virtual Object::OwnPropertyKeyVector ownPropertyKeys(ExecutionState& state) override;
 
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName) override;
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver) override;
     virtual bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
 
     virtual bool isInlineCacheable() override

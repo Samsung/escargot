@@ -215,7 +215,7 @@ public:
         Object::enumeration(state, callback, data, shouldSkipSymbolKey);
     }
 
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver) override
     {
         if (!P.isIndexString()) {
             OptionalRef<ValueRef> ret(m_data->getter(toRef(&state), toRef(this), m_data->data,
@@ -231,7 +231,7 @@ public:
                 }
             }
         }
-        return Object::get(state, P);
+        return Object::get(state, P, receiver);
     }
 
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override

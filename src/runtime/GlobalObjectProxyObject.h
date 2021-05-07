@@ -49,7 +49,7 @@ public:
         return true;
     }
 
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver) override;
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override;
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override;
 

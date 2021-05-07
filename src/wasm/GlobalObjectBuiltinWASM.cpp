@@ -269,7 +269,7 @@ static Value builtinWASMModuleExports(ExecutionState& state, Value thisValue, si
         obj->defineOwnProperty(state, ObjectPropertyName(strings->kind), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
         // Append obj to exports.
-        exports->setIndexedProperty(state, Value(i), Value(obj));
+        exports->setIndexedProperty(state, Value(i), Value(obj), exports);
     }
 
     wasm_exporttype_vec_delete(&export_types);
@@ -314,7 +314,7 @@ static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, si
         obj->defineOwnProperty(state, ObjectPropertyName(strings->kind), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
         // Append obj to imports.
-        imports->setIndexedProperty(state, Value(i), Value(obj));
+        imports->setIndexedProperty(state, Value(i), Value(obj), imports);
     }
 
     wasm_importtype_vec_delete(&import_types);

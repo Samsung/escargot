@@ -2541,7 +2541,7 @@ NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(Execut
         size_t arrLen = argc - parameterLen;
         newArray = new ArrayObject(state, (uint64_t)arrLen);
         for (size_t i = 0; i < arrLen; i++) {
-            newArray->setIndexedProperty(state, Value(i), argv[parameterLen + i]);
+            newArray->setIndexedProperty(state, Value(i), argv[parameterLen + i], newArray);
         }
     } else {
         newArray = new ArrayObject(state);
@@ -3707,7 +3707,7 @@ NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& s
             break;
         }
         Value value = IteratorObject::iteratorValue(state, next.value());
-        spreadArray->setIndexedProperty(state, Value(i++), value);
+        spreadArray->setIndexedProperty(state, Value(i++), value, spreadArray);
     }
     registerFile[code->m_registerIndex] = spreadArray;
 }
