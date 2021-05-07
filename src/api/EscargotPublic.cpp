@@ -1385,7 +1385,7 @@ ValueRef* ObjectRef::getIndexedProperty(ExecutionStateRef* state, ValueRef* prop
 
 bool ObjectRef::setIndexedProperty(ExecutionStateRef* state, ValueRef* property, ValueRef* value)
 {
-    return toImpl(this)->setIndexedProperty(*toImpl(state), toImpl(property), toImpl(value));
+    return toImpl(this)->setIndexedProperty(*toImpl(state), toImpl(property), toImpl(value), toImpl(this));
 }
 
 bool ObjectRef::has(ExecutionStateRef* state, ValueRef* propertyName)
@@ -2532,7 +2532,7 @@ ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state, ValueVectorRef*
     ArrayObject* ret = new ArrayObject(*toImpl(state), sourceSize);
 
     for (size_t i = 0; i < sourceSize; i++) {
-        ret->setIndexedProperty(*toImpl(state), Value(i), toImpl(source->at(i)));
+        ret->setIndexedProperty(*toImpl(state), Value(i), toImpl(source->at(i)), ret);
     }
 
     return toRef(ret);

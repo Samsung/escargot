@@ -104,7 +104,7 @@ void StringObject::enumeration(ExecutionState& state, bool (*callback)(Execution
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
-ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Value& property)
+ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
     Value::ValueIndex idx = property.tryToUseAsIndex(state);
     if (idx != Value::InvalidIndexValue) {
@@ -113,7 +113,7 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
             return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
         }
     }
-    return get(state, ObjectPropertyName(state, property));
+    return get(state, ObjectPropertyName(state, property), receiver);
 }
 
 ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)

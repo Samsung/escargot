@@ -86,7 +86,7 @@ public:
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-get-p-receiver
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver) override;
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-set-p-v-receiver
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override

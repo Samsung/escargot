@@ -76,7 +76,7 @@ public:
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
-    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver) override;
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override;
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) override;
     virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
@@ -117,8 +117,8 @@ protected:
         {                                                                                                                                          \
             return siz;                                                                                                                            \
         }                                                                                                                                          \
-        virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property) override;                                         \
-        virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value) override;                                \
+        virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;                  \
+        virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;         \
                                                                                                                                                    \
     private:                                                                                                                                       \
         inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex, bool isLittleEndian = true);                                \

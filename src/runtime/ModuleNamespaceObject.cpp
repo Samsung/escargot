@@ -79,7 +79,7 @@ ObjectGetResult ModuleNamespaceObject::getOwnProperty(ExecutionState& state, con
     for (size_t i = 0; i < m_exports.size(); i++) {
         if (pAsPropertyName == ObjectStructurePropertyName(m_exports[i])) {
             // Let value be O.[[Get]](P, O).
-            Value value = this->get(state, P).value(state, this);
+            Value value = this->get(state, P, this).value(state, this);
             // ReturnIfAbrupt(value).
             // Return PropertyDescriptor{[[Value]]: value, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: false }.
             return ObjectGetResult(value, true, true, false);
@@ -152,14 +152,14 @@ ObjectHasPropertyResult ModuleNamespaceObject::hasProperty(ExecutionState& state
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-get-p-receiver
-ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPropertyName& P)
+ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver)
 {
     // Assert: IsPropertyKey(P) is true.
     // If Type(P) is Symbol, then
     auto pAsPropertyName = P.toObjectStructurePropertyName(state);
     if (pAsPropertyName.isSymbol()) {
         // Return the result of calling the default ordinary object [[Get]] internal method (9.1.8) on O passing P and Receiver as arguments.
-        return Object::get(state, P);
+        return Object::get(state, P, receiver);
     }
     // Let exports be the value of O’s [[Exports]] internal slot.
     for (size_t i = 0; i < m_exports.size(); i++) {

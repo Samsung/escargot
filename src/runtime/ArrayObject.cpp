@@ -547,7 +547,7 @@ ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, c
     return hasProperty(state, ObjectPropertyName(state, propertyName));
 }
 
-ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property)
+ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
     if (LIKELY(isFastModeArray())) {
         uint32_t idx = property.tryToUseAsArrayIndex(state);
@@ -558,10 +558,10 @@ ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Val
             }
         }
     }
-    return get(state, ObjectPropertyName(state, property));
+    return get(state, ObjectPropertyName(state, property), receiver);
 }
 
-bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
+bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)
 {
     // checking isUint32 to prevent invoke toString on property more than once while calling setIndexedProperty
     if (LIKELY(isFastModeArray() && property.isUInt32())) {
@@ -586,7 +586,7 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
             }
         }
     }
-    return set(state, ObjectPropertyName(state, property), value, this);
+    return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
 bool ArrayObject::preventExtensions(ExecutionState& state)

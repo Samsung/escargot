@@ -87,7 +87,7 @@ bool TypedArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectProp
     return Object::deleteOwnProperty(state, P);
 }
 
-ObjectGetResult TypedArrayObject::get(ExecutionState& state, const ObjectPropertyName& P)
+ObjectGetResult TypedArrayObject::get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver)
 {
     if (LIKELY(P.isStringType())) {
         double index = P.canonicalNumericIndexString(state);
@@ -95,7 +95,7 @@ ObjectGetResult TypedArrayObject::get(ExecutionState& state, const ObjectPropert
             return integerIndexedElementGet(state, index);
         }
     }
-    return Object::get(state, P);
+    return Object::get(state, P, receiver);
 }
 
 bool TypedArrayObject::set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
@@ -240,7 +240,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         }                                                                                                                                       \
     }                                                                                                                                           \
                                                                                                                                                 \
-    ObjectGetResult TYPE##ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property)                                         \
+    ObjectGetResult TYPE##ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)                  \
     {                                                                                                                                           \
         if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
             if (buffer()->isDetachedBuffer()) {                                                                                                 \
@@ -249,17 +249,17 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
             size_t indexedPosition = property.asUInt32() * elementSize();                                                                       \
             return ObjectGetResult(getDirectValueFromBuffer(state, indexedPosition), true, true, false);                                        \
         }                                                                                                                                       \
-        return get(state, ObjectPropertyName(state, property));                                                                                 \
+        return get(state, ObjectPropertyName(state, property), receiver);                                                                       \
     }                                                                                                                                           \
                                                                                                                                                 \
-    bool TYPE##ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)                                \
+    bool TYPE##ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)         \
     {                                                                                                                                           \
         if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength() && !buffer()->isDetachedBuffer())) {                      \
             size_t indexedPosition = property.asUInt32() * elementSize();                                                                       \
             setDirectValueInBuffer(state, indexedPosition, value);                                                                              \
             return true;                                                                                                                        \
         }                                                                                                                                       \
-        return set(state, ObjectPropertyName(state, property), value, this);                                                                    \
+        return set(state, ObjectPropertyName(state, property), value, receiver);                                                                \
     }
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)

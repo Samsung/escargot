@@ -22,14 +22,14 @@
 
 namespace Escargot {
 
-ObjectGetResult GlobalObjectProxyObject::get(ExecutionState& state, const ObjectPropertyName& P)
+ObjectGetResult GlobalObjectProxyObject::get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver)
 {
     if (!P.isUIntType() && P.objectStructurePropertyName().hasAtomicString()) {
         checkSecurity(state, GlobalObjectProxyObjectRef::AccessOperationType::Read, P.objectStructurePropertyName().asAtomicString());
     } else {
         checkSecurity(state, GlobalObjectProxyObjectRef::AccessOperationType::Read, Optional<AtomicString>());
     }
-    return m_target->get(state, P);
+    return m_target->get(state, P, receiver);
 }
 
 bool GlobalObjectProxyObject::set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)

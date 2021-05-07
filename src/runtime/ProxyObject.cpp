@@ -421,7 +421,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
         if (exist) {
             return ObjectHasPropertyResult([](ExecutionState& state, const ObjectPropertyName& P, void* handlerData) -> Value {
                 ProxyObject* p = (ProxyObject*)handlerData;
-                return p->get(state, P).value(state, p);
+                return p->get(state, P, p).value(state, p);
             },
                                            this);
         } else {
@@ -460,7 +460,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     if (booleanTrapResult) {
         return ObjectHasPropertyResult([](ExecutionState& state, const ObjectPropertyName& P, void* handlerData) -> Value {
             ProxyObject* p = (ProxyObject*)handlerData;
-            return p->get(state, P).value(state, p);
+            return p->get(state, P, p).value(state, p);
         },
                                        this);
     }
@@ -805,7 +805,7 @@ Value ProxyObject::getPrototype(ExecutionState& state)
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/index.html#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
-ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName& propertyName)
+ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
 {
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
@@ -831,7 +831,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     // 8. If trap is undefined, then
     // a. Return target.[[Get]](P, Receiver).
     if (trap.isUndefined()) {
-        return target.asObject()->get(state, propertyName);
+        return target.asObject()->get(state, propertyName, receiver);
     }
 
     // 9. Let trapResult be Call(trap, handler, «target, P, Receiver»).
