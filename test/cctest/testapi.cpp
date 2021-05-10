@@ -579,7 +579,7 @@ TEST(ObjectTemplate, Basic4) {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();
 
     ObjectTemplateNamedPropertyHandlerData handler;
-    handler.getter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+    handler.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
         if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("aaa", 3)) {
             return (ValueRef*)self->extraData();
         }
@@ -589,7 +589,7 @@ TEST(ObjectTemplate, Basic4) {
         return OptionalRef<ValueRef>();
     };
 
-    handler.setter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value) -> OptionalRef<ValueRef> {
+    handler.setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value) -> OptionalRef<ValueRef> {
         if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("aaa", 3)) {
             self->setExtraData(value);
             return OptionalRef<ValueRef>(ValueRef::create(true));
@@ -603,7 +603,7 @@ TEST(ObjectTemplate, Basic4) {
         return OptionalRef<ValueRef>();
     };
 
-    handler.query = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> TemplatePropertyAttribute {
+    handler.query = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName) -> TemplatePropertyAttribute {
         if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("aaa", 3)) {
             return (TemplatePropertyAttribute)(TemplatePropertyAttribute::TemplatePropertyAttributeWritable | TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable | TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
         }
@@ -613,14 +613,14 @@ TEST(ObjectTemplate, Basic4) {
         return TemplatePropertyAttribute::TemplatePropertyAttributeNotExist;
     };
 
-    handler.enumerator = [](ExecutionStateRef* state, ObjectRef* self, void* data) -> TemplateNamedPropertyHandlerEnumerationCallbackResultVector {
+    handler.enumerator = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data) -> TemplateNamedPropertyHandlerEnumerationCallbackResultVector {
         TemplateNamedPropertyHandlerEnumerationCallbackResultVector v(2);
         v[0] = StringRef::createFromASCII("aaa");
         v[1] = StringRef::createFromASCII("ccc");
         return v;
     };
 
-    handler.deleter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+    handler.deleter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
         if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ddd", 3)) {
             return OptionalRef<ValueRef>(ValueRef::create(false));
         }
@@ -628,7 +628,7 @@ TEST(ObjectTemplate, Basic4) {
         return OptionalRef<ValueRef>();
     };
 
-    handler.descriptor = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+    handler.descriptor = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
         if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("eee", 3)) {
             ObjectRef* desc = ObjectRef::create(state);
             desc->set(state, StringRef::createFromASCII("value"), ValueRef::createNull());
@@ -696,10 +696,10 @@ TEST(ObjectTemplate, Basic4) {
 
     ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
     ObjectTemplateNamedPropertyHandlerData handler2;
-    handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
+    handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName) -> OptionalRef<ValueRef> {
         return OptionalRef<ValueRef>();
     };
-    handler2.definer = [](ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc) -> OptionalRef<ValueRef> {
+    handler2.definer = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc) -> OptionalRef<ValueRef> {
         if (propertyName.value()->isString() && propertyName.value()->asString()->equalsWithASCIIString("ttt", 3)) {
             return OptionalRef<ValueRef>(ValueRef::create(false));
         }

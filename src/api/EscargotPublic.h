@@ -1651,10 +1651,10 @@ public:
     void* instanceExtraData();
 };
 
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value);
 enum TemplatePropertyAttribute {
     TemplatePropertyAttributeNotExist = 1 << 0,
     TemplatePropertyAttributeExist = 1 << 1,
@@ -1662,16 +1662,16 @@ enum TemplatePropertyAttribute {
     TemplatePropertyAttributeEnumerable = 1 << 3,
     TemplatePropertyAttributeConfigurable = 1 << 4,
 };
-typedef TemplatePropertyAttribute (*TemplateNamedPropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+typedef TemplatePropertyAttribute (*TemplateNamedPropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
 typedef GCManagedVector<TemplatePropertyNameRef> TemplateNamedPropertyHandlerEnumerationCallbackResultVector;
-typedef TemplateNamedPropertyHandlerEnumerationCallbackResultVector (*TemplateNamedPropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, void* data);
+typedef TemplateNamedPropertyHandlerEnumerationCallbackResultVector (*TemplateNamedPropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc);
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, void* data, const TemplatePropertyNameRef& propertyName);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
 
 struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
     TemplateNamedPropertyHandlerGetterCallback getter;
