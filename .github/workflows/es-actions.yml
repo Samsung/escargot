@@ -1,4 +1,4 @@
-name: Escargot Actions
+name: ES-Actions
 
 on:
   push:
@@ -28,6 +28,53 @@ jobs:
         CC=clang CXX=clang++ cmake -H. -Bout/clang/x64 -DESCARGOT_ARCH=x64 $BUILD_OPTIONS
         ninja -Cout/clang/x86
         ninja -Cout/clang/x64
+
+  release_x64_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tc: ['octane', 'v8 chakracore spidermonkey', 'modifiedVendorTest jsc-stress sunspider-js regression-tests new-es intl']
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
+    - name: Build x64
+      env:
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        cmake -H. -Bout/release/x64 $BUILD_OPTIONS
+        ninja -Cout/release/x64
+    - name: Run release-x64 test
+      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}
+
+  debug_x64_test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
+    - name: Build x64
+      env:
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        cmake -H. -Bout/debug/x64 $BUILD_OPTIONS
+        ninja -Cout/debug/x64
+    - name: Run debug-x64 test
+      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
   debugger_test:
     runs-on: ubuntu-latest
@@ -90,9 +137,11 @@ jobs:
         dpkg -X libicu-dev_66.1-2ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
     - name: Build x86
       env:
+        CXXFLAGS: -I$GITHUB_WORKSPACE/icu32/usr/include
+        LDFLAGS: -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        CXXFLAGS=" -I$GITHUB_WORKSPACE/icu32/usr/include" LDFLAGS=" -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu" cmake -H. -Bout/codecache/x86 $BUILD_OPTIONS
+        cmake -H. -Bout/codecache/x86 $BUILD_OPTIONS
         ninja -Cout/codecache/x86
     - name: Build x64
       env:
@@ -152,9 +201,11 @@ jobs:
         patch -p0 < wabt_patch
     - name: Build x86
       env:
+        CXXFLAGS: -I$GITHUB_WORKSPACE/icu32/usr/include
+        LDFLAGS: -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        CXXFLAGS=" -I$GITHUB_WORKSPACE/icu32/usr/include" LDFLAGS=" -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu" cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
+        cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
         ninja -Cout/wasm/x86
     - name: Build x64
       env:
@@ -189,7 +240,7 @@ jobs:
       run: sudo ./test/run-tests.py --bindir=./build test/spec/
 
   coverity_scan:
-    if: github.event_name == 'push'
+    if: ${{ github.repository == 'Samsung/escargot' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2

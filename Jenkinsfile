@@ -79,29 +79,19 @@ def isPr() {
                         sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-simple-parallel-3'
                         sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" jetstream-only-cdjs'
                     },
-                    'release-octane' : {
+                    'release-32bit-octane' : {
                         sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" octane'
-                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" octane'
                     },
-                    'release-chakracore' : {
-                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" chakracore'
-                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" chakracore'
+                    '32bit-tc-test' : {
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js'
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" modifiedVendorTest jsc-stress sunspider-js regression-tests new-es intl'
+                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" v8 chakracore spidermonkey'
                     },
                     'debug-32bit-test262' : {
                         sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" test262'
                     },
                     'release-64bit-test262' : {
                         sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" test262'
-                    },
-                    '32bit' : {
-                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js'
-                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" modifiedVendorTest jsc-stress sunspider-js'
-                        sh 'tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" v8 spidermonkey regression-tests new-es intl'
-                    },
-                    '64bit' : {
-                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js'
-                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" modifiedVendorTest jsc-stress sunspider-js'
-                        sh 'tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" v8 spidermonkey regression-tests new-es intl'
                     },
                     'kangax test-suites' : {
                         sh 'python tools/kangax/run-kangax.py --engine="${WORKSPACE}/build/out_linux64/escargot"'
