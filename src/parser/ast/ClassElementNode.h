@@ -37,13 +37,14 @@ public:
     };
 
 
-    ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic)
+    ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic, bool isPrivate)
         : Node()
         , m_key(key)
         , m_value(value)
         , m_kind(kind)
         , m_isComputed(isComputed)
         , m_isStatic(isStatic)
+        , m_isPrivate(isPrivate)
     {
     }
 
@@ -87,6 +88,7 @@ private:
     Kind m_kind : 3;
     bool m_isComputed : 1;
     bool m_isStatic : 1;
+    bool m_isPrivate : 1;
 };
 } // namespace Escargot
 

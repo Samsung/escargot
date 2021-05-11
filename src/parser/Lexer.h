@@ -58,6 +58,7 @@ enum PunctuatorKind : uint8_t {
     Exponentiation,
     GuessDot,
     GuessMark,
+    Hash,
     HashBang,
     InPunctuator,
     InstanceOfPunctuator,

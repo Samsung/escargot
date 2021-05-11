@@ -57,6 +57,11 @@ public:
         return false;
     }
 
+    virtual bool isReferencePrivateField()
+    {
+        return false;
+    }
+
     inline AtomicString propertyName()
     {
         ASSERT(isPreComputedCase());
@@ -274,7 +279,7 @@ private:
     Node* m_property; // property: Identifier | Expression;
 };
 
-template <const bool isPreComputedCaseValue = false, const bool isOptionalValue = false>
+template <const bool isPreComputedCaseValue = false, const bool isOptionalValue = false, const bool referencePrivateField = false>
 class MemberExpressionNodeOptional : public MemberExpressionNode {
 public:
     MemberExpressionNodeOptional(Node* object, Node* property)
@@ -290,6 +295,11 @@ public:
     virtual bool isOptional() override
     {
         return isOptionalValue;
+    }
+
+    virtual bool isReferencePrivateField() override
+    {
+        return referencePrivateField;
     }
 };
 } // namespace Escargot

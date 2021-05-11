@@ -174,7 +174,95 @@ typedef Vector<ASTBlockContext *, GCUtil::gc_malloc_atomic_allocator<ASTBlockCon
 typedef std::unordered_map<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
                            GCUtil::gc_malloc_allocator<std::pair<AtomicString const, StorePositiveNumberAsOddNumber>>>
     FunctionContextVarMap;
+struct ASTScopeContextClassPrivateUsingInfo {
+    AtomicString m_name;
+    size_t m_index;
+    size_t m_lineNumber;
+    size_t m_lineStart;
 
+    ASTScopeContextClassPrivateUsingInfo(AtomicString name,
+                                         size_t index,
+                                         size_t lineNumber,
+                                         size_t lineStart)
+        : m_name(name)
+        , m_index(index)
+        , m_lineNumber(lineNumber)
+        , m_lineStart(lineStart)
+    {
+    }
+};
+
+typedef Vector<ASTScopeContextClassPrivateUsingInfo, GCUtil::gc_malloc_atomic_allocator<ASTScopeContextClassPrivateUsingInfo>, ComputeReservedCapacityFunctionWithLog2<>> ASTScopeContextClassPrivateUsingInfoVector;
+
+struct ASTClassInfo {
+    ASTClassInfo *m_parent;
+    ASTClassInfo *m_firstChild;
+    ASTClassInfo *m_lastChild;
+    ASTClassInfo *m_nextSibling;
+    AtomicStringVector m_classPrivateNames;
+    ASTScopeContextClassPrivateUsingInfoVector m_classPrivateNameUsingInfo;
+
+    void appendChild(ASTClassInfo *child)
+    {
+        ASSERT(child->m_nextSibling == nullptr);
+        if (m_firstChild == nullptr) {
+            m_firstChild = child;
+            m_lastChild = child;
+        } else {
+            m_lastChild->m_nextSibling = child;
+            m_lastChild = child;
+        }
+    }
+
+    ASTClassInfo *firstChild()
+    {
+        return m_firstChild;
+    }
+
+    ASTClassInfo *lastChild()
+    {
+        return m_lastChild;
+    }
+
+    ASTClassInfo *nextSibling()
+    {
+        return m_nextSibling;
+    }
+
+    void insertClassPrivateName(AtomicString name)
+    {
+        for (size_t i = 0; i < m_classPrivateNames.size(); i++) {
+            if (m_classPrivateNames[i] == name) {
+                return;
+            }
+        }
+        m_classPrivateNames.pushBack(name);
+    }
+
+    void insertClassPrivateUsingName(AtomicString name, size_t index, size_t line, size_t column)
+    {
+        for (size_t i = 0; i < m_classPrivateNameUsingInfo.size(); i++) {
+            if (m_classPrivateNameUsingInfo[i].m_name == name) {
+                return;
+            }
+        }
+        m_classPrivateNameUsingInfo.pushBack(ASTScopeContextClassPrivateUsingInfo(name, index, line, column));
+    }
+
+    // ASTClassInfo is allocated by ASTAllocator
+    inline void *operator new(size_t size, ASTAllocator &allocator)
+    {
+        return allocator.allocate(size);
+    }
+
+    explicit ASTClassInfo()
+        : m_parent(nullptr)
+        , m_firstChild(nullptr)
+        , m_lastChild(nullptr)
+        , m_nextSibling(nullptr)
+    {
+    }
+};
 
 // context for function or program
 struct ASTScopeContext {

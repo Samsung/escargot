@@ -57,7 +57,7 @@ public:
     static constexpr const char* InvalidLHSInAssignment = "Invalid left-hand side in assignment";
     static constexpr const char* InvalidLHSInForIn = "Invalid left-hand side in for-in";
     static constexpr const char* InvalidLHSInForLoop = "Invalid left-hand side in for-loop";
-    static constexpr const char* InvalidClassFieldName = "Invalid class field name";
+    static constexpr const char* InvalidClassElementName = "Invalid class element name";
     static constexpr const char* MultipleDefaultsInSwitch = "More than one default clause in switch statement";
     static constexpr const char* NoCatchOrFinally = "Missing catch or finally after try";
     static constexpr const char* UnknownLabel = "Undefined label \'%s\'";
@@ -99,6 +99,8 @@ public:
     static constexpr const char* CannotChainLogicalWithNullish = "Cannot chain logical expression with nullish operator";
     static constexpr const char* KeywordMustNotContainEscapedCharacters = "Keyword must not contain escaped characters";
     static constexpr const char* AsyncGeneratorFuncDeclLocationError = "Async or generator function can only be declared at the top level or inside a block";
+    static constexpr const char* PrivateFieldMustBeDeclared = "Private field \'#%s\' must be declared in an enclosing class";
+    static constexpr const char* CannnotUsePrivateFieldHere = "Cannot use private field here";
 };
 
 } // namespace esprima
