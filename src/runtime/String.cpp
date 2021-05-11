@@ -628,9 +628,9 @@ String* String::fromDouble(double v)
     return new ASCIIString(std::move(s));
 }
 
-String* String::fromUTF8(const char* src, size_t len)
+String* String::fromUTF8(const char* src, size_t len, bool maybeASCII)
 {
-    if (isAllASCII(src, len)) {
+    if (maybeASCII && isAllASCII(src, len)) {
         return new ASCIIString(src, len);
     } else {
         auto s = utf8StringToUTF16String(src, len);
@@ -639,9 +639,9 @@ String* String::fromUTF8(const char* src, size_t len)
 }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len)
+String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len, bool maybeASCII)
 {
-    if (isAllASCII(src, len)) {
+    if (maybeASCII && isAllASCII(src, len)) {
         return new CompressibleString(instance, src, len);
     } else {
         auto s = utf8StringToUTF16StringNonGC(src, len);

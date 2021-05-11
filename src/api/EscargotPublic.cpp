@@ -270,9 +270,9 @@ StringRef* StringRef::createFromASCII(const char* s, size_t len)
     return toRef(new ASCIIString(s, len));
 }
 
-StringRef* StringRef::createFromUTF8(const char* s, size_t len)
+StringRef* StringRef::createFromUTF8(const char* s, size_t len, bool maybeASCII)
 {
-    return toRef(String::fromUTF8(s, len));
+    return toRef(String::fromUTF8(s, len, maybeASCII));
 }
 
 StringRef* StringRef::createFromUTF16(const char16_t* s, size_t len)
@@ -310,9 +310,9 @@ bool StringRef::isCompressibleStringEnabled()
 }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
+StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len, bool maybeASCII)
 {
-    return toRef(String::fromUTF8ToCompressibleString(toImpl(instance), s, len));
+    return toRef(String::fromUTF8ToCompressibleString(toImpl(instance), s, len, maybeASCII));
 }
 
 StringRef* StringRef::createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len)

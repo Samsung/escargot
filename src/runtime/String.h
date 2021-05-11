@@ -297,9 +297,9 @@ public:
         // TODO
         return fromDouble(v);
     }
-    static String* fromUTF8(const char* src, size_t len);
+    static String* fromUTF8(const char* src, size_t len, bool maybeASCII = true);
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-    static String* fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len);
+    static String* fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len, bool maybeASCII = true);
 #endif
 
     static String* getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, Value namedCapture, String* replacement);
