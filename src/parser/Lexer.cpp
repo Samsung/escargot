@@ -1171,13 +1171,12 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
         break;
 
     case '#':
+        kind = Hash;
         if (this->index == 1 && this->peekChar() == '!') {
             kind = HashBang;
             ++this->index;
-            break;
         }
-
-        FALLTHROUGH;
+        break;
 
     default:
         this->throwUnexpectedToken();

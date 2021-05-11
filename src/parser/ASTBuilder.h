@@ -159,7 +159,13 @@ public:
     {
     }
 
-    SyntaxNode(ASTNodeType nodeType, bool flag)
+    enum SyntaxNodeFlag {
+        ArrowParameterPlaceHolderNodeIsAsync = 0x1,
+        MemberExpressionIsOptional = 0x1,
+        MemberExpressionIsReferencePrivateField = 0x2,
+    };
+
+    SyntaxNode(ASTNodeType nodeType, int flag)
         : m_nodeType(nodeType)
         , m_flag(flag)
     {
@@ -219,13 +225,19 @@ public:
     bool async()
     {
         ASSERT(m_nodeType == ASTNodeType::ArrowParameterPlaceHolder);
-        return m_flag;
+        return m_flag & ArrowParameterPlaceHolderNodeIsAsync;
     }
 
     bool isOptional()
     {
         ASSERT(m_nodeType == ASTNodeType::MemberExpression);
-        return m_flag;
+        return m_flag & MemberExpressionIsOptional;
+    }
+
+    bool isReferencePrivateField()
+    {
+        ASSERT(m_nodeType == ASTNodeType::MemberExpression);
+        return m_flag & MemberExpressionIsReferencePrivateField;
     }
 
     ALWAYS_INLINE bool isAssignmentOperation()
@@ -442,7 +454,7 @@ public:
 
 private:
     ASTNodeType m_nodeType : 16;
-    bool m_flag : 1;
+    int m_flag : 8;
     AtomicString m_string;
 };
 
@@ -570,12 +582,12 @@ public:
 
     ALWAYS_INLINE SyntaxNode createArrowParameterPlaceHolderNode(ASTNodeList, bool async)
     {
-        return SyntaxNode(ASTNodeType::ArrowParameterPlaceHolder, async);
+        return SyntaxNode(ASTNodeType::ArrowParameterPlaceHolder, async ? SyntaxNode::ArrowParameterPlaceHolderNodeIsAsync : 0);
     }
 
-    ALWAYS_INLINE SyntaxNode createMemberExpressionNode(SyntaxNode object, SyntaxNode property, bool computed, bool optional)
+    ALWAYS_INLINE SyntaxNode createMemberExpressionNode(SyntaxNode object, SyntaxNode property, bool computed, bool optional, bool referencePrivateField = false)
     {
-        return SyntaxNode(MemberExpression, optional);
+        return SyntaxNode(MemberExpression, (optional ? SyntaxNode::MemberExpressionIsOptional : 0) | (referencePrivateField ? SyntaxNode::MemberExpressionIsReferencePrivateField : 0));
     }
 
     ALWAYS_INLINE SyntaxNode createCallExpressionNode(SyntaxNode callee, const SyntaxNodeList& arguments, bool isOptional = false, bool isSubSequenceOfOptionalExpression = false)
@@ -731,19 +743,35 @@ public:
         return new (m_allocator) AssignmentPatternNode(left, right);
     }
 
-    MemberExpressionNode* createMemberExpressionNode(Node* object, Node* property, bool computed, bool optional)
+    MemberExpressionNode* createMemberExpressionNode(Node* object, Node* property, bool computed, bool optional, bool referencePrivateField = false)
     {
         if (computed) {
             if (UNLIKELY(optional)) {
-                return new (m_allocator) MemberExpressionNodeOptional<true, true>(object, property);
+                if (UNLIKELY(referencePrivateField)) {
+                    return new (m_allocator) MemberExpressionNodeOptional<true, true, true>(object, property);
+                } else {
+                    return new (m_allocator) MemberExpressionNodeOptional<true, true>(object, property);
+                }
             } else {
-                return new (m_allocator) MemberExpressionNodeOptional<true, false>(object, property);
+                if (UNLIKELY(referencePrivateField)) {
+                    return new (m_allocator) MemberExpressionNodeOptional<true, false, true>(object, property);
+                } else {
+                    return new (m_allocator) MemberExpressionNodeOptional<true, false>(object, property);
+                }
             }
         } else {
             if (UNLIKELY(optional)) {
-                return new (m_allocator) MemberExpressionNodeOptional<false, true>(object, property);
+                if (UNLIKELY(referencePrivateField)) {
+                    return new (m_allocator) MemberExpressionNodeOptional<false, true, true>(object, property);
+                } else {
+                    return new (m_allocator) MemberExpressionNodeOptional<false, true>(object, property);
+                }
             } else {
-                return new (m_allocator) MemberExpressionNode(object, property);
+                if (UNLIKELY(referencePrivateField)) {
+                    return new (m_allocator) MemberExpressionNodeOptional<false, false, true>(object, property);
+                } else {
+                    return new (m_allocator) MemberExpressionNode(object, property);
+                }
             }
         }
     }

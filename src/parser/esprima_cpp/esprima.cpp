@@ -142,6 +142,7 @@ public:
 
     ASTScopeContext* currentScopeContext;
     ASTScopeContext* lastPoppedScopeContext;
+    ASTClassInfo* currentClassInfo;
 
     AtomicString lastUsingName;
     std::function<void(AtomicString, LexicalBlockIndex, KeywordKind, bool)> nameDeclaredCallback;
@@ -202,6 +203,7 @@ public:
         this->taggedTemplateExpressionIndex = 0;
         this->lastPoppedScopeContext = &fakeContext;
         this->currentScopeContext = nullptr;
+        this->currentClassInfo = nullptr;
         this->trackUsingNames = true;
         this->isParsingSingleFunction = false;
         this->codeBlock = nullptr;
@@ -1667,9 +1669,20 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseObjectPropertyKey(ASTBuilder& builder)
+    ASTNode parseObjectPropertyKey(ASTBuilder& builder, bool allowPrivate = false, bool* isPrivateOut = nullptr)
     {
         MetaNode node = this->createNode();
+        if (UNLIKELY(allowPrivate)) {
+            *isPrivateOut = this->match(PunctuatorKind::Hash);
+            if (*isPrivateOut) {
+                this->nextToken();
+                if (node.index + 1 != this->lookahead.start
+                    || this->lookahead.type != Token::IdentifierToken) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+            }
+        }
+
         ALLOC_TOKEN(token);
         this->nextToken(token);
 
@@ -2293,10 +2306,8 @@ public:
                 if (this->lookahead.valuePunctuatorKind == Period) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
-                    this->nextToken();
-                    TrackUsingNameBlocker blocker(this);
-                    ASTNode property = this->parseIdentifierName(builder);
-                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, true, seenOptionalExpression));
+                    this->expect(Period);
+                    exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, seenOptionalExpression);
                 } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
                     bool asyncArrow = maybeAsync && (startToken->lineNumber == this->lookahead.lineNumber);
                     this->context->isBindingElement = false;
@@ -2339,9 +2350,7 @@ public:
                         }
                     } else if (this->lookahead.type == Token::IdentifierToken) {
                         seenOptionalExpression = true;
-                        TrackUsingNameBlocker blocker(this);
-                        ASTNode property = this->parseIdentifierName(builder);
-                        exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, true, true));
+                        exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, seenOptionalExpression);
                         if (this->lookahead.type == Token::TemplateToken) {
                             this->throwUnexpectedToken(this->lookahead);
                         }
@@ -2408,6 +2417,40 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode parseMemberExpressionPreComputedCase(ASTBuilder& builder, const MetaNode& node, ASTNode exprNode, bool seenOptionalExpression)
+    {
+        TrackUsingNameBlocker blocker(this);
+        if (UNLIKELY(this->match(PunctuatorKind::Hash))) {
+            auto lastIndex = this->lookahead.start;
+            ALLOC_TOKEN(startToken);
+            *startToken = this->lookahead;
+            this->nextToken();
+            if (UNLIKELY(this->lookahead.start != lastIndex + 1)) {
+                this->throwUnexpectedToken(*startToken);
+            }
+            ASTNode property = this->parseIdentifierName(builder);
+            auto type = exprNode->type();
+            if (UNLIKELY(type == ASTNodeType::SuperExpression || type == ASTNodeType::CallExpression)) {
+                this->throwError(Messages::CannnotUsePrivateFieldHere);
+            }
+            if (!this->isParsingSingleFunction) {
+                if (this->currentClassInfo) {
+                    this->currentClassInfo->insertClassPrivateUsingName(property->asIdentifier()->name(),
+                                                                        startToken->start,
+                                                                        startToken->lineNumber,
+                                                                        startToken->lineStart);
+                } else {
+                    this->throwError(Messages::PrivateFieldMustBeDeclared, property->asIdentifier()->name().string());
+                }
+            }
+            return this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, seenOptionalExpression, true));
+        } else {
+            ASTNode property = this->parseIdentifierName(builder);
+            return this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, seenOptionalExpression));
+        }
+    }
+
+    template <class ASTBuilder>
     ASTNode parseLeftHandSideExpression(ASTBuilder& builder)
     {
         // assert(this->context->allowIn, 'callee of new expression always allow in keyword.');
@@ -2441,9 +2484,7 @@ public:
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->expect(Period);
-                TrackUsingNameBlocker blocker(this);
-                ASTNode property = this->parseIdentifierName(builder);
-                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, seenOptionalExpression));
+                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode, seenOptionalExpression);
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
@@ -2644,6 +2685,12 @@ public:
 
                 if (this->context->strict && subExpr->isIdentifier()) {
                     this->throwError(Messages::StrictDelete);
+                }
+
+                if (subExpr->type() == ASTNodeType::MemberExpression) {
+                    if (subExpr->asMemberExpression()->isReferencePrivateField()) {
+                        this->throwError(Messages::CannnotUsePrivateFieldHere);
+                    }
                 }
 
                 exprNode = this->finalize(node, builder.createUnaryExpressionDeleteNode(subExpr));
@@ -5555,9 +5602,10 @@ public:
     }
 
     // ECMA-262 14.5 Class Definitions
+    typedef VectorWithInlineStorage<12, AtomicString, std::allocator<AtomicString>> ParserAtomicStringVector;
 
     template <class ASTBuilder>
-    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass, const AtomicString& className)
+    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass, const AtomicString& className, ParserAtomicStringVector& privateFieldNames)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -5573,12 +5621,13 @@ public:
         bool isStatic = false;
         bool isGenerator = false;
         bool isAsync = false;
+        bool isPrivate = false;
 
         if (this->match(Multiply)) {
             this->nextToken();
         } else {
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder);
+            keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
 
             if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->relatedSource(this->scanner->source) == "static") {
                 *token = this->lookahead;
@@ -5588,7 +5637,7 @@ public:
                 if (this->match(Multiply)) {
                     this->nextToken();
                 } else {
-                    keyNode = this->parseObjectPropertyKey(builder);
+                    keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
                 }
             }
             if ((token->type == Token::IdentifierToken) && !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async")) {
@@ -5602,31 +5651,31 @@ public:
                     }
                     computed = this->match(LeftSquareBracket);
                     *token = this->lookahead;
-                    keyNode = this->parseObjectPropertyKey(builder);
-                    if (token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "constructor") {
-                        this->throwUnexpectedToken(*token);
+                    keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
+                    if (builder.isPropertyKey(keyNode, "constructor")) {
+                        this->throwError(Messages::InvalidClassElementName);
                     }
                 }
             }
         }
 
-        bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead);
+        bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead) || this->match(PunctuatorKind::Hash);
         if (token->type == Token::IdentifierToken) {
             if (token->valueStringLiteral(this->scanner) == "get" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Get;
                 computed = this->match(LeftSquareBracket);
-                keyNode = this->parseObjectPropertyKey(builder);
+                keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
                 value = this->parseGetterMethod(builder, mayMethodStartNode);
             } else if (token->valueStringLiteral(this->scanner) == "set" && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
                 computed = this->match(LeftSquareBracket);
-                keyNode = this->parseObjectPropertyKey(builder);
+                keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
                 value = this->parseSetterMethod(builder, mayMethodStartNode);
             }
         } else if (lookaheadPropertyKey && token->type == Token::PunctuatorToken && token->valuePunctuatorKind == Multiply) {
             kind = ClassElementNode::Kind::Method;
             computed = this->match(LeftSquareBracket);
-            keyNode = this->parseObjectPropertyKey(builder);
+            keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
             value = this->parseGeneratorMethod(builder, this->createNode());
             isGenerator = true;
         }
@@ -5664,15 +5713,27 @@ public:
             }
         }
 
-        if (kind == ClassElementNode::Kind::StaticField && !computed) {
+        if ((kind == ClassElementNode::Kind::StaticField || isPrivate) && !computed) {
             if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
-                this->throwError(Messages::InvalidClassFieldName);
+                this->throwError(Messages::InvalidClassElementName);
             }
         }
 
         if (kind == ClassElementNode::Kind::Field || kind == ClassElementNode::Kind::StaticField) {
             if (builder.isPropertyKeyStartsWith(keyNode, 0x200C) || builder.isPropertyKeyStartsWith(keyNode, 0x200D)) {
-                this->throwError(Messages::InvalidClassFieldName);
+                this->throwError(Messages::InvalidClassElementName);
+            }
+        }
+
+        if (isPrivate) {
+            auto s = keyNode->asIdentifier()->name();
+            if (VectorUtil::findInVector(privateFieldNames, s) == VectorUtil::invalidIndex) {
+                privateFieldNames.pushBack(s);
+            } else {
+                this->lastMarker.index = mayMethodStartNode.index - this->baseMarker.index;
+                this->lastMarker.lineNumber = mayMethodStartNode.line;
+                this->lastMarker.lineStart = mayMethodStartNode.index - mayMethodStartNode.column;
+                this->throwError("duplicate class field name '%s'", s.string());
             }
         }
 
@@ -5719,7 +5780,44 @@ public:
             }
         }
 
-        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic));
+        return this->finalize(node, builder.createClassElementNode(keyNode, value, kind, computed, isStatic, isPrivate));
+    }
+
+    void testClassPrivateNameIsCorrect(ASTClassInfo* info)
+    {
+        for (size_t i = 0; i < info->m_classPrivateNameUsingInfo.size(); i++) {
+            auto name = info->m_classPrivateNameUsingInfo[i].m_name;
+
+            ASTClassInfo* c = info;
+
+            bool find = false;
+            while (c) {
+                for (size_t j = 0; j < c->m_classPrivateNames.size(); j++) {
+                    if (c->m_classPrivateNames[j] == name) {
+                        find = true;
+                        break;
+                    }
+                }
+
+                if (find) {
+                    break;
+                }
+                c = c->m_parent;
+            }
+            if (!find) {
+                // throw error
+                this->lastMarker.index = info->m_classPrivateNameUsingInfo[i].m_index - this->baseMarker.index;
+                this->lastMarker.lineNumber = info->m_classPrivateNameUsingInfo[i].m_lineNumber;
+                this->lastMarker.lineStart = info->m_classPrivateNameUsingInfo[i].m_lineStart;
+                this->throwError(Messages::PrivateFieldMustBeDeclared, name.string());
+            }
+        }
+
+        auto child = info->firstChild();
+        while (child) {
+            testClassPrivateNameIsCorrect(child);
+            child = child->nextSibling();
+        }
     }
 
     template <class ASTBuilder>
@@ -5727,15 +5825,25 @@ public:
     {
         MetaNode node = this->createNode();
 
+        ASTClassInfo* newClassInfo = new (allocator) ASTClassInfo();
+        ASTClassInfo* oldClassInfo = this->currentClassInfo;
+
+        this->currentClassInfo = newClassInfo;
+        if (oldClassInfo) {
+            oldClassInfo->appendChild(newClassInfo);
+        }
+
         ASTNodeList body;
         ASTNode constructor = nullptr;
+
+        ParserAtomicStringVector privateFieldNames;
 
         this->expect(LeftBrace);
         while (!this->match(RightBrace)) {
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className);
+                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className, privateFieldNames);
                 if (classElement) {
                     body.append(this->allocator, classElement);
                 }
@@ -5744,6 +5852,20 @@ public:
         endNode = this->createNode();
         endNode.index++; // advancing for '{'
         this->expect(RightBrace);
+
+        if (privateFieldNames.size() && !this->isParsingSingleFunction) {
+            newClassInfo->m_classPrivateNames.resize(privateFieldNames.size());
+            for (size_t i = 0; i < privateFieldNames.size(); i++) {
+                newClassInfo->m_classPrivateNames[i] = privateFieldNames[i];
+            }
+        }
+
+        this->currentClassInfo = oldClassInfo;
+
+        if (!this->currentClassInfo && !this->isParsingSingleFunction) {
+            // test class private field here
+            testClassPrivateNameIsCorrect(newClassInfo);
+        }
 
         return this->finalize(node, builder.createClassBodyNode(body, constructor));
     }
