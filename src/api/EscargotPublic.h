@@ -804,7 +804,7 @@ public:
     {
         return createFromUTF8(str, N - 1);
     }
-    static StringRef* createFromUTF8(const char* s, size_t len);
+    static StringRef* createFromUTF8(const char* s, size_t len, bool maybeASCII = true);
     static StringRef* createFromUTF16(const char16_t* s, size_t len);
     static StringRef* createFromLatin1(const unsigned char* s, size_t len);
 
@@ -814,7 +814,7 @@ public:
 
     // you can use these functions only if you enabled string compression
     static bool isCompressibleStringEnabled();
-    static StringRef* createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len);
+    static StringRef* createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len, bool maybeASCII = true);
     static StringRef* createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len);
     static StringRef* createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len);
     static StringRef* createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t len);
