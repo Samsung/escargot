@@ -1082,7 +1082,7 @@ ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value)
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value, bool writable)
     : m_privateData(new (GC) ObjectPropertyDescriptor(toImpl(value),
-                                                      (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : 0) | ObjectPropertyDescriptor::ValuePresent)))
+                                                      (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : ObjectPropertyDescriptor::NonWritablePresent) | ObjectPropertyDescriptor::ValuePresent)))
 {
 }
 
@@ -1120,7 +1120,7 @@ ValueRef* ObjectPropertyDescriptorRef::getter() const
 
 bool ObjectPropertyDescriptorRef::hasGetter() const
 {
-    return ((ObjectPropertyDescriptor*)m_privateData)->hasJSGetter();
+    return !hasValue() && ((ObjectPropertyDescriptor*)m_privateData)->hasJSGetter();
 }
 
 ValueRef* ObjectPropertyDescriptorRef::setter() const
@@ -1130,7 +1130,7 @@ ValueRef* ObjectPropertyDescriptorRef::setter() const
 
 bool ObjectPropertyDescriptorRef::hasSetter() const
 {
-    return ((ObjectPropertyDescriptor*)m_privateData)->hasJSSetter();
+    return !hasValue() && ((ObjectPropertyDescriptor*)m_privateData)->hasJSSetter();
 }
 
 bool ObjectPropertyDescriptorRef::isEnumerable() const
@@ -1150,12 +1150,12 @@ bool ObjectPropertyDescriptorRef::hasEnumerable() const
 
 void ObjectPropertyDescriptorRef::setConfigurable(bool configurable)
 {
-    ((ObjectPropertyDescriptor*)m_privateData)->setEnumerable(configurable);
+    ((ObjectPropertyDescriptor*)m_privateData)->setConfigurable(configurable);
 }
 
 bool ObjectPropertyDescriptorRef::isConfigurable() const
 {
-    return ((ObjectPropertyDescriptor*)m_privateData)->isConfigurablePresent();
+    return ((ObjectPropertyDescriptor*)m_privateData)->isConfigurable();
 }
 
 bool ObjectPropertyDescriptorRef::hasConfigurable() const

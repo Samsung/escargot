@@ -846,3 +846,32 @@ TEST(BackingStore, Basic1) {
         return ValueRef::createUndefined();
     });
 }
+
+TEST(ObjectPropertyDescriptor, Basic1) {
+    {
+        ObjectPropertyDescriptorRef desc(ValueRef::createUndefined());
+        desc.setConfigurable(true);
+        EXPECT_TRUE(desc.value()->isUndefined());
+        EXPECT_TRUE(desc.hasValue());
+        EXPECT_FALSE(desc.hasSetter());
+        EXPECT_FALSE(desc.hasGetter());
+        EXPECT_TRUE(desc.hasConfigurable());
+        EXPECT_TRUE(desc.isConfigurable());
+        EXPECT_FALSE(desc.hasEnumerable());
+        EXPECT_FALSE(desc.hasWritable());
+        desc.setConfigurable(false);
+        EXPECT_TRUE(desc.hasConfigurable());
+        EXPECT_FALSE(desc.isConfigurable());
+    }
+    {
+        ObjectPropertyDescriptorRef desc(ValueRef::createUndefined(), false);
+        EXPECT_TRUE(desc.value()->isUndefined());
+        EXPECT_TRUE(desc.hasValue());
+        EXPECT_FALSE(desc.hasSetter());
+        EXPECT_FALSE(desc.hasGetter());
+        EXPECT_FALSE(desc.hasEnumerable());
+        EXPECT_FALSE(desc.hasConfigurable());
+        EXPECT_TRUE(desc.hasWritable());
+        EXPECT_FALSE(desc.isWritable());
+    }
+}
