@@ -947,7 +947,7 @@ public:
     bool isNegative();
 };
 
-class ObjectPropertyDescriptorRef {
+class ESCARGOT_EXPORT ObjectPropertyDescriptorRef {
 public:
     ObjectPropertyDescriptorRef(ValueRef* value);
     ObjectPropertyDescriptorRef(ValueRef* value, bool writable);
