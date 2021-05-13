@@ -3414,6 +3414,11 @@ ObjectRef* WASMOperationsRef::instantiatePromiseOfModuleWithImportObject(Executi
 {
     return toRef(WASMOperations::instantiatePromiseOfModuleWithImportObject(*toImpl(state), toImpl(promiseOfModule), toImpl(importObj)));
 }
+
+void WASMOperationsRef::collectHeap()
+{
+    WASMOperations::collectHeap();
+}
 #endif
 
 } // namespace Escargot

@@ -47,6 +47,9 @@ namespace Escargot {
 std::mt19937 VMInstance::g_randEngine((unsigned int)time(NULL));
 bf_context_t VMInstance::g_bfContext;
 #if defined(ENABLE_WASM)
+#ifndef ESCARGOT_WASM_GC_CHECK_INTERVAL
+#define ESCARGOT_WASM_GC_CHECK_INTERVAL 5000
+#endif
 WASMContext VMInstance::g_wasmContext;
 #endif
 ASTAllocator* VMInstance::g_astAllocator;
@@ -66,6 +69,7 @@ void VMInstance::initialize()
     // g_wasmContext
     g_wasmContext.engine = wasm_engine_new();
     g_wasmContext.store = wasm_store_new(g_wasmContext.engine);
+    g_wasmContext.lastGCCheckTime = 0;
 #endif
 
     // g_astAllocator
@@ -98,6 +102,7 @@ void VMInstance::finalize()
     wasm_engine_delete(g_wasmContext.engine);
     g_wasmContext.store = nullptr;
     g_wasmContext.engine = nullptr;
+    g_wasmContext.lastGCCheckTime = 0;
 #endif
 
     // g_astAllocator
@@ -170,16 +175,15 @@ bool VMInstance::regexpLastIndexNativeSetter(ExecutionState& state, Object* self
 
 static ObjectPropertyNativeGetterSetterData regexpLastIndexGetterSetterData(
     true, false, false, &VMInstance::regexpLastIndexNativeGetter, &VMInstance::regexpLastIndexNativeSetter);
+
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 
-#ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_CHECK_INTERVAL
-#define ESCARGOT_COMPRESSIBLE_COMPRESS_CHECK_INTERVAL 1000
+#ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL
+#define ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL 1000
 #endif
-
 #ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL
 #define ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL 1000
 #endif
-
 #ifndef ESCARGOT_COMPRESSIBLE_COMPRESS_MIN_SIZE
 #define ESCARGOT_COMPRESSIBLE_COMPRESS_MIN_SIZE 1024 * 128
 #endif
@@ -235,12 +239,20 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
             }
         }
     } else if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
-#if defined(ENABLE_COMPRESSIBLE_STRING)
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_WASM)
         auto currentTick = fastTickCount();
-        if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_CHECK_INTERVAL) {
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+        if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
             self->compressStringsIfNeeds(currentTick);
             self->m_lastCompressibleStringsTestTime = currentTick;
         }
+#endif
+#if defined(ENABLE_WASM)
+        if (currentTick - g_wasmContext.lastGCCheckTime > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
+            wasm_store_gc(g_wasmContext.store);
+            g_wasmContext.lastGCCheckTime = currentTick;
+        }
+#endif
 #endif
         auto& currentCodeSizeTotal = self->compiledByteCodeSize();
 

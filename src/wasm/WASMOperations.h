@@ -38,6 +38,8 @@ public:
     static void readImportsOfModule(ExecutionState& state, wasm_module_t* module, const Value& importObj, wasm_extern_vec_t* imports);
     static Value instantiateCoreModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     static Object* instantiatePromiseOfModuleWithImportObject(ExecutionState& state, PromiseObject* promiseOfModule, Value importObj);
+
+    static void collectHeap();
 };
 
 } // namespace Escargot

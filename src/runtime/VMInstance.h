@@ -31,6 +31,7 @@ struct wasm_store_t;
 struct WASMContext {
     wasm_engine_t* engine;
     wasm_store_t* store;
+    uint64_t lastGCCheckTime;
 };
 #endif
 

@@ -558,6 +558,12 @@ Object* WASMOperations::instantiatePromiseOfModuleWithImportObject(ExecutionStat
     return promiseOfModule->then(state, moduleInstantiator);
 }
 
+void WASMOperations::collectHeap()
+{
+    // collect (GC) WASM Objects allocated inside WASM heap
+    wasm_store_gc(VMInstance::wasmStore());
+}
+
 } // namespace Escargot
 
 #endif // ENABLE_WASM
