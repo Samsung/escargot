@@ -470,7 +470,7 @@ public:
         }
 
         InterpretedCodeBlock* currentTarget = this->codeBlock;
-        this->expect(LeftParenthesis);
+        this->nextToken();
 
         InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
         this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
@@ -486,7 +486,7 @@ public:
         this->lookahead.lineStart = this->scanner->lineStart;
         this->lookahead.type = Token::PunctuatorToken;
         this->lookahead.valuePunctuatorKind = PunctuatorKind::RightBrace;
-        this->expect(RightBrace);
+        this->nextToken();
 
         // increase subCodeBlockIndex because parsing of an internal function is skipped
         this->subCodeBlockIndex++;
@@ -1217,7 +1217,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        this->expect(PeriodPeriodPeriod);
+        this->nextToken();
         ASTNode arg = this->parsePattern(builder, params);
         if (this->match(Substitution)) {
             this->throwError(Messages::DefaultRestParameter);
@@ -1232,7 +1232,7 @@ public:
     ASTNode parseBindingRestElement(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
     {
         MetaNode node = this->createNode();
-        this->expect(PeriodPeriodPeriod);
+        this->nextToken();
         ASTNode arg = this->parsePattern(builder, params, kind, isExplicitVariableDeclaration);
         return this->finalize(node, builder.createRestElementNode(arg));
     }
@@ -1244,7 +1244,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        this->expect(LeftSquareBracket);
+        this->nextToken();
         ASTNodeList elements;
         while (!this->match(RightSquareBracket)) {
             if (this->match(Comma)) {
@@ -1333,7 +1333,7 @@ public:
         ASTNodeList properties;
         bool hasRestElement = false;
 
-        this->expect(LeftBrace);
+        this->nextToken();
         while (!this->match(RightBrace)) {
             if (this->match(PeriodPeriodPeriod)) {
                 hasRestElement = true;
@@ -1499,7 +1499,7 @@ public:
     ASTNode parseSpreadElement(ASTBuilder& builder)
     {
         MetaNode node = this->createNode();
-        this->expect(PunctuatorKind::PeriodPeriodPeriod);
+        this->nextToken();
         ASTNode arg = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, checkLeftHasRestrictedWord>);
         return this->finalize(node, builder.createSpreadElementNode(arg));
     }
@@ -1510,7 +1510,7 @@ public:
         MetaNode node = this->createNode();
         ASTNodeList elements;
 
-        this->expect(LeftSquareBracket);
+        this->nextToken();
 
         bool hasSpreadElement = false;
 
@@ -1911,7 +1911,7 @@ public:
     template <class ASTBuilder>
     ASTNode parseObjectInitializer(ASTBuilder& builder)
     {
-        this->expect(LeftBrace);
+        this->nextToken();
         MetaNode node = this->createNode();
         ASTNodeList properties;
 
@@ -2001,7 +2001,7 @@ public:
     {
         ASTNode exprNode = nullptr;
 
-        this->expect(LeftParenthesis);
+        this->nextToken();
         if (this->match(RightParenthesis)) {
             this->nextToken();
             if (!this->match(Arrow)) {
@@ -2118,7 +2118,7 @@ public:
     template <class ASTBuilder>
     ASTNodeList parseArguments(ASTBuilder& builder)
     {
-        this->expect(LeftParenthesis);
+        this->nextToken();
         ASTNodeList args;
         if (!this->match(RightParenthesis)) {
             while (true) {
@@ -2249,7 +2249,7 @@ public:
     template <class ASTBuilder>
     ASTNodeList parseAsyncArguments(ASTBuilder& builder)
     {
-        this->expect(LeftParenthesis);
+        this->nextToken();
         ASTNodeList args;
 
         if (!this->match(RightParenthesis)) {
@@ -2306,7 +2306,7 @@ public:
                 if (this->lookahead.valuePunctuatorKind == Period) {
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
-                    this->expect(Period);
+                    this->nextToken();
                     exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, seenOptionalExpression);
                 } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
                     bool asyncArrow = maybeAsync && (startToken->lineNumber == this->lookahead.lineNumber);
@@ -2476,14 +2476,14 @@ public:
             if (this->match(LeftSquareBracket)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
-                this->expect(LeftSquareBracket);
+                this->nextToken();
                 ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
                 exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false, seenOptionalExpression));
                 this->expect(RightSquareBracket);
             } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
-                this->expect(Period);
+                this->nextToken();
                 exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode, seenOptionalExpression);
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
@@ -3562,7 +3562,7 @@ public:
     template <class ASTBuilder>
     ASTNode parseBlock(ASTBuilder& builder)
     {
-        this->expect(LeftBrace);
+        this->nextToken();
         ASTNode referNode = nullptr;
 
         ParserBlockContext blockContext;
@@ -4575,6 +4575,9 @@ public:
                 this->context->catchClauseSimplyDeclaredVariableNames.push_back(std::make_pair(param->asIdentifier()->name(), this->lexicalBlockIndex));
             }
 
+            if (!this->match(LeftBrace)) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
             ASTNode body = this->parseBlock(builder);
 
             if (gotSimplyDeclaredVariableName) {
@@ -4593,6 +4596,9 @@ public:
     ASTNode parseFinallyClause(ASTBuilder& builder)
     {
         this->expectKeyword(FinallyKeyword);
+        if (!this->match(LeftBrace)) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
         return this->parseBlock(builder);
     }
 
@@ -4601,6 +4607,9 @@ public:
     {
         this->expectKeyword(TryKeyword);
 
+        if (!this->match(LeftBrace)) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
         ASTNode block = this->parseBlock(builder);
         ASTNode handler = nullptr;
         if (this->matchKeyword(CatchKeyword)) {
