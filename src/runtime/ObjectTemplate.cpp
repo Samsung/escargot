@@ -35,7 +35,7 @@ void* ObjectTemplate::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word objBitmap[GC_BITMAP_SIZE(ObjectTemplate)] = { 0 };
-        ObjectTemplate::fillGCDescriptor(objBitmap);
+        Template::fillGCDescriptor(objBitmap);
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_constructor));
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_namedPropertyHandler));
         descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectTemplate));

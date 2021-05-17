@@ -1418,7 +1418,7 @@ void* DateObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(DateObject)] = { 0 };
-        DateObject::fillGCDescriptor(obj_bitmap);
+        Object::fillGCDescriptor(obj_bitmap);
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(DateObject));
         typeInited = true;
     }

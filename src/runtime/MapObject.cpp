@@ -40,9 +40,7 @@ void* MapObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(MapObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapObject, m_values));
+        Object::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapObject, m_storage));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(MapObject));
         typeInited = true;
@@ -163,9 +161,7 @@ void* MapIteratorObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(MapIteratorObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapIteratorObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapIteratorObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapIteratorObject, m_values));
+        Object::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapIteratorObject, m_map));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(MapIteratorObject));
         typeInited = true;
