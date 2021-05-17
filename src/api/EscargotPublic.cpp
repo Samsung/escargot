@@ -712,6 +712,16 @@ public:
     {
     }
 
+    virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte) override
+    {
+        return m_platform->onMallocArrayBufferObjectDataBuffer(sizeInByte);
+    }
+
+    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte) override
+    {
+        m_platform->onFreeArrayBufferObjectDataBuffer(buffer, sizeInByte);
+    }
+
     virtual void markJSJobEnqueued(Context* relatedContext) override
     {
         m_platform->markJSJobEnqueued(toRef(relatedContext));

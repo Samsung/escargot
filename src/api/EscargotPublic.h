@@ -1777,6 +1777,18 @@ class ESCARGOT_EXPORT PlatformRef {
 public:
     virtual ~PlatformRef() {}
 
+    // ArrayBuffer
+    // client must returns zero-filled memory
+    virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte)
+    {
+        return calloc(sizeInByte, 1);
+    }
+    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte)
+    {
+        return free(buffer);
+    }
+
+
     // If you want to add a Job event, you should call VMInstanceRef::executePendingJob after event. see Shell.cpp
     virtual void markJSJobEnqueued(ContextRef* relatedContext) = 0;
 

@@ -86,7 +86,13 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
         GC_invoke_finalizers();
     }
 
-    m_backingStore = new BackingStore(byteLength);
+    auto platform = state.context()->vmInstance()->platform();
+    void* buffer = platform->onMallocArrayBufferObjectDataBuffer(byteLength);
+    m_backingStore = new BackingStore(buffer, byteLength, [](void* data, size_t length, void* deleterData) {
+        Platform* platform = (Platform*)deleterData;
+        platform->onFreeArrayBufferObjectDataBuffer(data, length);
+    },
+                                      platform);
     m_backingStore->m_isShared = true;
     m_data = (uint8_t*)m_backingStore->data();
     m_byteLength = byteLength;
