@@ -32,6 +32,10 @@ class Job;
 class Platform : public gc {
 public:
     virtual ~Platform() {}
+    // ArrayBuffer
+    virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte) = 0;
+    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte) = 0;
+
     // Promise
     virtual void markJSJobEnqueued(Context* relatedContext) = 0;
 
