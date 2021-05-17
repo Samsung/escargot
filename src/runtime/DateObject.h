@@ -123,11 +123,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    static inline void fillGCDescriptor(GC_word* desc)
-    {
-        Object::fillGCDescriptor(desc);
-    }
-
     struct timeinfo {
         timeinfo()
             : year(0)

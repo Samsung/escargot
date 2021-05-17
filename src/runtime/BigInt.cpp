@@ -140,14 +140,7 @@ bool BigIntData::isInfinity()
 
 void* BigInt::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(BigInt)] = { 0 };
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(BigInt));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    return GC_MALLOC_ATOMIC(size);
 }
 
 void BigInt::initFinalizer()

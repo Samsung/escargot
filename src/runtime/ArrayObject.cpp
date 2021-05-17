@@ -611,9 +611,7 @@ void* ArrayIteratorObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayIteratorObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_values));
+        Object::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayIteratorObject, m_array));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayIteratorObject));
         typeInited = true;

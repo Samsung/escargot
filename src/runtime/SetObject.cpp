@@ -40,9 +40,7 @@ void* SetObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SetObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObject, m_values));
+        Object::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObject, m_storage));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SetObject));
         typeInited = true;
@@ -148,9 +146,7 @@ void* SetIteratorObject::operator new(size_t size)
     static GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SetIteratorObject)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetIteratorObject, m_structure));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetIteratorObject, m_prototype));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetIteratorObject, m_values));
+        Object::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetIteratorObject, m_set));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SetIteratorObject));
         typeInited = true;
