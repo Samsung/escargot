@@ -32,6 +32,7 @@ jobs:
     strategy:
       matrix:
         tc: ['octane', 'v8 chakracore spidermonkey', 'modifiedVendorTest jsc-stress sunspider-js regression-tests new-es intl']
+        build_opt: ['', '-DESCARGOT_THREADING=ON', '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_GC_SMALL_CONFIG=ON']
     steps:
     - uses: actions/checkout@v2
       with:
@@ -45,7 +46,7 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        cmake -H. -Bout/release/x64 $BUILD_OPTIONS
+        cmake -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
     - name: Run release-x64 test
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}

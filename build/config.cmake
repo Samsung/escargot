@@ -173,6 +173,10 @@ IF (ESCARGOT_WASM)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_WASM)
 ENDIF()
 
+IF (ESCARGOT_THREADING)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_THREADING)
+ENDIF()
+
 #######################################################
 # flags for $(MODE) : debug/release
 #######################################################
