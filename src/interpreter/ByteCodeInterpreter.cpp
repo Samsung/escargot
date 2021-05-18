@@ -999,7 +999,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             CreateObject* code = (CreateObject*)programCounter;
             registerFile[code->m_registerIndex] = new Object(*state);
 #if defined(ESCARGOT_SMALL_CONFIG)
-            registerFile[code->m_withOrThisRegisterIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
+            registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
 #endif
             ADD_PROGRAM_COUNTER(CreateObject);
             NEXT_INSTRUCTION();
