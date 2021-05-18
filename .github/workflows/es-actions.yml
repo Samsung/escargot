@@ -17,9 +17,7 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -42,9 +40,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -64,9 +60,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -128,9 +122,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
@@ -187,9 +179,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
