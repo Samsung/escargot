@@ -1418,6 +1418,8 @@ public:
     };
 
     static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, ValueRef* option);
+    static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, RegExpObjectOption option = None);
+
     StringRef* source();
     RegExpObjectOption option();
 };
