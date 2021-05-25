@@ -2714,6 +2714,11 @@ RegExpObjectRef* RegExpObjectRef::create(ExecutionStateRef* state, ValueRef* sou
     return toRef(new RegExpObject(*toImpl(state), toImpl(source).toString(*toImpl(state)), toImpl(option).toString(*toImpl(state))));
 }
 
+RegExpObjectRef* RegExpObjectRef::create(ExecutionStateRef* state, ValueRef* source, RegExpObjectOption option)
+{
+    return toRef(new RegExpObject(*toImpl(state), toImpl(source).toString(*toImpl(state)), option));
+}
+
 StringRef* RegExpObjectRef::source()
 {
     return toRef(toImpl(this)->source());

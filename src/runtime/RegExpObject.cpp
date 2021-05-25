@@ -49,7 +49,8 @@ RegExpObject::RegExpObject(ExecutionState& state, String* source, unsigned int o
 RegExpObject::RegExpObject(ExecutionState& state, Object* proto, String* source, unsigned int option)
     : RegExpObject(state, proto, true)
 {
-    initWithOption(state, source, (Option)option);
+    internalInit(state, source, (Option)option);
+    m_optionString = String::emptyString;
 }
 
 RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex)
@@ -153,17 +154,14 @@ static String* escapeSlashInPattern(String* patternStr)
     }
 }
 
-void RegExpObject::internalInit(ExecutionState& state, String* source, String* options)
+void RegExpObject::internalInit(ExecutionState& state, String* source, Option option)
 {
     String* defaultRegExpString = state.context()->staticStrings().defaultRegExpString.string();
 
     String* previousSource = m_source;
     RegExpObject::Option previousOptions = m_option;
-    if (options->length() != 0) {
-        parseOption(state, options);
-    } else {
-        m_option = RegExpObject::Option::None;
-    }
+
+    m_option = option;
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapeSlashInPattern(m_source);
 
@@ -173,6 +171,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, String* o
         m_option = previousOptions;
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_yarrError);
     }
+
     setLastIndex(state, Value(0));
     m_yarrPattern = entry.m_yarrPattern;
     m_bytecodePattern = entry.m_bytecodePattern;
@@ -180,16 +179,9 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, String* o
 
 void RegExpObject::init(ExecutionState& state, String* source, String* option)
 {
-    if (option == String::emptyString)
-        this->internalInit(state, source);
-    else
-        this->internalInit(state, source, option);
-}
-
-void RegExpObject::initWithOption(ExecutionState& state, String* source, Option option)
-{
-    m_option = option;
-    this->internalInit(state, source);
+    Option optionVals = parseOption(state, option);
+    internalInit(state, source, optionVals);
+    m_optionString = option;
 }
 
 void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
@@ -213,10 +205,9 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     return returnValue;
 }
 
-void RegExpObject::parseOption(ExecutionState& state, String* optionString)
+RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* optionString)
 {
     Option tempOption = RegExpObject::Option::None;
-
 
     auto bufferAccessData = optionString->bufferAccessData();
     for (size_t i = 0; i < bufferAccessData.length; i++) {
@@ -255,8 +246,8 @@ void RegExpObject::parseOption(ExecutionState& state, String* optionString)
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
         }
     }
-    m_option = tempOption;
-    m_optionString = optionString;
+
+    return tempOption;
 }
 
 void RegExpObject::setOption(const Option& option)
