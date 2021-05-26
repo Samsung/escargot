@@ -70,6 +70,14 @@ public:
 
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
+    enum ClassPrivateFieldKind {
+        NotPrivate,
+        PrivateFieldValue,
+        PrivateFieldMethod,
+        PrivateFieldGetter,
+        PrivateFieldSetter,
+    };
+
 private:
     void initInstanceFieldMembers(ExecutionState& state, Object* instance);
 
@@ -82,8 +90,8 @@ private:
     Object* m_homeObject;
     // We needs to store class source code for toString(). because class constructor stores its source code
     String* m_classSourceCode;
-    TightVector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>> m_instanceFieldInitData;
-    VectorWithNoSize<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> m_staticFieldInitData;
+    TightVector<std::tuple<EncodedValue, EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, EncodedValue, size_t>>> m_instanceFieldInitData;
+    VectorWithNoSize<std::tuple<EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, size_t>>> m_staticFieldInitData;
 };
 } // namespace Escargot
 

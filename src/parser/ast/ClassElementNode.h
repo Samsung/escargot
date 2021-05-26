@@ -73,6 +73,11 @@ public:
         return m_isStatic;
     }
 
+    bool isPrivate()
+    {
+        return m_isPrivate;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::ClassElement; }
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {

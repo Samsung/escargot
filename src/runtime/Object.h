@@ -47,6 +47,7 @@ struct ObjectExtendedExtraData : public gc {
     bool m_finalizerRegistered;
     void* m_extraData;
     TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
+    TightVector<std::pair<AtomicString, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<AtomicString, EncodedValue>>> m_privateFieldValues;
     ObjectExtendedExtraData(void* e)
         : m_finalizerRegistered(false)
         , m_extraData(e)
@@ -355,6 +356,18 @@ public:
         ASSERT(hasSetter());
 #endif
         return m_setter;
+    }
+
+    void setGetter(Value g)
+    {
+        ASSERT(g.isEmpty() || g.isFunction() || g.isUndefined());
+        m_getter = g;
+    }
+
+    void setSetter(Value g)
+    {
+        ASSERT(g.isEmpty() || g.isFunction() || g.isUndefined());
+        m_setter = g;
     }
 
 private:
@@ -961,6 +974,11 @@ public:
             throwCannotDefineError(state, ObjectStructurePropertyName(state, property.toString(state)));
         }
     }
+
+    virtual void privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value);
+    virtual void privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter);
+    virtual Value privateFieldGet(ExecutionState& state, AtomicString propertyName);
+    virtual void privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value);
 
     void markThisObjectDontNeedStructureTransitionTable()
     {

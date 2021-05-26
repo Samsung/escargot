@@ -112,10 +112,10 @@ public:
 
         if (isPreComputedCase()) {
             ASSERT(m_property->isIdentifier());
-            if (m_object->isSuperExpression()) {
+            if (UNLIKELY(m_object->isSuperExpression())) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
                 context->giveUpRegister();
             } else if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
                 // Handle Infinity property not to be inline-cached
@@ -125,14 +125,16 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
                 context->giveUpRegister();
+            } else if (UNLIKELY(isReferencePrivateField())) {
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
             }
         } else {
             size_t propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
-            if (m_object->isSuperExpression()) {
-                codeBlock->pushCode(SuperGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
+            if (UNLIKELY(m_object->isSuperExpression())) {
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
             } else {
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
             }
@@ -163,10 +165,10 @@ public:
                 objectIndex = context->getLastRegisterIndex();
             }
 
-            if (m_object->isSuperExpression()) {
+            if (UNLIKELY(m_object->isSuperExpression())) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
                 context->giveUpRegister();
                 context->giveUpRegister();
             } else if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
@@ -178,6 +180,8 @@ public:
                 codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
                 context->giveUpRegister();
                 context->giveUpRegister();
+            } else if (UNLIKELY(isReferencePrivateField())) {
+                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
             } else {
                 codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
                 context->giveUpRegister();
@@ -199,7 +203,7 @@ public:
                 objectIndex = context->getLastRegisterIndex(1);
             }
             if (m_object->isSuperExpression()) {
-                codeBlock->pushCode(SuperSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
             } else {
                 codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
             }
@@ -239,6 +243,8 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this);
                 context->giveUpRegister();
+            } else if (UNLIKELY(isReferencePrivateField())) {
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
             }

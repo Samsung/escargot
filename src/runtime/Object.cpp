@@ -1668,6 +1668,102 @@ bool Object::setIndexedProperty(ExecutionState& state, const Value& property, co
     return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
+void Object::privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value)
+{
+    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
+    for (size_t i = 0; i < v.size(); i++) {
+        if (UNLIKELY(v[i].first == propertyName)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot add private field %s with same name twice", propertyName.string());
+        }
+    }
+
+    v.pushBack(std::make_pair(propertyName, value));
+}
+
+void Object::privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter)
+{
+    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
+    for (size_t i = 0; i < v.size(); i++) {
+        if (UNLIKELY(v[i].first == propertyName)) {
+            Value val = v[i].second;
+            bool isInvalid = false;
+            if (val.isPointerValue() && val.asPointerValue()->isJSGetterSetter()) {
+                JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
+                if (isGetter) {
+                    if (gs->getter().isEmpty()) {
+                        gs->setGetter(callback);
+                    } else {
+                        isInvalid = true;
+                    }
+                }
+                if (isSetter) {
+                    if (gs->setter().isEmpty()) {
+                        gs->setSetter(callback);
+                    } else {
+                        isInvalid = true;
+                    }
+                }
+            } else {
+                isInvalid = true;
+            }
+
+            if (isInvalid) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot add private field %s with same name twice", propertyName.string());
+            }
+            return;
+        }
+    }
+
+    JSGetterSetter* gs = new JSGetterSetter(isGetter ? callback : Value(Value::EmptyValue), isSetter ? callback : Value(Value::EmptyValue));
+    v.pushBack(std::make_pair(propertyName, Value(gs)));
+}
+
+Value Object::privateFieldGet(ExecutionState& state, AtomicString propertyName)
+{
+    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
+    for (size_t i = 0; i < v.size(); i++) {
+        if (v[i].first == propertyName) {
+            Value val = v[i].second;
+            if (UNLIKELY(val.isPointerValue() && val.asPointerValue()->isJSGetterSetter())) {
+                JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
+                if (gs->getter().isEmpty()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a getter", propertyName.string());
+                } else {
+                    return Object::call(state, gs->getter(), this, 0, nullptr);
+                }
+            }
+            return val;
+        }
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot read private member %s from an object whose class did not declare it", propertyName.string());
+    return Value();
+}
+
+void Object::privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value)
+{
+    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
+    for (size_t i = 0; i < v.size(); i++) {
+        if (v[i].first == propertyName) {
+            Value val = v[i].second;
+            if (UNLIKELY(val.isPointerValue() && val.asPointerValue()->isJSGetterSetter())) {
+                JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
+                if (gs->setter().isEmpty()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a setter", propertyName.string());
+                } else {
+                    Value argv = value;
+                    Object::call(state, gs->setter(), this, 1, &argv);
+                }
+                return;
+            }
+            v[i].second = value;
+            return;
+        }
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot write private member %s from an object whose class did not declare it", propertyName.string());
+}
+
 IteratorObject* Object::values(ExecutionState& state)
 {
     return new ArrayIteratorObject(state, this, ArrayIteratorObject::TypeValue);

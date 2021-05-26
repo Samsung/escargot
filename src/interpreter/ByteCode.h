@@ -71,8 +71,8 @@ struct GlobalVariableAccessCacheItem;
     F(InitializeClass, 0, 0)                                \
     F(CreateRestElement, 0, 0)                              \
     F(SuperReference, 1, 0)                                 \
-    F(SuperSetObjectOperation, 0, 2)                        \
-    F(SuperGetObjectOperation, 1, 2)                        \
+    F(ComplexSetObjectOperation, 0, 2)                      \
+    F(ComplexGetObjectOperation, 1, 2)                      \
     F(LoadThisBinding, 0, 0)                                \
     F(ObjectDefineOwnPropertyOperation, 0, 0)               \
     F(ObjectDefineOwnPropertyWithNameOperation, 0, 0)       \
@@ -445,9 +445,13 @@ public:
         CreateClass,
         SetFieldSize,
         InitField,
+        InitPrivateField,
         SetFieldData,
+        SetPrivateFieldData,
         InitStaticField,
+        InitStaticPrivateField,
         SetStaticFieldData,
+        SetStaticPrivateFieldData,
         CleanupStaticData,
     };
 
@@ -485,6 +489,19 @@ public:
     {
     }
 
+    enum InitPrivateFieldTag {
+        InitPrivateFieldTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, const size_t type, InitPrivateFieldTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::InitPrivateField)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_initPrivateFieldIndex(fieldIndex)
+        , m_privatePropertyInitRegisterIndex(propertyIndex)
+        , m_initPrivateFieldType(type)
+    {
+    }
+
     enum SetFieldDataTag {
         SetFieldDataTagValue
     };
@@ -494,6 +511,19 @@ public:
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_setFieldIndex(fieldIndex)
         , m_propertySetRegisterIndex(propertyIndex)
+    {
+    }
+
+    enum SetPrivateFieldDataTag {
+        SetPrivateFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, const size_t type, SetPrivateFieldDataTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::SetPrivateFieldData)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_setPrivateFieldIndex(fieldIndex)
+        , m_privatePropertySetRegisterIndex(propertyIndex)
+        , m_setPrivateFieldType(type)
     {
     }
 
@@ -509,6 +539,18 @@ public:
     {
     }
 
+    enum InitStaticPrivateFieldDataTag {
+        InitStaticPrivateFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, InitStaticPrivateFieldDataTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::InitStaticPrivateField)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_staticPrivateFieldInitIndex(fieldIndex)
+        , m_staticPrivatePropertyInitRegisterIndex(propertyIndex)
+    {
+    }
+
     enum SetStaticFieldDataTag {
         SetStaticFieldDataTagValue
     };
@@ -521,6 +563,18 @@ public:
     {
     }
 
+    enum SetStaticPrivateFieldDataTag {
+        SetStaticPrivateFieldDataTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t valueIndex, SetStaticPrivateFieldDataTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::SetStaticPrivateFieldData)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_staticPrivateFieldSetIndex(fieldIndex)
+        , m_staticPrivatePropertySetRegisterIndex(valueIndex)
+    {
+    }
+
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::CleanupStaticData)
@@ -528,36 +582,54 @@ public:
     {
     }
 
-    Stage m_stage : 3;
-    ByteCodeRegisterIndex m_classConstructorRegisterIndex : 16;
+    Stage m_stage : 4;
+    ByteCodeRegisterIndex m_classConstructorRegisterIndex;
     union {
         struct {
-            ByteCodeRegisterIndex m_classPrototypeRegisterIndex : 16;
-            ByteCodeRegisterIndex m_superClassRegisterIndex : 16;
+            ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
+            ByteCodeRegisterIndex m_superClassRegisterIndex;
             InterpretedCodeBlock* m_codeBlock;
             String* m_classSrc;
             String* m_name;
         }; // CreateClass
         struct {
-            size_t m_fieldSize;
-            size_t m_staticFieldSize;
+            uint16_t m_fieldSize;
+            uint16_t m_staticFieldSize;
         }; // SetFieldSize
         struct {
-            size_t m_initFieldIndex;
-            ByteCodeRegisterIndex m_propertyInitRegisterIndex : 16;
+            uint16_t m_initFieldIndex;
+            ByteCodeRegisterIndex m_propertyInitRegisterIndex;
         }; // InitField
         struct {
-            size_t m_setFieldIndex;
-            ByteCodeRegisterIndex m_propertySetRegisterIndex : 16;
+            uint16_t m_initPrivateFieldIndex;
+            ByteCodeRegisterIndex m_privatePropertyInitRegisterIndex;
+            uint16_t m_initPrivateFieldType;
+        }; // InitPrivateField
+        struct {
+            uint16_t m_setFieldIndex;
+            ByteCodeRegisterIndex m_propertySetRegisterIndex;
         }; // SetFieldData
         struct {
-            size_t m_staticFieldInitIndex;
-            ByteCodeRegisterIndex m_staticPropertyInitRegisterIndex : 16;
+            uint16_t m_setPrivateFieldIndex;
+            ByteCodeRegisterIndex m_privatePropertySetRegisterIndex;
+            uint16_t m_setPrivateFieldType;
+        }; // SetPrivateFieldData
+        struct {
+            uint16_t m_staticFieldInitIndex;
+            ByteCodeRegisterIndex m_staticPropertyInitRegisterIndex;
         }; // InitStaticField
         struct {
-            size_t m_staticFieldSetIndex;
-            ByteCodeRegisterIndex m_staticPropertySetRegisterIndex : 16;
+            uint16_t m_staticPrivateFieldInitIndex;
+            ByteCodeRegisterIndex m_staticPrivatePropertyInitRegisterIndex;
+        }; // InitPrivateStaticField
+        struct {
+            uint16_t m_staticFieldSetIndex;
+            ByteCodeRegisterIndex m_staticPropertySetRegisterIndex;
         }; // SetStaticFieldData
+        struct {
+            uint16_t m_staticPrivateFieldSetIndex;
+            ByteCodeRegisterIndex m_staticPrivatePropertySetRegisterIndex;
+        }; // SetStaticPrivateFieldData
     };
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
@@ -569,15 +641,23 @@ public:
                 printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
             }
         } else if (m_stage == Stage::SetFieldSize) {
-            printf("set field size r%d -> %d", (int)m_classConstructorRegisterIndex, (int)m_fieldSize);
+            printf("set field size r%d -> %d,%d", (int)m_classConstructorRegisterIndex, (int)m_fieldSize, (int)m_staticFieldSize);
         } else if (m_stage == Stage::InitField) {
             printf("init field r%d[%d, r%d]", (int)m_classConstructorRegisterIndex, (int)m_initFieldIndex, (int)m_propertyInitRegisterIndex);
+        } else if (m_stage == Stage::InitPrivateField) {
+            printf("init private field r%d[%d, r%d] type %d", (int)m_classConstructorRegisterIndex, (int)m_initPrivateFieldIndex, (int)m_privatePropertyInitRegisterIndex, (int)m_initPrivateFieldType);
         } else if (m_stage == Stage::SetFieldData) {
             printf("set field data r%d[%d] = r%d", (int)m_classConstructorRegisterIndex, (int)m_setFieldIndex, (int)m_propertySetRegisterIndex);
+        } else if (m_stage == Stage::SetPrivateFieldData) {
+            printf("set private field data r%d[%d] = r%d type %d", (int)m_classConstructorRegisterIndex, (int)m_setPrivateFieldIndex, (int)m_privatePropertySetRegisterIndex, (int)m_setPrivateFieldType);
         } else if (m_stage == Stage::InitStaticField) {
             printf("init static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertyInitRegisterIndex);
+        } else if (m_stage == Stage::InitStaticField) {
+            printf("init private static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertyInitRegisterIndex);
         } else if (m_stage == Stage::SetStaticFieldData) {
-            printf("set static field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertyInitRegisterIndex);
+            printf("set static field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertySetRegisterIndex);
+        } else if (m_stage == Stage::SetStaticPrivateFieldData) {
+            printf("set static private field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertySetRegisterIndex);
         } else {
             ASSERT(m_stage == Stage::CleanupStaticData);
             printf("cleanup static field data r%d", (int)m_classConstructorRegisterIndex);
@@ -628,45 +708,94 @@ public:
 
 BYTECODE_SIZE_CHECK_IN_32BIT(SuperReference, sizeof(size_t) * 2);
 
-class SuperSetObjectOperation : public ByteCode {
+class ComplexSetObjectOperation : public ByteCode {
 public:
-    SuperSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyNameIndex, const size_t loadRegisterIndex)
-        : ByteCode(Opcode::SuperSetObjectOperationOpcode, loc)
+    enum Type {
+        Super,
+        Private
+    };
+
+    ComplexSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyNameIndex, const size_t loadRegisterIndex)
+        : ByteCode(Opcode::ComplexSetObjectOperationOpcode, loc)
+        , m_type(Super)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_propertyNameIndex(propertyNameIndex)
     {
     }
 
+    ComplexSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString s, const size_t loadRegisterIndex)
+        : ByteCode(Opcode::ComplexSetObjectOperationOpcode, loc)
+        , m_type(Private)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_loadRegisterIndex(loadRegisterIndex)
+        , m_propertyName(s)
+    {
+    }
+
+    Type m_type : 1;
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
-    ByteCodeRegisterIndex m_propertyNameIndex;
+    union {
+        ByteCodeRegisterIndex m_propertyNameIndex;
+        AtomicString m_propertyName;
+    };
 
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("set object super(r%d).r%d <- r%d", (int)m_objectRegisterIndex, (int)m_propertyNameIndex, (int)m_loadRegisterIndex);
+        if (m_type == Super) {
+            printf("set object complex(r%d).r%d <- r%d", (int)m_objectRegisterIndex, (int)m_propertyNameIndex, (int)m_loadRegisterIndex);
+        } else {
+            ASSERT(m_type == Private);
+            printf("set object complex(r%d).#%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_loadRegisterIndex);
+        }
     }
 #endif
 };
 
-class SuperGetObjectOperation : public ByteCode {
+class ComplexGetObjectOperation : public ByteCode {
 public:
-    SuperGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, const size_t propertyNameIndex)
-        : ByteCode(Opcode::SuperGetObjectOperationOpcode, loc)
+    enum Type {
+        Super,
+        Private
+    };
+
+    ComplexGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, const size_t propertyNameIndex)
+        : ByteCode(Opcode::ComplexGetObjectOperationOpcode, loc)
+        , m_type(Super)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
         , m_propertyNameIndex(propertyNameIndex)
     {
     }
 
+    ComplexGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, AtomicString s)
+        : ByteCode(Opcode::ComplexGetObjectOperationOpcode, loc)
+        , m_type(Private)
+        , m_objectRegisterIndex(objectRegisterIndex)
+        , m_storeRegisterIndex(storeRegisterIndex)
+        , m_propertyName(s)
+    {
+    }
+
+    Type m_type : 1;
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_storeRegisterIndex;
-    ByteCodeRegisterIndex m_propertyNameIndex;
+    union {
+        ByteCodeRegisterIndex m_propertyNameIndex;
+        AtomicString m_propertyName;
+    };
+
 #ifndef NDEBUG
     void dump(const char* byteCodeStart)
     {
-        printf("get object r%d <- super(r%d).r%d", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyNameIndex);
+        if (m_type == Super) {
+            printf("get object r%d <- complex(r%d).r%d", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyNameIndex);
+        } else {
+            ASSERT(m_type == Private);
+            printf("get object r%d <- complex(r%d).#%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data());
+        }
     }
 #endif
 };
@@ -908,10 +1037,10 @@ public:
     {
     }
 
-    ByteCodeRegisterIndex m_objectRegisterIndex;
-    ByteCodeRegisterIndex m_loadRegisterIndex;
+    ByteCodeRegisterIndex m_objectRegisterIndex : REGISTER_INDEX_IN_BIT;
+    ByteCodeRegisterIndex m_loadRegisterIndex : REGISTER_INDEX_IN_BIT;
     AtomicString m_propertyName;
-    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute;
+    ObjectPropertyDescriptor::PresentAttribute m_presentAttribute : 8;
 #ifndef NDEBUG
 
     void dump(const char* byteCodeStart)
