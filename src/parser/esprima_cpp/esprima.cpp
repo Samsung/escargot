@@ -1007,6 +1007,35 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode finishClassPrivateIdentifier(ASTBuilder& builder, Scanner::ScannerResult* token)
+    {
+        ParserStringView s;
+        if (token->type == Token::KeywordToken) {
+            s = ParserStringView(this->scannerInstance.source, token->start, token->end);
+        } else {
+            if (token->hasAllocatedString) {
+                if (!token->valueStringLiteralData.m_stringIfNewlyAllocated) {
+                    token->valueStringLiteral(this->scanner);
+                }
+                StringBuilder sb;
+                sb.appendChar('#');
+                sb.appendString(token->valueStringLiteralData.m_stringIfNewlyAllocated);
+                s = ParserStringView(sb.finalize());
+            } else {
+                s = ParserStringView(this->scannerInstance.source, token->start - 1, token->end);
+            }
+        }
+
+        auto c = s.charAt(1);
+        // throw error when starts with zwj char
+        if (c == 0x200D || c == 0x200C) {
+            this->throwError(Messages::InvalidClassElementName);
+        }
+
+        return builder.createIdentifierNode(AtomicString(this->escargotContext, &s));
+    }
+
+    template <class ASTBuilder>
     ASTNode parseNumericLiteralNode(ASTBuilder& builder, bool minus = false)
     {
         if (UNLIKELY(this->context->strict && this->lookahead.octal)) {
@@ -1727,8 +1756,12 @@ public:
         case Token::NullLiteralToken:
         case Token::KeywordToken: {
             {
-                TrackUsingNameBlocker blocker(this);
-                key = this->finalize(node, finishIdentifier(builder, token));
+                if (UNLIKELY(isPrivateOut && *isPrivateOut)) {
+                    key = this->finalize(node, finishClassPrivateIdentifier(builder, token));
+                } else {
+                    TrackUsingNameBlocker blocker(this);
+                    key = this->finalize(node, finishIdentifier(builder, token));
+                }
             }
             break;
         }
@@ -2165,6 +2198,18 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode parseClassPrivateIdentifierName(ASTBuilder& builder)
+    {
+        MetaNode node = this->createNode();
+        ALLOC_TOKEN(token);
+        this->nextToken(token);
+        if (!this->isIdentifierName(token)) {
+            this->throwUnexpectedToken(*token);
+        }
+        return this->finalize(node, finishClassPrivateIdentifier(builder, token));
+    }
+
+    template <class ASTBuilder>
     ASTNode parseNewExpression(ASTBuilder& builder)
     {
         if (this->lookahead.end - this->lookahead.start != 3) {
@@ -2428,7 +2473,7 @@ public:
             if (UNLIKELY(this->lookahead.start != lastIndex + 1)) {
                 this->throwUnexpectedToken(*startToken);
             }
-            ASTNode property = this->parseIdentifierName(builder);
+            ASTNode property = this->parseClassPrivateIdentifierName(builder);
             auto type = exprNode->type();
             if (UNLIKELY(type == ASTNodeType::SuperExpression || type == ASTNodeType::CallExpression)) {
                 this->throwError(Messages::CannnotUsePrivateFieldHere);
@@ -5612,9 +5657,27 @@ public:
 
     // ECMA-262 14.5 Class Definitions
     typedef VectorWithInlineStorage<12, AtomicString, std::allocator<AtomicString>> ParserAtomicStringVector;
+    struct ClassPrivateNameData {
+        AtomicString name;
+        bool isField;
+        bool isMethod;
+        bool isGetter;
+        bool isSetter;
+
+        ClassPrivateNameData(AtomicString name = AtomicString())
+            : name(name)
+            , isField(false)
+            , isMethod(false)
+            , isGetter(false)
+            , isSetter(false)
+        {
+        }
+    };
+    typedef VectorWithInlineStorage<12, ClassPrivateNameData, std::allocator<ClassPrivateNameData>> ParserClassPrivateNameVector;
 
     template <class ASTBuilder>
-    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass, const AtomicString& className, ParserAtomicStringVector& privateFieldNames)
+    ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass, const AtomicString& className,
+                              size_t& fieldCount, ParserClassPrivateNameVector& privateNames)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -5627,6 +5690,7 @@ public:
         ASTNode value = nullptr;
 
         bool computed = false;
+        bool seenStaticForward = false;
         bool isStatic = false;
         bool isGenerator = false;
         bool isAsync = false;
@@ -5635,6 +5699,13 @@ public:
         if (this->match(Multiply)) {
             this->nextToken();
         } else {
+            // TODO
+            /*
+            if (token->type == Token::KeywordToken && token->relatedSource(this->scanner->source) == "static") {
+                isStatic = true;
+                this->nextToken();
+            }*/
+
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
 
@@ -5722,13 +5793,20 @@ public:
             }
         }
 
-        if ((kind == ClassElementNode::Kind::StaticField || isPrivate) && !computed) {
+        if ((kind == ClassElementNode::Kind::StaticField) && !computed) {
             if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
                 this->throwError(Messages::InvalidClassElementName);
             }
         }
 
+        if (isPrivate) {
+            if (builder.isPropertyKey(keyNode, "#constructor") || builder.isPropertyKey(keyNode, "#prototype")) {
+                this->throwError(Messages::InvalidClassElementName);
+            }
+        }
+
         if (kind == ClassElementNode::Kind::Field || kind == ClassElementNode::Kind::StaticField) {
+            fieldCount++;
             if (builder.isPropertyKeyStartsWith(keyNode, 0x200C) || builder.isPropertyKeyStartsWith(keyNode, 0x200D)) {
                 this->throwError(Messages::InvalidClassElementName);
             }
@@ -5736,13 +5814,43 @@ public:
 
         if (isPrivate) {
             auto s = keyNode->asIdentifier()->name();
-            if (VectorUtil::findInVector(privateFieldNames, s) == VectorUtil::invalidIndex) {
-                privateFieldNames.pushBack(s);
-            } else {
-                this->lastMarker.index = mayMethodStartNode.index - this->baseMarker.index;
-                this->lastMarker.lineNumber = mayMethodStartNode.line;
-                this->lastMarker.lineStart = mayMethodStartNode.index - mayMethodStartNode.column;
-                this->throwError("duplicate class field name '%s'", s.string());
+            bool find = false;
+            for (size_t i = 0; i < privateNames.size(); i++) {
+                if (privateNames[i].name == s) {
+                    bool isInvalid = false;
+                    if (kind == ClassElementNode::Kind::Field || kind == ClassElementNode::Kind::Method) {
+                        isInvalid = true;
+                    } else if (kind == ClassElementNode::Kind::Get && !privateNames[i].isSetter) {
+                        isInvalid = true;
+                    } else if (kind == ClassElementNode::Kind::Set && !privateNames[i].isGetter) {
+                        isInvalid = true;
+                    }
+                    if (isInvalid) {
+                        this->lastMarker.index = mayMethodStartNode.index - this->baseMarker.index;
+                        this->lastMarker.lineNumber = mayMethodStartNode.line;
+                        this->lastMarker.lineStart = mayMethodStartNode.index - mayMethodStartNode.column;
+                        this->throwError("duplicate class field name '%s'", s.string());
+                    }
+                    find = true;
+                    break;
+                }
+            }
+
+            if (!find) {
+                ClassPrivateNameData data;
+                data.name = s;
+                if (kind == ClassElementNode::Kind::Field) {
+                    data.isField = true;
+                } else if (kind == ClassElementNode::Kind::Method) {
+                    data.isMethod = true;
+                } else if (kind == ClassElementNode::Kind::Get) {
+                    data.isGetter = true;
+                } else if (kind == ClassElementNode::Kind::Set) {
+                    data.isSetter = true;
+                } else {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+                privateNames.pushBack(data);
             }
         }
 
@@ -5845,14 +5953,15 @@ public:
         ASTNodeList body;
         ASTNode constructor = nullptr;
 
-        ParserAtomicStringVector privateFieldNames;
+        size_t fieldCount = 0;
+        ParserClassPrivateNameVector privateNames;
 
         this->expect(LeftBrace);
         while (!this->match(RightBrace)) {
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className, privateFieldNames);
+                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className, fieldCount, privateNames);
                 if (classElement) {
                     body.append(this->allocator, classElement);
                 }
@@ -5862,10 +5971,14 @@ public:
         endNode.index++; // advancing for '{'
         this->expect(RightBrace);
 
-        if (privateFieldNames.size() && !this->isParsingSingleFunction) {
-            newClassInfo->m_classPrivateNames.resize(privateFieldNames.size());
-            for (size_t i = 0; i < privateFieldNames.size(); i++) {
-                newClassInfo->m_classPrivateNames[i] = privateFieldNames[i];
+        if (UNLIKELY(fieldCount > std::numeric_limits<uint16_t>::max())) {
+            this->throwError("too many fields in class", String::emptyString, String::emptyString, ErrorObject::RangeError);
+        }
+
+        if (privateNames.size() && !this->isParsingSingleFunction) {
+            newClassInfo->m_classPrivateNames.resize(privateNames.size());
+            for (size_t i = 0; i < privateNames.size(); i++) {
+                newClassInfo->m_classPrivateNames[i] = privateNames[i].name;
             }
         }
 

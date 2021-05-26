@@ -1041,21 +1041,21 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(SuperSetObjectOperation)
+        DEFINE_OPCODE(ComplexSetObjectOperation)
             :
         {
-            SuperSetObjectOperation* code = (SuperSetObjectOperation*)programCounter;
-            superSetObjectOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(SuperSetObjectOperation);
+            ComplexSetObjectOperation* code = (ComplexSetObjectOperation*)programCounter;
+            complexSetObjectOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(ComplexSetObjectOperation);
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(SuperGetObjectOperation)
+        DEFINE_OPCODE(ComplexGetObjectOperation)
             :
         {
-            SuperGetObjectOperation* code = (SuperGetObjectOperation*)programCounter;
-            registerFile[code->m_storeRegisterIndex] = superGetObjectOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(SuperGetObjectOperation);
+            ComplexGetObjectOperation* code = (ComplexGetObjectOperation*)programCounter;
+            complexGetObjectOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(ComplexGetObjectOperation);
             NEXT_INSTRUCTION();
         }
 
@@ -2798,32 +2798,46 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
 
         registerFile[code->m_classConstructorRegisterIndex] = constructor;
         registerFile[code->m_classPrototypeRegisterIndex] = proto;
-    } else if (code->m_stage == InitializeClass::SetFieldSize) {
-        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-        classConstructor->m_instanceFieldInitData.resize(code->m_fieldSize);
-        classConstructor->m_staticFieldInitData.resize(0, code->m_staticFieldSize);
-    } else if (code->m_stage == InitializeClass::InitField) {
-        registerFile[code->m_propertyInitRegisterIndex] = registerFile[code->m_propertyInitRegisterIndex].toPropertyKey(state);
-        registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_instanceFieldInitData[code->m_initFieldIndex].first = registerFile[code->m_propertyInitRegisterIndex];
-    } else if (code->m_stage == InitializeClass::SetFieldData) {
-        registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject()->m_instanceFieldInitData[code->m_setFieldIndex].second = registerFile[code->m_propertySetRegisterIndex];
-    } else if (code->m_stage == InitializeClass::InitStaticField) {
-        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-        classConstructor->m_staticFieldInitData[code->m_staticFieldInitIndex] = registerFile[code->m_staticPropertyInitRegisterIndex];
-    } else if (code->m_stage == InitializeClass::SetStaticFieldData) {
-        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-
-        Value v = registerFile[code->m_staticPropertySetRegisterIndex];
-        if (!v.isUndefined()) {
-            v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConstructor), classConstructor);
-        }
-        classConstructor->defineOwnPropertyThrowsException(state,
-                                                           ObjectPropertyName(state, classConstructor->m_staticFieldInitData[code->m_staticFieldSetIndex]),
-                                                           ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     } else {
-        ASSERT(code->m_stage == InitializeClass::CleanupStaticData);
         auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
-        classConstructor->m_staticFieldInitData.clear();
+        if (code->m_stage == InitializeClass::SetFieldSize) {
+            classConstructor->m_instanceFieldInitData.resize(code->m_fieldSize);
+            classConstructor->m_staticFieldInitData.resize(0, code->m_staticFieldSize);
+        } else if (code->m_stage == InitializeClass::InitField) {
+            registerFile[code->m_propertyInitRegisterIndex] = registerFile[code->m_propertyInitRegisterIndex].toPropertyKey(state);
+            std::get<0>(classConstructor->m_instanceFieldInitData[code->m_initFieldIndex]) = registerFile[code->m_propertyInitRegisterIndex];
+            std::get<2>(classConstructor->m_instanceFieldInitData[code->m_initFieldIndex]) = ScriptClassConstructorFunctionObject::NotPrivate;
+        } else if (code->m_stage == InitializeClass::InitPrivateField) {
+            registerFile[code->m_privatePropertyInitRegisterIndex] = registerFile[code->m_privatePropertyInitRegisterIndex].toPropertyKey(state);
+            std::get<0>(classConstructor->m_instanceFieldInitData[code->m_initPrivateFieldIndex]) = registerFile[code->m_privatePropertyInitRegisterIndex];
+            std::get<2>(classConstructor->m_instanceFieldInitData[code->m_initPrivateFieldIndex]) = code->m_initPrivateFieldType;
+        } else if (code->m_stage == InitializeClass::SetFieldData) {
+            std::get<1>(classConstructor->m_instanceFieldInitData[code->m_setFieldIndex]) = registerFile[code->m_propertySetRegisterIndex];
+        } else if (code->m_stage == InitializeClass::SetPrivateFieldData) {
+            std::get<1>(classConstructor->m_instanceFieldInitData[code->m_setPrivateFieldIndex]) = registerFile[code->m_privatePropertySetRegisterIndex];
+        } else if (code->m_stage == InitializeClass::InitStaticField) {
+            std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticFieldInitIndex]) = registerFile[code->m_staticPropertyInitRegisterIndex];
+        } else if (code->m_stage == InitializeClass::InitStaticPrivateField) {
+            std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldInitIndex]) = registerFile[code->m_staticPrivatePropertyInitRegisterIndex];
+            std::get<1>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldInitIndex]) = ScriptClassConstructorFunctionObject::PrivateFieldValue;
+        } else if (code->m_stage == InitializeClass::SetStaticFieldData) {
+            Value v = registerFile[code->m_staticPropertySetRegisterIndex];
+            if (!v.isUndefined()) {
+                v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConstructor), classConstructor);
+            }
+            classConstructor->defineOwnPropertyThrowsException(state,
+                                                               ObjectPropertyName(state, std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticFieldSetIndex])),
+                                                               ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
+        } else if (code->m_stage == InitializeClass::SetStaticPrivateFieldData) {
+            Value v = registerFile[code->m_staticPrivatePropertySetRegisterIndex];
+            if (!v.isUndefined()) {
+                v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConstructor), classConstructor);
+            }
+            classConstructor->privateFieldAdd(state, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v);
+        } else {
+            ASSERT(code->m_stage == InitializeClass::CleanupStaticData);
+            classConstructor->m_staticFieldInitData.clear();
+        }
     }
 }
 
@@ -2842,50 +2856,62 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::superSetObjectOperation(ExecutionState& state, SuperSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void ByteCodeInterpreter::complexSetObjectOperation(ExecutionState& state, ComplexSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
-    // find `this` value for receiver
-    Value thisValue(Value::ForceUninitialized);
-    if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
-        EnvironmentRecord* envRec = state.getThisEnvironment();
-        ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
-        thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
-    } else {
-        thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
-    }
-
-    const Value& object = registerFile[code->m_objectRegisterIndex];
-    // PutValue
-    // [...]
-    // Else if IsPropertyReference(V) is true, then
-    //    If HasPrimitiveBase(V) is true, then
-    //    [...]
-    //    Let succeeded be ? base.[[Set]](GetReferencedName(V), W, GetThisValue(V)).
-    //    If succeeded is false and IsStrictReference(V) is true, throw a TypeError exception.
-    bool result = object.toObject(state)->set(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]), registerFile[code->m_loadRegisterIndex], thisValue);
-    if (UNLIKELY(!result)) {
-        // testing is strict mode || IsStrictReference(V)
-        // IsStrictReference returns true if code is class method
-        if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->asInterpretedCodeBlock()->isObjectMethod()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+    if (code->m_type == ComplexSetObjectOperation::Super) {
+        // find `this` value for receiver
+        Value thisValue(Value::ForceUninitialized);
+        if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+            EnvironmentRecord* envRec = state.getThisEnvironment();
+            ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+            thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
+        } else {
+            thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
         }
+
+        const Value& object = registerFile[code->m_objectRegisterIndex];
+        // PutValue
+        // [...]
+        // Else if IsPropertyReference(V) is true, then
+        //    If HasPrimitiveBase(V) is true, then
+        //    [...]
+        //    Let succeeded be ? base.[[Set]](GetReferencedName(V), W, GetThisValue(V)).
+        //    If succeeded is false and IsStrictReference(V) is true, throw a TypeError exception.
+        bool result = object.toObject(state)->set(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]), registerFile[code->m_loadRegisterIndex], thisValue);
+        if (UNLIKELY(!result)) {
+            // testing is strict mode || IsStrictReference(V)
+            // IsStrictReference returns true if code is class method
+            if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->asInterpretedCodeBlock()->isObjectMethod()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+            }
+        }
+    } else {
+        ASSERT(code->m_type == ComplexSetObjectOperation::Private);
+        const Value& object = registerFile[code->m_objectRegisterIndex];
+        object.toObject(state)->privateFieldSet(state, code->m_propertyName, registerFile[code->m_loadRegisterIndex]);
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::superGetObjectOperation(ExecutionState& state, SuperGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void ByteCodeInterpreter::complexGetObjectOperation(ExecutionState& state, ComplexGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
-    // find `this` value for receiver
-    Value thisValue(Value::ForceUninitialized);
-    if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
-        EnvironmentRecord* envRec = state.getThisEnvironment();
-        ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
-        thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
-    } else {
-        thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
-    }
+    if (code->m_type == ComplexGetObjectOperation::Super) {
+        // find `this` value for receiver
+        Value thisValue(Value::ForceUninitialized);
+        if (byteCodeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+            EnvironmentRecord* envRec = state.getThisEnvironment();
+            ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+            thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
+        } else {
+            thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+        }
 
-    Value object = registerFile[code->m_objectRegisterIndex];
-    return object.toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex])).value(state, thisValue);
+        Value object = registerFile[code->m_objectRegisterIndex];
+        registerFile[code->m_storeRegisterIndex] = object.toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex])).value(state, thisValue);
+    } else {
+        ASSERT(code->m_type == ComplexGetObjectOperation::Private);
+        const Value& object = registerFile[code->m_objectRegisterIndex];
+        registerFile[code->m_storeRegisterIndex] = object.toObject(state)->privateFieldGet(state, code->m_propertyName);
+    }
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)

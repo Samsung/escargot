@@ -721,18 +721,22 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case SuperSetObjectOperationOpcode: {
-            SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
+        case ComplexSetObjectOperationOpcode: {
+            ComplexSetObjectOperation* cd = (ComplexSetObjectOperation*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            if (cd->m_type == ComplexSetObjectOperation::Super) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
             break;
         }
-        case SuperGetObjectOperationOpcode: {
-            SuperSetObjectOperation* cd = (SuperSetObjectOperation*)currentCode;
+        case ComplexGetObjectOperationOpcode: {
+            ComplexGetObjectOperation* cd = (ComplexGetObjectOperation*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_loadRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            if (cd->m_type == ComplexGetObjectOperation::Super) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_propertyNameIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
             break;
         }
         case LoadThisBindingOpcode: {

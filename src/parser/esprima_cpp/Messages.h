@@ -99,7 +99,7 @@ public:
     static constexpr const char* CannotChainLogicalWithNullish = "Cannot chain logical expression with nullish operator";
     static constexpr const char* KeywordMustNotContainEscapedCharacters = "Keyword must not contain escaped characters";
     static constexpr const char* AsyncGeneratorFuncDeclLocationError = "Async or generator function can only be declared at the top level or inside a block";
-    static constexpr const char* PrivateFieldMustBeDeclared = "Private field \'#%s\' must be declared in an enclosing class";
+    static constexpr const char* PrivateFieldMustBeDeclared = "Private field \'%s\' must be declared in an enclosing class";
     static constexpr const char* CannnotUsePrivateFieldHere = "Cannot use private field here";
 };
 
