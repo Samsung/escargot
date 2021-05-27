@@ -28,6 +28,7 @@
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
 #include "wasm/ExportedFunctionObject.h"
+#include "wasm/WASMOperations.h"
 
 // represent ownership of each object
 // object marked with 'own' should be deleted in the current context
@@ -93,8 +94,14 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     wasm_functype_delete(functype);
 
     // Let (store, ret) be the result of func_invoke(store, funcaddr, args).
+    own wasm_trap_t* trap = wasm_func_call(funcaddr, args.data, ret.data);
+    // FIXME wabt allocates a Thread object for each function call
+    // Thread object is never explicitly reclaimed
+    // invoke collectHeap right after wasm_func_call
+    WASMOperations::collectHeap();
+
     // If ret is error, throw an exception. This exception should be a WebAssembly RuntimeError exception, unless otherwise indicated by the WebAssembly error mapping.
-    if (own wasm_trap_t* trap = wasm_func_call(funcaddr, args.data, ret.data)) {
+    if (trap) {
         own wasm_name_t message;
         wasm_trap_message(trap, &message);
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
