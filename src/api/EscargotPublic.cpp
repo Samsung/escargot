@@ -2719,6 +2719,11 @@ RegExpObjectRef* RegExpObjectRef::create(ExecutionStateRef* state, ValueRef* sou
     return toRef(new RegExpObject(*toImpl(state), toImpl(source).toString(*toImpl(state)), option));
 }
 
+bool RegExpObjectRef::match(ExecutionStateRef* state, ValueRef* str, RegExpObjectRef::RegexMatchResult& result, bool testOnly, size_t startIndex)
+{
+    return toImpl(this)->match(*toImpl(state), toImpl(str).toString(*toImpl(state)), (Escargot::RegexMatchResult&)result, testOnly, startIndex);
+}
+
 StringRef* RegExpObjectRef::source()
 {
     return toRef(toImpl(this)->source());

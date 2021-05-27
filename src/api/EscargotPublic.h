@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <cstddef>
 #include <string>
+#include <vector>
 #include <functional>
 #include <limits>
 #include <tuple>
@@ -496,10 +497,10 @@ struct ApplyTupleIntoArgumentsOfVariadicTemplateFunction<0> {
 
 template <typename F, typename T>
 inline auto applyTupleIntoArgumentsOfVariadicTemplateFunction(F&& f, T&& t)
-    -> decltype(ApplyTupleIntoArgumentsOfVariadicTemplateFunction< ::std::tuple_size<
+    -> decltype(ApplyTupleIntoArgumentsOfVariadicTemplateFunction<::std::tuple_size<
                     typename ::std::decay<T>::type>::value>::apply(::std::forward<F>(f), ::std::forward<T>(t)))
 {
-    return ApplyTupleIntoArgumentsOfVariadicTemplateFunction< ::std::tuple_size<
+    return ApplyTupleIntoArgumentsOfVariadicTemplateFunction<::std::tuple_size<
         typename ::std::decay<T>::type>::value>::apply(::std::forward<F>(f), ::std::forward<T>(t));
 }
 } // namespace EvaluatorUtil
@@ -1417,8 +1418,18 @@ public:
         DotAll = 1 << 5,
     };
 
+    struct RegexMatchResult {
+        struct RegexMatchResultPiece {
+            unsigned m_start, m_end;
+        };
+        int m_subPatternNum;
+        std::vector<std::vector<RegexMatchResultPiece>> m_matchResults;
+    };
+
     static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, ValueRef* option);
     static RegExpObjectRef* create(ExecutionStateRef* state, ValueRef* source, RegExpObjectOption option = None);
+
+    bool match(ExecutionStateRef* state, ValueRef* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
 
     StringRef* source();
     RegExpObjectOption option();
