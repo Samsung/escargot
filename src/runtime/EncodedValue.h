@@ -237,6 +237,8 @@ public:
 
     bool isUInt32()
     {
+        // Note. use only 31 bits to represent unsigned integer value.
+        // Its because we just store signed integer value.
         return isInt32() && asInt32() >= 0;
     }
 

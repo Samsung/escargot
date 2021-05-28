@@ -767,7 +767,6 @@ private:
 };
 
 #define ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER 0
-#define ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
 
 enum class EnumerableOwnPropertiesType {
     Key,
@@ -876,11 +875,11 @@ public:
     // internal [[prototype]]
     virtual bool setPrototype(ExecutionState& state, const Value& proto);
 
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P);
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P);
     // callback function should skip un-Enumerable property if needs
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE;
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true);
     // ToLength(Get(obj, "length"))
     uint64_t length(ExecutionState& state);
 

@@ -97,7 +97,7 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
     return spreadArray;
 }
 
-ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectGetResult v = getVirtualValue(state, P);
     if (LIKELY(v.hasValue())) {
@@ -108,7 +108,7 @@ ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const Ob
 }
 
 
-ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectGetResult v = getVirtualValue(state, P);
     if (LIKELY(v.hasValue())) {
@@ -118,7 +118,7 @@ ObjectGetResult ArrayObject::getOwnProperty(ExecutionState& state, const ObjectP
     }
 }
 
-bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     if (!P.isUIntType() && P.objectStructurePropertyName() == state.context()->staticStrings().length) {
         // Let newLen be ToUint32(Desc.[[Value]]).
@@ -217,7 +217,7 @@ NonFastPath:
     return Object::defineOwnProperty(state, P, desc);
 }
 
-bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     if (!P.isUIntType() && P.toObjectStructurePropertyName(state) == state.context()->staticStrings().length) {
         return false;
@@ -240,7 +240,7 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     return Object::deleteOwnProperty(state, P);
 }
 
-void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
     if (LIKELY(isFastModeArray())) {
         size_t len = arrayLength(state);

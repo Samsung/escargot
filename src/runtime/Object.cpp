@@ -613,7 +613,7 @@ void Object::markAsPrototypeObject(ExecutionState& state)
     }
 }
 
-ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
     if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
         return ObjectGetResult();
@@ -640,7 +640,7 @@ ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectProper
     return ObjectGetResult();
 }
 
-bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     if (UNLIKELY(isEverSetAsPrototypeObject() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && P.isIndexString())) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
@@ -820,7 +820,7 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     }
 }
 
-bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     auto result = getOwnProperty(state, P);
     if (result.hasValue() && result.isConfigurable()) {
@@ -832,7 +832,7 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     return true;
 }
 
-void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
     const ObjectStructureItem* propertiesVector;
     propertiesVector = m_structure->properties();
