@@ -413,23 +413,20 @@ static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, si
     return obj;
 }
 
+// https://262.ecma-international.org/#sec-object.getownpropertydescriptor
 static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Object.getOwnPropertyDescriptor ( O, P )
-
     // Let obj be ToObject(O).
     Object* O = argv[0].toObject(state);
+    // Let key be ? ToPropertyKey(P).
+    Value key = argv[1].toPropertyKey(state);
 
-    // Let name be ToString(P).
-    Value name = argv[1];
-
-    // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
-    // Return the result of calling FromPropertyDescriptor(desc) (8.10.4).
-    return O->getOwnPropertyDescriptor(state, ObjectPropertyName(state, name));
+    // Let desc be ? obj.[[GetOwnProperty]](key).
+    // Return FromPropertyDescriptor(desc).
+    return O->getOwnPropertyDescriptor(state, ObjectPropertyName(state, key));
 }
 
-// 19.1.2.9Object.getOwnPropertyDescriptors ( O )
-// https://www.ecma-international.org/ecma-262/8.0/#sec-object.getownpropertydescriptors
+// https://262.ecma-international.org/#sec-object.getownpropertydescriptors
 static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Object* obj = argv[0].toObject(state);

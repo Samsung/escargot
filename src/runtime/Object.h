@@ -378,13 +378,21 @@ public:
         AllPresent = WritablePresent | EnumerablePresent | ConfigurablePresent | ValuePresent
     };
 
+    explicit ObjectPropertyDescriptor()
+        : m_isDataProperty(false)
+        , m_property((PresentAttribute)(NotPresent))
+        , m_value(Value())
+    {
+        // this default constructor is used to create a temporal invalid ObjectPropertyDescriptor
+    }
+
     // for plain data property
     explicit ObjectPropertyDescriptor(const Value& value, PresentAttribute attribute = ObjectPropertyDescriptor::NotPresent)
         : m_isDataProperty(true)
         , m_property((PresentAttribute)(attribute | ValuePresent))
         , m_value(value)
     {
-        checkProperty();
+        ASSERT(checkProperty());
     }
 
     // Accessor descriptor
@@ -393,7 +401,7 @@ public:
         , m_property(attribute)
         , m_getterSetter(jsGetterSetter)
     {
-        checkProperty();
+        ASSERT(checkProperty());
     }
 
     // Generic descriptor
@@ -402,7 +410,7 @@ public:
         , m_property(attribute)
     {
         ASSERT(!isValuePresent());
-        checkProperty();
+        ASSERT(checkProperty());
     }
 
     explicit ObjectPropertyDescriptor(ExecutionState& state, Object* obj);
@@ -535,6 +543,29 @@ public:
     static Object* fromObjectPropertyDescriptor(ExecutionState& state, const ObjectPropertyDescriptor& desc);
     static void completePropertyDescriptor(ObjectPropertyDescriptor& desc);
 
+#ifndef NDEBUG
+    bool checkProperty() const
+    {
+        if ((m_property & WritablePresent) && (m_property & NonWritablePresent)) {
+            return false;
+        }
+
+        if ((m_property & EnumerablePresent) && (m_property & NonEnumerablePresent)) {
+            return false;
+        }
+
+        if ((m_property & ConfigurablePresent) && (m_property & NonConfigurablePresent)) {
+            return false;
+        }
+
+        if (!m_isDataProperty && ((m_property & WritablePresent) | (m_property & NonWritablePresent) | (m_property & ValuePresent))) {
+            return false;
+        }
+
+        return true;
+    }
+#endif
+
 private:
     bool isDataProperty() const
     {
@@ -546,26 +577,6 @@ private:
         Value m_value;
         JSGetterSetter m_getterSetter;
     };
-
-protected:
-    void checkProperty() const
-    {
-        if ((m_property & WritablePresent) && (m_property & NonWritablePresent)) {
-            ASSERT_NOT_REACHED();
-        }
-
-        if ((m_property & EnumerablePresent) && (m_property & NonEnumerablePresent)) {
-            ASSERT_NOT_REACHED();
-        }
-
-        if ((m_property & ConfigurablePresent) && (m_property & NonConfigurablePresent)) {
-            ASSERT_NOT_REACHED();
-        }
-
-        if (!m_isDataProperty && ((m_property & WritablePresent) | (m_property & NonWritablePresent) | (m_property & ValuePresent))) {
-            ASSERT_NOT_REACHED();
-        }
-    }
 };
 
 class ObjectGetResult {
@@ -665,8 +676,10 @@ public:
         return m_isDataAccessorProperty;
     }
 
+    ObjectPropertyDescriptor convertToPropertyDescriptor(ExecutionState& state, const Value& receiver);
+
     // http://www.ecma-international.org/ecma-262/5.1/#sec-8.10.4
-    Value toPropertyDescriptor(ExecutionState& state, const Value& receiver);
+    Value fromPropertyDescriptor(ExecutionState& state, const Value& receiver);
 
     ObjectPropertyNativeGetterSetterData* nativeGetterSetterData()
     {
@@ -882,7 +895,7 @@ public:
     virtual Value getOwnPropertyDescriptor(ExecutionState& state, const ObjectPropertyName& propertyName)
     {
         ObjectGetResult desc = getOwnProperty(state, propertyName);
-        return desc.toPropertyDescriptor(state, this);
+        return desc.fromPropertyDescriptor(state, this);
     }
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-hasproperty
