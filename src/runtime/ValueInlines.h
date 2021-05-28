@@ -892,9 +892,8 @@ uint32_t Value::tryToUseAsArrayIndex(ExecutionState& ec) const
 
 inline uint64_t Value::toArrayIndex(ExecutionState& state) const
 {
-    int32_t i;
-    if (LIKELY(isInt32()) && LIKELY((i = asInt32()) >= 0)) {
-        return i;
+    if (LIKELY(isUInt32())) {
+        return asUInt32();
     } else {
         uint32_t newLen = toUint32(state);
         if (newLen != toNumber(state)) {
