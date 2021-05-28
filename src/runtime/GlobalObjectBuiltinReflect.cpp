@@ -153,7 +153,7 @@ static Value builtinReflectGetOwnPropertyDescriptor(ExecutionState& state, Value
     ObjectGetResult desc = target.asObject()->getOwnProperty(state, ObjectPropertyName(state, key));
 
     // 6. Return FromPropertyDescriptor(desc).
-    return desc.toPropertyDescriptor(state, target.asObject());
+    return desc.fromPropertyDescriptor(state, target.asObject());
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.getprototypeof
