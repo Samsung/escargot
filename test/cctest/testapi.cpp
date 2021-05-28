@@ -665,7 +665,7 @@ TEST(ObjectTemplate, Basic4) {
         EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":555.555,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
 
         int pcnt = 0;
-        obj->enumerateObjectOwnProperies(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)->bool {
+        obj->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)->bool {
             if (pcnt == 0) {
                 EXPECT_TRUE(propertyName->toString(state)->toStdUTF8String() == "aaa");
                 EXPECT_TRUE(isWritable);
@@ -934,6 +934,60 @@ TEST(RegExp, Basic2)
             EXPECT_FALSE(re->match(state, StringRef::createFromASCII("abd"), result, false, 0));
             EXPECT_TRUE(result.m_matchResults.size() == 0);
         }
+
+        return ValueRef::createUndefined();
+    });
+}
+
+TEST(EnumerateObjectOwnProperties, Basic1)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ObjectRef* obj = ObjectRef::create(state);
+
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("a_enum"), ValueRef::createUndefined(), true, true, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("b_non_enum"), ValueRef::createUndefined(), true, false, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("100"), ValueRef::createUndefined(), true, true, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("-20"), ValueRef::createUndefined(), true, true, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, ValueRef::create(10), ValueRef::createUndefined(), true, true, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("1"), ValueRef::createUndefined(), true, false, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, SymbolRef::create(StringRef::createFromASCII("sym_enum")), ValueRef::createUndefined(), true, true, true));
+        EXPECT_TRUE(obj->defineDataProperty(state, SymbolRef::create(StringRef::createFromASCII("sym_non_enum")), ValueRef::createUndefined(), true, false, true));
+
+        std::vector<uint32_t> indexes;
+        ValueVectorRef* strings = ValueVectorRef::create();
+        ValueVectorRef* symbols = ValueVectorRef::create();
+
+        // iterate on enumerable properties including symbol keys
+        obj->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)->bool {
+            if (isEnumerable) {
+                if (propertyName->isUInt32()) {
+                    indexes.push_back(propertyName->asUInt32());
+                } else {
+                    if (propertyName->isSymbol()) {
+                        symbols->pushBack(propertyName);
+                    } else {
+                        auto index = propertyName->tryToUseAsArrayIndex(state);
+                        if (index == ValueRef::InvalidArrayIndexValue) {
+                            strings->pushBack(propertyName);
+                        } else {
+                            indexes.push_back(index);
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }, false);
+
+        EXPECT_TRUE(indexes.size() == 2);
+        EXPECT_TRUE(strings->size() == 2);
+        EXPECT_TRUE(symbols->size() == 1);
+
+        EXPECT_TRUE(indexes[0] == 100);
+        EXPECT_TRUE(indexes[1] == 10);
+        EXPECT_TRUE(strings->at(0)->equalsTo(state, StringRef::createFromASCII("a_enum")));
+        EXPECT_TRUE(strings->at(1)->equalsTo(state, StringRef::createFromASCII("-20")));
+        EXPECT_TRUE(symbols->at(0)->asSymbol()->description()->equalsTo(state, StringRef::createFromASCII("sym_enum")));
 
         return ValueRef::createUndefined();
     });

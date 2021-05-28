@@ -737,7 +737,7 @@ public:
     bool asBoolean();
     double asNumber();
     int32_t asInt32();
-    uint32_t asUint32();
+    uint32_t asUInt32();
     PointerValueRef* asPointerValue();
 
 #define DEFINE_VALUEREF_IS_AS(Name) \
@@ -765,6 +765,7 @@ public:
 
     enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
     uint32_t toArrayIndex(ExecutionStateRef* state);
+    uint32_t tryToUseAsArrayIndex(ExecutionStateRef* state);
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
     bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // ===
@@ -1141,7 +1142,7 @@ public:
 
     ValueVectorRef* ownPropertyKeys(ExecutionStateRef* state);
 
-    void enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb);
+    void enumerateObjectOwnProperties(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb, bool shouldSkipSymbolKey = true);
 
     // get `length` property like ToLength(Get(obj, "length"))
     // it returns 0 for exceptional cases (e.g. undefined, nan)

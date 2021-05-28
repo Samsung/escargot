@@ -232,8 +232,8 @@ uint32_t PersistentValueRefMap::add(ValueRef* ptr)
         self->insert(std::make_pair(ptr, EncodedValue(1)));
         return 1;
     } else {
-        iter->second = EncodedValue(iter->second.asUint32() + 1);
-        return iter->second.asUint32();
+        iter->second = EncodedValue(iter->second.asUInt32() + 1);
+        return iter->second.asUInt32();
     }
 }
 
@@ -249,12 +249,12 @@ uint32_t PersistentValueRefMap::remove(ValueRef* ptr)
     if (iter == self->end()) {
         return 0;
     } else {
-        if (iter->second.asUint32() == 1) {
+        if (iter->second.asUInt32() == 1) {
             self->erase(iter);
             return 0;
         } else {
-            iter->second = EncodedValue(iter->second.asUint32() - 1);
-            return iter->second.asUint32();
+            iter->second = EncodedValue(iter->second.asUInt32() - 1);
+            return iter->second.asUInt32();
         }
     }
 }
@@ -1207,7 +1207,7 @@ public:
     {
     }
 
-    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
         Value PV = P.toPlainValue(state);
         if (!PV.isSymbol()) {
@@ -1218,7 +1218,7 @@ public:
         }
         return Object::getOwnProperty(state, P);
     }
-    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override
     {
         // Only value type supported
         if (desc.isValuePresent()) {
@@ -1229,7 +1229,7 @@ public:
         }
         return Object::defineOwnProperty(state, P, desc);
     }
-    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
         Value PV = P.toPlainValue(state);
         if (!PV.isSymbol()) {
@@ -1240,7 +1240,7 @@ public:
         }
         return Object::deleteOwnProperty(state, P);
     }
-    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override
     {
         auto names = m_enumerationCallback(toRef(&state), toRef(this));
         for (size_t i = 0; i < names.size(); i++) {
@@ -1261,7 +1261,7 @@ public:
         Object::enumeration(state, callback, data, shouldSkipSymbolKey);
     }
 
-    virtual bool isInlineCacheable()
+    virtual bool isInlineCacheable() override
     {
         return false;
     }
@@ -1544,14 +1544,14 @@ void ObjectRef::removeFromHiddenClassChain(ExecutionStateRef* state)
     toImpl(this)->markThisObjectDontNeedStructureTransitionTable();
 }
 
-void ObjectRef::enumerateObjectOwnProperies(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb)
+void ObjectRef::enumerateObjectOwnProperties(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb, bool shouldSkipSymbolKey)
 {
     toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>* cb
             = (const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>*)data;
         return (*cb)(toRef(&state), toRef(name.toPlainValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
     },
-                              (void*)&cb);
+                              (void*)&cb, shouldSkipSymbolKey);
 }
 
 FunctionObjectRef* GlobalObjectRef::object()
@@ -2339,7 +2339,7 @@ int32_t ValueRef::asInt32()
     return toImpl(this).asInt32();
 }
 
-uint32_t ValueRef::asUint32()
+uint32_t ValueRef::asUInt32()
 {
     return toImpl(this).asUInt32();
 }
@@ -2436,38 +2436,32 @@ ValueRef* ValueRef::createUndefined()
 
 bool ValueRef::toBoolean(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toImpl(this).toBoolean(*esi);
+    return toImpl(this).toBoolean(*toImpl(es));
 }
 
 double ValueRef::toNumber(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toImpl(this).toNumber(*esi);
+    return toImpl(this).toNumber(*toImpl(es));
 }
 
 double ValueRef::toLength(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toImpl(this).toLength(*esi);
+    return toImpl(this).toLength(*toImpl(es));
 }
 
 int32_t ValueRef::toInt32(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toImpl(this).toInt32(*esi);
+    return toImpl(this).toInt32(*toImpl(es));
 }
 
 uint32_t ValueRef::toUint32(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toImpl(this).toUint32(*esi);
+    return toImpl(this).toUint32(*toImpl(es));
 }
 
 StringRef* ValueRef::toString(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toRef(toImpl(this).toString(*esi));
+    return toRef(toImpl(this).toString(*toImpl(es)));
 }
 
 StringRef* ValueRef::toStringWithoutException(ContextRef* ctx)
@@ -2480,24 +2474,31 @@ StringRef* ValueRef::toStringWithoutException(ContextRef* ctx)
 
 ObjectRef* ValueRef::toObject(ExecutionStateRef* es)
 {
-    ExecutionState* esi = toImpl(es);
-    return toRef(toImpl(this).toObject(*esi));
+    return toRef(toImpl(this).toObject(*toImpl(es)));
 }
 
 ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 {
-    ExecutionState* esi = toImpl(state);
-    return toImpl(this).toIndex(*esi);
+    return toImpl(this).toIndex(*toImpl(state));
 }
 
 uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
 {
     EncodedValue s = EncodedValue::fromPayload(this);
-    if (LIKELY(s.isInt32())) {
-        return s.asInt32();
+    if (LIKELY(s.isUInt32())) {
+        return s.asUInt32();
     } else {
-        ExecutionState* esi = toImpl(state);
-        return Value(s).tryToUseAsArrayIndex(*esi);
+        return Value(s).toArrayIndex(*toImpl(state));
+    }
+}
+
+uint32_t ValueRef::tryToUseAsArrayIndex(ExecutionStateRef* state)
+{
+    EncodedValue s = EncodedValue::fromPayload(this);
+    if (LIKELY(s.isUInt32())) {
+        return s.asUInt32();
+    } else {
+        return Value(s).tryToUseAsArrayIndex(*toImpl(state));
     }
 }
 

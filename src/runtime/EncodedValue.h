@@ -235,21 +235,25 @@ public:
         return HAS_SMI_TAG(m_data.payload);
     }
 
-    uint32_t asInt32()
+    bool isUInt32()
+    {
+        return isInt32() && asInt32() >= 0;
+    }
+
+    int32_t asInt32()
+    {
+        ASSERT(HAS_SMI_TAG(m_data.payload));
+        return EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
+    }
+
+    uint32_t asUInt32()
     {
         ASSERT(HAS_SMI_TAG(m_data.payload));
         int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
         return (uint32_t)value;
     }
 
-    uint32_t asUint32()
-    {
-        ASSERT(HAS_SMI_TAG(m_data.payload));
-        int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
-        return (uint32_t)value;
-    }
-
-    uint32_t toUint32(ExecutionState& state)
+    uint32_t toUInt32(ExecutionState& state)
     {
         if (LIKELY(HAS_SMI_TAG(m_data.payload))) {
             int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
