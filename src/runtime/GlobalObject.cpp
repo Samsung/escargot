@@ -146,7 +146,7 @@ static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Va
     return realm->globalObject()->eval(state, argv[0]);
 }
 
-ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectHasPropertyResult hasResult = Object::hasProperty(state, P);
     if (!hasResult.hasProperty() && UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
@@ -167,7 +167,7 @@ ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const O
     return hasResult;
 }
 
-ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectGetResult r = Object::getOwnProperty(state, P);
     if (!r.hasValue() && UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {

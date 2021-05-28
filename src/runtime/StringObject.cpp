@@ -50,7 +50,7 @@ void* StringObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     Value::ValueIndex idx = P.tryToUseAsIndex();
     if (idx != Value::InvalidIndexValue) {
@@ -63,7 +63,7 @@ ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const O
 }
 
 
-ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     Value::ValueIndex idx = P.tryToUseAsIndex();
     if (idx != Value::InvalidIndexValue) {
@@ -75,7 +75,7 @@ ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const Object
     return Object::getOwnProperty(state, P);
 }
 
-bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     auto r = getOwnProperty(state, P);
     if (r.hasValue() && !r.isConfigurable())
@@ -83,7 +83,7 @@ bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     return Object::defineOwnProperty(state, P, desc);
 }
 
-bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     auto r = getOwnProperty(state, P);
     if (r.hasValue() && !r.isConfigurable())
@@ -91,7 +91,7 @@ bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectProperty
     return Object::deleteOwnProperty(state, P);
 }
 
-void StringObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) ESCARGOT_OBJECT_SUBCLASS_MUST_REDEFINE
+void StringObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
     size_t len = m_primitiveValue->length();
     for (size_t i = 0; i < len; i++) {
