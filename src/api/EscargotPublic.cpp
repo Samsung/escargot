@@ -4509,11 +4509,6 @@ ObjectRef* WASMOperationsRef::instantiatePromiseOfModuleWithImportObject(Executi
 {
     return toRef(WASMOperations::instantiatePromiseOfModuleWithImportObject(*toImpl(state), toImpl(promiseOfModule), toImpl(importObj)));
 }
-
-void WASMOperationsRef::collectHeap()
-{
-    WASMOperations::collectHeap();
-}
 #else
 ValueRef* WASMOperationsRef::copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source)
 {
@@ -4534,12 +4529,6 @@ ObjectRef* WASMOperationsRef::instantiatePromiseOfModuleWithImportObject(Executi
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable WASM");
     RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
-}
-
-void WASMOperationsRef::collectHeap()
-{
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable WASM");
-    RELEASE_ASSERT_NOT_REACHED();
 }
 #endif
 

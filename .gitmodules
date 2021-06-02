@@ -26,7 +26,7 @@
 	path = third_party/googletest
 	url = https://github.com/google/googletest.git
     ignore = untracked
-[submodule "third_party/wasm/wabt"]
-	path = third_party/wasm/wabt
-	url = https://github.com/WebAssembly/wabt
+[submodule "third_party/wasm/wamr"]
+	path = third_party/wasm/wamr
+	url = https://github.com/bytecodealliance/wasm-micro-runtime.git
     ignore = untracked

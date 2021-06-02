@@ -25,7 +25,7 @@
 #include "parser/ASTAllocator.h"
 #include "BumpPointerAllocator.h"
 #if defined(ENABLE_WASM)
-#include "wasm.h"
+#include "wasm_c_api.h"
 #endif
 
 namespace Escargot {
@@ -145,7 +145,6 @@ void ThreadLocal::initialize()
     // g_wasmContext
     g_wasmContext.engine = wasm_engine_new();
     g_wasmContext.store = wasm_store_new(g_wasmContext.engine);
-    g_wasmContext.lastGCCheckTime = 0;
 #endif
 
     // g_gcEventListenerSet
@@ -193,7 +192,6 @@ void ThreadLocal::finalize()
     wasm_engine_delete(g_wasmContext.engine);
     g_wasmContext.store = nullptr;
     g_wasmContext.engine = nullptr;
-    g_wasmContext.lastGCCheckTime = 0;
 #endif
 
     // g_gcEventListenerSet
@@ -211,14 +209,4 @@ void ThreadLocal::finalize()
     called_once = false;
     inited = false;
 }
-
-#if defined(ENABLE_WASM)
-void ThreadLocal::wasmGC(uint64_t lastCheckTime)
-{
-    ASSERT(inited && !!g_wasmContext.store);
-    wasm_store_gc(g_wasmContext.store);
-    g_wasmContext.lastGCCheckTime = lastCheckTime;
-}
-#endif
-
 } // namespace Escargot

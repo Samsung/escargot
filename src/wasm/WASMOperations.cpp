@@ -20,7 +20,7 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
-#include "wasm.h"
+#include "wasm_c_api.h"
 #include "runtime/ThreadLocal.h"
 #include "runtime/VMInstance.h"
 #include "runtime/Job.h"
@@ -40,7 +40,7 @@
 
 namespace Escargot {
 
-static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[], wasm_val_t results[])
+static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* args, wasm_val_vec_t* results)
 {
     WASMHostFunctionEnvironment* funcEnv = (WASMHostFunctionEnvironment*)env;
 
@@ -64,7 +64,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
     // For each arg of arguments,
     for (size_t i = 0; i < argSize; i++) {
         // Append ! ToJSValue(arg) to jsArguments.
-        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args[i]);
+        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args->data[i]);
     }
 
     // Let ret be ? Call(func, undefined, jsArguments).
@@ -79,7 +79,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
 
     if (resultsSize == 1) {
         // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
-        results[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
+        results->data[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
     } else {
         // Otherwise,
         // Let method be ? GetMethod(ret, @@iterator).
@@ -99,7 +99,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
         // For each value and resultType in values and results, paired linearly,
         // Append ToWebAssemblyValue(value, resultType) to wasmValues.
         for (size_t i = 0; i < resultsSize; i++) {
-            results[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
+            results->data[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
         }
     }
 
@@ -147,7 +147,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -273,9 +273,10 @@ Object* WASMOperations::createExportsObject(ExecutionState& state, wasm_module_t
             // Let func funcaddr be externval.
             wasm_func_t* funcaddr = wasm_extern_as_func(externval);
 
-            // FIXME getting a function index from instance which is not a standard (we should obtain the index from module)
-            uint32_t funcIndex = wasm_instance_func_index(instance, funcaddr);
-            ASSERT(funcIndex != wasm_limits_max_default);
+            // FIXME getting a function index from wasm_func_t.name
+            //int funcIndex = atoi(funcaddr->name->data);
+            uint32_t funcIndex = 0;
+            ASSERT(funcIndex < wasm_limits_max_default);
 
             // Let func be the result of creating a new Exported Function from funcaddr.
             // Let value be func.
@@ -359,7 +360,6 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
 
     // Let imports be << >>
     wasm_extern_vec_new_uninitialized(imports, import_types.size);
-    size_t importsSize = 0;
 
     // For each (moduleName, componentName, externtype) of module_imports(module),
     for (size_t i = 0; i < import_types.size; i++) {
@@ -375,7 +375,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
         // If Type(o) is not Object, throw a TypeError exception.
         if (!o.isObject()) {
             wasm_importtype_vec_delete(&import_types);
-            wasm_extern_vec_delete_with_size(imports, importsSize);
+            wasm_extern_vec_delete(imports);
 
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
         }
@@ -499,12 +499,10 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
 
         if (UNLIKELY(throwLinkError)) {
             wasm_importtype_vec_delete(&import_types);
-            wasm_extern_vec_delete_with_size(imports, importsSize);
+            wasm_extern_vec_delete(imports);
 
             ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_ReadImportsError);
         }
-
-        importsSize++;
     }
 
     wasm_importtype_vec_delete(&import_types);
@@ -522,12 +520,12 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
     ExtendedNativeFunctionObject* callee = state.resolveCallee()->asExtendedNativeFunctionObject();
     size_t importsSize = callee->internalSlot(0).asUInt32();
     wasm_extern_t** importsData = callee->internalSlotAsPointer<wasm_extern_t*>(1);
-    own wasm_extern_vec_t imports = { importsSize, importsData };
+    own wasm_extern_vec_t imports = { importsSize, importsData, importsSize, sizeof(wasm_extern_t*), nullptr };
     callee->setInternalSlotAsPointer(1, nullptr);
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -557,12 +555,6 @@ Object* WASMOperations::instantiatePromiseOfModuleWithImportObject(ExecutionStat
     moduleInstantiator->setInternalSlot(0, importObj);
 
     return promiseOfModule->then(state, moduleInstantiator);
-}
-
-void WASMOperations::collectHeap()
-{
-    // collect (GC) WASM Objects allocated inside WASM heap
-    wasm_store_gc(ThreadLocal::wasmStore());
 }
 
 } // namespace Escargot

@@ -34,6 +34,9 @@
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"
 #endif
+#if defined(ENABLE_WASM)
+#include "wasm_c_api.h"
+#endif
 
 #if defined(OS_WINDOWS)
 #include <Windows.h>
@@ -53,12 +56,6 @@ NT_TIB* getTIB()
 #endif
 
 namespace Escargot {
-
-#if defined(ENABLE_WASM)
-#ifndef ESCARGOT_WASM_GC_CHECK_INTERVAL
-#define ESCARGOT_WASM_GC_CHECK_INTERVAL 10000
-#endif
-#endif
 
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea)
 {
@@ -238,11 +235,6 @@ void vmReclaimEndCallback(void* data)
     if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
         self->compressStringsIfNeeds(currentTick);
         self->m_lastCompressibleStringsTestTime = currentTick;
-    }
-#endif
-#if defined(ENABLE_WASM)
-    if (currentTick - ThreadLocal::wasmLastGCCheckTime() > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
-        ThreadLocal::wasmGC(currentTick);
     }
 #endif
 #endif

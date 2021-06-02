@@ -20,7 +20,7 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
-#include "wasm.h"
+#include "wasm_c_api.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayObject.h"
@@ -76,7 +76,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
 
     // Let args be << >>
     wasm_val_t* argsBuffer = ALLOCA(parameters->size * sizeof(wasm_val_t), wasm_val_t, state);
-    wasm_val_vec_t args = { parameters->size, argsBuffer };
+    wasm_val_vec_t args = { parameters->size, argsBuffer, parameters->size, sizeof(wasm_val_t), nullptr };
 
     // For each t of parameters,
     for (size_t i = 0; i < parameters->size; i++) {
@@ -89,12 +89,12 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     }
 
     wasm_val_t* retBuffer = ALLOCA(results->size * sizeof(wasm_val_t), wasm_val_t, state);
-    wasm_val_vec_t ret = { results->size, retBuffer };
+    wasm_val_vec_t ret = { results->size, retBuffer, results->size, sizeof(wasm_val_t), nullptr };
 
     wasm_functype_delete(functype);
 
     // Let (store, ret) be the result of func_invoke(store, funcaddr, args).
-    own wasm_trap_t* trap = wasm_func_call(funcaddr, args.data, ret.data);
+    own wasm_trap_t* trap = wasm_func_call(funcaddr, &args, &ret);
 
     // If ret is error, throw an exception. This exception should be a WebAssembly RuntimeError exception, unless otherwise indicated by the WebAssembly error mapping.
     if (trap) {

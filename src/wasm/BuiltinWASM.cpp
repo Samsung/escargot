@@ -20,7 +20,7 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
-#include "wasm.h"
+#include "wasm_c_api.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
 #include "runtime/ThreadLocal.h"
@@ -347,7 +347,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {

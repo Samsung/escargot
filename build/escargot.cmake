@@ -135,15 +135,12 @@ ADD_SUBDIRECTORY (third_party/runtime_icu_binder)
 
 SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} runtime-icu-binder-static)
 
-# WebAssembly (wabt)
+# WebAssembly (wamr)
 IF (ESCARGOT_WASM)
-    SET (WASM_CXX_FLAGS
-	    ${ESCARGOT_THIRDPARTY_CFLAGS} # we can share flags with gcutil
-        -g3)
-    SET (WASM_ARCH ${ESCARGOT_ARCH})
+    # share flags with gcutil
+    SET (WASM_CFLAGS ${ESCARGOT_GCUTIL_CFLAGS})
 
     ADD_SUBDIRECTORY (third_party/wasm)
-
     SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} wasm)
 ENDIF()
 

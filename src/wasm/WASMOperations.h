@@ -22,7 +22,8 @@
 #ifndef __EscargotWASMOperations__
 #define __EscargotWASMOperations__
 
-struct wasm_module_t;
+struct WASMModuleCommon;
+typedef struct WASMModuleCommon* wasm_module_t;
 struct wasm_instance_t;
 struct wasm_extern_vec_t;
 
@@ -38,8 +39,6 @@ public:
     static void readImportsOfModule(ExecutionState& state, wasm_module_t* module, const Value& importObj, wasm_extern_vec_t* imports);
     static Value instantiateCoreModule(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     static Object* instantiatePromiseOfModuleWithImportObject(ExecutionState& state, PromiseObject* promiseOfModule, Value importObj);
-
-    static void collectHeap();
 };
 
 } // namespace Escargot

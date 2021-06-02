@@ -20,7 +20,7 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
-#include "wasm.h"
+#include "wasm_c_api.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayBufferObject.h"

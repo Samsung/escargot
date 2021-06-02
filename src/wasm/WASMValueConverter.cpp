@@ -20,13 +20,33 @@
 #if defined(ENABLE_WASM)
 
 #include "Escargot.h"
-#include "wasm.h"
+#include "wasm_c_api.h"
 #include "runtime/Context.h"
 #include "runtime/Value.h"
 #include "runtime/BigInt.h"
 #include "wasm/WASMValueConverter.h"
 
 namespace Escargot {
+
+// redefine macros to resolve build errors
+#ifdef WASM_I32_VAL
+#undef WASM_I32_VAL
+#endif
+#ifdef WASM_I64_VAL
+#undef WASM_I64_VAL
+#endif
+#ifdef WASM_F32_VAL
+#undef WASM_F32_VAL
+#endif
+#ifdef WASM_F64_VAL
+#undef WASM_F64_VAL
+#endif
+#ifdef WASM_REF_VAL
+#undef WASM_REF_VAL
+#endif
+#ifdef WASM_INIT_VAL
+#undef WASM_INIT_VAL
+#endif
 
 #define WASM_I32_VAL(result, i) \
     result.kind = WASM_I32;     \

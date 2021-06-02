@@ -22,7 +22,8 @@
 #ifndef __EscargotWASMObject__
 #define __EscargotWASMObject__
 
-struct wasm_module_t;
+struct WASMModuleCommon;
+typedef struct WASMModuleCommon* wasm_module_t;
 struct wasm_instance_t;
 struct wasm_memory_t;
 struct wasm_table_t;

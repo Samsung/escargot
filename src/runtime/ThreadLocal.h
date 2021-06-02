@@ -30,7 +30,6 @@ struct wasm_store_t;
 struct WASMContext {
     wasm_engine_t* engine;
     wasm_store_t* store;
-    uint64_t lastGCCheckTime;
 };
 #endif
 
@@ -119,18 +118,10 @@ public:
     }
 
 #if defined(ENABLE_WASM)
-    static void wasmGC(uint64_t lastCheckTime);
-
     static wasm_store_t* wasmStore()
     {
         ASSERT(inited && !!g_wasmContext.store);
         return g_wasmContext.store;
-    }
-
-    static uint64_t wasmLastGCCheckTime()
-    {
-        ASSERT(inited && !!g_wasmContext.store);
-        return g_wasmContext.lastGCCheckTime;
     }
 #endif
 
