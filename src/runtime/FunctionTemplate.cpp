@@ -104,8 +104,13 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
             newArgv[i] = toRef(argv[i]);
         }
         if (newTarget) {
+            Value proto = newTarget.value()->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, newTarget.value());
+            if (!proto.isObject()) {
+                proto = activeFunction->getFunctionPrototype(state);
+            }
+
             Object* newThisValue = data->m_functionTemplate->instanceTemplate()->instantiate(state.context());
-            newThisValue->setPrototype(state, activeFunction->getFunctionPrototype(state));
+            newThisValue->setPrototype(state, proto);
             return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(newThisValue), argc, newArgv, OptionalRef<ObjectRef>(toRef(newTarget.value()))));
         } else {
             return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(thisValue), argc, newArgv, nullptr));
