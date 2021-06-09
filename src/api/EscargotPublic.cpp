@@ -2444,6 +2444,11 @@ double ValueRef::toNumber(ExecutionStateRef* es)
     return toImpl(this).toNumber(*toImpl(es));
 }
 
+double ValueRef::toInteger(ExecutionStateRef* es)
+{
+    return toImpl(this).toInteger(*toImpl(es));
+}
+
 double ValueRef::toLength(ExecutionStateRef* es)
 {
     return toImpl(this).toLength(*toImpl(es));
