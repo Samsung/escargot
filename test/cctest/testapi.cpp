@@ -328,6 +328,22 @@ int main(int argc, char* argv[])
     return RUN_ALL_TESTS();
 }
 
+TEST(ValueRef, Basic1) {
+    auto val = ValueRef::create(-1);
+    auto vector = ValueVectorRef::create(5);
+    vector->set(0, val);
+    auto ii = vector->at(0)->asInt32();
+    EXPECT_EQ(ii, -1);
+}
+
+TEST(ValueRef, Basic2) {
+    auto val = ValueRef::create(123);
+    auto vector = ValueVectorRef::create(5);
+    vector->set(0, val);
+    auto ii = vector->at(0)->asInt32();
+    EXPECT_EQ(ii, 123);
+}
+
 TEST(EvalScript, Run)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("1 + 1"), StringRef::createFromASCII("test.js"), false);
