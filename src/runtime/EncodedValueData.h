@@ -37,14 +37,14 @@ struct EncodedValueData {
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 struct EncodedSmallValueData {
-    uint32_t payload;
+    int32_t payload;
     EncodedSmallValueData()
         : payload(0)
     {
     }
 
     explicit EncodedSmallValueData(void* ptr)
-        : payload(static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)))
+        : payload(static_cast<int32_t>(reinterpret_cast<intptr_t>(ptr)))
     {
         ASSERT((size_t)ptr <= std::numeric_limits<uint32_t>::max());
     }

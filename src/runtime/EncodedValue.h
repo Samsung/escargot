@@ -324,7 +324,12 @@ protected:
         } else {
             int32_t i32;
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-                m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+                auto smi = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+                m_data.payload = (uint32_t)smi;
+#else
+                m_data.payload = smi;
+#endif
             } else if (from.isNumber()) {
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber()));
             } else {
@@ -395,7 +400,7 @@ public:
         return v;
     }
 
-    uint32_t payload() const
+    int32_t payload() const
     {
         return m_data.payload;
     }

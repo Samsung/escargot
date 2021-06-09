@@ -33,7 +33,12 @@ inline ValueRef* toRef(const Value& v)
 inline Value toImpl(const ValueRef* v)
 {
     ASSERT(v);
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    int64_t tmp = (int64_t)(int32_t)(size_t)v;
+    return Value(EncodedValue::fromPayload((void*)tmp));
+#else
     return Value(EncodedValue::fromPayload(v));
+#endif
 }
 
 #define DEFINE_REF_CAST(Name)                   \

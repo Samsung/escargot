@@ -1726,7 +1726,7 @@ Value Object::privateFieldGet(ExecutionState& state, AtomicString propertyName)
             Value val = v[i].second;
             if (UNLIKELY(val.isPointerValue() && val.asPointerValue()->isJSGetterSetter())) {
                 JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
-                if (gs->getter().isEmpty()) {
+                if (!gs->hasGetter()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a getter", propertyName.string());
                 } else {
                     return Object::call(state, gs->getter(), this, 0, nullptr);
@@ -1748,7 +1748,7 @@ void Object::privateFieldSet(ExecutionState& state, AtomicString propertyName, c
             Value val = v[i].second;
             if (UNLIKELY(val.isPointerValue() && val.asPointerValue()->isJSGetterSetter())) {
                 JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
-                if (gs->setter().isEmpty()) {
+                if (!gs->hasSetter()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a setter", propertyName.string());
                 } else {
                     Value argv = value;
