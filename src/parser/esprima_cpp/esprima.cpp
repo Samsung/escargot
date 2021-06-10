@@ -3397,6 +3397,7 @@ public:
             this->currentScopeContext->m_allowArguments = this->context->allowArguments;
 
             this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            auto lastContext = this->lastPoppedScopeContext;
 
             this->currentScopeContext->m_isArrowFunctionExpression = true;
             this->currentScopeContext->m_isOneExpressionOnlyVirtualArrowFunctionExpression = true;
@@ -3408,6 +3409,8 @@ public:
             this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
             END_FUNCTION_SCANNING();
+
+            this->lastPoppedScopeContext = lastContext;
 
             // wrap right expression with arrow function
             result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
@@ -5699,17 +5702,10 @@ public:
         if (this->match(Multiply)) {
             this->nextToken();
         } else {
-            // TODO
-            /*
-            if (token->type == Token::KeywordToken && token->relatedSource(this->scanner->source) == "static") {
-                isStatic = true;
-                this->nextToken();
-            }*/
-
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
 
-            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply)) && token->relatedSource(this->scanner->source) == "static") {
+            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply) || this->match(Hash)) && token->relatedSource(this->scanner->source) == "static") {
                 *token = this->lookahead;
                 isStatic = true;
                 mayMethodStartNode = this->createNode();
@@ -5772,7 +5768,7 @@ public:
                 value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
             } else if (this->match(Substitution)) {
                 if (isStatic) {
-                    kind = ClassElementNode::Kind::StaticField;
+                    kind = ClassElementNode::Kind::Field;
                     value = this->parseClassStaticFieldInitializer(builder, className);
                 } else {
                     kind = ClassElementNode::Kind::Field;
@@ -5783,17 +5779,17 @@ public:
                 auto metaNode = this->createNode();
                 this->nextToken();
 
-                kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
+                kind = ClassElementNode::Kind::Field;
                 value = this->finalize(metaNode, builder.createLiteralNode(Value()));
             } else {
                 if (this->hasLineTerminator) {
-                    kind = isStatic ? ClassElementNode::Kind::StaticField : ClassElementNode::Kind::Field;
+                    kind = ClassElementNode::Kind::Field;
                     value = this->finalize(this->createNode(), builder.createLiteralNode(Value()));
                 }
             }
         }
 
-        if ((kind == ClassElementNode::Kind::StaticField) && !computed) {
+        if ((kind == ClassElementNode::Kind::Field && isStatic) && !computed) {
             if (builder.isPropertyKey(keyNode, "constructor") || builder.isPropertyKey(keyNode, "prototype")) {
                 this->throwError(Messages::InvalidClassElementName);
             }
@@ -5805,7 +5801,7 @@ public:
             }
         }
 
-        if (kind == ClassElementNode::Kind::Field || kind == ClassElementNode::Kind::StaticField) {
+        if (kind == ClassElementNode::Kind::Field) {
             fieldCount++;
             if (builder.isPropertyKeyStartsWith(keyNode, 0x200C) || builder.isPropertyKeyStartsWith(keyNode, 0x200D)) {
                 this->throwError(Messages::InvalidClassElementName);
@@ -5888,7 +5884,7 @@ public:
         }
 
         if (!this->isParsingSingleFunction) {
-            if (kind != ClassElementNode::Kind::Field && kind != ClassElementNode::Kind::StaticField) {
+            if (kind != ClassElementNode::Kind::Field) {
                 if (isStatic) {
                     this->lastPoppedScopeContext->m_isClassStaticMethod = true;
                 } else {

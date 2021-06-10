@@ -33,7 +33,6 @@ public:
         Set,
         Method,
         Field,
-        StaticField,
     };
 
 
