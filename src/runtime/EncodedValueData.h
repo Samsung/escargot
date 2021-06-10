@@ -42,12 +42,6 @@ struct EncodedSmallValueData {
         : payload(0)
     {
     }
-
-    explicit EncodedSmallValueData(void* ptr)
-        : payload(static_cast<int32_t>(reinterpret_cast<intptr_t>(ptr)))
-    {
-        ASSERT((size_t)ptr <= std::numeric_limits<uint32_t>::max());
-    }
 };
 #endif
 } // namespace Escargot

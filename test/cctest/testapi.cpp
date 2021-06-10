@@ -328,12 +328,13 @@ int main(int argc, char* argv[])
     return RUN_ALL_TESTS();
 }
 
-TEST(ValueRef, Basic1) {
+TEST(ValueRef, Basic1)
+{
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         auto minusValue = ValueRef::create(-1);
         auto vector = ValueVectorRef::create(3);
         vector->set(0, minusValue);
-        
+
         EXPECT_TRUE(minusValue->isInt32());
         EXPECT_EQ(vector->at(0)->asInt32(), -1);
         EXPECT_EQ(minusValue->toIndex(state), -1);
@@ -365,6 +366,43 @@ TEST(ValueRef, Basic1) {
         EXPECT_EQ(plusValue->toIndex32(state), realMax);
         EXPECT_EQ(plusValue->tryToUseAsIndex32(state), realMax);
         EXPECT_EQ(plusValue->tryToUseAsIndexProperty(state), realMax);
+
+        return ValueRef::createUndefined();
+    });
+}
+
+TEST(ValueRef, Basic2)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* minusInt = ValueRef::create(-1);
+        ValueRef* plusInt = ValueRef::create(1);
+        ValueRef* doubleValue = ValueRef::create(2.7);
+        ValueRef* obj1 = ObjectRef::create(state);
+        ValueRef* obj2 = reinterpret_cast<ValueRef*>(0xfffffff0);
+
+        ValueVectorRef* valueVec = ValueVectorRef::create(3);
+        valueVec->set(0, obj1);
+        valueVec->set(1, obj2);
+        valueVec->set(2, minusInt);
+
+        EXPECT_TRUE(valueVec->at(0)->isObject() && valueVec->at(0)->asObject() == obj1);
+        EXPECT_TRUE(valueVec->at(1) == obj2);
+        EXPECT_TRUE(valueVec->at(2)->isNumber() && valueVec->at(2)->asNumber() == -1);
+
+        valueVec->erase(1);
+        valueVec->pushBack(doubleValue);
+        EXPECT_TRUE(valueVec->size() == 3);
+        EXPECT_TRUE(valueVec->at(0)->isObject() && valueVec->at(0)->asObject() == obj1);
+        EXPECT_TRUE(valueVec->at(1)->isNumber() && valueVec->at(1)->asNumber() == -1);
+        EXPECT_TRUE(!valueVec->at(2)->isInt32() && valueVec->at(2)->isNumber() && valueVec->at(2)->asNumber() == 2.7);
+
+        MapObjectRef* map = MapObjectRef::create(state);
+        map->set(state, plusInt, doubleValue);
+        map->set(state, minusInt, minusInt);
+
+        EXPECT_TRUE(map->get(state, plusInt)->equalsTo(state, doubleValue));
+        EXPECT_TRUE(map->get(state, plusInt)->asNumber() == 2.7);
+        EXPECT_TRUE(map->get(state, minusInt)->asNumber() == -1);
 
         return ValueRef::createUndefined();
     });
