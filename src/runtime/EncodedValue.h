@@ -324,12 +324,7 @@ protected:
         } else {
             int32_t i32;
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-                auto smi = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-                m_data.payload = (uint32_t)smi;
-#else
-                m_data.payload = smi;
-#endif
+                m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
                 m_data.payload = reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber()));
             } else {
@@ -358,56 +353,59 @@ public:
 
     EncodedSmallValue(EmptyValueInitTag)
     {
-        m_data.payload = (intptr_t)(ValueEmpty);
+        setPayload((intptr_t)(ValueEmpty));
     }
 
     EncodedSmallValue()
     {
-        m_data.payload = (intptr_t)(ValueUndefined);
+        setPayload((intptr_t)(ValueUndefined));
     }
 
     EncodedSmallValue(const Value& from)
     {
         if (from.isPointerValue()) {
-            m_data = EncodedSmallValueData(from.asPointerValue());
+            setPayload(reinterpret_cast<intptr_t>(from.asPointerValue()));
         } else {
             int32_t i32;
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-                m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+                setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
             } else if (from.isNumber()) {
-                m_data = EncodedSmallValueData(new DoubleInEncodedValue(from.asNumber()));
+                setPayload(reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber())));
             } else {
-                m_data.payload = from.payload();
+                setPayload(from.payload());
             }
         }
     }
 
     EncodedSmallValue(const EncodedValue& from)
     {
-        ASSERT(from.payload() <= std::numeric_limits<uint32_t>::max());
-        m_data.payload = from.payload();
+        setPayload(from.payload());
     }
 
     ALWAYS_INLINE operator EncodedValue() const
     {
-        return EncodedValue::fromPayload(reinterpret_cast<void*>(m_data.payload));
+        return EncodedValue::fromPayload(reinterpret_cast<void*>(payload()));
     }
 
     static EncodedSmallValue fromPayload(void* p)
     {
         EncodedSmallValue v;
-        v.m_data = EncodedSmallValueData(p);
+        v.setPayload(reinterpret_cast<intptr_t>(p));
         return v;
     }
 
-    int32_t payload() const
+    intptr_t payload() const
     {
+        // we should consider negative integer value at here
+        if (!isSMI()) {
+            return static_cast<uint32_t>(m_data.payload);
+        }
         return m_data.payload;
     }
 
     ALWAYS_INLINE operator Value() const
     {
-        if (HAS_SMI_TAG(m_data.payload)) {
+        if (isSMI()) {
             // we cannot use EncodedValueImpl::PlatformSmiTagging::SmiToInt
             // here because when convert negative from int32 to intptr_t loses
             // negative value
@@ -415,7 +413,7 @@ public:
             return Value(value);
         }
 
-        PointerValue* v = reinterpret_cast<PointerValue*>(m_data.payload);
+        PointerValue* v = reinterpret_cast<PointerValue*>(payload());
         if (((size_t)v) <= ValueLast) {
             return Value(v);
         } else if (v->isDoubleInEncodedValue()) {
@@ -429,67 +427,69 @@ public:
         return m_data.payload == ValueEmpty;
     }
 
-    bool isInt32()
-    {
-        return HAS_SMI_TAG(m_data.payload);
-    }
-
-    bool isStoredInHeap() const
-    {
-        if (HAS_SMI_TAG(m_data.payload)) {
-            return false;
-        }
-
-        const auto& v = m_data.payload;
-        return v > ValueLast;
-    }
-
     void operator=(PointerValue* from)
     {
-        m_data = EncodedSmallValueData(from);
+        setPayload(reinterpret_cast<intptr_t>(from));
     }
 
     bool operator==(const EncodedSmallValue& other) const
     {
-        return m_data.payload == other.payload();
+        return payload() == other.payload();
     }
 
     ALWAYS_INLINE void operator=(const EncodedValue& from)
     {
-        ASSERT(from.payload() <= std::numeric_limits<uint32_t>::max());
-        m_data.payload = from.payload();
+        setPayload(from.payload());
     }
 
     ALWAYS_INLINE void operator=(const Value& from)
     {
         if (from.isPointerValue()) {
-            m_data = EncodedSmallValueData(from.asPointerValue());
+            setPayload(reinterpret_cast<intptr_t>(from.asPointerValue()));
             return;
         }
 
         int32_t i32;
         if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-            m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+            setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
             return;
         }
 
         if (from.isNumber()) {
-            auto payload = m_data.payload;
-
-            if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
-                PointerValue* v = reinterpret_cast<PointerValue*>(m_data.payload);
+            auto pl = payload();
+            if (!isSMI() && ((size_t)pl > (size_t)ValueLast)) {
+                PointerValue* v = reinterpret_cast<PointerValue*>(pl);
                 if (v->isDoubleInEncodedValue()) {
                     ((DoubleInEncodedValue*)v)->m_value = from.asNumber();
                     return;
                 }
             }
-            m_data = EncodedSmallValueData(new DoubleInEncodedValue(from.asNumber()));
+            setPayload(reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber())));
             return;
         }
-        m_data.payload = from.payload();
+        setPayload(from.payload());
     }
 
 private:
+    ALWAYS_INLINE bool isSMI() const
+    {
+        return HAS_SMI_TAG(m_data.payload);
+    }
+
+    ALWAYS_INLINE void setPayload(intptr_t v)
+    {
+#ifndef NDEBUG
+        if (HAS_SMI_TAG(v)) {
+            // value may be negative integer
+            ASSERT(std::numeric_limits<int32_t>::min() <= v && v <= std::numeric_limits<int32_t>::max());
+        } else {
+            // otherwise, use only lower 32bits
+            ASSERT((size_t)v <= std::numeric_limits<uint32_t>::max());
+        }
+#endif
+        m_data.payload = static_cast<int32_t>(v);
+    }
+
     EncodedSmallValueData m_data;
 };
 #endif
@@ -521,7 +521,5 @@ struct is_fundamental<Escargot::EncodedSmallValue> : public true_type {
 };
 #endif
 } // namespace std
-
-#include "runtime/EncodedSmallValueVectors.h"
 
 #endif
