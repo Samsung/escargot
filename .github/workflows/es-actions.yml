@@ -17,7 +17,7 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -27,12 +27,11 @@ jobs:
         ninja -Cout/clang/x86
         ninja -Cout/clang/x64
 
-  release_x64_test:
+  release_x86_test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tc: ['octane', 'v8 chakracore spidermonkey', 'modifiedVendorTest jsc-stress sunspider-js regression-tests new-es intl']
-        build_opt: ['', '-DESCARGOT_THREADING=ON', '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_GC_SMALL_CONFIG=ON']
+        tc: ['octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
     steps:
     - uses: actions/checkout@v2
       with:
@@ -41,7 +40,43 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+    - name: Install ICU
+      run: |
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
+        dpkg -X libicu-dev_66.1-2ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
+    - name: Build x86
+      env:
+        CXXFLAGS: -I$GITHUB_WORKSPACE/icu32/usr/include
+        LDFLAGS: -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        cmake -H. -Bout/release/x86 $BUILD_OPTIONS
+        ninja -Cout/release/x86
+    - name: Run release-x86 test
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+      run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
+
+  release_x64_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tc: ['octane', 'v8 chakracore spidermonkey']
+        build_opt: ['', '-DESCARGOT_THREADING=ON']
+        exclude:
+          # exclude spidermonkey on threading-enabled build (TODO)
+          - tc: 'v8 chakracore spidermonkey'
+            build_opt: '-DESCARGOT_THREADING=ON'
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
+    - name: Install Packages
+      run: sudo apt install -y ninja-build
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -49,9 +84,11 @@ jobs:
         cmake -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
     - name: Run release-x64 test
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}
 
-  debug_x64_test:
+  debug_mode_test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -61,15 +98,26 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
-    - name: Build x64
-      env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+    - name: Install ICU
       run: |
-        cmake -H. -Bout/debug/x64 $BUILD_OPTIONS
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
+        dpkg -X libicu-dev_66.1-2ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
+    - name: Build x86/x64
+      env:
+        CXXFLAGS: -I$GITHUB_WORKSPACE/icu32/usr/include
+        LDFLAGS: -L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu
+        BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS_X64: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        cmake -H. -Bout/debug/x86 $BUILD_OPTIONS_X86
+        cmake -H. -Bout/debug/x64 $BUILD_OPTIONS_X64
+        ninja -Cout/debug/x86
         ninja -Cout/debug/x64
-    - name: Run debug-x64 test
-      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
+    - name: Run debug-mode test
+      run: |
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/debug/x86/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
   debugger_test:
     runs-on: ubuntu-latest
@@ -81,7 +129,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt-get install ninja-build
+      run: sudo apt install -y ninja-build
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -93,7 +141,7 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-server-source
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-client-source
 
-  cctest:
+  api_test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -103,7 +151,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt-get install ninja-build
+      run: sudo apt install -y ninja-build
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=cctest -GNinja
@@ -123,7 +171,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
@@ -180,7 +228,7 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt-get install ninja-build gcc-multilib g++-multilib
+      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_66.1-2ubuntu2_i386.deb
@@ -209,27 +257,6 @@ jobs:
     - name: Run x64 test
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
 
-  wasm_spec_test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./third_party/wasm/wabt
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-    - name: Prepare Build
-      run: |
-        git fetch -t
-        mkdir build
-    - name: Build WABT
-      working-directory: ./third_party/wasm/wabt/build
-      run: |
-        cmake ..
-        cmake --build .
-    - name: Run Spec Test
-      run: sudo ./test/run-tests.py --bindir=./build test/spec/
-
   coverity_scan:
     if: ${{ github.repository == 'Samsung/escargot' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
@@ -238,7 +265,7 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt-get install ninja-build
+      run: sudo apt install -y ninja-build
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |
