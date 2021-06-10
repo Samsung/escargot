@@ -17,50 +17,46 @@
  *  USA
  */
 
-#ifndef __EscargotBackingStore__
-#define __EscargotBackingStore__
+#if defined(ENABLE_THREADING)
+
+#ifndef __EscargotSharedArrayBufferObject__
+#define __EscargotSharedArrayBufferObject__
+
+#include "runtime/Context.h"
+#include "runtime/BackingStore.h"
 
 namespace Escargot {
 
-using BackingStoreDeleterCallback = void (*)(void* data, size_t length,
-                                             void* deleterData);
-
-class BackingStore : public gc {
-    friend class ArrayBufferObject;
-
+class SharedArrayBufferObject : public Object {
 public:
-    BackingStore(size_t byteLength);
-    BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isShared = false);
+    SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength);
 
-    void* data() const
+    static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
+
+    static const uint32_t maxArrayBufferSize = 210000000;
+
+    Optional<BackingStore*> backingStore()
     {
-        return m_data;
+        return m_backingStore;
     }
 
-    size_t byteLength() const
+    virtual bool isSharedArrayBufferObject() const
     {
-        return m_byteLength;
+        return true;
     }
 
-    bool isShared() const
-    {
-        return m_isShared;
-    }
-
-    void deallocate();
+    ALWAYS_INLINE const uint8_t* data() { return m_data; }
+    ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
-    // Indicates whether the backing store was created as Shared Data Block
-    bool m_isShared;
-    void* m_data;
-    size_t m_byteLength;
-    BackingStoreDeleterCallback m_deleter;
-    void* m_deleterData;
+    uint8_t* m_data; // Points backing stores data address
+    size_t m_byteLength; // Indicates backing stores byte length
+    Optional<BackingStore*> m_backingStore;
 };
-
 } // namespace Escargot
 
+#endif
 #endif

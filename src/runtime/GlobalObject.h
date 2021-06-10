@@ -207,6 +207,15 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, NAME) \
     F(finalizationRegistry, FunctionObject, NAME)          \
     F(finalizationRegistryPrototype, Object, NAME)
+
+#if defined(ENABLE_THREADING)
+#define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, NAME) \
+    F(sharedArrayBuffer, FunctionObject, Name)          \
+    F(sharedArrayBufferPrototype, Object, Name)
+#else
+#define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, NAME)
+#endif
+
 //WebAssembly
 #if defined(ENABLE_WASM)
 #define GLOBALOBJECT_BUILTIN_WASM(F, NAME)     \
@@ -250,6 +259,7 @@ class FunctionObject;
     GLOBALOBJECT_BUILTIN_REFLECT(F, Reflect)                             \
     GLOBALOBJECT_BUILTIN_REGEXP(F, RegExp)                               \
     GLOBALOBJECT_BUILTIN_SET(F, Set)                                     \
+    GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, SharedArrayBuffer)         \
     GLOBALOBJECT_BUILTIN_STRING(F, String)                               \
     GLOBALOBJECT_BUILTIN_SYMBOL(F, Symbol)                               \
     GLOBALOBJECT_BUILTIN_BIGINT(F, BigInt)                               \
@@ -351,6 +361,9 @@ private:
     void installAsyncIterator(ExecutionState& state);
     void installAsyncFromSyncIterator(ExecutionState& state);
     void installAsyncGeneratorFunction(ExecutionState& state);
+#if defined(ENABLE_THREADING)
+    void installSharedArrayBuffer(ExecutionState& state);
+#endif
 #if defined(ENABLE_WASM)
     void installWASM(ExecutionState& state);
 #endif
