@@ -502,6 +502,14 @@ namespace Escargot {
 #define FOR_EACH_STATIC_WASM_STRING(F)
 #endif
 
+#if defined(ENABLE_THREADING)
+#define FOR_EACH_STATIC_THREADING_STRING(F) \
+    F(Atomics)                              \
+    F(SharedArrayBuffer)
+#else
+#define FOR_EACH_STATIC_THREADING_STRING(F)
+#endif
+
 #define FOR_EACH_STATIC_NUMBER(F) \
     F(0)                          \
     F(1)                          \
@@ -865,6 +873,7 @@ public:
 #define DECLARE_STATIC_STRING(name) AtomicString name;
     FOR_EACH_STATIC_STRING(DECLARE_STATIC_STRING);
     FOR_EACH_STATIC_WASM_STRING(DECLARE_STATIC_STRING);
+    FOR_EACH_STATIC_THREADING_STRING(DECLARE_STATIC_STRING);
 #undef DECLARE_STATIC_STRING
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();

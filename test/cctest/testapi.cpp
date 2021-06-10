@@ -889,7 +889,6 @@ TEST(BackingStore, Basic1)
         auto abo = ArrayBufferObjectRef::create(state);
         abo->attachBuffer(bs);
         EXPECT_TRUE(bs->data() == abo->rawBuffer());
-        EXPECT_TRUE(bs->isShared());
         EXPECT_TRUE(abo->byteLength() == 1024);
         abo->detachArrayBuffer();
         EXPECT_TRUE(abo->byteLength() == 0);

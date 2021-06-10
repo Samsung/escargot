@@ -22,8 +22,22 @@
 
 namespace Escargot {
 
-BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData)
-    : m_isShared(false)
+void* BackingStore::operator new(size_t size)
+{
+    static bool typeInited = false;
+    static GC_descr descr;
+    if (!typeInited) {
+        // only mark m_deleterData
+        GC_word obj_bitmap[GC_BITMAP_SIZE(BackingStore)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(BackingStore, m_deleterData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(BackingStore));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isShared)
+    : m_isShared(isShared)
     , m_data(data)
     , m_byteLength(byteLength)
     , m_deleter(callback)
@@ -45,8 +59,10 @@ BackingStore::BackingStore(size_t byteLength)
 {
 }
 
-BackingStore::~BackingStore()
+void BackingStore::deallocate()
 {
+    // Shared Data Block should not be deleted explicitly
+    ASSERT(!m_isShared);
     m_deleter(m_data, m_byteLength, m_deleterData);
     GC_REGISTER_FINALIZER_NO_ORDER(this, nullptr, nullptr, nullptr, nullptr);
 }

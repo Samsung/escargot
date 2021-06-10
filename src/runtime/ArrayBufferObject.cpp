@@ -93,7 +93,6 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
         platform->onFreeArrayBufferObjectDataBuffer(data, length);
     },
                                       platform);
-    m_backingStore->m_isShared = true;
     m_data = (uint8_t*)m_backingStore->data();
     m_byteLength = byteLength;
 }
@@ -104,7 +103,6 @@ void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
 
     m_mayPointsSharedBackingStore = true;
     m_backingStore = backingStore;
-    m_backingStore->m_isShared = true;
     m_data = (uint8_t*)backingStore->data();
     m_byteLength = backingStore->byteLength();
 }
@@ -112,7 +110,8 @@ void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
 void ArrayBufferObject::detachArrayBuffer()
 {
     if (m_data && !m_mayPointsSharedBackingStore) {
-        delete m_backingStore.value();
+        // if backingstore is definitely not shared, we deallocate the backingstore immediately.
+        m_backingStore.value()->deallocate();
     }
     m_data = nullptr;
     m_byteLength = 0;

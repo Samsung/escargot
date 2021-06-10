@@ -33,7 +33,7 @@ namespace Escargot {
     ArrayBufferObject* NAME = thisValue.asObject()->asArrayBufferObject();                                                                                                                                                                               \
     NAME->throwTypeErrorIfDetached(state);
 
-// https://www.ecma-international.org/ecma-262/10.0/#sec-arraybuffer-length
+// https://262.ecma-international.org/#sec-arraybuffer-constructor
 static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {

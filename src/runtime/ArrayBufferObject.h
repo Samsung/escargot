@@ -42,7 +42,6 @@ enum class TypedArrayType : unsigned {
 class ArrayBufferObject : public Object {
     friend void initializeCustomAllocators();
     friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr);
-    friend void careArrayBufferObjectsOnGCEvent(GC_EventType evtType);
 
 public:
     explicit ArrayBufferObject(ExecutionState& state);

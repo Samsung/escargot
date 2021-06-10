@@ -1447,7 +1447,7 @@ public:
 
     void* data();
     size_t byteLength();
-    // Indicates whether the backing store was created for an ArrayBufferObject
+    // Indicates whether the backing store is Shared Data Block (for SharedArrayBuffer)
     bool isShared();
 };
 
