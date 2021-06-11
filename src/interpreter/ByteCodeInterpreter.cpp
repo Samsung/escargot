@@ -2830,10 +2830,18 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
                                                                ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
         } else if (code->m_stage == InitializeClass::SetStaticPrivateFieldData) {
             Value v = registerFile[code->m_staticPrivatePropertySetRegisterIndex];
-            if (!v.isUndefined()) {
+            auto type = code->m_setStaticPrivateFieldType;
+            if (type == ScriptClassConstructorFunctionObject::PrivateFieldValue && !v.isUndefined()) {
                 v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConstructor), classConstructor);
             }
-            classConstructor->privateFieldAdd(state, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v);
+            bool isGetter = type == ScriptClassConstructorFunctionObject::PrivateFieldGetter;
+            bool isSetter = type == ScriptClassConstructorFunctionObject::PrivateFieldSetter;
+
+            if (isGetter || isSetter) {
+                classConstructor->privateAccessorAdd(state, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v.asFunction(), isGetter, isSetter);
+            } else {
+                classConstructor->privateFieldAdd(state, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v);
+            }
         } else {
             ASSERT(code->m_stage == InitializeClass::CleanupStaticData);
             classConstructor->m_staticFieldInitData.clear();
