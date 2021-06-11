@@ -566,12 +566,13 @@ public:
     enum SetStaticPrivateFieldDataTag {
         SetStaticPrivateFieldDataTagValue
     };
-    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t valueIndex, SetStaticPrivateFieldDataTag)
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t valueIndex, const size_t type, SetStaticPrivateFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetStaticPrivateFieldData)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_staticPrivateFieldSetIndex(fieldIndex)
         , m_staticPrivatePropertySetRegisterIndex(valueIndex)
+        , m_setStaticPrivateFieldType(type)
     {
     }
 
@@ -629,6 +630,7 @@ public:
         struct {
             uint16_t m_staticPrivateFieldSetIndex;
             ByteCodeRegisterIndex m_staticPrivatePropertySetRegisterIndex;
+            uint16_t m_setStaticPrivateFieldType;
         }; // SetStaticPrivateFieldData
     };
 #ifndef NDEBUG
@@ -657,7 +659,7 @@ public:
         } else if (m_stage == Stage::SetStaticFieldData) {
             printf("set static field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertySetRegisterIndex);
         } else if (m_stage == Stage::SetStaticPrivateFieldData) {
-            printf("set static private field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertySetRegisterIndex);
+            printf("set static private field r%d.? = r%d(%d)", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertySetRegisterIndex, (int)m_setStaticPrivateFieldType);
         } else {
             ASSERT(m_stage == Stage::CleanupStaticData);
             printf("cleanup static field data r%d", (int)m_classConstructorRegisterIndex);

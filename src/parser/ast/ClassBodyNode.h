@@ -169,7 +169,7 @@ public:
                 p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
                 if (p->isStatic()) {
                     if (p->isPrivate()) {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, InitializeClass::SetStaticPrivateFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, ScriptClassConstructorFunctionObject::PrivateFieldValue, InitializeClass::SetStaticPrivateFieldDataTagValue), context, this);
                     } else {
                         codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, InitializeClass::SetStaticFieldDataTagValue), context, this);
                     }
@@ -199,7 +199,9 @@ public:
                 size_t type = privateElementType(p);
 
                 if (p->isStatic()) {
-                    // TODO
+                    codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, type,
+                                                        InitializeClass::SetStaticPrivateFieldDataTagValue),
+                                        context, this);
                     staticFieldIndex++;
                 } else {
                     codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, valueIndex,
