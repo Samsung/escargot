@@ -63,7 +63,7 @@ jobs:
     strategy:
       matrix:
         tc: ['octane', 'v8 chakracore spidermonkey']
-        build_opt: ['', '-DESCARGOT_THREADING=ON']
+        build_opt: ['', '-DESCARGOT_THREADING=ON', '-DESCARGOT_SMALL_CONFIG=ON']
         exclude:
           # exclude spidermonkey on threading-enabled build (TODO)
           - tc: 'v8 chakracore spidermonkey'
