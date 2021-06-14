@@ -1484,7 +1484,6 @@
     <test id="language/expressions/call/tco-non-eval-function-dynamic"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-global"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-with"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/grammar-private-field-optional-chaining"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/private-field-on-nested-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/private-getter-on-nested-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/private-getter-shadowed-by-field-on-nested-class"><reason>TODO</reason></test>
@@ -1807,7 +1806,6 @@
     <test id="language/statements/block/tco-stmt"><reason>TODO</reason></test>
     <test id="language/statements/block/tco-stmt-list"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/get-access-of-missing-shadowed-private-getter"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/grammar-private-field-optional-chaining"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-accessor-is-visible-in-computed-properties"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-field-is-visible-in-computed-properties"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-field-on-nested-class"><reason>TODO</reason></test>
