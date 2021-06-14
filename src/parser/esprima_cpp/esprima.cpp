@@ -1704,8 +1704,9 @@ public:
         if (UNLIKELY(allowPrivate)) {
             *isPrivateOut = this->match(PunctuatorKind::Hash);
             if (*isPrivateOut) {
+                size_t oldStart = this->lookahead.start;
                 this->nextToken();
-                if (node.index + 1 != this->lookahead.start
+                if (oldStart + 1 != this->lookahead.start
                     || this->lookahead.type != Token::IdentifierToken) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
@@ -5915,7 +5916,12 @@ public:
                 if (find) {
                     break;
                 }
-                c = c->m_parent;
+
+                if (c->m_isClassExpression) {
+                    c = c->m_parent;
+                } else {
+                    break;
+                }
             }
             if (!find) {
                 // throw error
@@ -5934,11 +5940,11 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, MetaNode& endNode, const AtomicString& className)
+    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, bool isClassExpression, MetaNode& endNode, const AtomicString& className)
     {
         MetaNode node = this->createNode();
 
-        ASTClassInfo* newClassInfo = new (allocator) ASTClassInfo();
+        ASTClassInfo* newClassInfo = new (allocator) ASTClassInfo(isClassExpression);
         ASTClassInfo* oldClassInfo = this->currentClassInfo;
 
         this->currentClassInfo = newClassInfo;
@@ -5989,7 +5995,7 @@ public:
     }
 
     template <class ASTBuilder, typename ClassType>
-    ASTNode classDeclaration(ASTBuilder& builder, bool identifierIsOptional)
+    ASTNode classDeclaration(ASTBuilder& builder, bool isClassExpression)
     {
         bool previousStrict = this->context->strict;
         this->context->strict = true;
@@ -5999,7 +6005,7 @@ public:
         ASTNode idNode = nullptr;
         AtomicString id;
 
-        if (!identifierIsOptional || this->lookahead.type == Token::IdentifierToken) {
+        if (!isClassExpression || this->lookahead.type == Token::IdentifierToken) {
             ALLOC_TOKEN(idToken);
             *idToken = this->lookahead;
             idNode = this->parseVariableIdentifier(builder);
@@ -6013,7 +6019,7 @@ public:
             }
         }
 
-        if (!identifierIsOptional && id.string()->length()) {
+        if (!isClassExpression && id.string()->length()) {
             addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::LetKeyword);
         }
 
@@ -6032,7 +6038,7 @@ public:
         }
 
         MetaNode endNode;
-        ASTNode classBody = this->parseClassBody(builder, hasSuperClass, endNode, id);
+        ASTNode classBody = this->parseClassBody(builder, hasSuperClass, isClassExpression, endNode, id);
 
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
