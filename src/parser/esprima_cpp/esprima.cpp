@@ -2393,7 +2393,7 @@ public:
                         if (this->lookahead.type == Token::TemplateToken) {
                             this->throwUnexpectedToken(this->lookahead);
                         }
-                    } else if (this->lookahead.type == Token::IdentifierToken) {
+                    } else if (this->lookahead.type == Token::IdentifierToken || this->match(PunctuatorKind::Hash)) {
                         seenOptionalExpression = true;
                         exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, seenOptionalExpression);
                         if (this->lookahead.type == Token::TemplateToken) {
