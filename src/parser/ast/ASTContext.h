@@ -195,6 +195,7 @@ struct ASTScopeContextClassPrivateUsingInfo {
 typedef Vector<ASTScopeContextClassPrivateUsingInfo, GCUtil::gc_malloc_atomic_allocator<ASTScopeContextClassPrivateUsingInfo>, ComputeReservedCapacityFunctionWithLog2<>> ASTScopeContextClassPrivateUsingInfoVector;
 
 struct ASTClassInfo {
+    bool m_isClassExpression;
     ASTClassInfo *m_parent;
     ASTClassInfo *m_firstChild;
     ASTClassInfo *m_lastChild;
@@ -212,6 +213,7 @@ struct ASTClassInfo {
             m_lastChild->m_nextSibling = child;
             m_lastChild = child;
         }
+        child->m_parent = this;
     }
 
     ASTClassInfo *firstChild()
@@ -255,8 +257,9 @@ struct ASTClassInfo {
         return allocator.allocate(size);
     }
 
-    explicit ASTClassInfo()
-        : m_parent(nullptr)
+    explicit ASTClassInfo(bool isClassExpression)
+        : m_isClassExpression(isClassExpression)
+        , m_parent(nullptr)
         , m_firstChild(nullptr)
         , m_lastChild(nullptr)
         , m_nextSibling(nullptr)
