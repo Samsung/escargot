@@ -310,8 +310,8 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     m_buffer.ensureSize(sizeof(size_t));
     m_buffer.put(size);
     for (size_t i = 0; i < size; i++) {
-        ASSERT(((PointerValue*)bigIntData[i])->isBigInt());
-        bf_t* bf = ((PointerValue*)bigIntData[i])->asBigInt()->bf();
+        ASSERT(static_cast<PointerValue*>(bigIntData[i])->isBigInt());
+        bf_t* bf = static_cast<PointerValue*>(bigIntData[i])->asBigInt()->bf();
         m_buffer.putBF(bf);
     }
 
@@ -386,7 +386,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
         Context* context = block->codeBlock()->context();
 
         while (code < end) {
-            ByteCode* currentCode = (ByteCode*)code;
+            ByteCode* currentCode = reinterpret_cast<ByteCode*>(code);
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
@@ -394,7 +394,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
 #endif
             switch (opcode) {
             case LoadLiteralOpcode: {
-                LoadLiteral* bc = (LoadLiteral*)currentCode;
+                LoadLiteral* bc = static_cast<LoadLiteral*>(currentCode);
                 Value value = bc->m_value;
                 if (value.isPointerValue()) {
                     if (LIKELY(value.asPointerValue()->isString())) {
@@ -424,22 +424,22 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case LoadByNameOpcode: {
-                LoadByName* bc = (LoadByName*)currentCode;
+                LoadByName* bc = static_cast<LoadByName*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case StoreByNameOpcode: {
-                StoreByName* bc = (StoreByName*)currentCode;
+                StoreByName* bc = static_cast<StoreByName*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case InitializeByNameOpcode: {
-                InitializeByName* bc = (InitializeByName*)currentCode;
+                InitializeByName* bc = static_cast<InitializeByName*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case CreateFunctionOpcode: {
-                CreateFunction* bc = (CreateFunction*)currentCode;
+                CreateFunction* bc = static_cast<CreateFunction*>(currentCode);
                 InterpretedCodeBlock* codeBlock = bc->m_codeBlock;
                 ASSERT(!!codeBlock);
                 size_t codeBlockIndex = VectorUtil::findInVector(block->codeBlock()->children(), codeBlock);
@@ -448,7 +448,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case InitializeClassOpcode: {
-                InitializeClass* bc = (InitializeClass*)currentCode;
+                InitializeClass* bc = static_cast<InitializeClass*>(currentCode);
                 if (bc->m_stage == InitializeClass::CreateClass) {
                     InterpretedCodeBlock* codeBlock = bc->m_codeBlock;
                     if (codeBlock) {
@@ -473,40 +473,54 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 }
                 break;
             }
+            case ComplexSetObjectOperationOpcode: {
+                ComplexSetObjectOperation* bc = static_cast<ComplexSetObjectOperation*>(currentCode);
+                if (bc->m_type == ComplexSetObjectOperation::Private) {
+                    STORE_ATOMICSTRING_RELOC(m_propertyName);
+                }
+                break;
+            }
+            case ComplexGetObjectOperationOpcode: {
+                ComplexGetObjectOperation* bc = static_cast<ComplexGetObjectOperation*>(currentCode);
+                if (bc->m_type == ComplexGetObjectOperation::Private) {
+                    STORE_ATOMICSTRING_RELOC(m_propertyName);
+                }
+                break;
+            }
             case ObjectDefineOwnPropertyWithNameOperationOpcode: {
-                ObjectDefineOwnPropertyWithNameOperation* bc = (ObjectDefineOwnPropertyWithNameOperation*)currentCode;
+                ObjectDefineOwnPropertyWithNameOperation* bc = static_cast<ObjectDefineOwnPropertyWithNameOperation*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
             case InitializeGlobalVariableOpcode: {
-                InitializeGlobalVariable* bc = (InitializeGlobalVariable*)currentCode;
+                InitializeGlobalVariable* bc = static_cast<InitializeGlobalVariable*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_variableName);
                 break;
             }
             case UnaryTypeofOpcode: {
-                UnaryTypeof* bc = (UnaryTypeof*)currentCode;
+                UnaryTypeof* bc = static_cast<UnaryTypeof*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_id);
                 break;
             }
             case UnaryDeleteOpcode: {
-                UnaryDelete* bc = (UnaryDelete*)currentCode;
+                UnaryDelete* bc = static_cast<UnaryDelete*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_id);
                 break;
             }
             case CallFunctionComplexCaseOpcode: {
-                CallFunctionComplexCase* bc = (CallFunctionComplexCase*)currentCode;
+                CallFunctionComplexCase* bc = static_cast<CallFunctionComplexCase*>(currentCode);
                 if (bc->m_kind == CallFunctionComplexCase::InWithScope) {
                     STORE_ATOMICSTRING_RELOC(m_calleeName);
                 }
                 break;
             }
             case GetMethodOpcode: {
-                GetMethod* bc = (GetMethod*)currentCode;
+                GetMethod* bc = static_cast<GetMethod*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
             case LoadRegExpOpcode: {
-                LoadRegExp* bc = (LoadRegExp*)currentCode;
+                LoadRegExp* bc = static_cast<LoadRegExp*>(currentCode);
 
                 String* bodyString = bc->m_body;
                 String* optionString = bc->m_option;
@@ -527,7 +541,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case BlockOperationOpcode: {
-                BlockOperation* bc = (BlockOperation*)currentCode;
+                BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
                 InterpretedCodeBlock::BlockInfo* info = bc->m_blockInfo;
                 size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
                 ASSERT(infoIndex != VectorUtil::invalidIndex);
@@ -535,7 +549,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
-                ReplaceBlockLexicalEnvironmentOperation* bc = (ReplaceBlockLexicalEnvironmentOperation*)currentCode;
+                ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
                 InterpretedCodeBlock::BlockInfo* info = bc->m_blockInfo;
                 size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
                 ASSERT(infoIndex != VectorUtil::invalidIndex);
@@ -543,43 +557,43 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case ResolveNameAddressOpcode: {
-                ResolveNameAddress* bc = (ResolveNameAddress*)currentCode;
+                ResolveNameAddress* bc = static_cast<ResolveNameAddress*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case StoreByNameWithAddressOpcode: {
-                StoreByNameWithAddress* bc = (StoreByNameWithAddress*)currentCode;
+                StoreByNameWithAddress* bc = static_cast<StoreByNameWithAddress*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case GetObjectPreComputedCaseOpcode: {
-                GetObjectPreComputedCase* bc = (GetObjectPreComputedCase*)currentCode;
+                GetObjectPreComputedCase* bc = static_cast<GetObjectPreComputedCase*>(currentCode);
                 ASSERT(!bc->m_inlineCache);
                 ASSERT(bc->m_propertyName.hasAtomicString());
                 STORE_ATOMICSTRING_RELOC(m_propertyName.asAtomicString());
                 break;
             }
             case SetObjectPreComputedCaseOpcode: {
-                SetObjectPreComputedCase* bc = (SetObjectPreComputedCase*)currentCode;
+                SetObjectPreComputedCase* bc = static_cast<SetObjectPreComputedCase*>(currentCode);
                 ASSERT(!bc->m_inlineCache);
                 ASSERT(bc->m_propertyName.hasAtomicString());
                 STORE_ATOMICSTRING_RELOC(m_propertyName.asAtomicString());
                 break;
             }
             case GetGlobalVariableOpcode: {
-                GetGlobalVariable* bc = (GetGlobalVariable*)currentCode;
+                GetGlobalVariable* bc = static_cast<GetGlobalVariable*>(currentCode);
                 ASSERT(!!bc->m_slot);
                 STORE_ATOMICSTRING_RELOC(m_slot->m_propertyName);
                 break;
             }
             case SetGlobalVariableOpcode: {
-                SetGlobalVariable* bc = (SetGlobalVariable*)currentCode;
+                SetGlobalVariable* bc = static_cast<SetGlobalVariable*>(currentCode);
                 ASSERT(!!bc->m_slot);
                 STORE_ATOMICSTRING_RELOC(m_slot->m_propertyName);
                 break;
             }
             case ThrowStaticErrorOperationOpcode: {
-                ThrowStaticErrorOperation* bc = (ThrowStaticErrorOperation*)currentCode;
+                ThrowStaticErrorOperation* bc = static_cast<ThrowStaticErrorOperation*>(currentCode);
                 STORE_ATOMICSTRING_RELOC(m_templateDataString);
                 break;
             }
@@ -648,7 +662,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
 
     // InterpretedCodeBlock::m_parent
     size = m_buffer.get<size_t>();
-    codeBlock->m_parent = (InterpretedCodeBlock*)size;
+    codeBlock->m_parent = reinterpret_cast<InterpretedCodeBlock*>(size);
 
     // InterpretedCodeBlock::m_children
     ASSERT(!codeBlock->hasChildren());
@@ -659,7 +673,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         codeBlockVector->resizeWithUninitializedValues(vectorSize);
         for (size_t i = 0; i < vectorSize; i++) {
             size_t childIndex = m_buffer.get<size_t>();
-            (*codeBlockVector)[i] = (InterpretedCodeBlock*)childIndex;
+            (*codeBlockVector)[i] = reinterpret_cast<InterpretedCodeBlock*>(childIndex);
         }
         codeBlock->setChildren(codeBlockVector);
     }
@@ -899,8 +913,9 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
     return table;
 }
 
-#define LOAD_ATOMICSTRING_RELOC(member)   \
-    size_t stringIndex = info.dataOffset; \
+#define LOAD_ATOMICSTRING_RELOC(member)                              \
+    ASSERT(info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING); \
+    size_t stringIndex = info.dataOffset;                            \
     bc->member = m_stringTable->get(stringIndex);
 
 void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
@@ -937,7 +952,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
 
         for (size_t i = 0; i < relocInfoVector.size(); i++) {
             ByteCodeRelocInfo& info = relocInfoVector[i];
-            ByteCode* currentCode = (ByteCode*)(code + info.codeOffset);
+            ByteCode* currentCode = reinterpret_cast<ByteCode*>(code + info.codeOffset);
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
@@ -946,7 +961,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
 #endif
             switch (opcode) {
             case LoadLiteralOpcode: {
-                LoadLiteral* bc = (LoadLiteral*)currentCode;
+                LoadLiteral* bc = static_cast<LoadLiteral*>(currentCode);
                 size_t dataIndex = info.dataOffset;
 
                 switch (info.relocType) {
@@ -965,7 +980,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                     break;
                 }
                 case ByteCodeRelocType::RELOC_BIGINT: {
-                    PointerValue* value = (PointerValue*)bigIntData[dataIndex];
+                    PointerValue* value = static_cast<PointerValue*>(bigIntData[dataIndex]);
                     bc->m_value = Value(value->asBigInt());
                     break;
                 }
@@ -981,22 +996,22 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 break;
             }
             case LoadByNameOpcode: {
-                LoadByName* bc = (LoadByName*)currentCode;
+                LoadByName* bc = static_cast<LoadByName*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case StoreByNameOpcode: {
-                StoreByName* bc = (StoreByName*)currentCode;
+                StoreByName* bc = static_cast<StoreByName*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case InitializeByNameOpcode: {
-                InitializeByName* bc = (InitializeByName*)currentCode;
+                InitializeByName* bc = static_cast<InitializeByName*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case CreateFunctionOpcode: {
-                CreateFunction* bc = (CreateFunction*)currentCode;
+                CreateFunction* bc = static_cast<CreateFunction*>(currentCode);
                 InterpretedCodeBlockVector& children = codeBlock->children();
                 size_t childIndex = info.dataOffset;
                 ASSERT(childIndex < children.size());
@@ -1004,7 +1019,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 break;
             }
             case InitializeClassOpcode: {
-                InitializeClass* bc = (InitializeClass*)currentCode;
+                InitializeClass* bc = static_cast<InitializeClass*>(currentCode);
 
                 if (bc->m_stage == InitializeClass::CreateClass) {
                     size_t dataIndex = info.dataOffset;
@@ -1022,39 +1037,53 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 }
                 break;
             }
+            case ComplexSetObjectOperationOpcode: {
+                ComplexSetObjectOperation* bc = static_cast<ComplexSetObjectOperation*>(currentCode);
+                if (bc->m_type == ComplexSetObjectOperation::Private) {
+                    LOAD_ATOMICSTRING_RELOC(m_propertyName);
+                }
+                break;
+            }
+            case ComplexGetObjectOperationOpcode: {
+                ComplexGetObjectOperation* bc = static_cast<ComplexGetObjectOperation*>(currentCode);
+                if (bc->m_type == ComplexGetObjectOperation::Private) {
+                    LOAD_ATOMICSTRING_RELOC(m_propertyName);
+                }
+                break;
+            }
             case ObjectDefineOwnPropertyWithNameOperationOpcode: {
-                ObjectDefineOwnPropertyWithNameOperation* bc = (ObjectDefineOwnPropertyWithNameOperation*)currentCode;
+                ObjectDefineOwnPropertyWithNameOperation* bc = static_cast<ObjectDefineOwnPropertyWithNameOperation*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
             case InitializeGlobalVariableOpcode: {
-                InitializeGlobalVariable* bc = (InitializeGlobalVariable*)currentCode;
+                InitializeGlobalVariable* bc = static_cast<InitializeGlobalVariable*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_variableName);
                 break;
             }
             case UnaryTypeofOpcode: {
-                UnaryTypeof* bc = (UnaryTypeof*)currentCode;
+                UnaryTypeof* bc = static_cast<UnaryTypeof*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_id);
                 break;
             }
             case UnaryDeleteOpcode: {
-                UnaryDelete* bc = (UnaryDelete*)currentCode;
+                UnaryDelete* bc = static_cast<UnaryDelete*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_id);
                 break;
             }
             case CallFunctionComplexCaseOpcode: {
-                CallFunctionComplexCase* bc = (CallFunctionComplexCase*)currentCode;
+                CallFunctionComplexCase* bc = static_cast<CallFunctionComplexCase*>(currentCode);
                 ASSERT(bc->m_kind == CallFunctionComplexCase::InWithScope);
                 LOAD_ATOMICSTRING_RELOC(m_calleeName);
                 break;
             }
             case GetMethodOpcode: {
-                GetMethod* bc = (GetMethod*)currentCode;
+                GetMethod* bc = static_cast<GetMethod*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
             case LoadRegExpOpcode: {
-                LoadRegExp* bc = (LoadRegExp*)currentCode;
+                LoadRegExp* bc = static_cast<LoadRegExp*>(currentCode);
                 if (bodyStringForLoadRegExp) {
                     ASSERT(info.dataOffset < stringLiteralData.size());
                     bc->m_body = stringLiteralData[info.dataOffset];
@@ -1071,55 +1100,55 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 break;
             }
             case BlockOperationOpcode: {
-                BlockOperation* bc = (BlockOperation*)currentCode;
+                BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
                 size_t blockIndex = info.dataOffset;
                 ASSERT(blockIndex < codeBlock->m_blockInfos.size());
                 bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
                 break;
             }
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
-                ReplaceBlockLexicalEnvironmentOperation* bc = (ReplaceBlockLexicalEnvironmentOperation*)currentCode;
+                ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
                 size_t blockIndex = info.dataOffset;
                 ASSERT(blockIndex < codeBlock->m_blockInfos.size());
                 bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
                 break;
             }
             case ResolveNameAddressOpcode: {
-                ResolveNameAddress* bc = (ResolveNameAddress*)currentCode;
+                ResolveNameAddress* bc = static_cast<ResolveNameAddress*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case StoreByNameWithAddressOpcode: {
-                StoreByNameWithAddress* bc = (StoreByNameWithAddress*)currentCode;
+                StoreByNameWithAddress* bc = static_cast<StoreByNameWithAddress*>(currentCode);
                 LOAD_ATOMICSTRING_RELOC(m_name);
                 break;
             }
             case GetObjectPreComputedCaseOpcode: {
-                GetObjectPreComputedCase* bc = (GetObjectPreComputedCase*)currentCode;
+                GetObjectPreComputedCase* bc = static_cast<GetObjectPreComputedCase*>(currentCode);
                 ASSERT(!bc->m_inlineCache);
                 LOAD_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
             case SetObjectPreComputedCaseOpcode: {
-                SetObjectPreComputedCase* bc = (SetObjectPreComputedCase*)currentCode;
+                SetObjectPreComputedCase* bc = static_cast<SetObjectPreComputedCase*>(currentCode);
                 ASSERT(!bc->m_inlineCache);
                 LOAD_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }
             case GetGlobalVariableOpcode: {
-                GetGlobalVariable* bc = (GetGlobalVariable*)currentCode;
+                GetGlobalVariable* bc = static_cast<GetGlobalVariable*>(currentCode);
                 size_t stringIndex = info.dataOffset;
                 bc->m_slot = context->ensureGlobalVariableAccessCacheSlot(m_stringTable->get(stringIndex));
                 break;
             }
             case SetGlobalVariableOpcode: {
-                SetGlobalVariable* bc = (SetGlobalVariable*)currentCode;
+                SetGlobalVariable* bc = static_cast<SetGlobalVariable*>(currentCode);
                 size_t stringIndex = info.dataOffset;
                 bc->m_slot = context->ensureGlobalVariableAccessCacheSlot(m_stringTable->get(stringIndex));
                 break;
             }
             case ThrowStaticErrorOperationOpcode: {
-                ThrowStaticErrorOperation* bc = (ThrowStaticErrorOperation*)currentCode;
+                ThrowStaticErrorOperation* bc = static_cast<ThrowStaticErrorOperation*>(currentCode);
                 bc->m_errorMessage = ErrorObject::Messages::CodeCache_Loaded_StaticError;
                 LOAD_ATOMICSTRING_RELOC(m_templateDataString);
                 break;
