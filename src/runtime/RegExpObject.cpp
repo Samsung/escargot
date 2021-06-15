@@ -65,6 +65,18 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastInd
     , m_legacyFeaturesEnabled(true)
 {
     initRegExpObject(state, hasLastIndex);
+
+    GC_REGISTER_FINALIZER_NO_ORDER(
+        this, [](void* obj, void* cd) {
+            RegExpObject* self = reinterpret_cast<RegExpObject*>(obj);
+            if (self->m_yarrPattern) {
+                self->m_yarrPattern->reset();
+            }
+            if (self->m_bytecodePattern) {
+                self->m_bytecodePattern->clear();
+            }
+        },
+        nullptr, nullptr, nullptr);
 }
 
 void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
