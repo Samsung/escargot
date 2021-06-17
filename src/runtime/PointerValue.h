@@ -68,6 +68,7 @@ class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
 class TypedArrayObject;
+class ModuleNamespaceObject;
 #if defined(ENABLE_THREADING)
 class SharedArrayBufferObject;
 #endif
@@ -395,6 +396,11 @@ public:
     }
 
     virtual bool isGlobalObjectProxyObject() const
+    {
+        return false;
+    }
+
+    virtual bool isModuleNamespaceObject() const
     {
         return false;
     }

@@ -31,6 +31,11 @@ class ModuleNamespaceObject : public Object {
 public:
     ModuleNamespaceObject(ExecutionState& state, Script* script);
 
+    virtual bool isModuleNamespaceObject() const override
+    {
+        return true;
+    }
+
     virtual bool isInlineCacheable() override
     {
         return false;

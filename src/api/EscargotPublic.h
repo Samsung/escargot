@@ -733,6 +733,7 @@ public:
     bool isSetIteratorObject();
     bool isTypedArrayObject();
     bool isTypedArrayPrototypeObject();
+    bool isModuleNamespaceObject();
 
     bool asBoolean();
     double asNumber();
