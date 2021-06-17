@@ -2324,6 +2324,11 @@ bool ValueRef::isTypedArrayPrototypeObject()
     return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isTypedArrayPrototypeObject();
 }
 
+bool ValueRef::isModuleNamespaceObject()
+{
+    return toImpl(this).isPointerValue() && toImpl(this).asPointerValue()->isModuleNamespaceObject();
+}
+
 bool ValueRef::asBoolean()
 {
     return toImpl(this).asBoolean();
