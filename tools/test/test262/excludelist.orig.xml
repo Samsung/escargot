@@ -1254,11 +1254,6 @@
     <test id="language/expressions/call/tco-non-eval-function-dynamic"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-global"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-with"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/private-methods/prod-private-async-generator"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/private-methods/prod-private-async-method"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/private-methods/prod-private-generator"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/private-methods/prod-private-method"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/private-methods/prod-private-method-initialize-order"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/private-setter-shadowed-by-method-on-nested-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid"><reason>TODO</reason></test>
@@ -1558,11 +1553,6 @@
     <test id="language/statements/class/elements/private-method-brand-check-super-class"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-method-visible-to-direct-eval"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-method-visible-to-direct-eval-on-initializer"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-methods/prod-private-async-generator"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-methods/prod-private-async-method"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-methods/prod-private-generator"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-methods/prod-private-method"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-methods/prod-private-method-initialize-order"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-brand-check-multiple-evaluations-of-class"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-brand-check-super-class"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-shadowed-by-method-on-nested-class"><reason>TODO</reason></test>
