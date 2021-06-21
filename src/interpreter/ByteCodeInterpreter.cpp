@@ -2773,20 +2773,23 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
         }
 
         if (code->m_codeBlock) {
-            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock, state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc, name);
+            constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), code->m_codeBlock,
+                                                                   state.mostNearestHeapAllocatedLexicalEnvironment(), proto, code->m_classSrc, name, code->m_needsToSetHomeObjectForInstanceInCreateClass);
         } else {
             if (!heritagePresent) {
                 Value argv[] = { String::emptyString, String::emptyString };
                 auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
                 functionSource.codeBlock->setAsClassConstructor();
-                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc, name);
+                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(),
+                                                                       functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc, name, code->m_needsToSetHomeObjectForInstanceInCreateClass);
             } else {
                 Value argv[] = { state.context()->staticStrings().lazyDotDotDotArgs().string(),
                                  state.context()->staticStrings().lazySuperDotDotDotArgs().string() };
                 auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
                 functionSource.codeBlock->setAsClassConstructor();
                 functionSource.codeBlock->setAsDerivedClassConstructor();
-                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(), functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc, name);
+                constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(),
+                                                                       functionSource.codeBlock, functionSource.outerEnvironment, proto, code->m_classSrc, name, code->m_needsToSetHomeObjectForInstanceInCreateClass);
             }
         }
 
@@ -2893,10 +2896,27 @@ NEVER_INLINE void ByteCodeInterpreter::complexSetObjectOperation(ExecutionState&
                 ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
             }
         }
-    } else {
-        ASSERT(code->m_type == ComplexSetObjectOperation::Private);
+    } else if (code->m_type == ComplexSetObjectOperation::Private) {
         const Value& object = registerFile[code->m_objectRegisterIndex];
         object.toObject(state)->privateFieldSet(state, code->m_propertyName, registerFile[code->m_loadRegisterIndex]);
+    } else {
+        ASSERT(code->m_type == ComplexSetObjectOperation::PrivateWithCheckThisIsHomeObject);
+        const Value& object = registerFile[code->m_objectRegisterIndex];
+        Object* o = object.toObject(state);
+        auto homeObject = o->homeObject();
+        if (homeObject) {
+            auto d = state.resolveCallee()->homeObject();
+            // if static method
+            if (d->isScriptClassConstructorFunctionObject()) {
+                d = d->asScriptClassConstructorFunctionObject()->homeObject();
+            }
+
+            if (d == homeObject.value()) {
+                o->privateFieldSet(state, code->m_propertyName, registerFile[code->m_loadRegisterIndex]);
+                return;
+            }
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotReadPrivateMember, code->m_propertyName.string());
     }
 }
 
@@ -2915,10 +2935,27 @@ NEVER_INLINE void ByteCodeInterpreter::complexGetObjectOperation(ExecutionState&
 
         Value object = registerFile[code->m_objectRegisterIndex];
         registerFile[code->m_storeRegisterIndex] = object.toObject(state)->get(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex])).value(state, thisValue);
-    } else {
-        ASSERT(code->m_type == ComplexGetObjectOperation::Private);
+    } else if (code->m_type == ComplexGetObjectOperation::Private) {
         const Value& object = registerFile[code->m_objectRegisterIndex];
         registerFile[code->m_storeRegisterIndex] = object.toObject(state)->privateFieldGet(state, code->m_propertyName);
+    } else {
+        ASSERT(code->m_type == ComplexGetObjectOperation::PrivateWithCheckThisIsHomeObject);
+        const Value& object = registerFile[code->m_objectRegisterIndex];
+        Object* o = object.toObject(state);
+        auto homeObject = o->homeObject();
+        if (homeObject) {
+            auto d = state.resolveCallee()->homeObject();
+            // if static method
+            if (d->isScriptClassConstructorFunctionObject()) {
+                d = d->asScriptClassConstructorFunctionObject()->homeObject();
+            }
+
+            if (d == homeObject.value()) {
+                registerFile[code->m_storeRegisterIndex] = o->privateFieldGet(state, code->m_propertyName);
+                return;
+            }
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotReadPrivateMember, code->m_propertyName.string());
     }
 }
 

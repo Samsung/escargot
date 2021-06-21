@@ -25,8 +25,10 @@
 #include "runtime/ScriptVirtualArrowFunctionObject.h"
 
 namespace Escargot {
-ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name)
+ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock,
+                                                                           LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name, bool needsToSetHomeObjectForInstance)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, name ? 3 : 2)
+    , m_needsToSetHomeObjectForInstance(needsToSetHomeObjectForInstance)
     , m_homeObject(homeObject)
     , m_classSourceCode(classSourceCode)
 {
@@ -126,6 +128,27 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
         // Set the [[Prototype]] internal slot of obj to proto.
         thisArgument = new Object(state, proto);
         // ReturnIfAbrupt(thisArgument).
+
+        // if there is class private names on CodeBlock,
+        // we should store homeObject for check nested private class field classes
+        /*
+        var C = class {
+          get #m() { return 'outer class'; }
+          method() { return this.#m; }
+          B = class {
+            method(o) {
+              return o.#m;
+            }
+            #m = 'test262';
+          }
+        }
+        let c = new C();
+        let innerB = new c.B();
+        print(innerB.method(c)) // throw exception
+        */
+        if (m_needsToSetHomeObjectForInstance) {
+            thisArgument->setHomeObject(homeObject());
+        }
     }
 
     // Let calleeContext be PrepareForOrdinaryCall(F, newTarget).

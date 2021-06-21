@@ -126,7 +126,7 @@ public:
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
-                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name(), needsToCheckObjectIsItsInstance(codeBlock)), context, this);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
             }
@@ -181,7 +181,9 @@ public:
                 context->giveUpRegister();
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
-                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
+                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex,
+                                                              m_property->asIdentifier()->name(), valueIndex, needsToCheckObjectIsItsInstance(codeBlock)),
+                                    context, this);
             } else {
                 codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
                 context->giveUpRegister();
@@ -244,7 +246,7 @@ public:
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this);
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
-                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name(), needsToCheckObjectIsItsInstance(codeBlock)), context, this);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
             }
@@ -278,6 +280,21 @@ public:
 
         m_object->iterateChildren(fn);
         m_property->iterateChildren(fn);
+    }
+
+    bool needsToCheckObjectIsItsInstance(ByteCodeBlock* codeBlock)
+    {
+        ASSERT(isReferencePrivateField());
+
+        if (codeBlock->codeBlock()->classPrivateNames()) {
+            auto vec = codeBlock->codeBlock()->classPrivateNames();
+            for (size_t i = 0; i < vec->size(); i++) {
+                if (m_property->asIdentifier()->name() == vec->data()[i]) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 private:

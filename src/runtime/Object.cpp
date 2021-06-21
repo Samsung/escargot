@@ -85,6 +85,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     , m_isFastModeArrayObject(true)
     , m_isArrayObjectLengthWritable(true)
     , m_isSpreadArrayObject(false)
+    , m_isFinalizerRegistered(false)
     , m_shouldUpdateEnumerateObject(false)
     , m_hasNonWritableLastIndexRegExpObject(false)
     , m_hasExtendedExtraData(false)
@@ -1655,6 +1656,7 @@ bool Object::setIndexedProperty(ExecutionState& state, const Value& property, co
     return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
+
 void Object::privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value)
 {
     auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
@@ -1723,7 +1725,7 @@ Value Object::privateFieldGet(ExecutionState& state, AtomicString propertyName)
         }
     }
 
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot read private member %s from an object whose class did not declare it", propertyName.string());
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotReadPrivateMember, propertyName.string());
     return Value();
 }
 
@@ -1748,7 +1750,21 @@ void Object::privateFieldSet(ExecutionState& state, AtomicString propertyName, c
         }
     }
 
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot write private member %s from an object whose class did not declare it", propertyName.string());
+    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotWritePrivateMember, propertyName.string());
+}
+
+void Object::setHomeObject(Object* homeObject)
+{
+    ensureObjectExtendedExtraData()->m_homeObject = homeObject;
+}
+
+Optional<Object*> Object::homeObject()
+{
+    auto e = extendedExtraData();
+    if (e) {
+        return e->m_homeObject;
+    }
+    return nullptr;
 }
 
 IteratorObject* Object::values(ExecutionState& state)
@@ -1939,8 +1955,8 @@ bool Object::isRegExp(ExecutionState& state)
 void Object::addFinalizer(ObjectFinalizer fn, void* data)
 {
     auto r = ensureObjectExtendedExtraData();
-    if (!r->m_finalizerRegistered) {
-        r->m_finalizerRegistered = true;
+    if (!rareData()->m_isFinalizerRegistered) {
+        rareData()->m_isFinalizerRegistered = true;
 
 #ifndef NDEBUG
         GC_finalization_proc of = nullptr;

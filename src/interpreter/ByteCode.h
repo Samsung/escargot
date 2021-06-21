@@ -452,9 +452,11 @@ public:
     };
 
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex,
-                    const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src, const Optional<AtomicString>& name)
+                    const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src, const Optional<AtomicString>& name,
+                    bool needsToSetHomeObjectForInstanceInCreateClass)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::CreateClass)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(needsToSetHomeObjectForInstanceInCreateClass)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_classPrototypeRegisterIndex(classPrototypeRegisterIndex)
         , m_superClassRegisterIndex(superClassRegisterIndex)
@@ -467,6 +469,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldSize, const size_t staticFieldSize)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetFieldSize)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_fieldSize(fieldSize)
         , m_staticFieldSize(staticFieldSize)
@@ -479,6 +482,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, InitFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::InitField)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_initFieldIndex(fieldIndex)
         , m_propertyInitRegisterIndex(propertyIndex)
@@ -491,6 +495,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, const size_t type, InitPrivateFieldTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::InitPrivateField)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_initPrivateFieldIndex(fieldIndex)
         , m_privatePropertyInitRegisterIndex(propertyIndex)
@@ -504,6 +509,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, SetFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetFieldData)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_setFieldIndex(fieldIndex)
         , m_propertySetRegisterIndex(propertyIndex)
@@ -516,6 +522,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, const size_t type, SetPrivateFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetPrivateFieldData)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_setPrivateFieldIndex(fieldIndex)
         , m_privatePropertySetRegisterIndex(propertyIndex)
@@ -529,6 +536,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, InitStaticFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::InitStaticField)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_staticFieldInitIndex(fieldIndex)
         , m_staticPropertyInitRegisterIndex(propertyIndex)
@@ -541,6 +549,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t propertyIndex, InitStaticPrivateFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::InitStaticPrivateField)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_staticPrivateFieldInitIndex(fieldIndex)
         , m_staticPrivatePropertyInitRegisterIndex(propertyIndex)
@@ -553,6 +562,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t valueIndex, SetStaticFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetStaticFieldData)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_staticFieldSetIndex(fieldIndex)
         , m_staticPropertySetRegisterIndex(valueIndex)
@@ -565,6 +575,7 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t fieldIndex, const size_t valueIndex, const size_t type, SetStaticPrivateFieldDataTag)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::SetStaticPrivateFieldData)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
         , m_staticPrivateFieldSetIndex(fieldIndex)
         , m_staticPrivatePropertySetRegisterIndex(valueIndex)
@@ -575,11 +586,13 @@ public:
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::CleanupStaticData)
+        , m_needsToSetHomeObjectForInstanceInCreateClass(false)
         , m_classConstructorRegisterIndex(classRegisterIndex)
     {
     }
 
     Stage m_stage : 4;
+    bool m_needsToSetHomeObjectForInstanceInCreateClass : 1;
     ByteCodeRegisterIndex m_classConstructorRegisterIndex;
     union {
         struct {
@@ -710,7 +723,8 @@ class ComplexSetObjectOperation : public ByteCode {
 public:
     enum Type {
         Super,
-        Private
+        Private,
+        PrivateWithCheckThisIsHomeObject
     };
 
     ComplexSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyNameIndex, const size_t loadRegisterIndex)
@@ -722,16 +736,16 @@ public:
     {
     }
 
-    ComplexSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString s, const size_t loadRegisterIndex)
+    ComplexSetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, AtomicString s, const size_t loadRegisterIndex, bool privateWithCheckThisIsHomeObject)
         : ByteCode(Opcode::ComplexSetObjectOperationOpcode, loc)
-        , m_type(Private)
+        , m_type(privateWithCheckThisIsHomeObject ? PrivateWithCheckThisIsHomeObject : Private)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_propertyName(s)
     {
     }
 
-    Type m_type : 1;
+    Type m_type : 2;
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_loadRegisterIndex;
     union {
@@ -745,8 +759,9 @@ public:
         if (m_type == Super) {
             printf("set object complex(r%d).r%d <- r%d", (int)m_objectRegisterIndex, (int)m_propertyNameIndex, (int)m_loadRegisterIndex);
         } else {
-            ASSERT(m_type == Private);
-            printf("set object complex(r%d).#%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_loadRegisterIndex);
+            ASSERT(m_type == Private || m_type == PrivateWithCheckThisIsHomeObject);
+            printf("set object complex(r%d).#%s <- r%d %s", (int)m_objectRegisterIndex,
+                   m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_loadRegisterIndex, m_type == PrivateWithCheckThisIsHomeObject ? "check this" : "");
         }
     }
 #endif
@@ -756,7 +771,8 @@ class ComplexGetObjectOperation : public ByteCode {
 public:
     enum Type {
         Super,
-        Private
+        Private,
+        PrivateWithCheckThisIsHomeObject
     };
 
     ComplexGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, const size_t propertyNameIndex)
@@ -768,16 +784,16 @@ public:
     {
     }
 
-    ComplexGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, AtomicString s)
+    ComplexGetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, AtomicString s, bool privateWithCheckThisIsHomeObject)
         : ByteCode(Opcode::ComplexGetObjectOperationOpcode, loc)
-        , m_type(Private)
+        , m_type(privateWithCheckThisIsHomeObject ? PrivateWithCheckThisIsHomeObject : Private)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
         , m_propertyName(s)
     {
     }
 
-    Type m_type : 1;
+    Type m_type : 2;
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_storeRegisterIndex;
     union {
@@ -791,8 +807,8 @@ public:
         if (m_type == Super) {
             printf("get object r%d <- complex(r%d).r%d", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyNameIndex);
         } else {
-            ASSERT(m_type == Private);
-            printf("get object r%d <- complex(r%d).#%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data());
+            ASSERT(m_type == Private || m_type == PrivateWithCheckThisIsHomeObject);
+            printf("get object r%d <- complex(r%d).#%s %s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), m_type == PrivateWithCheckThisIsHomeObject ? "check this" : "");
         }
     }
 #endif

@@ -42,7 +42,8 @@ class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
     friend class ByteCodeInterpreter;
 
 public:
-    ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name);
+    ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment,
+                                         Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name, bool needsToSetHomeObjectForInstance);
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
@@ -86,6 +87,7 @@ private:
         return m_prototypeIndex;
     }
 
+    bool m_needsToSetHomeObjectForInstance;
     size_t m_prototypeIndex;
     Object* m_homeObject;
     // We needs to store class source code for toString(). because class constructor stores its source code

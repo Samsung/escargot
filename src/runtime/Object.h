@@ -42,15 +42,15 @@ class ExecutionPauser;
 #define MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME (std::numeric_limits<uint64_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
 typedef void (*ObjectFinalizer)(Object* self, void* data);
+typedef TightVector<std::pair<AtomicString, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<AtomicString, EncodedValue>>> ObjectPrivateFieldValueVector;
 
 struct ObjectExtendedExtraData : public gc {
-    bool m_finalizerRegistered;
     void* m_extraData;
     TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
-    TightVector<std::pair<AtomicString, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<AtomicString, EncodedValue>>> m_privateFieldValues;
+    ObjectPrivateFieldValueVector m_privateFieldValues;
+    Optional<Object*> m_homeObject;
     ObjectExtendedExtraData(void* e)
-        : m_finalizerRegistered(false)
-        , m_extraData(e)
+        : m_extraData(e)
     {
     }
 };
@@ -61,6 +61,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isFastModeArrayObject : 1;
     bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
+    bool m_isFinalizerRegistered : 1;
     bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
     bool m_hasNonWritableLastIndexRegExpObject : 1;
     bool m_hasExtendedExtraData : 1;
@@ -971,10 +972,13 @@ public:
         }
     }
 
-    virtual void privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value);
-    virtual void privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter);
-    virtual Value privateFieldGet(ExecutionState& state, AtomicString propertyName);
-    virtual void privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value);
+    void privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value);
+    void privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter);
+    Value privateFieldGet(ExecutionState& state, AtomicString propertyName);
+    void privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value);
+
+    void setHomeObject(Object* homeObject);
+    Optional<Object*> homeObject();
 
     void markThisObjectDontNeedStructureTransitionTable()
     {
@@ -1170,6 +1174,14 @@ protected:
     {
         ASSERT(hasRareData());
         return (ObjectRareData*)m_prototype;
+    }
+
+    ObjectExtendedExtraData* extendedExtraData()
+    {
+        if (hasRareData() && rareData()->m_hasExtendedExtraData) {
+            return rareData()->m_extendedExtraData;
+        }
+        return nullptr;
     }
 
     ObjectExtendedExtraData* ensureObjectExtendedExtraData()

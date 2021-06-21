@@ -194,14 +194,20 @@ struct ASTScopeContextClassPrivateUsingInfo {
 
 typedef Vector<ASTScopeContextClassPrivateUsingInfo, GCUtil::gc_malloc_atomic_allocator<ASTScopeContextClassPrivateUsingInfo>, ComputeReservedCapacityFunctionWithLog2<>> ASTScopeContextClassPrivateUsingInfoVector;
 
+struct ASTScopeContext;
+
 struct ASTClassInfo {
     bool m_isClassExpression;
+    bool m_hasSameNameOnParentClass;
     ASTClassInfo *m_parent;
     ASTClassInfo *m_firstChild;
     ASTClassInfo *m_lastChild;
     ASTClassInfo *m_nextSibling;
     AtomicStringVector m_classPrivateNames;
     ASTScopeContextClassPrivateUsingInfoVector m_classPrivateNameUsingInfo;
+
+    ASTScopeContext *m_firstMethod;
+    ASTScopeContext *m_lastMethod;
 
     void appendChild(ASTClassInfo *child)
     {
@@ -259,10 +265,13 @@ struct ASTClassInfo {
 
     explicit ASTClassInfo(bool isClassExpression)
         : m_isClassExpression(isClassExpression)
+        , m_hasSameNameOnParentClass(false)
         , m_parent(nullptr)
         , m_firstChild(nullptr)
         , m_lastChild(nullptr)
         , m_nextSibling(nullptr)
+        , m_firstMethod(nullptr)
+        , m_lastMethod(nullptr)
     {
     }
 };
@@ -298,6 +307,7 @@ struct ASTScopeContext {
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;
+    AtomicStringTightVector *m_classPrivateNames;
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 
@@ -674,6 +684,7 @@ struct ASTScopeContext {
         , m_functionBodyBlockIndex(0)
         , m_lexicalBlockIndexFunctionLocatedIn(LEXICAL_BLOCK_INDEX_MAX)
         , m_varNamesMap(nullptr)
+        , m_classPrivateNames(nullptr)
         , m_firstChild(nullptr)
         , m_nextSibling(nullptr)
         , m_functionStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
